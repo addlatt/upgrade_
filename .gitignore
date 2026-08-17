@@ -1,0 +1,3 @@
+# scanner output, never commit someone's machine report
+upgrade-report-*.txt
+upgrade-report-*.json
