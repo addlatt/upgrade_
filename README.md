@@ -1,6 +1,6 @@
 # upgrade_
 
-**Move an ordinary computer from Windows to Linux, without needing to know how.**
+** Convert your machine to Linux**
 
 Plug in a USB stick, pick a distribution, click convert, walk away. Come back to
 a working Linux machine with your files, Wi-Fi and browsers intact.
