@@ -167,7 +167,7 @@ function Get-UpgAppRiskDatabase {
         @{ Match='OneDrive'
            Severity='friction'
            Note='No official Linux OneDrive client. Third-party sync clients exist and work, but setup is manual.' }
-        @{ Match='(?<!Microsoft )Visual Studio (?!Code)'
+        @{ Match='Visual Studio (?!Code)'
            Severity='friction'
            Note='Visual Studio (the full IDE) is Windows-only. VS Code, JetBrains Rider and the .NET SDK all run natively on Linux.' }
     )

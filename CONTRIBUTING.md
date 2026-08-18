@@ -13,7 +13,7 @@ it didn't recognise:
     wifi 14c3:7925 (MediaTek Wi-Fi 7 MT7925 Wireless LAN Card)
 ```
 
-Add it to `scan/data/devices.ps1`:
+Add it to `data/devices.ps1`:
 
 ```powershell
 '14c3:7925' = @{ Name='MediaTek MT7925'; Driver='mt7925e'; MinKernel='6.7'; Status='warn'
@@ -56,7 +56,7 @@ Notes are shown to the user verbatim, and the user is often not technical.
 
 ## The distribution table
 
-`scan/data/distros.ps1` goes stale faster than anything else here, and a stale
+`data/distros.ps1` goes stale faster than anything else here, and a stale
 kernel number produces confidently wrong advice. Entries marked `Approx=$true`
 were not checked against a primary source and need confirming.
 
@@ -73,7 +73,7 @@ PowerShell 7 syntax: no `?:` ternaries, no `??`, no `-Parallel`.
 Run the tests before opening a PR:
 
 ```powershell
-.\scan\upgrade-scan.ps1 -SelfTest
+.\evaluate\windows\upgrade-scan.ps1 -SelfTest
 ```
 
 If you change verdict logic, add a case to `Invoke-UpgSelfTest` covering it.

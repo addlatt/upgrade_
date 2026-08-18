@@ -38,7 +38,7 @@ $UpgVersion = '0.1.0'
 # The build script replaces this block with the file contents inline, so the
 # released single file has no dependencies. Running from source uses the files.
 # --- inlined by build.sh -----------------------------------------------
-# --- Do not edit here. Edit scan/data/*.ps1 and rebuild. ---------------
+# --- Do not edit here. Edit data/*.ps1 and rebuild. ---------------
 # =============================================================================
 #  upgrade_ / device knowledge base
 # =============================================================================
@@ -208,7 +208,7 @@ function Get-UpgAppRiskDatabase {
         @{ Match='OneDrive'
            Severity='friction'
            Note='No official Linux OneDrive client. Third-party sync clients exist and work, but setup is manual.' }
-        @{ Match='(?<!Microsoft )Visual Studio (?!Code)'
+        @{ Match='Visual Studio (?!Code)'
            Severity='friction'
            Note='Visual Studio (the full IDE) is Windows-only. VS Code, JetBrains Rider and the .NET SDK all run natively on Linux.' }
     )

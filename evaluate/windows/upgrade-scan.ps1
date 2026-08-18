@@ -38,8 +38,8 @@ $UpgVersion = '0.1.0'
 # The build script replaces this block with the file contents inline, so the
 # released single file has no dependencies. Running from source uses the files.
 #!INLINE-DATA-BEGIN!#
-. (Join-Path $PSScriptRoot 'data\devices.ps1')
-. (Join-Path $PSScriptRoot 'data\distros.ps1')
+. (Join-Path $PSScriptRoot '..\..\data\devices.ps1')
+. (Join-Path $PSScriptRoot '..\..\data\distros.ps1')
 #!INLINE-DATA-END!#
 
 # =============================================================================

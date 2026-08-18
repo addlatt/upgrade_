@@ -10,13 +10,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SRC="$ROOT/scan/upgrade-scan.ps1"
+SRC="$ROOT/evaluate/windows/upgrade-scan.ps1"
 OUT_DIR="$ROOT/dist"
 OUT="$OUT_DIR/upgrade-scan.ps1"
 
 DATA_FILES=(
-    "$ROOT/scan/data/devices.ps1"
-    "$ROOT/scan/data/distros.ps1"
+    "$ROOT/data/devices.ps1"
+    "$ROOT/data/distros.ps1"
 )
 
 for f in "$SRC" "${DATA_FILES[@]}"; do
@@ -31,7 +31,7 @@ skip=0
         case "$line" in
             *'#!INLINE-DATA-BEGIN!#'*)
                 echo "# --- inlined by build.sh -----------------------------------------------"
-                echo "# --- Do not edit here. Edit scan/data/*.ps1 and rebuild. ---------------"
+                echo "# --- Do not edit here. Edit data/*.ps1 and rebuild. ---------------"
                 for f in "${DATA_FILES[@]}"; do
                     cat "$f"
                     echo
