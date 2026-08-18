@@ -14,34 +14,24 @@ a working Linux machine with your files, Wi-Fi and browsers intact.
 
 ## Why
 
-Windows 10 stopped getting security updates in October 2025. Windows 11's TPM
-and CPU requirements stranded an enormous number of machines that are
-mechanically and electrically fine. Those computers are not broken. They were
-declared obsolete by someone else's product roadmap.
-
-Most of them can run Linux for another five years. The obstacle was never
-capability — it's that converting a machine currently requires knowing which
-distribution suits your hardware, why the installer can't see your SSD, and what
-to do when the speakers are silent afterwards. That knowledge is the barrier,
-and it's the thing software can carry for you.
+Your os should not control your hardware.
 
 ## How it works
 
-Three modules. The boundary between them is **commitment**, not operating
-system.
+Three modules. 
 
 | | | |
 |---|---|---|
-| **`evaluate`** | Windows · reversible | Reads the machine, captures your choices, extracts everything that only exists while Windows does, and refuses anything it can't do safely. |
-| **`upgrade_`** | Windows → Linux | Backs up, then converts. Contains the commit line. |
+| **`evaluate`** | Source · reversible | Reads the machine, captures your choices, extracts everything that depends on the source system for existance, and refuses anything it can't do safely. |
+| **`upgrade_`** | Source → Linux | Backs up, then converts. Contains the commit line. |
 | **`settle-in`** | Linux | Verifies the hardware actually works, hands over, stops. |
 
 ### The commit line
 
 Exactly one moment in this system is irreversible: **the first partition
-write**, two thirds of the way through `upgrade_`. Everything before it —
+write**, two thirds of the way through `upgrade_`. Everything before it,
 including a disk image that may take hours — is additive. Nothing has been
-destroyed, and a failure at any earlier point simply boots Windows again.
+destroyed, and a failure at any earlier point simply boots Source again.
 
 Two rules follow. The interface says *"you can still cancel"* until that exact
 moment and stops the instant it's crossed. And everything capable of refusing
