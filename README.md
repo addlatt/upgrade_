@@ -2,8 +2,9 @@
 
 **Move an ordinary computer from Windows to Linux, without needing to know how.**
 
-Plug in a USB stick, pick a distribution, click convert, walk away. Come back to
-a working Linux machine with your files, Wi-Fi and browsers intact.
+Plug in a USB stick, make two choices, click convert. Come back to a working
+Linux machine with your files, Wi-Fi and browsers intact. One stick is the
+whole kit — there is no external drive anywhere in this design.
 
 > **Status: the evaluator works. The conversion is designed, not built.**
 > Today you can run the preflight scanner and get a real answer about your
@@ -33,15 +34,19 @@ system.
 | | | |
 |---|---|---|
 | **`evaluate`** | Windows · reversible | Reads the machine, captures your choices, extracts everything that only exists while Windows does, and refuses anything it can't do safely. |
-| **`upgrade_`** | Windows → Linux | Backs up, then converts. Contains the commit line. |
+| **`upgrade_`** | Windows → Linux | The converter. Stages your files to the stick — or shrinks Windows aside and leaves them in place — then converts. |
 | **`settle-in`** | Linux | Verifies the hardware actually works, hands over, stops. |
 
 ### The commit line
 
-Exactly one moment in this system is irreversible: **the first partition
-write**, two thirds of the way through `upgrade_`. Everything before it —
-including a disk image that may take hours — is additive. Nothing has been
-destroyed, and a failure at any earlier point simply boots Windows again.
+Exactly one moment in a conversion is irreversible, and Windows stays bootable
+until it. On the **clean-slate** path (your files ride the stick) it is the
+disk wipe — guarded by a two-minute human hardware check in the live session,
+because that path has no rollback. On the **safety-copy** path (your files
+never leave the internal disk; Windows is shrunk aside and kept) it is the
+**reclaim** of the Windows partition, which happens only after first-boot
+verification and your explicit consent. Everything earlier is additive, and a
+failure at any earlier point simply boots Windows again.
 
 Two rules follow. The interface says *"you can still cancel"* until that exact
 moment and stops the instant it's crossed. And everything capable of refusing
@@ -57,6 +62,11 @@ Full design in [docs/architecture.md](docs/architecture.md).
 A read-only scanner. It tells you whether this specific machine can move to
 Linux, what will break, which distribution to use, and what to do first. It
 changes nothing, encrypts nothing, deletes nothing, and sends nothing anywhere.
+
+The scanner is deliberately two tools in one codebase: run standalone, it is a
+general advisory tool that recommends across distributions; run inside the
+converter, it becomes `evaluate` — the converter's own gates, its capacity
+checks, and (in v1) Fedora-only messaging. Same checks, one flag.
 
 The valuable output is not a yes/no. It's **the kernel version your hardware
 needs**, and which popular distributions fail to meet it.
@@ -75,7 +85,7 @@ broken. They picked a release from before their laptop existed.
 | **Smart audio amps** | Cirrus and TI amps mean headphones work and the internal speakers are silent. Extremely common on 2023+ laptops. |
 | **BitLocker** | Resize an encrypted disk without the recovery key and the data is gone permanently. |
 | **Fast Startup** | Windows hibernates instead of shutting down, leaving the partition unsafe to resize. Shutting down does not clear it. |
-| **Free space & backup size** | Tells you how big an external drive you actually need. |
+| **Free space & staging size** | Which conversion path fits this machine: files-on-the-stick, or shrink-Windows-aside. (The shipped scanner still uses dual-boot-era wording here — being reworked, see RISKS R4.) |
 | **Installed software** | Adobe, Office, CAD, kernel anti-cheat games. The honest answer is sometimes "don't convert this machine." |
 
 Unrecognised devices are listed at the end of the report so they can be
@@ -109,12 +119,15 @@ unelevated; it just caps its verdict and says so.
 
 **Be honest about machines we can't do safely, and refuse them.**
 
-There is no override flag for a RED verdict, and there should never be one. The
-converter will require an external drive and turn away anyone without one. It
-will refuse machines with Intel RST/VMD active, because that setting cannot be
-changed safely from software on every vendor's firmware.
+There is no override flag for a RED verdict, and there should never be one.
+The converter runs from a single USB stick and refuses machines it cannot fit
+— files too large for the stick and too little space to shrink Windows aside —
+but the refusal is a **gap report**, not a door slam: exactly how many GB to
+free or what stick size would change the answer. It will refuse machines with
+Intel RST/VMD active, because that setting cannot be changed safely from
+software on every vendor's firmware.
 
-This turns away real users, and that is the correct trade. A tool like this
+This still turns away real users, and that is the correct trade. A tool like this
 earns trust once and spends it permanently the first time it destroys someone's
 photos. Any component that writes to a disk has to clear a far higher bar than
 the scanner does — which is why none of them are written yet.
@@ -140,10 +153,10 @@ close it. Read it before trusting any single check. Notably: **VMD detection has
 never fired on real hardware**, and it guards the most consequential case.
 
 Also on the list, and not a code problem: the finished converter will need a
-code-signing certificate. Behaviourally it elevates, reads recovery keys, images
-disks and rewrites boot configuration — indistinguishable from malware to
-Defender. Unsigned, it gets quarantined and the people it's built for stop
-there.
+code-signing certificate. Behaviourally it elevates, reads recovery keys,
+writes raw USB devices, resizes partitions and rewrites boot configuration —
+indistinguishable from malware to Defender. Unsigned, it gets quarantined and
+the people it's built for stop there.
 
 ---
 
@@ -157,9 +170,9 @@ schemas/                contracts between modules (change rarely, review hard)
 
 evaluate/               module 1 — read the machine, capture intent, refuse
   windows/                scanner + state harvester
-upgrade_/               module 2 — do the conversion; holds the commit line
-  windows/                prologue: image, stage, boot handoff
-  linux/                  cutover: partition, install, inject, restore
+upgrade_/               module 2, "the converter" — does the conversion
+  windows/                prologue: stage to stick or shrink aside, boot handoff
+  linux/                  cutover: install, inject, restore
 settle-in/              module 3 — verify hardware, hand over, stop
   linux/
 
@@ -201,14 +214,19 @@ every refusal path is currently tested only synthetically.
 
 Next, in order:
 
-1. `job.json` schema — the contract between `evaluate` and `upgrade_`
-2. **Artifact extraction** — vendor firmware and keys. First because it's the
-   one piece that cannot be added later: once Windows is gone, those files are
-   unrecoverable.
-3. Kickstart generator — `job.json` → a Fedora install
-4. Live image — Fedora squashfs plus the cutover orchestrator
-5. `settle-in`
-6. Imaging, boot handoff, rollback — **last, and reviewed hardest**
+1. **The spine spike** — a hello-world conversion in a VM: boot handoff →
+   live image → kickstart → Fedora. Proves the walk-away mechanism on
+   evidence before anything is built on top of it.
+2. `job.json` schema — the contract between `evaluate` and `upgrade_`
+3. **Artifact extraction** — vendor firmware and keys. The one piece that
+   cannot be added later on a user's machine: once Windows is gone, those
+   files are unrecoverable.
+4. Kickstart generator — `job.json` → a Fedora install (per-target seam for
+   future distributions)
+5. Live image — Fedora squashfs (KDE and GNOME) plus the cutover orchestrator
+6. `settle-in`, including reclaim
+7. Shrink, stick authoring, boot handoff hardening — **last, and reviewed
+   hardest**
 
 Longer term: hardware data seeded from
 [linux-hardware.org](https://linux-hardware.org) probes rather than hand-curated,
@@ -216,10 +234,11 @@ and opt-in outcome reporting so the database learns from real conversions.
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+GPL-3.0 — see [LICENSE](LICENSE).
 
-A note on that choice: MIT was picked to make forking and vendoring
-frictionless, which matters for a tool meant to be handed around at repair
-events. If you'd rather this be copyleft, GPL-3.0 is a defensible fit for a
-project whose trust model is "read the source" — it's a one-file change while
-the contributor count is still small, and much harder later.
+A note on that choice: this project's trust model is "read the source", and
+copyleft guarantees every fork stays readable. The nightmare scenario is a
+closed fork that quietly softens the refusals while wearing this project's
+earned trust; GPL-3.0 is the licence that forbids it. (It was MIT briefly —
+switched while the contributor count was one, exactly when the old README
+said it would be cheap.)

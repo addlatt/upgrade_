@@ -133,7 +133,7 @@ function Get-UpgVendorQuirks {
         @{ Match='Microsoft Corporation|Surface'; Status='warn'
            Note='Surface hardware needs the linux-surface kernel and firmware for touch, cameras, sleep and sometimes Wi-Fi. Plan on following the linux-surface project setup, not a plain install.' }
         @{ Match='Apple Inc\.|MacBook|iMac|Macmini'; Status='warn'
-           Note='Apple hardware. Intel Macs with a T2 security chip need special installation media for the keyboard, trackpad and SSD. Apple Silicon Macs need Asahi Linux, which is a different process entirely.' }
+           Note='Apple hardware. Intel Macs with a T2 security chip need the t2linux project drivers for the keyboard, trackpad, audio and SSD - workable, but not a simple install. Apple Silicon Macs are well served by Asahi Linux (asahilinux.org), which handles them properly; use that rather than a generic installer. Pre-2018 Intel Macs install normally, with Broadcom Wi-Fi the usual snag.' }
         @{ Match='Framework'; Status='ok'
            Note='Framework laptops are explicitly Linux-supported by the manufacturer. This is about as smooth as it gets.' }
     )

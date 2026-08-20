@@ -83,7 +83,9 @@ and Ubuntu 26.04 is added or explicitly excluded with a reason.
 **What.** The scanner's free-space check says "Not enough free space to install
 Linux **alongside** Windows" and uses 25/60 GB dual-boot thresholds
 (`evaluate/windows/upgrade-scan.ps1`, `Test-UpgDisk`). The converter lists dual-boot as an
-explicit non-goal, replaces Windows entirely, and requires an external drive.
+explicit non-goal and replaces Windows entirely (at the time this was
+written, via a since-removed external-drive design; now via the USB-only
+paths).
 
 **If real.** The scanner answers a question the product no longer asks. A user
 passes the free-space check, starts the converter, and is refused for a reason
@@ -97,9 +99,16 @@ both. **Decide before the WPF app wraps around it** — this gets expensive to
 unwind afterwards.
 
 **Partially addressed.** The module split (`docs/architecture.md`) places the
-scanner inside `evaluate`, which owns all refusals including external-drive
-capacity. That fixes ownership but not the wording: the free-space check still
-advises about dual-boot thresholds the product no longer uses. Still open.
+scanner inside `evaluate`, which owns all refusals. That fixes ownership but
+not the wording.
+
+**Decided (2026-08-19).** The scanner keeps two personalities in one codebase:
+standalone, a general advisory tool recommending across distributions;
+embedded, the converter's `evaluate` mode with the converter's own gates. The
+free-space check survives with new meaning under the USB-only design —
+shrinkable space gates the safety-copy path, stick capacity gates the
+clean-slate path. The dual-boot wording in the shipped scanner is still wrong
+and the rework is still open; the decision closes the direction, not the code.
 
 ## R5 — Single-user assumption · high · open
 
@@ -122,9 +131,9 @@ is an acceptable v1 answer. Silently migrating one is not.
 **What.** `Get-HarvestFolderStats` stops at 250,000 files and sets
 `Truncated=$true`. The backup estimate is then low.
 
-**If real.** The user buys or selects an external drive based on a number that
-is too small, and the conversion fails partway through the imaging step — after
-committing.
+**If real.** The path gate and the gap report are computed from a number that
+is too small: a machine is steered onto the clean-slate path with files that
+do not actually fit the stick, discovered at staging — or worse, trusted.
 
 **Closes when.** The Phase A UI treats `Truncated` as a hard blocker rather
 than a note, or sizing is made exact for the folders that feed the estimate.
@@ -234,6 +243,101 @@ target. Compromising a release binary owns every machine that runs it.
 
 **Closes when.** Releases are reproducible, signed, and checksummed, and the
 release process does not depend on a single unprotected credential.
+
+---
+
+# USB-only redesign · added 2026-08-19
+
+The external drive was removed from the design: user files either ride the
+stick (clean-slate path) or never leave the internal disk while Windows is
+shrunk aside and kept until an explicit reclaim (safety-copy path). That
+redesign retires the imaging risks and creates these.
+
+## R15 — One-time UEFI boot handoff has never fired · critical · open
+
+**What.** Walk-away rests entirely on `bcdedit /set {fwbootmgr} bootsequence`
+booting the stick exactly once. It has been tested on zero machines. Vendor
+firmware is creative about removable-media entries: some ignore
+`bootsequence` for USB devices, some re-enumerate and orphan the entry.
+
+**If real.** Benign but total: the machine boots Windows, the user concludes
+the tool did nothing. The product's core mechanism silently doesn't exist on
+some fraction of hardware, and we don't know the fraction.
+
+**Closes when.** The spine spike (build order step 0) passes in a VM and on
+physical machines from at least three vendors.
+
+## R16 — Stick authoring can write the wrong device · critical · open
+
+**What.** `evaluate` burns the live image with raw `\\.\PhysicalDrive`
+writes. The user may have other USB devices attached.
+
+**If real.** The tool destroys someone's data *before* the commit line — the
+one failure mode the whole architecture exists to prevent, committed by the
+component that promised to be safe.
+
+**Closes when.** Device selection refuses non-removable buses, confirms size
+and volume label with the user, refuses ambiguity outright — and the picker is
+tested with multiple sticks and a USB hard drive attached simultaneously.
+
+## R17 — Counterfeit or failing flash as the sole data carrier · high · open
+
+**What.** On the clean-slate path the stick is briefly the only copy of the
+user's files. Counterfeit sticks lie about capacity and silently discard
+writes; cheap flash fails without warning.
+
+**If real.** Files verified as "staged" do not exist, discovered after the
+wipe.
+
+**Closes when.** The cutover's read-back checksum verification (which runs
+before the commit line, while Windows still exists) is implemented as a hard
+gate and demonstrated to catch a known-counterfeit stick.
+
+## R18 — Windows shrink headroom is unmeasured · high · open
+
+**What.** Immovable files — MFT, VSS store, pagefile, hiberfil — cap how far
+`Resize-Partition` can shrink, often far short of free space. `evaluate`
+currently reasons about free space, not *shrinkable* space, and the
+mitigations (disable pagefile/hibernation/system restore, reboot, retry) are
+designed, not built.
+
+**If real.** The safety-copy path is offered to machines that cannot deliver
+it; the prologue fails late, after intent capture and hard confirmation —
+recoverable, but exactly the walk-away-killing stop the design forbids.
+
+**Closes when.** `evaluate` queries actual shrinkable space (the same query
+Disk Management uses) and the safety-copy gate uses that number, verified on
+a fragmented real-world disk.
+
+## R19 — cryptsetup BITLK unattended is a new trust dependency · high · open
+
+**What.** The safety-copy path unlocks the BitLocker NTFS volume from the
+live environment using the harvested recovery key via `cryptsetup` BITLK
+support, unattended, on the only copy of the user's data.
+
+**If real.** Read failures or edge-case incompatibilities (key protector
+types, XTS variants, used-space-only encryption) stop the copy mid-path — or
+worse, read wrong data that then checksums as what was (wrongly) read.
+
+**Closes when.** Unlock-and-copy is verified against real BitLocker volumes
+across Windows 10/11 defaults, both XTS-AES key sizes, and used-space-only
+encryption; checksums are computed on the Windows side at harvest time so the
+Linux-side verify catches read corruption, not just copy corruption.
+
+## R20 — Browser profile porting is assumed, not verified · medium · open
+
+**What.** The migration table promises Chrome/Edge bookmarks, history and
+extensions transfer by copying the profile directory. Cookies and several
+profile components are DPAPI-encrypted like the passwords are; version skew
+between Windows and Linux builds can make the browser reset or refuse the
+profile; extension state does not reliably survive a copy.
+
+**If real.** "Your stuff silently didn't arrive" — the project's worst
+failure shape, in the feature most users will check first.
+
+**Closes when.** Real Windows→Linux profile transplants are verified per
+browser and version pair, and `evaluate`'s claims are narrowed to what the
+evidence supports.
 
 ---
 
