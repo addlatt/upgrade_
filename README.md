@@ -149,7 +149,10 @@ the scanner does — which is why none of them are written yet.
 
 Known unknowns are tracked openly in [docs/RISKS.md](docs/RISKS.md) — what is
 unverified, what would happen if each risk is real, and what evidence would
-close it. Read it before trusting any single check. Notably: **VMD detection has
+close it. The ordered plan for closing the load-bearing ones — what must be
+proven before anything else gets built — is
+[docs/VALIDATION.md](docs/VALIDATION.md). Read both before trusting any single
+check. Notably: **VMD detection has
 never fired on real hardware**, and it guards the most consequential case.
 
 Also on the list, and not a code problem: the finished converter will need a
