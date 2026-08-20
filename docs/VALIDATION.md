@@ -34,6 +34,11 @@ so instead of silently doing nothing.
 key we show you." Walk-away degrades from perfect to press-one-key. Survivable
 but the interface, docs and marketing all change — which is why this is V0.
 
+**How to run.** The harness is `upgrade_/windows/Test-Handoff.ps1` (arm /
+reboot / check, with `-FailMode` for the deliberate-failure paths); build the
+stick per `upgrade_/windows/handoff-payload/README.md`; evidence lands in
+`docs/validation-results/v0-handoff.csv`.
+
 ## V1 — Unattended install completes, Secure Boot on · kills: the conversion
 
 The second half of the spine: a custom-composed live stick (Fedora's signed
