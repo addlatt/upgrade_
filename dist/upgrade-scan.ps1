@@ -131,6 +131,13 @@ function Get-UpgGpuDatabase {
                          Note='Strix Point graphics need kernel 6.10 or newer. On an older kernel you get software rendering or a black screen.' }
         '1002:1900' = @{ Name='AMD Radeon 780M (Phoenix)';     Driver='amdgpu'; MinKernel='6.4';  Status='ok' }
         '1002:164e' = @{ Name='AMD Raphael iGPU';              Driver='amdgpu'; MinKernel='6.1';  Status='ok' }
+
+        # NVIDIA discrete - the vendor rule already handles these correctly;
+        # exact entries just give a better name. RTX 40-series = Ada (AD10x),
+        # supported by the proprietary driver (535+) and nouveau on recent
+        # kernels. Source: NVIDIA supported-products list + kernel pci.ids.
+        '10de:28e0' = @{ Name='NVIDIA GeForce RTX 4060 Laptop'; Driver='nvidia (proprietary)'; MinKernel=''; Status='warn'
+                         Note='NVIDIA needs the proprietary driver for usable performance. Choose a distro that installs it for you - Linux Mint, Pop!_OS, and Fedora all do.' }
     }
 }
 
