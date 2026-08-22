@@ -20,6 +20,17 @@ The V-numbers are stable identifiers, not a priority order — read the tier, no
 the number. **The meta-rule: no component gets built on top of an unvalidated
 gate it depends on.** The dependency map is at the bottom.
 
+**Method note (2026-08-22): spoof everything spoofable.** Each gate splits
+into a part testable without the real thing — detection logic against
+fabricated objects, replays of captured real-machine enumerations
+(`-DumpMachine` → `evaluate/windows/corpus/`), spoofed devices in VMs — and
+an unspoofable residue that only a real machine or primary source can close.
+The spoofable part gets automated tests that run on every `-SelfTest`; the
+residue is what the gate's **Pass** line means. A green simulation narrows a
+gate; it never closes one, because the simulation is built from the very
+model of the hardware the gate exists to question. CLAUDE.md rule #5 carries
+the full statement.
+
 ---
 
 # Tier 1 — no product if these fail

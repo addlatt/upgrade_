@@ -2,6 +2,10 @@
 upgrade-report-*.txt
 upgrade-report-*.json
 
+# ad-hoc -DumpMachine captures: hardware-only, but they land in
+# evaluate/windows/corpus/ only after review and Expected curation
+machine-capture*.json
+
 # V0 handoff payload: redistributable EFI binaries are build inputs, not source.
 # Fetch per upgrade_/windows/handoff-payload/README.md.
 upgrade_/windows/handoff-payload/*.efi

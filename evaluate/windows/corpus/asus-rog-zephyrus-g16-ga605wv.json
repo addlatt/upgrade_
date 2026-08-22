@@ -1,0 +1,1306 @@
+{
+  "SchemaVersion": 1,
+  "Captured": "2026-08-22",
+  "Label": "ASUSTeK COMPUTER INC. ROG Zephyrus G16 GA605WV_GA605WV",
+  "Sys": {
+    "Vendor": "ASUSTeK COMPUTER INC.",
+    "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+    "RamGB": 31.1,
+    "CpuName": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M",
+    "CpuArch": 9,
+    "CpuCores": 12,
+    "IsLaptop": true,
+    "Firmware": "UEFI"
+  },
+  "Pnp": [
+    {
+      "Name": "High precision event timer",
+      "DeviceID": "ACPI\\PNP0103\\3&11583659&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "AMD SMBUS",
+      "DeviceID": "PCI\\VEN_1022&DEV_790B&SUBSYS_1E831043&REV_71\\3&11583659&0&A0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_790B&REV_71",
+        "PCI\\VEN_1022&DEV_790B",
+        "PCI\\VEN_1022&CC_0C0500",
+        "PCI\\VEN_1022&CC_0C05",
+        "PCI\\VEN_1022",
+        "PCI\\CC_0C0500",
+        "PCI\\CC_0C05"
+      ]
+    },
+    {
+      "Name": "NVIDIA High Definition Audio",
+      "DeviceID": "HDAUDIO\\FUNC_01&VEN_10DE&DEV_00A7&SUBSYS_10433878&REV_1001\\5&3712D0FD&0&0001",
+      "PNPClass": "MEDIA",
+      "Service": "NVHDA",
+      "CompatibleID": [
+        "HDAUDIO\\FUNC_01&CTLR_VEN_10DE&CTLR_DEV_22BE&VEN_10DE&DEV_00A7&REV_1001",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_10DE&VEN_10DE&DEV_00A7&REV_1001",
+        "HDAUDIO\\FUNC_01&VEN_10DE&DEV_00A7&REV_1001",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_10DE&CTLR_DEV_22BE&VEN_10DE&DEV_00A7",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_10DE&VEN_10DE&DEV_00A7",
+        "HDAUDIO\\FUNC_01&VEN_10DE&DEV_00A7",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_10DE&CTLR_DEV_22BE&VEN_10DE",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_10DE&VEN_10DE",
+        "HDAUDIO\\FUNC_01&VEN_10DE",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_10DE&CTLR_DEV_22BE",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_10DE",
+        "HDAUDIO\\FUNC_01&GF&VEN_10DE&DEV_00A7&SUBSYS_10433878&REV_1001",
+        "HDAUDIO\\FUNC_01"
+      ]
+    },
+    {
+      "Name": "Motherboard resources",
+      "DeviceID": "ACPI\\PNP0C02\\0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "AMD PCI",
+      "DeviceID": "PCI\\VEN_1022&DEV_150D&SUBSYS_150D1022&REV_00\\4&23445453&0&0042",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_150D&REV_00",
+        "PCI\\VEN_1022&DEV_150D",
+        "PCI\\VEN_1022&CC_130000",
+        "PCI\\VEN_1022&CC_1300",
+        "PCI\\VEN_1022",
+        "PCI\\CC_130000&DT_0",
+        "PCI\\CC_130000",
+        "PCI\\CC_1300&DT_0",
+        "PCI\\CC_1300"
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_16F9&SUBSYS_00000000&REV_00\\3&11583659&0&C1",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "Direct memory access controller",
+      "DeviceID": "ACPI\\PNP0200\\4&18825259&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "Microsoft ACPI-Compliant Control Method Battery",
+      "DeviceID": "ACPI\\PNP0C0A\\1",
+      "PNPClass": "Battery",
+      "Service": "CmBatt",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "ASUS System Control Interface v3",
+      "DeviceID": "ACPI\\ASUS2018\\2&DABA3FF&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "ACPI Fan",
+      "DeviceID": "ACPI\\PNP0C0B\\1",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_16FA&SUBSYS_00000000&REV_00\\3&11583659&0&C2",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "Cirrus Logic Awesome Speaker Amps",
+      "DeviceID": "ACPI\\CSC3556\\1",
+      "PNPClass": "MEDIA",
+      "Service": "csaudio",
+      "CompatibleID": [
+        "ACPI\\VEN_CSC&DEV_3556"
+      ]
+    },
+    {
+      "Name": "AMD Audio CoProcessor",
+      "DeviceID": "PCI\\VEN_1022&DEV_15E2&SUBSYS_15E21022&REV_70\\4&35FE04F8&0&0541",
+      "PNPClass": "System",
+      "Service": "amdacpbus",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_15E2&REV_70",
+        "PCI\\VEN_1022&DEV_15E2",
+        "PCI\\VEN_1022&CC_048000",
+        "PCI\\VEN_1022&CC_0480",
+        "PCI\\VEN_1022",
+        "PCI\\CC_048000&DT_0",
+        "PCI\\CC_048000",
+        "PCI\\CC_0480&DT_0",
+        "PCI\\CC_0480"
+      ]
+    },
+    {
+      "Name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+      "DeviceID": "PCI\\VEN_10DE&DEV_28E0&SUBSYS_38781043&REV_A1\\4&36636F97&0&0019",
+      "PNPClass": "Display",
+      "Service": "nvlddmkm",
+      "CompatibleID": [
+        "PCI\\VEN_10DE&DEV_28E0&REV_A1",
+        "PCI\\VEN_10DE&DEV_28E0",
+        "PCI\\VEN_10DE&CC_030000",
+        "PCI\\VEN_10DE&CC_0300",
+        "PCI\\VEN_10DE",
+        "PCI\\CC_030000&DT_1",
+        "PCI\\CC_030000",
+        "PCI\\CC_0300&DT_1",
+        "PCI\\CC_0300"
+      ]
+    },
+    {
+      "Name": "AMD Radeon(TM) 890M Graphics",
+      "DeviceID": "PCI\\VEN_1002&DEV_150E&SUBSYS_38781043&REV_C1\\4&35FE04F8&0&0041",
+      "PNPClass": "Display",
+      "Service": "amduw23g",
+      "CompatibleID": [
+        "PCI\\VEN_1002&DEV_150E&REV_C1",
+        "PCI\\VEN_1002&DEV_150E",
+        "PCI\\VEN_1002&CC_038000",
+        "PCI\\VEN_1002&CC_0380",
+        "PCI\\VEN_1002",
+        "PCI\\CC_038000&DT_1",
+        "PCI\\CC_038000",
+        "PCI\\CC_0380&DT_1",
+        "PCI\\CC_0380"
+      ]
+    },
+    {
+      "Name": "ACPI Thermal Zone",
+      "DeviceID": "ACPI\\THERMALZONE\\THRM",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "ACPI Sleep Button",
+      "DeviceID": "ACPI\\PNP0C0E\\2&DABA3FF&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "AMD GPIO Controller",
+      "DeviceID": "ACPI\\AMDI0030\\0",
+      "PNPClass": "System",
+      "Service": "amdgpio2",
+      "CompatibleID": [
+        "ACPI\\AMDI0030",
+        "AMDI0030"
+      ]
+    },
+    {
+      "Name": "USB4(TM) Host Router (Microsoft)",
+      "DeviceID": "PCI\\VEN_1022&DEV_151C&SUBSYS_20AF1043&REV_00&USB4_MS_CM\\4&108AA3AE&0&0543",
+      "PNPClass": "USB",
+      "Service": "Usb4HostRouter",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_151C&REV_00",
+        "PCI\\VEN_1022&DEV_151C",
+        "PCI\\VEN_1022&CC_0C0340",
+        "PCI\\VEN_1022&CC_0C03",
+        "PCI\\VEN_1022",
+        "PCI\\CC_0C0340&DT_0",
+        "PCI\\CC_0C0340",
+        "PCI\\CC_0C03&DT_0",
+        "PCI\\CC_0C03"
+      ]
+    },
+    {
+      "Name": "ACPI Thermal Zone",
+      "DeviceID": "ACPI\\THERMALZONE\\TZ01",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "ACPI Processor Container Device",
+      "DeviceID": "ACPI\\ACPI0010\\1",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "*PNP0A05"
+      ]
+    },
+    {
+      "Name": "NPU Compute Accelerator Device",
+      "DeviceID": "PCI\\VEN_1022&DEV_17F0&SUBSYS_20CF1043&REV_10\\4&23445453&0&0142",
+      "PNPClass": "ComputeAccelerator",
+      "Service": "IpuMcdmDriver",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_17F0&REV_10",
+        "PCI\\VEN_1022&DEV_17F0",
+        "PCI\\VEN_1022&CC_118000",
+        "PCI\\VEN_1022&CC_1180",
+        "PCI\\VEN_1022",
+        "PCI\\CC_118000&DT_0",
+        "PCI\\CC_118000",
+        "PCI\\CC_1180&DT_0",
+        "PCI\\CC_1180"
+      ]
+    },
+    {
+      "Name": "UCM-UCSI ACPI Device",
+      "DeviceID": "ACPI\\USBC000\\0",
+      "PNPClass": "UCM",
+      "Service": "UcmUcsiAcpiClient",
+      "CompatibleID": [
+        "*PNP0CA0"
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_16FF&SUBSYS_00000000&REV_00\\3&11583659&0&C7",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "Numeric data processor",
+      "DeviceID": "ACPI\\PNP0C04\\4&18825259&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_1509&SUBSYS_00000000&REV_00\\3&11583659&0&08",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_1509&SUBSYS_00000000&REV_00\\3&11583659&0&10",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_1509&SUBSYS_00000000&REV_00\\3&11583659&0&18",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_1509&SUBSYS_00000000&REV_00\\3&11583659&0&40",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "Motherboard resources",
+      "DeviceID": "ACPI\\PNP0C02\\4&35FE04F8&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\10",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\11",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\12",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\13",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\14",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\15",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\16",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\17",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "Microsoft AC Adapter",
+      "DeviceID": "ACPI\\ACPI0003\\2&DABA3FF&0",
+      "PNPClass": "Battery",
+      "Service": "CmBatt",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "Realtek(R) Audio",
+      "DeviceID": "HDAUDIO\\FUNC_01&VEN_10EC&DEV_0285&SUBSYS_10431E83&REV_1000\\5&1882065F&0&0001",
+      "PNPClass": "MEDIA",
+      "Service": "IntcAzAudAddService",
+      "CompatibleID": [
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1022&CTLR_DEV_15E3&VEN_10EC&DEV_0285&REV_1000",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1022&VEN_10EC&DEV_0285&REV_1000",
+        "HDAUDIO\\FUNC_01&VEN_10EC&DEV_0285&REV_1000",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1022&CTLR_DEV_15E3&VEN_10EC&DEV_0285",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1022&VEN_10EC&DEV_0285",
+        "HDAUDIO\\FUNC_01&VEN_10EC&DEV_0285",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1022&CTLR_DEV_15E3&VEN_10EC",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1022&VEN_10EC",
+        "HDAUDIO\\FUNC_01&VEN_10EC",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1022&CTLR_DEV_15E3",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1022",
+        "HDAUDIO\\FUNC_01&GF&VEN_10EC&DEV_0285&SUBSYS_10431E83&REV_1000",
+        "HDAUDIO\\FUNC_01"
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_16FC&SUBSYS_00000000&REV_00\\3&11583659&0&C4",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "MediaTek Wi-Fi 7 MT7925 Wireless LAN Card",
+      "DeviceID": "PCI\\VEN_14C3&DEV_7925&SUBSYS_E10C105B&REV_00\\4&39F6B447&0&0013",
+      "PNPClass": "Net",
+      "Service": "mtkwecx",
+      "CompatibleID": [
+        "PCI\\VEN_14C3&DEV_7925&REV_00",
+        "PCI\\VEN_14C3&DEV_7925",
+        "PCI\\VEN_14C3&CC_028000",
+        "PCI\\VEN_14C3&CC_0280",
+        "PCI\\VEN_14C3",
+        "PCI\\CC_028000&DT_0",
+        "PCI\\CC_028000",
+        "PCI\\CC_0280&DT_0",
+        "PCI\\CC_0280"
+      ]
+    },
+    {
+      "Name": "High Definition Audio Controller",
+      "DeviceID": "PCI\\VEN_1002&DEV_1640&SUBSYS_16401002&REV_00\\4&35FE04F8&0&0141",
+      "PNPClass": "System",
+      "Service": "HDAudBus",
+      "CompatibleID": [
+        "PCI\\VEN_1002&DEV_1640&REV_00",
+        "PCI\\VEN_1002&DEV_1640",
+        "PCI\\VEN_1002&CC_040300",
+        "PCI\\VEN_1002&CC_0403",
+        "PCI\\VEN_1002",
+        "PCI\\CC_040300&DT_1",
+        "PCI\\CC_040300",
+        "PCI\\CC_0403&DT_1",
+        "PCI\\CC_0403"
+      ]
+    },
+    {
+      "Name": "ACPI Lid",
+      "DeviceID": "ACPI\\PNP0C0D\\2&DABA3FF&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "System speaker",
+      "DeviceID": "ACPI\\PNP0800\\4&18825259&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "AMD DRTM Boot Driver",
+      "DeviceID": "ACPI\\DRTM0001\\0",
+      "PNPClass": "System",
+      "Service": "DRTMNull",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_16F8&SUBSYS_00000000&REV_00\\3&11583659&0&C0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "Microsoft Windows Management Interface for ACPI",
+      "DeviceID": "ACPI\\PNP0C14\\0X00",
+      "PNPClass": "System",
+      "Service": "WmiAcpi",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "AMD PSP 11.0 Device",
+      "DeviceID": "PCI\\VEN_1022&DEV_17E0&SUBSYS_17E01022&REV_00\\4&35FE04F8&0&0241",
+      "PNPClass": "SecurityDevices",
+      "Service": "amdpsp",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_17E0&REV_00",
+        "PCI\\VEN_1022&DEV_17E0",
+        "PCI\\VEN_1022&CC_108000",
+        "PCI\\VEN_1022&CC_1080",
+        "PCI\\VEN_1022",
+        "PCI\\CC_108000&DT_0",
+        "PCI\\CC_108000",
+        "PCI\\CC_1080&DT_0",
+        "PCI\\CC_1080"
+      ]
+    },
+    {
+      "Name": "Microsoft ACPI-Compliant Embedded Controller",
+      "DeviceID": "ACPI\\PNP0C09\\4&18825259&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "AMD USB 3.10 eXtensible Host Controller - 1.20 (Microsoft)",
+      "DeviceID": "PCI\\VEN_1022&DEV_151F&SUBSYS_201F1043&REV_00\\4&108AA3AE&0&0043",
+      "PNPClass": "USB",
+      "Service": "USBXHCI",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_151F&REV_00",
+        "PCI\\VEN_1022&DEV_151F",
+        "PCI\\VEN_1022&CC_0C0330",
+        "PCI\\VEN_1022&CC_0C03",
+        "PCI\\VEN_1022",
+        "PCI\\CC_0C0330&DT_0",
+        "PCI\\CC_0C0330",
+        "PCI\\CC_0C03&DT_0",
+        "PCI\\CC_0C03"
+      ]
+    },
+    {
+      "Name": "System timer",
+      "DeviceID": "ACPI\\PNP0100\\4&18825259&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "Microsoft Windows Management Interface for ACPI",
+      "DeviceID": "ACPI\\PNP0C14\\AOD",
+      "PNPClass": "System",
+      "Service": "WmiAcpi",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "Microsoft Windows Management Interface for ACPI",
+      "DeviceID": "ACPI\\PNP0C14\\ATK",
+      "PNPClass": "System",
+      "Service": "WmiAcpi",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "PCI Express Root Complex",
+      "DeviceID": "ACPI\\PNP0A08\\0",
+      "PNPClass": "System",
+      "Service": "pci",
+      "CompatibleID": [
+        "*PNP0A03"
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_1507&SUBSYS_15071022&REV_00\\3&11583659&0&00",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_1507&REV_00",
+        "PCI\\VEN_1022&DEV_1507",
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "ACPI Power Button",
+      "DeviceID": "ACPI\\PNP0C0C\\2&DABA3FF&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "I2C HID Device",
+      "DeviceID": "ACPI\\ASUF1209\\3&62D7E73&0",
+      "PNPClass": "HIDClass",
+      "Service": "hidi2c",
+      "CompatibleID": [
+        "ACPI\\PNP0C50",
+        "PNP0C50"
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_16FE&SUBSYS_00000000&REV_00\\3&11583659&0&C6",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "PCI Express Root Port",
+      "DeviceID": "PCI\\VEN_1022&DEV_150A&SUBSYS_150A1022&REV_00\\3&11583659&0&09",
+      "PNPClass": "System",
+      "Service": "pci",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_150A&REV_00",
+        "PCI\\VEN_1022&DEV_150A",
+        "PCI\\VEN_1022&CC_060400",
+        "PCI\\VEN_1022&CC_0604",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060400&DT_4",
+        "PCI\\CC_060400",
+        "PCI\\CC_0604&DT_4",
+        "PCI\\CC_0604"
+      ]
+    },
+    {
+      "Name": "PCI Express Root Port",
+      "DeviceID": "PCI\\VEN_1022&DEV_150C&SUBSYS_150C1022&REV_00\\3&11583659&0&41",
+      "PNPClass": "System",
+      "Service": "pci",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_150C&REV_00",
+        "PCI\\VEN_1022&DEV_150C",
+        "PCI\\VEN_1022&CC_060400",
+        "PCI\\VEN_1022&CC_0604",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060400&DT_4",
+        "PCI\\CC_060400",
+        "PCI\\CC_0604&DT_4",
+        "PCI\\CC_0604"
+      ]
+    },
+    {
+      "Name": "PCI Express Root Port",
+      "DeviceID": "PCI\\VEN_1022&DEV_150C&SUBSYS_150C1022&REV_00\\3&11583659&0&42",
+      "PNPClass": "System",
+      "Service": "pci",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_150C&REV_00",
+        "PCI\\VEN_1022&DEV_150C",
+        "PCI\\VEN_1022&CC_060400",
+        "PCI\\VEN_1022&CC_0604",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060400&DT_4",
+        "PCI\\CC_060400",
+        "PCI\\CC_0604&DT_4",
+        "PCI\\CC_0604"
+      ]
+    },
+    {
+      "Name": "PCI Express Root Port",
+      "DeviceID": "PCI\\VEN_1022&DEV_150C&SUBSYS_150C1022&REV_00\\3&11583659&0&43",
+      "PNPClass": "System",
+      "Service": "pci",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_150C&REV_00",
+        "PCI\\VEN_1022&DEV_150C",
+        "PCI\\VEN_1022&CC_060400",
+        "PCI\\VEN_1022&CC_0604",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060400&DT_4",
+        "PCI\\CC_060400",
+        "PCI\\CC_0604&DT_4",
+        "PCI\\CC_0604"
+      ]
+    },
+    {
+      "Name": "High Definition Audio Controller",
+      "DeviceID": "PCI\\VEN_1022&DEV_15E3&SUBSYS_1E831043&REV_00\\4&35FE04F8&0&0641",
+      "PNPClass": "System",
+      "Service": "HDAudBus",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_15E3&REV_00",
+        "PCI\\VEN_1022&DEV_15E3",
+        "PCI\\VEN_1022&CC_040300",
+        "PCI\\VEN_1022&CC_0403",
+        "PCI\\VEN_1022",
+        "PCI\\CC_040300&DT_0",
+        "PCI\\CC_040300",
+        "PCI\\CC_0403&DT_0",
+        "PCI\\CC_0403"
+      ]
+    },
+    {
+      "Name": "Standard NVM Express Controller",
+      "DeviceID": "PCI\\VEN_1344&DEV_5413&SUBSYS_21001344&REV_03\\4&23CF4B8A&0&0011",
+      "PNPClass": "SCSIAdapter",
+      "Service": "stornvme",
+      "CompatibleID": [
+        "PCI\\VEN_1344&DEV_5413&REV_03",
+        "PCI\\VEN_1344&DEV_5413",
+        "PCI\\VEN_1344&CC_010802",
+        "PCI\\VEN_1344&CC_0108",
+        "PCI\\VEN_1344",
+        "PCI\\CC_010802&DT_0",
+        "PCI\\CC_010802",
+        "PCI\\CC_0108&DT_0",
+        "PCI\\CC_0108"
+      ]
+    },
+    {
+      "Name": "Trusted Platform Module 2.0",
+      "DeviceID": "ACPI\\MSFT0101\\1",
+      "PNPClass": "SecurityDevices",
+      "Service": "TPM",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "AMD USB 3.10 eXtensible Host Controller - 1.20 (Microsoft)",
+      "DeviceID": "PCI\\VEN_1022&DEV_151B&SUBSYS_201F1043&REV_00\\4&108AA3AE&0&0443",
+      "PNPClass": "USB",
+      "Service": "USBXHCI",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_151B&REV_00",
+        "PCI\\VEN_1022&DEV_151B",
+        "PCI\\VEN_1022&CC_0C0330",
+        "PCI\\VEN_1022&CC_0C03",
+        "PCI\\VEN_1022",
+        "PCI\\CC_0C0330&DT_0",
+        "PCI\\CC_0C0330",
+        "PCI\\CC_0C03&DT_0",
+        "PCI\\CC_0C03"
+      ]
+    },
+    {
+      "Name": "AMD Micro PEP Device",
+      "DeviceID": "ACPI\\AMDI000A\\1",
+      "PNPClass": "System",
+      "Service": "AmdMicroPEP",
+      "CompatibleID": [
+        "*PNP0D80"
+      ]
+    },
+    {
+      "Name": "Motherboard resources",
+      "DeviceID": "ACPI\\PNP0C02\\90",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "AMD Workload Profiling Scheduling",
+      "DeviceID": "ACPI\\AMDI0104\\2&DABA3FF&0",
+      "PNPClass": "System",
+      "Service": "amdwps",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_16FB&SUBSYS_00000000&REV_00\\3&11583659&0&C3",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\0",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\1",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\2",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\3",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\4",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\5",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\6",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\7",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\8",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\9",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\A",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\B",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\C",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\D",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\E",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\F",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "PCI Express Root Port",
+      "DeviceID": "PCI\\VEN_1022&DEV_150B&SUBSYS_1E831043&REV_00\\3&11583659&0&11",
+      "PNPClass": "System",
+      "Service": "pci",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_150B&REV_00",
+        "PCI\\VEN_1022&DEV_150B",
+        "PCI\\VEN_1022&CC_060400",
+        "PCI\\VEN_1022&CC_0604",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060400&DT_4",
+        "PCI\\CC_060400",
+        "PCI\\CC_0604&DT_4",
+        "PCI\\CC_0604"
+      ]
+    },
+    {
+      "Name": "PCI Express Root Port",
+      "DeviceID": "PCI\\VEN_1022&DEV_150B&SUBSYS_1E831043&REV_00\\3&11583659&0&12",
+      "PNPClass": "System",
+      "Service": "pci",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_150B&REV_00",
+        "PCI\\VEN_1022&DEV_150B",
+        "PCI\\VEN_1022&CC_060400",
+        "PCI\\VEN_1022&CC_0604",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060400&DT_4",
+        "PCI\\CC_060400",
+        "PCI\\CC_0604&DT_4",
+        "PCI\\CC_0604"
+      ]
+    },
+    {
+      "Name": "PCI Express Root Port",
+      "DeviceID": "PCI\\VEN_1022&DEV_150B&SUBSYS_1E831043&REV_00\\3&11583659&0&13",
+      "PNPClass": "System",
+      "Service": "pci",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_150B&REV_00",
+        "PCI\\VEN_1022&DEV_150B",
+        "PCI\\VEN_1022&CC_060400",
+        "PCI\\VEN_1022&CC_0604",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060400&DT_4",
+        "PCI\\CC_060400",
+        "PCI\\CC_0604&DT_4",
+        "PCI\\CC_0604"
+      ]
+    },
+    {
+      "Name": "PCI Express Root Port",
+      "DeviceID": "PCI\\VEN_1022&DEV_150B&SUBSYS_1E831043&REV_00\\3&11583659&0&19",
+      "PNPClass": "System",
+      "Service": "pci",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_150B&REV_00",
+        "PCI\\VEN_1022&DEV_150B",
+        "PCI\\VEN_1022&CC_060400",
+        "PCI\\VEN_1022&CC_0604",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060400&DT_4",
+        "PCI\\CC_060400",
+        "PCI\\CC_0604&DT_4",
+        "PCI\\CC_0604"
+      ]
+    },
+    {
+      "Name": "AMD USB 3.10 eXtensible Host Controller - 1.20 (Microsoft)",
+      "DeviceID": "PCI\\VEN_1022&DEV_151E&SUBSYS_201F1043&REV_00\\4&35FE04F8&0&0441",
+      "PNPClass": "USB",
+      "Service": "USBXHCI",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_151E&REV_00",
+        "PCI\\VEN_1022&DEV_151E",
+        "PCI\\VEN_1022&CC_0C0330",
+        "PCI\\VEN_1022&CC_0C03",
+        "PCI\\VEN_1022",
+        "PCI\\CC_0C0330&DT_0",
+        "PCI\\CC_0C0330",
+        "PCI\\CC_0C03&DT_0",
+        "PCI\\CC_0C03"
+      ]
+    },
+    {
+      "Name": "AMD I2C Controller",
+      "DeviceID": "ACPI\\AMDI0010\\0",
+      "PNPClass": "System",
+      "Service": "amdi2c",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "AMD I2C Controller",
+      "DeviceID": "ACPI\\AMDI0010\\1",
+      "PNPClass": "System",
+      "Service": "amdi2c",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "NVIDIA Platform Controllers and Framework",
+      "DeviceID": "ACPI\\NVDA0820\\NPCF",
+      "PNPClass": "SoftwareDevice",
+      "Service": "nvpcf",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "High Definition Audio Controller",
+      "DeviceID": "PCI\\VEN_10DE&DEV_22BE&SUBSYS_38781043&REV_A1\\4&36636F97&0&0119",
+      "PNPClass": "System",
+      "Service": "HDAudBus",
+      "CompatibleID": [
+        "PCI\\VEN_10DE&DEV_22BE&REV_A1",
+        "PCI\\VEN_10DE&DEV_22BE",
+        "PCI\\VEN_10DE&CC_040300",
+        "PCI\\VEN_10DE&CC_0403",
+        "PCI\\VEN_10DE",
+        "PCI\\CC_040300&DT_0",
+        "PCI\\CC_040300",
+        "PCI\\CC_0403&DT_0",
+        "PCI\\CC_0403"
+      ]
+    },
+    {
+      "Name": "AMD High Definition Audio Device",
+      "DeviceID": "HDAUDIO\\FUNC_01&VEN_1002&DEV_AA01&SUBSYS_00AA0100&REV_1009\\5&365B936B&0&0001",
+      "PNPClass": "MEDIA",
+      "Service": "AtiHDAudioService",
+      "CompatibleID": [
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1002&CTLR_DEV_1640&VEN_1002&DEV_AA01&REV_1009",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1002&VEN_1002&DEV_AA01&REV_1009",
+        "HDAUDIO\\FUNC_01&VEN_1002&DEV_AA01&REV_1009",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1002&CTLR_DEV_1640&VEN_1002&DEV_AA01",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1002&VEN_1002&DEV_AA01",
+        "HDAUDIO\\FUNC_01&VEN_1002&DEV_AA01",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1002&CTLR_DEV_1640&VEN_1002",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1002&VEN_1002",
+        "HDAUDIO\\FUNC_01&VEN_1002",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1002&CTLR_DEV_1640",
+        "HDAUDIO\\FUNC_01&CTLR_VEN_1002",
+        "HDAUDIO\\FUNC_01&GF&VEN_1002&DEV_AA01&SUBSYS_00AA0100&REV_1009",
+        "HDAUDIO\\FUNC_01"
+      ]
+    },
+    {
+      "Name": "Motherboard resources",
+      "DeviceID": "ACPI\\PNP0C02\\700",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "Armoury Crate Control Interface",
+      "DeviceID": "ACPI\\ASUS9001\\2&DABA3FF&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "Microsoft Pluton security processor",
+      "DeviceID": "ACPI\\MSFT0201\\1",
+      "PNPClass": "SecurityDevices",
+      "Service": "PlutonHsp2",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "AMD PMF",
+      "DeviceID": "ACPI\\AMDI0103\\0",
+      "PNPClass": "System",
+      "Service": "amdpmf",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "System CMOS/real time clock",
+      "DeviceID": "ACPI\\PNP0B00\\4&18825259&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "Genesys Logic PCIE card reader device",
+      "DeviceID": "PCI\\VEN_17A0&DEV_9767&SUBSYS_1043202F&REV_03\\4&11159AE5&0&0012",
+      "PNPClass": "MTD",
+      "Service": "GlPciSD",
+      "CompatibleID": [
+        "PCI\\VEN_17A0&DEV_9767&REV_03",
+        "PCI\\VEN_17A0&DEV_9767",
+        "PCI\\VEN_17A0&CC_080501",
+        "PCI\\VEN_17A0&CC_0805",
+        "PCI\\VEN_17A0",
+        "PCI\\CC_080501&DT_0",
+        "PCI\\CC_080501",
+        "PCI\\CC_0805&DT_0",
+        "PCI\\CC_0805"
+      ]
+    },
+    {
+      "Name": "AMD USB 3.10 eXtensible Host Controller - 1.20 (Microsoft)",
+      "DeviceID": "PCI\\VEN_1022&DEV_151A&SUBSYS_201F1043&REV_00\\4&108AA3AE&0&0343",
+      "PNPClass": "USB",
+      "Service": "USBXHCI",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_151A&REV_00",
+        "PCI\\VEN_1022&DEV_151A",
+        "PCI\\VEN_1022&CC_0C0330",
+        "PCI\\VEN_1022&CC_0C03",
+        "PCI\\VEN_1022",
+        "PCI\\CC_0C0330&DT_0",
+        "PCI\\CC_0C0330",
+        "PCI\\CC_0C03&DT_0",
+        "PCI\\CC_0C03"
+      ]
+    },
+    {
+      "Name": "Programmable interrupt controller",
+      "DeviceID": "ACPI\\PNP0000\\4&18825259&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "PCI standard ISA bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_790E&SUBSYS_1E831043&REV_51\\3&11583659&0&A3",
+      "PNPClass": "System",
+      "Service": "msisadrv",
+      "CompatibleID": [
+        "PCI\\VEN_1022&DEV_790E&REV_51",
+        "PCI\\VEN_1022&DEV_790E",
+        "PCI\\VEN_1022&CC_060100",
+        "PCI\\VEN_1022&CC_0601",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060100",
+        "PCI\\CC_0601"
+      ]
+    },
+    {
+      "Name": "PCI standard host CPU bridge",
+      "DeviceID": "PCI\\VEN_1022&DEV_16FD&SUBSYS_00000000&REV_00\\3&11583659&0&C5",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_1022&CC_060000",
+        "PCI\\VEN_1022&CC_0600",
+        "PCI\\VEN_1022",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "AMD Provisioning Packages",
+      "DeviceID": "ACPI\\AMDI0052\\2&DABA3FF&0",
+      "PNPClass": "System",
+      "Service": "AmdPpkg",
+      "CompatibleID": [
+        null
+      ]
+    }
+  ],
+  "Expected": {
+    "CPU architecture": "ok",
+    "Memory": "ok",
+    "Storage controller mode": "ok",
+    "Wi-Fi": "warn",
+    "Graphics": [
+      "warn",
+      "warn"
+    ],
+    "Hybrid graphics": "warn",
+    "Audio": "warn",
+    "Vendor-specific": []
+  }
+}

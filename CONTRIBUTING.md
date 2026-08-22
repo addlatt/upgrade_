@@ -31,6 +31,25 @@ Include in the PR **how you know**. Any one of these is enough:
 into an install that fails, which is the exact outcome the project exists to
 prevent.
 
+## Adding a machine capture (the second most valuable contribution)
+
+```powershell
+.\upgrade-scan.ps1 -DumpMachine machine-capture.json
+```
+
+This writes a **hardware-only** snapshot of what the scanner's checks read on
+your machine: the PCI / ACPI / HDAUDIO device list and basic system facts. No
+account names, no network names, no files, no serial-bearing device paths —
+read the JSON yourself before sending it; it should contain nothing you
+couldn't read off the outside of the machine.
+
+Fill in the `Expected` block (which check statuses your machine should get —
+the maintainers will help), and PR it into `evaluate/windows/corpus/`. Every
+capture there is replayed through the real detection code on every self-test
+run, so your machine keeps being tested by every future change, even though
+we never met it. One capture from a machine with Intel RST/VMD enabled is
+worth more to this project right now than any code.
+
 ## The bar for each status
 
 | Status | Means |
@@ -74,9 +93,15 @@ Run the tests before opening a PR:
 
 ```powershell
 .\evaluate\windows\upgrade-scan.ps1 -SelfTest
+.\evaluate\windows\Harvest-UpgradeState.ps1 -SelfTest
 ```
 
-If you change verdict logic, add a case to `Invoke-UpgSelfTest` covering it.
+If you change verdict or detection logic, add a case to `Invoke-UpgSelfTest`
+covering it; if you change the harvester's parsing or arithmetic, add one to
+`Invoke-HarvestSelfTest`. The checks that read the live OS are split into a
+collection half and a judgment half — keep it that way: judgment functions
+take their inputs as parameters so the self-test can feed them machines that
+don't exist here (see CLAUDE.md rule #5).
 
 ## The one rule that isn't negotiable
 

@@ -106,6 +106,14 @@ laptop, one with Broadcom Wi-Fi, one pre-2015 machine, one with BitLocker on,
 one Surface. This is the single best argument for shipping the scanner early
 and asking for reports.
 
+**Mechanism built (2026-08-22).** The scanner now has `-DumpMachine`
+(hardware-only capture) and a corpus replay in `-SelfTest`: every curated
+capture in `evaluate/windows/corpus/` is replayed through the pure detection
+checks on every run. The G16 is the first corpus entry. This is how R2's
+machines will stay closed once reached — each machine met once is regression-
+tested forever (CLAUDE.md rule #5). The risk itself stays open until the
+spread of machines above actually exists in the corpus.
+
 ## R3 — Distro kernel table is unverified and stale · high · open
 
 **What.** `data/distros.ps1` marks Fedora (6.14) and Pop!_OS (6.9) with
@@ -230,6 +238,13 @@ only copied empty.
 force the download to real bytes while Windows is alive — not merely detect
 them, because no later stage can. This is now stated in `architecture.md`
 (evaluate's harvest duties) as a hard step: materialize, or refuse.
+
+**Detection arm exercised (2026-08-22).** The harvester's `-SelfTest` now sets
+a genuine `FILE_ATTRIBUTE_OFFLINE` on a real NTFS file and confirms
+`Get-HarvestFolderStats` counts it as cloud-only — the real attribute read
+through the real filesystem, not a fabricated object. Narrowed residue: the
+`FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS` arm as the actual OneDrive cloud filter
+sets it (only the filter can), and materialization itself.
 
 **Closes when.** Materialization is implemented and tested on a machine with
 "Free up space" files present — confirming the files carry real bytes on the
@@ -487,7 +502,14 @@ never shares an ESP), and `evaluate` says so before committing.
 
 # Resolved
 
-Kept for the record — all four were in code that read correctly.
+Kept for the record — all four were in code that read correctly. All four were
+also in code that had no tests: F1–F3 in the harvester, F4 in the app-risk
+database. As of 2026-08-22 each is pinned by a self-test regression case
+(harvester `-SelfTest` for F1/F3 and the truncation/SSID paths; scanner
+`-SelfTest` for F4's "Microsoft Visual Studio Community 2022 must match").
+F2 has no direct pin — it was an invocation bug in the netsh call itself,
+which sits on the live side of the parse seam — but the seam now keeps the
+parsing logic, where a silent empty result would hide, under test.
 
 ## F1 — `break` inside `ForEach-Object` terminated the whole script · fixed
 

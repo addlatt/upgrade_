@@ -56,6 +56,23 @@ hurts someone.
    disk clears a far higher bar than one that reads. That's why the writers are
    built last and reviewed hardest.
 
+5. **Spoof everything spoofable — and never confuse a spoof with evidence.**
+   (Decided 2026-08-22.) Everything that *can* be validated without real
+   hardware *must* be, at three levels: **logic** (detection functions fed
+   fabricated objects — the `-SelfTest` cases), **recordings** (real machines'
+   hardware enumerations captured with `-DumpMachine`, curated into
+   `evaluate/windows/corpus/`, and replayed on every self-test run — a
+   recording is ground truth for that machine, forever), and **simulated
+   hardware** (VMs presenting spoofed devices, so the full Windows
+   enumeration → WMI → scanner pipeline runs for hardware we don't own).
+   Two rules keep this honest. First, **every contact with a real machine
+   leaves a capture behind** — hardware reached once must stay testable
+   forever. Second, **a spoofed pass closes plumbing, never a real-hardware
+   clause**: a simulation is built from our model of the hardware, and the
+   model is usually the thing in question (rule #2 in different clothes). Each
+   risk names its unspoofable residue explicitly, and that residue still takes
+   a real machine.
+
 ## Right now: validate the killers before building anything that writes
 
 This is the current priority, above all feature work. Several things the whole
@@ -135,9 +152,12 @@ dist/              built single-file scanner (rebuild with ./build.sh)
 - **`./build.sh` inlines `data/` into `dist/upgrade-scan.ps1`.** Rebuild and
   commit `dist/` whenever `data/` or the scanner changes — nothing enforces
   this yet (R9), so it's on you.
-- **Run the self-test before any scanner change lands:**
+- **Run both self-tests before any change lands:**
   `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\upgrade-scan.ps1 -SelfTest`
-  from `evaluate/windows/`. Add a case if you change verdict logic.
+  and the same for `.\Harvest-UpgradeState.ps1 -SelfTest`, from
+  `evaluate/windows/`. Add a case if you change verdict, detection, parsing
+  or arithmetic logic. Live-OS reads stay behind collect/judge seams so the
+  judgment halves remain testable (rule #5).
 - **Never commit a machine report** (`upgrade-report-*.txt/.json`) — they hold
   someone's hardware and account details. `.gitignore` covers them; keep it so.
 - **Never commit the V0 EFI binaries** — build inputs, gitignored, fetched per

@@ -33,7 +33,8 @@
 param(
     [string]$OutDir,
     [switch]$IncludeWifiSecrets,
-    [switch]$SkipSizes
+    [switch]$SkipSizes,
+    [switch]$SelfTest
 )
 
 $ErrorActionPreference = 'Stop'
@@ -104,11 +105,10 @@ function Get-HarvestIdentity {
 #  locale - becomes kickstart lang/timezone/keyboard
 # =============================================================================
 
-function Get-HarvestLocale {
-    $tz = Get-TimeZone
-
+function ConvertTo-HarvestIanaTimeZone {
     # Windows time zone IDs are not IANA IDs. Only a handful matter in
-    # practice; anything unmapped falls back and the installer asks.
+    # practice; anything unmapped returns $null - the installer asks.
+    param([string]$WindowsTimeZoneId)
     $tzMap = @{
         'Eastern Standard Time'  = 'America/New_York'
         'Central Standard Time'  = 'America/Chicago'
@@ -125,9 +125,13 @@ function Get-HarvestLocale {
         'India Standard Time'    = 'Asia/Kolkata'
         'UTC'                    = 'UTC'
     }
+    $tzMap[$WindowsTimeZoneId]
+}
 
+function Get-HarvestLocale {
+    $tz = Get-TimeZone
     $locale = Get-WinSystemLocale
-    $ianaTz = $tzMap[$tz.Id]
+    $ianaTz = ConvertTo-HarvestIanaTimeZone -WindowsTimeZoneId $tz.Id
 
     $layout = $null
     try { $layout = (Get-WinUserLanguageList)[0].InputMethodTips[0] } catch { }
@@ -142,6 +146,15 @@ function Get-HarvestLocale {
     }
 }
 
+function ConvertTo-HarvestLinuxName {
+    # Windows usernames allow characters Linux logins do not. Pure mapping,
+    # exercised by -SelfTest with the names the dev machine can't produce.
+    param([string]$WindowsName)
+    $linuxName = ($WindowsName.ToLower() -replace '[^a-z0-9_-]', '')
+    if ($linuxName -eq '' -or $linuxName -match '^[0-9]') { $linuxName = 'user' }
+    $linuxName
+}
+
 function Get-HarvestAccount {
     $name = $env:USERNAME
     $full = $null
@@ -150,9 +163,7 @@ function Get-HarvestAccount {
                  Select-Object -First 1).FullName
     } catch { }
 
-    # Windows usernames allow characters Linux logins do not.
-    $linuxName = ($name.ToLower() -replace '[^a-z0-9_-]', '')
-    if ($linuxName -eq '' -or $linuxName -match '^[0-9]') { $linuxName = 'user' }
+    $linuxName = ConvertTo-HarvestLinuxName -WindowsName $name
 
     [pscustomobject]@{
         WindowsName  = $name
@@ -252,6 +263,46 @@ function Get-HarvestUserFolders {
 #  wi-fi
 # =============================================================================
 
+function ConvertFrom-HarvestWlanProfileXml {
+    # Parse half of the Wi-Fi harvest: one exported WLAN profile XML in, one
+    # profile object out. Split from the netsh call so -SelfTest can feed it
+    # fixture files - including SSIDs the dev machine's networks never cover.
+    param([string]$XmlPath, [bool]$IncludeSecrets)
+
+    $authMap = @{
+        'open'      = 'none'
+        'WPAPSK'    = 'wpa-psk'
+        'WPA2PSK'   = 'wpa-psk'
+        'WPA3SAE'   = 'sae'
+        'WPA3ENT'   = 'UNSUPPORTED'
+        'WPA2'      = 'UNSUPPORTED'
+        'WPA'       = 'UNSUPPORTED'
+    }
+
+    # Load() honours the XML declaration's encoding. Get-Content -Raw
+    # reads as ANSI on PS 5.1 and mangles any SSID with a curly quote,
+    # accent or emoji - producing a profile that never connects.
+    $x = New-Object System.Xml.XmlDocument
+    $x.Load($XmlPath)
+    $p = $x.WLANProfile
+    $auth = $p.MSM.security.authEncryption.authentication
+    $key  = $p.MSM.security.sharedKey.keyMaterial
+    $protected = $p.MSM.security.sharedKey.protected
+
+    $nmKeyMgmt = $authMap[$auth]
+    if (-not $nmKeyMgmt) { $nmKeyMgmt = 'UNSUPPORTED' }
+
+    [pscustomobject]@{
+        Ssid            = $p.name
+        Authentication  = $auth
+        NmKeyMgmt       = $nmKeyMgmt
+        Supported       = ($nmKeyMgmt -ne 'UNSUPPORTED')
+        AutoConnect     = ($p.connectionMode -eq 'auto')
+        HasSecret       = [bool]$key -and ($protected -ne 'true')
+        Secret          = if ($IncludeSecrets) { $key } else { $null }
+    }
+}
+
 function Get-HarvestWifi {
     param([bool]$IncludeSecrets, [bool]$IsAdmin, [string]$WorkDir)
 
@@ -277,41 +328,10 @@ function Get-HarvestWifi {
         return @()
     }
 
-    $authMap = @{
-        'open'      = 'none'
-        'WPAPSK'    = 'wpa-psk'
-        'WPA2PSK'   = 'wpa-psk'
-        'WPA3SAE'   = 'sae'
-        'WPA3ENT'   = 'UNSUPPORTED'
-        'WPA2'      = 'UNSUPPORTED'
-        'WPA'       = 'UNSUPPORTED'
-    }
-
     $profiles = @()
     foreach ($f in (Get-ChildItem -Path $exportDir -Filter '*.xml' -ErrorAction SilentlyContinue)) {
         try {
-            # Load() honours the XML declaration's encoding. Get-Content -Raw
-            # reads as ANSI on PS 5.1 and mangles any SSID with a curly quote,
-            # accent or emoji - producing a profile that never connects.
-            $x = New-Object System.Xml.XmlDocument
-            $x.Load($f.FullName)
-            $p = $x.WLANProfile
-            $auth = $p.MSM.security.authEncryption.authentication
-            $key  = $p.MSM.security.sharedKey.keyMaterial
-            $protected = $p.MSM.security.sharedKey.protected
-
-            $nmKeyMgmt = $authMap[$auth]
-            if (-not $nmKeyMgmt) { $nmKeyMgmt = 'UNSUPPORTED' }
-
-            $profiles += [pscustomobject]@{
-                Ssid            = $p.name
-                Authentication  = $auth
-                NmKeyMgmt       = $nmKeyMgmt
-                Supported       = ($nmKeyMgmt -ne 'UNSUPPORTED')
-                AutoConnect     = ($p.connectionMode -eq 'auto')
-                HasSecret       = [bool]$key -and ($protected -ne 'true')
-                Secret          = if ($IncludeSecrets) { $key } else { $null }
-            }
+            $profiles += ConvertFrom-HarvestWlanProfileXml -XmlPath $f.FullName -IncludeSecrets $IncludeSecrets
         } catch { }
     }
 
@@ -390,10 +410,14 @@ function Get-HarvestExternalDrives {
 }
 
 function Get-HarvestCapacity {
-    param($UserFolders, $Browsers, $ExternalDrives)
+    # $WindowsUsedBytes injectable for -SelfTest; omitted = read C: live.
+    param($UserFolders, $Browsers, $ExternalDrives, $WindowsUsedBytes)
 
-    $c = Get-Volume -DriveLetter C -ErrorAction SilentlyContinue
-    $windowsUsed = if ($c) { $c.Size - $c.SizeRemaining } else { 0 }
+    $windowsUsed = $WindowsUsedBytes
+    if ($null -eq $windowsUsed) {
+        $c = Get-Volume -DriveLetter C -ErrorAction SilentlyContinue
+        $windowsUsed = if ($c) { $c.Size - $c.SizeRemaining } else { 0 }
+    }
     $userData = ($UserFolders | Measure-Object -Property Bytes -Sum).Sum
     $browserData = ($Browsers | Measure-Object -Property Bytes -Sum).Sum
     if (-not $userData) { $userData = 0 }
@@ -418,8 +442,195 @@ function Get-HarvestCapacity {
 }
 
 # =============================================================================
+#  self-test
+# =============================================================================
+#  Exercises the pure halves of the harvest - folder stats against a real
+#  generated tree (including a genuine FILE_ATTRIBUTE_OFFLINE placeholder),
+#  WLAN XML parsing against fixture profiles, the name/timezone mappings, and
+#  the capacity arithmetic - none of which need this machine's real state.
+#  Special characters are built from char codes so the test survives any
+#  script-file encoding.
+
+function Invoke-HarvestSelfTest {
+    $t = @{ Failed = 0 }
+
+    function Assert-H {
+        param([string]$Name, [bool]$Condition, [string]$Detail = '')
+        if ($Condition) {
+            Write-Host ("    PASS  " + $Name) -ForegroundColor Green
+        } else {
+            $t.Failed++
+            Write-Host ("    FAIL  " + $Name) -ForegroundColor Red
+            if ($Detail) { Write-Host "          $Detail" -ForegroundColor Red }
+        }
+    }
+
+    function Write-WlanFixture {
+        param([string]$Path, [string]$Ssid, [string]$Auth, [string]$Key,
+              [string]$Protected = 'false', [string]$Mode = 'auto')
+        $esc = [Security.SecurityElement]::Escape($Ssid)
+        $sec = ''
+        if ($Key) {
+            $sec = "<sharedKey><keyType>passPhrase</keyType><protected>$Protected</protected><keyMaterial>$([Security.SecurityElement]::Escape($Key))</keyMaterial></sharedKey>"
+        }
+        $xml = @"
+<?xml version="1.0" encoding="UTF-8"?>
+<WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
+    <name>$esc</name>
+    <SSIDConfig><SSID><name>$esc</name></SSID></SSIDConfig>
+    <connectionType>ESS</connectionType>
+    <connectionMode>$Mode</connectionMode>
+    <MSM><security>
+        <authEncryption><authentication>$Auth</authentication><encryption>AES</encryption><useOneX>false</useOneX></authEncryption>
+        $sec
+    </security></MSM>
+</WLANProfile>
+"@
+        [IO.File]::WriteAllText($Path, $xml, (New-Object Text.UTF8Encoding $true))
+    }
+
+    Write-Host ''
+    Write-Host '  upgrade_ harvest self-test' -ForegroundColor Cyan
+    Write-Host ''
+
+    $work = Join-Path $env:TEMP ('upgrade-harvest-selftest-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $work -Force | Out-Null
+    try {
+        # --- folder stats: a real generated tree --------------------------
+        $tree = Join-Path $work 'tree'
+        New-Item -ItemType Directory -Path (Join-Path $tree 'sub') -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $tree 'a.txt'),     ('a' * 10))
+        [IO.File]::WriteAllText((Join-Path $tree 'b.txt'),     ('b' * 20))
+        [IO.File]::WriteAllText((Join-Path $tree 'sub\c.txt'), ('c' * 30))
+
+        $s = Get-HarvestFolderStats -Path $tree
+        Assert-H 'folder stats: counts files and bytes recursively' `
+            ($s.Files -eq 3 -and $s.Bytes -eq 60 -and -not $s.Truncated -and $s.CloudOnlyFiles -eq 0) `
+            "got Files=$($s.Files) Bytes=$($s.Bytes) Truncated=$($s.Truncated) CloudOnly=$($s.CloudOnlyFiles)"
+
+        # F1/R6 regression: the cap must stop the pipeline, flag Truncated,
+        # and above all not kill the script.
+        $s = Get-HarvestFolderStats -Path $tree -MaxFiles 2
+        Assert-H 'folder stats: file cap truncates and says so (F1/R6)' `
+            ($s.Files -eq 2 -and $s.Truncated) `
+            "got Files=$($s.Files) Truncated=$($s.Truncated)"
+
+        # R8 detection arm: FILE_ATTRIBUTE_OFFLINE set on a real NTFS file -
+        # the genuine attribute, not a fabricated object. (The cloud filter's
+        # RECALL_ON_DATA_ACCESS twin still needs a machine with real
+        # placeholders; that residue stays open in R8.)
+        $ph = Join-Path $tree 'placeholder.txt'
+        [IO.File]::WriteAllText($ph, 'x')
+        [IO.File]::SetAttributes($ph, ([IO.File]::GetAttributes($ph) -bor [IO.FileAttributes]::Offline))
+        $s = Get-HarvestFolderStats -Path $tree
+        Assert-H 'folder stats: offline-attribute file counts as cloud-only (R8)' `
+            ($s.CloudOnlyFiles -eq 1) `
+            "got CloudOnly=$($s.CloudOnlyFiles)"
+
+        # --- WLAN profile XML parsing -------------------------------------
+        $curly = 'Addison' + [char]0x2019 + 's iPhone'           # curly apostrophe (F3)
+        $emoji = 'Caf' + [char]0xE9 + ' ' + [char]::ConvertFromUtf32(0x2615) + ' 5G'
+
+        $f = Join-Path $work 'p1.xml'
+        Write-WlanFixture -Path $f -Ssid $curly -Auth 'WPA2PSK' -Key 'hunter2'
+        $r = ConvertFrom-HarvestWlanProfileXml -XmlPath $f -IncludeSecrets $false
+        Assert-H 'wlan: curly-quote SSID survives byte-for-byte (F3)' `
+            ($r.Ssid -ceq $curly) "got '$($r.Ssid)'"
+        Assert-H 'wlan: WPA2PSK maps to wpa-psk, supported, autoconnect' `
+            ($r.NmKeyMgmt -eq 'wpa-psk' -and $r.Supported -and $r.AutoConnect -and $r.HasSecret) `
+            "got NmKeyMgmt=$($r.NmKeyMgmt) Supported=$($r.Supported)"
+        Assert-H 'wlan: secrets stay out of the output unless asked for' `
+            ($null -eq $r.Secret)
+        $r = ConvertFrom-HarvestWlanProfileXml -XmlPath $f -IncludeSecrets $true
+        Assert-H 'wlan: -IncludeWifiSecrets carries the key through' `
+            ($r.Secret -ceq 'hunter2')
+
+        $f = Join-Path $work 'p2.xml'
+        Write-WlanFixture -Path $f -Ssid $emoji -Auth 'WPA3SAE' -Key 'espresso'
+        $r = ConvertFrom-HarvestWlanProfileXml -XmlPath $f -IncludeSecrets $false
+        Assert-H 'wlan: accented + emoji SSID survives, WPA3 maps to sae' `
+            ($r.Ssid -ceq $emoji -and $r.NmKeyMgmt -eq 'sae' -and $r.Supported) `
+            "got '$($r.Ssid)' NmKeyMgmt=$($r.NmKeyMgmt)"
+
+        $f = Join-Path $work 'p3.xml'
+        Write-WlanFixture -Path $f -Ssid 'CoffeeShopOpen' -Auth 'open' -Key '' -Mode 'manual'
+        $r = ConvertFrom-HarvestWlanProfileXml -XmlPath $f -IncludeSecrets $false
+        Assert-H 'wlan: open network - no secret, manual connect, supported' `
+            ($r.NmKeyMgmt -eq 'none' -and $r.Supported -and -not $r.HasSecret -and -not $r.AutoConnect)
+
+        $f = Join-Path $work 'p4.xml'
+        Write-WlanFixture -Path $f -Ssid 'CorpNet' -Auth 'WPA2' -Key ''
+        $r = ConvertFrom-HarvestWlanProfileXml -XmlPath $f -IncludeSecrets $false
+        Assert-H 'wlan: enterprise 802.1X is flagged unsupported, not guessed' `
+            ($r.NmKeyMgmt -eq 'UNSUPPORTED' -and -not $r.Supported)
+
+        $f = Join-Path $work 'p5.xml'
+        Write-WlanFixture -Path $f -Ssid 'HomeNet' -Auth 'WPA2PSK' -Key 'AQAAANCM...' -Protected 'true'
+        $r = ConvertFrom-HarvestWlanProfileXml -XmlPath $f -IncludeSecrets $false
+        Assert-H 'wlan: DPAPI-protected key does not count as a usable secret' `
+            (-not $r.HasSecret)
+
+        # --- linux login name mapping -------------------------------------
+        Assert-H 'account: simple name lowercases and stays safe' `
+            ((ConvertTo-HarvestLinuxName 'Addison') -ceq 'addison')
+        Assert-H 'account: space in name is stripped' `
+            ((ConvertTo-HarvestLinuxName 'John Smith') -ceq 'johnsmith')
+        Assert-H 'account: leading digit falls back to user' `
+            ((ConvertTo-HarvestLinuxName '3cool') -ceq 'user')
+        Assert-H 'account: fully non-latin name falls back to user' `
+            ((ConvertTo-HarvestLinuxName ([string][char]0x7B2C + [char]0x4E94)) -ceq 'user')
+        Assert-H 'account: dash and underscore survive' `
+            ((ConvertTo-HarvestLinuxName 'a-b_c') -ceq 'a-b_c')
+
+        # --- timezone mapping ---------------------------------------------
+        Assert-H 'locale: known Windows timezone maps to IANA' `
+            ((ConvertTo-HarvestIanaTimeZone 'Eastern Standard Time') -eq 'America/New_York')
+        Assert-H 'locale: unknown timezone returns nothing rather than a guess' `
+            ($null -eq (ConvertTo-HarvestIanaTimeZone 'Nepal Standard Time'))
+
+        # --- capacity arithmetic ------------------------------------------
+        $gb = 1073741824
+        $folders  = @([pscustomobject]@{ Bytes = 10 * $gb })
+        $browsers = @([pscustomobject]@{ Bytes = 2 * $gb })
+        $bigDrive   = [pscustomobject]@{ DriveLetter='E'; FreeBytes = 200 * $gb }
+        $smallDrive = [pscustomobject]@{ DriveLetter='F'; FreeBytes = 50 * $gb }
+
+        $c = Get-HarvestCapacity -UserFolders $folders -Browsers $browsers `
+                                 -ExternalDrives @($smallDrive, $bigDrive) -WindowsUsedBytes (100 * $gb)
+        Assert-H 'capacity: needed = 1.1x windows + user + browser data' `
+            ($c.BackupNeededGB -eq 122) "got $($c.BackupNeededGB) GB"
+        Assert-H 'capacity: picks the largest drive and calls it sufficient' `
+            ($c.ExternalSufficient -and $c.BestExternal.DriveLetter -eq 'E')
+
+        $c = Get-HarvestCapacity -UserFolders $folders -Browsers $browsers `
+                                 -ExternalDrives @($smallDrive) -WindowsUsedBytes (100 * $gb)
+        Assert-H 'capacity: a too-small drive is not sufficient' `
+            ($c.ExternalPresent -and -not $c.ExternalSufficient)
+
+        $c = Get-HarvestCapacity -UserFolders $folders -Browsers $browsers `
+                                 -ExternalDrives @() -WindowsUsedBytes (100 * $gb)
+        Assert-H 'capacity: no external drive is reported plainly' `
+            (-not $c.ExternalPresent -and -not $c.ExternalSufficient)
+    } finally {
+        Remove-Item -Path $work -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    Write-Host ''
+    if ($t.Failed -eq 0) {
+        Write-Host '  all checks passed' -ForegroundColor Green
+        Write-Host ''
+        exit 0
+    }
+    Write-Host "  $($t.Failed) failed" -ForegroundColor Red
+    Write-Host ''
+    exit 1
+}
+
+# =============================================================================
 #  main
 # =============================================================================
+
+if ($SelfTest) { Invoke-HarvestSelfTest }
 
 $isAdmin = Test-HarvestAdmin
 

@@ -17,18 +17,29 @@
 .PARAMETER Json
     Also write machine-readable JSON alongside the text report.
 
+.PARAMETER DumpMachine
+    Write a hardware-only machine capture (JSON) instead of a report: the PCI /
+    ACPI / HDAUDIO device enumeration and basic system facts the checks read.
+    No account names, no network names, no serial-bearing device paths. A
+    curated capture becomes a permanent regression test in corpus/ - every
+    machine the scanner meets once can be re-tested forever.
+
 .EXAMPLE
     .\upgrade-scan.ps1
 
 .EXAMPLE
     .\upgrade-scan.ps1 -Json -OutDir C:\Temp
+
+.EXAMPLE
+    .\upgrade-scan.ps1 -DumpMachine machine-capture.json
 #>
 [CmdletBinding()]
 param(
     [string]$OutDir,
     [switch]$NoFile,
     [switch]$Json,
-    [switch]$SelfTest
+    [switch]$SelfTest,
+    [string]$DumpMachine
 )
 
 $ErrorActionPreference = 'Stop'
@@ -125,6 +136,52 @@ function Get-UpgPnp {
     Get-CimInstance Win32_PnPEntity | Select-Object Name, DeviceID, PNPClass, Service, CompatibleID
 }
 
+function Export-UpgMachineCapture {
+    # Hardware-only snapshot of what the pure detection checks read, for the
+    # corpus replay in -SelfTest. Deliberately narrow: only PCI / ACPI /
+    # HDAUDIO / INTELAUDIO device paths (USB and ROOT instance paths can embed
+    # serial numbers), and only the Sys fields the checks consume. A capture
+    # holds hardware facts, never account, network or file information -
+    # that's what makes it safe to commit where a machine report never is.
+    param([string]$Path, $Sys, $Pnp)
+    $capture = [ordered]@{
+        SchemaVersion = 1
+        Captured      = (Get-Date -Format 'yyyy-MM-dd')
+        Label         = ("$($Sys.Vendor) $($Sys.Model)").Trim()
+        Sys           = [ordered]@{
+            Vendor   = $Sys.Vendor
+            Model    = $Sys.Model
+            RamGB    = $Sys.RamGB
+            CpuName  = $Sys.CpuName
+            CpuArch  = $Sys.CpuArch
+            CpuCores = $Sys.CpuCores
+            IsLaptop = $Sys.IsLaptop
+            Firmware = $Sys.Firmware
+        }
+        Pnp           = @(
+            $Pnp | Where-Object {
+                $_.DeviceID -match '^(PCI|ACPI|HDAUDIO|INTELAUDIO)\\'
+            } | ForEach-Object {
+                [ordered]@{
+                    Name         = $_.Name
+                    DeviceID     = $_.DeviceID
+                    PNPClass     = $_.PNPClass
+                    Service      = $_.Service
+                    CompatibleID = @($_.CompatibleID)
+                }
+            }
+        )
+        # Curator fills before the capture lands in corpus/: check Title ->
+        # expected Status (a single status, or an array when a Title repeats,
+        # e.g. two 'Graphics' checks on a hybrid laptop).
+        Expected      = [ordered]@{}
+    }
+    $json = $capture | ConvertTo-Json -Depth 6
+    [IO.File]::WriteAllText($Path, $json, (New-Object Text.UTF8Encoding $false))
+    Write-Host "  machine capture written to $Path" -ForegroundColor Cyan
+    Write-Host '  review it, fill Expected, and add it to evaluate/windows/corpus/ to make it a permanent test.' -ForegroundColor DarkGray
+}
+
 # =============================================================================
 #  checks
 # =============================================================================
@@ -162,16 +219,21 @@ function Test-UpgMemory {
     New-UpgCheck -Section 'Fundamentals' -Title 'Memory' -Status 'ok' -Detail "$($Sys.RamGB) GB"
 }
 
+function Get-UpgSecureBootState {
+    # 1 = enabled, 0 = disabled, $null = could not determine. Kept separate
+    # from the judgment so the judgment is testable without this registry.
+    try {
+        (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecureBoot\State' `
+         -Name UEFISecureBootEnabled -ErrorAction Stop).UEFISecureBootEnabled
+    } catch { $null }
+}
+
 function Test-UpgFirmware {
-    param($Sys)
+    param($Sys, $SecureBoot)
     $mode = if ($Sys.Firmware) { $Sys.Firmware } else { 'unknown' }
     New-UpgCheck -Section 'Fundamentals' -Title 'Firmware mode' -Status 'ok' -Detail $mode
 
-    $sb = $null
-    try {
-        $sb = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecureBoot\State' `
-               -Name UEFISecureBootEnabled -ErrorAction Stop).UEFISecureBootEnabled
-    } catch { }
+    $sb = $SecureBoot
 
     if ($sb -eq 1) {
         New-UpgCheck -Section 'Fundamentals' -Title 'Secure Boot' -Status 'ok' `
@@ -257,15 +319,52 @@ AHCI - but then Windows will not boot, so there is no going back.
         -Detail 'standard AHCI / NVMe - visible to Linux installers'
 }
 
+function Get-UpgDiskFacts {
+    # Collection half of the disk check: everything read from the live OS,
+    # gathered into one object so the judgment half is testable without it.
+    $disks = @(Get-Disk | Where-Object { $_.BusType -ne 'File Backed Virtual' } |
+               ForEach-Object {
+                   [pscustomobject]@{
+                       Number         = $_.Number
+                       FriendlyName   = $_.FriendlyName
+                       Size           = $_.Size
+                       PartitionStyle = $_.PartitionStyle
+                       BusType        = $_.BusType
+                   }
+               })
+
+    $vol = Get-Volume -DriveLetter C -ErrorAction SilentlyContinue
+    $sysVolume = if ($vol) {
+        [pscustomobject]@{ Size = $vol.Size; SizeRemaining = $vol.SizeRemaining }
+    } else { $null }
+
+    # Shrinkable space is the gate for keeping Windows as a fallback, and the
+    # same query Disk Management uses. Measuring it on every scan also closes
+    # the scanner half of RISKS R18 and feeds the V4 validation gate.
+    $shrinkGB = $null
+    try {
+        $part = Get-Partition -DriveLetter C -ErrorAction Stop
+        $supported = Get-PartitionSupportedSize -DriveLetter C -ErrorAction Stop
+        $shrinkGB = [math]::Round(($part.Size - $supported.SizeMin) / 1GB, 1)
+    } catch { }
+
+    [pscustomobject]@{
+        Disks          = $disks
+        SysVolume      = $sysVolume
+        ShrinkGB       = $shrinkGB
+        Disk0PartCount = @(Get-Partition -DiskNumber 0 -ErrorAction SilentlyContinue).Count
+    }
+}
+
 function Test-UpgDisk {
-    param([bool]$IsAdmin)
-    $disks = @(Get-Disk | Where-Object { $_.BusType -ne 'File Backed Virtual' })
+    param($Facts, [bool]$IsAdmin)
+    $disks = @($Facts.Disks)
     foreach ($d in $disks) {
         New-UpgCheck -Section 'Storage' -Title "Disk $($d.Number)" -Status 'info' `
             -Detail ('{0} - {1} GB, {2}, {3}' -f $d.FriendlyName, [math]::Round($d.Size/1GB,1), $d.PartitionStyle, $d.BusType)
     }
 
-    $sys = Get-Volume -DriveLetter C -ErrorAction SilentlyContinue
+    $sys = $Facts.SysVolume
     if (-not $sys) {
         New-UpgCheck -Section 'Storage' -Title 'Disk space' -Status 'unknown' -Detail 'could not read C:'
         return
@@ -282,16 +381,7 @@ function Test-UpgDisk {
         -Detail "$usedGB GB used, $freeGB GB free" `
         -Note 'Your personal files are part of that used space; the rest is Windows and installed programs. The converter puts your files on a USB stick, or leaves them in place while it fits Linux alongside. It never needs an external hard drive.'
 
-    # Shrinkable space is the gate for keeping Windows as a fallback, and the
-    # same query Disk Management uses. Measuring it on every scan also closes
-    # the scanner half of RISKS R18 and feeds the V4 validation gate.
-    $shrinkGB = $null
-    try {
-        $part = Get-Partition -DriveLetter C -ErrorAction Stop
-        $supported = Get-PartitionSupportedSize -DriveLetter C -ErrorAction Stop
-        $shrinkGB = [math]::Round(($part.Size - $supported.SizeMin) / 1GB, 1)
-    } catch { }
-
+    $shrinkGB = $Facts.ShrinkGB
     if ($null -ne $shrinkGB) {
         # ~20 GB for Fedora itself, plus room for your files to stay in place.
         if ($shrinkGB -lt 25) {
@@ -315,7 +405,7 @@ function Test-UpgDisk {
             -Note 'Windows did not report how far its partition can shrink; Fast Startup or a dirty volume can cause this even with Administrator rights. The converter re-checks before doing anything.'
     }
 
-    $partCount = @(Get-Partition -DiskNumber 0 -ErrorAction SilentlyContinue).Count
+    $partCount = $Facts.Disk0PartCount
     if ($disks.Count -gt 0 -and $disks[0].PartitionStyle -eq 'MBR' -and $partCount -ge 4) {
         New-UpgCheck -Section 'Storage' -Title 'Partition table' -Status 'warn' `
             -Detail "MBR with $partCount primary partitions" `
@@ -324,15 +414,20 @@ function Test-UpgDisk {
     }
 }
 
+function Get-UpgFastStartupState {
+    # 1 = enabled, 0 = disabled, $null = key unreadable.
+    try {
+        (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' `
+         -Name HiberbootEnabled -ErrorAction Stop).HiberbootEnabled
+    } catch { $null }
+}
+
 function Test-UpgFastStartup {
     # Fast Startup leaves NTFS in a dirty hibernated state. Linux then refuses
     # to mount it read-write, and partition resize is unsafe. Cheap to check,
     # and it silently ruins installs.
-    $val = $null
-    try {
-        $val = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' `
-                -Name HiberbootEnabled -ErrorAction Stop).HiberbootEnabled
-    } catch { }
+    param($HiberbootEnabled)
+    $val = $HiberbootEnabled
 
     if ($val -eq 1) {
         New-UpgCheck -Section 'Storage' -Title 'Fast Startup' -Status 'warn' `
@@ -344,8 +439,22 @@ function Test-UpgFastStartup {
     }
 }
 
+function Get-UpgBitLockerState {
+    # Succeeded=$false means the query itself failed (treat the disk as
+    # possibly encrypted); EncryptedMounts lists volumes with protection On.
+    try {
+        $vols = @(Get-BitLockerVolume -ErrorAction Stop | Where-Object { $_.ProtectionStatus -eq 'On' })
+        [pscustomobject]@{
+            Succeeded       = $true
+            EncryptedMounts = @($vols | ForEach-Object { $_.MountPoint })
+        }
+    } catch {
+        [pscustomobject]@{ Succeeded = $false; EncryptedMounts = @() }
+    }
+}
+
 function Test-UpgBitLocker {
-    param([bool]$IsAdmin)
+    param([bool]$IsAdmin, $State)
     if (-not $IsAdmin) {
         New-UpgCheck -Section 'Storage' -Title 'BitLocker' -Status 'unknown' `
             -Detail 'requires Administrator to check' `
@@ -354,17 +463,17 @@ function Test-UpgBitLocker {
         return
     }
 
-    try {
-        $vols = @(Get-BitLockerVolume -ErrorAction Stop | Where-Object { $_.ProtectionStatus -eq 'On' })
-        if ($vols.Count -gt 0) {
+    if ($State -and $State.Succeeded) {
+        $mounts = @($State.EncryptedMounts)
+        if ($mounts.Count -gt 0) {
             New-UpgCheck -Section 'Storage' -Title 'BitLocker' -Status 'warn' `
-                -Detail ("enabled on " + (($vols | ForEach-Object { $_.MountPoint }) -join ', ')) `
+                -Detail ("enabled on " + ($mounts -join ', ')) `
                 -Note 'This disk is encrypted. Any partition change without the recovery key destroys the data irrecoverably.' `
                 -Remedy 'Save your recovery key before doing anything: run "manage-bde -protectors -get C:" as Administrator, or retrieve it from account.microsoft.com/devicerecoverykey. Save it somewhere that is not this computer. Then either suspend or fully decrypt BitLocker before touching partitions.'
         } else {
             New-UpgCheck -Section 'Storage' -Title 'BitLocker' -Status 'ok' -Detail 'not enabled'
         }
-    } catch {
+    } else {
         New-UpgCheck -Section 'Storage' -Title 'BitLocker' -Status 'unknown' `
             -Detail 'query failed' `
             -Note 'Could not read encryption status. Treat the disk as possibly encrypted until you have confirmed otherwise.' `
@@ -520,7 +629,9 @@ function Get-UpgInstalledApps {
 }
 
 function Test-UpgApps {
-    $apps = Get-UpgInstalledApps
+    # $Apps injectable for the self-test; omitted = enumerate the live registry.
+    param($Apps)
+    $apps = if ($null -ne $Apps) { @($Apps) } else { Get-UpgInstalledApps }
     if (-not $apps -or $apps.Count -eq 0) {
         New-UpgCheck -Section 'Software' -Title 'Installed software' -Status 'unknown' `
             -Detail 'could not enumerate'
@@ -985,6 +1096,173 @@ function Invoke-UpgSelfTest {
         }
     }
 
+    # Judgment-level cases for the checks that read the live OS. Their
+    # collection halves (registry, Get-Disk, Get-BitLockerVolume) sit behind
+    # seams; these cases feed the judgment halves fabricated inputs, including
+    # the paths a healthy dev machine can never show. Expect maps check Title
+    # to expected status(es); an empty array asserts the check must NOT fire.
+    $gb = 1073741824
+    $uefiSys = [pscustomobject]@{ Firmware = 'UEFI' }
+    $seamCases = @(
+        @{ Name = 'seam: Secure Boot enabled is ok with distro note'
+           Run = { Test-UpgFirmware -Sys $uefiSys -SecureBoot 1 }
+           Expect = @{ 'Secure Boot' = 'ok' } }
+        @{ Name = 'seam: Secure Boot disabled is ok'
+           Run = { Test-UpgFirmware -Sys $uefiSys -SecureBoot 0 }
+           Expect = @{ 'Secure Boot' = 'ok' } }
+        @{ Name = 'seam: Secure Boot unreadable is info, not a guess'
+           Run = { Test-UpgFirmware -Sys $uefiSys -SecureBoot $null }
+           Expect = @{ 'Secure Boot' = 'info' } }
+
+        @{ Name = 'seam: disk with shrink headroom keeps Windows'
+           Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test NVMe'; Size=(1000*$gb); PartitionStyle='GPT'; BusType='NVMe' })
+                     SysVolume = [pscustomobject]@{ Size=(1000*$gb); SizeRemaining=(500*$gb) }
+                     ShrinkGB = 120.0; Disk0PartCount = 4 }) }
+           Expect = @{ 'Room to keep Windows' = 'ok'; 'Disk in use' = 'info'; 'Partition table' = @() } }
+        @{ Name = 'seam: too little shrink room warns toward clean slate'
+           Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test NVMe'; Size=(256*$gb); PartitionStyle='GPT'; BusType='NVMe' })
+                     SysVolume = [pscustomobject]@{ Size=(256*$gb); SizeRemaining=(20*$gb) }
+                     ShrinkGB = 10.0; Disk0PartCount = 3 }) }
+           Expect = @{ 'Room to keep Windows' = 'warn' } }
+        @{ Name = 'seam: unelevated shrink query says re-run as Administrator'
+           Run = { Test-UpgDisk -IsAdmin $false -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test NVMe'; Size=(500*$gb); PartitionStyle='GPT'; BusType='NVMe' })
+                     SysVolume = [pscustomobject]@{ Size=(500*$gb); SizeRemaining=(200*$gb) }
+                     ShrinkGB = $null; Disk0PartCount = 4 }) }
+           Expect = @{ 'Room to keep Windows' = 'info' } }
+        @{ Name = 'seam: elevated but unmeasurable shrink is info, not fail'
+           Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test NVMe'; Size=(500*$gb); PartitionStyle='GPT'; BusType='NVMe' })
+                     SysVolume = [pscustomobject]@{ Size=(500*$gb); SizeRemaining=(200*$gb) }
+                     ShrinkGB = $null; Disk0PartCount = 4 }) }
+           Expect = @{ 'Room to keep Windows' = 'info' } }
+        @{ Name = 'seam: unreadable C: is unknown and stops there'
+           Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
+                     Disks = @(); SysVolume = $null; ShrinkGB = $null; Disk0PartCount = 0 }) }
+           Expect = @{ 'Disk space' = 'unknown'; 'Room to keep Windows' = @() } }
+        @{ Name = 'seam: MBR at the four-partition limit warns'
+           Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=0; FriendlyName='Old SATA'; Size=(500*$gb); PartitionStyle='MBR'; BusType='SATA' })
+                     SysVolume = [pscustomobject]@{ Size=(500*$gb); SizeRemaining=(100*$gb) }
+                     ShrinkGB = 60.0; Disk0PartCount = 4 }) }
+           Expect = @{ 'Partition table' = 'warn' } }
+
+        @{ Name = 'seam: Fast Startup enabled warns'
+           Run = { Test-UpgFastStartup -HiberbootEnabled 1 }
+           Expect = @{ 'Fast Startup' = 'warn' } }
+        @{ Name = 'seam: Fast Startup disabled is ok'
+           Run = { Test-UpgFastStartup -HiberbootEnabled 0 }
+           Expect = @{ 'Fast Startup' = 'ok' } }
+        @{ Name = 'seam: Fast Startup unreadable stays silent'
+           Run = { Test-UpgFastStartup -HiberbootEnabled $null }
+           Expect = @{ 'Fast Startup' = @() } }
+
+        @{ Name = 'seam: BitLocker without Administrator is unknown'
+           Run = { Test-UpgBitLocker -IsAdmin $false -State $null }
+           Expect = @{ 'BitLocker' = 'unknown' } }
+        @{ Name = 'seam: encrypted volume warns with the recovery-key remedy'
+           Run = { Test-UpgBitLocker -IsAdmin $true -State ([pscustomobject]@{ Succeeded=$true; EncryptedMounts=@('C:') }) }
+           Expect = @{ 'BitLocker' = 'warn' } }
+        @{ Name = 'seam: no encrypted volumes is ok'
+           Run = { Test-UpgBitLocker -IsAdmin $true -State ([pscustomobject]@{ Succeeded=$true; EncryptedMounts=@() }) }
+           Expect = @{ 'BitLocker' = 'ok' } }
+        @{ Name = 'seam: failed BitLocker query is unknown - possibly encrypted'
+           Run = { Test-UpgBitLocker -IsAdmin $true -State ([pscustomobject]@{ Succeeded=$false; EncryptedMounts=@() }) }
+           Expect = @{ 'BitLocker' = 'unknown' } }
+
+        @{ Name = 'seam: F4 regression - real VS Community install must match'
+           Run = { Test-UpgApps -Apps @('Microsoft Visual Studio Community 2022') }
+           Expect = @{ 'Works differently' = 'warn' } }
+        @{ Name = 'seam: VS Code must NOT trip the Visual Studio rule'
+           Run = { Test-UpgApps -Apps @('Visual Studio Code') }
+           Expect = @{ 'Works differently' = @(); 'Programs installed' = 'info' } }
+        @{ Name = 'seam: Adobe is a blocker, Steam is info'
+           Run = { Test-UpgApps -Apps @('Adobe Photoshop 2024', 'Steam') }
+           Expect = @{ 'No Linux equivalent' = 'fail'; 'Worth knowing' = 'info' } }
+        @{ Name = 'seam: empty app enumeration is unknown'
+           Run = { Test-UpgApps -Apps @() }
+           Expect = @{ 'Installed software' = 'unknown' } }
+
+        @{ Name = 'seam: Windows 10 build gets the end-of-support note'
+           Run = { Test-UpgWin11Context -IsAdmin $true -Sys ([pscustomobject]@{ OsCaption='Microsoft Windows 10 Home'; OsBuild=19045 }) }
+           Expect = @{ 'Current OS' = 'info' } }
+    )
+
+    foreach ($case in $seamCases) {
+        $script:Checks = @(); $script:Unmatched = @()
+        & $case.Run
+        $caseErrors = @()
+        foreach ($k in $case.Expect.Keys) {
+            $want = @($case.Expect[$k] | ForEach-Object { "$_" }) | Sort-Object
+            $got  = @($script:Checks | Where-Object { $_.Title -eq $k } |
+                      ForEach-Object { $_.Status }) | Sort-Object
+            if (($want -join ',') -ne ($got -join ',')) {
+                $caseErrors += "'$k' was [$($got -join ',')], expected [$($want -join ',')]"
+            }
+        }
+        if ($caseErrors.Count -eq 0) {
+            Write-Host ("    PASS  " + $case.Name) -ForegroundColor Green
+        } else {
+            $failed++
+            Write-Host ("    FAIL  " + $case.Name) -ForegroundColor Red
+            foreach ($e in $caseErrors) { Write-Host "          $e" -ForegroundColor Red }
+        }
+    }
+
+    # Corpus replay: every file in corpus/ is a capture from a real machine
+    # (made with -DumpMachine), replayed through the pure detection checks -
+    # the ones that are functions of the enumeration alone. Checks that call
+    # the live OS mid-check (Firmware/SecureBoot, Disk, FastStartup,
+    # BitLocker, Apps, Win11Context) are not replayable from a capture and are
+    # deliberately absent here. A recording of a real machine is evidence; a
+    # green replay proves the current code still reads that machine correctly.
+    # The single-file dist build ships without corpus/ - skipping is normal.
+    $corpusDir = Join-Path $PSScriptRoot 'corpus'
+    if (Test-Path $corpusDir) {
+        foreach ($f in @(Get-ChildItem $corpusDir -Filter '*.json' | Sort-Object Name)) {
+            $cap = $null
+            try { $cap = Get-Content $f.FullName -Raw | ConvertFrom-Json }
+            catch {
+                $failed++
+                Write-Host ("    FAIL  corpus: $($f.Name) is not valid JSON") -ForegroundColor Red
+                continue
+            }
+            $script:Checks = @(); $script:Unmatched = @()
+            $pnp = @($cap.Pnp)
+            Test-UpgArchitecture -Sys $cap.Sys
+            Test-UpgMemory       -Sys $cap.Sys
+            Test-UpgStorageMode  -Pnp $pnp
+            Test-UpgWifi         -Pnp $pnp
+            Test-UpgGpu          -Pnp $pnp
+            Test-UpgAudio        -Pnp $pnp
+            Test-UpgVendor       -Sys $cap.Sys
+
+            $caseErrors = @()
+            $expected = @($cap.Expected.PSObject.Properties)
+            if ($expected.Count -eq 0) {
+                $caseErrors += 'capture has an empty Expected block - curate it before it lands in corpus/'
+            }
+            foreach ($prop in $expected) {
+                $want = @($prop.Value | ForEach-Object { "$_" }) | Sort-Object
+                $got  = @($script:Checks | Where-Object { $_.Title -eq $prop.Name } |
+                          ForEach-Object { $_.Status }) | Sort-Object
+                if (($want -join ',') -ne ($got -join ',')) {
+                    $caseErrors += "'$($prop.Name)' was [$($got -join ',')], expected [$($want -join ',')]"
+                }
+            }
+            $label = "corpus: $($cap.Label) ($($f.Name))"
+            if ($caseErrors.Count -eq 0) {
+                Write-Host ("    PASS  " + $label) -ForegroundColor Green
+            } else {
+                $failed++
+                Write-Host ("    FAIL  " + $label) -ForegroundColor Red
+                foreach ($e in $caseErrors) { Write-Host "          $e" -ForegroundColor Red }
+            }
+        }
+    }
+
     # The distro table must stay internally coherent.
     foreach ($d in Get-UpgDistroTable) {
         if ($d.Kernel -ne 'rolling' -and -not (ConvertTo-UpgVersion $d.Kernel)) {
@@ -1010,6 +1288,13 @@ function Invoke-UpgSelfTest {
 
 if ($SelfTest) { Invoke-UpgSelfTest }
 
+if ($DumpMachine) {
+    Write-Host ''
+    Write-Host '  capturing hardware enumeration...' -ForegroundColor DarkGray
+    Export-UpgMachineCapture -Path $DumpMachine -Sys (Get-UpgSystem) -Pnp (Get-UpgPnp)
+    exit 0
+}
+
 $isAdmin = Test-UpgAdmin
 
 Write-Host ''
@@ -1020,11 +1305,11 @@ $pnp = Get-UpgPnp
 
 Test-UpgArchitecture -Sys $sys
 Test-UpgMemory       -Sys $sys
-Test-UpgFirmware     -Sys $sys
+Test-UpgFirmware     -Sys $sys -SecureBoot (Get-UpgSecureBootState)
 Test-UpgStorageMode  -Pnp $pnp
-Test-UpgDisk         -IsAdmin $isAdmin
-Test-UpgFastStartup
-Test-UpgBitLocker    -IsAdmin $isAdmin
+Test-UpgDisk         -Facts (Get-UpgDiskFacts) -IsAdmin $isAdmin
+Test-UpgFastStartup  -HiberbootEnabled (Get-UpgFastStartupState)
+Test-UpgBitLocker    -IsAdmin $isAdmin -State $(if ($isAdmin) { Get-UpgBitLockerState })
 Test-UpgWifi         -Pnp $pnp
 Test-UpgGpu          -Pnp $pnp
 Test-UpgAudio        -Pnp $pnp
