@@ -1,6 +1,6 @@
 # upgrade_
 
-**Move an ordinary computer from Windows to Linux, without needing to know how.**
+** Convert your machine to Linux**
 
 Plug in a USB stick, make two choices, click convert. Come back to a working
 Linux machine with your files, Wi-Fi and browsers intact. One stick is the
@@ -15,38 +15,28 @@ whole kit — there is no external drive anywhere in this design.
 
 ## Why
 
-Windows 10 stopped getting security updates in October 2025. Windows 11's TPM
-and CPU requirements stranded an enormous number of machines that are
-mechanically and electrically fine. Those computers are not broken. They were
-declared obsolete by someone else's product roadmap.
-
-Most of them can run Linux for another five years. The obstacle was never
-capability — it's that converting a machine currently requires knowing which
-distribution suits your hardware, why the installer can't see your SSD, and what
-to do when the speakers are silent afterwards. That knowledge is the barrier,
-and it's the thing software can carry for you.
+Your os should not control your hardware.
 
 ## How it works
 
-Three modules. The boundary between them is **commitment**, not operating
-system.
+Three modules. 
 
 | | | |
 |---|---|---|
-| **`evaluate`** | Windows · reversible | Reads the machine, captures your choices, extracts everything that only exists while Windows does, and refuses anything it can't do safely. |
-| **`upgrade_`** | Windows → Linux | The converter. Stages your files to the stick — or shrinks Windows aside and leaves them in place — then converts. |
+| **`evaluate`** | Source · reversible | Reads the machine, captures your choices, extracts everything that depends on the source system for its existence, and refuses anything it can't do safely. |
+| **`upgrade_`** | Source → Linux | The converter. Stages your files to the stick — or shrinks the source partition aside and leaves them in place — then converts. |
 | **`settle-in`** | Linux | Verifies the hardware actually works, hands over, stops. |
 
 ### The commit line
 
-Exactly one moment in a conversion is irreversible, and Windows stays bootable
-until it. On the **clean-slate** path (your files ride the stick) it is the
-disk wipe — guarded by a two-minute human hardware check in the live session,
-because that path has no rollback. On the **safety-copy** path (your files
-never leave the internal disk; Windows is shrunk aside and kept) it is the
-**reclaim** of the Windows partition, which happens only after first-boot
-verification and your explicit consent. Everything earlier is additive, and a
-failure at any earlier point simply boots Windows again.
+Exactly one moment in a conversion is irreversible, and the source OS stays
+bootable until it. On the **clean-slate** path (your files ride the stick) it
+is the disk wipe — guarded by a two-minute human hardware check in the live
+session, because that path has no rollback. On the **safety-copy** path (your
+files never leave the internal disk; the source partition is shrunk aside and
+kept) it is the **reclaim** of that partition, which happens only after
+first-boot verification and your explicit consent. Everything earlier is
+additive, and a failure at any earlier point simply boots the source OS again.
 
 Two rules follow. The interface says *"you can still cancel"* until that exact
 moment and stops the instant it's crossed. And everything capable of refusing
