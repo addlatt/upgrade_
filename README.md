@@ -2,9 +2,10 @@
 
 ** Convert your machine to Linux**
 
-Plug in a USB stick, make two choices, click convert. Come back to a working
-Linux machine with your files, Wi-Fi and browsers intact. One stick is the
-whole kit — there is no external drive anywhere in this design.
+Plug in a USB stick, pick a desktop, click convert. Come back to a working
+Linux machine with your files, Wi-Fi and browsers intact — and, by default,
+your old system shrunk safely aside until you're sure. One stick is the whole
+kit; there is no external drive anywhere in this design.
 
 > **Status: the evaluator works. The conversion is designed, not built.**
 > Today you can run the preflight scanner and get a real answer about your
@@ -24,8 +25,8 @@ Three modules.
 | | | |
 |---|---|---|
 | **`evaluate`** | Source · reversible | Reads the machine, captures your choices, extracts everything that depends on the source system for its existence, and refuses anything it can't do safely. |
-| **`upgrade_`** | Source → Linux | The converter. Stages your files to the stick — or shrinks the source partition aside and leaves them in place — then converts. |
-| **`settle-in`** | Linux | Verifies the hardware actually works, hands over, stops. |
+| **`upgrade_`** | Source → Linux | The converter. By default shrinks the source aside and installs Linux next to it; wipes and stages files to the stick only if you ask, or if the disk is too full to keep both. |
+| **`settle-in`** | Linux | Verifies the hardware works, brings your files home from the kept partition, hands over, stops. |
 
 **Today the source is Windows.** The framing is deliberately source-agnostic —
 the *shape* (read, commit, settle) has nothing Windows-specific about it — but
@@ -37,13 +38,18 @@ mean the one source that works now.
 ### The commit line
 
 Exactly one moment in a conversion is irreversible, and the source OS stays
-bootable until it. On the **clean-slate** path (your files ride the stick) it
-is the disk wipe — guarded by a two-minute human hardware check in the live
-session, because that path has no rollback. On the **safety-copy** path (your
-files never leave the internal disk; the source partition is shrunk aside and
-kept) it is the **reclaim** of that partition, which happens only after
-first-boot verification and your explicit consent. Everything earlier is
-additive, and a failure at any earlier point simply boots the source OS again.
+bootable until it. By default the converter **keeps the old system**: it
+shrinks that partition aside, installs Linux next to it, brings your files
+across on first boot, and only then — after you have confirmed everything works
+— offers to **reclaim** the space. That reclaim is the irreversible moment, and
+it is your explicit choice. Until it, the old system is a full rollback a
+boot-menu away.
+
+Only if you ask to wipe the old system outright — or if the disk is too full to
+keep both — does the irreversible moment become a **disk wipe** instead, and
+that path is guarded by a two-minute hardware check with you present, because
+it has no rollback. Everything before either line is additive; a failure
+earlier simply boots the old system again.
 
 Two rules follow. The interface says *"you can still cancel"* until that exact
 moment and stops the instant it's crossed. And everything capable of refusing
@@ -172,8 +178,8 @@ evaluate/               module 1 — read the machine, capture intent, refuse
   windows/                scanner + state harvester
 upgrade_/               module 2, "the converter" — does the conversion
   windows/                prologue: stage to stick or shrink aside, boot handoff
-  linux/                  cutover: install, inject, restore
-settle-in/              module 3 — verify hardware, hand over, stop
+  linux/                  cutover: install, inject, (clean-slate) restore
+settle-in/              module 3 — verify hardware, pull files home, hand over
   linux/
 
 build.sh                inlines data/ into dist/upgrade-scan.ps1
@@ -224,7 +230,8 @@ Next, in order:
 4. Kickstart generator — `job.json` → a Fedora install (per-target seam for
    future distributions)
 5. Live image — Fedora squashfs (KDE and GNOME) plus the cutover orchestrator
-6. `settle-in`, including reclaim
+6. `settle-in` — hardware verify, the default path's file pull from the kept
+   partition, and reclaim
 7. Shrink, stick authoring, boot handoff hardening — **last, and reviewed
    hardest**
 

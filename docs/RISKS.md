@@ -174,11 +174,20 @@ never found anything.
 
 **If real.** OneDrive placeholder files copy as empty. The user's photos appear
 to migrate and are 0 bytes on the other side, discovered long after Windows is
-gone.
+gone. Sharper under the keep-Windows default: files are pulled in `settle-in`
+by reading the mounted NTFS *from Linux*, which has no OneDrive client — so a
+placeholder that was not materialized beforehand cannot be filled at pull time,
+only copied empty.
 
-**Closes when.** Tested on a machine with "Free up space" files present, ideally
-also confirming that the OneDrive pinned/unpinned attribute bits
-(`0x00080000` / `0x00100000`) don't need to be part of the test.
+**Design response (2026-08-22).** `evaluate` must *materialize* placeholders —
+force the download to real bytes while Windows is alive — not merely detect
+them, because no later stage can. This is now stated in `architecture.md`
+(evaluate's harvest duties) as a hard step: materialize, or refuse.
+
+**Closes when.** Materialization is implemented and tested on a machine with
+"Free up space" files present — confirming the files carry real bytes on the
+NTFS partition afterward — ideally also confirming the OneDrive pinned/unpinned
+attribute bits (`0x00080000` / `0x00100000`) don't need to be part of the test.
 
 ## R9 — No CI; dist can drift from source · medium · open
 
@@ -240,14 +249,24 @@ volume, so the certificate is worth having before there is anything to sign.
 
 ## R13 — The USB becomes a credential store · medium · open
 
-**What.** Phase A writes Wi-Fi passwords in cleartext to the USB stick so the
-Linux side can recreate the connections.
+**What.** `evaluate` writes secrets to the stick so the Linux side can act on
+them: Wi-Fi passwords in cleartext (to recreate connections) and, under the
+keep-Windows default, the **BitLocker recovery key** (so `settle-in` can unlock
+and read the Windows partition).
 
-**If real.** Anyone who picks up the stick has the user's home and work Wi-Fi.
+**If real.** Anyone who picks up the stick has the user's home and work Wi-Fi —
+and, worse, the key to their still-intact encrypted Windows disk.
 
-**Mitigations planned.** Restricted ACLs on write, wiping the credential portion
-at the end of Phase B, and telling the user plainly in Phase A. **Closes when**
-those are implemented and verified, not merely designed.
+**Timing constraint (2026-08-22).** The credential wipe cannot happen at the
+end of cutover as first designed. On the keep-Windows path the recovery key is
+needed later, by `settle-in`, to do the file pull — so the key (and the stick's
+credential region) can only be scrubbed **after** `settle-in` finishes bringing
+the files over. The wipe moves from end-of-cutover to end-of-settle-in-pull.
+See `architecture.md`, Contracts.
+
+**Mitigations planned.** Restricted ACLs on write, credential wipe at the
+correct (later) moment, and telling the user plainly at intent capture.
+**Closes when** those are implemented and verified, not merely designed.
 
 ## R14 — Supply chain · medium · open
 
@@ -337,20 +356,34 @@ recoverable, but exactly the walk-away-killing stop the design forbids.
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.
 
-## R19 — cryptsetup BITLK unattended is a new trust dependency · high · open
+## R19 — cryptsetup BITLK read is a new trust dependency · medium · open
 
-**What.** The safety-copy path unlocks the BitLocker NTFS volume from the
-live environment using the harvested recovery key via `cryptsetup` BITLK
-support, unattended, on the only copy of the user's data.
+**What.** The keep-Windows path (now the default) reads the BitLocker NTFS
+volume via `cryptsetup` BITLK using the harvested recovery key, to copy the
+user's files into Linux.
 
-**If real.** Read failures or edge-case incompatibilities (key protector
-types, XTS variants, used-space-only encryption) stop the copy mid-path — or
-worse, read wrong data that then checksums as what was (wrongly) read.
+**Reframed (2026-08-22).** This risk used to read "unattended, on the only
+copy, before the wipe" — the worst possible context. The design changed: the
+read moved out of cutover and into `settle-in`, and on the keep-Windows path
+Windows is never destroyed. So the read now happens (a) with the user present,
+who can be asked about a stubborn unlock instead of the tool guessing; (b)
+after the new Linux system has been verified working; and (c) with the Windows
+partition fully intact as a backup — a failed read loses nothing, the user
+reboots into Windows and retries. Same `cryptsetup` mechanism, far lower
+stakes. Downgraded high → medium.
 
-**Closes when.** Unlock-and-copy is verified against real BitLocker volumes
+**If real.** Edge-case incompatibilities (key protector types, XTS variants,
+used-space-only encryption) stop the copy — recoverable now, because Windows
+is still there — or, the genuine remaining danger, read *wrong* data that then
+checksums as what was (wrongly) read.
+
+**Closes when.** Read-and-copy is verified against real BitLocker volumes
 across Windows 10/11 defaults, both XTS-AES key sizes, and used-space-only
-encryption; checksums are computed on the Windows side at harvest time so the
-Linux-side verify catches read corruption, not just copy corruption.
+encryption; checksums are computed on the Windows side at harvest time (in
+`evaluate`) so the Linux-side verify catches read corruption, not just copy
+corruption. (Only the clean-slate path still reads user data before a
+destructive step — and it does so inside Windows, where there is no BITLK
+problem at all.)
 
 ## R20 — Browser profile porting is assumed, not verified · medium · open
 

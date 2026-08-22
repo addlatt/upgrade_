@@ -82,16 +82,39 @@ injects before first boot.**
 ### It captures intent, not just state
 
 If any decision is missing, the converter has to stop and ask a human, and
-walk-away dies. So `evaluate` also collects: the conversion path (clean slate
-now, or keep a safety copy of Windows for a while — the choice is offered
-only when the machine qualifies for both), the desktop (KDE or GNOME — two
+walk-away dies. So `evaluate` also collects: the desktop (KDE or GNOME — two
 screenshots, one question), account name, and password (hashed immediately to
 SHA-512 crypt).
 
-The path choice carries a consequence the interface must state plainly: the
-clean-slate path requires the user to be present for a two-minute hardware
-check in the live session before anything is destroyed, because it has no
-rollback. The safety-copy path is true walk-away.
+**The conversion path is not a coin flip.** Keeping Windows aside as a
+fallback is strictly the safer net, so it is the **default whenever the disk
+has room for it**. Clean slate — wiping Windows and staging files to the stick
+— is not offered as an equal; it appears only when the user explicitly wants
+Windows gone, or as the forced fallback when the disk is too full to keep
+both. Most users never make this choice at all.
+
+The one consequence the interface must still state plainly: clean slate
+requires the user to be present for a two-minute hardware check in the live
+session before anything is destroyed, because it has no rollback. The default
+keep-Windows path is true walk-away — the files come over later, in
+`settle-in`, from the intact Windows partition (see Module 3).
+
+### It harvests what only Windows can give
+
+Two things settle-in will need cannot be obtained once the machine has booted
+Linux, so `evaluate` captures them while Windows is alive — this is the same
+"last moment Windows exists" duty as artifact extraction:
+
+- **The folder map.** *Where* the user's files actually live — Documents,
+  Pictures and the rest resolved through the known-folder APIs, so OneDrive
+  redirection is followed rather than guessed. settle-in reads this map off
+  the stick to know what to pull; a naive Linux-side copy of `\Users\` would
+  miss redirected folders entirely.
+- **Materialized cloud files.** OneDrive "free up space" placeholders are
+  0-byte stubs on disk, and Linux has no OneDrive client to fill them — read
+  from the mounted NTFS later, they copy over *empty* (RISKS R8). So
+  `evaluate` forces them local now, while Windows can still download them, or
+  refuses if it cannot. This is materialization, not just detection.
 
 ### It writes the stick
 
@@ -143,31 +166,40 @@ multi-user handling, `job.json` schema.
 There is no external drive anywhere in this design. Everything travels on the
 USB stick, or never moves at all:
 
-|  | clean slate | safety copy |
+|  | keep Windows (default) | clean slate (opt-in / fallback) |
 |---|---|---|
-| User files travel via | the stick's exFAT staging partition | never leave the internal disk |
-| Qualifies when | data + artifacts fit the stick | shrinkable space ≥ Linux (~20 GB) + data + headroom |
-| Windows afterwards | gone at the wipe | intact until `settle-in` reclaims it |
-| Rollback | none — the wipe is the commit line | full, until reclaim |
-| Walk-away | after a 2-minute human check in the live session | total |
+| User files | never leave the internal disk; pulled in `settle-in` from the intact Windows partition | staged to the stick's exFAT partition, restored during cutover |
+| Qualifies when | shrinkable space ≥ Linux (~20 GB) + headroom | data + artifacts fit the stick |
+| Windows afterwards | intact until `settle-in` reclaims it | gone at the wipe |
+| Rollback | full, until reclaim | none — the wipe is the commit line |
+| Walk-away | total | after a 2-minute human check in the live session |
 
-When a machine qualifies for both, the user chooses at intent capture, with
-the trade stated in one sentence each. When it qualifies for neither,
-`evaluate` refuses with a gap report.
+**Keep-Windows is the default** wherever the disk fits it, because a live
+fallback is the better safety net. Clean slate is chosen only when the user
+wants Windows gone, or forced only when the disk cannot keep both. When
+neither fits, `evaluate` refuses with a gap report.
+
+The consequence of that default runs deep: on the keep-Windows path **no user
+data is read out of Windows during the destructive part of the conversion at
+all.** Cutover installs Linux into the freed space and touches nothing of the
+user's; the files come across afterward, in `settle-in`, with Windows still
+whole. That is what pulls the encrypted-read risk (RISKS R19) out of the
+"unattended, only copy, pre-wipe" corner it used to sit in.
 
 ### Stage 1 — prologue (runs in Windows, reversible)
 
 1. Re-validate `job.json` against the live machine. Anything changed since
    `evaluate` ran stops here.
-2. **Clean slate:** stage user files and artifacts to the stick's exFAT
-   partition with per-file checksums, at a measured write speed shown as a
-   **computed** time estimate — cheap flash at 20 MB/s is not a ten-minute
-   job, and the user must learn that before walking away. Windows reads its
-   own BitLocker volume, so encryption never enters this path.
-   **Safety copy:** disable pagefile and hibernation, then shrink C: with
-   `Resize-Partition` — Microsoft's own code path, the most-tested NTFS
-   resize there is, and it works with BitLocker still on. Stage only
-   artifacts to the stick.
+2. **Keep Windows (default):** disable pagefile and hibernation, then shrink
+   C: with `Resize-Partition` — Microsoft's own code path, the most-tested
+   NTFS resize there is, and it works with BitLocker still on. Stage only
+   artifacts to the stick; the user's files stay put and are pulled later, in
+   `settle-in`.
+   **Clean slate (opt-in / fallback):** stage user files and artifacts to the
+   stick's exFAT partition with per-file checksums, at a measured write speed
+   shown as a **computed** time estimate — cheap flash at 20 MB/s is not a
+   ten-minute job, and the user must learn that before walking away. Windows
+   reads its own BitLocker volume, so encryption never enters this path.
 3. Hard confirmation: type the word, not a checkbox.
 4. Suspend BitLocker, write the one-time boot entry, reboot.
 
@@ -209,7 +241,26 @@ machines. `evaluate` hard-refuses. This is permanent, not a v1 limitation.
    associates, the display drives at native resolution, amp firmware loads.
    What the old design discovered in `settle-in` is now a refusal gate.
 
-**Clean slate** (the user is present, by design):
+**Keep Windows** — the default — is unattended, and does no destructive
+thing at all:
+
+8. Create partitions in the freed space. The Windows partition and the
+   existing ESP are never reformatted; Fedora's bootloader is added alongside
+   `bootmgfw.efi`, which is what keeps rollback a boot-menu entry rather than
+   a restore.
+9. Install via kickstart with `--onpart`, touching the new partitions only.
+10. Inject artifacts — vendor firmware, drivers — into the installed system
+    *before* first boot, so the first impression is working hardware.
+11. Write `outcome.json` and logs to the stick. Reboot into Linux.
+
+**The user's files are not touched here.** No NTFS read, no BitLocker unlock,
+no copy — Windows is left whole, and the files come across in `settle-in`,
+after the new system has proven itself and with Windows still available as a
+complete fallback. That deferral is the whole point: nothing destructive
+happens on this path, and the commit line waits in `settle-in`, at reclaim.
+
+**Clean slate** — opt-in, or forced when the disk is too full to keep both —
+is the only path that wipes, so the user is present, by design:
 
 8. The live desktop asks for two minutes: speakers — *not headphones* —
    display, Wi-Fi. A human ear is the only test for a smart amp, and this is
@@ -218,8 +269,7 @@ machines. `evaluate` hard-refuses. This is permanent, not a v1 limitation.
 > **=== COMMIT LINE (clean slate) ===** everything below destroys something
 
 9. Wipe, partition, install via kickstart with the chosen desktop.
-10. **Inject artifacts** — vendor firmware, drivers — into the installed
-    system *before* first boot, so the first impression is working hardware.
+10. Inject artifacts into the installed system before first boot.
 11. Restore files from the stick, Wi-Fi profiles to NetworkManager keyfiles,
     browser profiles.
 12. Wipe the credential portion of the stick — but **leave the staged
@@ -228,28 +278,12 @@ machines. `evaluate` hard-refuses. This is permanent, not a v1 limitation.
 13. Write `outcome.json` and logs to the stick. This is the only telemetry
     and it stays there unless the user chooses to submit it. Reboot.
 
-**Safety copy** (nobody is present, by design):
-
-8. Create partitions in the freed space. The Windows partition and the
-   existing ESP are never reformatted; Fedora's bootloader is added alongside
-   `bootmgfw.efi`, which is what keeps rollback a boot-menu entry rather than
-   a restore.
-9. Install via kickstart with `--onpart`, touching the new partitions only.
-10. Unlock the NTFS volume with the harvested recovery key (`cryptsetup`
-    BITLK, RISKS R19), copy user files into the new home, verify checksums
-    against the manifest.
-11. Inject artifacts, restore Wi-Fi and browser profiles, wipe credentials
-    from the stick, write `outcome.json` and logs. Reboot.
-
-Nothing destructive has happened on this path. The commit line waits in
-`settle-in`, at reclaim.
-
 **A note on a reversal.** An earlier revision rejected any single-disk design,
 citing the unattended resize-and-move whose power-cut failure loses both the
-original and the copy. The safety-copy path is not that design: the resize is
-Windows' own shrink, the files are *copied* rather than moved, the original
-NTFS data is never modified until a checksummed copy exists, and never deleted
-until the user consents at reclaim.
+original and the copy. The keep-Windows path is not that design: the resize is
+Windows' own shrink, the files are *copied* (in `settle-in`, later) rather
+than moved, the original NTFS data is never modified, and never deleted until
+the user consents at reclaim.
 
 ### Rollback is a mode of upgrade_, not a fourth module
 
@@ -295,25 +329,39 @@ It looks like a welcome screen. It is a safety gate.
 1. **Verify hardware.** Speakers — *not headphones* — Wi-Fi, display and
    brightness, suspend/resume. Smart-amp silence is the most common post-install
    complaint and it is invisible if you only test with headphones plugged in.
-2. **Confirm the data arrived.** Counts and checksums against `outcome.json`.
-3. **Hand off.** Where files went, what replaced what, what is gone and is not
-   coming back.
-3½. On the clean-slate path: tell the user to **keep the stick** — it still
-   holds their files, and it is their only backup until they no longer want
-   one.
-4. **Decide** (safety-copy path). Keep, or roll back to Windows — a boot-menu
-   restore, not an image restore. Only after the user confirms things work
-   does it offer the **reclaim**: delete the Windows partition and grow into
-   the space, stated plainly as the one irreversible act on this path. Offered
-   exactly once, never nagged; declining leaves a `reclaim` command behind for
-   whenever they are ready.
-5. **Exit.**
+2. **Bring the files home** (keep-Windows path). This is where the user's data
+   arrives, and the reason it is safe to do here rather than during cutover:
+   hardware is already proven, and Windows is still whole as a complete
+   backup. Following the folder map from `job.json`, `settle-in` mounts the
+   shrunk-aside Windows partition — unlocking BitLocker with the harvested
+   recovery key (`cryptsetup` BITLK) — and copies Documents, Pictures, the
+   rest, plus Wi-Fi and browser profiles, into the new home, verifying
+   checksums as it goes. Because the user is present, a stubborn unlock or a
+   read error can be *asked about* rather than guessed at on an unattended
+   only-copy; and because Windows is intact, a failure here loses nothing —
+   the user reboots into Windows and retries. (On the clean-slate path the
+   files were already restored during cutover; this step is skipped.)
+3. **Confirm the data arrived.** Counts and checksums against `outcome.json`.
+4. **Hand off.** Where files went, what replaced what, what is gone and is not
+   coming back. On the clean-slate path, also: **keep the stick** — it still
+   holds their files, and it is their only backup until they say otherwise.
+5. **Decide** (keep-Windows path). Keep, or roll back to Windows — a boot-menu
+   restore, not an image restore. Only after the user confirms things work —
+   the new system runs *and* their files came over — does it offer the
+   **reclaim**: delete the Windows partition and grow into the space, stated
+   plainly as the one irreversible act on this path. Offered exactly once,
+   never nagged; declining leaves a `reclaim` command behind for whenever they
+   are ready.
+6. **Exit.**
 
 ### Scope boundary
 
 `settle-in` does not teach Linux, install applications, run a tour, or check in
-later. The verification step is the reason it exists; broadening it into a
-welcome experience would dilute the one thing it is for.
+later. Verifying the hardware and bringing the files home are the two reasons
+it exists; broadening it into a welcome experience would dilute them. The data
+pull belongs here specifically because this is the first moment it can happen
+safely — Linux proven, Windows intact — not because settle-in is a general
+migration tool.
 
 ### Current status
 
@@ -325,8 +373,16 @@ Nothing built.
 
 | File | Written by | Read by |
 |---|---|---|
-| `job.json` + `artifacts/` | evaluate | upgrade_ |
+| `job.json` + `artifacts/` | evaluate | upgrade_, **settle-in** |
 | `outcome.json` + logs | upgrade_ | settle-in |
+
+`settle-in` reads `job.json` too, not just `outcome.json`: on the keep-Windows
+path it needs the harvested folder map (and the BitLocker recovery key) to pull
+the user's files from the mounted Windows partition. The stick is still present
+at first boot, so this needs no new carrier — but it does mean `job.json`
+outlives cutover, and the credential-wipe timing has to account for that: the
+recovery key can only be scrubbed **after** `settle-in` has finished the pull,
+not at the end of cutover.
 
 Both schemas are versioned. A USB written by one release will eventually be read
 by another; a module that meets a version it does not understand must refuse,
@@ -406,7 +462,7 @@ Start before there is anything to sign.
 | Firefox profile | yes | Bookmarks, history, extensions **and saved passwords** — the NSS key database is cross-platform. |
 | Chrome/Edge bookmarks, history, extensions | yes | Profile directory ports. |
 | Chrome/Edge **saved passwords** | **no** | DPAPI-encrypted; no Linux equivalent. They silently will not appear. Must be said in `evaluate`, not discovered in `settle-in`. |
-| OneDrive cloud-only files | **needs care** | Placeholders copy as empty files. Detect and force-download, or refuse. RISKS R8. |
+| OneDrive cloud-only files | **needs care** | Placeholders copy as empty files, and no Linux-side reader can fill them. `evaluate` materializes them (forces the download) while Windows is alive, or refuses. RISKS R8. |
 | Installed applications | no | Out of scope for v1. |
 | Windows settings, Outlook data, licences | no | Say so plainly in the handoff sheet. |
 
@@ -416,8 +472,10 @@ Start before there is anything to sign.
   more: the distribution lives in `job.json`, the kickstart generator is
   per-target, and nothing outside `upgrade_/linux/` knows what is being
   installed. Multi-distro is an intended open-source future, not a v1 promise.
-- Dual-boot as a product. The safety-copy path keeps Windows *temporarily*,
-  as a rollback that ends at reclaim — it is not a supported two-OS machine.
+- Dual-boot as a product. The default keep-Windows path holds Windows
+  *temporarily*, as a rollback and a file source that both end at reclaim — it
+  is not a supported two-OS machine, and settle-in nudges toward reclaim once
+  the files are across and the system is confirmed.
 - Migrating Windows applications
 - Machines `evaluate` flags RED. No override, ever.
 
@@ -568,7 +626,10 @@ would blur them.
 3. Kickstart generator: `job.json` -> kickstart (per-target seam; Fedora
    first)
 4. Live image: Fedora squashfs (both desktops) + orchestrator
-5. Restore and inject stage; stick authoring in `evaluate`
-6. `settle-in`, including reclaim
+5. Inject stage (artifacts before first boot); clean-slate restore from the
+   stick; stick authoring in `evaluate`
+6. `settle-in`: hardware verify, **the keep-Windows file pull** (mount NTFS,
+   BITLK unlock, copy + checksum — the default path's data migration lives
+   here, not in cutover), and reclaim
 7. Shrink, boot handoff hardening, boot-entry rollback — **reviewed
    hardest.** The components that write to the internal disk.
