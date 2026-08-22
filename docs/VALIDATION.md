@@ -8,10 +8,21 @@ Ordering is by what dies if the answer is no, weighted by how little evidence
 exists today. Each gate states the experiment, the pass criterion, and the
 fallback design if it fails — because "we'll deal with it" is not a plan.
 
-**The meta-rule: no component gets built on top of an unvalidated gate it
-depends on.** The dependency map is at the bottom.
+Gates are grouped into the same **tiers** used in `CLAUDE.md` and `RISKS.md`,
+so the three agree:
+
+- **Tier 1 — no product if these fail:** V0, V1, V1b
+- **Tier 2 — a core promise breaks (recoverable):** V4, V3, V2
+- **Tier 3 — silent data loss:** V8
+- **Tier 4 — kills adoption, not the mechanism:** V5, V6, V7
+
+The V-numbers are stable identifiers, not a priority order — read the tier, not
+the number. **The meta-rule: no component gets built on top of an unvalidated
+gate it depends on.** The dependency map is at the bottom.
 
 ---
+
+# Tier 1 — no product if these fail
 
 ## V0 — The boot handoff fires · kills: walk-away itself · RISKS R15
 
@@ -41,24 +52,52 @@ stick per `upgrade_/windows/handoff-payload/README.md`; evidence lands in
 
 ## V1 — Unattended install completes, Secure Boot on · kills: the conversion
 
-The second half of the spine: a custom-composed live stick (Fedora's signed
-shim/GRUB/kernel, untouched) boots with Secure Boot enabled and kickstart
-drives Anaconda to a login screen with zero human input.
+The second half of the spine, and the shared base both paths need: a
+custom-composed live stick (Fedora's signed shim/GRUB/kernel, untouched) boots
+with Secure Boot enabled and kickstart drives Anaconda to a login screen with
+zero human input.
 
 **Experiment.** Same spike as V0 — they are one build-order item. VM with
-Secure Boot enforcing, then the physical matrix. Include the safety-copy
-variant: install into freed space with `--onpart`, existing ESP reused, and
-confirm both a 100 MB Windows-made ESP has room for shim+GRUB and
-`bootmgfw.efi` still boots afterwards.
+Secure Boot enforcing, then the physical matrix. This gate covers the base
+install to a login screen; the alongside-specific concerns are V1b.
 
-**Pass.** Hands-off from power-on to login, Secure Boot still enabled, and
-(safety-copy variant) Windows still bootable from the boot menu.
+**Pass.** Hands-off from power-on to login, Secure Boot still enabled.
 
 **If it fails.** A known simpler shape exists: ship the *unmodified* Fedora
 ISO on one partition and the kickstart on a second volume labeled `OEMDRV`,
 which Anaconda picks up automatically. Less control, much less image
 engineering, same signed chain. If custom composition fights us, fall back to
 that rather than fighting.
+
+## V1b — Installing alongside a shrunk Windows leaves Windows bootable · kills: the default path's safety net · RISKS R21
+
+The default keep-Windows path installs Linux into freed space and **must leave
+the shrunk Windows fully bootable**, because Windows is both the rollback and
+the file source. This is harder than the wipe install and, since the redesign,
+it is the common case — not a "variant" of V1. It earns its own Tier-1 gate.
+
+**Experiment.** Alongside install on real machines from several vendors,
+Secure Boot on: `--onpart` into the freed space, **reuse the existing Windows
+ESP without reformatting it**, add shim + GRUB, run `os-prober`. Check each of:
+the ~100 MB Windows-made ESP had room for the added entries; `bootmgfw.efi` is
+untouched; Windows still boots from the GRUB menu; Linux boots; both survive a
+few power cycles.
+
+**Pass.** After the install, *both* systems boot from the menu, Secure Boot
+still enabled, on every machine in the matrix.
+
+**If it fails.** Machines whose firmware or ESP can't take the alongside
+install are steered to **clean slate** (which never shares an ESP — it wipes
+and lays down a fresh layout), and `evaluate` says so before committing. The
+default simply doesn't apply to those machines; the product still converts
+them, without the safety net.
+
+# Tier 2 — a core promise breaks (recoverable, but the default is broken)
+
+Three gates here, all recoverable failures that nonetheless break a core
+promise: **V4** (do disks shrink enough — gates whether the default path even
+applies), **V3** (the BITLK read that delivers files on the default path), and
+**V2** (firmware that makes speakers work). Kept in V-number order below.
 
 ## V2 — Extracted amp firmware makes speakers work · kills: the artifact pipeline
 
@@ -81,17 +120,21 @@ coverage, and the scanner tells 2023+ laptop owners the truth about their
 speakers instead of promising them. The "first impression is working
 hardware" claim gets a hardware-generation asterisk.
 
-## V3 — cryptsetup BITLK reads unattended · kills: safety-copy on modern defaults · RISKS R19
+## V3 — cryptsetup BITLK reads · kills: the default path's file delivery · RISKS R19
 
 BitLocker is on by default on most machines the project targets. The
-safety-copy path reads the user's only copy of their data through cryptsetup's
-BITLK support, with nobody watching.
+keep-Windows path — now the default — delivers the user's files by reading the
+kept Windows partition through cryptsetup's BITLK support, in `settle-in`. The
+redesign made this *recoverable* (user present, Linux verified, Windows intact
+as backup — see R19), but if it's flaky the default experience is broken for
+everyone on modern BitLocker machines.
 
 **Experiment.** Bench, all in VMs: Windows 11 with BitLocker defaults
 (XTS-AES-128, used-space-only), hash every file from inside Windows, attach
 the disk to Linux, unlock with the recovery key, re-hash, compare. Repeat for
 XTS-AES-256 and full-disk encryption. Thousands of files, byte-identical or
-it fails.
+it fails. Test from an *installed* Fedora (where `settle-in` runs), not only
+the live environment.
 
 **Pass.** Identical hashes across all three configurations.
 
@@ -100,13 +143,14 @@ hours, works) or BitLocker machines get clean-slate only. Both survivable,
 both worse — and either changes the intent-capture UI, so we need the answer
 before that UI exists.
 
-## V4 — Real disks can actually shrink · kills: the safety-copy audience · RISKS R18
+## V4 — Real disks can actually shrink · kills: whether the default even applies · RISKS R18
 
-Safety-copy needs shrinkable space ≥ ~20 GB + user data. Immovable files
-(MFT, VSS store) routinely cap shrink far below free space. If most real
-machines can't shrink enough, safety-copy is a niche path and the design
-leans almost entirely on clean slate + big sticks — which changes what stick
-size we tell people to buy.
+Keep-Windows is the **default** and needs shrinkable space ≥ ~20 GB + user
+data. Immovable files (MFT, VSS store) routinely cap shrink far below free
+space. If most real machines can't shrink enough, the default rarely applies
+and the design leans almost entirely on clean slate + big sticks — which
+changes what stick size we tell people to buy and how often anyone gets the
+safety net at all.
 
 **Experiment.** Add the shrinkable-space query (the same one Disk Management
 uses) to the scanner and ship it. Every scanner report then measures the
@@ -121,8 +165,31 @@ toward users willing to elevate.
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.
 
-**If it fails.** Safety-copy stays in the design as the lucky path;
+**If it fails.** Keep-Windows becomes the lucky path rather than the default;
 messaging, stick-size guidance and the intent UI reweight toward clean slate.
+
+# Tier 3 — silent data loss (the trust-ending class)
+
+## V8 — OneDrive placeholders are materialized at evaluate · kills: file integrity on the default path · RISKS R8
+
+On the default path files are pulled from the mounted Windows partition *by
+Linux*, which has no OneDrive client. A "free up space" placeholder not forced
+local beforehand copies over as **0 bytes** — the user's photos arrive empty,
+discovered later. `evaluate` must *materialize* them (force the download while
+Windows is alive), not merely detect them, because no later stage can.
+
+**Experiment.** On a machine with OneDrive "free up space" files present:
+confirm `evaluate` detects them, forces them local, and that they carry real
+bytes on the NTFS partition afterward. Confirm the pinned/unpinned attribute
+bits (`0x00080000` / `0x00100000`) don't need to be part of the detection.
+
+**Pass.** No cloud-only stub survives into the pulled data as a 0-byte file.
+
+**If it fails.** `evaluate` refuses machines with un-materializable
+placeholders rather than silently copying empties — refuse-by-default applies:
+better to turn someone away than to lose their photos.
+
+# Tier 4 — kills adoption, not the mechanism
 
 ## V5 — VMD detection fires on real RST hardware · kills: scanner trust · RISKS R1
 
@@ -174,10 +241,13 @@ are table gaps (one-line fixes) rather than logic failures.
 
 ---
 
-## Lesser gates (validate when their component is built)
+# Lesser gates (validate when their component is built)
+
+Real, but they degrade rather than kill, or only touch the fallback path:
 
 - **Counterfeit stick is caught** (R17): buy a known-fake stick, confirm the
-  read-back verification fails it before the commit line.
+  read-back verification fails it before the commit line. *Fallback path only
+  now — data rides the stick only on clean slate.*
 - **Browser profile transplant matrix** (R20): real Windows→Linux moves per
   browser/version before `evaluate` promises anything.
 - **Both desktops fit the stick**: compose the dual-squashfs image, weigh it,
@@ -186,18 +256,21 @@ are table gaps (one-line fixes) rather than logic failures.
   reactivation claim once, on the G16, so the clean-slate consent screen
   tells the truth.
 
-## Dependency map — what is blocked on what
+# Dependency map — what is blocked on what
 
 | Waiting on | Blocked work |
 |---|---|
-| V0 + V1 (the spine spike) | everything in `upgrade_/` and `settle-in/`; the live image; the kickstart generator beyond a stub |
+| V0 + V1 + V1b (the spine spike) | everything in `upgrade_/` and `settle-in/`; the live image; the kickstart generator beyond a stub |
+| V1b specifically | the default keep-Windows cutover (alongside install); if it fails on a machine, that machine is clean-slate-only |
 | V2 | the artifact-extraction pipeline's scope (build order step 2) |
-| V3 | the intent-capture UI's path logic; safety-copy cutover |
+| V3 | the intent-capture UI's path logic; the settle-in file pull |
 | V4 | stick-size guidance; intent UI weighting (ship scanner change now) |
+| V8 | the settle-in file pull's integrity guarantee; `evaluate`'s materialize-or-refuse step |
 | V5 | nothing — do it this week regardless |
 | V6 | nothing — start the clock now; blocks only the eventual release |
 | V7 | table confidence; multi-distro ambitions |
 
 V5 and V6 start immediately because they cost an afternoon and a calendar
-respectively. V0–V3 are the spike plus two bench tests, all parallelizable.
-V4 and V7 ride the scanner's public release.
+respectively. V0 + V1 + V1b are the spine spike — one VM build-order item,
+now including the alongside install that keeps Windows bootable. V3 and V8 are
+bench tests, parallelizable. V4 and V7 ride the scanner's public release.

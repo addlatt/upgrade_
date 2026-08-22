@@ -70,7 +70,7 @@ method in `docs/VALIDATION.md`; the killers, in order:
   Windows otherwise. Tested on zero machines. Harness is built:
   `upgrade_/windows/Test-Handoff.ps1` (arm → reboot → check). Needs a throwaway
   VM and then a physical vendor matrix.
-- **R21 — installing alongside a shrunk Windows leaves Windows bootable.** The
+- **V1b / R21 — installing alongside a shrunk Windows leaves Windows bootable.** The
   default path keeps Windows as the safety net; if the alongside install breaks
   Windows boot (shared ESP too small, `bootmgfw.efi` clobbered, `os-prober`
   misses it) the safety net is a lie. Harder than the wipe install, and now the
@@ -87,7 +87,7 @@ method in `docs/VALIDATION.md`; the killers, in order:
   first boot" promise. Testable on the G16 (it has the CS35L56).
 
 **Tier 3 — silent data loss (the trust-ending class):**
-- **R8 — OneDrive placeholders are materialized at `evaluate`.** The Linux-side
+- **V8 / R8 — OneDrive placeholders are materialized at `evaluate`.** The Linux-side
   pull has no OneDrive client, so a "free up space" stub not forced local
   beforehand copies over as 0 bytes. Must materialize, not just detect.
 
