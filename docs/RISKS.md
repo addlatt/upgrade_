@@ -318,6 +318,12 @@ tested with multiple sticks and a USB hard drive attached simultaneously.
 user's files. Counterfeit sticks lie about capacity and silently discard
 writes; cheap flash fails without warning.
 
+**Scope narrowed (2026-08-22).** Only the clean-slate path stages user data to
+the stick, and that path is now the opt-in / full-disk fallback, not the
+default. On the default keep-Windows path the files never leave the internal
+disk, so the stick is never the sole carrier. Impact-if-real stays high (data
+gone after a wipe), but the population exposed to it shrank.
+
 **If real.** Files verified as "staged" do not exist, discovered after the
 wipe.
 
@@ -399,6 +405,36 @@ failure shape, in the feature most users will check first.
 **Closes when.** Real Windows→Linux profile transplants are verified per
 browser and version pair, and `evaluate`'s claims are narrowed to what the
 evidence supports.
+
+## R21 — Installing alongside a shrunk Windows may not leave Windows bootable · critical · open
+
+**What.** The keep-Windows path — now the **default** — installs Linux into
+freed space and must leave the shrunk Windows fully bootable, because Windows
+*is* the rollback and the file source. That depends on several things nobody
+has tested together: reusing the existing Windows ESP without reformatting it,
+fitting shim + GRUB + Fedora entries into an ESP that is often only 100 MB,
+not clobbering `bootmgfw.efi`, and `os-prober` actually detecting the shrunk
+Windows so it appears in the boot menu — all with Secure Boot enabled.
+
+**Why it matters most now.** The whole safety-net promise of the default path
+is "Windows is still here if anything goes wrong." If the alongside install
+breaks Windows boot, that promise is false at the worst possible moment — the
+user reaches for the fallback and it is gone. This is a harder problem than the
+clean-slate wipe install, and the redesign made it the common case, not a
+variant. It is the second-biggest project killer after the boot handoff (R15)
+and had no entry until now.
+
+**If real.** A "successful" conversion where the new Linux works but the kept
+Windows will not boot: no rollback, no file source, and the user was
+explicitly told they had both. Trust-ending.
+
+**Closes when.** An alongside install is proven on real machines from several
+vendors, Secure Boot on: Windows still boots from the menu afterward, GRUB
+lists it, the shared ESP had room, and `bootmgfw.efi` is intact. This is the
+keep-Windows half of the V1 gate and should be validated as its own Tier-1
+item, not folded in as a "safety-copy variant". Fallback if it proves
+unreliable on some firmware: those machines are steered to clean slate (which
+never shares an ESP), and `evaluate` says so before committing.
 
 ---
 
