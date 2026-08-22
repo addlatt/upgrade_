@@ -462,6 +462,7 @@ AHCI - but then Windows will not boot, so there is no going back.
 }
 
 function Test-UpgDisk {
+    param([bool]$IsAdmin)
     $disks = @(Get-Disk | Where-Object { $_.BusType -ne 'File Backed Virtual' })
     foreach ($d in $disks) {
         New-UpgCheck -Section 'Storage' -Title "Disk $($d.Number)" -Status 'info' `
@@ -470,32 +471,53 @@ function Test-UpgDisk {
 
     $sys = Get-Volume -DriveLetter C -ErrorAction SilentlyContinue
     if (-not $sys) {
-        New-UpgCheck -Section 'Storage' -Title 'Free space' -Status 'unknown' -Detail 'could not read C:'
+        New-UpgCheck -Section 'Storage' -Title 'Disk space' -Status 'unknown' -Detail 'could not read C:'
         return
     }
 
     $freeGB = [math]::Round($sys.SizeRemaining / 1GB, 1)
     $usedGB = [math]::Round(($sys.Size - $sys.SizeRemaining) / 1GB, 1)
 
-    if ($freeGB -lt 25) {
-        New-UpgCheck -Section 'Storage' -Title 'Free space' -Status 'fail' `
-            -Detail "$freeGB GB free (using $usedGB GB)" `
-            -Note 'Not enough free space to install Linux alongside Windows. Shrinking the Windows partition below this point is not safely possible.' `
-            -Remedy 'Free up space first, or plan to erase Windows entirely - which requires backing up to an external drive.'
-    } elseif ($freeGB -lt 60) {
-        New-UpgCheck -Section 'Storage' -Title 'Free space' -Status 'warn' `
-            -Detail "$freeGB GB free (using $usedGB GB)" `
-            -Note 'Enough to dual-boot, but tight. 60 GB or more is comfortable for a Linux install with room to grow.' `
-            -Remedy 'Free up more space, or commit to erasing Windows.'
-    } else {
-        New-UpgCheck -Section 'Storage' -Title 'Free space' -Status 'ok' `
-            -Detail "$freeGB GB free (using $usedGB GB)"
-    }
+    # No external drive anywhere in this design. Your files either ride a USB
+    # stick (clean slate) or stay put while Windows is shrunk aside (safety
+    # copy). So the scanner reports what is used, and how far the disk can
+    # shrink - never "buy a backup drive".
+    New-UpgCheck -Section 'Storage' -Title 'Disk in use' -Status 'info' `
+        -Detail "$usedGB GB used, $freeGB GB free" `
+        -Note 'Your personal files are part of that used space; the rest is Windows and installed programs. The converter puts your files on a USB stick, or leaves them in place while it fits Linux alongside. It never needs an external hard drive.'
 
-    # Backup sizing is the number people fail to plan for.
-    New-UpgCheck -Section 'Storage' -Title 'Backup drive needed' -Status 'info' `
-        -Detail "at least $([math]::Ceiling($usedGB * 1.2)) GB" `
-        -Note 'You need somewhere to put your files before you touch the disk. Size this at your used space plus headroom. An external drive that already holds your only backup does not count - that is one drive away from losing everything.'
+    # Shrinkable space is the gate for keeping Windows as a fallback, and the
+    # same query Disk Management uses. Measuring it on every scan also closes
+    # the scanner half of RISKS R18 and feeds the V4 validation gate.
+    $shrinkGB = $null
+    try {
+        $part = Get-Partition -DriveLetter C -ErrorAction Stop
+        $supported = Get-PartitionSupportedSize -DriveLetter C -ErrorAction Stop
+        $shrinkGB = [math]::Round(($part.Size - $supported.SizeMin) / 1GB, 1)
+    } catch { }
+
+    if ($null -ne $shrinkGB) {
+        # ~20 GB for Fedora itself, plus room for your files to stay in place.
+        if ($shrinkGB -lt 25) {
+            New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'warn' `
+                -Detail "$shrinkGB GB can be freed by shrinking" `
+                -Note 'Too little room to install Linux while keeping Windows as a fallback. This machine can still convert - your files travel on the USB stick (the clean-slate path) - but there is no space to keep a safety copy of Windows on the internal disk.' `
+                -Remedy 'Emptying the Recycle Bin, clearing Downloads, and removing large unused programs raises this number. No external drive is needed either way.'
+        } else {
+            New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'ok' `
+                -Detail "$shrinkGB GB can be freed by shrinking" `
+                -Note 'Enough room to install Linux while keeping Windows shrunk aside as a fallback, until you confirm everything works and reclaim the space.'
+        }
+    } elseif (-not $IsAdmin) {
+        New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'info' `
+            -Detail 'requires Administrator to measure' `
+            -Note 'Measuring how far the disk can shrink needs Administrator rights. Without it, we cannot yet tell you whether Windows can be kept as a fallback - the clean-slate path (files on the USB stick) still works regardless.' `
+            -Remedy 'Re-run this scanner as Administrator to get this number.'
+    } else {
+        New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'info' `
+            -Detail 'could not measure shrinkable space' `
+            -Note 'Windows did not report how far its partition can shrink; Fast Startup or a dirty volume can cause this even with Administrator rights. The converter re-checks before doing anything.'
+    }
 
     $partCount = @(Get-Partition -DiskNumber 0 -ErrorAction SilentlyContinue).Count
     if ($disks.Count -gt 0 -and $disks[0].PartitionStyle -eq 'MBR' -and $partCount -ge 4) {
@@ -985,13 +1007,17 @@ function Write-UpgReport {
 
         Add-L '-- BEFORE YOU DO ANYTHING -----------------------------------------------------'
         Add-L ''
-        Add-L '   1. Back up your files to an external drive. Not to the same disk.'
-        Add-L '   2. Save your BitLocker recovery key somewhere off this machine.'
+        Add-L '   1. Save your BitLocker recovery key somewhere that is not this computer'
+        Add-L '      - a phone note, another machine. An encrypted disk touched without it'
+        Add-L '      is gone for good.'
+        Add-L '   2. Get a USB stick big enough for your files - the converter puts them'
+        Add-L '      there. You do NOT need an external hard drive. (Or keep Windows itself'
+        Add-L '      as the fallback: see "Room to keep Windows" above.)'
         Add-L '   3. Write the ISO to a USB stick and boot it WITHOUT installing.'
         Add-L '      Live mode runs the whole desktop from the USB and changes nothing.'
         Add-L '   4. In that live session, test: Wi-Fi, sound through the SPEAKERS (not'
         Add-L '      just headphones), screen brightness, and suspend/resume.'
-        Add-L '   5. Only then decide. Nothing is irreversible until you click Install.'
+        Add-L '   5. Only then decide. Nothing is irreversible until you commit.'
         Add-L ''
     }
 
@@ -1144,7 +1170,7 @@ Test-UpgArchitecture -Sys $sys
 Test-UpgMemory       -Sys $sys
 Test-UpgFirmware     -Sys $sys
 Test-UpgStorageMode  -Pnp $pnp
-Test-UpgDisk
+Test-UpgDisk         -IsAdmin $isAdmin
 Test-UpgFastStartup
 Test-UpgBitLocker    -IsAdmin $isAdmin
 Test-UpgWifi         -Pnp $pnp

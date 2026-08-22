@@ -78,7 +78,7 @@ rates as unsuitable for newcomers.
 release notes, `Approx` is cleared, `$script:UpgDistroTableVerified` is updated,
 and Ubuntu 26.04 is added or explicitly excluded with a reason.
 
-## R4 — Scanner and converter contradict each other · high · open · design decision
+## R4 — Scanner and converter contradict each other · medium · code done, verify pending · design decision
 
 **What.** The scanner's free-space check says "Not enough free space to install
 Linux **alongside** Windows" and uses 25/60 GB dual-boot thresholds
@@ -107,8 +107,21 @@ standalone, a general advisory tool recommending across distributions;
 embedded, the converter's `evaluate` mode with the converter's own gates. The
 free-space check survives with new meaning under the USB-only design —
 shrinkable space gates the safety-copy path, stick capacity gates the
-clean-slate path. The dual-boot wording in the shipped scanner is still wrong
-and the rework is still open; the decision closes the direction, not the code.
+clean-slate path.
+
+**Wording reworked (2026-08-22).** `Test-UpgDisk` no longer emits the
+dual-boot free-space fail or the "Backup drive needed" external-drive line.
+It now reports `Disk in use` (info) and `Room to keep Windows` — the
+shrinkable-space measurement via `Get-PartitionSupportedSize`, which gates the
+safety-copy path. The "BEFORE YOU DO ANYTHING" block no longer tells anyone to
+buy an external drive. Low free space is no longer a RED trigger — under
+USB-only a full disk just means clean-slate-only, not "cannot convert".
+
+**Still open** until the numbers are right, not just the words: the
+clean-slate gate needs the harvester's folder sizing to answer "does your data
+fit an N GB stick", which the scanner alone cannot compute. The scanner now
+informs; `evaluate` still has to gate. Downgraded to medium — the dangerous
+contradiction (telling people to buy a drive the product doesn't use) is gone.
 
 ## R5 — Single-user assumption · high · open
 
@@ -296,18 +309,33 @@ gate and demonstrated to catch a known-counterfeit stick.
 ## R18 — Windows shrink headroom is unmeasured · high · open
 
 **What.** Immovable files — MFT, VSS store, pagefile, hiberfil — cap how far
-`Resize-Partition` can shrink, often far short of free space. `evaluate`
-currently reasons about free space, not *shrinkable* space, and the
+`Resize-Partition` can shrink, often far short of free space. The
 mitigations (disable pagefile/hibernation/system restore, reboot, retry) are
 designed, not built.
+
+**Partly addressed (2026-08-22).** The scanner now queries shrinkable space
+via `Get-PartitionSupportedSize` (`Test-UpgDisk`) and reports it as `Room to
+keep Windows`. Two constraints found on real hardware, both recorded here:
+
+1. **The query needs Administrator.** Unelevated it returns "Access to a CIM
+   resource was not available" — so the scanner caps this line the same way
+   it caps BitLocker. This dents the V4 plan (see VALIDATION.md): "ship the
+   scanner, measure the population for free" only yields shrink data from
+   users who run elevated, which many won't. JSON reports should be filtered
+   on `RanAsAdmin` before drawing conclusions.
+2. **`SizeMin` includes immovable files** — which is exactly what we want (it
+   *is* the real shrink floor), but it means a defragless machine reports a
+   pessimistic number. The prologue's mitigations (disable pagefile/hiber,
+   reboot) would raise it; the scanner reports the pre-mitigation floor and
+   should say so.
 
 **If real.** The safety-copy path is offered to machines that cannot deliver
 it; the prologue fails late, after intent capture and hard confirmation —
 recoverable, but exactly the walk-away-killing stop the design forbids.
 
-**Closes when.** `evaluate` queries actual shrinkable space (the same query
-Disk Management uses) and the safety-copy gate uses that number, verified on
-a fragmented real-world disk.
+**Closes when.** The safety-copy gate uses the shrinkable number (not free
+space), verified on a fragmented real-world disk *with* the mitigations
+applied, so the gate reflects achievable shrink rather than the cold floor.
 
 ## R19 — cryptsetup BITLK unattended is a new trust dependency · high · open
 

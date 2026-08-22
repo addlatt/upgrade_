@@ -112,8 +112,14 @@ size we tell people to buy.
 uses) to the scanner and ship it. Every scanner report then measures the
 population for free. Pass judgment after ~20 real reports.
 
-**Pass.** A meaningful fraction (say, a third) of scanned machines could host
-Linux + their data in shrinkable space.
+*Done (2026-08-22):* the query is in `Test-UpgDisk` as `Room to keep Windows`.
+Caveat found on real hardware: `Get-PartitionSupportedSize` needs
+Administrator (RISKS R18) — so only elevated runs carry a number. Filter the
+JSON corpus on `RanAsAdmin=true` before judging, and note the sample will skew
+toward users willing to elevate.
+
+**Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
+could host Linux + their data in shrinkable space.
 
 **If it fails.** Safety-copy stays in the design as the lucky path;
 messaging, stick-size guidance and the intent UI reweight toward clean slate.
