@@ -170,9 +170,38 @@ function Get-UpgAudioQuirks {
 
 function Get-UpgVmdDeviceIds {
     # Intel VMD / RST controllers. If one of these is present and active, the
-    # SSD is invisible to every Linux installer until BIOS is switched to AHCI.
-    @( '8086:9a0b','8086:a77f','8086:467f','8086:7d0b','8086:e0b0',
-       '8086:09ab','8086:201d','8086:2010','8086:7ec0','8086:ad0b' )
+    # SSD is behind Intel VMD and Linux installers may show no disks until the
+    # BIOS is switched to AHCI.
+    #
+    # Reconciled 2026-08-22 against the Linux kernel's VMD driver ID table
+    # (drivers/pci/controller/vmd.c, vmd_ids[], mainline master) - the primary
+    # source for which devices are VMD endpoints:
+    # https://github.com/torvalds/linux/blob/master/drivers/pci/controller/vmd.c
+    # Names from the PCI ID repository (https://pci-ids.ucw.cz) where listed.
+    #
+    # Removed in that reconciliation (present in earlier revisions, no source):
+    #   8086:7ec0 - is a USB xHCI controller per pci.ids ("Core Ultra 200
+    #               Series Processors USB xHCI") - would have produced a false
+    #               RST/VMD FAIL on current Intel laptops
+    #   8086:2010, 8086:e0b0 - not Intel devices in pci.ids, not in vmd.c
+    @(
+        '8086:201d'  # Volume Management Device NVMe RAID Controller (vmd.c + pci.ids; first-gen server VMD)
+        '8086:28c0'  # Volume Management Device (VMD) (vmd.c + pci.ids)
+        '8086:9a0b'  # VMD, Tiger Lake / 11th gen (vmd.c + pci.ids; Windows shows "Intel RST VMD Controller 9A0B")
+        '8086:4c3d'  # VMD (vmd.c)
+        '8086:467f'  # VMD, Alder Lake era (vmd.c + pci.ids "Volume Management Device NVMe RAID Controller")
+        '8086:a77f'  # VMD (vmd.c + pci.ids "RST Volume Management Device Controller")
+        '8086:7d0b'  # VMD (vmd.c + pci.ids "Core Ultra 200H/200V Series Processors VMD")
+        '8086:ad0b'  # VMD (vmd.c + pci.ids "Core Ultra 200 Series Processors VMD")
+        '8086:b60b'  # VMD (vmd.c; newer platform, not yet in pci.ids)
+        '8086:b06f'  # VMD (vmd.c; newer platform, not yet in pci.ids)
+        '8086:b07f'  # VMD (vmd.c; newer platform, not yet in pci.ids)
+        '8086:09ab'  # RST VMD Managed Controller (pci.ids) - the Windows-visible
+                     # child device VMD exposes alongside the controller; Intel
+                     # documents the 9A0B/09AB pair in article 000088762. Not in
+                     # vmd.c because Linux never sees it - kept for the Windows-
+                     # side scan, where it is often the easiest thing to spot.
+    )
 }
 
 function Get-UpgVendorQuirks {
@@ -363,7 +392,9 @@ function Get-UpgSystem {
 
 function Get-UpgPnp {
     # One expensive enumeration, reused by every hardware check.
-    Get-CimInstance Win32_PnPEntity | Select-Object Name, DeviceID, PNPClass, Service
+    # CompatibleID carries the PCI class code (e.g. PCI\CC_0104 = RAID-mode
+    # controller) - see "Identifiers for PCI devices" on learn.microsoft.com.
+    Get-CimInstance Win32_PnPEntity | Select-Object Name, DeviceID, PNPClass, Service, CompatibleID
 }
 
 # =============================================================================
@@ -428,14 +459,43 @@ function Test-UpgFirmware {
 
 function Test-UpgStorageMode {
     param($Pnp)
+    # Three signals, strongest first. Sources reconciled 2026-08-22 (R1/V5):
+    #
+    #  1. A VMD PCI device ID from the kernel's vmd.c table (data/devices.ps1).
+    #  2. The RST VMD driver service bound to any device. The VMD-generation
+    #     driver is iaStorVD (iaStorVD.inf/.sys - Intel article 000057787 and
+    #     every OEM RST 18+ package), so this catches VMD devices whose ID we
+    #     don't know yet.
+    #  3. An Intel PCI storage controller reporting RAID class code 0104 in its
+    #     compatible IDs (PCI\CC_0104 - "Identifiers for PCI devices",
+    #     learn.microsoft.com). This is the controller itself declaring RAID /
+    #     remap mode, and covers the pre-VMD RST generations (Skylake-Comet
+    #     Lake "RST Premium" NVMe remapping) whatever driver is bound.
+    #
+    # The old regex here was '^iaStorV', which matched only the Vista-era
+    # inbox driver (iaStorV) and the VMD driver (iaStorVD). It missed the
+    # whole pre-VMD RST family - iaStorA, iaStorAC, iaStorAVC (Intel article
+    # 000059291; Microsoft's Win10 1903 RST compatibility-hold notice) - which
+    # is exactly the 2015-2020 hardware this tool targets. An iaStor* service
+    # on a controller that does NOT report RAID class is RST software managing
+    # an AHCI-mode controller: the disk should be visible to Linux, so that
+    # case warns and asks the user to verify, rather than failing.
     $vmdIds = Get-UpgVmdDeviceIds
-    $hit = $null
+    $hit = $null; $raidHit = $null; $rstSvcHit = $null
     foreach ($d in $Pnp) {
         if (-not $d.DeviceID) { continue }
         $id = Get-UpgPciId $d.DeviceID
         if ($id -and ($vmdIds -contains $id)) { $hit = $d; break }
-        if ($d.Service -and ($d.Service -match '^iaStorV')) { $hit = $d; break }
+        if ($d.Service -and ($d.Service -match '^iaStorVD')) { $hit = $d; break }
+        if ($id -and $id -like '8086:*' -and $d.CompatibleID -and
+            ($d.CompatibleID -match 'CC_0104')) {
+            if (-not $raidHit) { $raidHit = $d }
+        }
+        if ($d.Service -and ($d.Service -match '^iaStor')) {
+            if (-not $rstSvcHit) { $rstSvcHit = $d }
+        }
     }
+    if (-not $hit -and $raidHit) { $hit = $raidHit }
 
     if ($hit) {
         New-UpgCheck -Section 'Storage' -Title 'Storage controller mode' -Status 'fail' `
@@ -454,6 +514,14 @@ you prepare it first, so do this only when you are committed:
 If you are wiping Windows entirely you can skip steps 1-4 and simply switch to
 AHCI - but then Windows will not boot, so there is no going back.
 '@
+        return
+    }
+
+    if ($rstSvcHit) {
+        New-UpgCheck -Section 'Storage' -Title 'Storage controller mode' -Status 'warn' `
+            -Detail "Intel RST driver present, controller not in RAID mode ($($rstSvcHit.Service))" `
+            -Note 'Windows is using an Intel RST storage driver, but the disk controller reports plain AHCI/NVMe, so Linux installers should see the disk normally. This combination has not been confirmed on real hardware yet - please report what you find.' `
+            -Remedy 'Before wiping anything, boot the Linux installer USB and confirm it lists your internal disk. If it shows no disks, look in the BIOS for a setting named VMD, RST, Optane or "RAID mode" and set it to AHCI.'
         return
     }
 
@@ -1130,6 +1198,62 @@ function Invoke-UpgSelfTest {
             $failed++
             Write-Host ("    FAIL  " + $case.Name) -ForegroundColor Red
             foreach ($e in $errors) { Write-Host "          $e" -ForegroundColor Red }
+        }
+    }
+
+    # Detection-level cases for the storage-mode check (R1/V5): fabricated PnP
+    # entries through the real Test-UpgStorageMode. Still synthetic - the
+    # real-RST-hardware confirmation these cannot provide is tracked as V5.
+    $storageCases = @(
+        @{ Name = 'storage: VMD PCI ID fires (Tiger Lake 9a0b)'
+           Pnp = @([pscustomobject]@{ Name='Intel RST VMD Controller 9A0B'
+                    DeviceID='PCI\VEN_8086&DEV_9A0B&SUBSYS_00000000&REV_00\3&0&0A'
+                    PNPClass='SCSIAdapter'; Service='iaStorVD'
+                    CompatibleID=@('PCI\CC_010400','PCI\CC_0104') })
+           Expect = 'fail' }
+        @{ Name = 'storage: VMD managed child fires (09ab)'
+           Pnp = @([pscustomobject]@{ Name='Intel RST VMD Managed Controller 09AB'
+                    DeviceID='PCI\VEN_8086&DEV_09AB&SUBSYS_00000000&REV_00\3&0&0B'
+                    PNPClass='System'; Service=$null; CompatibleID=$null })
+           Expect = 'fail' }
+        @{ Name = 'storage: unknown VMD ID still fires via iaStorVD service'
+           Pnp = @([pscustomobject]@{ Name='Intel RST VMD Controller FFFF'
+                    DeviceID='PCI\VEN_8086&DEV_FFFF&SUBSYS_00000000&REV_00\3&0&0C'
+                    PNPClass='SCSIAdapter'; Service='iaStorVD'
+                    CompatibleID=@('PCI\CC_010400') })
+           Expect = 'fail' }
+        @{ Name = 'storage: pre-VMD RST RAID class fires via CC_0104 (iaStorAVC era)'
+           Pnp = @([pscustomobject]@{ Name='Intel Chipset SATA/PCIe RST Premium Controller'
+                    DeviceID='PCI\VEN_8086&DEV_282A&SUBSYS_00000000&REV_00\3&0&0D'
+                    PNPClass='HDC'; Service='iaStorAVC'
+                    CompatibleID=@('PCI\VEN_8086&CC_010400','PCI\CC_010400','PCI\CC_0104') })
+           Expect = 'fail' }
+        @{ Name = 'storage: RST driver on AHCI-class controller warns, not fails'
+           Pnp = @([pscustomobject]@{ Name='Intel 300 Series Chipset Family SATA AHCI Controller'
+                    DeviceID='PCI\VEN_8086&DEV_A103&SUBSYS_00000000&REV_00\3&0&0E'
+                    PNPClass='HDC'; Service='iaStorA'
+                    CompatibleID=@('PCI\VEN_8086&CC_010601','PCI\CC_010601','PCI\CC_0106') })
+           Expect = 'warn' }
+        @{ Name = 'storage: standard NVMe passes (the G16 as seen 2026-08-22)'
+           Pnp = @([pscustomobject]@{ Name='Standard NVM Express Controller'
+                    DeviceID='PCI\VEN_1344&DEV_5413&SUBSYS_21001344&REV_03\4&23CF4B8A&0&0011'
+                    PNPClass='SCSIAdapter'; Service='stornvme'
+                    CompatibleID=@('PCI\VEN_1344&CC_010802','PCI\CC_010802','PCI\CC_0108') })
+           Expect = 'ok' }
+    )
+
+    foreach ($case in $storageCases) {
+        $script:Checks = @()
+        Test-UpgStorageMode -Pnp $case.Pnp
+        $check = $script:Checks | Where-Object { $_.Title -eq 'Storage controller mode' } |
+                 Select-Object -First 1
+        $status = if ($check) { $check.Status } else { '(no check emitted)' }
+        if ($status -eq $case.Expect) {
+            Write-Host ("    PASS  " + $case.Name) -ForegroundColor Green
+        } else {
+            $failed++
+            Write-Host ("    FAIL  " + $case.Name) -ForegroundColor Red
+            Write-Host ("          status was '$status', expected '$($case.Expect)'") -ForegroundColor Red
         }
     }
 

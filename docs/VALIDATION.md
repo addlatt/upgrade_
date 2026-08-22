@@ -202,8 +202,23 @@ machine: any 11th-gen+ Intel Dell or Lenovo laptop with RST enabled (they
 ship that way) — scanner must say FAIL; flip it to AHCI — scanner must say
 OK.
 
+**Desk half done (2026-08-22).** ID list reconciled against `vmd.c` (mainline
+master) and pci.ids: three bogus IDs removed (`7ec0` was a USB controller — a
+false-RED landmine on Core Ultra 200 machines; `2010`/`e0b0` aren't Intel
+devices), five kernel IDs added (`28c0, 4c3d, b60b, b06f, b07f`), `09ab` kept
+with an Intel citation (article 000088762). The `^iaStorV` service regex was
+replaced — it missed the whole pre-VMD RST family (iaStorA/iaStorAC/iaStorAVC,
+the Skylake–Comet Lake remap generation) — with three signals: kernel ID list,
+`iaStorVD` service, and PCI RAID class code `CC_0104` from CompatibleID
+(format verified live on the G16). Six detection-level self-test cases feed
+fabricated PnP entries through the real check; all pass. Full evidence trail
+in RISKS R1.
+
 **Pass.** Both directions on at least one physical machine, list reconciled
-with the kernel's.
+with the kernel's. The reconciliation half is done; **what remains is the
+physical machine**: a borrowed Intel laptop with RST/VMD enabled — FAIL with
+it on, OK after switching to AHCI. The G16 (AMD, standard NVMe) cannot
+exercise the positive path.
 
 **If it fails.** Fix the list and re-run; this one has no fallback because it
 has no excuse — it's cheap.

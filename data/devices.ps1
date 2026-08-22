@@ -129,9 +129,38 @@ function Get-UpgAudioQuirks {
 
 function Get-UpgVmdDeviceIds {
     # Intel VMD / RST controllers. If one of these is present and active, the
-    # SSD is invisible to every Linux installer until BIOS is switched to AHCI.
-    @( '8086:9a0b','8086:a77f','8086:467f','8086:7d0b','8086:e0b0',
-       '8086:09ab','8086:201d','8086:2010','8086:7ec0','8086:ad0b' )
+    # SSD is behind Intel VMD and Linux installers may show no disks until the
+    # BIOS is switched to AHCI.
+    #
+    # Reconciled 2026-08-22 against the Linux kernel's VMD driver ID table
+    # (drivers/pci/controller/vmd.c, vmd_ids[], mainline master) - the primary
+    # source for which devices are VMD endpoints:
+    # https://github.com/torvalds/linux/blob/master/drivers/pci/controller/vmd.c
+    # Names from the PCI ID repository (https://pci-ids.ucw.cz) where listed.
+    #
+    # Removed in that reconciliation (present in earlier revisions, no source):
+    #   8086:7ec0 - is a USB xHCI controller per pci.ids ("Core Ultra 200
+    #               Series Processors USB xHCI") - would have produced a false
+    #               RST/VMD FAIL on current Intel laptops
+    #   8086:2010, 8086:e0b0 - not Intel devices in pci.ids, not in vmd.c
+    @(
+        '8086:201d'  # Volume Management Device NVMe RAID Controller (vmd.c + pci.ids; first-gen server VMD)
+        '8086:28c0'  # Volume Management Device (VMD) (vmd.c + pci.ids)
+        '8086:9a0b'  # VMD, Tiger Lake / 11th gen (vmd.c + pci.ids; Windows shows "Intel RST VMD Controller 9A0B")
+        '8086:4c3d'  # VMD (vmd.c)
+        '8086:467f'  # VMD, Alder Lake era (vmd.c + pci.ids "Volume Management Device NVMe RAID Controller")
+        '8086:a77f'  # VMD (vmd.c + pci.ids "RST Volume Management Device Controller")
+        '8086:7d0b'  # VMD (vmd.c + pci.ids "Core Ultra 200H/200V Series Processors VMD")
+        '8086:ad0b'  # VMD (vmd.c + pci.ids "Core Ultra 200 Series Processors VMD")
+        '8086:b60b'  # VMD (vmd.c; newer platform, not yet in pci.ids)
+        '8086:b06f'  # VMD (vmd.c; newer platform, not yet in pci.ids)
+        '8086:b07f'  # VMD (vmd.c; newer platform, not yet in pci.ids)
+        '8086:09ab'  # RST VMD Managed Controller (pci.ids) - the Windows-visible
+                     # child device VMD exposes alongside the controller; Intel
+                     # documents the 9A0B/09AB pair in article 000088762. Not in
+                     # vmd.c because Linux never sees it - kept for the Windows-
+                     # side scan, where it is often the easiest thing to spot.
+    )
 }
 
 function Get-UpgVendorQuirks {

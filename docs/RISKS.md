@@ -20,11 +20,58 @@ Status is `open` unless a primary source or a real machine has confirmed it.
 
 ---
 
-## R1 — VMD detection has never fired · critical · open
+## R1 — VMD detection has never fired · critical · open (desk half closed 2026-08-22)
 
-**What.** RST/VMD detection is 10 hand-written PCI device IDs plus a guessed
+**What.** RST/VMD detection was 10 hand-written PCI device IDs plus a guessed
 `iaStorV*` service-name regex (`data/devices.ps1`,
 `Get-UpgVmdDeviceIds`). None of it has ever matched real hardware.
+
+**Reconciled against primary sources (2026-08-22).** The desk-research half of
+the close condition is done; what it found justified the risk's severity:
+
+- **The ID list was checked against the Linux kernel's VMD driver table**
+  (`drivers/pci/controller/vmd.c`, `vmd_ids[]`, mainline master — fetched
+  2026-08-22) and the PCI ID repository (pci-ids.ucw.cz). Three of our ten IDs
+  were wrong: `8086:7ec0` is a **USB xHCI controller** (pci.ids: "Core Ultra
+  200 Series Processors USB xHCI") — it would have produced a false RST/VMD
+  RED on current Intel laptops — and `8086:2010` / `8086:e0b0` are not Intel
+  devices in pci.ids at all. Five kernel-listed VMD IDs were missing:
+  `28c0, 4c3d, b60b, b06f, b07f`. `8086:09ab` is confirmed real (pci.ids "RST
+  VMD Managed Controller"; Intel article 000088762 documents the 9A0B/09AB
+  pair) — it is Windows-visible only, which is why it is absent from vmd.c and
+  why we keep it. The list now carries a per-ID source citation.
+  Cross-checked against linux-hardware.org probes: `9a0b` appears on 211 real
+  devices and `a77f` on 152, both bound to the `vmd` driver, so the flagship
+  IDs exist in the wild; `4c3d` shows 0 probes there but stays on the kernel
+  table's authority.
+- **The `^iaStorV` regex was wrong in the dangerous direction.** The RST
+  driver service family across generations is iaStor / iaStorV (Vista-era
+  inbox), iaStorA / iaStorAC / iaStorAVC (RST ~11–17, including the
+  Skylake–Comet Lake "RST Premium" NVMe-remap mode — Intel article 000059291;
+  Microsoft's Win10 1903 RST compatibility hold), and iaStorVD (RST 18+, the
+  VMD generation — Intel article 000057787). `^iaStorV` matched only the
+  first and last of those: it **missed the entire pre-VMD RST family, which is
+  the 2015–2020 population this tool exists for.**
+- **Detection now uses three signals** (`Test-UpgStorageMode`): the
+  kernel-reconciled ID list; the `iaStorVD` service (catches VMD IDs we don't
+  know yet); and an Intel controller reporting PCI RAID class code `CC_0104`
+  in its compatible IDs — the controller itself declaring RAID/remap mode
+  (Microsoft, "Identifiers for PCI devices"). An `iaStor*` service on a
+  non-RAID-class controller now warns instead of failing (RST software on an
+  AHCI-mode controller — see R7 on over-refusal). The class-code mechanism was
+  verified live on the G16: its NVMe controller reports `PCI\CC_0108` in
+  `CompatibleID`, exactly the documented format, and correctly does not match.
+- Six detection-level self-test cases now push fabricated PnP entries through
+  the real `Test-UpgStorageMode` (VMD ID, 09ab child, unknown-ID-with-iaStorVD,
+  CC_0104 RAID class, RST-on-AHCI warn, standard NVMe ok). All pass — but they
+  are still synthetic.
+
+**Still open — the half that needs hardware.** The check has never fired on a
+real RST-enabled machine. The remaining test is exactly V5's: a borrowed Intel
+laptop (11th gen or newer Dell/Lenovo ships with VMD/RST on by default) —
+scanner must FAIL with RST/VMD enabled, then OK after the BIOS is switched to
+AHCI. The only machine on hand, the ASUS G16, is AMD with standard NVMe and
+cannot exercise the positive path; it only confirms the negative one.
 
 **Why it matters most.** This is the flagship check. The README calls it "the
 single most common false 'Linux won't install'". If the IDs are wrong, the
