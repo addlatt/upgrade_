@@ -27,6 +27,13 @@ Three modules.
 | **`upgrade_`** | Source → Linux | The converter. Stages your files to the stick — or shrinks the source partition aside and leaves them in place — then converts. |
 | **`settle-in`** | Linux | Verifies the hardware actually works, hands over, stops. |
 
+**Today the source is Windows.** The framing is deliberately source-agnostic —
+the *shape* (read, commit, settle) has nothing Windows-specific about it — but
+every line of the current implementation reads a Windows machine: PowerShell,
+`bcdedit`, BitLocker, `netsh`. Other source systems are a future direction,
+not a v1 promise. Where this README and the design docs say "Windows", they
+mean the one source that works now.
+
 ### The commit line
 
 Exactly one moment in a conversion is irreversible, and the source OS stays
