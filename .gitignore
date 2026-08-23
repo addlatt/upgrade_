@@ -14,3 +14,9 @@ upgrade_/windows/handoff-payload/EFI/
 # harness local state / BCD backups, if ever run from the tree
 bcd-backup.bin
 handoff-state.json
+
+# VM rig generated artifacts (ISO, disk images, firmware copies, QEMU build)
+rig/vm/artifacts/
+
+# guest SMB share-write probe files (from rig prep.ps1)
+.rigprobe-*.tmp

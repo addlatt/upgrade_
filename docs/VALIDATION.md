@@ -37,6 +37,14 @@ the full statement.
 
 ## V0 — The boot handoff fires · kills: walk-away itself · RISKS R15
 
+**VM leg fired (2026-08-23).** On the QEMU+OVMF rig (`rig/vm/`) the baseline
+SB-off run records `fired-once`: one-time boot, payload ran, Windows returned
+no-keypress, one-shot self-cleared. Two bugs fixed en route (payload `fs0:`
+marker misdirection; harness counting its own test entry as a reorder) — both
+would have hit the physical test too; see RISKS R15. Remaining on this rig:
+the SB-on fail-modes and the BitLocker matrix. Then the physical vendor matrix
+and the Hyper-V Gen 2 leg — a VM pass narrows V0, it does not close it.
+
 The entire walk-away promise rests on `bcdedit /set {fwbootmgr} bootsequence`
 booting a USB stick exactly once, on firmware from vendors who have never
 heard of us. Evidence today: zero machines.

@@ -1,1 +1,3 @@
 timestamp,harness,vendor,model,firmware_version,secureboot,bitlocker,payload,failmode,result,keypress_free,windows_returned,notes
+"2026-08-23T19:57:01.7524083Z","0.1.0","QEMU","Standard PC (Q35 + ICH9, 2009)","2024.02-2ubuntu0.9","unknown","off","BOOTX64.EFI","","reordered","y","y","marker fired on stick (fs0 fix works); reordered because OVMF appends USB entry to BootOrder after one-time boot - investigating if benign"
+"2026-08-23T20:53:00.6231760Z","0.1.0","QEMU","Standard PC (Q35 + ICH9, 2009)","2024.02-2ubuntu0.9","unknown","off","BOOTX64.EFI","","fired-once","y","y","baseline SB-off shell payload; marker on stick, one-shot self-cleared, boot order intact after harness fix"

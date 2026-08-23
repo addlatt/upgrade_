@@ -313,7 +313,19 @@ function Invoke-Check {
 
     $after = Get-FwbootmgrSnapshot
     $sequenceCleared = [string]::IsNullOrWhiteSpace($after.BootSequence)
-    $orderUnchanged  = ($after.DisplayOrder -eq $r.Before.DisplayOrder)
+
+    # -Arm creates a temporary boot entry ($r.Guid) and points bootsequence at
+    # it. That entry stays in {fwbootmgr} displayorder until the cleanup below
+    # removes it - and we snapshot the order HERE, before that cleanup runs, so
+    # our own one-shot is still listed. Comparing raw would flag every run as
+    # 'reordered' on firmware that keeps the entry in displayorder (e.g. OVMF).
+    # Filter our own entry out of the after-order, so 'reordered' means the
+    # firmware moved the REAL entries - a genuine danger - not that our test
+    # entry is still present pre-cleanup. (Confirmed on QEMU+OVMF 2026-08-23:
+    # after removing $r.Guid the order is identical to Before, token for token.)
+    $afterTokens  = @($after.DisplayOrder   -split '\s+' | Where-Object { $_ -and $_ -ne $r.Guid })
+    $beforeTokens = @($r.Before.DisplayOrder -split '\s+' | Where-Object { $_ })
+    $orderUnchanged = (($afterTokens -join ' ') -eq ($beforeTokens -join ' '))
 
     # Classify.
     $result = 'error'

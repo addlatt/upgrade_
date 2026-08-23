@@ -347,7 +347,7 @@ stick (clean-slate path) or never leave the internal disk while Windows is
 shrunk aside and kept until an explicit reclaim (safety-copy path). That
 redesign retires the imaging risks and creates these.
 
-## R15 — One-time UEFI boot handoff has never fired · critical · open
+## R15 — One-time UEFI boot handoff has never fired · critical · open (VM leg fired 2026-08-23)
 
 **What.** Walk-away rests entirely on `bcdedit /set {fwbootmgr} bootsequence`
 booting the stick exactly once. It has been tested on zero machines. Vendor
@@ -357,6 +357,33 @@ firmware is creative about removable-media entries: some ignore
 **If real.** Benign but total: the machine boots Windows, the user concludes
 the tool did nothing. The product's core mechanism silently doesn't exist on
 some fraction of hardware, and we don't know the fraction.
+
+**VM leg fired (2026-08-23).** First evidence, on the QEMU+OVMF rig
+(`rig/vm/`, firmware OVMF 2024.02): `Test-Handoff.ps1` records **`fired-once`**
+— `bcdedit {fwbootmgr} bootsequence` one-time-booted the stick, the payload
+ran and reset, Windows returned with no keypress, and the one-shot
+self-cleared (`bootsequence clear: True`). Evidence in
+`docs/validation-results/v0-handoff.csv`. Two bugs found and fixed getting
+there, both of which would also have bitten the physical test:
+
+1. **`startup.nsh` wrote its marker to the wrong volume.** The payload did a
+   bare `fs0:`, which the UEFI Shell maps to the Windows ESP (also FAT), not
+   the stick — so a *real firing* left no marker on the stick and the harness
+   read it as a fail-safe. Any machine with an installed Windows has an ESP,
+   so this was not VM-specific. Fixed to self-locate the stick by the volume
+   that holds `startup.nsh`.
+2. **The harness flagged its own test entry as a reorder.** `-Check` snapshotted
+   the firmware boot order *before* deleting the temporary boot entry `-Arm`
+   creates, so `after = before + our own entry` always looked like a reorder
+   (`reordered`). Fixed to exclude the test `{guid}` from the comparison — a
+   genuine firmware reorder of the real entries is still caught. (The
+   pre-fix `reordered` row is left in the CSV, annotated, for the record.)
+
+**Still open.** This is one firmware (OVMF) in a VM. The close condition is
+unchanged: the two remaining fail-safe/BitLocker matrix rows on this rig, then
+physical machines from **at least three vendors**, plus the Hyper-V Gen 2 leg
+that `validation-results/README.md` also requires. A VM pass narrows R15; it
+does not close it (CLAUDE.md rule #5).
 
 **Closes when.** The spine spike (build order step 0) passes in a VM and on
 physical machines from at least three vendors.
