@@ -88,10 +88,20 @@ if [ "$TPM" = 1 ]; then
     # swtpm must be (re)started before every boot; its state dir persists so
     # the TPM keeps its seed across runs (BitLocker depends on that).
     pkill -f "tpmstate dir=$PWD/artifacts/tpm" 2>/dev/null || true
+    rm -f "$PWD/artifacts/tpm/swtpm.sock"
     swtpm socket --tpm2 --tpmstate dir="$PWD/artifacts/tpm" \
         --ctrl type=unixio,path="$PWD/artifacts/tpm/swtpm.sock" --daemon
+    # wait for the control socket before qemu tries to connect (avoids a race
+    # where qemu execs before swtpm has created the socket and then aborts)
+    for _i in $(seq 1 50); do
+        [ -S "$PWD/artifacts/tpm/swtpm.sock" ] && break
+        sleep 0.1
+    done
+    [ -S "$PWD/artifacts/tpm/swtpm.sock" ] || { echo "run-vm: swtpm socket never appeared" >&2; exit 1; }
+    # tpm-crb (CRB interface) is what Windows 10 reliably detects for TPM 2.0;
+    # tpm-tis often shows up as "no TPM" in the guest (seen 2026-08-23).
     ARGS+=(-chardev socket,id=chrtpm,path="$PWD/artifacts/tpm/swtpm.sock"
-           -tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0)
+           -tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-crb,tpmdev=tpm0)
 fi
 
 if [ "$VMD" = 1 ]; then

@@ -92,8 +92,23 @@ C:\upgrade_\upgrade_\windows\Test-Handoff.ps1 -Check `
 | 2 | `--sb off --stick shell --smb` | `-FailMode NoFile` | `ignored` | DONE 2026-08-23: ignored (fail-safe held) |
 | 3 | `--sb on --stick shell --smb` | `-FailMode SecureBootUnsigned` | `ignored` | **BLOCKED on this rig** — see below |
 | 4 | `--sb on --stick shim --smb` | *(none)* | `ignored` *by design* | **BLOCKED on this rig** — see below |
-| 5 | `--sb off --stick shell --smb --tpm` | `-SuspendBitLocker` | `fired-once` | **no** recovery prompt |
-| 6 | `--sb off --stick shell --smb --tpm` | `-FailMode NoSuspend` | `fired-once` | recovery prompt **expected** — have the key ready |
+| 5 | `--sb off --stick shell --smb --tpm` | `-SuspendBitLocker` | `fired-once` | **BLOCKED on this rig** — no TPM in guest |
+| 6 | `--sb off --stick shell --smb --tpm` | `-FailMode NoSuspend` | `fired-once` | **BLOCKED on this rig** — no TPM in guest |
+
+**Rows 5–6 cannot run on this AMD/WSL2 rig either.** BitLocker needs a TPM,
+and Windows never detects one here (`Get-Tpm` → `TpmPresent: False`) despite
+QEMU wiring the device correctly (`query-tpm` shows `tpm-crb` + emulator
+backend) and swtpm running with fresh state. Tried both `tpm-tis` and
+`tpm-crb` and a wiped state dir — all `TpmPresent: False`, no security device
+at the PnP level. The non-SMM OVMF we must use does not publish the TPM2 ACPI
+table to the guest (measured-boot/TPM support in Ubuntu's OVMF travels with
+the SMM-requiring `.secboot` build, same as Secure Boot). So the **BitLocker
+rows move to the physical matrix / Hyper-V leg** too, alongside 3–4.
+
+**Net for this rig:** it validates the SB-off, no-TPM V0 paths — rows 1–2,
+which passed. Rows 3–6 need an SMM-capable OVMF (for Secure Boot and TPM),
+which crashes KVM on this AMD/WSL2 host, so they belong on real machines or a
+Hyper-V Gen 2 guest.
 
 **Rows 3–4 cannot run on this AMD/WSL2 rig.** Secure Boot *enforcement* in
 Ubuntu's OVMF lives only in the `.secboot` CODE build, whose QEMU firmware

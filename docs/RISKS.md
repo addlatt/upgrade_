@@ -385,14 +385,17 @@ payload is bad). The **Secure Boot rows (unsigned-refusal, signed-shim) cannot
 run on this AMD/WSL2 rig**: SB-enforcing OVMF is the `.secboot` build, whose
 QEMU firmware descriptor is `requires-smm`, and SMM crashes KVM on this host —
 so the non-SMM OVMF we must use does not enforce SB (an unsigned shell booted
-under the MS-keys varstore). Those two rows move to the physical vendor matrix
-and the Hyper-V Gen 2 leg, where Secure Boot is real. The BitLocker rows
-(SB-off) remain runnable here.
+under the MS-keys varstore). The **BitLocker rows are also blocked here**: the
+guest never detects a TPM (`Get-Tpm` → `TpmPresent: False`) even though QEMU
+wires it correctly (`query-tpm` shows `tpm-crb` + emulator) and swtpm runs with
+fresh state — the same non-SMM OVMF does not publish the TPM2 ACPI table (TPM
+support, like SB enforcement, lives in the SMM-requiring `.secboot` build).
+Rows 3–6 all move to the physical vendor matrix and the Hyper-V Gen 2 leg.
 
-**Still open.** This is one firmware (OVMF) in a VM, and only the SB-off paths.
-The close condition is unchanged: the BitLocker matrix rows on this rig, the
-Secure Boot rows on a host that can enforce SB, then physical machines from
-**at least three vendors**, plus the Hyper-V Gen 2 leg that
+**Still open.** This rig validated only the SB-off, no-TPM paths (rows 1–2).
+The close condition is unchanged: the Secure Boot and BitLocker rows on a host
+that can run SMM-enabled OVMF (physical machines, or Hyper-V Gen 2), then
+physical machines from **at least three vendors**, plus the Hyper-V leg that
 `validation-results/README.md` also requires. A VM pass narrows R15; it does
 not close it (CLAUDE.md rule #5).
 
