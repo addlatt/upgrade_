@@ -379,11 +379,22 @@ there, both of which would also have bitten the physical test:
    genuine firmware reorder of the real entries is still caught. (The
    pre-fix `reordered` row is left in the CSV, annotated, for the record.)
 
-**Still open.** This is one firmware (OVMF) in a VM. The close condition is
-unchanged: the two remaining fail-safe/BitLocker matrix rows on this rig, then
-physical machines from **at least three vendors**, plus the Hyper-V Gen 2 leg
-that `validation-results/README.md` also requires. A VM pass narrows R15; it
-does not close it (CLAUDE.md rule #5).
+**Matrix progress (2026-08-23).** Baseline `fired-once` and `-FailMode NoFile`
+→ `ignored` both pass on the rig (fires when it should, fails safe when the
+payload is bad). The **Secure Boot rows (unsigned-refusal, signed-shim) cannot
+run on this AMD/WSL2 rig**: SB-enforcing OVMF is the `.secboot` build, whose
+QEMU firmware descriptor is `requires-smm`, and SMM crashes KVM on this host —
+so the non-SMM OVMF we must use does not enforce SB (an unsigned shell booted
+under the MS-keys varstore). Those two rows move to the physical vendor matrix
+and the Hyper-V Gen 2 leg, where Secure Boot is real. The BitLocker rows
+(SB-off) remain runnable here.
+
+**Still open.** This is one firmware (OVMF) in a VM, and only the SB-off paths.
+The close condition is unchanged: the BitLocker matrix rows on this rig, the
+Secure Boot rows on a host that can enforce SB, then physical machines from
+**at least three vendors**, plus the Hyper-V Gen 2 leg that
+`validation-results/README.md` also requires. A VM pass narrows R15; it does
+not close it (CLAUDE.md rule #5).
 
 **Closes when.** The spine spike (build order step 0) passes in a VM and on
 physical machines from at least three vendors.

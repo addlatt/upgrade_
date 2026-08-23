@@ -88,12 +88,22 @@ C:\upgrade_\upgrade_\windows\Test-Handoff.ps1 -Check `
 
 | # | run-vm.sh flags | Arm flags | Expected `result` | Notes to record |
 |---|---|---|---|---|
-| 1 | `--sb off --stick shell --smb` | *(none)* | `fired-once` | keypress-free y, returned y |
-| 2 | `--sb off --stick shell --smb` | `-FailMode NoFile` | `ignored` | fail-safe held |
-| 3 | `--sb on --stick shell --smb` | `-FailMode SecureBootUnsigned` | `ignored` | SB on, unsigned refused |
-| 4 | `--sb on --stick shim --smb` | *(none)* | `ignored` *by design* | shim chain writes no marker; "fired" = you observed the extra reboot — say so in notes |
+| 1 | `--sb off --stick shell --smb` | *(none)* | `fired-once` | DONE 2026-08-23: fired-once |
+| 2 | `--sb off --stick shell --smb` | `-FailMode NoFile` | `ignored` | DONE 2026-08-23: ignored (fail-safe held) |
+| 3 | `--sb on --stick shell --smb` | `-FailMode SecureBootUnsigned` | `ignored` | **BLOCKED on this rig** — see below |
+| 4 | `--sb on --stick shim --smb` | *(none)* | `ignored` *by design* | **BLOCKED on this rig** — see below |
 | 5 | `--sb off --stick shell --smb --tpm` | `-SuspendBitLocker` | `fired-once` | **no** recovery prompt |
 | 6 | `--sb off --stick shell --smb --tpm` | `-FailMode NoSuspend` | `fired-once` | recovery prompt **expected** — have the key ready |
+
+**Rows 3–4 cannot run on this AMD/WSL2 rig.** Secure Boot *enforcement* in
+Ubuntu's OVMF lives only in the `.secboot` CODE build, whose QEMU firmware
+descriptor declares `requires-smm` — and SMM crashes KVM on this host (see
+below). The non-SMM `OVMF_CODE_4M.fd` we must use does **not** enforce Secure
+Boot: confirmed empirically 2026-08-23 — an unsigned EDK2 Shell booted under
+the MS-keys varstore instead of being refused. Separately, `vars-ms` has no
+Windows boot entry (the installer wrote it into the SB-off varstore), so the
+guest can't return to Windows under `--sb on` anyway. **Rows 3–4 move to the
+physical vendor matrix and the Hyper-V Gen 2 leg**, where Secure Boot is real.
 
 Before run 5 (BitLocker prep, in the guest, elevated — record the recovery
 key somewhere outside the VM):
