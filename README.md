@@ -5,7 +5,7 @@
 Plug in a USB stick, pick a desktop, click convert. Come back to a working
 Linux machine with your files, Wi-Fi and browsers intact — and, by default,
 your old system shrunk safely aside until you're sure. One stick is the whole
-kit; there is no external drive anywhere in this design.
+kit.
 
 > **Status: the evaluator works. The conversion is designed, not built.**
 > Today you can run the preflight scanner and get a real answer about your
