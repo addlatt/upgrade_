@@ -233,11 +233,24 @@ the Skylake–Comet Lake remap generation) — with three signals: kernel ID lis
 fabricated PnP entries through the real check; all pass. Full evidence trail
 in RISKS R1.
 
+**Level-3 spoof done (2026-08-26).** The full Windows PnP → WMI → scanner
+pipeline now fires on simulated hardware. A patched QEMU `pci-testdev`
+(`rig/vm/`) presents PCI `8086:9a0b` class `0104`; Windows enumerates it as an
+unknown RAID Controller (CompatibleIDs `PCI\CC_010400` / `PCI\CC_0104`), and
+both the source scanner and the built `dist/` return `[FAIL] Storage
+controller mode — Intel RST / VMD active`, verdict RED. Captured hardware-only
+and curated as the synthetic corpus regression
+`evaluate/windows/corpus/vm-qemu-q35-vmd-spoof-9a0b.json`. This closes the
+**plumbing** — enumeration, parsing and verdict all work end-to-end — but it
+is built from our own model of the IDs, so per CLAUDE.md rule #5 it narrows V5
+without closing it. See RISKS R1 for the full trail.
+
 **Pass.** Both directions on at least one physical machine, list reconciled
-with the kernel's. The reconciliation half is done; **what remains is the
-physical machine**: a borrowed Intel laptop with RST/VMD enabled — FAIL with
-it on, OK after switching to AHCI. The G16 (AMD, standard NVMe) cannot
-exercise the positive path.
+with the kernel's. The reconciliation and the level-3 plumbing are done; **what
+remains is the physical machine**: a borrowed Intel laptop with RST/VMD enabled
+— FAIL with it on, OK after switching to AHCI. The G16 (AMD, standard NVMe)
+cannot exercise the positive path, and neither can the spoof: the synthetic
+capture is the residue's regression test, not a substitute for it.
 
 **If it fails.** Fix the list and re-run; this one has no fallback because it
 has no excuse — it's cheap.

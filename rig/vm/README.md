@@ -10,7 +10,10 @@ can afford to break:
   never by hand.
 - **V5 / R1 level 3 — the VMD spoof.** A patched QEMU presents PCI
   `8086:9a0b` class `0104`; the scanner inside the guest must FAIL through
-  the real Windows PnP → WMI pipeline.
+  the real Windows PnP → WMI pipeline. **DONE 2026-08-26:** source and
+  `dist/` both `[FAIL] Intel RST / VMD active`, verdict RED; captured to
+  corpus as `vm-qemu-q35-vmd-spoof-9a0b.json` (synthetic). Plumbing only —
+  the physical RST machine (V5) is still required.
 - Later: the bench for V1/V1b (unattended install alongside shrunk Windows)
   and V3 (BitLocker BITLK reads).
 
@@ -166,6 +169,23 @@ In the guest:
 5. Verify: scanner `-SelfTest` passes the new corpus line and everything
    already there.
 6. Never cite this against R1's real-hardware clause.
+
+**Done 2026-08-26.** Ran the above via `guest/vmd-scan.ps1` (elevated, driven
+over QMP). Findings for the record:
+
+- The spoofed device enumerates as an unknown **RAID Controller**, device
+  Status `Error` (no INF binds `8086:9a0b`, expected). It still carries
+  HardwareID `PCI\VEN_8086&DEV_9A0B` and CompatibleIDs `PCI\CC_010400` /
+  `PCI\CC_0104`, which is all the check reads — an unbound/errored device does
+  not hide it. Good: real RST controllers with the driver missing look like
+  this too.
+- Signal 1 (the `9a0b` ID) is what fired; signal 3 (`CC_0104` RAID class) was
+  independently present, so the check has a backstop if an ID is ever unknown.
+- `-cpu host` passes the host AMD CPU through, so the capture's `Sys.CpuName`
+  reads "AMD Ryzen AI 9 HX 370" on a "QEMU Q35" box. Harmless (arch 9 → x64
+  `ok`); the corpus `Label` is set explicitly regardless.
+- Both source and `dist/` fired identically (parity holds); `dist/` was in
+  sync with `data/` already (no rebuild needed).
 
 ## Findings & gotchas (from the first bring-up, 2026-08-23)
 

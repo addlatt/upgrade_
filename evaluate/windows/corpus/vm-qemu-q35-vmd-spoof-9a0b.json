@@ -1,0 +1,345 @@
+{
+  "SchemaVersion": 1,
+  "Synthetic": true,
+  "Captured": "2026-08-26",
+  "Label": "VM: QEMU q35 + spoofed Intel VMD 9a0b (synthetic)",
+  "Sys": {
+    "Vendor": "QEMU",
+    "Model": "Standard PC (Q35 + ICH9, 2009)",
+    "RamGB": 8,
+    "CpuName": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M",
+    "CpuArch": 9,
+    "CpuCores": 8,
+    "IsLaptop": false,
+    "Firmware": "UEFI"
+  },
+  "Pnp": [
+    {
+      "Name": "Printer Port (LPT1)",
+      "DeviceID": "ACPI\\PNP0400\\1",
+      "PNPClass": "Ports",
+      "Service": "Parport",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "Extended IO Bus",
+      "DeviceID": "ACPI\\PNP0A06\\CPU_HOTPLUG_RESOURCES",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "System CMOS/real time clock",
+      "DeviceID": "ACPI\\PNP0B00\\4&22F5829E&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "Standard PS/2 Keyboard",
+      "DeviceID": "ACPI\\PNP0303\\4&22F5829E&0",
+      "PNPClass": "Keyboard",
+      "Service": "i8042prt",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "System board",
+      "DeviceID": "ACPI\\PNP0C01\\2&DABA3FF&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": null,
+      "DeviceID": "ACPI\\QEMU0002\\3&11583659&0",
+      "PNPClass": null,
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "High precision event timer",
+      "DeviceID": "ACPI\\PNP0103\\0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\_0",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\_1",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\_2",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\_3",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\_4",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\_5",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\_6",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M           ",
+      "DeviceID": "ACPI\\AUTHENTICAMD_-_AMD64_FAMILY_26_MODEL_36_-_AMD_RYZEN_AI_9_HX_370_W/_RADEON_890M___________\\_7",
+      "PNPClass": "Processor",
+      "Service": "AmdPPM",
+      "CompatibleID": [
+        "ACPI\\Processor"
+      ]
+    },
+    {
+      "Name": "Extended IO Bus",
+      "DeviceID": "ACPI\\PNP0A06\\GPE0_RESOURCES",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "Extended IO Bus",
+      "DeviceID": "ACPI\\PNP0A06\\PCI_HOTPLUG_RESOURCES",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "Communications Port (COM1)",
+      "DeviceID": "ACPI\\PNP0501\\1",
+      "PNPClass": "Ports",
+      "Service": "Serial",
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "ACPI Processor Container Device",
+      "DeviceID": "ACPI\\ACPI0010\\2&DABA3FF&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "*PNP0A05"
+      ]
+    },
+    {
+      "Name": "PCI Express Root Complex",
+      "DeviceID": "ACPI\\PNP0A08\\0",
+      "PNPClass": "System",
+      "Service": "pci",
+      "CompatibleID": [
+        "*PNP0A03"
+      ]
+    },
+    {
+      "Name": "Standard SATA AHCI Controller",
+      "DeviceID": "PCI\\VEN_8086&DEV_2922&SUBSYS_11001AF4&REV_02\\3&11583659&0&FA",
+      "PNPClass": "HDC",
+      "Service": "storahci",
+      "CompatibleID": [
+        "PCI\\VEN_8086&DEV_2922&REV_02",
+        "PCI\\VEN_8086&DEV_2922",
+        "PCI\\VEN_8086&CC_010601",
+        "PCI\\VEN_8086&CC_0106",
+        "PCI\\VEN_8086",
+        "PCI\\CC_010601",
+        "PCI\\CC_0106"
+      ]
+    },
+    {
+      "Name": "RAID Controller",
+      "DeviceID": "PCI\\VEN_8086&DEV_9A0B&SUBSYS_00008086&REV_00\\3&11583659&0&20",
+      "PNPClass": null,
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_8086&DEV_9A0B&REV_00",
+        "PCI\\VEN_8086&DEV_9A0B",
+        "PCI\\VEN_8086&CC_010400",
+        "PCI\\VEN_8086&CC_0104",
+        "PCI\\VEN_8086",
+        "PCI\\CC_010400",
+        "PCI\\CC_0104"
+      ]
+    },
+    {
+      "Name": "ACPI Fixed Feature Button",
+      "DeviceID": "ACPI\\FIXEDBUTTON\\2&DABA3FF&0",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        null
+      ]
+    },
+    {
+      "Name": "Intel(R) 82574L Gigabit Network Connection",
+      "DeviceID": "PCI\\VEN_8086&DEV_10D3&SUBSYS_00008086&REV_00\\3&11583659&0&10",
+      "PNPClass": "Net",
+      "Service": "e1i65x64",
+      "CompatibleID": [
+        "PCI\\VEN_8086&DEV_10D3&REV_00",
+        "PCI\\VEN_8086&DEV_10D3",
+        "PCI\\VEN_8086&CC_020000",
+        "PCI\\VEN_8086&CC_0200",
+        "PCI\\VEN_8086",
+        "PCI\\CC_020000",
+        "PCI\\CC_0200"
+      ]
+    },
+    {
+      "Name": "CPU to IO Controller",
+      "DeviceID": "PCI\\VEN_8086&DEV_29C0&SUBSYS_11001AF4&REV_00\\3&11583659&0&00",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_8086&DEV_29C0&REV_00",
+        "PCI\\VEN_8086&DEV_29C0",
+        "PCI\\VEN_8086&CC_060000",
+        "PCI\\VEN_8086&CC_0600",
+        "PCI\\VEN_8086",
+        "PCI\\CC_060000",
+        "PCI\\CC_0600"
+      ]
+    },
+    {
+      "Name": "SM Bus Controller",
+      "DeviceID": "PCI\\VEN_8086&DEV_2930&SUBSYS_11001AF4&REV_02\\3&11583659&0&FB",
+      "PNPClass": "System",
+      "Service": null,
+      "CompatibleID": [
+        "PCI\\VEN_8086&DEV_2930&REV_02",
+        "PCI\\VEN_8086&DEV_2930",
+        "PCI\\VEN_8086&CC_0C0500",
+        "PCI\\VEN_8086&CC_0C05",
+        "PCI\\VEN_8086",
+        "PCI\\CC_0C0500",
+        "PCI\\CC_0C05"
+      ]
+    },
+    {
+      "Name": "Microsoft Basic Display Adapter",
+      "DeviceID": "PCI\\VEN_1234&DEV_1111&SUBSYS_11001AF4&REV_02\\3&11583659&0&08",
+      "PNPClass": "Display",
+      "Service": "BasicDisplay",
+      "CompatibleID": [
+        "PCI\\VEN_1234&DEV_1111&REV_02",
+        "PCI\\VEN_1234&DEV_1111",
+        "PCI\\VEN_1234&CC_030000",
+        "PCI\\VEN_1234&CC_0300",
+        "PCI\\VEN_1234",
+        "PCI\\CC_030000",
+        "PCI\\CC_0300"
+      ]
+    },
+    {
+      "Name": "LPC Controller",
+      "DeviceID": "PCI\\VEN_8086&DEV_2918&SUBSYS_11001AF4&REV_02\\3&11583659&0&F8",
+      "PNPClass": "System",
+      "Service": "msisadrv",
+      "CompatibleID": [
+        "PCI\\VEN_8086&DEV_2918&REV_02",
+        "PCI\\VEN_8086&DEV_2918",
+        "PCI\\VEN_8086&CC_060100",
+        "PCI\\VEN_8086&CC_0601",
+        "PCI\\VEN_8086",
+        "PCI\\CC_060100",
+        "PCI\\CC_0601"
+      ]
+    },
+    {
+      "Name": "Standard USB 3.0 eXtensible Host Controller - 1.0 (Microsoft)",
+      "DeviceID": "PCI\\VEN_1B36&DEV_000D&SUBSYS_11001AF4&REV_01\\3&11583659&0&18",
+      "PNPClass": "USB",
+      "Service": "USBXHCI",
+      "CompatibleID": [
+        "PCI\\VEN_1B36&DEV_000D&REV_01",
+        "PCI\\VEN_1B36&DEV_000D",
+        "PCI\\VEN_1B36&CC_0C0330",
+        "PCI\\VEN_1B36&CC_0C03",
+        "PCI\\VEN_1B36",
+        "PCI\\CC_0C0330",
+        "PCI\\CC_0C03"
+      ]
+    },
+    {
+      "Name": "PS/2 Compatible Mouse",
+      "DeviceID": "ACPI\\PNP0F13\\4&22F5829E&0",
+      "PNPClass": "Mouse",
+      "Service": "i8042prt",
+      "CompatibleID": [
+        null
+      ]
+    }
+  ],
+  "Expected": {
+    "CPU architecture": "ok",
+    "Memory": "ok",
+    "Storage controller mode": "fail",
+    "Wi-Fi": "info",
+    "Graphics": "unknown",
+    "Audio": "ok",
+    "Vendor-specific": []
+  }
+}

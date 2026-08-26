@@ -1,0 +1,18 @@
+--- hw/misc/pci-testdev.c.orig	2026-08-26 19:24:04.696732150 -0400
++++ hw/misc/pci-testdev.c	2026-08-26 19:24:04.707732151 -0400
+@@ -331,10 +331,12 @@
+ 
+     k->realize = pci_testdev_realize;
+     k->exit = pci_testdev_uninit;
+-    k->vendor_id = PCI_VENDOR_ID_REDHAT;
+-    k->device_id = PCI_DEVICE_ID_REDHAT_TEST;
++    k->vendor_id = 0x8086; /* upgrade_ rig: spoof Intel VMD */
++    k->device_id = 0x9a0b;
++    k->subsystem_vendor_id = 0x8086;
++    k->subsystem_id = 0x0000;
+     k->revision = 0x00;
+-    k->class_id = PCI_CLASS_OTHERS;
++    k->class_id = 0x0104; /* mass storage / RAID -> CC_010400 */
+     dc->desc = "PCI Test Device";
+     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+     dc->reset = qdev_pci_testdev_reset;

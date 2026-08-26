@@ -20,7 +20,7 @@ Status is `open` unless a primary source or a real machine has confirmed it.
 
 ---
 
-## R1 — VMD detection has never fired · critical · open (desk half closed 2026-08-22)
+## R1 — VMD detection has never fired · critical · open (desk half closed 2026-08-22; level-3 spoof fired 2026-08-26)
 
 **What.** RST/VMD detection was 10 hand-written PCI device IDs plus a guessed
 `iaStorV*` service-name regex (`data/devices.ps1`,
@@ -65,6 +65,28 @@ the close condition is done; what it found justified the risk's severity:
   the real `Test-UpgStorageMode` (VMD ID, 09ab child, unknown-ID-with-iaStorVD,
   CC_0104 RAID class, RST-on-AHCI warn, standard NVMe ok). All pass — but they
   are still synthetic.
+
+**Level-3 spoof fired (2026-08-26).** The flagship check now fires through the
+*real* Windows PnP → WMI → scanner pipeline, not just fabricated objects. On
+the QEMU rig (`rig/vm/`), a patched `pci-testdev` (build-qemu-vmd.sh; QEMU
+8.2.2) presents PCI `8086:9a0b` class `0104`; Windows enumerates it as an
+unknown **RAID Controller** — instance `PCI\VEN_8086&DEV_9A0B&SUBSYS_00008086&
+REV_00`, CompatibleIDs including `PCI\CC_010400` and `PCI\CC_0104`, no driver
+bound so device Status is `Error`. Both the source scanner and the built
+`dist/` fired identically: `[FAIL] Storage controller mode — Intel RST / VMD
+active (RAID Controller)`, verdict RED. The device matched on signal 1 (the
+`9a0b` ID from the kernel-reconciled list); signal 3 (RAID class `CC_0104` in
+CompatibleIDs) is independently present as a backstop. Captured hardware-only
+with `-DumpMachine` and curated as the permanent synthetic regression
+`evaluate/windows/corpus/vm-qemu-q35-vmd-spoof-9a0b.json` (`Synthetic: true`),
+which replays green on every `-SelfTest` alongside the G16 entry.
+
+**This is plumbing, not evidence** (CLAUDE.md rule #5). The VM presents IDs
+built from our own model of the hardware, so the run proves the
+enumeration → parse → verdict path works end-to-end for a device that declares
+these IDs — and proves nothing about what real RST hardware actually presents.
+The real-hardware clause below is untouched; this capture must never be cited
+against it.
 
 **Still open — the half that needs hardware.** The check has never fired on a
 real RST-enabled machine. The remaining test is exactly V5's: a borrowed Intel
