@@ -1,0 +1,742 @@
+{
+    "SchemaVersion": 1,
+    "Captured": "2026-08-27",
+    "Label": "Acer Aspire A515-51G",
+    "Sys": {
+        "Vendor": "Acer",
+        "Model": "Aspire A515-51G",
+        "RamGB": 11.9,
+        "CpuName": "Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz",
+        "CpuArch": 9,
+        "CpuCores": 4,
+        "IsLaptop": true,
+        "Firmware": "UEFI"
+    },
+    "Pnp": [
+        {
+            "Name": "Motherboard resources",
+            "DeviceID": "ACPI\\PNP0C02\\1",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Motherboard resources",
+            "DeviceID": "ACPI\\PNP0C02\\2",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Motherboard resources",
+            "DeviceID": "ACPI\\PNP0C02\\5",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Microsoft ACPI-Compliant Control Method Battery",
+            "DeviceID": "ACPI\\PNP0C0A\\1",
+            "PNPClass": "Battery",
+            "Service": "CmBatt",
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "ACPI Fan",
+            "DeviceID": "ACPI\\PNP0C0B\\0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "ACPI Fan",
+            "DeviceID": "ACPI\\PNP0C0B\\1",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "ACPI Fan",
+            "DeviceID": "ACPI\\PNP0C0B\\2",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "ACPI Fan",
+            "DeviceID": "ACPI\\PNP0C0B\\3",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "ACPI Fan",
+            "DeviceID": "ACPI\\PNP0C0B\\4",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "ACPI Processor Aggregator",
+            "DeviceID": "ACPI\\ACPI000C\\2&DABA3FF&0",
+            "PNPClass": "System",
+            "Service": "acpipagr",
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Trusted Platform Module 2.0",
+            "DeviceID": "ACPI\\MSFT0101\\2&DABA3FF&0",
+            "PNPClass": "SecurityDevices",
+            "Service": "TPM",
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Mobile Intel(R) Processor Family I/O PMC - 9D21",
+            "DeviceID": "PCI\\VEN_8086&DEV_9D21&SUBSYS_11931025&REV_21\\3&11583659&0&FA",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_9D21&REV_21",
+                "PCI\\VEN_8086&DEV_9D21",
+                "PCI\\VEN_8086&CC_058000",
+                "PCI\\VEN_8086&CC_0580",
+                "PCI\\VEN_8086",
+                "PCI\\CC_058000",
+                "PCI\\CC_0580"
+            ]
+        },
+        {
+            "Name": "Intel(R) Xeon(R) E3 - 1200 v6/7th Gen Intel(R) Core(TM) Host Bridge/DRAM Registers - 5914",
+            "DeviceID": "PCI\\VEN_8086&DEV_5914&SUBSYS_11931025&REV_08\\3&11583659&0&00",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_5914&REV_08",
+                "PCI\\VEN_8086&DEV_5914",
+                "PCI\\VEN_8086&CC_060000",
+                "PCI\\VEN_8086&CC_0600",
+                "PCI\\VEN_8086",
+                "PCI\\CC_060000",
+                "PCI\\CC_0600"
+            ]
+        },
+        {
+            "Name": "Qualcomm Atheros QCA9377 Wireless Network Adapter",
+            "DeviceID": "PCI\\VEN_168C&DEV_0042&SUBSYS_08A611AD&REV_31\\4&2EC10E2D&0&00E5",
+            "PNPClass": "Net",
+            "Service": "Qcamain10x64",
+            "CompatibleID": [
+                "PCI\\VEN_168C&DEV_0042&REV_31",
+                "PCI\\VEN_168C&DEV_0042",
+                "PCI\\VEN_168C&CC_028000",
+                "PCI\\VEN_168C&CC_0280",
+                "PCI\\VEN_168C",
+                "PCI\\CC_028000",
+                "PCI\\CC_0280"
+            ]
+        },
+        {
+            "Name": "Intel(R) Serial IO I2C Host Controller - 9D60",
+            "DeviceID": "PCI\\VEN_8086&DEV_9D60&SUBSYS_11931025&REV_21\\3&11583659&0&A8",
+            "PNPClass": "System",
+            "Service": "iaLPSS2i_I2C",
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_9D60&REV_21",
+                "PCI\\VEN_8086&DEV_9D60",
+                "PCI\\VEN_8086&CC_118000",
+                "PCI\\VEN_8086&CC_1180",
+                "PCI\\VEN_8086",
+                "PCI\\CC_118000",
+                "PCI\\CC_1180"
+            ]
+        },
+        {
+            "Name": "ACPI Sleep Button",
+            "DeviceID": "ACPI\\PNP0C0E\\2&DABA3FF&0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Realtek High Definition Audio(SST)",
+            "DeviceID": "INTELAUDIO\\FUNC_01&VEN_10EC&DEV_0255&SUBSYS_10251193&REV_1000\\4&4594DA5&0&0001",
+            "PNPClass": "MEDIA",
+            "Service": "IntcAzAudAddService",
+            "CompatibleID": [
+                "INTELAUDIO\\FUNC_01&VEN_10EC&DEV_0255&REV_1000",
+                "INTELAUDIO\\FUNC_01&VEN_10EC&DEV_0255",
+                "INTELAUDIO\\FUNC_01&VEN_10EC",
+                "INTELAUDIO\\FUNC_01"
+            ]
+        },
+        {
+            "Name": "Intel(R) Smart Sound Technology (Intel(R) SST) OED",
+            "DeviceID": "INTELAUDIO\\DSP_CTLR_DEV_9D71&VEN_8086&DEV_0222&SUBSYS_00000022&REV_0001\\4&4594DA5&0&0800",
+            "PNPClass": "System",
+            "Service": "IntcOED",
+            "CompatibleID": [
+                "INTELAUDIO\\DSP_CTLR_DEV_9D71&VEN_8086&DEV_0222&REV_0001",
+                "INTELAUDIO\\DSP_CTLR_DEV_9D71&VEN_8086&DEV_0222",
+                "INTELAUDIO\\DSP_CTLR_DEV_9D71&VEN_8086",
+                "INTELAUDIO\\DSP_CTLR_DEV_9D71"
+            ]
+        },
+        {
+            "Name": "Mobile Intel(R) Processor Family I/O PCI Express Root Port #5 - 9D14",
+            "DeviceID": "PCI\\VEN_8086&DEV_9D14&SUBSYS_11931025&REV_F1\\3&11583659&0&E4",
+            "PNPClass": "System",
+            "Service": "pci",
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_9D14&REV_F1",
+                "PCI\\VEN_8086&DEV_9D14",
+                "PCI\\VEN_8086&CC_060400",
+                "PCI\\VEN_8086&CC_0604",
+                "PCI\\VEN_8086",
+                "PCI\\CC_060400",
+                "PCI\\CC_0604"
+            ]
+        },
+        {
+            "Name": "ACPI Thermal Zone",
+            "DeviceID": "ACPI\\THERMALZONE\\TZ00",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "ACPI Thermal Zone",
+            "DeviceID": "ACPI\\THERMALZONE\\TZ01",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Intel(R) Smart Sound Technology (Intel(R) SST) Audio Controller",
+            "DeviceID": "PCI\\VEN_8086&DEV_9D71&SUBSYS_11931025&REV_21\\3&11583659&0&FB",
+            "PNPClass": "System",
+            "Service": "IntcAudioBus",
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_9D71&REV_21",
+                "PCI\\VEN_8086&DEV_9D71",
+                "PCI\\VEN_8086&CC_040380",
+                "PCI\\VEN_8086&CC_0403",
+                "PCI\\VEN_8086",
+                "PCI\\CC_040380",
+                "PCI\\CC_0403"
+            ]
+        },
+        {
+            "Name": "Legacy device",
+            "DeviceID": "ACPI\\INT0800\\4&36E45746&0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "ACPI Lid",
+            "DeviceID": "ACPI\\PNP0C0D\\4&36E45746&0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "High precision event timer",
+            "DeviceID": "ACPI\\PNP0103\\0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Microsoft ACPI-Compliant Embedded Controller",
+            "DeviceID": "ACPI\\PNP0C09\\4&36E45746&0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "System timer",
+            "DeviceID": "ACPI\\PNP0100\\4&36E45746&0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Realtek PCIe GBE Family Controller",
+            "DeviceID": "PCI\\VEN_10EC&DEV_8168&SUBSYS_11931025&REV_12\\4&2249044D&0&01E4",
+            "PNPClass": "Net",
+            "Service": "rt640x64",
+            "CompatibleID": [
+                "PCI\\VEN_10EC&DEV_8168&REV_12",
+                "PCI\\VEN_10EC&DEV_8168",
+                "PCI\\VEN_10EC&CC_020000",
+                "PCI\\VEN_10EC&CC_0200",
+                "PCI\\VEN_10EC",
+                "PCI\\CC_020000",
+                "PCI\\CC_0200"
+            ]
+        },
+        {
+            "Name": "Intel(R) USB 3.0 eXtensible Host Controller - 1.0 (Microsoft)",
+            "DeviceID": "PCI\\VEN_8086&DEV_9D2F&SUBSYS_11931025&REV_21\\3&11583659&0&A0",
+            "PNPClass": "USB",
+            "Service": "USBXHCI",
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_9D2F&REV_21",
+                "PCI\\VEN_8086&DEV_9D2F",
+                "PCI\\VEN_8086&CC_0C0330",
+                "PCI\\VEN_8086&CC_0C03",
+                "PCI\\VEN_8086",
+                "PCI\\CC_0C0330",
+                "PCI\\CC_0C03"
+            ]
+        },
+        {
+            "Name": "Motherboard resources",
+            "DeviceID": "ACPI\\PNP0C02\\PCHRESV",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Intel(R) Display Audio",
+            "DeviceID": "INTELAUDIO\\FUNC_01&VEN_8086&DEV_280B&SUBSYS_80860101&REV_1000\\4&4594DA5&0&0201",
+            "PNPClass": "MEDIA",
+            "Service": "IntcDAud",
+            "CompatibleID": [
+                "INTELAUDIO\\FUNC_01&VEN_8086&DEV_280B&REV_1000",
+                "INTELAUDIO\\FUNC_01&VEN_8086&DEV_280B",
+                "INTELAUDIO\\FUNC_01&VEN_8086",
+                "INTELAUDIO\\FUNC_01"
+            ]
+        },
+        {
+            "Name": "Mobile Intel(R) Processor Family I/O SMBUS - 9D23",
+            "DeviceID": "PCI\\VEN_8086&DEV_9D23&SUBSYS_11931025&REV_21\\3&11583659&0&FC",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_9D23&REV_21",
+                "PCI\\VEN_8086&DEV_9D23",
+                "PCI\\VEN_8086&CC_0C0500",
+                "PCI\\VEN_8086&CC_0C05",
+                "PCI\\VEN_8086",
+                "PCI\\CC_0C0500",
+                "PCI\\CC_0C05"
+            ]
+        },
+        {
+            "Name": "Acer Airplane Mode Controller",
+            "DeviceID": "ACPI\\10251229\\0",
+            "PNPClass": "HIDClass",
+            "Service": "mshidkmdf",
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Microsoft Windows Management Interface for ACPI",
+            "DeviceID": "ACPI\\PNP0C14\\APGE",
+            "PNPClass": "System",
+            "Service": "WmiAcpi",
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "PCI Express Root Complex",
+            "DeviceID": "ACPI\\PNP0A08\\0",
+            "PNPClass": "System",
+            "Service": "pci",
+            "CompatibleID": [
+                "*PNP0A03"
+            ]
+        },
+        {
+            "Name": "Mobile 7th/8th Generation Intel(R) Processor Family I/O LPC Controller (U with iHDCP2.2 Premium) - 9D4E",
+            "DeviceID": "PCI\\VEN_8086&DEV_9D4E&SUBSYS_11931025&REV_21\\3&11583659&0&F8",
+            "PNPClass": "System",
+            "Service": "msisadrv",
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_9D4E&REV_21",
+                "PCI\\VEN_8086&DEV_9D4E",
+                "PCI\\VEN_8086&CC_060100",
+                "PCI\\VEN_8086&CC_0601",
+                "PCI\\VEN_8086",
+                "PCI\\CC_060100",
+                "PCI\\CC_0601"
+            ]
+        },
+        {
+            "Name": "ACPI Power Button",
+            "DeviceID": "ACPI\\PNP0C0C\\2&DABA3FF&0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Intel(R) 6th Generation Core Processor Family Platform I/O SATA AHCI Controller",
+            "DeviceID": "PCI\\VEN_8086&DEV_9D03&SUBSYS_11931025&REV_21\\3&11583659&0&B8",
+            "PNPClass": "HDC",
+            "Service": "iaStorAC",
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_9D03&REV_21",
+                "PCI\\VEN_8086&DEV_9D03",
+                "PCI\\VEN_8086&CC_010601",
+                "PCI\\VEN_8086&CC_0106",
+                "PCI\\VEN_8086",
+                "PCI\\CC_010601",
+                "PCI\\CC_0106"
+            ]
+        },
+        {
+            "Name": "Intel(R) Serial IO GPIO Host Controller - INT344B",
+            "DeviceID": "ACPI\\INT344B\\3&11583659&0",
+            "PNPClass": "System",
+            "Service": "iaLPSS2i_GPIO2",
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Intel(R) Management Engine Interface ",
+            "DeviceID": "PCI\\VEN_8086&DEV_9D3A&SUBSYS_11931025&REV_21\\3&11583659&0&B0",
+            "PNPClass": "System",
+            "Service": "MEIx64",
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_9D3A&REV_21",
+                "PCI\\VEN_8086&DEV_9D3A",
+                "PCI\\VEN_8086&CC_078000",
+                "PCI\\VEN_8086&CC_0780",
+                "PCI\\VEN_8086",
+                "PCI\\CC_078000",
+                "PCI\\CC_0780"
+            ]
+        },
+        {
+            "Name": "ACPI Fixed Feature Button",
+            "DeviceID": "ACPI\\FIXEDBUTTON\\2&DABA3FF&0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Mobile Intel(R) Processor Family I/O PCI Express Root Port #1 - 9D10",
+            "DeviceID": "PCI\\VEN_8086&DEV_9D10&SUBSYS_11931025&REV_F1\\3&11583659&0&E0",
+            "PNPClass": "System",
+            "Service": "pci",
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_9D10&REV_F1",
+                "PCI\\VEN_8086&DEV_9D10",
+                "PCI\\VEN_8086&CC_060400",
+                "PCI\\VEN_8086&CC_0604",
+                "PCI\\VEN_8086",
+                "PCI\\CC_060400",
+                "PCI\\CC_0604"
+            ]
+        },
+        {
+            "Name": "Microsoft Windows Management Interface for ACPI",
+            "DeviceID": "ACPI\\PNP0C14\\MXM2",
+            "PNPClass": "System",
+            "Service": "WmiAcpi",
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Intel(R) Power Engine Plug-in",
+            "DeviceID": "ACPI\\INT33A1\\1",
+            "PNPClass": "System",
+            "Service": "intelpep",
+            "CompatibleID": [
+                "*PNP0D80"
+            ]
+        },
+        {
+            "Name": "Realtek PCIE CardReader",
+            "DeviceID": "PCI\\VEN_10EC&DEV_5287&SUBSYS_11931025&REV_01\\4&2249044D&0&00E4",
+            "PNPClass": "MTD",
+            "Service": "RTSPER",
+            "CompatibleID": [
+                "PCI\\VEN_10EC&DEV_5287&REV_01",
+                "PCI\\VEN_10EC&DEV_5287",
+                "PCI\\VEN_10EC&CC_FF0000",
+                "PCI\\VEN_10EC&CC_FF00",
+                "PCI\\VEN_10EC",
+                "PCI\\CC_FF0000",
+                "PCI\\CC_FF00"
+            ]
+        },
+        {
+            "Name": "Intel(R) UHD Graphics 620",
+            "DeviceID": "PCI\\VEN_8086&DEV_5917&SUBSYS_11931025&REV_07\\3&11583659&0&10",
+            "PNPClass": "Display",
+            "Service": "igfx",
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_5917&REV_07",
+                "PCI\\VEN_8086&DEV_5917",
+                "PCI\\VEN_8086&CC_030000",
+                "PCI\\VEN_8086&CC_0300",
+                "PCI\\VEN_8086",
+                "PCI\\CC_030000",
+                "PCI\\CC_0300"
+            ]
+        },
+        {
+            "Name": "Motherboard resources",
+            "DeviceID": "ACPI\\PNP0C02\\IOTRAPS",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "System CMOS/real time clock",
+            "DeviceID": "ACPI\\PNP0B00\\4&36E45746&0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Programmable interrupt controller",
+            "DeviceID": "ACPI\\PNP0000\\4&36E45746&0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "NVIDIA GeForce MX150",
+            "DeviceID": "PCI\\VEN_10DE&DEV_1D10&SUBSYS_119A1025&REV_A1\\4&2AD6842E&0&00E0",
+            "PNPClass": "Display",
+            "Service": "nvlddmkm",
+            "CompatibleID": [
+                "PCI\\VEN_10DE&DEV_1D10&REV_A1",
+                "PCI\\VEN_10DE&DEV_1D10",
+                "PCI\\VEN_10DE&CC_030200",
+                "PCI\\VEN_10DE&CC_0302",
+                "PCI\\VEN_10DE",
+                "PCI\\CC_030200",
+                "PCI\\CC_0302"
+            ]
+        },
+        {
+            "Name": "Intel(R) Serial IO I2C Host Controller - 9D61",
+            "DeviceID": "PCI\\VEN_8086&DEV_9D61&SUBSYS_11931025&REV_21\\3&11583659&0&A9",
+            "PNPClass": "System",
+            "Service": "iaLPSS2i_I2C",
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_9D61&REV_21",
+                "PCI\\VEN_8086&DEV_9D61",
+                "PCI\\VEN_8086&CC_118000",
+                "PCI\\VEN_8086&CC_1180",
+                "PCI\\VEN_8086",
+                "PCI\\CC_118000",
+                "PCI\\CC_1180"
+            ]
+        },
+        {
+            "Name": "Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz",
+            "DeviceID": "ACPI\\GENUINEINTEL_-_INTEL64_FAMILY_6_MODEL_142_-_INTEL(R)_CORE(TM)_I7-8550U_CPU_@_1.80GHZ\\_1",
+            "PNPClass": "Processor",
+            "Service": "intelppm",
+            "CompatibleID": [
+                "ACPI\\Processor"
+            ]
+        },
+        {
+            "Name": "Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz",
+            "DeviceID": "ACPI\\GENUINEINTEL_-_INTEL64_FAMILY_6_MODEL_142_-_INTEL(R)_CORE(TM)_I7-8550U_CPU_@_1.80GHZ\\_2",
+            "PNPClass": "Processor",
+            "Service": "intelppm",
+            "CompatibleID": [
+                "ACPI\\Processor"
+            ]
+        },
+        {
+            "Name": "Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz",
+            "DeviceID": "ACPI\\GENUINEINTEL_-_INTEL64_FAMILY_6_MODEL_142_-_INTEL(R)_CORE(TM)_I7-8550U_CPU_@_1.80GHZ\\_3",
+            "PNPClass": "Processor",
+            "Service": "intelppm",
+            "CompatibleID": [
+                "ACPI\\Processor"
+            ]
+        },
+        {
+            "Name": "Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz",
+            "DeviceID": "ACPI\\GENUINEINTEL_-_INTEL64_FAMILY_6_MODEL_142_-_INTEL(R)_CORE(TM)_I7-8550U_CPU_@_1.80GHZ\\_4",
+            "PNPClass": "Processor",
+            "Service": "intelppm",
+            "CompatibleID": [
+                "ACPI\\Processor"
+            ]
+        },
+        {
+            "Name": "Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz",
+            "DeviceID": "ACPI\\GENUINEINTEL_-_INTEL64_FAMILY_6_MODEL_142_-_INTEL(R)_CORE(TM)_I7-8550U_CPU_@_1.80GHZ\\_5",
+            "PNPClass": "Processor",
+            "Service": "intelppm",
+            "CompatibleID": [
+                "ACPI\\Processor"
+            ]
+        },
+        {
+            "Name": "Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz",
+            "DeviceID": "ACPI\\GENUINEINTEL_-_INTEL64_FAMILY_6_MODEL_142_-_INTEL(R)_CORE(TM)_I7-8550U_CPU_@_1.80GHZ\\_6",
+            "PNPClass": "Processor",
+            "Service": "intelppm",
+            "CompatibleID": [
+                "ACPI\\Processor"
+            ]
+        },
+        {
+            "Name": "Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz",
+            "DeviceID": "ACPI\\GENUINEINTEL_-_INTEL64_FAMILY_6_MODEL_142_-_INTEL(R)_CORE(TM)_I7-8550U_CPU_@_1.80GHZ\\_7",
+            "PNPClass": "Processor",
+            "Service": "intelppm",
+            "CompatibleID": [
+                "ACPI\\Processor"
+            ]
+        },
+        {
+            "Name": "Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz",
+            "DeviceID": "ACPI\\GENUINEINTEL_-_INTEL64_FAMILY_6_MODEL_142_-_INTEL(R)_CORE(TM)_I7-8550U_CPU_@_1.80GHZ\\_8",
+            "PNPClass": "Processor",
+            "Service": "intelppm",
+            "CompatibleID": [
+                "ACPI\\Processor"
+            ]
+        },
+        {
+            "Name": "Mobile Intel(R) Processor Family I/O PCI Express Root Port #6 - 9D15",
+            "DeviceID": "PCI\\VEN_8086&DEV_9D15&SUBSYS_11931025&REV_F1\\3&11583659&0&E5",
+            "PNPClass": "System",
+            "Service": "pci",
+            "CompatibleID": [
+                "PCI\\VEN_8086&DEV_9D15&REV_F1",
+                "PCI\\VEN_8086&DEV_9D15",
+                "PCI\\VEN_8086&CC_060400",
+                "PCI\\VEN_8086&CC_0604",
+                "PCI\\VEN_8086",
+                "PCI\\CC_060400",
+                "PCI\\CC_0604"
+            ]
+        },
+        {
+            "Name": "Motherboard resources",
+            "DeviceID": "ACPI\\INT3F0D\\4&36E45746&0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                "*PNP0C02"
+            ]
+        },
+        {
+            "Name": "I2C HID Device",
+            "DeviceID": "ACPI\\SYNA7DB5\\1",
+            "PNPClass": "HIDClass",
+            "Service": "hidi2c",
+            "CompatibleID": [
+                "ACPI\\PNP0C50",
+                "PNP0C50"
+            ]
+        },
+        {
+            "Name": "Motherboard resources",
+            "DeviceID": "ACPI\\INT340E\\2&DABA3FF&0",
+            "PNPClass": "System",
+            "Service": null,
+            "CompatibleID": [
+                "*PNP0C02"
+            ]
+        },
+        {
+            "Name": "Microsoft Windows Management Interface for ACPI",
+            "DeviceID": "ACPI\\PNP0C14\\TBFP",
+            "PNPClass": "System",
+            "Service": "WmiAcpi",
+            "CompatibleID": [
+                null
+            ]
+        },
+        {
+            "Name": "Standard PS/2 Keyboard",
+            "DeviceID": "ACPI\\MSFT0001\\4&36E45746&0",
+            "PNPClass": "Keyboard",
+            "Service": "i8042prt",
+            "CompatibleID": [
+                "*PNP0303"
+            ]
+        },
+        {
+            "Name": "Microsoft AC Adapter",
+            "DeviceID": "ACPI\\ACPI0003\\4&36E45746&0",
+            "PNPClass": "Battery",
+            "Service": "CmBatt",
+            "CompatibleID": [
+                null
+            ]
+        }
+    ],
+    "Expected": {
+        "CPU architecture": "ok",
+        "Memory": "ok",
+        "Storage controller mode": "warn",
+        "Wi-Fi": "ok",
+        "Graphics": [
+            "ok",
+            "warn"
+        ],
+        "Hybrid graphics": "warn",
+        "Audio": "ok",
+        "Vendor-specific": []
+    }
+}
