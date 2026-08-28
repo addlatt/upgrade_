@@ -531,7 +531,7 @@ failure shape, in the feature most users will check first.
 browser and version pair, and `evaluate`'s claims are narrowed to what the
 evidence supports.
 
-## R21 — Installing alongside a shrunk Windows may not leave Windows bootable · critical · open
+## R21 — Installing alongside a shrunk Windows may not leave Windows bootable · critical · open (VM leg fired 2026-08-27)
 
 **What.** The keep-Windows path — now the **default** — installs Linux into
 freed space and must leave the shrunk Windows fully bootable, because Windows
@@ -552,6 +552,93 @@ and had no entry until now.
 **If real.** A "successful" conversion where the new Linux works but the kept
 Windows will not boot: no rollback, no file source, and the user was
 explicitly told they had both. Trust-ending.
+
+**VM leg fired (2026-08-27).** First evidence, on the QEMU+OVMF rig
+(`rig/vm/`, OVMF 2024.02 non-SMM, **Secure Boot off**): `rig/vm/v1b.sh` shrank
+the guest's C: by 32 GiB with `Resize-Partition`, kickstarted a Fedora 42
+netinst into the freed space with `part /boot/efi --onpart=sda1 --noformat`,
+and drove both systems through power cycles. Row in
+`docs/validation-results/v1b-alongside.csv`, result **`fallback-loader-replaced`**
+— the five stated checks all held, but the run is not recorded as a bare pass
+because the install modified a Windows-placed file (finding 1). What held:
+
+- **(a) ESP room.** The reused Windows-made ESP took the install: +7 files,
+  +6,218,358 B (`EFI/fedora/`: shim, mm, grub, grub.cfg, BOOTX64.CSV; and
+  `EFI/Boot/fbx64.efi`). Windows' own footprint was 28.07 MB; 34.29 MB used
+  after. **The 100 MB case was not exercised** — this guest's ESP is 260 MiB
+  because `autounattend.xml` asked for it; the arithmetic says Windows-default
+  ~100 MiB would still hold ≈34 MB (`fits_100mib_esp=computed-yes`), but that
+  is a computed column, not a run. A ~100 MiB ESP row is still owed.
+- **(b) `bootmgfw.efi` byte-identical** (sha256 `d1f7e351…`) before the shrink,
+  after the install, and in every boot row from both OSes. Every other file
+  under `EFI/Microsoft/` also unchanged except Windows' own BCD/BOOTSTAT logs.
+- **(c) Windows boots from the GRUB menu.** os-prober found it
+  (`/dev/sda1@/EFI/Microsoft/Boot/bootmgfw.efi`), GRUB listed "Windows Boot
+  Manager (on /dev/sda1)", and three Windows sessions were reached through it
+  — proven from *inside Windows* by reading the firmware's `BootCurrent`
+  variable: it named Fedora's `Boot0002`, i.e. the chainload path, not
+  Windows' own entry.
+- **(d) Linux boots** (five sessions) and **(e) both survive power cycles** —
+  every cycle was a fresh QEMU process, markers written by each OS itself to
+  the OEMDRV volume, never by hand.
+
+Five findings, all design inputs, none of which the five checks would have
+named on their own:
+
+1. **The install replaces `EFI/Boot/bootx64.efi`.** Windows Setup places a
+   copy of `bootmgfw.efi` there (1,604,016 B — the removable-media fallback
+   path firmware uses when its NVRAM entries are lost); Fedora's `shim-x64`
+   overwrites it with shim (949,424 B) plus `fbx64.efi`. `bootmgfw.efi` is
+   intact and Windows stays bootable, but "Windows' files on the ESP are
+   untouched" is false as a blanket claim. Consequence for the design: the
+   prologue must snapshot the whole `EFI/Boot` + `EFI/Microsoft` tree before
+   the install, and rollback/reclaim must restore `bootx64.efi`. There is a
+   real trade-off to decide (dated decision pending): shim in the fallback
+   slot means an NVRAM wipe still reaches GRUB — **observed**: after the
+   firmware had dropped both OS entries, launching `EFI/Boot/bootx64.efi`
+   went shim → `fbx64.efi` → `BOOTX64.CSV`, re-created the "Fedora" entry
+   and showed the GRUB menu with Windows on it — whereas Windows' copy there
+   means an NVRAM wipe boots Windows only. Either way it must be explicit.
+2. **Windows re-registers itself and takes the boot order.** After one
+   Windows session that applied a pending update at shutdown, the firmware
+   held a *new* `Boot0009 "Windows Boot Manager"` first in `BootOrder`
+   (Windows' `bcdedit {fwbootmgr}` showed `{bootmgr}` first, Fedora second),
+   and the next power-on booted Windows directly — no GRUB menu, Linux
+   unreachable without the firmware's boot-menu key. A plain Windows session
+   without servicing did **not** flip it. `settle-in` must re-assert the
+   Linux entry first after every Windows session (`efibootmgr -o …`), and the
+   user-facing text must say that a Windows update can hide Linux until then.
+3. **Firmware can drop OS boot entries wholesale.** Before Anaconda ran a
+   single `efibootmgr` call, the Windows entry was already gone (Anaconda's
+   own `storage.log` proves the order). Attribution on this rig: OVMF's
+   fw_cfg boot-order handling (QEMU `bootindex=`) deletes *every* OS-created
+   `Boot####` — confirmed by booting into OVMF's Boot Manager with the CD at
+   `bootindex=0` (Fedora and Windows both absent) versus with an extra USB
+   device and no `bootindex` (both present). A rig artifact — but the class is
+   real on vendor firmware too, so the converter's post-install step must
+   *verify* the Windows entry exists and re-create it
+   (`efibootmgr -c -L "Windows Boot Manager" -l '\EFI\Microsoft\Boot\bootmgfw.efi'`)
+   rather than assume the install left it alone. Windows re-created its own
+   later (finding 2), so the safety net self-healed here — by luck of timing.
+4. **os-prober was on by default in Fedora 42's Anaconda install.** The stock
+   `/etc/default/grub` has no `GRUB_DISABLE_OS_PROBER` line and the stock
+   `grub.cfg` already carried the Windows entry; setting it to `false` and
+   regenerating changed nothing. Do not rely on that — set it explicitly
+   in the kickstart, and keep the `os_prober_stock` column so a distro that
+   flips the default shows up as a row, not a surprise.
+5. **The ESP's GPT entry name was rewritten** ("EFI system partition" →
+   "EFI System Partition") even with `--noformat`; type GUID, unique GUID and
+   extent unchanged. Cosmetic, recorded because "reuse without touching" was
+   the claim and the GPT entry *was* touched.
+
+**Still open — this rig cannot close them.** Secure Boot enforcement lives in
+the SMM-requiring OVMF build that crashes KVM on this AMD/WSL2 host (see R15),
+so the whole run was SB-off: shim → GRUB → `bootmgfw.efi` chainloading with
+Secure Boot *on* (shim verifying a Microsoft-signed binary, and GRUB's
+`chainloader` under shim's verification protocol) is unproven. The ~100 MiB
+ESP row is owed. And the physical vendor matrix (≥3 vendors) is what the
+close condition actually names. A VM pass narrows R21; it does not close it
+(CLAUDE.md rule #5).
 
 **Closes when.** An alongside install is proven on real machines from several
 vendors, Secure Boot on: Windows still boots from the menu afterward, GRUB

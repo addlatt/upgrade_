@@ -14,8 +14,13 @@ can afford to break:
   `dist/` both `[FAIL] Intel RST / VMD active`, verdict RED; captured to
   corpus as `vm-qemu-q35-vmd-spoof-9a0b.json` (synthetic). Plumbing only —
   the physical RST machine (V5) is still required.
-- Later: the bench for V1/V1b (unattended install alongside shrunk Windows)
-  and V3 (BitLocker BITLK reads).
+- **V1b / R21 — the alongside install, VM leg. DONE 2026-08-27** (SB off):
+  `v1b.sh` shrinks C:, kickstarts Fedora 42 into the gap reusing the Windows
+  ESP unformatted, and power-cycles both systems; row in
+  `docs/validation-results/v1b-alongside.csv` (`fallback-loader-replaced` —
+  all five checks held, plus five findings; see RISKS R21). Run-book below.
+- Later: V1 proper (Secure Boot on — needs an SMM-capable host) and V3
+  (BitLocker BITLK reads).
 
 **Two standing rules.**
 
@@ -40,6 +45,11 @@ can afford to break:
 | `install-vm.sh` | one-time guest install (one keypress at "Press any key…") |
 | `run-vm.sh` | every later boot; flags `--sb --stick --tpm --smb --vmd --reset-vars` |
 | `build-qemu-vmd.sh` | patched QEMU for the VMD spoof (`-device pci-testdev`) |
+| `v1b.sh` | the V1b bench: `oemdrv`, `inspect`, `install`, `cycle`, `fwmenu`, `verdict` |
+| `v1b-inspect.py` | offline GPT + ESP manifest/hash of `win10.qcow2` (no loop/nbd needed) |
+| `v1b-verdict.py` | turns the run's evidence into the CSV row |
+| `v1b-ks.cfg` | the alongside kickstart (`--onpart=sda1 --noformat`), auto-loaded from OEMDRV |
+| `guest/v1b-shrink.ps1`, `guest/v1b-mark.ps1` | guest-side shrink + per-boot marker (PS 5.1) |
 
 Everything generated lands in `artifacts/` (gitignored). Guest account:
 `rig` / `rig`, autologon, ComputerName `UPGRIG`.
@@ -186,6 +196,72 @@ over QMP). Findings for the record:
   `ok`); the corpus `Label` is set explicitly regardless.
 - Both source and `dist/` fired identically (parity holds); `dist/` was in
   sync with `data/` already (no rebuild needed).
+
+## V1b run-book (alongside install; done 2026-08-27)
+
+Every step's evidence is produced by the step itself; nothing is typed into
+the CSV. **Back up both the disk and the varstore first** — the install is
+destructive to the guest, and (learned the hard way) the OVMF varstore is
+where the boot entries live:
+
+```
+cp artifacts/win10.qcow2 artifacts/win10.pre-v1b.qcow2
+cp artifacts/fw/vars-nosb.fd artifacts/fw/vars-nosb.pre-v1b.fd
+./v1b.sh inspect 00-baseline                  # GPT + ESP manifest, bootmgfw sha256
+./v1b.sh oemdrv                               # FAT volume 'OEMDRV' carrying v1b-ks.cfg
+./v1b.sh boot                                 # Windows; elevated PS (Win+X, A, Left, Space):
+#   powershell -ExecutionPolicy Bypass -File \\10.0.2.4\qemu\rig\vm\guest\v1b-shrink.ps1
+igm\guest1b-shrink.ps1
+#   shutdown /s /t 0                          # -> artifacts/v1b/shrink.json (+ registers the marker task)
+./v1b.sh inspect 01-post-shrink
+./v1b.sh install                              # netinst CD at bootindex=0 + OEMDRV; pick "Install Fedora 42"
+                                              # at the ISO menu (up, Enter); Anaconda loads ks.cfg itself,
+                                              # runs text-mode, %post ships logs to OEMDRV, then powers off
+./v1b.sh inspect 02-post-install
+./v1b.sh autoshutdown on
+./v1b.sh cycle windows c2 ; ./v1b.sh cycle linux c3 ; ...   # hands-free power cycles; each OS writes
+                                              # its own row to OEMDRV:/boots.log and powers off
+./v1b.sh inspect 03-post-cycles
+./v1b.sh verdict                              # appends the row to docs/validation-results/v1b-alongside.csv
+```
+
+`v1b.sh log` prints `boots.log`; `v1b.sh fwmenu TAG [run-vm flags]` boots into
+OVMF's Boot Manager, screenshots the `Boot####` list and kills QEMU — the
+zero-touch way to see what the firmware currently holds.
+
+What the rig showed (details and consequences in RISKS R21): shrink 32 GiB
+(cold shrinkable 46.8 GiB, no immovable-file cap on this guest); Anaconda took
+`part /boot/efi --onpart=sda1 --noformat` without complaint; the ESP grew by
+6.2 MB and `bootmgfw.efi` never changed; Windows booted through GRUB with
+`BootCurrent` = Fedora's entry; both survived every cycle. Findings: shim
+overwrites `EFI/Boot/bootx64.efi`; Windows re-took `BootOrder` after a
+servicing pass; the firmware dropped the OS entries (see below); os-prober was
+already on in stock F42; the ESP's GPT name was case-normalised.
+
+Rig quirks met on the way, all of which a physical run would not see:
+
+- **`bootindex=` deletes every OS-created `Boot####`.** With a fw_cfg boot
+  order present (what `--cdrom` sets), OVMF's BDS rewrote NVRAM to
+  firmware-auto entries only — Windows *and* Fedora gone — before any OS ran.
+  Confirmed with `fwmenu` (CD at bootindex → both absent; extra USB stick,
+  no bootindex → both present). Use `--cdrom` only for the install boot,
+  never for a run whose point is the NVRAM state, and expect to re-assert
+  entries afterwards. Shim's fallback (`EFI/Boot/bootx64.efi` → `fbx64.efi`
+  → `BOOTX64.CSV`) re-creates the Fedora entry on the next boot; Windows only
+  re-creates its own during servicing.
+- **`/usr/local/sbin` does not exist in the F42 chroot at `%post` time** —
+  `mkdir -p` it before writing there (the kickstart now does).
+- **Guest clocks.** `-rtc base=localtime` + kickstart `timezone --utc` makes
+  the Linux rows carry host-local time labelled `Z`; Windows rows are true
+  UTC. Order rows by position, not by timestamp.
+- **`TOKEN_PRIVILEGES` via Add-Type**: declare the LUID as two 32-bit fields;
+  a `long` gets aligned to offset 8 and `AdjustTokenPrivileges` fails with
+  1314 (`v1b-mark.ps1` reads the firmware's `BootCurrent` this way).
+- **The stale `fired.txt` on the ESP** from the pre-fix V0 run is still
+  there; it is in the manifests and harmless.
+- State the rig is left in: Windows' firmware entry is absent (dropped by the
+  `fwmenu` CD probe); Windows boots from the GRUB menu, and its next
+  servicing pass will re-register it.
 
 ## Findings & gotchas (from the first bring-up, 2026-08-23)
 

@@ -248,6 +248,13 @@ thing at all:
    existing ESP are never reformatted; Fedora's bootloader is added alongside
    `bootmgfw.efi`, which is what keeps rollback a boot-menu entry rather than
    a restore.
+   *Learned on the rig (2026-08-27, RISKS R21):* "added alongside" is not
+   "nothing of Windows' touched" — Fedora's shim overwrites the fallback
+   loader `EFI/Boot/bootx64.efi`, so this step snapshots `EFI/Boot` and
+   `EFI/Microsoft` first and reclaim/rollback restores them; and after the
+   install it must **verify** the Windows firmware entry exists (re-create it
+   if the firmware dropped it) and put the Linux entry first — Windows will
+   put itself back first after a servicing pass, which `settle-in` re-asserts.
 9. Install via kickstart with `--onpart`, touching the new partitions only.
 10. Inject artifacts — vendor firmware, drivers — into the installed system
     *before* first boot, so the first impression is working hardware.

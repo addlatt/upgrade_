@@ -90,6 +90,20 @@ that rather than fighting.
 
 ## V1b — Installing alongside a shrunk Windows leaves Windows bootable · kills: the default path's safety net · RISKS R21
 
+**VM leg fired (2026-08-27).** On the QEMU+OVMF rig (`rig/vm/v1b.sh`, SB off —
+the only mode this host can run): C: shrunk 32 GiB, Fedora 42 kickstarted into
+the gap reusing the Windows ESP unformatted, and all five checks held — ESP
+had room (+6.2 MB, 260 MiB ESP), `bootmgfw.efi` byte-identical throughout,
+Windows reached through the GRUB menu three times (its own `BootCurrent`
+named Fedora's entry), Linux booted five times, every cycle a fresh QEMU.
+Recorded as `fallback-loader-replaced`, not a bare pass: the install
+overwrote Windows' `EFI/Boot/bootx64.efi` with shim, and the run also caught
+Windows re-taking the boot order after a servicing pass and the firmware
+dropping OS boot entries — five design inputs, detailed in RISKS R21. Row:
+`docs/validation-results/v1b-alongside.csv`. Remaining: the Secure-Boot-on
+chainload, a ~100 MiB ESP row, and the physical vendor matrix — a VM pass
+narrows V1b, it does not close it.
+
 The default keep-Windows path installs Linux into freed space and **must leave
 the shrunk Windows fully bootable**, because Windows is both the rollback and
 the file source. This is harder than the wipe install and, since the redesign,
@@ -110,6 +124,14 @@ install are steered to **clean slate** (which never shares an ESP — it wipes
 and lays down a fresh layout), and `evaluate` says so before committing. The
 default simply doesn't apply to those machines; the product still converts
 them, without the safety net.
+
+**How to run.** The bench is `rig/vm/v1b.sh` (run-book in `rig/vm/README.md`):
+offline disk inspections before/after (`v1b-inspect.py`), the guest-side
+shrink (`rig/vm/guest/v1b-shrink.ps1`), the kickstart (`rig/vm/v1b-ks.cfg`)
+auto-loaded from an OEMDRV volume, boot markers written by each OS, and
+`v1b.sh verdict` turning all of it into the CSV row. On a physical machine the
+same pieces apply with the machine's own disk in place of the qcow2 — the
+inspector needs a block-device reader instead of `qemu-img dd`.
 
 # Tier 2 — a core promise breaks (recoverable, but the default is broken)
 

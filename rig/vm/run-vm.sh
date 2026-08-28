@@ -22,6 +22,12 @@
 #                  SPOOF ONLY - never evidence for a real-hardware clause.
 #   --reset-vars   Re-copy the selected VARS profile from /usr/share/OVMF
 #                  first (factory-reset that profile's UEFI variables).
+#   --oemdrv       Attach artifacts/v1b/oemdrv.img (FAT volume labelled
+#                  OEMDRV: Anaconda auto-loads ks.cfg from it; the V1b boot
+#                  markers land there too) as a second USB stick.
+#   --cdrom FILE   Attach FILE as an IDE CD-ROM with bootindex=0, so OVMF
+#                  boots it first (V1b installer boot). Never combine with a
+#                  V0 handoff cycle.
 #
 # IMPORTANT: keep ONE invocation running through a whole arm -> reboot ->
 # check cycle. OVMF re-enumerates Boot#### entries when the attached device
@@ -30,7 +36,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-SB=off STICK=none TPM=0 SMB=0 VMD=0 RESET=0
+SB=off STICK=none TPM=0 SMB=0 VMD=0 RESET=0 OEMDRV=0 CDROM=
 while [ $# -gt 0 ]; do
     case "$1" in
         --sb)    SB=$2; shift 2 ;;
@@ -39,6 +45,8 @@ while [ $# -gt 0 ]; do
         --smb)   SMB=1; shift ;;
         --vmd)   VMD=1; shift ;;
         --reset-vars) RESET=1; shift ;;
+        --oemdrv) OEMDRV=1; shift ;;
+        --cdrom) CDROM=$2; shift 2 ;;
         *) echo "run-vm: unknown flag $1" >&2; exit 1 ;;
     esac
 done
@@ -81,6 +89,19 @@ if [ "$STICK" != none ]; then
     [ -f "$IMG" ] || { echo "run-vm: $IMG missing - run make-stick.sh" >&2; exit 1; }
     ARGS+=(-drive if=none,id=stick,format=raw,file="$IMG"
            -device usb-storage,bus=xhci.0,drive=stick,removable=on)
+fi
+
+if [ "$OEMDRV" = 1 ]; then
+    IMG=artifacts/v1b/oemdrv.img
+    [ -f "$IMG" ] || { echo "run-vm: $IMG missing - run v1b.sh oemdrv" >&2; exit 1; }
+    ARGS+=(-drive if=none,id=oemdrv,format=raw,file="$IMG"
+           -device usb-storage,bus=xhci.0,drive=oemdrv,removable=on)
+fi
+
+if [ -n "$CDROM" ]; then
+    [ -f "$CDROM" ] || { echo "run-vm: cdrom $CDROM missing" >&2; exit 1; }
+    ARGS+=(-drive if=none,id=cd0,format=raw,readonly=on,file="$CDROM"
+           -device ide-cd,drive=cd0,bus=ide.1,bootindex=0)
 fi
 
 if [ "$TPM" = 1 ]; then
