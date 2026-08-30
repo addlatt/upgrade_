@@ -17,13 +17,14 @@ kit.
 ## Why
 
 Your os should not control your hardware.
+Anybody should be able to upgrade their machine without friction.
 
 ## How it works
 
 Three modules. 
 
 | | | |
-|---|---|---|
+|---|---|---
 | **`evaluate`** | Source · reversible | Reads the machine, captures your choices, extracts everything that depends on the source system for its existence, and refuses anything it can't do safely. |
 | **`upgrade_`** | Source → Linux | The converter. By default shrinks the source aside and installs Linux next to it; wipes and stages files to the stick only if you ask, or if the disk is too full to keep both. |
 | **`settle-in`** | Linux | Verifies the hardware works, brings your files home from the kept partition, hands over, stops. |
