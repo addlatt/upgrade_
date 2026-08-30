@@ -146,7 +146,8 @@ refuse for free:
   at 6.2 MB; the gate is **≥ 32 MiB free on the ESP**, and the ESP must be
   the FAT volume the firmware's *Windows Boot Manager* entry points at. A
   machine that fails this is steered to clean slate — never quietly
-  installed alongside. (Scanner check owed; see VALIDATION V1b.)
+  installed alongside. (Scanner check landed 2026-08-30 as "Boot partition
+  (ESP)"; see RISKS R21 item 4.)
 
 ### Output
 

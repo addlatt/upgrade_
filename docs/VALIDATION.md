@@ -118,11 +118,11 @@ keeps the fallback slot and rollback restores Windows' copy from a snapshot
 the prologue takes; post-install boot-chain verification is a cutover step
 with results in `outcome.json`; os-prober set explicitly; `evaluate` gates on
 ≥ 32 MiB free on the ESP; the boot-order takeover is its own risk (R22) with
-a settle-in re-assert unit. **Owed code before anything writes:** the
-scanner's ESP check (free space, and that the Windows Boot Manager entry
-points at it — elevated only, like the shrink query), with self-test cases.
-The bench row turns `pass-plumbing` only once the converter's own install
-step runs on it.
+a settle-in re-assert unit. **Owed code, landed 2026-08-30:** the scanner's
+ESP check — "Boot partition (ESP)": free space ≥ 32 MiB and the Windows Boot
+Manager entry points at the mounted ESP, elevated only like the shrink query,
+collect/judge seam, six self-test cases (see RISKS R21 item 4). The bench row
+turns `pass-plumbing` only once the converter's own install step runs on it.
 
 The default keep-Windows path installs Linux into freed space and **must leave
 the shrunk Windows fully bootable**, because Windows is both the rollback and

@@ -674,7 +674,13 @@ code before any writer is built:
    default.
 4. *`evaluate` gate:* ≥ 32 MiB free on the ESP (5× the measured 6.2 MB) and
    the ESP is the volume the Windows Boot Manager entry points at; otherwise
-   steer to clean slate. Scanner check owed — it does not exist yet.
+   steer to clean slate. **Landed (2026-08-30):** `upgrade-scan.ps1` "Boot
+   partition (ESP)" — collection (`Get-UpgEspFacts`, elevated-only, mounts
+   the system partition and resolves the `{bootmgr}` device line) behind a
+   seam from judgment (`Test-UpgEsp`), six self-test cases (ok / full-ESP
+   warn / wrong-volume warn / unresolvable unknown / unelevated info /
+   failed-query unknown), `dist/` rebuilt. A warn steers to clean slate; a
+   RED is never involved — the machine still converts.
 5. *Windows re-taking the boot order* is a standing hazard for the life of
    the dual boot, not an install-time fact — split out as **R22**.
 

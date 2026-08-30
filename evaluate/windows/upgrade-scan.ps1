@@ -481,6 +481,118 @@ function Test-UpgBitLocker {
     }
 }
 
+function Get-UpgNtDeviceName {
+    # QueryDosDevice('Z:') -> '\Device\HarddiskVolumeN'. Lets the mounted ESP
+    # be compared with bcdedit's device line when bcdedit prints the NT path.
+    param([string]$Letter)
+    try {
+        Add-Type -Namespace Upg -Name Native -MemberDefinition @'
+[DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)]
+public static extern uint QueryDosDeviceW(string name, System.Text.StringBuilder target, uint max);
+'@ -ErrorAction Stop
+    } catch { }  # type already loaded on a second call
+    $sb = New-Object Text.StringBuilder 1024
+    $n = [Upg.Native]::QueryDosDeviceW($Letter.TrimEnd('\'), $sb, 1024)
+    if ($n -gt 0) { $sb.ToString() } else { $null }
+}
+
+function Get-UpgEspFacts {
+    # Collection half of the ESP check - elevated only (mountvol /S needs
+    # Administrator; same cap as the BitLocker and shrink queries). Mounts
+    # the EFI system partition, measures it, and records which volume the
+    # firmware's Windows Boot Manager entry points at. Read-only: the mount
+    # is only ever read from, and is unmounted in finally.
+    try {
+        $letter = $null
+        foreach ($c in [char[]]'ZYXWVUT') {
+            if (-not (Test-Path ("${c}:" + '\'))) { $letter = "${c}:"; break }
+        }
+        if (-not $letter) { throw 'no free drive letter' }
+        cmd /c "mountvol $letter /S" 2>&1 | Out-Null
+        if (-not (Test-Path ($letter + '\'))) { throw 'mountvol /S failed' }
+        try {
+            $di = New-Object IO.DriveInfo($letter)
+            $free  = $di.AvailableFreeSpace
+            $total = $di.TotalSize
+            $hasBootFiles = Test-Path ($letter + '\EFI\Microsoft\Boot\bootmgfw.efi')
+            # Which volume does the firmware's Windows Boot Manager entry load
+            # bootmgfw.efi from? bcdedit prints our letter when it is the same
+            # volume; otherwise \Device\HarddiskVolumeN, which QueryDosDevice
+            # lets us compare against the mount.
+            $bcd = (bcdedit /enum '{bootmgr}' 2>&1 | Out-String)
+            $bcdDevice = $null
+            if ($bcd -match '(?m)^device\s+partition=(\S+)') { $bcdDevice = $matches[1] }
+            $points = $null
+            if ($bcdDevice) {
+                if ($bcdDevice -ieq $letter) { $points = $true }
+                elseif ($bcdDevice -match '^\\Device\\') {
+                    $nt = Get-UpgNtDeviceName $letter
+                    if ($nt) { $points = ($nt -ieq $bcdDevice) }
+                } else { $points = $false }
+            }
+            [pscustomobject]@{
+                Succeeded           = $true
+                FreeBytes           = $free
+                TotalBytes          = $total
+                HasWindowsBootFiles = $hasBootFiles
+                BootmgrPointsAtEsp  = $points
+                BcdDevice           = $bcdDevice
+            }
+        } finally {
+            cmd /c "mountvol $letter /D" 2>&1 | Out-Null
+        }
+    } catch {
+        [pscustomobject]@{ Succeeded = $false; FreeBytes = $null; TotalBytes = $null
+                           HasWindowsBootFiles = $null; BootmgrPointsAtEsp = $null; BcdDevice = $null }
+    }
+}
+
+function Test-UpgEsp {
+    # Judgment half. R21's decision (2026-08-30): the keep-Windows default
+    # needs >= 32 MiB free on the ESP (5x the ~6.2 MB a Fedora alongside
+    # install was measured to add) AND the firmware's Windows Boot Manager
+    # entry must point at that same ESP - otherwise the alongside install
+    # would add Linux's loader to a partition the machine does not boot from.
+    # Failing either steers to clean slate; it never blocks conversion.
+    param([bool]$IsAdmin, $Facts)
+    if (-not $IsAdmin) {
+        New-UpgCheck -Section 'Storage' -Title 'Boot partition (ESP)' -Status 'info' `
+            -Detail 'requires Administrator to check' `
+            -Note 'Whether the small boot partition has room to add Linux alongside Windows needs Administrator rights to measure. The clean-slate path (files on the USB stick) works regardless.' `
+            -Remedy 'Re-run this scanner as Administrator to get this number.'
+        return
+    }
+    if (-not $Facts -or -not $Facts.Succeeded) {
+        New-UpgCheck -Section 'Storage' -Title 'Boot partition (ESP)' -Status 'unknown' `
+            -Detail 'could not read the EFI system partition' `
+            -Note 'The boot partition could not be mounted or measured, so there is no basis to promise the keep-Windows path. The converter re-checks before doing anything.'
+        return
+    }
+    $freeMiB = [math]::Round($Facts.FreeBytes / 1MB, 1)
+    if (-not $Facts.HasWindowsBootFiles -or $Facts.BootmgrPointsAtEsp -eq $false) {
+        New-UpgCheck -Section 'Storage' -Title 'Boot partition (ESP)' -Status 'warn' `
+            -Detail 'Windows does not boot from the expected partition' `
+            -Note 'The partition this machine actually boots Windows from is not the one its boot files were found on (or those files are missing). Installing Linux alongside would touch a partition the firmware does not boot from, so the keep-Windows fallback cannot be promised here. The clean-slate path still converts this machine.'
+        return
+    }
+    if ($null -eq $Facts.BootmgrPointsAtEsp) {
+        New-UpgCheck -Section 'Storage' -Title 'Boot partition (ESP)' -Status 'unknown' `
+            -Detail "$freeMiB MiB free, but the Windows boot entry could not be resolved" `
+            -Note 'Could not confirm that the firmware boots Windows from this partition. Treat the keep-Windows path as unconfirmed; the converter re-checks before doing anything.'
+        return
+    }
+    if ($Facts.FreeBytes -lt 32MB) {
+        New-UpgCheck -Section 'Storage' -Title 'Boot partition (ESP)' -Status 'warn' `
+            -Detail "only $freeMiB MiB free on the boot partition" `
+            -Note 'Adding Linux alongside Windows puts its boot files on this partition (about 7 MB measured, and future kernel updates need headroom). Below 32 MiB free the keep-Windows path is not offered; the clean-slate path still works.' `
+            -Remedy 'Nothing to do by hand - do not resize or delete files on the boot partition yourself. The converter will steer this machine to the clean-slate path.'
+        return
+    }
+    New-UpgCheck -Section 'Storage' -Title 'Boot partition (ESP)' -Status 'ok' `
+        -Detail "$freeMiB MiB free; Windows boots from it" `
+        -Note 'The boot partition has room to add Linux''s boot files while keeping Windows bootable alongside.'
+}
+
 function Test-UpgWifi {
     param($Pnp)
     $db = Get-UpgWifiDatabase
@@ -1172,6 +1284,25 @@ function Invoke-UpgSelfTest {
            Run = { Test-UpgBitLocker -IsAdmin $true -State ([pscustomobject]@{ Succeeded=$false; EncryptedMounts=@() }) }
            Expect = @{ 'BitLocker' = 'unknown' } }
 
+        @{ Name = 'seam: ESP with room and the boot entry on it is ok'
+           Run = { Test-UpgEsp -IsAdmin $true -Facts ([pscustomobject]@{ Succeeded=$true; FreeBytes=(70*1MB); TotalBytes=(100*1MB); HasWindowsBootFiles=$true; BootmgrPointsAtEsp=$true; BcdDevice='Z:' }) }
+           Expect = @{ 'Boot partition (ESP)' = 'ok' } }
+        @{ Name = 'seam: full ESP warns toward clean slate (the R21 gate)'
+           Run = { Test-UpgEsp -IsAdmin $true -Facts ([pscustomobject]@{ Succeeded=$true; FreeBytes=(10*1MB); TotalBytes=(100*1MB); HasWindowsBootFiles=$true; BootmgrPointsAtEsp=$true; BcdDevice='Z:' }) }
+           Expect = @{ 'Boot partition (ESP)' = 'warn' } }
+        @{ Name = 'seam: boot entry on a different volume warns'
+           Run = { Test-UpgEsp -IsAdmin $true -Facts ([pscustomobject]@{ Succeeded=$true; FreeBytes=(70*1MB); TotalBytes=(100*1MB); HasWindowsBootFiles=$true; BootmgrPointsAtEsp=$false; BcdDevice='\Device\HarddiskVolume7' }) }
+           Expect = @{ 'Boot partition (ESP)' = 'warn' } }
+        @{ Name = 'seam: unresolvable Windows boot entry is unknown, not a guess'
+           Run = { Test-UpgEsp -IsAdmin $true -Facts ([pscustomobject]@{ Succeeded=$true; FreeBytes=(70*1MB); TotalBytes=(100*1MB); HasWindowsBootFiles=$true; BootmgrPointsAtEsp=$null; BcdDevice=$null }) }
+           Expect = @{ 'Boot partition (ESP)' = 'unknown' } }
+        @{ Name = 'seam: unelevated ESP check says re-run as Administrator'
+           Run = { Test-UpgEsp -IsAdmin $false -Facts $null }
+           Expect = @{ 'Boot partition (ESP)' = 'info' } }
+        @{ Name = 'seam: failed ESP query is unknown - promise nothing'
+           Run = { Test-UpgEsp -IsAdmin $true -Facts ([pscustomobject]@{ Succeeded=$false; FreeBytes=$null; TotalBytes=$null; HasWindowsBootFiles=$null; BootmgrPointsAtEsp=$null; BcdDevice=$null }) }
+           Expect = @{ 'Boot partition (ESP)' = 'unknown' } }
+
         @{ Name = 'seam: F4 regression - real VS Community install must match'
            Run = { Test-UpgApps -Apps @('Microsoft Visual Studio Community 2022') }
            Expect = @{ 'Works differently' = 'warn' } }
@@ -1310,6 +1441,7 @@ Test-UpgStorageMode  -Pnp $pnp
 Test-UpgDisk         -Facts (Get-UpgDiskFacts) -IsAdmin $isAdmin
 Test-UpgFastStartup  -HiberbootEnabled (Get-UpgFastStartupState)
 Test-UpgBitLocker    -IsAdmin $isAdmin -State $(if ($isAdmin) { Get-UpgBitLockerState })
+Test-UpgEsp          -IsAdmin $isAdmin -Facts $(if ($isAdmin) { Get-UpgEspFacts })
 Test-UpgWifi         -Pnp $pnp
 Test-UpgGpu          -Pnp $pnp
 Test-UpgAudio        -Pnp $pnp
