@@ -414,14 +414,29 @@ fresh state — the same non-SMM OVMF does not publish the TPM2 ACPI table (TPM
 support, like SB enforcement, lives in the SMM-requiring `.secboot` build).
 Rows 3–6 all move to the physical vendor matrix and the Hyper-V Gen 2 leg.
 
-**Hyper-V leg opened (2026-08-30)** — `rig/hyperv/`: Gen 2 guest with Secure
-Boot on and a vTPM is installed (`Confirm-SecureBootUEFI` True, `Get-Tpm`
-present), so rows 3–6 have a host. Caveats already known: Gen 2 has no USB
-emulation (the stick becomes a SCSI VHDX — the removable-media clause stays
-physical), and its `MicrosoftWindows` Secure Boot db does not trust shim, so
-row 4's signed-shim payload is refused by the *firmware* there rather than
-running and rebooting — the row's `ignored` would not discriminate the two;
-record which happened.
+**Hyper-V leg fired rows 3, 5, 6 (2026-08-30)** — `rig/hyperv/`, Gen 2 guest,
+real Secure Boot + vTPM, stick as a SCSI VHDX (no USB emulation — the
+removable-media clause stays physical). Three rows in `v0-handoff.csv`:
+
+- **Row 3** (`SecureBootUnsigned`, SB on): **`ignored`** — the firmware
+  refused the unsigned payload silently and fell through to Windows, order
+  intact. The fail-safe half of V0 holds under real Secure Boot.
+- **Row 5** (BitLocker on, suspension armed, SB off per run-book):
+  **`fired-once`** — payload ran off the stick, one-shot self-cleared, no
+  recovery prompt, protection auto-resumed.
+- **Row 6** (`NoSuspend`): **`fired-once` with NO recovery prompt** — the
+  pre-registered finding, recorded verbatim. The one-shot fires and *resets*;
+  the subsequent Windows boot is a normal path, so the PCRs at unseal time
+  are unchanged and the TPM unseals. On this firmware, suspension is **not**
+  load-bearing against the handoff itself — it guards the prologue's other
+  changes (and the SB toggle, observed). Whether any vendor firmware
+  measures the attempted one-shot into a sealed PCR stays with the physical
+  matrix; the prologue keeps suspending regardless (cheap, and the
+  cautious default).
+
+Row 4 (signed shim) is not runnable meaningfully here: the `MicrosoftWindows`
+db refuses shim at the firmware, which the row cannot distinguish from
+shim-ran-and-rebooted; left to firmware whose db holds both CAs.
 
 **Still open.** This rig validated only the SB-off, no-TPM paths (rows 1–2).
 The close condition is unchanged: the Secure Boot and BitLocker rows on a host

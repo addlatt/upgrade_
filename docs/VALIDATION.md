@@ -41,9 +41,18 @@ the full statement.
 SB-off run records `fired-once`: one-time boot, payload ran, Windows returned
 no-keypress, one-shot self-cleared. Two bugs fixed en route (payload `fs0:`
 marker misdirection; harness counting its own test entry as a reorder) — both
-would have hit the physical test too; see RISKS R15. Remaining on this rig:
-the SB-on fail-modes and the BitLocker matrix. Then the physical vendor matrix
-and the Hyper-V Gen 2 leg — a VM pass narrows V0, it does not close it.
+would have hit the physical test too; see RISKS R15.
+
+**Hyper-V Gen 2 leg fired (2026-08-30).** On `rig/hyperv/` (real Secure Boot,
+vTPM, stick as SCSI VHDX): row 3 — Secure Boot refused the unsigned payload,
+`ignored`, fail-safe held; row 5 — BitLocker on, suspension armed,
+`fired-once`, no recovery prompt; row 6 — `NoSuspend`, `fired-once` with **no
+recovery prompt**, the pre-registered finding recorded verbatim (the one-shot
+resets before Windows boots, so the PCRs at unseal time are unchanged; see
+R15). Row 4 is not meaningful on Hyper-V (its Windows-only Secure Boot db
+refuses shim at the firmware). Remaining: the physical vendor matrix — the
+removable-USB clause no VM has, and whether any vendor firmware measures the
+one-shot into a sealed PCR. A VM pass narrows V0, it does not close it.
 
 The entire walk-away promise rests on `bcdedit /set {fwbootmgr} bootsequence`
 booting a USB stick exactly once, on firmware from vendors who have never

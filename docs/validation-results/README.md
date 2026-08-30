@@ -42,8 +42,13 @@ running the harness.
 - Both VM firmwares (Hyper-V Gen 2 and QEMU+OVMF): `fired-once` on the
   baseline, `ignored`/refused on the fail-modes.
 - BitLocker suspended → `windows_returned=y`, no recovery prompt in `notes`;
-  `NoSuspend` fail-mode → recovery prompt in `notes` (proving suspension is
-  load-bearing).
+  `NoSuspend` fail-mode → the outcome recorded verbatim either way. (Amended
+  2026-08-30, per the pre-registration in `rig/vm/README.md`: on the Hyper-V
+  Gen 2 leg NoSuspend produced **no** prompt — the one-shot resets before
+  Windows boots, so the sealed PCRs are unchanged at unseal time. A prompt
+  would prove suspension load-bearing on that firmware; its absence is a
+  finding about that firmware's measurement behaviour, not a failed row. The
+  prologue suspends regardless — cautious default.)
 - Every physical machine (≥3 vendors beyond the G16): `fired-once`, or a
   *detectable* safe failure.
 

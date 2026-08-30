@@ -98,17 +98,28 @@ SMB share, so harness results come back with `vm.ps1 ps` and `Copy-VMFile`
 under the `MicrosoftWindows` template (`Confirm-SecureBootUEFI` → True), vTPM
 present (`Get-Tpm` → TpmPresent True), **ESP 100 MiB exactly**, C: 85.8 GB
 with 65 GB free, `rig`/`rig` autologon, PowerShell Direct answering. Nothing
-has been *tested* on it yet — the V0 rows and the V1b run below are still to
-do. First guest prep step is the same as the QEMU rig's: fetch the repo zip
+had been tested on it as of install day; the V0 rows below fired the same
+day (rows 3, 5, 6 — see `docs/validation-results/v0-handoff.csv` and RISKS
+R15). BitLocker is now ON (TPM + RecoveryPassword protectors; recovery key in
+`C:\upgrade-rig\hv\UPGRIGHV-bitlocker-recovery.txt`, host side only) and
+Secure Boot is currently OFF (the BitLocker rows' run-book state); the
+pristine pre-BitLocker disk is `UPGRIGHV.fresh.vhdx`. First guest prep step is the same as the QEMU rig's: fetch the repo zip
 into `C:\upgrade_` (or `vm.ps1 copy` the pieces).
 
 ## Planned run-books (not yet run — nothing below is evidence)
 
-- **V0 rows 3–6.** Build the stick images as VHDX (`qemu-img convert -O vhdx
-  rig/vm/artifacts/stick-shell.img …`), `vm.ps1 disk add`, then the same
-  `Test-Handoff.ps1 -Arm … / -Check -ResultsCsv` cycle as `rig/vm/README.md`,
-  with `-ResultsCsv` pointing at a guest path and the row copied back. Record
-  the SCSI-not-USB caveat in `notes`.
+- **V0 rows 3, 5, 6 — DONE 2026-08-30** (row 4 not meaningful here, see
+  RISKS R15). Ran as: stick image → VHDX (`qemu-img convert -O vhdx`),
+  `vm.ps1 disk add`, delete the stale `fired.txt` the image carried, then
+  `Test-Handoff.ps1 -Arm … / -Check -ResultsCsv <guest path>` per row, the
+  row transported verbatim into `docs/validation-results/v0-handoff.csv`
+  with the three Read-Host observer fields filled from screenshots (a PS
+  Direct session cannot answer Read-Host — run `-Check` with stdin closed,
+  `< /dev/null`, or the pipeline can hang at the prompt; one run's CSV
+  append was lost that way and the row re-run). BitLocker prep: eject BOTH
+  install DVDs first (`Enable-BitLocker` refuses while bootable media is
+  attached), and note `Enable-BitLocker` re-runs can drop an existing
+  RecoveryPassword protector — verify protectors and re-save the key after.
 - **V1b, 100 MiB ESP — two rows.** First **SB off** (both templates refuse
   one OS, so the plain dual boot needs SB off here), which gives the ~100 MiB
   ESP row R21 is owed plus Hyper-V's own NVRAM behaviour; then **SB on under
