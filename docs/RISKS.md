@@ -414,6 +414,15 @@ fresh state — the same non-SMM OVMF does not publish the TPM2 ACPI table (TPM
 support, like SB enforcement, lives in the SMM-requiring `.secboot` build).
 Rows 3–6 all move to the physical vendor matrix and the Hyper-V Gen 2 leg.
 
+**Hyper-V leg opened (2026-08-30)** — `rig/hyperv/`: Gen 2 guest with Secure
+Boot on and a vTPM is installed (`Confirm-SecureBootUEFI` True, `Get-Tpm`
+present), so rows 3–6 have a host. Caveats already known: Gen 2 has no USB
+emulation (the stick becomes a SCSI VHDX — the removable-media clause stays
+physical), and its `MicrosoftWindows` Secure Boot db does not trust shim, so
+row 4's signed-shim payload is refused by the *firmware* there rather than
+running and rebooting — the row's `ignored` would not discriminate the two;
+record which happened.
+
 **Still open.** This rig validated only the SB-off, no-TPM paths (rows 1–2).
 The close condition is unchanged: the Secure Boot and BitLocker rows on a host
 that can run SMM-enabled OVMF (physical machines, or Hyper-V Gen 2), then
@@ -653,6 +662,15 @@ code before any writer is built:
    steer to clean slate. Scanner check owed — it does not exist yet.
 5. *Windows re-taking the boot order* is a standing hazard for the life of
    the dual boot, not an install-time fact — split out as **R22**.
+
+**Hyper-V leg opened (2026-08-30)** — `rig/hyperv/`: a Gen 2 guest with real
+Secure Boot, a vTPM and a **100 MiB ESP** (Windows Setup's default) is
+installed. First finding before any run: Hyper-V's two Secure Boot dbs are
+mutually exclusive (Windows CA *or* the third-party UEFI CA that signs
+shim — measured by A/B, table in `rig/hyperv/README.md`), so the both-CA db
+of a real machine cannot be reproduced there. The SB-on *chainload* clause
+can still be exercised by enrolling the Windows PCA into shim's MokList; the
+db-composition clause and the vendor matrix stay physical.
 
 **Still open — this rig cannot close them.** Secure Boot enforcement lives in
 the SMM-requiring OVMF build that crashes KVM on this AMD/WSL2 host (see R15),

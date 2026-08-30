@@ -17,14 +17,41 @@ is where the rows the QEMU rig had to leave blocked get their VM leg:
 never a real-hardware clause (CLAUDE.md rule #5); and the evidence rows are
 written by the harnesses, never by hand.
 
-**The Secure Boot template is itself a finding to record.** Hyper-V lets the
-db be `MicrosoftWindows` (Windows Production CA only) or
-`MicrosoftUEFICertificateAuthority` (the third-party UEFI CA that signs
-Fedora's shim). Real machines ship both; a firmware with only the Windows CA
-would refuse shim outright, which is exactly the V1/V1b refusal path. Run the
-alongside install under the UEFI-CA template and record whether Windows still
-boots under it (its own CA is normally included), and run once under the
-Windows-only template to see the refusal shape.
+**The Secure Boot templates are mutually exclusive — measured 2026-08-30.**
+Hyper-V offers two dbs, `MicrosoftWindows` and
+`MicrosoftUEFICertificateAuthority`, and there is no third and no custom
+mechanism (`Set-VMFirmware` accepts only those two names; no template key in
+the registry). A/B on a throwaway diskless Gen 2 VM, Secure Boot on, one ISO
+in the DVD, boot-first DVD, screenshots over the first 8 s:
+
+| template | Windows 10 install ISO | Fedora 42 netinst ISO |
+|---|---|---|
+| `MicrosoftUEFICertificateAuthority` | **refused** (no "Press any key", straight to PXE) | boots (GRUB menu) |
+| `MicrosoftWindows` | boots ("Press any key" → Setup) | **refused** (straight to PXE) |
+
+Neither db trusts both CAs. Real machines ship both, so **a Secure-Boot-on
+dual boot as it exists on real hardware cannot be reproduced on Hyper-V with
+the built-in templates**: under the UEFI-CA template the firmware will not
+start `bootmgfw.efi` from its own Windows entry, and GRUB's `chainloader`
+goes through shim's verification, which consults the same db — plus
+**MokList**. That leaves one honest route for the V1b SB-on *chainload*
+clause: enrol the Microsoft Windows Production PCA (extracted from
+`bootmgfw.efi`'s signature) into MokList, so shim → GRUB → `bootmgfw.efi`
+verifies under Secure Boot. That exercises the chainload verification path;
+it does **not** exercise a firmware db holding both CAs, and it leaves Windows
+unbootable from its own firmware entry — both to be stated in the row's
+`notes`. The db-composition clause stays with real hardware.
+
+Two more Hyper-V facts learned the same day:
+
+- **The template locks once the vTPM is initialised** — `Set-VMFirmware
+  -SecureBootTemplate` fails with *"Cannot modify the secure boot template ID
+  property after the virtual TPM is initialized"*, and `Disable-VMTPM` does
+  not unlock it. Choose the template at `new-vm.ps1` time; changing it means
+  a new VM.
+- `GetVirtualSystemThumbnailImage` returns RGB565 rows of exactly `width*2`
+  bytes; copy row by row into the bitmap's padded stride (a whole-buffer
+  `Marshal.Copy` was an AccessViolation).
 
 ## Layout
 
@@ -65,6 +92,16 @@ is PowerShell Direct (`vm.ps1 ps "<command>"`) plus `Copy-VMFile`; there is no
 SMB share, so harness results come back with `vm.ps1 ps` and `Copy-VMFile`
 (guest→host is not supported by `Copy-VMFile`; read files back through `ps`).
 
+## State (2026-08-30)
+
+`UPGRIGHV` exists and is installed: Windows 10 Pro 22H2, Secure Boot **on**
+under the `MicrosoftWindows` template (`Confirm-SecureBootUEFI` → True), vTPM
+present (`Get-Tpm` → TpmPresent True), **ESP 100 MiB exactly**, C: 85.8 GB
+with 65 GB free, `rig`/`rig` autologon, PowerShell Direct answering. Nothing
+has been *tested* on it yet — the V0 rows and the V1b run below are still to
+do. First guest prep step is the same as the QEMU rig's: fetch the repo zip
+into `C:\upgrade_` (or `vm.ps1 copy` the pieces).
+
 ## Planned run-books (not yet run — nothing below is evidence)
 
 - **V0 rows 3–6.** Build the stick images as VHDX (`qemu-img convert -O vhdx
@@ -72,7 +109,12 @@ SMB share, so harness results come back with `vm.ps1 ps` and `Copy-VMFile`
   `Test-Handoff.ps1 -Arm … / -Check -ResultsCsv` cycle as `rig/vm/README.md`,
   with `-ResultsCsv` pointing at a guest path and the row copied back. Record
   the SCSI-not-USB caveat in `notes`.
-- **V1b, SB on, 100 MiB ESP.** `rig/vm/v1b.sh`'s pieces: the guest-side
+- **V1b, 100 MiB ESP — two rows.** First **SB off** (both templates refuse
+  one OS, so the plain dual boot needs SB off here), which gives the ~100 MiB
+  ESP row R21 is owed plus Hyper-V's own NVRAM behaviour; then **SB on under
+  the UEFI-CA template with the Windows PCA enrolled in MokList** for the
+  chainload clause, notes stating what that does and does not show.
+  `rig/vm/v1b.sh`'s pieces: the guest-side
   shrink (`rig/vm/guest/v1b-shrink.ps1`, via `ps`), the kickstart
   (`rig/vm/v1b-ks.cfg`) on an OEMDRV VHDX (`qemu-img convert -O vhdx
   rig/vm/artifacts/v1b/oemdrv.img`), Fedora netinst on the DVD with

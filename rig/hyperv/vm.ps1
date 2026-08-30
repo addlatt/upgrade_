@@ -35,11 +35,19 @@ function Save-Shot([string]$path) {
     $w = 1024; $h = 768
     $r = Invoke-CimMethod -InputObject $svc -MethodName GetVirtualSystemThumbnailImage -Arguments @{ TargetSystem = $vssd; WidthPixels = $w; HeightPixels = $h }
     if ($r.ReturnValue -ne 0) { throw "GetVirtualSystemThumbnailImage returned $($r.ReturnValue)" }
-    $bytes = $r.ImageData
+    [byte[]]$bytes = $r.ImageData
     $bmp = New-Object System.Drawing.Bitmap $w, $h, ([System.Drawing.Imaging.PixelFormat]::Format16bppRgb565)
     $rect = New-Object System.Drawing.Rectangle 0, 0, $w, $h
     $data = $bmp.LockBits($rect, [System.Drawing.Imaging.ImageLockMode]::WriteOnly, $bmp.PixelFormat)
-    [System.Runtime.InteropServices.Marshal]::Copy($bytes, 0, $data.Scan0, $bytes.Length)
+    # RGB565 rows are w*2 bytes but the bitmap stride may be padded; copy row by row
+    # and never past either buffer (a mismatch here was an AccessViolation, 2026-08-30)
+    $rowBytes = $w * 2
+    if ($bytes.Length -lt $rowBytes * $h) { Write-Host ("shot: thumbnail returned {0} bytes, expected {1}" -f $bytes.Length, ($rowBytes * $h)) }
+    for ($y = 0; $y -lt $h; $y++) {
+        $src = $y * $rowBytes
+        if ($src + $rowBytes -gt $bytes.Length) { break }
+        [System.Runtime.InteropServices.Marshal]::Copy($bytes, $src, [IntPtr]::Add($data.Scan0, $y * $data.Stride), $rowBytes)
+    }
     $bmp.UnlockBits($data)
     $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
     $bmp.Dispose()
