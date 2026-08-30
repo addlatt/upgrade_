@@ -141,6 +141,12 @@ refuse for free:
   rewrite.
 - Folder sizing was truncated, so the staging estimate is unreliable (RISKS R6).
 - RST/VMD active. Cannot be automated; see below.
+- **The shared ESP cannot take the alongside install** (keep-Windows path
+  only; decided 2026-08-30, RISKS R21). The rig measured Fedora's footprint
+  at 6.2 MB; the gate is **≥ 32 MiB free on the ESP**, and the ESP must be
+  the FAT volume the firmware's *Windows Boot Manager* entry points at. A
+  machine that fails this is steered to clean slate — never quietly
+  installed alongside. (Scanner check owed; see VALIDATION V1b.)
 
 ### Output
 
@@ -247,18 +253,34 @@ thing at all:
 8. Create partitions in the freed space. The Windows partition and the
    existing ESP are never reformatted; Fedora's bootloader is added alongside
    `bootmgfw.efi`, which is what keeps rollback a boot-menu entry rather than
-   a restore.
-   *Learned on the rig (2026-08-27, RISKS R21):* "added alongside" is not
-   "nothing of Windows' touched" — Fedora's shim overwrites the fallback
-   loader `EFI/Boot/bootx64.efi`, so this step snapshots `EFI/Boot` and
-   `EFI/Microsoft` first and reclaim/rollback restores them; and after the
-   install it must **verify** the Windows firmware entry exists (re-create it
-   if the firmware dropped it) and put the Linux entry first — Windows will
-   put itself back first after a servicing pass, which `settle-in` re-asserts.
-9. Install via kickstart with `--onpart`, touching the new partitions only.
+   a restore. **Before touching the ESP, snapshot `EFI/Boot` and
+   `EFI/Microsoft` (every file, with checksums) and the firmware's
+   `Boot####` entries to the stick.** Decided 2026-08-30 after the rig showed
+   (RISKS R21) that "added alongside" still replaces one Windows-placed file:
+   Fedora's shim overwrites the fallback loader `EFI/Boot/bootx64.efi`. That
+   replacement is **kept on purpose** while Windows is kept — with shim in the
+   fallback slot a firmware that loses its NVRAM entries still reaches GRUB,
+   and from there both systems (observed on the rig); with Windows' copy
+   there it would reach Windows only. The snapshot is what makes rollback
+   able to put Windows' copy back.
+9. Install via kickstart with `--onpart`, touching the new partitions only —
+   `/boot/efi` is the existing ESP with `--noformat`, and os-prober is
+   **switched on explicitly** (`GRUB_DISABLE_OS_PROBER=false`) regardless of
+   the distro's default, so Windows appears in the menu by our doing, not by
+   luck (Fedora 42 happened to have it on; a later release may not).
 10. Inject artifacts — vendor firmware, drivers — into the installed system
     *before* first boot, so the first impression is working hardware.
-11. Write `outcome.json` and logs to the stick. Reboot into Linux.
+11. **Verify the boot chain, then** write `outcome.json` and logs to the
+    stick and reboot into Linux. Verification (decided 2026-08-30, RISKS R21)
+    is a checklist, not a hope: the firmware holds a *Windows Boot Manager*
+    entry pointing at `\EFI\Microsoft\Boot\bootmgfw.efi` on the shared ESP
+    (re-create it with `efibootmgr` if the firmware dropped it — the rig's
+    firmware deleted every OS entry at the installer boot); the Linux entry
+    is first in `BootOrder`; `bootmgfw.efi` matches the step-8 snapshot;
+    `grub.cfg` lists the Windows entry. Each result is recorded in
+    `outcome.json`. Nothing here is destructive, so a check that cannot be
+    satisfied does not abort — it is written down for `settle-in` to show,
+    and Windows remains reachable from the GRUB menu regardless.
 
 **The user's files are not touched here.** No NTFS read, no BitLocker unlock,
 no copy — Windows is left whole, and the files come across in `settle-in`,
@@ -294,8 +316,13 @@ the user consents at reclaim.
 
 ### Rollback is a mode of upgrade_, not a fourth module
 
-On the safety-copy path, rollback means restoring the Windows boot entry —
-seconds, not hours — reachable from the stick and from `settle-in`. Owning it
+On the keep-Windows path, rollback means restoring the Windows boot entry
+— seconds, not hours — reachable from the stick and from `settle-in`.
+Concretely (decided 2026-08-30): put the Windows Boot Manager entry first in
+`BootOrder` (re-creating it if absent), restore Windows' own
+`EFI/Boot/bootx64.efi` from the step-8 snapshot, and leave the Linux
+partitions and `EFI/fedora` in place until the user asks for the space back
+— rollback is a boot-order change, not a deletion. Owning it
 here rather than leaving it implied is deliberate: unowned recovery paths are
 discovered by the person whose laptop is already a brick. On the clean-slate
 path there is no rollback, which is precisely why that path has a human gate
@@ -360,6 +387,16 @@ It looks like a welcome screen. It is a safety gate.
    never nagged; declining leaves a `reclaim` command behind for whenever they
    are ready.
 6. **Exit.**
+
+**And one standing job, for as long as Windows is kept** (decided 2026-08-30,
+RISKS R22): on every Linux boot, `settle-in` leaves behind a unit that checks
+the firmware's `BootOrder` and puts the Linux entry back first if a Windows
+session moved it. The rig showed Windows re-registering its own firmware
+entry *and* taking first place after a single servicing pass — after which
+the machine boots straight into Windows and Linux looks gone. The welcome
+screen says so in plain words: "If Windows ever starts on its own after an
+update, hold [the boot-menu key we detected] and pick Fedora once; it will
+stay put after that." Reclaim removes the unit along with Windows.
 
 ### Scope boundary
 

@@ -104,6 +104,17 @@ dropping OS boot entries — five design inputs, detailed in RISKS R21. Row:
 chainload, a ~100 MiB ESP row, and the physical vendor matrix — a VM pass
 narrows V1b, it does not close it.
 
+**Decided (2026-08-30)** from those findings (RISKS R21 has the list): shim
+keeps the fallback slot and rollback restores Windows' copy from a snapshot
+the prologue takes; post-install boot-chain verification is a cutover step
+with results in `outcome.json`; os-prober set explicitly; `evaluate` gates on
+≥ 32 MiB free on the ESP; the boot-order takeover is its own risk (R22) with
+a settle-in re-assert unit. **Owed code before anything writes:** the
+scanner's ESP check (free space, and that the Windows Boot Manager entry
+points at it — elevated only, like the shrink query), with self-test cases.
+The bench row turns `pass-plumbing` only once the converter's own install
+step runs on it.
+
 The default keep-Windows path installs Linux into freed space and **must leave
 the shrunk Windows fully bootable**, because Windows is both the rollback and
 the file source. This is harder than the wipe install and, since the redesign,

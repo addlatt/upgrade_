@@ -631,6 +631,29 @@ named on their own:
    extent unchanged. Cosmetic, recorded because "reuse without touching" was
    the claim and the GPT entry *was* touched.
 
+**Decided (2026-08-30)** — the findings above become design, recorded in
+`architecture.md` (cutover steps 8, 9, 11; rollback; settle-in) and owed as
+code before any writer is built:
+
+1. *Fallback loader:* shim stays in `EFI/Boot/bootx64.efi` while Windows is
+   kept (NVRAM loss then still reaches GRUB and both systems — observed);
+   the prologue snapshots `EFI/Boot` + `EFI/Microsoft` and the `Boot####`
+   set to the stick first; **rollback restores Windows' copy**. The bench
+   result flips from `fallback-loader-replaced` to `pass-plumbing` only when
+   the converter's own install step — which takes that snapshot — is what
+   the bench runs.
+2. *Post-install verification is a step, not an assumption:* Windows entry
+   present (re-create if the firmware dropped it), Linux entry first,
+   `bootmgfw.efi` matches the snapshot, `grub.cfg` lists Windows; every
+   result written to `outcome.json`.
+3. *os-prober is set explicitly* in the kickstart, never left to the distro
+   default.
+4. *`evaluate` gate:* ≥ 32 MiB free on the ESP (5× the measured 6.2 MB) and
+   the ESP is the volume the Windows Boot Manager entry points at; otherwise
+   steer to clean slate. Scanner check owed — it does not exist yet.
+5. *Windows re-taking the boot order* is a standing hazard for the life of
+   the dual boot, not an install-time fact — split out as **R22**.
+
 **Still open — this rig cannot close them.** Secure Boot enforcement lives in
 the SMM-requiring OVMF build that crashes KVM on this AMD/WSL2 host (see R15),
 so the whole run was SB-off: shim → GRUB → `bootmgfw.efi` chainloading with
@@ -647,6 +670,36 @@ keep-Windows half of the V1 gate and should be validated as its own Tier-1
 item, not folded in as a "safety-copy variant". Fallback if it proves
 unreliable on some firmware: those machines are steered to clean slate (which
 never shares an ESP), and `evaluate` says so before committing.
+
+## R22 — Windows servicing re-takes the firmware boot order · medium · open
+
+**What.** On the keep-Windows path Windows stays installed, and Windows
+Update's boot-file servicing re-registers the *Windows Boot Manager* firmware
+entry and puts it **first** in `BootOrder`. Observed on the QEMU rig
+(2026-08-27, during V1b): one Windows session that applied a pending update
+at shutdown was enough — the next power-on booted Windows directly with no
+GRUB menu, while a plain Windows session without servicing changed nothing.
+This is not an install-time event; it can recur at any Windows update for
+as long as Windows is kept.
+
+**If real** (it is — the question is only how often on vendor firmware).
+The user rebooted into Windows once to fetch something, an update ran, and
+now the machine "went back to Windows": Linux looks gone, the files they
+already pulled look gone with it. Nothing is lost — Fedora's entry and
+partitions are untouched — but a non-technical user cannot know that, and
+this is precisely the person the project exists for. Trust-damaging, not
+data-losing; medium.
+
+**Decided (2026-08-30).** `settle-in` installs a boot-time unit that
+re-asserts the Linux entry first whenever a Windows session moved it, and the
+welcome screen names the firmware boot-menu key for the one boot where the
+user has to intervene. Reclaim removes both with Windows. See
+`architecture.md`, settle-in.
+
+**Closes when.** The unit is built and a Windows update on a real machine is
+followed by a Linux boot with no user action — and the physical matrix shows
+whether any vendor firmware ignores the re-assertion (some firmware pins its
+own order; that would move this to "press one key", like V0's fallback).
 
 ---
 
