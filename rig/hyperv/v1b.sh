@@ -32,7 +32,7 @@ ISO_WIN='C:\upgrade-rig\hv\iso\fedora-netinst.iso'
 OEM="$A/oemdrv.img"
 KS=../vm/v1b-ks.cfg
 CSV=../../docs/validation-results/v1b-alongside.csv
-HARNESS_VERSION=0.1.0-hv
+HARNESS_VERSION=0.1.1-hv
 FIRMWARE='Hyper-V UEFI Release v4.1'
 
 VMPS1="$(wslpath -w vm.ps1)"

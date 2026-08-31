@@ -693,14 +693,53 @@ of a real machine cannot be reproduced there. The SB-on *chainload* clause
 can still be exercised by enrolling the Windows PCA into shim's MokList; the
 db-composition clause and the vendor matrix stay physical.
 
+**Hyper-V leg fired — the ~100 MiB ESP row (2026-08-31)** — `rig/hyperv/v1b.sh`,
+Hyper-V UEFI Release v4.1, SB off (the guest's locked `MicrosoftWindows`
+template refuses shim, so the plain dual boot needs SB off here; the SB-on
+chainload is the MOK experiment, still owed). Windows Setup's default
+**100 MiB ESP took the install with room to spare**: Windows' own footprint
+28.3 MB, Fedora added the same 7 files / 6,218,358 B as on QEMU, 65,994,752 B
+still free after — `fits_100mib_esp` is now exercised, no longer only
+computed. All five checks held (2 Windows boots both with `BootCurrent` =
+Fedora's entry, 2 Linux boots, `bootmgfw.efi` byte-identical in every row);
+result `fallback-loader-replaced` again — shim replaced `EFI/Boot/bootx64.efi`,
+finding 1 reproduced on a second firmware. What this leg adds:
+
+- **BitLocker, product-real (the QEMU guest had no TPM).** C: FullyEncrypted
+  XtsAes128, Tpm + RecoveryPassword protectors. Shrinking the encrypted
+  volume worked unmodified. Suspended `-RebootCount 1` before the installer
+  boot per run-book; the first GRUB-chainloaded Windows boot consumed the
+  suspension and **auto-resumed protection On, re-sealing against the
+  shim → GRUB → `bootmgfw.efi` path**; the second chainloaded boot then
+  **unsealed silently with protection On** — no recovery prompt anywhere,
+  protectors and recovery password intact throughout. On this firmware the
+  prologue's suspend-once flow is exactly right for the alongside install.
+- **Hyper-V's UEFI kept the OS `Boot####` entries.** Unlike OVMF's fw_cfg
+  path (which deleted them all, finding 3), the Windows entry survived the
+  installer boot untouched; Anaconda put Fedora first in `BootOrder` and
+  Windows stayed present. Entry deletion is firmware behaviour, not a
+  constant — the converter's post-install verify-and-recreate step stays.
+- Finding 4 (os-prober on by default in stock F42) and finding 5 (the ESP's
+  GPT name case-normalised despite `--noformat`) both reproduced.
+- **Rig hazard found and fixed mid-run:** WSL's /mnt/c 9p page cache served
+  hours-stale VHDX pages (a pre-servicing `bootmgfw.efi`) to the offline
+  inspector, and a `cp` baked them into a backup — caught because the guest's
+  own hash disagreed. Every WSL read of a Windows-written file now evicts
+  the page cache first (`posix_fadvise DONTNEED`, in `v1b-inspect.py` and
+  `v1b.sh`); the tainted backup was deleted and re-taken. Detail in
+  `rig/hyperv/README.md`.
+
+Row 2 of `docs/validation-results/v1b-alongside.csv`.
+
 **Still open — this rig cannot close them.** Secure Boot enforcement lives in
 the SMM-requiring OVMF build that crashes KVM on this AMD/WSL2 host (see R15),
-so the whole run was SB-off: shim → GRUB → `bootmgfw.efi` chainloading with
-Secure Boot *on* (shim verifying a Microsoft-signed binary, and GRUB's
-`chainloader` under shim's verification protocol) is unproven. The ~100 MiB
-ESP row is owed. And the physical vendor matrix (≥3 vendors) is what the
-close condition actually names. A VM pass narrows R21; it does not close it
-(CLAUDE.md rule #5).
+so the whole run was SB-off on both rigs: shim → GRUB → `bootmgfw.efi` chainloading with Secure
+Boot *on* (shim verifying a Microsoft-signed binary, and GRUB's `chainloader`
+under shim's verification protocol) is unproven — on Hyper-V it needs the MOK
+experiment on a `MicrosoftUEFICertificateAuthority`-template guest (see the
+leg-opened block above). The ~100 MiB ESP row fired 2026-08-31. The physical
+vendor matrix (≥3 vendors) is what the close condition actually names. A VM
+pass narrows R21; it does not close it (CLAUDE.md rule #5).
 
 **Closes when.** An alongside install is proven on real machines from several
 vendors, Secure Boot on: Windows still boots from the menu afterward, GRUB

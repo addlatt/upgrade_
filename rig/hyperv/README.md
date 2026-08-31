@@ -106,6 +106,16 @@ Secure Boot is currently OFF (the BitLocker rows' run-book state); the
 pristine pre-BitLocker disk is `UPGRIGHV.fresh.vhdx`. First guest prep step is the same as the QEMU rig's: fetch the repo zip
 into `C:\upgrade_` (or `vm.ps1 copy` the pieces).
 
+**State after the V1b run (2026-08-31):** the guest dual-boots — C: shrunk by
+32 GiB, Fedora 42 installed alongside reusing the 100 MiB ESP, firmware boots
+Fedora's shim first with Windows chainloadable from the GRUB menu (two
+Downs), BitLocker protection back On and re-sealed to the GRUB path. The V0
+stick VHDX is detached. Backups host-side in `C:\upgrade-rig\hv\vm\`:
+`UPGRIGHV.pre-install.vhdx` (post-shrink, pre-install, BitLocker suspended —
+verified against the guest's own hashes) and `UPGRIGHV.fresh.vhdx`
+(install-day, pre-BitLocker). The original `UPGRIGHV.pre-v1b.vhdx` was
+deleted: the 9p stale-cache hazard had poisoned it.
+
 ## Planned run-books (not yet run — nothing below is evidence)
 
 - **V0 rows 3, 5, 6 — DONE 2026-08-30** (row 4 not meaningful here, see
@@ -120,17 +130,28 @@ into `C:\upgrade_` (or `vm.ps1 copy` the pieces).
   install DVDs first (`Enable-BitLocker` refuses while bootable media is
   attached), and note `Enable-BitLocker` re-runs can drop an existing
   RecoveryPassword protector — verify protectors and re-save the key after.
-- **V1b, 100 MiB ESP — two rows.** First **SB off** (both templates refuse
-  one OS, so the plain dual boot needs SB off here), which gives the ~100 MiB
-  ESP row R21 is owed plus Hyper-V's own NVRAM behaviour; then **SB on under
-  the UEFI-CA template with the Windows PCA enrolled in MokList** for the
-  chainload clause, notes stating what that does and does not show.
-  `rig/vm/v1b.sh`'s pieces: the guest-side
-  shrink (`rig/vm/guest/v1b-shrink.ps1`, via `ps`), the kickstart
-  (`rig/vm/v1b-ks.cfg`) on an OEMDRV VHDX (`qemu-img convert -O vhdx
-  rig/vm/artifacts/v1b/oemdrv.img`), Fedora netinst on the DVD with
-  `boot-first dvd`, and `v1b-inspect.py` pointed at the VHDX (`qemu-img dd`
-  reads VHDX). The verdict script is unchanged.
+- **V1b, 100 MiB ESP, SB off — DONE 2026-08-31** (row 2 of
+  `docs/validation-results/v1b-alongside.csv`, result
+  `fallback-loader-replaced`; findings in RISKS R21). Ran via `v1b.sh`
+  (this directory): fresh OEMDRV built and attached, offline inspections
+  through the cache-evicting `v1b-inspect.py`, the share-free shrink
+  (`guest/v1b-shrink-hv.ps1` + `rig/vm/guest/v1b-mark.ps1`, both
+  `Copy-VMFile`d in), netinst DVD `boot-first dvd` with the ISO menu driven
+  by WMI keys, cycles driven by `v1b.sh cycle` (GRUB: two Downs = Windows).
+  BitLocker: suspended `-RebootCount 1` before the installer boot; the first
+  chainloaded Windows boot auto-resumed and re-sealed, the second unsealed
+  silently — no recovery prompt. Hyper-V's UEFI **kept** the Windows
+  `Boot####` entry across the install (unlike OVMF's `bootindex` path).
+  The disk backup taken before the run had to be re-taken after the 9p
+  stale-cache hazard (below) was caught poisoning it.
+- **V1b, SB on — the MOK chainload experiment (still owed).** Needs a
+  **second** Gen 2 VM on the `MicrosoftUEFICertificateAuthority` template
+  (UPGRIGHV's template is locked): reuse a copy of the installed dual-boot
+  disk, enrol the Windows Production PCA (extracted from `bootmgfw.efi`'s
+  signature) into shim's MokList via mokutil from the installed Fedora, then
+  prove shim → GRUB → `bootmgfw.efi` boots Windows with SB enforcing. The
+  row's notes must state what it does NOT show (db composition; Windows'
+  own firmware entry stays refused by that template's db).
 
 ## Known limits of this leg
 

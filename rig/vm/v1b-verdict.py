@@ -140,6 +140,8 @@ else:
     result = 'pass-plumbing'
 if shrink:
     notes.append(f"shrink: freed {shrink.get('freed_bytes')} B, cold shrinkable {shrink.get('shrinkable_cold')} B, capped={shrink.get('capped_by_immovable')}")
+if shrink and shrink.get('bitlocker_volume_status') and shrink.get('bitlocker_volume_status') != 'none':
+    notes.append(f"bitlocker C: {shrink.get('bitlocker_volume_status')}/{shrink.get('bitlocker_protection')} {shrink.get('bitlocker_method')} protectors={shrink.get('bitlocker_protectors')} at shrink time; suspended -RebootCount 1 for the installer boot per run-book")
 
 row = {
     'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),

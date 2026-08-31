@@ -110,8 +110,20 @@ overwrote Windows' `EFI/Boot/bootx64.efi` with shim, and the run also caught
 Windows re-taking the boot order after a servicing pass and the firmware
 dropping OS boot entries — five design inputs, detailed in RISKS R21. Row:
 `docs/validation-results/v1b-alongside.csv`. Remaining: the Secure-Boot-on
-chainload, a ~100 MiB ESP row, and the physical vendor matrix — a VM pass
-narrows V1b, it does not close it.
+chainload (the MOK experiment on a UEFI-CA-template Hyper-V guest), and the
+physical vendor matrix — a VM pass narrows V1b, it does not close it.
+
+**Hyper-V leg fired — the ~100 MiB ESP row (2026-08-31).** On `rig/hyperv/`
+(Hyper-V UEFI v4.1, SB off — the guest's Windows-only Secure Boot template
+refuses shim), Windows Setup's default 100 MiB ESP took the same 6.2 MB
+install with 63 MiB still free, all five checks held, and the result is
+`fallback-loader-replaced` again (shim replaced `EFI/Boot/bootx64.efi` on a
+second firmware). New evidence: BitLocker (TPM-sealed, XtsAes128) survived
+the whole flow — suspend once before the installer, protection auto-resumes
+and re-seals against the GRUB path, the next chainloaded boot unseals
+silently, no recovery prompt anywhere; and Hyper-V's UEFI *kept* the Windows
+`Boot####` entry where OVMF had deleted them all. Findings 1, 4 and 5
+reproduced; RISKS R21 has the detail. Row 2 in `v1b-alongside.csv`.
 
 **Decided (2026-08-30)** from those findings (RISKS R21 has the list): shim
 keeps the fallback slot and rollback restores Windows' copy from a snapshot
