@@ -125,6 +125,16 @@ silently, no recovery prompt anywhere; and Hyper-V's UEFI *kept* the Windows
 `Boot####` entry where OVMF had deleted them all. Findings 1, 4 and 5
 reproduced; RISKS R21 has the detail. Row 2 in `v1b-alongside.csv`.
 
+**Hyper-V leg — the Secure-Boot-on chainload fired (2026-08-31).** Second
+guest on the UEFI-CA template, Fedora alongside-installed under SB enforcing,
+the Windows Production PCA (from `bootmgfw.efi`'s own signature) enrolled into
+shim's MokList. Negative: PCA not enrolled → GRUB chainload refused
+(`bad shim signature`). Positive: PCA enrolled → Windows boots to the desktop,
+SB enforcing confirmed from Fedora and Windows. Proves the chainload
+*verification* only — not a both-CA db (Hyper-V can't express one) nor the
+vendor matrix. Record: `validation-results/v1b-mok-chainload-2026-08-31.md`;
+RISKS R21.
+
 **Decided (2026-08-30)** from those findings (RISKS R21 has the list): shim
 keeps the fallback slot and rollback restores Windows' copy from a snapshot
 the prologue takes; post-install boot-chain verification is a cutover step

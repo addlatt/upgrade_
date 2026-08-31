@@ -731,15 +731,41 @@ finding 1 reproduced on a second firmware. What this leg adds:
 
 Row 2 of `docs/validation-results/v1b-alongside.csv`.
 
+**Hyper-V leg — the Secure-Boot-on chainload fired (2026-08-31).** The one
+SB-on clause a VM on this host can reach. Second guest `UPGRIGMOK`
+(`MicrosoftUEFICertificateAuthority` template, so the firmware trusts shim),
+Fedora alongside-installed **under Secure Boot enforcing** (shim/GRUB/kernel
+all firmware-verified; `bootmgfw.efi` byte-identical `d1f7e351…`; os-prober
+found Windows), and the Microsoft Windows Production PCA 2011 — extracted from
+this guest's own `bootmgfw.efi` signature — enrolled into shim's MokList.
+Result, both directions:
+- **Negative:** with the PCA *not* enrolled, GRUB → `chainloader bootmgfw.efi`
+  is refused — `bad shim signature` (shim consulted db + MokList and declined).
+  Windows unbootable via GRUB. The SB gate is real on the chainload path.
+- **Positive:** with the PCA enrolled (`mokutil --test-key` → already
+  enrolled), the same GRUB entry boots Windows 10 to the desktop, Secure Boot
+  enforcing confirmed from Fedora (`mokutil --sb-state`) *and* Windows
+  (`Confirm-SecureBootUEFI` → True). BitLocker auto-resumed, no recovery
+  prompt.
+
+**What it does NOT show:** a real machine's db holds *both* CAs and boots
+`bootmgfw.efi` from Windows' own firmware entry with no shim/MokList in the
+path — Hyper-V's mutually-exclusive templates cannot express that, so this
+proves only the chainload *verification*, not db composition, and leaves
+Windows' own firmware entry refused under this template. The db-composition
+clause and the ≥3-vendor physical matrix stay open. Full record and the
+what-it-does-not-show list: `docs/validation-results/v1b-mok-chainload-2026-08-31.md`.
+
 **Still open — this rig cannot close them.** Secure Boot enforcement lives in
 the SMM-requiring OVMF build that crashes KVM on this AMD/WSL2 host (see R15),
-so the whole run was SB-off on both rigs: shim → GRUB → `bootmgfw.efi` chainloading with Secure
-Boot *on* (shim verifying a Microsoft-signed binary, and GRUB's `chainloader`
-under shim's verification protocol) is unproven — on Hyper-V it needs the MOK
-experiment on a `MicrosoftUEFICertificateAuthority`-template guest (see the
-leg-opened block above). The ~100 MiB ESP row fired 2026-08-31. The physical
-vendor matrix (≥3 vendors) is what the close condition actually names. A VM
-pass narrows R21; it does not close it (CLAUDE.md rule #5).
+so the whole run was The shim → GRUB → `bootmgfw.efi` chainload with Secure Boot *on* fired
+2026-08-31 via the MOK experiment (above), and the ~100 MiB ESP row fired the
+same day. What a VM on this host still **cannot** show: a real machine's db
+holding *both* the Windows CA and the UEFI CA — the composition that lets
+vendor firmware boot Windows from its own entry with no shim in the path
+(Hyper-V's templates are mutually exclusive). That db-composition clause and
+the ≥3-vendor physical matrix are what the close condition actually names. A
+VM pass narrows R21; it does not close it (CLAUDE.md rule #5).
 
 **Closes when.** An alongside install is proven on real machines from several
 vendors, Secure Boot on: Windows still boots from the menu afterward, GRUB

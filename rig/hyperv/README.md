@@ -144,14 +144,36 @@ deleted: the 9p stale-cache hazard had poisoned it.
   `Boot####` entry across the install (unlike OVMF's `bootindex` path).
   The disk backup taken before the run had to be re-taken after the 9p
   stale-cache hazard (below) was caught poisoning it.
-- **V1b, SB on — the MOK chainload experiment (still owed).** Needs a
-  **second** Gen 2 VM on the `MicrosoftUEFICertificateAuthority` template
-  (UPGRIGHV's template is locked): reuse a copy of the installed dual-boot
-  disk, enrol the Windows Production PCA (extracted from `bootmgfw.efi`'s
-  signature) into shim's MokList via mokutil from the installed Fedora, then
-  prove shim → GRUB → `bootmgfw.efi` boots Windows with SB enforcing. The
-  row's notes must state what it does NOT show (db composition; Windows'
-  own firmware entry stays refused by that template's db).
+- **V1b, SB on — the MOK chainload experiment — DONE 2026-08-31** (record:
+  `docs/validation-results/v1b-mok-chainload-2026-08-31.md`). Second guest
+  `UPGRIGMOK` on the `MicrosoftUEFICertificateAuthority` template (disk copied
+  from `UPGRIGHV.pre-install.vhdx`), Fedora alongside-installed under SB
+  enforcing via `v1b.sh` with `VMNAME=UPGRIGMOK LEG=mok SB=on
+  KS=v1b-mok-ks.cfg OEM_EXTRA=artifacts/v1b-mok/win-pca.der`. The Windows
+  Production PCA 2011 (extracted from `bootmgfw.efi`'s Authenticode signature,
+  `rig/hyperv/artifacts/v1b-mok/win-pca.der`) was enrolled into shim's
+  MokList. Negative (PCA not enrolled): GRUB → `bad shim signature`, Windows
+  refused. Positive (enrolled): Windows boots to the desktop, SB enforcing
+  confirmed both sides. Proves the chainload verification only — NOT a both-CA
+  db (Hyper-V can't express one), NOT the vendor matrix.
+
+**Driving MokManager and the console — learned 2026-08-31 (obey):**
+- **`vm.ps1 type` / WMI `TypeText` is unreliable here** — it drops or garbles
+  characters. Drive ALL text as per-character Windows virtual-key codes via
+  `vm.ps1 key` (letters `A`..`Z` = VK 65..90 → lowercase in a Linux console;
+  digits = 48..57; space=32, `/`=191, `-`=189, `.`=190). A `str2vk` helper is
+  the reliable path; `|` etc. need Shift and are best avoided (use
+  `mokutil --test-key` instead of `... | grep`).
+- **GRUB `$root` is polluted by a failed chainload** — after a
+  `bad shim signature`, the Fedora BLS entry fails with `vmlinuz not found`.
+  Boot Fedora from a **fresh** GRUB (hard power-cycle) and select Windows
+  **deterministically** with `sudo grub2-reboot 2; sudo reboot`, never by
+  racing the menu countdown.
+- **MokManager's "press any key" window is short and jittery on Hyper-V.**
+  Set `sudo mokutil --timeout -1` from Fedora first so MokManager waits
+  indefinitely, then drive it calmly (Down/Enter for Enroll MOK → Continue →
+  Yes → password → Reboot). A MokManager prompt that times out **deletes** the
+  pending `MokNew` without enrolling — re-`mokutil --import` if that happens.
 
 ## Known limits of this leg
 
