@@ -2,7 +2,7 @@
 """V1b / R21 offline inspector: read the rig guest's disk image WITHOUT booting
 it and record what the alongside install is not allowed to break.
 
-    v1b-inspect.py <image.qcow2> <label> [outdir]
+    v1b-inspect.py <image.qcow2|image.vhdx> <label> [outdir]
 
 Writes <outdir>/<label>.json with:
   - the GPT (every partition: index, type GUID + name, start/end LBA, size)
@@ -27,9 +27,13 @@ GPT_TYPES = {
     '4f68bce3-e8cd-4db1-96e7-fbcaf984b709': 'Linux root (x86-64)',
 }
 
+def img_format(img):
+    # the QEMU rig reads qcow2; the Hyper-V rig reads VHDX with the same code path
+    return {'qcow2': 'qcow2', 'vhdx': 'vhdx'}.get(img.rsplit('.', 1)[-1].lower(), 'raw')
+
 def qdd(img, out, skip_bytes, count_bytes, bs):
     assert skip_bytes % bs == 0 and count_bytes % bs == 0, (skip_bytes, count_bytes, bs)
-    subprocess.run(['qemu-img', 'dd', '-f', 'qcow2', '-O', 'raw', f'bs={bs}',
+    subprocess.run(['qemu-img', 'dd', '-f', img_format(img), '-O', 'raw', f'bs={bs}',
                     f'skip={skip_bytes // bs}', f'count={count_bytes // bs}',
                     f'if={img}', f'of={out}'], check=True)
 
@@ -103,8 +107,22 @@ def fat_free(esp):
             return int(line.split('bytes free')[0].replace(' ', '').replace(',', ''))
     return None
 
+def evict_page_cache(path):
+    # 2026-08-30, Hyper-V leg: WSL's 9p page cache served HOURS-stale pages of
+    # a VHDX that Windows (VMMS) had rewritten - an offline inspection read a
+    # pre-servicing bootmgfw.efi out of a disk whose live content was newer,
+    # and a cp of the image baked the stale pages into the backup. Every read
+    # of a Windows-written file through /mnt/c must evict the cache first.
+    # Harmless on native-WSL files (QEMU rig qcow2).
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+    finally:
+        os.close(fd)
+
 def main():
     img, label = sys.argv[1], sys.argv[2]
+    evict_page_cache(img)
     outdir = sys.argv[3] if len(sys.argv) > 3 else os.path.join(os.path.dirname(img), 'v1b')
     os.makedirs(outdir, exist_ok=True)
     rec = {'label': label, 'image': os.path.abspath(img),

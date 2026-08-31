@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """V1b / R21 verdict: turn the run's evidence into ONE CSV row.
 
-    v1b-verdict.py <artifacts/v1b dir> <results.csv> <harness version>
+    v1b-verdict.py <artifacts/v1b dir> <results.csv> <harness version> [firmware] [secureboot]
 
 Inputs (all produced by the run, none typed by a human):
   01-post-shrink.json / 02-post-install.json / 03-post-cycles.json  (v1b-inspect.py)
@@ -23,6 +23,8 @@ SB is off on this rig: this row can never satisfy R21's Secure Boot clause.
 import csv, json, os, re, subprocess, sys, datetime
 
 A, CSV, VER = sys.argv[1], sys.argv[2], sys.argv[3]
+FIRMWARE = sys.argv[4] if len(sys.argv) > 4 else 'QEMU q35 + OVMF 2024.02 (non-SMM)'
+SECUREBOOT = sys.argv[5] if len(sys.argv) > 5 else 'off'
 OEM = os.path.join(A, 'oemdrv.img') + '@@1M'
 
 def j(name):
@@ -48,7 +50,7 @@ if pre and post:
     new_files = sorted(set(post['esp']['manifest']) - set(pre['esp']['manifest']))
     notes.append(f"install added {len(new_files)} files / {added} B to the ESP ({', '.join(sorted({f.split('/')[2] for f in new_files if f.count('/')>=3}))})")
 esp_room = bool(post) and free_after is not None and free_after > 0 and added is not None and added >= 0
-# arithmetic only - this rig's ESP is 260 MiB, so the 100 MiB case is computed, never exercised
+# arithmetic when the ESP is bigger (QEMU guest: 260 MiB); on a ~100 MiB ESP the (a) check exercises it for real
 fits_100 = ''
 if pre and added is not None:
     fits_100 = 'computed-yes' if pre['esp']['file_bytes_used'] + added <= 96 * 2**20 else 'computed-NO'
@@ -141,7 +143,7 @@ if shrink:
 
 row = {
     'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),
-    'harness': VER, 'firmware': 'QEMU q35 + OVMF 2024.02 (non-SMM)', 'secureboot': 'off',
+    'harness': VER, 'firmware': FIRMWARE, 'secureboot': SECUREBOOT,
     'esp_size_mib': esp_size_mib, 'esp_free_before': free_before, 'esp_free_after': free_after,
     'esp_added_bytes': added, 'fits_100mib_esp': fits_100,
     'bootmgfw_intact': 'y' if bootmgfw_intact else 'n',

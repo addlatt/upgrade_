@@ -141,3 +141,12 @@ into `C:\upgrade_` (or `vm.ps1 copy` the pieces).
   OS-created `Boot####` entries the way OVMF's `bootindex` path did is a data
   point to record, not assume.
 - `Copy-VMFile` is host→guest only.
+- **WSL's /mnt/c 9p page cache serves stale pages of files Windows rewrites**
+  (proven 2026-08-30: an offline inspection read a pre-servicing
+  `bootmgfw.efi` out of `UPGRIGHV.vhdx` hours after Windows had updated it,
+  and a `cp` baked the stale pages into a backup — two independent readers
+  agreed on the wrong bytes because both read the same poisoned cache).
+  Evict before EVERY WSL read of a Windows-written file
+  (`posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED)`); `v1b-inspect.py` and
+  `v1b.sh` (`evict`/`oem_pull`) now do it themselves. Verify any doubtful
+  read against the guest's own view of the same bytes.
