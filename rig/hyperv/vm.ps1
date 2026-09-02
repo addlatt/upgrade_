@@ -2,7 +2,7 @@
 #   vm.ps1 start | stop | kill | state
 #   vm.ps1 shot [file.png]          thumbnail screenshot via WMI (default C:\upgrade-rig\hv\shots\<ts>.png)
 #   vm.ps1 type "text"              type a string into the guest console (WMI Msvm_Keyboard)
-#   vm.ps1 key <vk> [<vk>...]       press virtual-key codes (13=Enter, 27=Esc, 9=Tab, 32=Space, 37/38/39/40=arrows)
+#   vm.ps1 key <vk> [<vk>...]       press virtual-key codes (13=Enter, 27=Esc, 9=Tab, 32=Space, 37/38/39/40=arrows); 's<vk>' = with Shift
 #   vm.ps1 press-any-key            spam Enter for 30 s (Windows Setup's "Press any key" window)
 #   vm.ps1 fw                       Secure Boot state/template, boot order, TPM
 #   vm.ps1 sb on|off [template]     toggle Secure Boot (VM must be off)
@@ -65,7 +65,20 @@ switch ($Action) {
         Save-Shot $p
     }
     'type'  { $kb = Get-Keyboard; Invoke-CimMethod -InputObject $kb -MethodName TypeText -Arguments @{ asciiText = ($Rest -join ' ') } | Out-Null }
-    'key'   { $kb = Get-Keyboard; foreach ($k in $Rest) { Invoke-CimMethod -InputObject $kb -MethodName TypeKey -Arguments @{ keyCode = [uint32]$k } | Out-Null; Start-Sleep -Milliseconds 80 } }
+    'key'   {
+        # a token 's<vk>' is typed with Shift held (PressKey 16 / ReleaseKey 16) - upper-case letters, ?*:"|_+ etc.
+        $kb = Get-Keyboard
+        foreach ($k in $Rest) {
+            if ($k -like 's*') {
+                Invoke-CimMethod -InputObject $kb -MethodName PressKey -Arguments @{ keyCode = [uint32]16 } | Out-Null
+                Invoke-CimMethod -InputObject $kb -MethodName TypeKey -Arguments @{ keyCode = [uint32]$k.Substring(1) } | Out-Null
+                Invoke-CimMethod -InputObject $kb -MethodName ReleaseKey -Arguments @{ keyCode = [uint32]16 } | Out-Null
+            } else {
+                Invoke-CimMethod -InputObject $kb -MethodName TypeKey -Arguments @{ keyCode = [uint32]$k } | Out-Null
+            }
+            Start-Sleep -Milliseconds 80
+        }
+    }
     'press-any-key' {
         $kb = Get-Keyboard; $t = [DateTime]::Now
         while (([DateTime]::Now - $t).TotalSeconds -lt 30) { Invoke-CimMethod -InputObject $kb -MethodName TypeKey -Arguments @{ keyCode = [uint32]13 } | Out-Null; Start-Sleep -Milliseconds 250 }

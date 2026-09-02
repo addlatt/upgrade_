@@ -62,6 +62,10 @@ Two more Hyper-V facts learned the same day:
 | `make-unattend.sh` | wraps it into `C:\upgrade-rig\hv\iso\unattend-hv.iso` |
 | `new-vm.ps1` | creates the Gen 2 guest: Secure Boot on (template selectable), vTPM, two DVDs, DVD-first |
 | `vm.ps1` | the QMP stand-in: start/stop, WMI keyboard (`type`, `key`, `press-any-key`), thumbnail `shot`, `fw`, `sb`, `dvd`, `disk`, `boot-first`, PowerShell Direct `ps`, `copy` |
+| `v1b.sh` | the V1b alongside-install bench (run-book below) |
+| `v3.sh`, `v3-verdict.py` | the V3 BITLK-read bench: builds the OEMDRV-v3 transport, drives the Windows plant and the Fedora read, writes the evidence rows |
+| `guest/oemdrv-run.sh`, `guest/v3-bootstrap.sh` | the Fedora-side **run hook**: a unit that runs `OEMDRV:/run.sh` as root on every boot and leaves `run.log` on the volume — installed once from the console by the bootstrap |
+| `guest/v3-plant.ps1`, `guest/v3-read.sh`, `guest/v3-encrypt.ps1` | V3 guest halves: Windows plants + hashes the corpus and `C:\Users` and does a full shutdown; Fedora unlocks, mounts read-only and re-hashes; the encrypt script builds the other configs in the product's order (encrypt, then shrink) |
 
 Hyper-V cannot open files under `\\wsl.localhost`, so ISOs, VHDXs and
 screenshots live on the Windows side in `C:\upgrade-rig\hv\` (gitignored by
@@ -115,6 +119,17 @@ stick VHDX is detached. Backups host-side in `C:\upgrade-rig\hv\vm\`:
 verified against the guest's own hashes) and `UPGRIGHV.fresh.vhdx`
 (install-day, pre-BitLocker). The original `UPGRIGHV.pre-v1b.vhdx` was
 deleted: the 9p stale-cache hazard had poisoned it.
+
+**State after the V3 run (2026-09-01):** `UPGRIGHV`'s Fedora was
+`dnf`-upgraded (kernel 6.19.14-108 is now the GRUB default; the install
+kernel 6.14.0-63 is the second entry, still there for the ntfs3 rows), the
+OEMDRV run hook is installed, and the guest carries `C:\v3corpus` (~1.5 GB).
+A third guest `UPGRIGV3` (SB off, vTPM, no disk of its own) exists to build
+configs; the config disks `UPGRIGHV.xts256.vhdx` (XtsAes256, used-space) and
+`UPGRIGHV.full.vhdx` (XtsAes128, "full"), both planted, sit host-side with
+their recovery keys in `C:\upgrade-rig\hv\UPGRIGV3.<disk>-bitlocker-recovery.txt`.
+OEMDRV volumes: `oemdrv-v3.vhdx` (config 1, attached to UPGRIGHV),
+`oemdrv-v3-x256.vhdx`, `oemdrv-v3-full.vhdx`.
 
 ## Planned run-books (not yet run — nothing below is evidence)
 
@@ -174,6 +189,58 @@ deleted: the 9p stale-cache hazard had poisoned it.
   indefinitely, then drive it calmly (Down/Enter for Enroll MOK → Continue →
   Yes → password → Reboot). A MokManager prompt that times out **deletes** the
   pending `MokNew` without enrolling — re-`mokutil --import` if that happens.
+
+- **V3 / R19, config XTS-AES-128 used-space-only — DONE 2026-09-01**
+  (rows in `docs/validation-results/v3-bitlk-read.csv`, findings in RISKS
+  R19). The bench is `v3.sh`; per config: `v3.sh oemdrv guest/v3-read.sh`
+  (fresh OEMDRV-v3 carrying the reader, the hook, and the CURRENT recovery
+  password from the host-side key file — the guest deletes it first thing),
+  `v3.sh windows` (GRUB two Downs, waits for PS Direct), `v3.sh plant
+  <config>` (`guest/v3-plant.ps1`: corpus + `C:\Users` hashed onto OEMDRV,
+  OneDrive & co. stopped first, then `shutdown /s` — a FULL shutdown, never
+  hybrid), `v3.sh read` (Fedora boots, the run hook executes the reader:
+  ntfs-3g pass, ntfs3 pass, ntfs3 with readahead 0; one manifest per
+  corpus subtree with a `sync` after each so a kernel crash leaves the last
+  stage on the volume; the previous boot's kernel journal is saved first),
+  `v3.sh verdict` (rows). `v3.sh run <config>` chains them. `v3.sh rearm`
+  puts the reader + key back without wiping the Windows manifests; `v3.sh
+  read old` boots the second GRUB entry (the previous kernel after a
+  `rearm-upgrade` run, which `dnf`-upgrades the kernel and reboots into the
+  reader). Other configs: `VMNAME=UPGRIGV3 v3.sh mkvm <disk>` wraps a copy
+  of `UPGRIGHV.fresh.vhdx` in a throwaway SB-off/vTPM guest, `v3.sh encrypt
+  <disk> XtsAes256 usedspace|full 32` runs `guest/v3-encrypt.ps1` (encrypt
+  THEN shrink — the product's order) and captures the new recovery password
+  to `C:\upgrade-rig\hv\UPGRIGV3.<disk>-bitlocker-recovery.txt` (host side
+  only, redacted from every kept output); then the disk goes on UPGRIGHV as a
+  data disk (`DEV=/dev/sdb3` when building that OEMDRV) for the read.
+
+**Learned running V3 — obey:**
+- **The Fedora-side run hook** (`guest/oemdrv-run.sh`, installed once by
+  `v3.sh login-bootstrap` → `guest/v3-bootstrap.sh`) is the general
+  transport now: put a script at `OEMDRV:/run.sh`, boot, read
+  `OEMDRV:/run.log`; the script writes `poweroff` / `reboot` /
+  `reboot-windows` to `OEMDRV:/next`. Scripts that must run once remove
+  `run.sh` themselves.
+- **`vm.ps1 key` now types with Shift** (`s<vk>` tokens) and `v3.sh type`
+  maps upper-case and most punctuation — the WMI `TypeText` garble stands,
+  and `str2vk` is still the reliable path.
+- **A `sudo` timestamp expires mid-session and swallows the next typed
+  lines as password attempts** (three tries locks you out for a while). Type
+  `rig` again before the next `sudo` after a few minutes' gap.
+- **ntfs-3g presents Windows' 0-byte SYSTEM files as FIFOs**; any reader
+  that `open()`s without `lstat` hangs forever, in S state (load average 0,
+  so it looks idle). `find … -not -type f -not -type d -not -type l` lists
+  them.
+- **The F42 install kernel's `ntfs3` oopses on this volume** and may wedge
+  the guest silently (console still shows a login prompt, no poweroff):
+  `wait-off` timing out after the ntfs3 stage is that. Kill, pull, look at
+  `facts-linux.txt`'s last `stage=` and `trace-*.txt`.
+- **`Enable-BitLocker` prints the numeric recovery password in its own
+  text**, not only where a script echoes it — capture raw output to a
+  gitignored file, extract once, redact the pattern before anything is kept
+  or shown.
+- A hard `kill` of the guest loses whatever the reader had not `sync`ed:
+  every fact write and every manifest part syncs for that reason.
 
 ## Known limits of this leg
 

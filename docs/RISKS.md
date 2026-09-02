@@ -511,7 +511,7 @@ recoverable, but exactly the walk-away-killing stop the design forbids.
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.
 
-## R19 — cryptsetup BITLK read is a new trust dependency · medium · open
+## R19 — cryptsetup BITLK read is a new trust dependency · medium · open (VM leg fired 2026-09-01)
 
 **What.** The keep-Windows path (now the default) reads the BitLocker NTFS
 volume via `cryptsetup` BITLK using the harvested recovery key, to copy the
@@ -539,6 +539,74 @@ encryption; checksums are computed on the Windows side at harvest time (in
 corruption. (Only the clean-slate path still reads user data before a
 destructive step — and it does so inside Windows, where there is no BITLK
 problem at all.)
+
+**VM leg fired (2026-09-01) — `rig/hyperv/v3.sh`, rows in
+`docs/validation-results/v3-bitlk-read.csv`.** From the *installed* Fedora 42
+of the V1b guest (settle-in's context), against the same guest's Windows 10
+22H2 C: — BitLocker XtsAes128, used-space-only, TPM + recovery-password
+protectors, encrypted *then* shrunk (the product's order) — a planted corpus
+of 2,850 files (0 B to 200 MiB + 1, cluster-edge sizes, NTFS-compressed,
+sparse, Unicode and 200-character names, 20-deep paths) plus all 4,734 files
+under `C:\Users` were hashed on Windows, then unlocked with the 48-digit
+recovery password and re-hashed on Linux. What the run established:
+
+The other two configs V3 names — XTS-AES-256 used-space-only, and
+XTS-AES-128 "full" — were built the same way (encrypt, then shrink) on
+copies of the pristine disk and read from the same installed Fedora as data
+disks: identical outcome, corpus 2,850/2,850 under every driver.
+
+1. **The unlock works and is not fussy.** `cryptsetup open --type bitlk`
+   (2.7.5 and 2.8.4) takes the recovery password on stdin or via
+   `--key-file`, with or without a trailing newline, and refuses a key with
+   one digit changed. Every file read back byte-identical through
+   **ntfs-3g** — corpus 2,850/2,850, Users identical except files Windows
+   itself rewrote between the hash and the shutdown (see 5).
+2. **The kernel `ntfs3` driver on Fedora 42's install kernel (6.14.0-63)
+   oopses reading this volume** — five runs out of five, always the same
+   signature (`page_cache_ra_unbounded` jumping through a bad pointer during
+   a plain file read), the crash site moving between runs (`medium/`,
+   `large/`, two different PNGs under `Users`), the reader killed each time
+   and the whole guest wedged in two of the five. After `dnf upgrade` to the
+   current F42 kernel (6.19.14-108) the same reads complete and are
+   byte-identical, readahead on or off. **Decided (2026-09-01): `settle-in`
+   reads the kept Windows volume through ntfs-3g (FUSE), never the in-kernel
+   `ntfs3`** — a userspace driver fault is a failed process the user can be
+   told about; a kernel oops mid-pull is a hung machine, and the pull runs
+   on the *install* kernel, before any update. Reopen only with a kernel
+   gate that is itself evidence.
+3. **cryptsetup warns on every shrunk volume**: `BitLocker volume size
+   85775613952 does not match the underlying device size 51415875584`.
+   BitLocker's own metadata still records the pre-shrink size; cryptsetup
+   clamps the mapping to the partition and everything reads correctly. This
+   is the keep-Windows path's *normal* state — `settle-in` must expect the
+   warning, not fail on it.
+4. **Two file-type traps a naive copy falls into.** (a) Windows' zero-byte
+   SYSTEM-attributed files (`CryptnetUrlCache\Content\…`,
+   `SystemCertificates\My\AppContainerUserCertRead`, 18 under one fresh
+   profile) appear as **FIFOs** under ntfs-3g — a plain `open()` blocks
+   forever (the harness hung an hour on one). The copy must `lstat` first
+   and skip anything not a regular file. (b) App-execution aliases under
+   `AppData\Local\Microsoft\WindowsApps` are reparse points Windows hides;
+   ntfs3 shows them as empty regular files. The folder map from `evaluate`
+   should carry the reparse-point list so the copy skips them by name.
+5. **Harvest-time checksums are only as good as the quiesce.** OneDrive,
+   Edge's WebView, Search and the content-delivery service kept writing
+   under `AppData` until shutdown — 66 files changed or appeared between the
+   Windows hash and the Linux read, and with those services stopped a
+   crypt32 URL-cache metadata entry still changed (same size, new bytes,
+   read identically by both Linux drivers). None was user data, but the
+   same gap exists in `evaluate`'s harvest: hash the user's folders last,
+   after stopping OneDrive (R8 territory), and treat `AppData` mismatches
+   as informational rather than as read failures.
+6. What the rig **cannot** say (rule #5 residue): real disks (fragmented
+   used-space-only volumes, 4Kn sectors, mid-encryption states), Windows 11's
+   BitLocker (the guest is Windows 10 22H2), other vendors' recovery-key
+   handling, and "full-disk" as a real disk experiences it — on the rig's
+   thin VHDX a "Fully Encrypted" whole-volume conversion grew the image by
+   only ~2.7 GB, so the free space was never rewritten.
+
+Severity stays **medium**: the mechanism works, the failure modes found are
+design inputs with cheap fixes, and Windows stays intact throughout.
 
 ## R20 — Browser profile porting is assumed, not verified · medium · open
 

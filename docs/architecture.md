@@ -369,9 +369,13 @@ It looks like a welcome screen. It is a safety gate.
    hardware is already proven, and Windows is still whole as a complete
    backup. Following the folder map from `job.json`, `settle-in` mounts the
    shrunk-aside Windows partition — unlocking BitLocker with the harvested
-   recovery key (`cryptsetup` BITLK) — and copies Documents, Pictures, the
-   rest, plus Wi-Fi and browser profiles, into the new home, verifying
-   checksums as it goes. Because the user is present, a stubborn unlock or a
+   recovery key (`cryptsetup` BITLK), mounted read-only through **ntfs-3g**,
+   not the kernel `ntfs3` driver (decided 2026-09-01: the install kernel's
+   `ntfs3` oopsed on the rig, RISKS R19) — and copies Documents, Pictures,
+   the rest, plus Wi-Fi and browser profiles, into the new home, verifying
+   checksums as it goes. It expects cryptsetup's size-mismatch warning on
+   every shrunk volume, and copies only regular files (Windows' empty
+   SYSTEM files surface as FIFOs and would hang a plain open). Because the user is present, a stubborn unlock or a
    read error can be *asked about* rather than guessed at on an unattended
    only-copy; and because Windows is intact, a failure here loses nothing —
    the user reboots into Windows and retries. (On the clean-slate path the

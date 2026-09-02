@@ -104,3 +104,68 @@ bench (run-book in `rig/vm/README.md`).
   or a *detectable* failure that `evaluate` can steer to clean slate.
 
 A VM row never closes R21's Secure Boot or vendor clauses (CLAUDE.md rule #5).
+
+## `v3-bitlk-read.csv` — reading the kept BitLocker volume from Linux (gate V3, risk R19)
+
+One row per config run, appended by `rig/hyperv/v3.sh verdict`
+(`rig/hyperv/v3-verdict.py`) from the run's own evidence: the manifest the
+Windows side wrote (`guest/v3-plant.ps1`: sha256 + size of every file in a
+planted corpus and under `C:\Users`, written to the OEMDRV volume as the last
+thing before a **full** shutdown) and the manifests the installed Fedora wrote
+after unlocking the same partition with the recovery password
+(`guest/v3-read.sh`: `cryptsetup open --type bitlk --readonly`, `mount -o ro`,
+re-hash). Do not hand-edit; add rows by running the bench (run-book in
+`rig/hyperv/README.md`). The recovery password never appears in any file
+here — the guest scripts remove it from the transport volume before they do
+anything else.
+
+| Column | Meaning |
+|---|---|
+| `timestamp` | UTC, ISO 8601, when the verdict was computed |
+| `harness` | v3.sh / v3-verdict.py version |
+| `firmware` | the machine or VM firmware under test |
+| `config` | the label the run was given (`xts128-usedspace`, `xts256-usedspace`, `xts128-full`, …) |
+| `windows_build` | the Windows build that encrypted the volume |
+| `bitlocker_method` | `Get-BitLockerVolume` `EncryptionMethod` (XtsAes128 / XtsAes256 / …) |
+| `used_space_only` | yes / no, from `manage-bde -status` |
+| `protectors` | key protector types on the volume (`Tpm+RecoveryPassword` is the Windows default) |
+| `volume_status` | `FullyEncrypted` — anything else is a mid-encryption volume, a different row |
+| `partition_bytes`, `bitlk_volume_bytes` | the partition's size vs the size BitLocker's own metadata records — they differ on every shrunk (keep-Windows) volume |
+| `linux_context` | where the read ran: the **installed** Fedora (settle-in's context) or a live environment |
+| `kernel`, `cryptsetup` | versions on the reading side |
+| `unlock` | ok / failed / not-reached |
+| `ntfs_driver` | the filesystem driver that produced the compared manifest — one row each per run: `ntfs-3g` (FUSE), `ntfs3` (kernel), `ntfs3 (readahead 0)` (kernel, `blockdev --setra 0` on the dm device — a diagnostic pass) |
+| `corpus_files`, `corpus_identical`, `corpus_mismatch` | the planted corpus: hashed on both sides, byte-identical count, byte-different count |
+| `users_files`, `users_identical`, `users_mismatch`, `users_volatile` | the same for `C:\Users`; `volatile` = files Windows itself rewrites between the hash and the shutdown (registry hives, logs, caches — listed in the run's `artifacts/v3/verdict/users-ntfs3.txt`), reported but not held against the read |
+| `result` | see vocabulary below |
+| `notes` | cryptsetup's warnings verbatim, the ntfs-3g cross-check, anything odd |
+
+Rows are never deleted. When the verdict's volatile-path classification
+learns a new Windows-rewritten cache (it did on 2026-09-01: a crypt32
+`CryptnetUrlCache\MetaData` entry, same size, new bytes, read identically by
+both Linux drivers), the run is re-verdicted and the **later rows for the
+same config, kernel and driver supersede the earlier ones** — the earlier
+`mismatch` rows stay as the record of what the classifier did not yet know.
+
+### Result vocabulary
+
+| Result | Meaning | Verdict |
+|---|---|---|
+| `pass-plumbing` | unlocked with the recovery password, mounted read-only, every corpus file and every non-volatile file under `Users` read back byte-identical (sha256 + size), no file unreadable on Linux that Windows could read | **pass for the config in the row** — a VM row closes plumbing only |
+| `unlock-failed` | `cryptsetup open --type bitlk` refused the volume or the key | fail — the config is unsupported: `evaluate` must steer it to decrypt-first or clean slate |
+| `mount-failed` | unlocked, but the NTFS inside would not mount read-only | fail — investigate the driver / volume state |
+| `mismatch` | at least one non-volatile file read back with different bytes | **fail-loud** — the trust-ending class (R19's "read wrong data"); never softened |
+| `read-errors` | no wrong bytes, but Linux could not read a file Windows could, or a file was missing | fail — the copy would be incomplete |
+| `guest-crashed` | the reading OS crashed mid-read (kernel oops; the harness's last synced `stage=` and `trace-*.txt` name where) | **fail-loud** for that driver/kernel — a hung machine mid-pull; design input (driver choice / kernel gate) |
+| `incomplete` | a manifest is missing, the corpus was too small, or the pass never started (an earlier pass took the guest down) | re-run |
+
+### What "V3 passes" requires
+
+- `pass-plumbing` for all three configs VALIDATION V3 names — XTS-AES-128
+  used-space-only (the Windows 10/11 default), XTS-AES-256, and full-disk
+  (not used-space-only) — from an **installed** Fedora, for the driver `settle-in` actually uses
+  (ntfs-3g, decided 2026-09-01 — RISKS R19); a kernel-driver row is
+  informational.
+- The same on at least one physical BitLocker machine per Windows version the
+  project targets; used-space-only on a fragmented real disk is the named
+  residue no VM row closes (CLAUDE.md rule #5).

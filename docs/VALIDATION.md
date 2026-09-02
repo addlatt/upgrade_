@@ -226,6 +226,41 @@ hours, works) or BitLocker machines get clean-slate only. Both survivable,
 both worse — and either changes the intent-capture UI, so we need the answer
 before that UI exists.
 
+**VM leg fired (2026-09-01).** On the Hyper-V rig (`rig/hyperv/v3.sh`,
+run-book in `rig/hyperv/README.md`), from the V1b guest's *installed* Fedora
+42 against its own encrypted-then-shrunk Windows 10 C:: the recovery-password
+unlock works with every key-entry form cryptsetup offers, and a 2,850-file
+planted corpus plus everything under `C:\Users` read back **byte-identical
+through ntfs-3g**. The kernel `ntfs3` driver on the F42 install kernel
+(6.14.0-63) **oopsed in five runs out of five** and wedged the guest twice;
+on the current F42 kernel (6.19.14-108) it reads cleanly. Decided
+(2026-09-01): `settle-in` uses ntfs-3g — see RISKS R19 for the full list of
+findings (the size-mismatch warning every shrunk volume produces, the FIFO
+trap, app-exec aliases, the live-app churn that fakes mismatches). Rows:
+`docs/validation-results/v3-bitlk-read.csv` (one per driver per kernel per
+config). All three configs fired: XTS-AES-128 used-space-only on the guest's own
+C:; XTS-AES-256 used-space-only and XTS-AES-128 "full" built in the
+product's order (encrypt, then shrink) on copies of the pristine disk and
+read from the same installed Fedora as data disks — corpus 2,850/2,850
+byte-identical under every driver on the current kernel for all three, and
+every `Users` file identical except what Windows itself rewrote after the
+hash (the XTS-256 run's first rows say `mismatch` for one 330-byte crypt32
+URL-cache metadata entry that both Linux drivers read identically; the
+classifier learned that cache and the later rows for the same run supersede
+them — both stay in the CSV). Remaining, and no VM row closes it: real
+disks, Windows 11's BitLocker, physical machines — and "full-disk" as a real
+disk experiences it (the rig's thin VHDX never had its free space
+rewritten).
+
+**How to run.** `rig/hyperv/v3.sh run <config>` on a guest with the
+Fedora-side run hook installed (`guest/v3-bootstrap.sh`, once, from the
+console): builds the OEMDRV transport carrying the reader and the recovery
+password, boots Windows through GRUB, plants and hashes (`guest/v3-plant.ps1`)
+with a full shutdown, boots Fedora, unlocks/mounts/re-hashes
+(`guest/v3-read.sh`, three driver passes), and `v3-verdict.py` writes the
+rows. Other configs are built with `guest/v3-encrypt.ps1` on a copy of the
+pristine disk in a throwaway VM (`v3.sh mkvm`), then read as a data disk.
+
 ## V4 — Real disks can actually shrink · kills: whether the default even applies · RISKS R18
 
 Keep-Windows is the **default** and needs shrinkable space ≥ ~20 GB + user
