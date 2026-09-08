@@ -84,9 +84,12 @@ method in `docs/VALIDATION.md`; the killers, in order:
 **Tier 1 — no product if these fail:**
 - **V0 / R15 — the boot handoff fires.** Walk-away rests entirely on `bcdedit`
   `{fwbootmgr} bootsequence` booting the stick exactly once and failing safe to
-  Windows otherwise. Tested on zero machines. Harness is built:
-  `upgrade_/windows/Test-Handoff.ps1` (arm → reboot → check). Needs a throwaway
-  VM and then a physical vendor matrix.
+  Windows otherwise. **First physical row fired 2026-09-08** — Acer Aspire
+  A515-51G, Secure Boot **on**, signed payload, `fired-once`, no keypress, via
+  the one-click `-Auto` flow (harness `upgrade_/windows/Test-Handoff.ps1`,
+  stick built by `./make-kit.sh`). One vendor is not the matrix: **≥3 more
+  vendors** (Dell, Lenovo, HP) still owed, plus the fail-safe rows on real
+  firmware.
 - **V1b / R21 — installing alongside a shrunk Windows leaves Windows bootable.** The
   default path keeps Windows as the safety net; if the alongside install breaks
   Windows boot (shared ESP too small, `bootmgfw.efi` clobbered, `os-prober`

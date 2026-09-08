@@ -152,7 +152,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$HarnessVersion = '0.3.0'
+$HarnessVersion = '0.3.1'
 
 # The marker the Shell payload writes to the root of the stick. Keep in sync
 # with handoff-payload\startup.nsh.
@@ -652,7 +652,15 @@ function Invoke-Check {
     $csv = Resolve-ResultsCsv -State $state
     $dir = Split-Path $csv -Parent
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    if (-not (Test-Path $csv)) { $CsvHeader | Out-File $csv -Encoding UTF8 }
+    # Write the header as UTF-8 WITHOUT a byte-order mark. PS 5.1's
+    # `Out-File -Encoding UTF8` emits a BOM, which lands in front of the
+    # first column name of a CSV the harness creates fresh on a stick - and
+    # then every naive parser reads that column as "\ufefftimestamp". The
+    # data rows never carry one, so a BOM'd header is a transport trap;
+    # docs/validation-results/README.md says append data rows only.
+    if (-not (Test-Path $csv)) {
+        [IO.File]::WriteAllText($csv, $CsvHeader + "`r`n", (New-Object Text.UTF8Encoding($false)))
+    }
 
     function Esc { param($v) '"' + (($v -as [string]) -replace '"', '""') + '"' }
     $row = @(
@@ -748,6 +756,19 @@ function Invoke-SelfTest {
         @{ Name = 'stick: a matching volume with no letter does not count'
            Run = { $x = Find-StickRoot -UniqueId 'ID-STICK' -Volumes @([pscustomobject]@{ DriveLetter = $null; UniqueId = 'ID-STICK' }); if ($null -eq $x) { 'null' } else { $x } }; Expect = 'null' }
         # drive-letter parsing feeding the bcdedit device line
+        # the CSV the harness creates on a stick must not carry a BOM
+        @{ Name = 'csv: a freshly created header has no byte-order mark'
+           Run = { $f = [IO.Path]::GetTempFileName(); Remove-Item $f -Force
+                   [IO.File]::WriteAllText($f, $CsvHeader + "`r`n", (New-Object Text.UTF8Encoding($false)))
+                   $b = [IO.File]::ReadAllBytes($f); Remove-Item $f -Force -ErrorAction SilentlyContinue
+                   if ($b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF) { 'bom' } else { 'no-bom' } }
+           Expect = 'no-bom' }
+        @{ Name = 'csv: the created header matches the column list exactly'
+           Run = { $f = [IO.Path]::GetTempFileName(); Remove-Item $f -Force
+                   [IO.File]::WriteAllText($f, $CsvHeader + "`r`n", (New-Object Text.UTF8Encoding($false)))
+                   $h = (Get-Content $f -TotalCount 1); Remove-Item $f -Force -ErrorAction SilentlyContinue
+                   if ($h -eq $CsvHeader) { 'ok' } else { "differs: $h" } }
+           Expect = 'ok' }
         @{ Name = 'drive: E: normalizes to E:\'
            Run = { Get-DriveRoot 'E:' }; Expect = 'E:\' }
         @{ Name = 'drive: lowercase e normalizes to E:\'

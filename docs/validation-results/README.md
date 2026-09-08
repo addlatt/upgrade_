@@ -51,9 +51,24 @@ running the harness.
   prologue suspends regardless — cautious default.)
 - Every physical machine (≥3 vendors beyond the G16): `fired-once`, or a
   *detectable* safe failure. Physical rows are written by the harness to the
-  stick's own `v0-handoff.csv` (`CHECK-HANDOFF.cmd`) and transported
-  verbatim; the machine's `-DumpMachine` capture from the same run is
-  curated into `evaluate/windows/corpus/`.
+  stick's own `v0-handoff.csv` (`RUN-TEST.cmd`'s `-Auto` return check, or
+  `CHECK-HANDOFF.cmd`) and transported verbatim; the machine's
+  `-DumpMachine` capture from the same run is curated into
+  `evaluate/windows/corpus/`.
+
+**Progress (2026-09-08): 1 of ≥4 physical machines.** Acer Aspire A515-51G,
+Secure Boot on, signed payload, `fired-once` with no keypress, through the
+one-click `-Auto` flow — the project's first physical evidence on any gate
+(RISKS R15). Owed: three more vendors, the fail-safe rows on real firmware,
+and any physical machine with BitLocker on.
+
+**Transporting a physical row — the procedure.** Append the stick's data
+rows to this repo's CSV; never retype or edit them, and never copy the
+stick's *header* line. A CSV the harness creates fresh on a stick is written
+by PowerShell 5.1 `Out-File -Encoding UTF8`, which prefixes the header with a
+UTF-8 **byte-order mark**; the repo's file has none, and the data rows never
+do. `tail -n +2 <stick.csv> >> v0-handoff.csv` is the whole operation. Check
+that the two headers otherwise match, column for column, before appending.
 
 Any `persisted` or `reordered` on real hardware does not fail the project — it
 adds a required step to the shipping prologue. Record it and note the machine.

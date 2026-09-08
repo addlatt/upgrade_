@@ -54,9 +54,23 @@ refuses shim at the firmware). Remaining: the physical vendor matrix — the
 removable-USB clause no VM has, and whether any vendor firmware measures the
 one-shot into a sealed PCR. A VM pass narrows V0, it does not close it.
 
+**PHYSICAL LEG OPENED — the first real machine fired (2026-09-08).** Acer
+Aspire A515-51G, firmware V1.21, **Secure Boot on**, BitLocker off, Windows
+11 Home 22631: the signed shim payload one-time-booted, recorded itself into
+`grubenv`, the one-shot self-cleared, the boot order was intact and Windows
+returned **with no keypress** — `fired-once`, `keypress_free=y`. It ran
+through the one-click `-Auto` flow end to end (`RUN-TEST.cmd`: one
+double-click, one UAC consent, then the machine did the rest, including the
+return check that classified and cleaned up after the reboot). Row in
+`v0-handoff.csv`, `mode=auto`. This is the project's **first evidence from
+physical hardware** on any gate, and it is the removable-USB clause no VM
+could reach. It does not close V0: one vendor is not a matrix, and the
+fail-safe rows (`NoFile`, `SecureBootUnsigned`) have still never run on real
+firmware.
+
 The entire walk-away promise rests on `bcdedit /set {fwbootmgr} bootsequence`
 booting a USB stick exactly once, on firmware from vendors who have never
-heard of us. Evidence today: zero machines.
+heard of us. Evidence before 2026-09-08: zero machines.
 
 **Experiment.** Week one in a VM: OVMF UEFI, Windows guest, attach a stick
 image as USB, run the four bcdedit commands, reboot. Then the physical

@@ -372,9 +372,10 @@ redesign retires the imaging risks and creates these.
 ## R15 — One-time UEFI boot handoff has never fired · critical · open (VM leg fired 2026-08-23)
 
 **What.** Walk-away rests entirely on `bcdedit /set {fwbootmgr} bootsequence`
-booting the stick exactly once. It has been tested on zero machines. Vendor
-firmware is creative about removable-media entries: some ignore
-`bootsequence` for USB devices, some re-enumerate and orphan the entry.
+booting the stick exactly once. Vendor firmware is creative about
+removable-media entries: some ignore `bootsequence` for USB devices, some
+re-enumerate and orphan the entry. Untested on any physical machine until
+2026-09-08, when the first one fired (below).
 
 **If real.** Benign but total: the machine boots Windows, the user concludes
 the tool did nothing. The product's core mechanism silently doesn't exist on
@@ -497,6 +498,60 @@ exists) — neither touches the product's signed one-click path. Six new
 self-test cases pin the payload-path and stick-relocation logic (the stick
 can return under a different drive letter; the check finds it by volume id).
 Plumbing only until a physical machine runs it.
+
+**FIRST PHYSICAL MACHINE — fired 2026-09-08.** Acer Aspire A515-51G
+(i7-8550U, firmware **V1.21**, Windows 11 Home 22631, **Secure Boot on**,
+BitLocker off, dual SSD+HDD, Intel RST software on an AHCI-mode
+controller). Run through the one-click flow exactly as a non-technical
+person would: plug in the stick built by `./make-kit.sh`, double-click
+`RUN-TEST.cmd`, one UAC consent, walk away. Result: **`fired-once`,
+`keypress_free=y`, `windows_returned=y`, `mode=auto`, `fired-via=grubenv`.**
+
+What that row actually establishes, and what it does not:
+
+- **The mechanism works on real vendor firmware.** `bcdedit {fwbootmgr}
+  bootsequence` one-time-booted a **real removable USB stick** — the clause
+  no VM leg could reach (Hyper-V Gen 2 has no USB emulation; the QEMU rig's
+  `usb-storage` is still an emulation). Acer's firmware honoured the
+  one-shot, consumed it, and left the boot order intact.
+- **Secure Boot enforcing, signed payload, no MOK games.** This firmware's
+  db holds both CAs (unlike Hyper-V's mutually-exclusive templates), so
+  shim → GRUB ran verified with nothing enrolled by us. The signed chain is
+  the product's path, and it is the one that ran.
+- **The whole managed flow held on hardware**: the elevated logon task
+  survived the reboot, ran the return check by itself, classified from the
+  `grubenv` marker the payload wrote to the FAT stick, removed its own task
+  and the test boot entry, and wrote the row to the stick. No console, no
+  second UAC, no drive letter typed.
+- **The user's own words for the boot:** it "restarted without any button
+  clicks in the boot loader." Signing back into Windows afterwards is
+  normal and is not what `keypress_free` measures.
+- **What it does NOT establish:** one vendor is not the matrix (**≥3 more**
+  — Dell, Lenovo, HP — still owed); the **fail-safe rows have never run on
+  real firmware** (`NoFile`, and `SecureBootUnsigned`, which needs the
+  unsigned Shell payload with Secure Boot on); and **no physical BitLocker
+  row exists** — this machine has BitLocker off, so whether any vendor
+  firmware measures the attempted one-shot into a sealed PCR is still
+  entirely open. The prologue keeps suspending regardless.
+
+Two incidental firsts from the same run, both on real hardware: the
+scanner's **ESP gate** (R21 item 4) fired for the first time outside a VM —
+`Boot partition (ESP): 44 MiB free; Windows boots from it`, comfortably over
+the 32 MiB threshold; and `Get-BitLockerVolume` **worked on a Home edition**
+(`bitlocker-via=cmdlet`), so the `manage-bde` fallback built in 0.2.0 was
+not needed here. That is one machine, not a refutation of the concern — the
+fallback stays, and a Home machine with Device Encryption *on* is still the
+case that would exercise it.
+
+**Fixed straight after (harness 0.3.1, 2026-09-08):** a CSV the harness
+creates *fresh on a stick* carried a UTF-8 byte-order mark in front of its
+header's first column name (PS 5.1's `Out-File -Encoding UTF8`), so a naive
+parser reads that column as `\ufefftimestamp`. Data rows never carried one
+and the transported row was unaffected, but this is shipping code — the
+prologue writes to the stick too — so the header is now written with an
+explicit no-BOM encoder, pinned by two self-test cases. The transport
+procedure (append data rows only, never the stick's header) is written down
+in `validation-results/README.md`.
 
 Also recorded: the harness prefixes each row's notes with the OS edition,
 the BitLocker source and the marker source, and the one-click launchers pass
