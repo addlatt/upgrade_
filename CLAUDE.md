@@ -99,7 +99,13 @@ method in `docs/VALIDATION.md`; the killers, in order:
 **Tier 2 — a core promise breaks (recoverable, but the default is broken):**
 - **V4 / R18 — real disks can shrink enough.** Keep-Windows is the default and
   requires shrinkable space; if most disks can't free ~20 GB past immovable
-  files, the default rarely applies. Scanner now measures it (elevated only).
+  files, the default rarely applies. Scanner measures it (elevated only) by two
+  independent read-only paths. **First physical machine (2026-09-08) could not
+  be measured at all: its C: carried NTFS's dirty flag**, which Windows refuses
+  to shrink past — the scanner's new `Volume health` check now names that
+  directly. Clearing it inside the one-click preflight (Windows' own `chkdsk`
+  at the restart it already does) is **owed code awaiting a maintainer
+  decision** — it would be the first step that modifies the internal disk.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path
   delivers files: mount the kept Windows from installed Linux, unlock with the
   harvested key, copy. Bench-testable in VMs across BitLocker variants.
