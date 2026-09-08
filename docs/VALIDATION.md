@@ -463,6 +463,14 @@ Real, but they degrade rather than kill, or only touch the fallback path:
 | V6 | nothing — start the clock now; blocks only the eventual release |
 | V7 | table confidence; multi-distro ambitions |
 
+**Decided (2026-09-08):** the dependency map is now executed as a single
+front-to-back, one-click **vertical** — reversible half first (schemas → V8
+materialization → stick writer → live image → hardware verify → back to
+Windows), destructive half second — built on the Hyper-V rig, then an owned
+physical machine, never a borrowed one; borrowed vendors are half-hour
+read-only visits that fill a whole column of the matrix. The reasoning and
+the split live in `architecture.md`, "Build order".
+
 V5 and V6 start immediately because they cost an afternoon and a calendar
 respectively. V0 + V1 + V1b are the spine spike — one VM build-order item,
 now including the alongside install that keeps Windows bootable. V3 and V8 are

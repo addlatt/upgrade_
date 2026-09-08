@@ -124,6 +124,16 @@ V7 (scanner generalizes past the one test machine — ship it, collect reports).
 Start V5 and V6 immediately (cheap / calendar-bound). V0+R21 are the spine
 spike and block everything in `upgrade_/` and `settle-in/`.
 
+**Decided (2026-09-08): the build is a vertical, not a list.** One
+front-to-back, one-click flow, reversible half first (schemas → OneDrive
+materialization → stick writer → live image → hardware verify → back to
+Windows, no commit line crossed), destructive half second. Trailblazed on
+the rig, then on a machine we own and can image; a borrowed machine is only
+ever a half-hour read-only visit that fills a column of the matrix. Full
+statement in `docs/architecture.md`, "Build order". The user-facing
+principle behind it: **a fully managed experience** — one click, one
+consent, walk away.
+
 ## How the design works (one paragraph)
 
 Three modules, split on **commitment**, not OS. `evaluate` (Windows, read-only)

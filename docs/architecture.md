@@ -686,3 +686,50 @@ would blur them.
    here, not in cutover), and reclaim
 7. Shrink, boot handoff hardening, boot-entry rollback — **reviewed
    hardest.** The components that write to the internal disk.
+
+**Decided (2026-09-08): build a vertical, then the matrix.** The list above
+is by component. Every gate so far tests one component in isolation, and
+the failures that end a product like this live *between* components — the
+folder map the Linux side cannot parse, the checksum taken before OneDrive
+finished materializing, the stick that verifies on the authoring machine and
+not on the target. So the order is now executed as one **front-to-back,
+one-click vertical**, split at the commit line:
+
+- **Reversible half first** — plug in, one double-click, one UAC consent,
+  walk away, come back to a verdict with Windows untouched: schemas
+  (step 1) → `evaluate`'s harvest completed **including OneDrive
+  materialization** (V8 — silent data loss, no harness today, and
+  everything downstream touches files; it was missing from the list above)
+  → the **stick writer** (R16; deliberately the first real writer, because
+  it writes to a stick and not the internal disk, and must refuse anything
+  not removable, not the expected size, or not the device pointed at) →
+  live image + kickstart generator (steps 3–4) booted through the handoff →
+  automated hardware verification in the live session → a clean reboot
+  back to Windows with the report on the stick. This proves V1 (unattended
+  boot to a working desktop — untested anywhere today) and crosses no
+  commit line.
+- **Destructive half second**: shrink, the ESP `EFI/Boot` snapshot and
+  restore (does not exist yet — every V1b row still reads
+  `fallback-loader-replaced` for that reason), the alongside install, the
+  boot-chain verification, the settle-in pull, the reclaim offer.
+
+**Where it is built**: the Hyper-V rig first (disposable, restorable from a
+VHDX in a minute — where a first vertical gets broken and restarted twenty
+times), then the ASUS G16 / Acer Aspire as the first physical vertical. **A
+borrowed machine is never the trailblazer**: it gives one attempt, no
+baseline image, and someone's data. A borrowed Dell/Lenovo/HP is a 30-minute
+read-only visit — a V0 vendor row, and on a recent Intel machine the first
+real firing of the RST/VMD check (V5). **Then the matrix builds itself**:
+once the vertical is one script writing an evidence row per stage, a new
+vendor is the same half-hour visit filling a whole column (scan, harvest,
+author, handoff, live boot, hardware verify) instead of one V0 row — a grid
+of vendors × stages, strictly more informative for the same cost.
+
+One precondition surfaced by the first physical machine belongs to the
+reversible half and is **owed, pending a maintainer decision**: the Acer's
+C: carried NTFS's dirty flag and Windows refused to measure shrink until a
+disk check ran (RISKS R18). The one-click preflight already owns a restart;
+scheduling Windows' own `chkdsk` there and re-measuring on return is the
+managed-experience answer, and it is also the first step that would modify
+the internal disk — so it is decided explicitly, disclosed on the arm
+screen, and recorded in the row, not slipped into a preflight.
