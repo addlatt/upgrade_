@@ -615,6 +615,34 @@ keep Windows`. Two constraints found on real hardware, both recorded here:
    reboot) would raise it; the scanner reports the pre-mitigation floor and
    should say so.
 
+**A guess of our own caught and removed (2026-09-08).** When
+`Get-PartitionSupportedSize` failed, the scanner swallowed the exception in
+an empty `catch` and then printed a *cause* — "Fast Startup or a dirty
+volume can cause this" — that nothing had established. It was a plausible
+guess dressed as a finding, and **our own rig contradicts it**: both rig
+guests ran with Fast Startup **on** (`HiberbootEnabled=1`, recorded in the
+V3 rows) and the same cmdlet measured shrinkable space fine (50.3 GB and
+58.2 GB, in `v1b-alongside.csv`). The Acer Aspire A515-51G reported "could
+not measure" on both of its scans and we do not know why, because the
+reason was thrown away before it reached the report. Rule #2 applies to our
+own claims; this one would have sent a person to change a power setting
+that was never shown to be the problem.
+
+Fixed in the scanner: the collection half now keeps the exception text and
+which call raised it; the judgment half prints *what Windows said* and
+explicitly declines to name a cause; two self-test cases pin that the text
+carries Windows' reason and never mentions Fast Startup. **And a second,
+independent, read-only measurement was added:** `diskpart` `shrink
+querymax` — the Virtual Disk Service path Disk Management itself uses,
+separate from the Storage Management API path the cmdlet takes — runs when
+the first path refuses (elevated only, 60 s hard timeout, output parsed
+against a line captured verbatim on the rig: `The maximum number of
+reclaimable bytes is:   17 GB (17417 MB)`). A number from that path is
+labelled `via diskpart` and still carries the first path's refusal, so a
+returned report says both what worked and what did not. Whether it succeeds
+where the cmdlet fails on the Aspire is the next scan's question, not a
+claim.
+
 **If real.** The safety-copy path is offered to machines that cannot deliver
 it; the prologue fails late, after intent capture and hard confirmation —
 recoverable, but exactly the walk-away-killing stop the design forbids.

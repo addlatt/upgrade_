@@ -316,6 +316,17 @@ Administrator (RISKS R18) — so only elevated runs carry a number. Filter the
 JSON corpus on `RanAsAdmin=true` before judging, and note the sample will skew
 toward users willing to elevate.
 
+*Measurement hardened (2026-09-08):* the first physical machine (Acer
+Aspire A515-51G) returned "could not measure" on two elevated scans, and
+the scanner had been discarding the reason and printing a guessed cause
+(Fast Startup) that the rig contradicts — see RISKS R18. The scanner now
+keeps Windows' own error text, refuses to name a cause, and tries a second
+read-only path (`diskpart shrink querymax`, VDS) when the Storage API path
+refuses, labelling the source in the report. V4's population count therefore
+needs the `ShrinkSource` field read alongside the number: `storage-api` and
+`diskpart` measure the same thing by different services and should agree,
+and any machine where they disagree is a finding in its own right.
+
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.
 

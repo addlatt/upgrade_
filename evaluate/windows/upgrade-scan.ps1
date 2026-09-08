@@ -319,6 +319,51 @@ AHCI - but then Windows will not boot, so there is no going back.
         -Detail 'standard AHCI / NVMe - visible to Linux installers'
 }
 
+function ConvertFrom-UpgDiskpartQueryMax {
+    # Pure parse of `diskpart` `shrink querymax` output -> shrinkable GB, or
+    # $null. The real line, captured on the rig 2026-09-08 (Windows 10
+    # 19041.3636, English):
+    #   The maximum number of reclaimable bytes is:   17 GB (17417 MB)
+    # The MB figure is the precise one; the GB is rounded. No byte count is
+    # printed. Localized Windows prints something else entirely -> $null,
+    # which the caller reports as "could not measure" rather than guessing.
+    param([string[]]$Lines)
+    $text = (@($Lines) -join "`n")
+    if ($text -match '(?im)reclaimable bytes is:\s*[\d.,]+\s*[KMGT]?B\s*\(\s*([\d,]+)\s*MB\s*\)') {
+        return [math]::Round(([double]($matches[1] -replace ',', '')) / 1024, 1)
+    }
+    if ($text -match '(?im)reclaimable bytes is:\s*([\d,]+)\s*MB\b') {
+        return [math]::Round(([double]($matches[1] -replace ',', '')) / 1024, 1)
+    }
+    $null
+}
+
+function Invoke-UpgDiskpartQueryMax {
+    # Live half: run diskpart's read-only shrink query with a hard timeout.
+    # `shrink querymax` only reports; it does not shrink (Microsoft: "Returns
+    # the maximum number of bytes by which the volume can be reduced"). It is
+    # the Virtual Disk Service path - what Disk Management uses - and is
+    # independent of the Storage Management (WMI) path Get-PartitionSupportedSize
+    # takes, so it can succeed where that one refuses. Returns the raw output
+    # lines, or a one-line error string prefixed 'diskpart:'.
+    $script = [IO.Path]::GetTempFileName()
+    $out    = [IO.Path]::GetTempFileName()
+    try {
+        "select volume C`r`nshrink querymax`r`n" | Set-Content -Path $script -Encoding ASCII
+        $p = Start-Process -FilePath 'diskpart.exe' -ArgumentList "/s `"$script`"" `
+                -RedirectStandardOutput $out -WindowStyle Hidden -PassThru
+        if (-not $p.WaitForExit(60000)) {
+            try { $p.Kill() } catch { }
+            return @('diskpart: timed out after 60 s')
+        }
+        return @(Get-Content -Path $out -ErrorAction SilentlyContinue)
+    } catch {
+        return @("diskpart: $($_.Exception.Message)")
+    } finally {
+        Remove-Item $script, $out -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Get-UpgDiskFacts {
     # Collection half of the disk check: everything read from the live OS,
     # gathered into one object so the judgment half is testable without it.
@@ -341,17 +386,50 @@ function Get-UpgDiskFacts {
     # Shrinkable space is the gate for keeping Windows as a fallback, and the
     # same query Disk Management uses. Measuring it on every scan also closes
     # the scanner half of RISKS R18 and feeds the V4 validation gate.
+    # When this query fails we must keep WHY. An empty catch here used to
+    # discard it, and the report then offered a guessed cause ("Fast Startup
+    # or a dirty volume") that our own rig contradicts: both rig guests had
+    # Fast Startup ON (HiberbootEnabled=1) and measured shrinkable space
+    # fine. Guessing a cause sends someone to change a setting that was
+    # never the problem - CLAUDE.md rule #2 applies to our own claims.
     $shrinkGB = $null
+    $shrinkError = $null
+    $shrinkFailedAt = $null
     try {
+        $shrinkFailedAt = 'Get-Partition'
         $part = Get-Partition -DriveLetter C -ErrorAction Stop
+        $shrinkFailedAt = 'Get-PartitionSupportedSize'
         $supported = Get-PartitionSupportedSize -DriveLetter C -ErrorAction Stop
         $shrinkGB = [math]::Round(($part.Size - $supported.SizeMin) / 1GB, 1)
-    } catch { }
+        $shrinkFailedAt = $null
+    } catch {
+        $shrinkError = ($_.Exception.Message -replace '\s+', ' ').Trim()
+    }
+
+    # Second, independent read-only measurement when the first refuses:
+    # diskpart's `shrink querymax` (VDS - Disk Management's own path). Only
+    # when elevated; diskpart needs it, and unelevated runs stay fast.
+    $shrinkSource = if ($null -ne $shrinkGB) { 'storage-api' } else { $null }
+    $diskpartError = $null
+    if ($null -eq $shrinkGB -and (Test-UpgAdmin)) {
+        $dp = Invoke-UpgDiskpartQueryMax
+        $parsed = ConvertFrom-UpgDiskpartQueryMax -Lines $dp
+        if ($null -ne $parsed) {
+            $shrinkGB = $parsed
+            $shrinkSource = 'diskpart'
+        } else {
+            $diskpartError = (@($dp | Where-Object { $_ -match '\S' } | Select-Object -Last 2) -join ' | ')
+        }
+    }
 
     [pscustomobject]@{
         Disks          = $disks
         SysVolume      = $sysVolume
         ShrinkGB       = $shrinkGB
+        ShrinkSource   = $shrinkSource
+        ShrinkError    = $shrinkError
+        ShrinkFailedAt = $shrinkFailedAt
+        DiskpartError  = $diskpartError
         Disk0PartCount = @(Get-Partition -DiskNumber 0 -ErrorAction SilentlyContinue).Count
     }
 }
@@ -384,14 +462,23 @@ function Test-UpgDisk {
     $shrinkGB = $Facts.ShrinkGB
     if ($null -ne $shrinkGB) {
         # ~20 GB for Fedora itself, plus room for your files to stay in place.
+        # When the number came from diskpart, say so, and carry the reason the
+        # first path refused - that reason is the useful part of a returned
+        # report even when the second path made the number appear.
+        $via = ''
+        if ($Facts.ShrinkSource -eq 'diskpart') {
+            $via = ' (measured via diskpart'
+            if ($Facts.ShrinkError) { $via += "; the Storage API path said: $($Facts.ShrinkError)" }
+            $via += ')'
+        }
         if ($shrinkGB -lt 25) {
             New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'warn' `
-                -Detail "$shrinkGB GB can be freed by shrinking" `
+                -Detail "$shrinkGB GB can be freed by shrinking$via" `
                 -Note 'Too little room to install Linux while keeping Windows as a fallback. This machine can still convert - your files travel on the USB stick (the clean-slate path) - but there is no space to keep a safety copy of Windows on the internal disk.' `
                 -Remedy 'Emptying the Recycle Bin, clearing Downloads, and removing large unused programs raises this number. No external drive is needed either way.'
         } else {
             New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'ok' `
-                -Detail "$shrinkGB GB can be freed by shrinking" `
+                -Detail "$shrinkGB GB can be freed by shrinking$via" `
                 -Note 'Enough room to install Linux while keeping Windows shrunk aside as a fallback, until you confirm everything works and reclaim the space.'
         }
     } elseif (-not $IsAdmin) {
@@ -400,9 +487,22 @@ function Test-UpgDisk {
             -Note 'Measuring how far the disk can shrink needs Administrator rights. Without it, we cannot yet tell you whether Windows can be kept as a fallback - the clean-slate path (files on the USB stick) still works regardless.' `
             -Remedy 'Re-run this scanner as Administrator to get this number.'
     } else {
+        # Report what Windows actually said. We deliberately do NOT name a
+        # cause: the obvious suspect (Fast Startup) is contradicted by our
+        # own evidence - see Get-UpgDiskFacts. An unexplained failure is
+        # reported as unexplained, and the reason is carried verbatim so a
+        # returned report tells us the truth instead of our guess.
+        $why = if ($Facts.ShrinkError) {
+            "Windows reported: $($Facts.ShrinkError)"
+        } else {
+            'Windows returned no value and no error.'
+        }
+        $at = if ($Facts.ShrinkFailedAt) { " (failed at $($Facts.ShrinkFailedAt))" } else { '' }
+        if ($Facts.DiskpartError) { $at += " diskpart's shrink querymax also gave nothing usable: $($Facts.DiskpartError)." }
         New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'info' `
             -Detail 'could not measure shrinkable space' `
-            -Note 'Windows did not report how far its partition can shrink; Fast Startup or a dirty volume can cause this even with Administrator rights. The converter re-checks before doing anything.'
+            -Note "$why$at We do not yet know why this happens on some machines, so we are not going to guess - the converter measures again before it does anything, and keeping Windows is only offered if the number is there. The clean-slate path (your files on the USB stick) does not depend on this." `
+            -Remedy 'If you are reporting this machine to the project, include this line - the exact wording above is the useful part.'
     }
 
     $partCount = $Facts.Disk0PartCount
@@ -1250,6 +1350,53 @@ function Invoke-UpgSelfTest {
                      SysVolume = [pscustomobject]@{ Size=(500*$gb); SizeRemaining=(200*$gb) }
                      ShrinkGB = $null; Disk0PartCount = 4 }) }
            Expect = @{ 'Room to keep Windows' = 'info' } }
+        @{ Name = 'diskpart: the real querymax line parses to the MB figure (17417 MB -> 17.0 GB)'
+           Run = { $v = ConvertFrom-UpgDiskpartQueryMax -Lines @('Microsoft DiskPart version 10.0.19041.3636', '', 'Copyright (C) Microsoft Corporation.', 'On computer: UPGRIG', '', 'DISKPART> ', 'Volume 0 is the selected volume.', '', 'DISKPART> ', 'The maximum number of reclaimable bytes is:   17 GB (17417 MB)', '', 'DISKPART> ')
+                   New-UpgCheck -Section 'Test' -Title 'parse' -Status $(if ($v -eq 17.0) { 'ok' } else { 'fail' }) -Detail "$v" }
+           Expect = @{ 'parse' = 'ok' } }
+        @{ Name = 'diskpart: thousands separators in the MB figure are handled (1,234,567 MB)'
+           Run = { $v = ConvertFrom-UpgDiskpartQueryMax -Lines @('The maximum number of reclaimable bytes is:   1205 GB (1,234,567 MB)')
+                   New-UpgCheck -Section 'Test' -Title 'parse' -Status $(if ($v -eq 1205.6) { 'ok' } else { 'fail' }) -Detail "$v" }
+           Expect = @{ 'parse' = 'ok' } }
+        @{ Name = 'diskpart: an error or localized output parses to null, never a number'
+           Run = { $a = ConvertFrom-UpgDiskpartQueryMax -Lines @('DiskPart has encountered an error: Access is denied.')
+                   $b = ConvertFrom-UpgDiskpartQueryMax -Lines @('Die maximale Anzahl der freigebbaren Bytes ist:   17 GB (17417 MB)')
+                   $c = ConvertFrom-UpgDiskpartQueryMax -Lines @()
+                   New-UpgCheck -Section 'Test' -Title 'parse' -Status $(if ($null -eq $a -and $null -eq $b -and $null -eq $c) { 'ok' } else { 'fail' }) -Detail "$a/$b/$c" }
+           Expect = @{ 'parse' = 'ok' } }
+        @{ Name = 'seam: a diskpart-sourced number is labelled and keeps the Storage API reason'
+           Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test NVMe'; Size=(500*$gb); PartitionStyle='GPT'; BusType='NVMe' })
+                     SysVolume = [pscustomobject]@{ Size=(500*$gb); SizeRemaining=(200*$gb) }
+                     ShrinkGB = 60.0; ShrinkSource = 'diskpart'; ShrinkError = 'Not Supported'; ShrinkFailedAt = 'Get-PartitionSupportedSize'
+                     Disk0PartCount = 4 }) }
+           Expect = @{ 'Room to keep Windows' = 'ok' }
+           Match  = @{ 'Room to keep Windows' = 'via diskpart' } }
+        @{ Name = 'seam: both measurement paths failing carries both reasons'
+           Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test NVMe'; Size=(500*$gb); PartitionStyle='GPT'; BusType='NVMe' })
+                     SysVolume = [pscustomobject]@{ Size=(500*$gb); SizeRemaining=(200*$gb) }
+                     ShrinkGB = $null; ShrinkError = 'Not Supported'; ShrinkFailedAt = 'Get-PartitionSupportedSize'
+                     DiskpartError = 'DiskPart has encountered an error: The parameter is incorrect.'
+                     Disk0PartCount = 4 }) }
+           Expect = @{ 'Room to keep Windows' = 'info' }
+           Match  = @{ 'Room to keep Windows' = 'parameter is incorrect' } }
+        @{ Name = 'seam: an unmeasurable shrink carries Windows own reason, not a guess'
+           Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test NVMe'; Size=(500*$gb); PartitionStyle='GPT'; BusType='NVMe' })
+                     SysVolume = [pscustomobject]@{ Size=(500*$gb); SizeRemaining=(200*$gb) }
+                     ShrinkGB = $null; ShrinkError = 'Not Supported'; ShrinkFailedAt = 'Get-PartitionSupportedSize'
+                     Disk0PartCount = 4 }) }
+           Expect = @{ 'Room to keep Windows' = 'info' }
+           Match  = @{ 'Room to keep Windows' = 'Not Supported' } }
+        @{ Name = 'seam: an unmeasurable shrink never blames Fast Startup'
+           Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test NVMe'; Size=(500*$gb); PartitionStyle='GPT'; BusType='NVMe' })
+                     SysVolume = [pscustomobject]@{ Size=(500*$gb); SizeRemaining=(200*$gb) }
+                     ShrinkGB = $null; ShrinkError = 'Not Supported'; ShrinkFailedAt = 'Get-PartitionSupportedSize'
+                     Disk0PartCount = 4 }) }
+           Expect = @{ 'Room to keep Windows' = 'info' }
+           NotMatch = @{ 'Room to keep Windows' = 'Fast Startup' } }
         @{ Name = 'seam: unreadable C: is unknown and stops there'
            Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
                      Disks = @(); SysVolume = $null; ShrinkGB = $null; Disk0PartCount = 0 }) }
@@ -1331,6 +1478,22 @@ function Invoke-UpgSelfTest {
                       ForEach-Object { $_.Status }) | Sort-Object
             if (($want -join ',') -ne ($got -join ',')) {
                 $caseErrors += "'$k' was [$($got -join ',')], expected [$($want -join ',')]"
+            }
+        }
+        # Optional wording assertions: Match = a phrase the check's text MUST
+        # carry (e.g. the reason Windows gave), NotMatch = a phrase it must
+        # NOT carry (e.g. a cause we have no evidence for). Both search the
+        # check's Detail + Note + Remedy together.
+        foreach ($k in @($(if ($case.Match) { $case.Match.Keys }))) {
+            $text = @($script:Checks | Where-Object { $_.Title -eq $k } | ForEach-Object { "$($_.Detail) $($_.Note) $($_.Remedy)" }) -join ' '
+            if ($text -notmatch [regex]::Escape($case.Match[$k])) {
+                $caseErrors += "'$k' text lacks '$($case.Match[$k])'"
+            }
+        }
+        foreach ($k in @($(if ($case.NotMatch) { $case.NotMatch.Keys }))) {
+            $text = @($script:Checks | Where-Object { $_.Title -eq $k } | ForEach-Object { "$($_.Detail) $($_.Note) $($_.Remedy)" }) -join ' '
+            if ($text -match [regex]::Escape($case.NotMatch[$k])) {
+                $caseErrors += "'$k' text must not contain '$($case.NotMatch[$k])'"
             }
         }
         if ($caseErrors.Count -eq 0) {
