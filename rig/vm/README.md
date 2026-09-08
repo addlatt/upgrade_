@@ -155,6 +155,33 @@ Wedged run: state lives in `%ProgramData%\upgrade_\v0`
 (`handoff-state.json`, `bcd-backup.bin`); `-Check -RestoreBcd` is the
 recovery path.
 
+**Harness 0.2.0 rows — DONE 2026-09-07** (two more `fired-once` rows in
+`v0-handoff.csv`): the shim stick, now carrying the repo's `grub.cfg` +
+`grubenv` (`make-stick.sh` copies both), fired and self-recorded through
+`save_env` on the FAT stick; then the Shell stick as the 0.2.0 regression
+row. Both ran from the share (`-File \\10.0.2.4\qemu\upgrade_\windows\
+Test-Handoff.ps1`, `-ResultsCsv` pointing back into the repo), on the
+post-V1b dual-boot guest — Windows was first in `BootOrder` by then (R22:
+it re-registered `Boot0009` and took the order at some earlier servicing
+pass), so the return boot needed no GRUB pick.
+
+Two rig traps met on the way (both fixed in the tooling):
+
+- **Never start a second `run-vm.sh` while a guest runs.** The second
+  instance fails on the qcow2 write lock, but only *after* replacing
+  `artifacts/qmp.sock` with its own — the running guest's QMP socket is
+  orphaned and there is no way left to type, screenshot or ACPI-power it
+  off (it took a SIGTERM power-cut to recover; Windows came back fine).
+  `run-vm.sh` now refuses to start when a rig QEMU is already running.
+  Power off with `python3 artifacts/qmp.py powerdown` (ACPI), never by
+  typing `shutdown` into the guest.
+- **The QMP typist can leave Shift stuck.** A long free-text line typed
+  with `qmp.py type` came out with its tail upper-cased and punctuation
+  shifted (`;`→`:`, `-`→`_`), and the next typed command was garbage. The
+  harness-written fields of that row are intact and the row stays (rows
+  are never hand-edited); keep operator notes short and plain, and check
+  the screenshot before trusting the next typed line.
+
 ## VMD spoof session (V5 level 3)
 
 ```

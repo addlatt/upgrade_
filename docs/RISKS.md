@@ -464,8 +464,19 @@ the Acer Aspire A515-51G run, all fixed and pinned by the harness's new
    seeing the reboot and the harness then classified it `ignored`. Now
    `grub.cfg` does `save_env upg_fired` into a pre-created `EFI/BOOT/grubenv`
    on the stick and `-Check` reads it like `fired.txt`; `-Arm` resets the
-   block first. Plumbing only until a rig row shows `save_env` writing on
-   FAT under this GRUB build — see `v0-handoff.csv` for that row.
+   block first. **Fired on the QEMU rig the same day** (SB off, the only
+   mode that rig runs): the firmware started the entry, shim loaded the
+   install-media GRUB, `save_env` rewrote `grubenv` on the FAT stick
+   (`upg_fired=1` read back from Windows), the one-shot cleared, and
+   `-Check` classified `fired-once` via `grubenv` with no human field
+   load-bearing. GRUB printed a harmless `bli.c` partition-UUID error (MBR
+   stick) and shim a fallback-to-default-loader line; both are in the row.
+   Plumbing only: whether a *Secure-Boot-enforcing* firmware lets the same
+   `save_env` through is the physical shim row's job.
+
+The 0.2.0 baseline (Shell stick) was re-run on the same rig as a
+regression row: `fired-once` via `fired.txt`, so the harness changes did not
+disturb the path the earlier rows proved. Both rows are in `v0-handoff.csv`.
 
 Also recorded: the harness prefixes each row's notes with the OS edition,
 the BitLocker source and the marker source, and the one-click launchers pass

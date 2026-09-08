@@ -12,7 +12,8 @@
 # matrix. Built with parted + mkfs.fat --offset + mtools; no loop devices.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
-NSH=../../upgrade_/windows/handoff-payload/startup.nsh
+PAYLOAD=../../upgrade_/windows/handoff-payload
+NSH=$PAYLOAD/startup.nsh
 BITS=artifacts/payload-bits
 
 [ -f "$BITS/Shell.efi" ] || { echo "make-stick: run fetch-payload-bits.sh first" >&2; exit 1; }
@@ -33,8 +34,11 @@ build_stick() {  # $1 = output image, $2 = variant: shell|shim
         [ -f "$BITS/shimx64.efi" ] || { echo "make-stick: shim bits missing - run fetch-payload-bits.sh" >&2; exit 1; }
         mcopy -i "$P" "$BITS/shimx64.efi" ::/EFI/BOOT/BOOTX64.EFI
         mcopy -i "$P" "$BITS/grubx64.efi" ::/EFI/BOOT/grubx64.efi
-        printf 'reboot\n' > "$BITS/grub.cfg"
-        mcopy -i "$P" "$BITS/grub.cfg" ::/EFI/BOOT/grub.cfg
+        # the repo's canonical grub.cfg (save_env upg_fired; reboot) and the
+        # clean 1024-byte grubenv block it writes into - same files make-kit.sh
+        # ships, so the VM leg exercises the physical stick's exact payload
+        mcopy -i "$P" "$PAYLOAD/grub.cfg" ::/EFI/BOOT/grub.cfg
+        mcopy -i "$P" "$PAYLOAD/grubenv" ::/EFI/BOOT/grubenv
     fi
     echo "make-stick: built $img ($variant)"
 }

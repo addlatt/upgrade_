@@ -36,6 +36,17 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
+# Refuse to start over a running guest. A second instance fails on the qcow2
+# write lock but only AFTER it has replaced artifacts/qmp.sock with its own,
+# which orphans the first instance's QMP socket - no more keys, screenshots
+# or ACPI powerdown for the guest that is still running (2026-09-07: it took
+# a SIGTERM power-cut to get it back). Power the guest off first:
+#   python3 artifacts/qmp.py powerdown     (ACPI; Windows shuts down cleanly)
+if pgrep -f '^(artifacts/qemu-8.2.2/build/)?qemu-system-x86_64 -machine' >/dev/null; then
+    echo "run-vm: a rig guest is already running - power it off first (artifacts/qmp.py powerdown)" >&2
+    exit 1
+fi
+
 SB=off STICK=none TPM=0 SMB=0 VMD=0 RESET=0 OEMDRV=0 CDROM=
 while [ $# -gt 0 ]; do
     case "$1" in
