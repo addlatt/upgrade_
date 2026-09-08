@@ -478,6 +478,26 @@ The 0.2.0 baseline (Shell stick) was re-run on the same rig as a
 regression row: `fired-once` via `fired.txt`, so the harness changes did not
 disturb the path the earlier rows proved. Both rows are in `v0-handoff.csv`.
 
+**Harness 0.3.0 — the one-click (fully managed) flow, VM leg fired
+2026-09-07.** The user philosophy is a managed experience: plug in, one
+double-click, one "Yes", walk away. 0.3.0 makes the handoff test that:
+`-Arm -Auto` registers a one-shot **elevated logon task** and reboots; on
+return the task **runs `-Check` itself** — classifies, removes its own task
+and the boot entry, asks the single human fact (was a key needed?) in a popup
+that **times out to `unknown`**, and writes the row to the stick. This is the
+prologue's own walk-away-and-clean-up-on-return shape, built here first
+(rule #4: the writers come later, but this reversible boot-config piece is
+theirs). One stick now carries both payloads (`EFI/BOOT` signed shim,
+`EFI/SHELL` unsigned shell) so nothing is re-flashed between rows. Fired on
+the QEMU rig: `fired-once`, `mode=auto`, unattended, the popup timing out to
+`unknown` — the correct behaviour when no one answers. The only human steps
+a machine cannot remove: the one UAC "Yes" (never bypassed) and, for the
+*unsigned* matrix rows only, toggling Secure Boot in firmware (no API
+exists) — neither touches the product's signed one-click path. Six new
+self-test cases pin the payload-path and stick-relocation logic (the stick
+can return under a different drive letter; the check finds it by volume id).
+Plumbing only until a physical machine runs it.
+
 Also recorded: the harness prefixes each row's notes with the OS edition,
 the BitLocker source and the marker source, and the one-click launchers pass
 the stick's own drive letter, so a physical operator types nothing.

@@ -165,6 +165,23 @@ post-V1b dual-boot guest — Windows was first in `BootOrder` by then (R22:
 it re-registered `Boot0009` and took the order at some earlier servicing
 pass), so the return boot needed no GRUB pick.
 
+**Harness 0.3.0 one-click leg — DONE 2026-09-07** (auto row in
+`v0-handoff.csv`, `mode=auto`): `--stick kit` (one image carrying both
+payloads, `make-stick.sh`'s new `kit` variant), then `Test-Handoff.ps1 -Arm
+-Auto -Payload shim -PayloadDrive D:`. -Arm registered a one-shot **elevated
+logon task**, showed a countdown popup and rebooted; the firmware started the
+entry, shim → GRUB → `save_env` wrote `grubenv`, and at the next logon the
+task **ran the return check by itself** — classified `fired-once` via
+grubenv, removed its own task and the boot entry, asked the one human
+question in a popup, no console and no second UAC. The row landed
+`keypress=unknown`: the VM keystrokes never focused the popup, so it **timed
+out to 'unknown' and wrote the row anyway** — the designed unattended
+fail-safe (a real user clicks Yes with a mouse). Finding recorded: the auto
+check must write its row to the **stick**, never a network path — writing to
+`\\10.0.2.4\qemu` from the elevated task was slow enough (the popup-timeout
+window) to look hung; the shipping default (`-Auto` with no `-ResultsCsv`)
+writes to the stick, and `RUN-TEST.cmd` never passes one.
+
 Two rig traps met on the way (both fixed in the tooling):
 
 - **Never start a second `run-vm.sh` while a guest runs.** The second

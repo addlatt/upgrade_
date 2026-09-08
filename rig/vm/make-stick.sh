@@ -26,7 +26,16 @@ build_stick() {  # $1 = output image, $2 = variant: shell|shim
     mkfs.fat -F 32 -n UPGV0 --offset 2048 "$img" >/dev/null
     local P="$img@@1M"
     mmd -i "$P" ::/EFI ::/EFI/BOOT
-    if [ "$variant" = shell ]; then
+    if [ "$variant" = kit ]; then
+        # the physical stick's exact layout (make-kit.sh): both payloads
+        mmd -i "$P" ::/EFI/SHELL
+        mcopy -i "$P" "$BITS/shimx64.efi" ::/EFI/BOOT/BOOTX64.EFI
+        mcopy -i "$P" "$BITS/grubx64.efi" ::/EFI/BOOT/grubx64.efi
+        mcopy -i "$P" "$PAYLOAD/grub.cfg" ::/EFI/BOOT/grub.cfg
+        mcopy -i "$P" "$PAYLOAD/grubenv" ::/EFI/BOOT/grubenv
+        mcopy -i "$P" "$BITS/Shell.efi" ::/EFI/SHELL/SHELLX64.EFI
+        mcopy -i "$P" "$NSH" ::/startup.nsh
+    elif [ "$variant" = shell ]; then
         mcopy -i "$P" "$BITS/Shell.efi" ::/EFI/BOOT/BOOTX64.EFI
         # the repo's canonical startup.nsh, copied verbatim
         mcopy -i "$P" "$NSH" ::/startup.nsh
@@ -46,6 +55,7 @@ build_stick() {  # $1 = output image, $2 = variant: shell|shim
 build_stick artifacts/stick-shell.img shell
 if [ -f "$BITS/shimx64.efi" ]; then
     build_stick artifacts/stick-shim.img shim
+    build_stick artifacts/stick-kit.img kit
 else
     echo "make-stick: skipping shim stick (bits not fetched yet)"
 fi

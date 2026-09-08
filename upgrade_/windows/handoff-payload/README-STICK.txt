@@ -4,57 +4,62 @@ upgrade_  -  V0 boot-handoff test stick
 This stick tests ONE thing: whether this computer's firmware boots a USB
 payload exactly once when Windows asks it to, and falls back to Windows
 on its own when it cannot. Nothing on the internal disk is changed. The
-one boot-configuration change the test makes is undone by step 4
+one boot-configuration change the test makes is undone on return
 whatever happens.
 
-Which stick is this?  Look in EFI\BOOT:
-  BOOTX64.EFI alone + startup.nsh at the root   = the SHELL stick (unsigned)
-  BOOTX64.EFI + grubx64.efi + grub.cfg + grubenv = the SHIM stick (signed)
+THE ONE-CLICK WAY
+-----------------
+ 1. Plug this stick into the computer under test.
+ 2. Open it and double-click  RUN-TEST.cmd .  Click "Yes" on the blue
+    prompt. That is the only click.
+ 3. It scans the computer (a report and machine-capture.json land on
+    this stick), arms the test with the signed payload, and restarts.
+    Leave the stick in. If you can, watch the screen during the restart
+    and remember whether you had to press anything.
+ 4. When Windows comes back, sign in as usual. A window appears with
+    the result and one question (did it come back without a key press?).
+    Answer it; a second window says the row was saved. Done.
+ 5. Unplug the stick and send it back. It holds v0-handoff.csv,
+    machine-capture.json and upgrade-report-*.txt. Never edit the CSV.
 
-Steps - on the computer under test, with the stick plugged in
---------------------------------------------------------------
- 1. Double-click RUN-SCANNER.cmd. Click "Yes" on the blue prompt.
-    Read three lines of the report: "BitLocker", "Secure Boot",
-    "Boot partition (ESP)". If BitLocker is ON: save the recovery key
-    somewhere that is NOT this computer before going on (the report
-    says how). The scanner also leaves machine-capture.json and the
-    report on the stick - bring them back.
+If the test refuses to start it changes nothing - read its message. The
+usual reason is BitLocker: if the report says it is on, save the recovery
+key somewhere that is NOT this computer, then run RUN-TEST.cmd again.
 
- 2. Double-click ARM-HANDOFF.cmd. Click "Yes". Pick the row:
+If Windows does not come back by itself after the restart: at power-on
+press the firmware boot-menu key (F12 on Acer - it must be enabled in
+setup under Boot > F12 Boot Menu; F2 opens setup) and choose "Windows
+Boot Manager" once. Then sign in; the result window still appears and
+cleans up. Answer "No" to the key-press question.
 
-      Secure Boot   stick    pick   expected result
-      -----------   -----    ----   ----------------------------------
-      ON            shell     3     ignored   (firmware refuses; fail-safe)
-      OFF           shell     1     fired-once
-      OFF           shell     2     ignored   (NoFile fail-safe)
-      ON            shim      1     fired-once
-      any, BitLocker ON, either stick:  4  (NoSuspend - records what happens)
+THE MATRIX WAY (for people running several rows by hand)
+--------------------------------------------------------
+ RUN-SCANNER.cmd   the scan only
+ ARM-HANDOFF.cmd   pick a row: signed baseline / unsigned baseline
+                   (Secure Boot off) / unsigned with Secure Boot on
+                   (expect: ignored) / NoFile (expect: ignored) /
+                   NoSuspend. Then choose whether the return check
+                   runs itself or you run CHECK-HANDOFF.cmd by hand.
+ CHECK-HANDOFF.cmd the manual return check: classifies, cleans up,
+                   asks three questions, appends the row.
 
-    The harness refuses to arm when it cannot tell whether BitLocker is
-    on, or when BitLocker is on and row 4 was not chosen and suspension
-    was not possible. A refusal changes nothing - read the message.
+Changing Secure Boot: firmware setup at power-on. On many Acer machines
+the setting is greyed out until a Supervisor Password is set (Security
+tab); set one, change Secure Boot, clear the password afterwards if
+you like.
 
- 3. Let it reboot. WATCH THE SCREEN and note: did any key have to be
-    pressed? Any message (a "Secure Boot Violation" box, a recovery-key
-    screen, a stuck vendor logo)? Did Windows come back on its own?
-    If Windows does not come back: open the firmware boot menu (the
-    vendor's key at power-on - F12 on Acer, needs "F12 Boot Menu" enabled
-    in setup; F2 opens setup) and pick Windows Boot Manager once.
+WHAT IS ON THIS STICK
+---------------------
+ EFI\BOOT\BOOTX64.EFI + grubx64.efi + grub.cfg + grubenv
+                   Fedora's signed shim and GRUB: records the firing in
+                   grubenv, then reboots. The payload RUN-TEST.cmd uses.
+ EFI\SHELL\SHELLX64.EFI + startup.nsh (root)
+                   the unsigned UEFI Shell: writes fired.txt, reboots.
+                   Used by the unsigned matrix rows only.
+ Test-Handoff.ps1  the harness (arm / check / self-test)
+ upgrade-scan.ps1  the scanner
+ KIT-MANIFEST.txt, SHA256SUMS
+                   exactly what is on this stick: commit, versions,
+                   checksums. Re-check with: sha256sum -c SHA256SUMS
 
- 4. Back in Windows: double-click CHECK-HANDOFF.cmd. Click "Yes". Answer
-    the three questions honestly. It removes the test entry, restores
-    the boot configuration, and writes ONE row to v0-handoff.csv on this
-    stick. If the result was 'persisted' or 'reordered', run
-    Test-Handoff.ps1 -Check -RestoreBcd from an elevated PowerShell in
-    this folder as well.
-
- 5. To change Secure Boot between rows: firmware setup at power-on.
-    On many Acer machines the Secure Boot setting is greyed out until a
-    Supervisor Password is set (Security tab); set one, change Secure
-    Boot, and clear the password afterwards if you like.
-
-Bring back: v0-handoff.csv, machine-capture.json, upgrade-report-*.txt.
-Never edit the CSV by hand; it is transported verbatim into the repo.
-
-Built by make-kit.sh - see KIT-MANIFEST.txt beside this file for the
-commit, versions and checksums of exactly what is on this stick.
+Built by make-kit.sh in the upgrade_ repository.

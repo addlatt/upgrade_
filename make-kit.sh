@@ -4,16 +4,13 @@
 # stick for a physical V0 boot-handoff run - and verify every part of it
 # before it leaves the tree.
 #
-#   ./make-kit.sh [--allow-dirty] [--to DIR --variant shell|shim]
+#   ./make-kit.sh [--allow-dirty] [--to DIR]
 #
-# Two stick layouts come out, each complete on its own (copy the folder's
-# CONTENTS to the root of a FAT32 stick):
-#
-#   dist/kit/stick-shell/   unsigned UEFI Shell payload (Secure Boot OFF rows,
-#                           and the SecureBootUnsigned refusal row)
-#   dist/kit/stick-shim/    Fedora's signed shim+grub payload (Secure Boot ON)
-#
-# Both carry the one-click launchers (RUN-SCANNER / ARM-HANDOFF /
+# One stick layout comes out, dist/kit/stick/ (copy its CONTENTS to the root
+# of a FAT32 stick). It carries BOTH payloads - Fedora's signed shim+grub at
+# EFI/BOOT/BOOTX64.EFI (the product path, Secure Boot on) and the unsigned
+# UEFI Shell at EFI/SHELL/SHELLX64.EFI (the matrix rows) - plus the one-click
+# RUN-TEST.cmd, the matrix launchers (RUN-SCANNER / ARM-HANDOFF /
 # CHECK-HANDOFF), the single-file scanner, the harness, README-STICK.txt,
 # SHA256SUMS and KIT-MANIFEST.txt naming the commit and versions.
 #
@@ -47,16 +44,14 @@ HARVEST_SRC="$ROOT/evaluate/windows/Harvest-UpgradeState.ps1"
 SCANNER_DIST="$ROOT/dist/upgrade-scan.ps1"
 RUN_SCANNER="$ROOT/evaluate/windows/usb-kit/RUN-SCANNER.cmd"
 
-ALLOW_DIRTY=0 TO= VARIANT=
+ALLOW_DIRTY=0 TO=
 while [ $# -gt 0 ]; do
     case "$1" in
         --allow-dirty) ALLOW_DIRTY=1; shift ;;
         --to) TO=$2; shift 2 ;;
-        --variant) VARIANT=$2; shift 2 ;;
         *) echo "make-kit: unknown flag $1" >&2; exit 1 ;;
     esac
 done
-[ -z "$TO" ] || [ -n "$VARIANT" ] || { echo "make-kit: --to needs --variant shell|shim" >&2; exit 1; }
 
 fail() { echo "make-kit: FAILED - $*" >&2; exit 1; }
 step() { echo "make-kit: $*"; }
@@ -126,61 +121,53 @@ grep -q "FiredMarker = 'fired.txt'" "$HARNESS" && grep -q 'fired.txt' "$PAYLOAD/
 HARNESS_VERSION=$(grep -oP "^\\\$HarnessVersion = '\K[^']+" "$HARNESS")
 SCANNER_VERSION=$(grep -oP "^\\\$UpgVersion = '\K[^']+" "$SCANNER_SRC")
 
-# --- layout -----------------------------------------------------------------
+# --- layout: ONE stick, both payloads --------------------------------------
 rm -rf "$OUT"
-mkdir -p "$OUT"
+D="$OUT/stick"
+mkdir -p "$D/EFI/BOOT" "$D/EFI/SHELL"
 crlf() { sed 's/\r$//; s/$/\r/' "$1" > "$2"; }
-common() {  # $1 = stick dir
-    local d=$1
-    mkdir -p "$d/EFI/BOOT"
-    cp "$HARNESS" "$d/Test-Handoff.ps1"
-    cp "$SCANNER_DIST" "$d/upgrade-scan.ps1"
-    crlf "$RUN_SCANNER" "$d/RUN-SCANNER.cmd"
-    crlf "$PAYLOAD/ARM-HANDOFF.cmd" "$d/ARM-HANDOFF.cmd"
-    crlf "$PAYLOAD/CHECK-HANDOFF.cmd" "$d/CHECK-HANDOFF.cmd"
-    crlf "$PAYLOAD/README-STICK.txt" "$d/README-STICK.txt"
-}
-# shell stick
-S="$OUT/stick-shell"; common "$S"
-cp "$BITS/Shell.efi" "$S/EFI/BOOT/BOOTX64.EFI"
-cp "$PAYLOAD/startup.nsh" "$S/startup.nsh"
-# shim stick
-M="$OUT/stick-shim"; common "$M"
-cp "$BITS/shimx64.efi" "$M/EFI/BOOT/BOOTX64.EFI"
-cp "$BITS/grubx64.efi" "$M/EFI/BOOT/grubx64.efi"
-cp "$PAYLOAD/grub.cfg"  "$M/EFI/BOOT/grub.cfg"
-cp "$PAYLOAD/grubenv"   "$M/EFI/BOOT/grubenv"
+cp "$HARNESS" "$D/Test-Handoff.ps1"
+cp "$SCANNER_DIST" "$D/upgrade-scan.ps1"
+crlf "$RUN_SCANNER"                 "$D/RUN-SCANNER.cmd"
+crlf "$PAYLOAD/RUN-TEST.cmd"        "$D/RUN-TEST.cmd"
+crlf "$PAYLOAD/ARM-HANDOFF.cmd"     "$D/ARM-HANDOFF.cmd"
+crlf "$PAYLOAD/CHECK-HANDOFF.cmd"   "$D/CHECK-HANDOFF.cmd"
+crlf "$PAYLOAD/README-STICK.txt"    "$D/README-STICK.txt"
+# signed payload: the product path, at the removable-media default location
+cp "$BITS/shimx64.efi"  "$D/EFI/BOOT/BOOTX64.EFI"
+cp "$BITS/grubx64.efi"  "$D/EFI/BOOT/grubx64.efi"
+cp "$PAYLOAD/grub.cfg"  "$D/EFI/BOOT/grub.cfg"
+cp "$PAYLOAD/grubenv"   "$D/EFI/BOOT/grubenv"
+# unsigned payload: the matrix rows (Test-Handoff.ps1 -Payload shell)
+cp "$BITS/Shell.efi"    "$D/EFI/SHELL/SHELLX64.EFI"
+cp "$PAYLOAD/startup.nsh" "$D/startup.nsh"
 
 # --- manifest + checksums -----------------------------------------------------
-for d in "$S" "$M"; do
-    (cd "$d" && find . -type f ! -name SHA256SUMS ! -name KIT-MANIFEST.txt | sort | xargs sha256sum > SHA256SUMS)
-    crlf /dev/stdin "$d/KIT-MANIFEST.txt" <<MANIFEST
-upgrade_ live-test kit  -  $(basename "$d")
+(cd "$D" && find . -type f ! -name SHA256SUMS ! -name KIT-MANIFEST.txt | sort | xargs sha256sum > SHA256SUMS)
+crlf /dev/stdin "$D/KIT-MANIFEST.txt" <<MANIFEST
+upgrade_ live-test kit  -  V0 boot-handoff stick (both payloads)
 built:            $(date -u +%Y-%m-%dT%H:%M:%SZ)
 commit:           $GIT_REV ($GIT_STATE)
 harness:          Test-Handoff.ps1 $HARNESS_VERSION
 scanner:          upgrade-scan.ps1 $SCANNER_VERSION (single-file build of evaluate/windows + data/)
 payload bits:     rig/vm/artifacts/payload-bits (gitignored inputs; fetch-payload-bits.sh)
-  Shell.efi       $(sha256sum "$BITS/Shell.efi" | cut -c1-64)
-  shimx64.efi     $(sha256sum "$BITS/shimx64.efi" | cut -c1-64)
-  grubx64.efi     $(sha256sum "$BITS/grubx64.efi" | cut -c1-64)
+  Shell.efi       $(sha256sum "$BITS/Shell.efi" | cut -c1-64)   -> EFI/SHELL/SHELLX64.EFI
+  shimx64.efi     $(sha256sum "$BITS/shimx64.efi" | cut -c1-64)   -> EFI/BOOT/BOOTX64.EFI
+  grubx64.efi     $(sha256sum "$BITS/grubx64.efi" | cut -c1-64)   -> EFI/BOOT/grubx64.efi
   from netinst:   $NETINST_SRC
 verified at build: dist matches source; scanner/harvester/harness self-tests
                   passed on Windows PowerShell 5.1; shipped .ps1 parse under
                   the PS 5.1 parser; grubenv block 1024 B with GRUB header.
 files (sha256):   SHA256SUMS in this folder - re-check with: sha256sum -c SHA256SUMS
 MANIFEST
-    (cd "$d" && sha256sum -c --quiet SHA256SUMS) || fail "checksum re-verify failed in $d"
-done
-step "wrote $OUT/stick-shell and $OUT/stick-shim (commit $GIT_REV, harness $HARNESS_VERSION)"
+(cd "$D" && sha256sum -c --quiet SHA256SUMS) || fail "checksum re-verify failed in $D"
+step "wrote $D (commit $GIT_REV, harness $HARNESS_VERSION)"
 
 # --- optional copy to a directory (a mounted stick) ---------------------------
 if [ -n "$TO" ]; then
     [ -d "$TO" ] || fail "--to $TO is not a directory (this script never writes to a device; mount the stick and point at its root)"
-    SRC="$OUT/stick-$VARIANT"
-    [ -d "$SRC" ] || fail "unknown variant $VARIANT"
-    cp -r "$SRC"/. "$TO"/
+    cp -r "$D"/. "$TO"/
     sync
     (cd "$TO" && sha256sum -c --quiet SHA256SUMS) || fail "the copy at $TO does not verify against SHA256SUMS"
-    step "copied stick-$VARIANT to $TO and re-verified every file"
+    step "copied the stick layout to $TO and re-verified every file"
 fi

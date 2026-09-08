@@ -32,6 +32,16 @@
     upg_fired=1 into EFI\BOOT\grubenv on the stick (GRUB save_env). -Check
     reads either, so "did our entry run" never depends on a human watching.
 
+    One click (0.3.0): -Arm -Auto registers an elevated scheduled task that
+    runs -Check -Auto itself at the next logon, then reboots. On return the
+    check classifies, cleans up, asks the one human question in a popup
+    (did any key have to be pressed? - times out to 'unknown'), and writes
+    the row to v0-handoff.csv on the stick. The stick is found again by its
+    volume id, not its drive letter. This is the prologue's walk-away and
+    cleanup-on-return shape, built here first. One stick carries both
+    payloads: -Payload shim (signed, EFI\BOOT\BOOTX64.EFI, the product
+    path) or shell (unsigned, EFI\SHELL\SHELLX64.EFI, the matrix rows).
+
     Refusals before touching anything (0.2.0): BitLocker state that cannot be
     determined refuses to arm - it is read with Get-BitLockerVolume, falling
     back to manage-bde for editions without the PowerShell module (Home) -
@@ -51,6 +61,19 @@
 .PARAMETER PayloadDrive
     Drive letter of the FAT32 payload partition (the "stick"), e.g. E: or E.
     Must contain \EFI\BOOT\BOOTX64.EFI. See handoff-payload\README.md.
+
+.PARAMETER Payload
+    With -Arm: which payload on the stick the one-time entry points at.
+      shim   (default) Fedora's signed shim -> grub -> grub.cfg, at
+             \EFI\BOOT\BOOTX64.EFI. Works with Secure Boot on. The product path.
+      shell  the unsigned UEFI Shell at \EFI\SHELL\SHELLX64.EFI (startup.nsh at
+             the stick root). Secure Boot off, or the SecureBootUnsigned row.
+
+.PARAMETER Auto
+    With -Arm: register the return check as a one-shot elevated logon task
+    and reboot after a countdown - the one-click flow. With -Check: run
+    without a console operator (popups instead of Read-Host; 'windows
+    returned' is derived; the CSV lands on the stick).
 
 .PARAMETER SuspendBitLocker
     With -Arm: suspend BitLocker on C: for one reboot before arming, so the
@@ -101,6 +124,14 @@ param(
     [string]$PayloadDrive,
 
     [Parameter(ParameterSetName = 'Arm')]
+    [ValidateSet('shim', 'shell')]
+    [string]$Payload = 'shim',
+
+    [Parameter(ParameterSetName = 'Arm')]
+    [Parameter(ParameterSetName = 'Check')]
+    [switch]$Auto,
+
+    [Parameter(ParameterSetName = 'Arm')]
     [switch]$SuspendBitLocker,
 
     [Parameter(ParameterSetName = 'Arm')]
@@ -121,7 +152,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$HarnessVersion = '0.2.0'
+$HarnessVersion = '0.3.0'
 
 # The marker the Shell payload writes to the root of the stick. Keep in sync
 # with handoff-payload\startup.nsh.
@@ -131,6 +162,11 @@ $FiredMarker = 'fired.txt'
 # place, so it must exist (1024 bytes, GRUB's header) before the boot.
 $GrubEnvRel   = 'EFI\BOOT\grubenv'
 $GrubFiredVar = 'upg_fired'
+# Where each payload lives on the (single) stick. Keep in sync with
+# make-kit.sh and handoff-payload\README.md.
+$PayloadPaths = @{ shim = '\EFI\BOOT\BOOTX64.EFI'; shell = '\EFI\SHELL\SHELLX64.EFI' }
+# The one-shot logon task -Auto registers; -Check always removes it.
+$ReturnTaskName = 'upgrade_ V0 handoff return check'
 
 # =============================================================================
 #  helpers
@@ -233,6 +269,49 @@ function Reset-GrubEnv {
     $false
 }
 
+function Get-PayloadPath {
+    # Pure: the EFI path the boot entry points at, for a payload + fail-mode.
+    param([string]$PayloadName, [string]$FailMode)
+    if ($FailMode -eq 'NoFile') { return '\EFI\BOOT\DOES-NOT-EXIST.EFI' }
+    if (-not $PayloadPaths.ContainsKey($PayloadName)) { throw "Unknown payload '$PayloadName'." }
+    $PayloadPaths[$PayloadName]
+}
+
+function Find-StickRoot {
+    # Pure: given volume objects (DriveLetter, UniqueId) and the id recorded
+    # at arm time, the root the stick has NOW - a USB stick can come back
+    # under a different letter after a reboot, and the return check must not
+    # depend on the letter it had. $null if the stick is not present.
+    param($Volumes, [string]$UniqueId)
+    foreach ($v in @($Volumes)) {
+        if ($v.UniqueId -eq $UniqueId -and $v.DriveLetter) { return "$($v.DriveLetter):\" }
+    }
+    $null
+}
+
+function Get-VolumeUniqueId {
+    param([string]$Root)
+    try { (Get-Volume -DriveLetter $Root.Substring(0, 1) -ErrorAction Stop).UniqueId } catch { $null }
+}
+
+function Show-Popup {
+    # A message box with a timeout (WScript.Shell.Popup): returns 6 = Yes,
+    # 7 = No, 1 = OK, -1 = timed out. Used only in -Auto, where there is no
+    # console operator to answer Read-Host.
+    param([string]$Text, [string]$Title, [int]$Seconds, [int]$Buttons = 0)
+    try { (New-Object -ComObject WScript.Shell).Popup($Text, $Seconds, $Title, $Buttons) } catch { -1 }
+}
+
+function Unregister-ReturnTask {
+    try {
+        if (Get-ScheduledTask -TaskName $ReturnTaskName -ErrorAction SilentlyContinue) {
+            Unregister-ScheduledTask -TaskName $ReturnTaskName -Confirm:$false -ErrorAction Stop
+            return $true
+        }
+    } catch { }
+    $false
+}
+
 function Get-HandoffResult {
     # Pure classifier. Inputs are the three facts -Check establishes plus the
     # fail-mode that was armed; output is the CSV result vocabulary
@@ -307,10 +386,13 @@ function Invoke-Arm {
 
     # The one refusal that matters most: the entry we are about to create must
     # point at a payload that actually exists. NoFile deliberately skips this.
-    $payloadEfi = Join-Path $root 'EFI\BOOT\BOOTX64.EFI'
+    $efiPath = Get-PayloadPath -PayloadName $Payload -FailMode $FailMode
+    $payloadEfi = Join-Path $root $efiPath.TrimStart('\')
     if ($FailMode -ne 'NoFile' -and -not (Test-Path $payloadEfi)) {
         throw "No payload at $payloadEfi. See handoff-payload\README.md to build the stick."
     }
+    $stickId = Get-VolumeUniqueId -Root $root
+    if ($Auto -and -not $stickId) { throw "Could not read the stick's volume id for $root; -Auto needs it to find the stick again after the reboot." }
 
     # A stale marker from a previous run would produce a false 'fired-once'.
     $marker = Join-Path $root $FiredMarker
@@ -328,7 +410,8 @@ function Invoke-Arm {
     New-Line '  upgrade_  V0 handoff test  -  ARM' 'Cyan'
     New-Line "  $($cs.Manufacturer) $($cs.Model)   firmware $($bios.SMBIOSBIOSVersion)" 'DarkGray'
     New-Line "  $($os.Caption) build $($os.BuildNumber)" 'DarkGray'
-    New-Line "  Secure Boot: $sb    BitLocker(C:): $bl (via $($blq.Source))    payload: $root" 'DarkGray'
+    New-Line "  Secure Boot: $sb    BitLocker(C:): $bl (via $($blq.Source))    payload: $Payload at $root$($efiPath.TrimStart('\'))" 'DarkGray'
+    if ($Auto) { New-Line '  AUTO: the return check will run itself at the next logon' 'DarkGray' }
     if ($grubEnvReset) { New-Line "  shim payload detected: $GrubEnvRel reset to a clean block" 'DarkGray' }
     if ($FailMode) { New-Line "  FAIL MODE: $FailMode" 'Yellow' }
     New-Line ''
@@ -378,7 +461,6 @@ function Invoke-Arm {
     }
     $guid = $matches[0]
 
-    $efiPath = if ($FailMode -eq 'NoFile') { '\EFI\BOOT\DOES-NOT-EXIST.EFI' } else { '\EFI\BOOT\BOOTX64.EFI' }
     & bcdedit /set $guid device "partition=$($root.TrimEnd('\'))" | Out-Null
     & bcdedit /set $guid path $efiPath | Out-Null
     & bcdedit /set '{fwbootmgr}' bootsequence $guid | Out-Null
@@ -391,6 +473,10 @@ function Invoke-Arm {
         Guid           = $guid
         PayloadRoot    = $root
         PayloadEfi     = $efiPath
+        Payload        = $Payload
+        StickUniqueId  = $stickId
+        Auto           = [bool]$Auto
+        ResultsCsvArg  = $ResultsCsv
         FailMode       = $FailMode
         DidSuspend     = $didSuspend
         Vendor         = $cs.Manufacturer
@@ -407,13 +493,47 @@ function Invoke-Arm {
     }
     $record | ConvertTo-Json -Depth 6 | Out-File (Join-Path $state 'handoff-state.json') -Encoding UTF8
 
+    if (-not $Auto) {
+        New-Line ''
+        New-Line '  ARMED.' 'Green'
+        New-Line '  Reboot now, watch what happens, then run:  .\Test-Handoff.ps1 -Check' 'White'
+        New-Line ''
+        New-Line '  If nothing is watching the screen, that is fine - the payload records' 'DarkGray'
+        New-Line '  itself. But note by hand whether any keypress was needed.' 'DarkGray'
+        New-Line ''
+        return
+    }
+
+    # 6. -Auto: the return check runs itself. A copy of this script lives in
+    #    the state dir (the stick's letter may change; the state dir will
+    #    not), registered as a one-shot logon task for the user who armed,
+    #    elevated without a second UAC prompt. If any of this fails, the boot
+    #    entry is removed again - never leave an armed machine with no return.
+    try {
+        Copy-Item $PSCommandPath (Join-Path $state 'Test-Handoff.ps1') -Force
+        $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+        $args = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $state 'Test-Handoff.ps1')`" -Check -Auto -StateDir `"$state`""
+        if ($ResultsCsv) { $args += " -ResultsCsv `"$ResultsCsv`"" }
+        $action    = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $args
+        $trigger   = New-ScheduledTaskTrigger -AtLogOn -User $user
+        $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Highest
+        $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 1)
+        Register-ScheduledTask -TaskName $ReturnTaskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+        if (-not (Get-ScheduledTask -TaskName $ReturnTaskName -ErrorAction SilentlyContinue)) { throw 'task not present after registration' }
+    } catch {
+        & bcdedit /deletevalue '{fwbootmgr}' bootsequence 2>&1 | Out-Null
+        & bcdedit /delete $guid 2>&1 | Out-Null
+        Remove-Item (Join-Path $state 'handoff-state.json') -Force -ErrorAction SilentlyContinue
+        throw "Could not register the return check ($_); the boot entry was removed again. Nothing is armed."
+    }
+
     New-Line ''
-    New-Line '  ARMED.' 'Green'
-    New-Line '  Reboot now, watch what happens, then run:  .\Test-Handoff.ps1 -Check' 'White'
+    New-Line '  ARMED. Rebooting in 20 seconds.' 'Green'
     New-Line ''
-    New-Line '  If nothing is watching the screen, that is fine - the payload records' 'DarkGray'
-    New-Line '  itself. But note by hand whether any keypress was needed.' 'DarkGray'
-    New-Line ''
+    & shutdown /r /t 20 /c 'upgrade_ V0 handoff test: rebooting to test the boot handoff. Leave the USB stick in.' | Out-Null
+    Show-Popup -Title 'upgrade_ V0 handoff test' -Seconds 15 -Text ("Armed. This computer restarts in 20 seconds.`n`n" +
+        "Leave the USB stick plugged in. Watch the screen if you can.`n`n" +
+        "When Windows comes back, sign in as usual - the result appears by itself.") | Out-Null
 }
 
 # =============================================================================
@@ -427,6 +547,18 @@ function Invoke-Check {
         throw "No armed test found in $state. Run -Arm first."
     }
     $r = Get-Content $statePath -Raw | ConvertFrom-Json
+    $isAuto = ($Auto -or $r.Auto)
+
+    # The stick may have come back under another letter; find it by volume id.
+    $stickRoot = $r.PayloadRoot
+    if ($r.StickUniqueId) {
+        $now = Find-StickRoot -Volumes (Get-Volume -ErrorAction SilentlyContinue) -UniqueId $r.StickUniqueId
+        if ($now) { $stickRoot = $now } else { $stickRoot = $null }
+    }
+    if (-not $stickRoot) {
+        New-Line "  ! the stick is not present (armed as $($r.PayloadRoot)); markers unreadable, result will be 'error'" 'Yellow'
+        $stickRoot = $r.PayloadRoot
+    }
 
     New-Line ''
     New-Line '  upgrade_  V0 handoff test  -  CHECK' 'Cyan'
@@ -434,8 +566,8 @@ function Invoke-Check {
     if ($r.FailMode) { New-Line "  FAIL MODE: $($r.FailMode)" 'Yellow' }
     New-Line ''
 
-    $marker = Join-Path $r.PayloadRoot $FiredMarker
-    $grubEnv = Join-Path $r.PayloadRoot $GrubEnvRel
+    $marker = Join-Path $stickRoot $FiredMarker
+    $grubEnv = Join-Path $stickRoot $GrubEnvRel
     $firedVia = @()
     if (Test-Path $marker) { $firedVia += 'fired.txt' }
     if (Test-Path $grubEnv) {
@@ -475,6 +607,7 @@ function Invoke-Check {
     New-Line ''
 
     # Restore, always, whatever happened.
+    if (Unregister-ReturnTask) { New-Line '  removed the return-check logon task' 'DarkGray' }
     New-Line '  removing test boot entry...' 'DarkGray'
     & bcdedit /delete $r.Guid 2>&1 | Out-Null
     if (-not $sequenceCleared) { & bcdedit /deletevalue '{fwbootmgr}' bootsequence 2>&1 | Out-Null }
@@ -483,20 +616,39 @@ function Invoke-Check {
         & bcdedit /import $r.BcdBackup 2>&1 | Out-Null
     }
     if (Test-Path $marker) { Remove-Item $marker -Force -ErrorAction SilentlyContinue }
-    Reset-GrubEnv -Root $r.PayloadRoot | Out-Null
+    Reset-GrubEnv -Root $stickRoot | Out-Null
 
-    # Human-supplied fields.
+    # Human-supplied fields. In -Auto there is no console operator: 'back in
+    # Windows' is true by construction (this code is running there, after the
+    # armed reboot), and the one genuinely human fact - whether a key had to
+    # be pressed - is asked in a popup that times out to 'unknown'.
     New-Line ''
-    $keypress = Read-Host '  Did the machine reach the payload/Windows with NO keypress? (y/n/na)'
-    $winBack  = Read-Host '  Are you back in Windows normally right now? (y/n)'
-    $notes    = Read-Host '  Notes (recovery prompt? vendor logo hang? blank = none)'
+    if ($isAuto) {
+        $winBack = 'y'
+        $ans = Show-Popup -Title "upgrade_ V0 handoff test - result: $result" -Seconds 300 -Buttons (4 + 32) -Text (
+            "Result: $result`n`n" +
+            "During the restart, did this computer come back to Windows WITHOUT anyone pressing a key?`n`n" +
+            "Yes = no key was needed.   No = a key or a menu was needed.`n(This closes by itself in 5 minutes and records 'unknown'.)")
+        $keypress = switch ($ans) { 6 { 'y' } 7 { 'n' } default { 'unknown' } }
+        $notes = ''
+    } else {
+        $keypress = Read-Host '  Did the machine reach the payload/Windows with NO keypress? (y/n/na)'
+        $winBack  = Read-Host '  Are you back in Windows normally right now? (y/n)'
+        $notes    = Read-Host '  Notes (recovery prompt? vendor logo hang? blank = none)'
+    }
 
     # Harness-written facts go first in the notes, so the row says what the
     # machine was and how the marker was read, independent of the operator.
-    $auto = "[harness: os=$($r.OsCaption) $($r.OsBuild); bitlocker-via=$($r.BitLockerSource); fired-via=$(if ($fired) { $firedVia -join '+' } else { 'none' })]"
+    $auto = "[harness: os=$($r.OsCaption) $($r.OsBuild); bitlocker-via=$($r.BitLockerSource); fired-via=$(if ($fired) { $firedVia -join '+' } else { 'none' }); mode=$(if ($isAuto) { 'auto' } else { 'manual' }); payload=$($r.Payload)]"
     $notes = if ([string]::IsNullOrWhiteSpace($notes)) { $auto } else { "$auto $notes" }
 
-    # Append evidence.
+    # Append evidence. -Auto without an explicit -ResultsCsv writes to the
+    # stick itself (the thing that travels back), falling back to the state
+    # dir if the stick is gone.
+    if ($r.ResultsCsvArg -and -not $ResultsCsv) { $ResultsCsv = $r.ResultsCsvArg }
+    if ($isAuto -and -not $ResultsCsv) {
+        $ResultsCsv = if (Test-Path $stickRoot) { Join-Path $stickRoot 'v0-handoff.csv' } else { Join-Path $state 'v0-handoff.csv' }
+    }
     $csv = Resolve-ResultsCsv -State $state
     $dir = Split-Path $csv -Parent
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
@@ -519,6 +671,12 @@ function Invoke-Check {
     New-Line ''
     New-Line "  logged to $csv" 'Cyan'
     New-Line ''
+    if ($isAuto) {
+        Show-Popup -Title 'upgrade_ V0 handoff test - done' -Seconds 120 -Buttons 64 -Text (
+            "Result: $result`n`nThe row was saved to:`n$csv`n`n" +
+            "The test boot entry has been removed; this computer is back to normal.`n" +
+            "You can unplug the USB stick now and send it back.") | Out-Null
+    }
 }
 
 # =============================================================================
@@ -572,6 +730,23 @@ function Invoke-SelfTest {
            Run = { $t = "# GRUB Environment Block`nboot_success=1`n" + ('#' * 990); Test-GrubEnvFired -Bytes ([Text.Encoding]::ASCII.GetBytes($t)) }; Expect = $false }
         @{ Name = 'grubenv: empty file is not fired'
            Run = { Test-GrubEnvFired -Bytes ([byte[]]@()) }; Expect = $false }
+        # payload paths and stick relocation (the -Auto return)
+        @{ Name = 'payload: shim points at EFI\BOOT\BOOTX64.EFI'
+           Run = { Get-PayloadPath -PayloadName 'shim' -FailMode '' }; Expect = '\EFI\BOOT\BOOTX64.EFI' }
+        @{ Name = 'payload: shell points at EFI\SHELL\SHELLX64.EFI'
+           Run = { Get-PayloadPath -PayloadName 'shell' -FailMode '' }; Expect = '\EFI\SHELL\SHELLX64.EFI' }
+        @{ Name = 'payload: NoFile points at a missing file whatever the payload'
+           Run = { Get-PayloadPath -PayloadName 'shim' -FailMode 'NoFile' }; Expect = '\EFI\BOOT\DOES-NOT-EXIST.EFI' }
+        @{ Name = 'payload: an unknown name is refused'
+           Run = { try { Get-PayloadPath -PayloadName 'usb' -FailMode ''; 'accepted' } catch { 'refused' } }; Expect = 'refused' }
+        @{ Name = 'stick: found again under a new letter by volume id'
+           Run = { Find-StickRoot -UniqueId 'ID-STICK' -Volumes @(
+                     [pscustomobject]@{ DriveLetter = 'C'; UniqueId = 'ID-C' },
+                     [pscustomobject]@{ DriveLetter = 'F'; UniqueId = 'ID-STICK' }) }; Expect = 'F:\' }
+        @{ Name = 'stick: absent stick is null, never a guess'
+           Run = { $x = Find-StickRoot -UniqueId 'ID-STICK' -Volumes @([pscustomobject]@{ DriveLetter = 'C'; UniqueId = 'ID-C' }); if ($null -eq $x) { 'null' } else { $x } }; Expect = 'null' }
+        @{ Name = 'stick: a matching volume with no letter does not count'
+           Run = { $x = Find-StickRoot -UniqueId 'ID-STICK' -Volumes @([pscustomobject]@{ DriveLetter = $null; UniqueId = 'ID-STICK' }); if ($null -eq $x) { 'null' } else { $x } }; Expect = 'null' }
         # drive-letter parsing feeding the bcdedit device line
         @{ Name = 'drive: E: normalizes to E:\'
            Run = { Get-DriveRoot 'E:' }; Expect = 'E:\' }

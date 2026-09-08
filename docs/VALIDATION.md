@@ -89,9 +89,13 @@ before a physical machine and has them: it reads BitLocker state through
 `manage-bde` when the PowerShell module is absent (Home editions), refuses to
 arm on an unknown state or on BitLocker-on-without-suspension, and the shim
 payload self-records through `grubenv` so the Secure-Boot-on row is
-harness-classified, not observed — and both the 0.2.0 baseline and the
-self-recording shim payload fired on the QEMU rig the same day (two
-`fired-once` rows, SB off, plumbing only). A physical row is transported
+harness-classified, not observed. Harness **0.3.0 adds the one-click
+(fully managed) flow** — `RUN-TEST.cmd`: one double-click, one UAC "Yes",
+then `-Arm -Auto` registers an elevated logon task that runs the return
+check itself after the reboot, classifies, cleans up, asks one popup
+question (times out to `unknown`) and writes the row to the stick. The
+0.2.0 baseline, the self-recording shim payload, and the 0.3.0 auto flow
+all fired on the QEMU rig (three `fired-once` rows, SB off, plumbing only). A physical row is transported
 verbatim from the stick's CSV, and every physical run leaves a
 `-DumpMachine` capture for `evaluate/windows/corpus/`. First target: the
 Acer Aspire A515-51G.
