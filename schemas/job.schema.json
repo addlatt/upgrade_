@@ -1,0 +1,348 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/addlatt/upgrade_/schemas/job.schema.json",
+  "title": "upgrade_ job (job.json)",
+  "description": "Written once by `evaluate`, read by `upgrade_` (the converter) and by `settle-in`. Everything the conversion needs to run with zero further human input, plus the machine identity every later stage re-verifies before it touches a disk. A reader that meets a `schema` value it does not know must refuse, not guess.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "job_id", "created_utc", "evaluate", "identity", "scan", "intent", "fork", "storage", "harvest", "stick"],
+  "properties": {
+    "schema": {
+      "description": "Contract version. Readers compare the whole string; a mismatch is a refusal.",
+      "const": "job/1"
+    },
+    "job_id": {
+      "description": "UUID minted by `evaluate`. `outcome.json` repeats it, so a stick that carries a job and an outcome from different runs is detectable.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "created_utc": { "type": "string", "format": "date-time" },
+    "evaluate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "scanner_version", "harvest_version", "ran_as_admin"],
+      "properties": {
+        "version": { "type": "string" },
+        "scanner_version": { "type": "string" },
+        "harvest_version": { "type": "string" },
+        "ran_as_admin": {
+          "description": "A job can only come from an elevated run: the shrink measurement, the volume flag, BitLocker and the ESP are all elevated-only reads.",
+          "const": true
+        }
+      }
+    },
+    "identity": {
+      "description": "The machine this job was written for. The prologue re-validates it; the cutover aborts on any mismatch (a moved stick must never partition a stranger's laptop).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vendor", "model", "system_uuid", "bios_serial", "firmware_mode", "secure_boot", "os_build", "system_disk"],
+      "properties": {
+        "vendor": { "type": "string" },
+        "model": { "type": "string" },
+        "system_uuid": { "type": "string" },
+        "bios_serial": { "type": "string" },
+        "bios_version": { "type": "string" },
+        "firmware_mode": {
+          "description": "The one-time boot handoff is a UEFI mechanism; a legacy-BIOS machine never gets a job.",
+          "const": "UEFI"
+        },
+        "secure_boot": { "enum": ["on", "off", "unknown"] },
+        "os_caption": { "type": "string" },
+        "os_build": { "type": "integer", "minimum": 10240 },
+        "system_disk": {
+          "description": "The disk holding C:. Serial, unique id and size are the identity triple; `number` is informational (it can change between boots).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["serial_number", "unique_id", "size_bytes", "partition_style"],
+          "properties": {
+            "number": { "type": "integer", "minimum": 0 },
+            "serial_number": { "description": "May be empty (virtual disks report none); unique_id is the strong half of the identity.", "type": "string" },
+            "unique_id": { "type": "string", "minLength": 1 },
+            "friendly_name": { "type": "string" },
+            "size_bytes": { "type": "integer", "minimum": 1 },
+            "partition_style": { "enum": ["GPT", "MBR"] }
+          }
+        }
+      }
+    },
+    "scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verdict", "required_kernel", "report"],
+      "properties": {
+        "verdict": {
+          "description": "RED is not a value here on purpose: a RED machine never gets a job, and there is no override flag, ever.",
+          "enum": ["GREEN", "YELLOW"]
+        },
+        "required_kernel": { "type": ["string", "null"] },
+        "report": { "$ref": "#/definitions/relpath" }
+      }
+    },
+    "intent": {
+      "description": "What the person chose at intent capture. Missing decisions are what make a converter stop and ask, so every one of them is required.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "path_reason", "desktop", "distro", "account", "locale"],
+      "properties": {
+        "path": {
+          "description": "keep-windows: shrink Windows aside, install alongside, pull files in settle-in (the default). clean-slate: stage files to the stick, wipe at cutover.",
+          "enum": ["keep-windows", "clean-slate"]
+        },
+        "path_reason": {
+          "enum": ["default", "user-chose-clean-slate", "forced-no-room"]
+        },
+        "desktop": { "enum": ["kde", "gnome"] },
+        "distro": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "release"],
+          "properties": {
+            "name": { "const": "fedora" },
+            "release": { "type": "string", "minLength": 1 }
+          }
+        },
+        "account": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["linux_name", "password_hash"],
+          "properties": {
+            "windows_name": { "type": "string" },
+            "full_name": { "type": ["string", "null"] },
+            "linux_name": { "type": "string", "pattern": "^[a-z_][a-z0-9_-]{0,31}$" },
+            "password_hash": {
+              "description": "SHA-512 crypt only. The cleartext never reaches the stick.",
+              "type": "string",
+              "pattern": "^\\$6\\$[./A-Za-z0-9]{1,16}\\$[./A-Za-z0-9]{86}$"
+            }
+          }
+        },
+        "locale": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lang", "timezone", "keymap"],
+          "properties": {
+            "lang": { "type": "string", "pattern": "^[a-z]{2,3}_[A-Z]{2}\\.UTF-8$" },
+            "timezone": { "description": "IANA name. An unmapped Windows zone is a refusal at evaluate, not a null here.", "type": "string", "pattern": "^[A-Za-z_]+(/[A-Za-z_+-]+)*$" },
+            "keymap": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "fork": {
+      "description": "RISKS R18, decided 2026-09-08: the prologue re-measures shrinkable space after clearing the volume flag, and branches on the real number. The branch is chosen here, in advance, by the person - never guessed at run time.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["if_cannot_keep", "volume_check_consented"],
+      "properties": {
+        "if_cannot_keep": {
+          "description": "If the re-measured number does not fit Linux: clean-slate (files to the stick, Windows wiped) or stop (leave Windows as it was, plus a completed disk check).",
+          "enum": ["clean-slate", "stop"]
+        },
+        "volume_check_consented": {
+          "description": "The person was told the prologue may run Windows' disk check with its own restart, that it may be slow, and that it must not be interrupted. Required true when the volume is flagged.",
+          "type": "boolean"
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shrinkable_gb", "shrink_source", "linux_min_gb", "volume_health", "physical_disk", "esp"],
+      "properties": {
+        "shrinkable_gb": {
+          "description": "The cold shrink floor measured at evaluate, or null when Windows refused to measure (a flagged volume). The prologue measures again; this value never decides anything on its own.",
+          "type": ["number", "null"], "minimum": 0
+        },
+        "shrink_source": { "enum": ["storage-api", "diskpart", null] },
+        "shrink_error": { "type": ["string", "null"] },
+        "linux_min_gb": { "description": "What keep-windows needs freed: Fedora plus headroom.", "type": "number", "minimum": 20 },
+        "volume_health": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dirty", "scan"],
+          "properties": {
+            "dirty": { "description": "NTFS dirty flag on C: as `fsutil dirty query` reported it.", "enum": ["clean", "dirty", "unknown"] },
+            "scan": { "description": "`Repair-Volume -Scan` result verbatim when it ran, else null.", "type": ["string", "null"] }
+          }
+        },
+        "physical_disk": {
+          "description": "`Get-PhysicalDisk` for the disk holding C:. The prologue refuses to run any repair on a disk that is not Healthy.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["health_status", "operational_status"],
+          "properties": {
+            "health_status": { "enum": ["Healthy", "Warning", "Unhealthy", "Unknown"] },
+            "operational_status": { "type": "string" },
+            "media_type": { "type": "string" }
+          }
+        },
+        "esp": {
+          "description": "The FAT volume the firmware's Windows Boot Manager entry points at (RISKS R21 gate: >= 32 MiB free, else keep-windows is not offered).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["size_bytes", "free_bytes", "fits_alongside_install"],
+          "properties": {
+            "size_bytes": { "type": "integer", "minimum": 1 },
+            "free_bytes": { "type": "integer", "minimum": 0 },
+            "fits_alongside_install": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "harvest": {
+      "description": "What only Windows could give. Credentials are files under artifacts/, referenced by path, so the wipe of the credential portion of the stick is one directory - and job.json itself carries no secret.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["folders", "cloud_files", "browsers", "wifi", "bitlocker", "firmware_artifacts"],
+      "properties": {
+        "folders": {
+          "description": "The folder map: where the person's files actually live, resolved through the known-folder APIs so OneDrive redirection is followed. settle-in pulls exactly these.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "path", "exists", "is_onedrive", "files", "bytes", "cloud_only_files", "truncated"],
+            "properties": {
+              "name": { "enum": ["Desktop", "Documents", "Pictures", "Music", "Videos", "Downloads"] },
+              "path": { "type": ["string", "null"] },
+              "exists": { "type": "boolean" },
+              "is_onedrive": { "type": "boolean" },
+              "files": { "type": "integer", "minimum": 0 },
+              "bytes": { "type": "integer", "minimum": 0 },
+              "cloud_only_files": { "description": "Placeholders counted at harvest, before materialization.", "type": "integer", "minimum": 0 },
+              "truncated": { "description": "Sizing hit the file cap; the estimate is low (RISKS R6) - evaluate refuses on this, so a written job carries false.", "const": false }
+            }
+          }
+        },
+        "cloud_files": {
+          "description": "RISKS R8 / V8: OneDrive placeholders copy as empty files from Linux, so evaluate materializes them while Windows is alive, or refuses. A written job carries the outcome; `failed` must be 0.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["placeholders_found", "materialized", "failed", "result"],
+          "properties": {
+            "placeholders_found": { "type": "integer", "minimum": 0 },
+            "materialized": { "type": "integer", "minimum": 0 },
+            "failed": { "const": 0 },
+            "result": { "enum": ["none-found", "materialized"] }
+          }
+        },
+        "browsers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "path", "linux_target", "passwords_port"],
+            "properties": {
+              "name": { "enum": ["Firefox", "Chrome", "Edge"] },
+              "path": { "type": "string" },
+              "linux_target": { "type": "string" },
+              "passwords_port": { "type": "boolean" },
+              "bytes": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "wifi": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["profiles", "secrets_file"],
+          "properties": {
+            "profiles": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["ssid", "key_mgmt", "supported", "autoconnect"],
+                "properties": {
+                  "ssid": { "type": "string" },
+                  "key_mgmt": { "enum": ["none", "wpa-psk", "sae", "UNSUPPORTED"] },
+                  "supported": { "type": "boolean" },
+                  "autoconnect": { "type": "boolean" }
+                }
+              }
+            },
+            "secrets_file": { "description": "Relative path of the exported profiles with keys, under artifacts/credentials/, or null when none were exported.", "oneOf": [{ "$ref": "#/definitions/relpath" }, { "type": "null" }] }
+          }
+        },
+        "bitlocker": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "recovery_key_file"],
+          "properties": {
+            "status": { "description": "unknown is not allowed in a written job: the prologue refuses to arm the handoff on an undetermined BitLocker state (decided 2026-09-07).", "enum": ["on", "off"] },
+            "recovery_key_file": { "description": "Required when status is on: settle-in unlocks the kept volume with it.", "oneOf": [{ "$ref": "#/definitions/relpath" }, { "type": "null" }] }
+          }
+        },
+        "firmware_artifacts": {
+          "description": "Vendor blobs extracted from the driver store (Cirrus, TI amp firmware...). Injected before first boot.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "source", "path", "sha256"],
+            "properties": {
+              "name": { "type": "string" },
+              "source": { "type": "string" },
+              "path": { "$ref": "#/definitions/relpath" },
+              "sha256": { "$ref": "#/definitions/sha256" }
+            }
+          }
+        }
+      },
+      "if": { "properties": { "bitlocker": { "properties": { "status": { "const": "on" } } } } },
+      "then": { "properties": { "bitlocker": { "properties": { "recovery_key_file": { "type": "string" } } } } }
+    },
+    "stick": {
+      "description": "The device evaluate wrote, by identity. The prologue verifies it is the same device before staging anything on it; the cutover verifies every checksum by reading it back (RISKS R16, R17).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unique_id", "serial_number", "size_bytes", "friendly_name", "label", "manifest"],
+      "properties": {
+        "unique_id": { "type": "string", "minLength": 1 },
+        "serial_number": { "type": "string" },
+        "size_bytes": { "type": "integer", "minimum": 1 },
+        "friendly_name": { "type": "string" },
+        "label": { "description": "The volume label the person confirmed when the stick was written.", "type": "string", "minLength": 1, "maxLength": 11 },
+        "manifest": { "description": "SHA256SUMS of everything on the stick that evaluate wrote.", "$ref": "#/definitions/relpath" }
+      }
+    },
+    "staged": {
+      "description": "Clean-slate path only: the person's files copied to the stick's staging partition with per-file checksums.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "bytes", "manifest"],
+      "properties": {
+        "files": { "type": "integer", "minimum": 0 },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "manifest": { "$ref": "#/definitions/relpath" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "A flagged volume needs the person's consent to the disk-check step before a job is written.",
+      "if": { "properties": { "storage": { "properties": { "volume_health": { "properties": { "dirty": { "const": "dirty" } } } } } } },
+      "then": { "properties": { "fork": { "properties": { "volume_check_consented": { "const": true } } } } }
+    },
+    {
+      "description": "keep-windows can only be chosen when the ESP takes the alongside install (R21) and the disk is Healthy.",
+      "if": { "properties": { "intent": { "properties": { "path": { "const": "keep-windows" } } } } },
+      "then": { "properties": { "storage": { "properties": {
+        "esp": { "properties": { "fits_alongside_install": { "const": true } } },
+        "physical_disk": { "properties": { "health_status": { "const": "Healthy" } } }
+      } } } }
+    },
+    {
+      "description": "clean-slate carries the staged manifest.",
+      "if": { "properties": { "intent": { "properties": { "path": { "const": "clean-slate" } } } } },
+      "then": { "required": ["staged"] }
+    }
+  ],
+  "definitions": {
+    "relpath": {
+      "description": "A path relative to the directory holding job.json, forward slashes, no traversal.",
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))[^\\\\]+$"
+    },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

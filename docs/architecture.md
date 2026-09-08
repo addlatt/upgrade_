@@ -159,8 +159,11 @@ further human input.
 
 Largely built. `evaluate/windows/upgrade-scan.ps1` (state reading, refusals)
 and `evaluate/windows/Harvest-UpgradeState.ps1` (state + intent scaffolding) exist
-and are tested. **Not yet built:** artifact extraction, intent capture UI,
-multi-user handling, `job.json` schema.
+and are tested. The `job.json` / `outcome.json` contracts exist as JSON
+Schema in `schemas/` (2026-09-08; `schemas/check.py` holds the examples and
+the documents each schema must refuse) — no writer emits them yet. **Not yet
+built:** artifact extraction, intent capture UI, multi-user handling, the
+`job.json` writer.
 
 ---
 

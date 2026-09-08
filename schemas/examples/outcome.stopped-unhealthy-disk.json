@@ -1,0 +1,20 @@
+{
+  "schema": "outcome/1",
+  "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+  "created_utc": "2026-09-09T00:01:00Z",
+  "converter_version": "0.1.0",
+  "status": "stopped", "stopped_at": "volume-check",
+  "reason": "C: is flagged for a disk check but the physical disk reports HealthStatus=Warning; a repair on a failing drive can finish it off. Nothing was changed.",
+  "path_taken": null,
+  "commit_line": { "crossed": false, "crossed_utc": null, "act": null },
+  "prologue": {
+    "revalidated": true, "mismatches": [],
+    "volume_check": { "needed": true, "ran": false, "disk_health_at_check": "Warning", "method": "none", "wininit_1001": null, "found000_present": null, "dirty_after": "dirty" },
+    "shrink": { "remeasured_gb": null, "fork_taken": null, "requested_bytes": null, "freed_bytes": 0 },
+    "bitlocker": { "status_before": "on", "suspended": false, "reboot_count": null },
+    "handoff": { "armed": false, "entry_guid": null, "armed_utc": null, "bcd_backup": null }
+  },
+  "windows": { "kept": true, "partition": { "number": 3, "guid": "{a1b2c3d4-0000-0000-0000-000000000003}", "size_bytes": 250059350016 }, "reachable_via": "firmware-entry" },
+  "credentials": { "scrubbed": true, "scrub_after": "cutover" },
+  "logs": ["logs/prologue.log"]
+}

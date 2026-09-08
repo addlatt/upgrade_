@@ -1,0 +1,29 @@
+{
+  "schema": "outcome/1",
+  "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+  "created_utc": "2026-09-09T01:40:00Z",
+  "converter_version": "0.1.0",
+  "status": "completed", "stopped_at": null, "reason": null,
+  "path_taken": "keep-windows",
+  "commit_line": { "crossed": false, "crossed_utc": null, "act": null },
+  "prologue": {
+    "revalidated": true, "mismatches": [],
+    "volume_check": { "needed": true, "ran": true, "disk_health_at_check": "Healthy", "method": "spot-fix",
+      "wininit_1001": "Checking file system on C: ... Windows has made corrections to the file system. No further action is required.",
+      "found000_present": false, "dirty_after": "clean" },
+    "shrink": { "remeasured_gb": 61.4, "fork_taken": "keep-windows", "requested_bytes": 34359738368, "freed_bytes": 34359738368, "pagefile_disabled": true, "hibernation_disabled": true },
+    "bitlocker": { "status_before": "on", "suspended": true, "reboot_count": 1 },
+    "handoff": { "armed": true, "entry_guid": "{6f5a4b3c-2d1e-4f0a-9b8c-7d6e5f4a3b2c}", "armed_utc": "2026-09-09T00:02:00Z", "bcd_backup": "logs/bcd-backup.bin" }
+  },
+  "cutover": {
+    "identity_verified": true,
+    "stick_verified": { "files": 214, "bytes": 3221225472, "failed": [] },
+    "hardware": { "wifi": "pass", "display": "pass", "audio_firmware": "skipped", "human_gate": "not-required" },
+    "esp_snapshot": { "path": "esp-snapshot", "files": 14, "boot_entries": "esp-snapshot/boot-entries.txt" },
+    "install": { "distro": "fedora", "release": "42", "kernel": "6.14.0-63.fc42.x86_64", "root_partition": "/dev/nvme0n1p5", "esp_reused": true, "artifacts_injected": [] },
+    "boot_chain": { "windows_entry_present": true, "windows_entry_recreated": true, "linux_first_in_bootorder": true, "bootmgfw_matches_snapshot": true, "grub_lists_windows": true, "fallback_loader": "shim" }
+  },
+  "windows": { "kept": true, "partition": { "number": 3, "guid": "{a1b2c3d4-0000-0000-0000-000000000003}", "size_bytes": 215699611648 }, "reachable_via": "both" },
+  "credentials": { "scrubbed": false, "scrub_after": "settle-in-pull" },
+  "logs": ["logs/prologue.log", "logs/cutover.log", "logs/anaconda.log"]
+}

@@ -1,0 +1,61 @@
+{
+  "schema": "job/1",
+  "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+  "created_utc": "2026-09-08T20:15:00Z",
+  "evaluate": { "version": "0.1.0", "scanner_version": "0.1.0", "harvest_version": "0.1.0", "ran_as_admin": true },
+  "identity": {
+    "vendor": "Acer", "model": "Aspire A515-51G",
+    "system_uuid": "00000000-0000-0000-0000-000000000000",
+    "bios_serial": "NXGP4EK00181300E3C7600", "bios_version": "V1.16",
+    "firmware_mode": "UEFI", "secure_boot": "on",
+    "os_caption": "Microsoft Windows 10 Home", "os_build": 19045,
+    "system_disk": { "number": 0, "serial_number": "S3YANB0K123456", "unique_id": "eui.0025385A91B12345", "friendly_name": "Samsung SSD 860 EVO 250GB", "size_bytes": 250059350016, "partition_style": "GPT" }
+  },
+  "scan": { "verdict": "YELLOW", "required_kernel": "6.7", "report": "reports/upgrade-report.txt" },
+  "intent": {
+    "path": "keep-windows", "path_reason": "default",
+    "desktop": "kde",
+    "distro": { "name": "fedora", "release": "42" },
+    "account": { "windows_name": "Addison", "full_name": "Addison Example", "linux_name": "addison",
+      "password_hash": "$6$rounds00000000$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./abcdefghijklmnopqrstuv" },
+    "locale": { "lang": "en_US.UTF-8", "timezone": "America/New_York", "keymap": "us" }
+  },
+  "fork": { "if_cannot_keep": "clean-slate", "volume_check_consented": true },
+  "storage": {
+    "shrinkable_gb": null, "shrink_source": null,
+    "shrink_error": "Cannot shrink a partition containing a volume with errors.",
+    "linux_min_gb": 25,
+    "volume_health": { "dirty": "dirty", "scan": "ErrorsFound" },
+    "physical_disk": { "health_status": "Healthy", "operational_status": "OK", "media_type": "SSD" },
+    "esp": { "size_bytes": 104857600, "free_bytes": 72219648, "fits_alongside_install": true }
+  },
+  "harvest": {
+    "folders": [
+      { "name": "Desktop",   "path": "C:\\Users\\Addison\\OneDrive\\Desktop",   "exists": true, "is_onedrive": true,  "files": 12,   "bytes": 1048576,     "cloud_only_files": 0,  "truncated": false },
+      { "name": "Documents", "path": "C:\\Users\\Addison\\OneDrive\\Documents", "exists": true, "is_onedrive": true,  "files": 3400, "bytes": 2147483648,  "cloud_only_files": 41, "truncated": false },
+      { "name": "Pictures",  "path": "C:\\Users\\Addison\\OneDrive\\Pictures",  "exists": true, "is_onedrive": true,  "files": 9800, "bytes": 21474836480, "cloud_only_files": 0,  "truncated": false },
+      { "name": "Music",     "path": "C:\\Users\\Addison\\Music",              "exists": true, "is_onedrive": false, "files": 0,    "bytes": 0,           "cloud_only_files": 0,  "truncated": false },
+      { "name": "Videos",    "path": "C:\\Users\\Addison\\Videos",             "exists": true, "is_onedrive": false, "files": 4,    "bytes": 734003200,   "cloud_only_files": 0,  "truncated": false },
+      { "name": "Downloads", "path": "C:\\Users\\Addison\\Downloads",          "exists": true, "is_onedrive": false, "files": 210,  "bytes": 5368709120,  "cloud_only_files": 0,  "truncated": false }
+    ],
+    "cloud_files": { "placeholders_found": 41, "materialized": 41, "failed": 0, "result": "materialized" },
+    "browsers": [
+      { "name": "Firefox", "path": "C:\\Users\\Addison\\AppData\\Roaming\\Mozilla\\Firefox", "linux_target": "~/.mozilla/firefox", "passwords_port": true, "bytes": 314572800 },
+      { "name": "Edge", "path": "C:\\Users\\Addison\\AppData\\Local\\Microsoft\\Edge\\User Data", "linux_target": "~/.config/microsoft-edge", "passwords_port": false, "bytes": 157286400 }
+    ],
+    "wifi": {
+      "profiles": [
+        { "ssid": "HomeNet", "key_mgmt": "wpa-psk", "supported": true, "autoconnect": true },
+        { "ssid": "CorpNet", "key_mgmt": "UNSUPPORTED", "supported": false, "autoconnect": false }
+      ],
+      "secrets_file": "artifacts/credentials/wifi-profiles.json"
+    },
+    "bitlocker": { "status": "on", "recovery_key_file": "artifacts/credentials/bitlocker-C.txt" },
+    "firmware_artifacts": []
+  },
+  "stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&1A2B3C4D&0&_&0",
+    "serial_number": "", "size_bytes": 8053063680, "friendly_name": "General UDisk", "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+  }
+}

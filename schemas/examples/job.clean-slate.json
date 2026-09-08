@@ -1,0 +1,47 @@
+{
+  "schema": "job/1",
+  "job_id": "9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e",
+  "created_utc": "2026-09-08T21:00:00Z",
+  "evaluate": { "version": "0.1.0", "scanner_version": "0.1.0", "harvest_version": "0.1.0", "ran_as_admin": true },
+  "identity": {
+    "vendor": "Microsoft Corporation", "model": "Virtual Machine",
+    "system_uuid": "11111111-2222-3333-4444-555555555555",
+    "bios_serial": "0000-0000-0000-0000-0000-0000-00", "bios_version": "Hyper-V UEFI Release v4.1",
+    "firmware_mode": "UEFI", "secure_boot": "on",
+    "os_caption": "Microsoft Windows 10 Pro", "os_build": 19045,
+    "system_disk": { "number": 0, "serial_number": "", "unique_id": "{00000000-0000-0000-0000-000000000001}", "friendly_name": "Msft Virtual Disk", "size_bytes": 137438953472, "partition_style": "GPT" }
+  },
+  "scan": { "verdict": "GREEN", "required_kernel": null, "report": "reports/upgrade-report.txt" },
+  "intent": {
+    "path": "clean-slate", "path_reason": "forced-no-room",
+    "desktop": "gnome",
+    "distro": { "name": "fedora", "release": "42" },
+    "account": { "windows_name": "rig", "full_name": null, "linux_name": "rig",
+      "password_hash": "$6$saltsalt$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./abcdefghijklmnopqrstuv" },
+    "locale": { "lang": "en_GB.UTF-8", "timezone": "Europe/London", "keymap": "gb" }
+  },
+  "fork": { "if_cannot_keep": "stop", "volume_check_consented": false },
+  "storage": {
+    "shrinkable_gb": 10.0, "shrink_source": "storage-api", "shrink_error": null,
+    "linux_min_gb": 25,
+    "volume_health": { "dirty": "clean", "scan": null },
+    "physical_disk": { "health_status": "Healthy", "operational_status": "OK" },
+    "esp": { "size_bytes": 104857600, "free_bytes": 72219648, "fits_alongside_install": true }
+  },
+  "harvest": {
+    "folders": [
+      { "name": "Documents", "path": "C:\\Users\\rig\\Documents", "exists": true, "is_onedrive": false, "files": 2850, "bytes": 1610612736, "cloud_only_files": 0, "truncated": false }
+    ],
+    "cloud_files": { "placeholders_found": 0, "materialized": 0, "failed": 0, "result": "none-found" },
+    "browsers": [],
+    "wifi": { "profiles": [], "secrets_file": null },
+    "bitlocker": { "status": "off", "recovery_key_file": null },
+    "firmware_artifacts": []
+  },
+  "stick": {
+    "unique_id": "{e981b5d9-d866-46a0-8b3f-000000000000}",
+    "serial_number": "", "size_bytes": 34359738368, "friendly_name": "Msft Virtual Disk", "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+  },
+  "staged": { "files": 2850, "bytes": 1610612736, "manifest": "staging/SHA256SUMS" }
+}
