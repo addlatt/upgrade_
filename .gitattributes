@@ -1,0 +1,8 @@
+# The GRUB environment block is a fixed 1024-byte file that GRUB rewrites in
+# place; a CRLF conversion would make it 1025 bytes and break save_env.
+upgrade_/windows/handoff-payload/grubenv -text
+# GRUB and the UEFI Shell read these; keep them LF regardless of the checkout.
+upgrade_/windows/handoff-payload/grub.cfg text eol=lf
+upgrade_/windows/handoff-payload/startup.nsh text eol=lf
+# cmd.exe launchers ride a FAT stick and are read by cmd.exe: CRLF on checkout.
+*.cmd text eol=crlf
