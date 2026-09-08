@@ -658,17 +658,47 @@ built the same day:
    says plainly that the converter must run that step before it can
    measure; the shrink line points at it. Nine self-test cases, including
    that localized or error output parses to `unknown`, never `clean`.
-2. **This is a precondition the keep-Windows path must clear itself**, not
-   a manual step for the user (decided 2026-09-08 with the maintainer: the
-   preflight is a fully managed experience). The scanner stays read-only —
-   its "made no changes" line is the trust contract — so the fix belongs in
-   the one-click preflight / prologue, which already owns a restart: schedule
-   Windows' own check (`chkdsk /f` at boot, i.e. autochk), reboot, re-measure
-   on return through the same self-running check that V0 uses. **Not built
-   yet**, and it is the first thing in the flow that would modify the
-   internal disk (a filesystem repair, by Windows' own tool) — rule #4 says
-   it is disclosed to the user, recorded, and reviewed before it ships.
-   Owed code; tracked here until it lands.
+2. **Decided (2026-09-08): `evaluate` never repairs; the prologue may.**
+   This is a precondition the keep-Windows path must clear *itself* — the
+   user philosophy is a fully managed experience, not a manual step — but
+   the two modules split it on commitment, exactly as the architecture
+   splits everything else:
+   - **`evaluate` refuses to promise.** It detects the flag (`Volume
+     health`), says plainly that Windows needs a disk check before anyone
+     can know whether it can be kept, and **never runs one** — its "made no
+     changes" line is the trust contract. What it does instead is capture
+     the **fork** from the user up front: *if the re-measured number fits,
+     keep Windows; if not, clean slate or stop — which?* That answer goes
+     into `job.json`. No guess, and the person has consented to the branch
+     before anything happens.
+   - **The `upgrade_` prologue does the check and takes the fork**, as a
+     reversible-prep step with its own restart, between "re-validate the job
+     against the live machine" and "shrink" (`architecture.md`, prologue
+     steps 1–2). Consent is real (the person has said "convert this
+     machine"); refusal is still possible afterwards (it sits before the
+     commit line — a "stop" leaves Windows as it was plus a completed disk
+     check); and the number it branches on is the true one, measured at the
+     moment it matters.
+   - **Guardrails, all four, in the prologue:** the read-only online scan
+     confirms the flag first; **refuse outright if the physical disk does
+     not report `Healthy`** (a flag from a dying drive is a different
+     situation, and repair activity can finish it off); prefer Windows'
+     spot-fix (offline for seconds, fixes only what the scan logged); full
+     `chkdsk /f` only when the scan logged real errors; the check's actual
+     outcome (Wininit event 1001 text, any `found.000`) recorded in
+     `outcome.json`. The user is told, on the arm screen, that the restart
+     may be slow and must not be interrupted.
+   - **Consequences accepted with eyes open:** a full repair can truncate
+     or delete files it cannot reconcile (fragments land in `found.000`);
+     on a stale flag with no real corruption — the common case — nothing
+     is lost, which is why the scan-then-spot-fix ladder is the default.
+     We ran it, so we own the outcome; that is what the recording is for.
+   - **The test kit gains nothing that writes on the scanner side.** The
+     step belongs to the harness's lineage (`Test-Handoff.ps1` — one
+     reversible change, its own restart, clean-up on return), which is the
+     prologue's seed. **Owed code**; the disk-health read (`Get-PhysicalDisk
+     HealthStatus`, read-only) goes into the scanner first, since it is
+     useful regardless.
 
 **If real.** The safety-copy path is offered to machines that cannot deliver
 it; the prologue fails late, after intent capture and hard confirmation —

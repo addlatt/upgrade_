@@ -103,9 +103,10 @@ method in `docs/VALIDATION.md`; the killers, in order:
   independent read-only paths. **First physical machine (2026-09-08) could not
   be measured at all: its C: carried NTFS's dirty flag**, which Windows refuses
   to shrink past — the scanner's new `Volume health` check now names that
-  directly. Clearing it inside the one-click preflight (Windows' own `chkdsk`
-  at the restart it already does) is **owed code awaiting a maintainer
-  decision** — it would be the first step that modifies the internal disk.
+  directly. **Decided (2026-09-08):** `evaluate` never repairs; the `upgrade_`
+  prologue clears the flag as reversible prep (scan → refuse if the disk is
+  not Healthy → spot-fix or `chkdsk /f` → restart → re-measure → the fork the
+  user pre-chose). Owed code; RISKS R18 has the guardrails.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path
   delivers files: mount the kept Windows from installed Linux, unlock with the
   harvested key, copy. Bench-testable in VMs across BitLocker variants.

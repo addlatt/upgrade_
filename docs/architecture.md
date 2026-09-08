@@ -197,6 +197,17 @@ whole. That is what pulls the encrypted-read risk (RISKS R19) out of the
 
 1. Re-validate `job.json` against the live machine. Anything changed since
    `evaluate` ran stops here.
+   **1b. Clear the volume flag, if `evaluate` found one** (decided
+   2026-09-08, RISKS R18). Windows refuses to measure or shrink a C: that
+   carries NTFS's dirty flag — seen on the first physical machine. `evaluate`
+   never repairs; it records the flag and the user's pre-chosen fork. Here,
+   as reversible prep with its own restart: read-only online scan confirms
+   the flag → refuse if the physical disk is not `Healthy` → Windows'
+   spot-fix, or full `chkdsk /f` only when the scan logged real errors →
+   restart → **re-measure shrinkable space** → take the fork the user chose
+   in `evaluate` (keep Windows if it fits; else clean slate, or stop). The
+   check's real outcome goes into `outcome.json`. Before the commit line, so
+   "stop" leaves Windows as it was plus a completed disk check.
 2. **Keep Windows (default):** disable pagefile and hibernation, then shrink
    C: with `Resize-Partition` — Microsoft's own code path, the most-tested
    NTFS resize there is, and it works with BitLocker still on. Stage only
@@ -725,11 +736,11 @@ vendor is the same half-hour visit filling a whole column (scan, harvest,
 author, handoff, live boot, hardware verify) instead of one V0 row — a grid
 of vendors × stages, strictly more informative for the same cost.
 
-One precondition surfaced by the first physical machine belongs to the
-reversible half and is **owed, pending a maintainer decision**: the Acer's
-C: carried NTFS's dirty flag and Windows refused to measure shrink until a
-disk check ran (RISKS R18). The one-click preflight already owns a restart;
-scheduling Windows' own `chkdsk` there and re-measuring on return is the
-managed-experience answer, and it is also the first step that would modify
-the internal disk — so it is decided explicitly, disclosed on the arm
-screen, and recorded in the row, not slipped into a preflight.
+One precondition surfaced by the first physical machine is **decided
+(2026-09-08)** and owed as code: the Acer's C: carried NTFS's dirty flag and
+Windows refused to measure shrink until a disk check ran (RISKS R18).
+`evaluate` never repairs — it detects, and captures the user's fork; the
+`upgrade_` prologue clears the flag as reversible prep (step 1b above) with
+four guardrails, re-measures, and branches on the real number. It is the
+first step in the flow that modifies the internal disk, which is why it
+lives behind intent capture and before the commit line, not in a preflight.

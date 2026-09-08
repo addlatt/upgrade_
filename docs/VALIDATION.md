@@ -325,7 +325,10 @@ read-only path (`diskpart shrink querymax`, VDS) when the Storage API path
 refuses, labelling the source in the report. V4's population count therefore
 needs the `ShrinkSource` field read alongside the number: `storage-api` and
 `diskpart` measure the same thing by different services and should agree,
-and any machine where they disagree is a finding in its own right.
+and any machine where they disagree is a finding in its own right. A
+machine whose C: carries the dirty flag reports no number at all until the
+prologue's disk-check step (decided 2026-09-08, R18) has run — count it
+separately, not as "cannot shrink".
 
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.
