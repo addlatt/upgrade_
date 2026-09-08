@@ -119,6 +119,10 @@ method in `docs/VALIDATION.md`; the killers, in order:
 - **V8 / R8 — OneDrive placeholders are materialized at `evaluate`.** The Linux-side
   pull has no OneDrive client, so a "free up space" stub not forced local
   beforehand copies over as 0 bytes. Must materialize, not just detect.
+  **Built and plumbing-fired 2026-09-08:** harvester `-Materialize`
+  (pin + read-through + three-fact verification, refuse on any failure);
+  `Test-Materialize.ps1` is a real Cloud-Files-API provider — `pass-plumbing`
+  on the rig and the G16. Residue: `-OneDrive` against a signed-in client.
 
 **Tier 4 — kills adoption, not the mechanism:** V5 (VMD detection fires — an
 afternoon, do it early), V6 (code-signing reputation — a calendar, start now),

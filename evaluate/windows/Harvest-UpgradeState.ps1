@@ -23,6 +23,21 @@
     Skip recursive folder sizing. Much faster; the backup estimate becomes
     unavailable.
 
+.PARAMETER Materialize
+    Force every cloud-only placeholder in the user folders to real bytes on
+    disk (OneDrive "free up space" files) before the folder map is written.
+    This is the one thing the harvest does that is not a read: a placeholder
+    copied from Linux later arrives EMPTY, and no later stage can fill it
+    (RISKS R8 / V8). Every placeholder is pinned ("always keep on this
+    device") and read through, then verified to hold its bytes. A file that
+    cannot be made local is a refusal, not a warning.
+
+.PARAMETER MaterializePath
+    Run only the materialization step against one directory and write the
+    per-file result as JSON to -MaterializeResult. This is the seam the V8
+    harness (Test-Materialize.ps1) drives, in a separate process from the
+    sync provider - exactly the shape of the real thing.
+
 .EXAMPLE
     .\Harvest-UpgradeState.ps1
 
@@ -34,11 +49,15 @@ param(
     [string]$OutDir,
     [switch]$IncludeWifiSecrets,
     [switch]$SkipSizes,
+    [switch]$Materialize,
+    [string]$MaterializePath,
+    [string]$MaterializeResult,
+    [int]$MaterializeTimeoutSec = 600,
     [switch]$SelfTest
 )
 
 $ErrorActionPreference = 'Stop'
-$HarvestVersion = '0.1.0'
+$HarvestVersion = '0.2.0'
 
 # Windows sets this on files that live in the cloud and have not been
 # downloaded. Copying one gives you an empty file, silently.
@@ -257,6 +276,192 @@ function Get-HarvestUserFolders {
         }
     }
     $results
+}
+
+# =============================================================================
+#  cloud placeholders - materialize, or refuse (RISKS R8 / V8)
+# =============================================================================
+#  A OneDrive "free up space" file is a placeholder: the directory entry
+#  carries the full size, the data lives in the cloud, and Windows' cloud
+#  files filter (cldflt) fetches it on first read. Read from Linux there is
+#  no filter and no OneDrive - the file copies over empty. So while Windows
+#  is alive we pin every placeholder and read it through, which makes the
+#  filter fetch the bytes onto the NTFS volume where settle-in will find them.
+#  Then we check, per file, that the placeholder attributes are gone and the
+#  file has allocated bytes on disk. Anything short of that is a failure the
+#  caller must refuse on - "probably fine" is how someone's photos arrive as
+#  0-byte files.
+
+if (-not ('Upg.NativeFile' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+namespace Upg {
+    public static class NativeFile {
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        static extern uint GetCompressedFileSizeW(string lpFileName, out uint lpFileSizeHigh);
+        // Bytes the file actually occupies on the volume. A dehydrated
+        // placeholder allocates nothing; a hydrated one allocates its size
+        // (rounded up to the cluster). Sparse or compressed files also
+        // report less than their length, which is why this is read together
+        // with the attributes, not alone.
+        public static long AllocatedBytes(string path) {
+            uint high;
+            uint low = GetCompressedFileSizeW(@"\\?\" + path, out high);
+            if (low == 0xFFFFFFFF) {
+                int err = Marshal.GetLastWin32Error();
+                if (err != 0) throw new System.ComponentModel.Win32Exception(err);
+            }
+            return ((long)high << 32) | low;
+        }
+    }
+}
+'@
+}
+
+function Test-HarvestPlaceholderAttributes {
+    # Pure: do these attribute bits mark a cloud-only placeholder?
+    param([int]$Attributes)
+    [bool](($Attributes -band $FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) -or ($Attributes -band $FILE_ATTRIBUTE_OFFLINE))
+}
+
+function Get-HarvestPlaceholders {
+    # Every cloud-only placeholder under a directory. Enumeration reads the
+    # directory entries only - it does not hydrate anything.
+    param([string]$Path, [int]$MaxFiles = 250000)
+    $found = @()
+    try {
+        Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue |
+            Select-Object -First $MaxFiles |
+            ForEach-Object {
+                if (Test-HarvestPlaceholderAttributes -Attributes ([int]$_.Attributes)) {
+                    $found += [pscustomobject]@{ Path = $_.FullName; Length = $_.Length; Attributes = [int]$_.Attributes }
+                }
+            }
+    } catch { }
+    $found
+}
+
+function Test-HarvestMaterialized {
+    # Pure judgment on one file's post-read facts: placeholder bits cleared,
+    # every byte readable, and bytes allocated on disk (unless the file is
+    # empty). All three, or it is not materialized.
+    param([int]$Attributes, [long]$Length, [long]$BytesRead, [long]$AllocatedBytes)
+    if (Test-HarvestPlaceholderAttributes -Attributes $Attributes) { return $false }
+    if ($BytesRead -ne $Length) { return $false }
+    if ($Length -gt 0 -and $AllocatedBytes -le 0) { return $false }
+    $true
+}
+
+function Invoke-HarvestMaterializeFile {
+    # One placeholder: pin it (attrib +P -U - "always keep on this device",
+    # so the sync client will not dehydrate it again before settle-in pulls
+    # it), read it through with a timeout so a stalled download cannot hang
+    # the harvest, then re-read the facts and judge. Returns the per-file
+    # record; never throws.
+    param([string]$Path, [long]$Length, [int]$TimeoutSec = 600)
+    $r = [pscustomobject]@{
+        Path = $Path; Length = $Length; Pinned = $false; BytesRead = 0
+        AttributesAfter = $null; AllocatedBytes = $null; Materialized = $false; Error = $null; Seconds = 0.0
+    }
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        $null = & attrib.exe +P -U ("`"$Path`"") 2>&1
+        $r.Pinned = ($LASTEXITCODE -eq 0)
+    } catch { }
+    $cts = New-Object System.Threading.CancellationTokenSource
+    $fs = $null
+    try {
+        $fs = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+        $counter = New-Object Upg.CountingStream
+        $task = $fs.CopyToAsync($counter, 1048576, $cts.Token)
+        # Task.Wait throws an AggregateException when the read fails; the
+        # inner exception carries what the filter said (a refused fetch on
+        # the rig surfaced as "The cloud operation was unsuccessful").
+        $done = $false
+        try { $done = $task.Wait($TimeoutSec * 1000) }
+        catch [System.AggregateException] {
+            $inner = $_.Exception.InnerException
+            if ($inner -and $inner.InnerException) { $inner = $inner.InnerException }
+            $r.Error = ($inner.Message -replace '\s+', ' ').Trim()
+            $done = $true
+        }
+        if (-not $done) {
+            $cts.Cancel()
+            $r.Error = "timed out after $TimeoutSec s with $($counter.Total) of $Length bytes"
+        }
+        $r.BytesRead = $counter.Total
+    } catch {
+        $e = $_.Exception
+        while ($e.InnerException) { $e = $e.InnerException }
+        $r.Error = ($e.Message -replace '\s+', ' ').Trim()
+    } finally {
+        if ($fs) { try { $fs.Dispose() } catch { } }
+        $cts.Dispose()
+    }
+    try {
+        $r.AttributesAfter = [int][IO.File]::GetAttributes($Path)
+        $r.AllocatedBytes  = [Upg.NativeFile]::AllocatedBytes($Path)
+        $r.Materialized = Test-HarvestMaterialized -Attributes $r.AttributesAfter -Length $Length `
+                              -BytesRead $r.BytesRead -AllocatedBytes $r.AllocatedBytes
+    } catch {
+        if (-not $r.Error) { $r.Error = ($_.Exception.Message -replace '\s+', ' ').Trim() }
+    }
+    $r.Seconds = [math]::Round($sw.Elapsed.TotalSeconds, 2)
+    $r
+}
+
+if (-not ('Upg.CountingStream' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+namespace Upg {
+    // A sink that counts what was written to it. Reading a placeholder to
+    // the end is what makes the filter fetch every byte; the count is the
+    // proof that every byte arrived.
+    public class CountingStream : Stream {
+        public long Total;
+        public override bool CanRead { get { return false; } }
+        public override bool CanSeek { get { return false; } }
+        public override bool CanWrite { get { return true; } }
+        public override long Length { get { return Total; } }
+        public override long Position { get { return Total; } set { throw new NotSupportedException(); } }
+        public override void Flush() { }
+        public override int Read(byte[] b, int o, int c) { throw new NotSupportedException(); }
+        public override long Seek(long o, SeekOrigin s) { throw new NotSupportedException(); }
+        public override void SetLength(long v) { throw new NotSupportedException(); }
+        public override void Write(byte[] b, int o, int c) { Total += c; }
+    }
+}
+'@
+}
+
+function Invoke-HarvestMaterialize {
+    # Materialize every placeholder under the given directories. The summary
+    # is what job.json's harvest.cloud_files carries; Failed > 0 means the
+    # caller refuses to write a job at all.
+    param([string[]]$Paths, [int]$TimeoutSec = 600, [int]$MaxFiles = 250000)
+    $placeholders = @()
+    foreach ($p in @($Paths)) {
+        if ($p -and (Test-Path -LiteralPath $p)) { $placeholders += @(Get-HarvestPlaceholders -Path $p -MaxFiles $MaxFiles) }
+    }
+    $files = @()
+    $i = 0
+    foreach ($ph in $placeholders) {
+        $i++
+        Write-Step ("materializing {0}/{1}: {2} ({3:N0} bytes)..." -f $i, $placeholders.Count, (Split-Path $ph.Path -Leaf), $ph.Length)
+        $files += Invoke-HarvestMaterializeFile -Path $ph.Path -Length $ph.Length -TimeoutSec $TimeoutSec
+    }
+    $ok = @($files | Where-Object { $_.Materialized })
+    $bad = @($files | Where-Object { -not $_.Materialized })
+    [pscustomobject]@{
+        PlaceholdersFound = $placeholders.Count
+        Materialized      = $ok.Count
+        Failed            = $bad.Count
+        Bytes             = [int64](($ok | Measure-Object -Property Length -Sum).Sum)
+        Result            = if ($placeholders.Count -eq 0) { 'none-found' } elseif ($bad.Count -eq 0) { 'materialized' } else { 'refused' }
+        Files             = $files
+    }
 }
 
 # =============================================================================
@@ -527,6 +732,48 @@ function Invoke-HarvestSelfTest {
             ($s.CloudOnlyFiles -eq 1) `
             "got CloudOnly=$($s.CloudOnlyFiles)"
 
+        # --- materialization judgment (R8 / V8): the pure half ------------
+        $RECALL = 0x400000; $OFFLINE = 0x1000; $ARCHIVE = 0x20; $PINNED = 0x80000
+        Assert-H 'materialize: recall-on-data-access bit is a placeholder' `
+            (Test-HarvestPlaceholderAttributes -Attributes ($ARCHIVE -bor $RECALL))
+        Assert-H 'materialize: offline bit is a placeholder' `
+            (Test-HarvestPlaceholderAttributes -Attributes ($ARCHIVE -bor $OFFLINE))
+        Assert-H 'materialize: pinned alone is not a placeholder (V8: pin bits are not detection)' `
+            (-not (Test-HarvestPlaceholderAttributes -Attributes ($ARCHIVE -bor $PINNED)))
+        Assert-H 'materialize: bits cleared + every byte read + allocated is materialized' `
+            (Test-HarvestMaterialized -Attributes ($ARCHIVE -bor $PINNED) -Length 1000 -BytesRead 1000 -AllocatedBytes 4096)
+        Assert-H 'materialize: recall bit still set is NOT materialized, whatever was read' `
+            (-not (Test-HarvestMaterialized -Attributes ($ARCHIVE -bor $RECALL) -Length 1000 -BytesRead 1000 -AllocatedBytes 4096))
+        Assert-H 'materialize: a short read is NOT materialized' `
+            (-not (Test-HarvestMaterialized -Attributes $ARCHIVE -Length 1000 -BytesRead 999 -AllocatedBytes 4096))
+        Assert-H 'materialize: zero bytes allocated for a non-empty file is NOT materialized' `
+            (-not (Test-HarvestMaterialized -Attributes $ARCHIVE -Length 1000 -BytesRead 1000 -AllocatedBytes 0))
+        Assert-H 'materialize: an empty file needs no allocation' `
+            (Test-HarvestMaterialized -Attributes $ARCHIVE -Length 0 -BytesRead 0 -AllocatedBytes 0)
+
+        # allocated-bytes read against real files: a plain file allocates,
+        # and the read goes through the same P/Invoke the judgment uses
+        $alloc = [Upg.NativeFile]::AllocatedBytes((Join-Path $tree 'a.txt'))
+        Assert-H 'materialize: a real 10-byte file reports allocated bytes > 0' ($alloc -gt 0) "got $alloc"
+
+        # the per-file materializer on an ordinary (non-placeholder) file:
+        # reads it through, judges it materialized, touches nothing else
+        $mf = Invoke-HarvestMaterializeFile -Path (Join-Path $tree 'b.txt') -Length 20 -TimeoutSec 30
+        Assert-H 'materialize: an ordinary file passes through as materialized' `
+            ($mf.Materialized -and $mf.BytesRead -eq 20 -and -not $mf.Error) "got read=$($mf.BytesRead) err=$($mf.Error)"
+        $mf = Invoke-HarvestMaterializeFile -Path (Join-Path $tree 'missing.txt') -Length 5 -TimeoutSec 30
+        Assert-H 'materialize: a vanished file is a failure with the reason, not a crash' `
+            (-not $mf.Materialized -and $mf.Error) "got err=$($mf.Error)"
+        # the OFFLINE attribute set by hand (not by a filter) is a placeholder
+        # the read cannot clear: the run must report it as NOT materialized.
+        # This is the refuse arm - a stub nothing will fill must stop the job.
+        $mf = Invoke-HarvestMaterializeFile -Path $ph -Length 1 -TimeoutSec 30
+        Assert-H 'materialize: a stub no provider will fill is reported failed (refuse arm)' `
+            (-not $mf.Materialized) "got materialized=$($mf.Materialized) attrs=$($mf.AttributesAfter)"
+        $ms = Invoke-HarvestMaterialize -Paths @($tree) -TimeoutSec 30
+        Assert-H 'materialize: summary counts the stub as found and failed, result refused' `
+            ($ms.PlaceholdersFound -eq 1 -and $ms.Failed -eq 1 -and $ms.Result -eq 'refused') "got found=$($ms.PlaceholdersFound) failed=$($ms.Failed) result=$($ms.Result)"
+
         # --- WLAN profile XML parsing -------------------------------------
         $curly = 'Addison' + [char]0x2019 + 's iPhone'           # curly apostrophe (F3)
         $emoji = 'Caf' + [char]0xE9 + ' ' + [char]::ConvertFromUtf32(0x2615) + ' 5G'
@@ -632,6 +879,17 @@ function Invoke-HarvestSelfTest {
 
 if ($SelfTest) { Invoke-HarvestSelfTest }
 
+if ($MaterializePath) {
+    # The V8 seam: materialize one directory, report per file, exit non-zero
+    # on any failure. Run by Test-Materialize.ps1 in its own process.
+    if (-not $MaterializeResult) { throw '-MaterializePath needs -MaterializeResult <file.json>' }
+    $m = Invoke-HarvestMaterialize -Paths @($MaterializePath) -TimeoutSec $MaterializeTimeoutSec
+    $m | ConvertTo-Json -Depth 5 | Out-File -FilePath $MaterializeResult -Encoding UTF8
+    Write-Host ("  placeholders {0}, materialized {1}, failed {2} -> {3}" -f $m.PlaceholdersFound, $m.Materialized, $m.Failed, $m.Result)
+    if ($m.Failed -gt 0) { exit 3 }
+    exit 0
+}
+
 $isAdmin = Test-HarvestAdmin
 
 if (-not $OutDir) {
@@ -654,6 +912,20 @@ $account = Get-HarvestAccount
 $userFolders = Get-HarvestUserFolders -SkipSizes:$SkipSizes
 $browsers    = Get-HarvestBrowsers -SkipSizes:$SkipSizes
 
+# Materialize cloud placeholders (RISKS R8 / V8), then size again: the folder
+# map that reaches the stick must describe files that are actually on disk.
+$cloudFiles = [pscustomobject]@{ PlaceholdersFound = (@($userFolders | Measure-Object -Property CloudOnlyFiles -Sum).Sum)
+                                 Materialized = 0; Failed = 0; Bytes = 0; Result = 'not-attempted'; Files = @() }
+if (-not $cloudFiles.PlaceholdersFound) { $cloudFiles.PlaceholdersFound = 0 }
+if ($Materialize) {
+    Write-Step 'cloud placeholders...'
+    $cloudFiles = Invoke-HarvestMaterialize -Paths @($userFolders | Where-Object { $_.Exists } | ForEach-Object { $_.Path }) `
+                                            -TimeoutSec $MaterializeTimeoutSec
+    if ($cloudFiles.PlaceholdersFound -gt 0) { $userFolders = Get-HarvestUserFolders -SkipSizes:$SkipSizes }
+} elseif ($cloudFiles.PlaceholdersFound -eq 0) {
+    $cloudFiles.Result = 'none-found'
+}
+
 Write-Step 'wi-fi profiles...'
 $wifi = Get-HarvestWifi -IncludeSecrets:$IncludeWifiSecrets.IsPresent -IsAdmin $isAdmin -WorkDir $OutDir
 
@@ -670,6 +942,14 @@ $state = [pscustomobject]@{
     Locale          = $locale
     Account         = $account
     UserFolders     = $userFolders
+    CloudFiles      = [pscustomobject]@{
+        PlaceholdersFound = $cloudFiles.PlaceholdersFound
+        Materialized      = $cloudFiles.Materialized
+        Failed            = $cloudFiles.Failed
+        Bytes             = $cloudFiles.Bytes
+        Result            = $cloudFiles.Result
+        FailedFiles       = @($cloudFiles.Files | Where-Object { -not $_.Materialized } | ForEach-Object { [pscustomobject]@{ Path = $_.Path; Error = $_.Error } })
+    }
     Browsers        = $browsers
     WifiProfiles    = $wifi
     ExternalDrives  = $external
@@ -694,10 +974,19 @@ foreach ($f in $userFolders) {
     $line = "  {0,-10} {1,8} GB  {2,6} files" -f $f.Name, $gb, $f.Files
     Write-Host $line
     if ($f.CloudOnlyFiles -gt 0) {
-        Write-Warn "$($f.CloudOnlyFiles) files in $($f.Name) are cloud-only placeholders - they would copy as EMPTY. Make them available offline first."
+        Write-Warn "$($f.CloudOnlyFiles) files in $($f.Name) are cloud-only placeholders - they would copy as EMPTY. Re-run with -Materialize to download them, or make them available offline first."
     }
     if ($f.Truncated) {
         Write-Warn "$($f.Name) was too large to size within the time limit; the backup estimate is low."
+    }
+}
+
+if ($cloudFiles.Result -eq 'materialized') {
+    Write-Host ("  cloud files: {0} placeholders made local ({1:N1} GB)" -f $cloudFiles.Materialized, ($cloudFiles.Bytes / 1GB)) -ForegroundColor Green
+} elseif ($cloudFiles.Result -eq 'refused') {
+    Write-Warn ("REFUSED: {0} of {1} cloud-only files could not be made local. They would arrive EMPTY on Linux, so no conversion can be written from this harvest. Check that OneDrive is running and signed in, then re-run." -f $cloudFiles.Failed, $cloudFiles.PlaceholdersFound)
+    foreach ($ff in ($cloudFiles.Files | Where-Object { -not $_.Materialized } | Select-Object -First 10)) {
+        Write-Host ("      {0}: {1}" -f $ff.Path, $ff.Error) -ForegroundColor Yellow
     }
 }
 

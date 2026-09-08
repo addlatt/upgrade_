@@ -351,6 +351,15 @@ confirm `evaluate` detects them, forces them local, and that they carry real
 bytes on the NTFS partition afterward. Confirm the pinned/unpinned attribute
 bits (`0x00080000` / `0x00100000`) don't need to be part of the detection.
 
+**cfapi leg fired (2026-09-08).** `evaluate/windows/Test-Materialize.ps1`
+is a sync provider on Windows' Cloud Files API: it creates real dehydrated
+placeholders with known bytes, refuses to serve one, runs the harvester's
+`-Materialize` seam in a separate process, and hashes the NTFS bytes
+afterwards. `pass-plumbing` on the rig (Win10 19045) and the G16 (Win11
+26200) — rows in `docs/validation-results/v8-materialize.csv`. The
+pinned/unpinned bits are confirmed not to be part of detection. Remaining:
+`-OneDrive` against a signed-in client (the residue).
+
 **Pass.** No cloud-only stub survives into the pulled data as a 0-byte file.
 
 **If it fails.** `evaluate` refuses machines with un-materializable

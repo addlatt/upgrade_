@@ -242,7 +242,7 @@ we don't know* — not *assert a failure we haven't established*.
 bring a USB Ethernet adapter just in case", and common working Broadcom IDs are
 added to the exact-match table.
 
-## R8 — Cloud-only detection positive path untested · medium · open
+## R8 — Cloud-only detection positive path untested · medium · open (materialization built; cfapi leg fired 2026-09-08)
 
 **What.** Placeholder detection checks `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS`
 and `FILE_ATTRIBUTE_OFFLINE`. On the test machine it returned 0, and an
@@ -268,10 +268,35 @@ through the real filesystem, not a fabricated object. Narrowed residue: the
 `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS` arm as the actual OneDrive cloud filter
 sets it (only the filter can), and materialization itself.
 
-**Closes when.** Materialization is implemented and tested on a machine with
-"Free up space" files present — confirming the files carry real bytes on the
-NTFS partition afterward — ideally also confirming the OneDrive pinned/unpinned
-attribute bits (`0x00080000` / `0x00100000`) don't need to be part of the test.
+**Materialization built and its plumbing fired (2026-09-08).** The
+harvester now has `-Materialize`: every placeholder under the user folders
+is pinned (`attrib +P -U`, "always keep on this device", so the client will
+not dehydrate it again before settle-in pulls it) and read through to the
+end with a timeout, then judged on three facts — placeholder attributes
+gone, every byte read, bytes allocated on the volume
+(`GetCompressedFileSize`) — all three or it is **not** materialized, and
+one failure makes the harvest **refuse** (exit 3, no job). The harness
+(`evaluate/windows/Test-Materialize.ps1`) is a real sync provider on the
+Cloud Files API — the API OneDrive is built on — that creates genuine
+dehydrated placeholders with ground-truth bytes and refuses to serve one of
+them; the harvester runs in a separate process, and the bytes on NTFS are
+hashed afterwards. `pass-plumbing` on the rig (Windows 10 19045) and the
+G16 (Windows 11 26200): 6/6 servable files byte-identical and fully
+allocated, the refused one reported failed, exit 3
+(`docs/validation-results/v8-materialize.csv`). The
+`RECALL_ON_DATA_ACCESS` arm is now exercised by the real filter (attrs
+`0x401620` before, `0x80420` after — pinned, reparse point, no recall bit),
+and the pinned/unpinned bits are confirmed **not** part of detection (a
+self-test case pins that). Two cfapi facts learned: parent directories must
+themselves be placeholders, and a placeholder name is bare, relative to its
+own directory.
+
+**Closes when.** `Test-Materialize.ps1 -OneDrive` passes against a
+signed-in OneDrive with Files On-Demand — the residue no test provider can
+stand in for (CLAUDE.md rule #5): the client's own dehydrate/hydrate
+behaviour, its response to `attrib +P`, and a network-stalled fetch. The
+harness runs that leg; it uploads a few MB to the account and is only ever
+run on a machine the person owns.
 
 ## R9 — No CI; dist can drift from source · medium · open
 

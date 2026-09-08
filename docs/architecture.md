@@ -163,7 +163,9 @@ and are tested. The `job.json` / `outcome.json` contracts exist as JSON
 Schema in `schemas/` (2026-09-08; `schemas/check.py` holds the examples and
 the documents each schema must refuse) — no writer emits them yet. **Not yet
 built:** artifact extraction, intent capture UI, multi-user handling, the
-`job.json` writer.
+`job.json` writer. **Materialization of cloud placeholders exists**
+(`Harvest-UpgradeState.ps1 -Materialize`, 2026-09-08) and its plumbing is
+proven against Windows' own cloud files filter (RISKS R8).
 
 ---
 

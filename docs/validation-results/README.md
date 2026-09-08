@@ -187,3 +187,56 @@ same config, kernel and driver supersede the earlier ones** — the earlier
 - The same on at least one physical BitLocker machine per Windows version the
   project targets; used-space-only on a fragmented real disk is the named
   residue no VM row closes (CLAUDE.md rule #5).
+
+## `v8-materialize.csv` — OneDrive placeholders are materialized at evaluate (gate V8, risk R8)
+
+One row per run, appended by `evaluate/windows/Test-Materialize.ps1`. Do
+not hand-edit; add rows by running the harness. A "free up space" file is
+a placeholder — full size in the directory entry, no bytes on disk, fetched
+by Windows' cloud files filter on first read; pulled from Linux it arrives
+empty. The harness proves the harvester's materialization step
+(`Harvest-UpgradeState.ps1 -Materialize`, seam `-MaterializePath`) end to
+end against the **real filter** with ground truth: it registers a
+temporary sync root through the Cloud Files API (the API OneDrive is built
+on), creates dehydrated placeholders whose bytes only the harness knows,
+runs the harvester in a **separate process**, and hashes what is on the
+NTFS volume afterwards. One placeholder is one the provider refuses to
+serve, so the refuse arm is exercised on every run.
+
+| Column | Meaning |
+|---|---|
+| `timestamp` | UTC, ISO 8601 (the rig guest's clock was ~7 h off for its first two rows on 2026-09-08 and corrected itself mid-session; rows are transported verbatim) |
+| `harness` | Test-Materialize.ps1 version |
+| `os_build` | Windows build the filter belongs to |
+| `provider` | `cfapi-test-provider` (the harness is the sync provider) or `onedrive` (the signed-in client, `-OneDrive`) |
+| `files`, `bytes` | placeholders created and their total logical size |
+| `placeholders_confirmed` | how many carried `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS` **and** allocated 0 bytes on disk before the run — the setup check |
+| `materialized` | files the harvester reported materialized |
+| `bytes_verified` | files whose on-disk sha256 equals the ground truth **and** whose placeholder attribute is gone **and** which allocate on disk |
+| `refused_expected`, `refused_reported` | files the provider refuses to serve, and how many of those the harvester reported as failed |
+| `harvest_exit` | the harvester's exit code (0 = all materialized; 3 = at least one failure, the refusal) |
+| `result` | see vocabulary below |
+| `notes` | harness-written facts first (OS, provider, hydration policy, sizes), then FETCH_DATA counts and the harvester's summary line |
+
+### Result vocabulary
+
+| Result | Meaning | Verdict |
+|---|---|---|
+| `pass-plumbing` | every servable placeholder materialized and byte-verified; the refused one reported failed with a non-zero exit | **pass for the filter and the harvester** — the provider was ours, so this closes plumbing only (CLAUDE.md rule #5) |
+| `pass` | the same with `provider=onedrive` | **pass** — the residue |
+| `setup-failed` | the placeholders did not come out dehydrated — a harness or API problem, nothing learned about materialization | fix the harness |
+| `wrong-bytes` | a file materialized but its bytes differ from the ground truth | **fail-loud** — the trust-ending class |
+| `not-materialized` | a servable file stayed a placeholder, or was reported materialized without bytes on disk | fail — the harvester's judgment is wrong |
+| `refusal-missed` | the unservable file was reported materialized, or a failure came back with exit 0 | **fail-loud** — "materialize, or refuse" would have written a job over an empty file |
+
+### What "V8 passes" requires
+
+- `pass-plumbing` on the rig and on at least one physical machine (done
+  2026-09-08: rig guest Windows 10 19045, G16 Windows 11 26200 — two
+  `setup-failed` rows precede the rig pass and record the two cfapi facts
+  learned that day: parent directories must be placeholders, and a
+  placeholder name must be bare, relative to its own directory).
+- `pass` with `provider=onedrive` on a signed-in machine with Files
+  On-Demand: `Test-Materialize.ps1 -OneDrive` uploads a few MB to the
+  account, asks the client to free up space, then materializes — run only
+  on a machine and account you own, never unattended.
