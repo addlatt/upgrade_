@@ -789,6 +789,111 @@ function Test-UpgDisk {
     }
 }
 
+function Get-UpgPhysicalDiskFacts {
+    # Collection half. The physical disk that holds C:, as Windows' own
+    # storage stack reports it: Get-PhysicalDisk HealthStatus /
+    # OperationalStatus (readable unelevated - confirmed on the G16,
+    # 2026-09-08). The reliability counters (uncorrected read/write errors,
+    # wear, power-on hours) need Administrator, like the shrink query; they
+    # are carried as facts and judged by nothing - HealthStatus is the
+    # storage stack's verdict on the drive and this scanner does not invent
+    # a second one from raw counters.
+    param([bool]$IsAdmin)
+    $facts = [pscustomobject]@{
+        Found = $false; DiskNumber = $null; FriendlyName = $null; MediaType = $null; BusType = $null
+        HealthStatus = $null; OperationalStatus = $null; Size = $null
+        Counters = $null; CountersError = $null; Error = $null
+    }
+    try {
+        $part = Get-Partition -DriveLetter C -ErrorAction Stop
+        $facts.DiskNumber = $part.DiskNumber
+        # DeviceId is the disk number as a string on every machine seen so
+        # far; when it does not map one-to-one, fall back to the unique id
+        # the Disk object shares with its PhysicalDisk.
+        $pd = @(Get-PhysicalDisk -ErrorAction Stop | Where-Object { "$($_.DeviceId)" -eq "$($part.DiskNumber)" })
+        if ($pd.Count -ne 1) {
+            $disk = Get-Disk -Number $part.DiskNumber -ErrorAction Stop
+            $pd = @(Get-PhysicalDisk -ErrorAction Stop | Where-Object { $_.UniqueId -and $_.UniqueId -eq $disk.UniqueId })
+        }
+        if ($pd.Count -eq 1) {
+            $p = $pd[0]
+            $facts.Found             = $true
+            $facts.FriendlyName      = $p.FriendlyName
+            $facts.MediaType         = "$($p.MediaType)"
+            $facts.BusType           = "$($p.BusType)"
+            $facts.HealthStatus      = "$($p.HealthStatus)"
+            $facts.OperationalStatus = (@($p.OperationalStatus) -join ',')
+            $facts.Size              = $p.Size
+            if ($IsAdmin) {
+                try {
+                    $c = $p | Get-StorageReliabilityCounter -ErrorAction Stop
+                    $facts.Counters = [pscustomobject]@{
+                        Temperature            = $c.Temperature
+                        Wear                   = $c.Wear
+                        ReadErrorsUncorrected  = $c.ReadErrorsUncorrected
+                        WriteErrorsUncorrected = $c.WriteErrorsUncorrected
+                        ReadErrorsTotal        = $c.ReadErrorsTotal
+                        PowerOnHours           = $c.PowerOnHours
+                    }
+                } catch { $facts.CountersError = ($_.Exception.Message -replace '\s+', ' ').Trim() }
+            }
+        } else {
+            $facts.Error = "Get-PhysicalDisk returned $($pd.Count) candidates for disk $($part.DiskNumber)"
+        }
+    } catch { $facts.Error = ($_.Exception.Message -replace '\s+', ' ').Trim() }
+    $facts
+}
+
+function Test-UpgPhysicalDisk {
+    # Judgment half. HealthStatus is the storage stack's own verdict on the
+    # drive (SMART / NVMe health, surfaced by the port driver). It is also
+    # the first guardrail of the prologue's disk-check step (RISKS R18): a
+    # repair on a drive that is not Healthy can finish it off, so the
+    # converter refuses that step outright - and keeping Windows (a shrink
+    # of the same drive) is not offered on it either. Unhealthy is a hard
+    # refusal: converting on a failing drive risks the files during the
+    # copy, and the new system would live on it.
+    param($Facts)
+    if (-not $Facts -or -not $Facts.Found) {
+        $why = if ($Facts -and $Facts.Error) { " ($($Facts.Error))" } else { '' }
+        New-UpgCheck -Section 'Storage' -Title 'Disk health' -Status 'unknown' `
+            -Detail 'could not read the drive health' `
+            -Note "Windows did not report a health status for the drive that holds C:$why. The converter reads this again before it does anything and refuses the disk-check step without it."
+        return
+    }
+    $counters = ''
+    if ($Facts.Counters) {
+        $c = $Facts.Counters
+        $bits = @()
+        if ($null -ne $c.ReadErrorsUncorrected)  { $bits += "uncorrected read errors $($c.ReadErrorsUncorrected)" }
+        if ($null -ne $c.WriteErrorsUncorrected) { $bits += "uncorrected write errors $($c.WriteErrorsUncorrected)" }
+        if ($null -ne $c.Wear -and $c.Wear -gt 0) { $bits += "wear $($c.Wear)%" }
+        if ($null -ne $c.PowerOnHours)           { $bits += "$($c.PowerOnHours) h powered on" }
+        if ($bits.Count -gt 0) { $counters = ' Windows also reports: ' + ($bits -join ', ') + '.' }
+    }
+    $what = "$($Facts.FriendlyName) - $($Facts.HealthStatus) ($($Facts.OperationalStatus))"
+    switch ($Facts.HealthStatus) {
+        'Healthy' {
+            New-UpgCheck -Section 'Storage' -Title 'Disk health' -Status 'ok' -Detail $what `
+                -Note "Windows' own health check reports nothing wrong with the drive that holds Windows.$counters"
+        }
+        'Warning' {
+            New-UpgCheck -Section 'Storage' -Title 'Disk health' -Status 'warn' -Detail $what `
+                -Note "Windows reports a warning for the drive that holds Windows - it is showing early signs of trouble.$counters The converter will not shrink this drive or run a disk check on it, so keeping Windows as a fallback is not offered; converting is still possible with your files on the USB stick (the clean-slate path)." `
+                -Remedy 'Copy your important files somewhere else FIRST - a drive showing warnings can fail without further notice. Then consider replacing the drive before converting: a new drive makes the conversion simpler and the result more reliable.'
+        }
+        'Unhealthy' {
+            New-UpgCheck -Section 'Storage' -Title 'Disk health' -Status 'fail' -Detail $what `
+                -Note "Windows reports the drive that holds Windows as unhealthy - it is failing.$counters Converting on a failing drive risks losing your files during the copy, and the new system would live on it." `
+                -Remedy 'Do not convert on this drive. Copy your files off it now, replace the drive, then run this scanner again.'
+        }
+        default {
+            New-UpgCheck -Section 'Storage' -Title 'Disk health' -Status 'unknown' -Detail $what `
+                -Note "Windows reported a health status this scanner does not recognise ('$($Facts.HealthStatus)'). The converter reads this again and refuses the disk-check step unless it reads Healthy."
+        }
+    }
+}
+
 function ConvertFrom-UpgFsutilDirty {
     # Pure parse of `fsutil dirty query C:` -> clean / dirty / unknown.
     # Real lines, captured on the rig 2026-09-08 (English Windows 10):
@@ -1535,6 +1640,11 @@ function Invoke-UpgSelfTest {
              @{ Section='Storage'; Title='Storage controller mode'; Status='fail'; Detail='Intel RST / VMD active' })
            Expect = 'RED'; ExpectKernel = $null }
 
+        @{ Name = 'A failing drive is an outright no (Disk health fail is RED)'
+           Checks = @(
+             @{ Section='Storage'; Title='Disk health'; Status='fail'; Detail='Samsung SSD 860 - Unhealthy (Predictive Failure)' })
+           Expect = 'RED'; ExpectKernel = $null }
+
         @{ Name = 'Adobe is a software problem, not a hardware one'
            Checks = @(
              @{ Section='Hardware'; Title='Wi-Fi';    Status='ok';   Detail='Intel AX200' },
@@ -1742,6 +1852,28 @@ function Invoke-UpgSelfTest {
            Run = { $a = ConvertFrom-UpgFsutilDirty -Lines @('Error:  Access is denied.'); $b = ConvertFrom-UpgFsutilDirty -Lines @('Volume - C: ist NICHT fehlerhaft'); $c = ConvertFrom-UpgFsutilDirty -Lines @()
                    New-UpgCheck -Section 'Test' -Title 'parse' -Status $(if ($a -eq 'unknown' -and $b -eq 'unknown' -and $c -eq 'unknown') { 'ok' } else { 'fail' }) -Detail "$a/$b/$c" }
            Expect = @{ 'parse' = 'ok' } }
+        @{ Name = 'seam: a Healthy physical disk is ok'
+           Run = { Test-UpgPhysicalDisk -Facts ([pscustomobject]@{ Found = $true; FriendlyName = 'Test NVMe'; HealthStatus = 'Healthy'; OperationalStatus = 'OK'; Counters = $null }) }
+           Expect = @{ 'Disk health' = 'ok' } }
+        @{ Name = 'seam: a Warning disk warns and steers to clean slate'
+           Run = { Test-UpgPhysicalDisk -Facts ([pscustomobject]@{ Found = $true; FriendlyName = 'Test SSD'; HealthStatus = 'Warning'; OperationalStatus = 'Predictive Failure'; Counters = $null }) }
+           Expect = @{ 'Disk health' = 'warn' }
+           Match  = @{ 'Disk health' = 'clean-slate' } }
+        @{ Name = 'seam: an Unhealthy disk fails (refuse; no override)'
+           Run = { Test-UpgPhysicalDisk -Facts ([pscustomobject]@{ Found = $true; FriendlyName = 'Test HDD'; HealthStatus = 'Unhealthy'; OperationalStatus = 'Predictive Failure'; Counters = $null }) }
+           Expect = @{ 'Disk health' = 'fail' } }
+        @{ Name = 'seam: disk health that could not be read is unknown, not ok'
+           Run = { Test-UpgPhysicalDisk -Facts ([pscustomobject]@{ Found = $false; Error = 'Get-PhysicalDisk returned 0 candidates for disk 0' }) }
+           Expect = @{ 'Disk health' = 'unknown' }
+           Match  = @{ 'Disk health' = '0 candidates' } }
+        @{ Name = 'seam: an unrecognised health string is unknown, never ok'
+           Run = { Test-UpgPhysicalDisk -Facts ([pscustomobject]@{ Found = $true; FriendlyName = 'Test'; HealthStatus = 'Unknown'; OperationalStatus = 'Unknown'; Counters = $null }) }
+           Expect = @{ 'Disk health' = 'unknown' } }
+        @{ Name = 'seam: reliability counters ride along as facts, not verdicts'
+           Run = { Test-UpgPhysicalDisk -Facts ([pscustomobject]@{ Found = $true; FriendlyName = 'Test NVMe'; HealthStatus = 'Healthy'; OperationalStatus = 'OK'
+                     Counters = [pscustomobject]@{ ReadErrorsUncorrected = 3; WriteErrorsUncorrected = 0; Wear = 12; PowerOnHours = 8100; Temperature = 41; ReadErrorsTotal = 3 } }) }
+           Expect = @{ 'Disk health' = 'ok' }
+           Match  = @{ 'Disk health' = 'uncorrected read errors 3' } }
         @{ Name = 'seam: a dirty volume warns and names chkdsk'
            Run = { Test-UpgVolumeHealth -IsAdmin $true -Health ([pscustomobject]@{ Dirty = 'dirty'; Scan = 'ErrorsFound'; ScanRan = $true; Error = $null }) }
            Expect = @{ 'Volume health' = 'warn' }
@@ -1989,6 +2121,7 @@ Test-UpgFirmware     -Sys $sys -SecureBoot (Get-UpgSecureBootState)
 Test-UpgStorageMode  -Pnp $pnp
 $diskFacts = Get-UpgDiskFacts
 Test-UpgDisk         -Facts $diskFacts -IsAdmin $isAdmin
+Test-UpgPhysicalDisk -Facts (Get-UpgPhysicalDiskFacts -IsAdmin $isAdmin)
 Test-UpgVolumeHealth -IsAdmin $isAdmin -Health (Get-UpgVolumeHealth -IsAdmin $isAdmin -ShrinkError $diskFacts.ShrinkError)
 Test-UpgFastStartup  -HiberbootEnabled (Get-UpgFastStartupState)
 Test-UpgBitLocker    -IsAdmin $isAdmin -State $(if ($isAdmin) { Get-UpgBitLockerState })

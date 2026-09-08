@@ -106,7 +106,9 @@ method in `docs/VALIDATION.md`; the killers, in order:
   directly. **Decided (2026-09-08):** `evaluate` never repairs; the `upgrade_`
   prologue clears the flag as reversible prep (scan → refuse if the disk is
   not Healthy → spot-fix or `chkdsk /f` → restart → re-measure → the fork the
-  user pre-chose). Owed code; RISKS R18 has the guardrails.
+  user pre-chose). Owed code; RISKS R18 has the guardrails. The first
+  guardrail's read landed 2026-09-08: the scanner's `Disk health` line
+  (`Get-PhysicalDisk HealthStatus`; Unhealthy is RED).
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path
   delivers files: mount the kept Windows from installed Linux, unlock with the
   harvested key, copy. Bench-testable in VMs across BitLocker variants.

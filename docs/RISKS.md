@@ -698,7 +698,17 @@ built the same day:
      reversible change, its own restart, clean-up on return), which is the
      prologue's seed. **Owed code**; the disk-health read (`Get-PhysicalDisk
      HealthStatus`, read-only) goes into the scanner first, since it is
-     useful regardless.
+     useful regardless. **Landed 2026-09-08** as the `Disk health` check:
+     the physical disk holding C: (matched by `DeviceId`, then by
+     `UniqueId`), `HealthStatus` readable **unelevated** (confirmed on the
+     G16), the reliability counters (uncorrected read/write errors, wear,
+     power-on hours) elevated-only and carried as facts, never judged.
+     Healthy → ok; Warning → warn, keep-Windows not offered, clean slate
+     still possible; Unhealthy → **fail** (RED, no override: copy the files
+     off, replace the drive); unreadable or unrecognised → unknown, never
+     ok. Six seam cases plus a verdict case pin it. `job.json` requires
+     `Healthy` for a keep-Windows job (`schemas/job.schema.json`), and
+     `outcome.json` requires `Healthy` at the moment of any repair.
 
 **If real.** The safety-copy path is offered to machines that cannot deliver
 it; the prologue fails late, after intent capture and hard confirmation —
