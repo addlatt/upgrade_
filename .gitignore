@@ -26,3 +26,6 @@ rig/hyperv/artifacts/
 
 # python bytecode from running the rig helpers
 __pycache__/
+
+# live-test USB kit assembled by make-kit.sh (carries the gitignored EFI binaries)
+dist/kit/

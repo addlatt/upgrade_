@@ -445,6 +445,32 @@ physical machines from **at least three vendors**, plus the Hyper-V leg that
 `validation-results/README.md` also requires. A VM pass narrows R15; it does
 not close it (CLAUDE.md rule #5).
 
+**Decided (2026-09-07) — harness 0.2.0, before the first physical row.**
+Three gaps a real machine would have hit, found reviewing the harness for
+the Acer Aspire A515-51G run, all fixed and pinned by the harness's new
+`-SelfTest`:
+
+1. **Home editions have no `Get-BitLockerVolume`.** The BitLocker PowerShell
+   module ships on Pro/Enterprise/Education only; a Home machine with Device
+   Encryption (BitLocker under another name) *on* read as `unknown`, and
+   0.1.0 then armed without suspending and without a warning. 0.2.0 falls
+   back to `manage-bde -status C:` (present on every edition; English
+   "Protection Status" line only — localized output stays `unknown`).
+2. **Unknown BitLocker state now refuses to arm**, as does BitLocker-on
+   without `-SuspendBitLocker` (unless `NoSuspend` *is* the experiment). No
+   flag overrides either; make the state known instead. The prologue
+   inherits this refusal (`architecture.md`, prologue step 4).
+3. **The shim payload self-records.** 0.1.0's signed row depended on a human
+   seeing the reboot and the harness then classified it `ignored`. Now
+   `grub.cfg` does `save_env upg_fired` into a pre-created `EFI/BOOT/grubenv`
+   on the stick and `-Check` reads it like `fired.txt`; `-Arm` resets the
+   block first. Plumbing only until a rig row shows `save_env` writing on
+   FAT under this GRUB build — see `v0-handoff.csv` for that row.
+
+Also recorded: the harness prefixes each row's notes with the OS edition,
+the BitLocker source and the marker source, and the one-click launchers pass
+the stick's own drive letter, so a physical operator types nothing.
+
 **Closes when.** The spine spike (build order step 0) passes in a VM and on
 physical machines from at least three vendors.
 

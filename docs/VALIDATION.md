@@ -78,6 +78,21 @@ reboot / check, with `-FailMode` for the deliberate-failure paths); build the
 stick per `upgrade_/windows/handoff-payload/README.md`; evidence lands in
 `docs/validation-results/v0-handoff.csv`.
 
+**Physical leg — readiness decided (2026-09-07).** V0 is the one gate ready
+for a live run on a real machine: the mechanism is reversible (one BCD entry,
+exported first, removed by `-Check` regardless of outcome), no disk is
+written, and the harness has fired on two VM firmwares (six rows, including
+the fail-safe and BitLocker rows). What goes on the stick is built and
+verified by `./make-kit.sh` (`dist/kit/stick-shell`, `dist/kit/stick-shim`;
+run-book in `README-STICK.txt` on the stick). Harness 0.2.0 owed three things
+before a physical machine and has them: it reads BitLocker state through
+`manage-bde` when the PowerShell module is absent (Home editions), refuses to
+arm on an unknown state or on BitLocker-on-without-suspension, and the shim
+payload self-records through `grubenv` so the Secure-Boot-on row is
+harness-classified, not observed. A physical row is transported verbatim
+from the stick's CSV, and every physical run leaves a `-DumpMachine` capture
+for `evaluate/windows/corpus/`. First target: the Acer Aspire A515-51G.
+
 ## V1 — Unattended install completes, Secure Boot on · kills: the conversion
 
 The second half of the spine, and the shared base both paths need: a

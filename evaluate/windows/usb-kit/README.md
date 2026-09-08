@@ -12,6 +12,12 @@ machine, can run the scanner without typing anything**. It pairs the one-click
 
 ## Making a stick
 
+For a V0 handoff run, don't copy by hand at all: `./make-kit.sh` at the repo
+root builds complete, verified stick layouts (scanner + this launcher + the
+handoff harness, launchers and payload) under `dist/kit/` — see
+`upgrade_/windows/handoff-payload/README.md`. What follows is the scanner-only
+kit.
+
 The launcher needs the **inlined single-file** scanner beside it — not the
 source `evaluate/windows/upgrade-scan.ps1`, which dot-sources `data/` and won't
 run standalone. So copy two files into one folder on the USB:

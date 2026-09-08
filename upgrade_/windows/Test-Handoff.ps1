@@ -27,6 +27,17 @@
     -Check restores everything regardless of outcome and records one row of
     evidence.
 
+    Both payloads self-record. The UEFI Shell payload writes fired.txt to the
+    stick root (startup.nsh); the signed shim payload's grub.cfg saves
+    upg_fired=1 into EFI\BOOT\grubenv on the stick (GRUB save_env). -Check
+    reads either, so "did our entry run" never depends on a human watching.
+
+    Refusals before touching anything (0.2.0): BitLocker state that cannot be
+    determined refuses to arm - it is read with Get-BitLockerVolume, falling
+    back to manage-bde for editions without the PowerShell module (Home) -
+    and BitLocker ON refuses to arm unless -SuspendBitLocker is passed or the
+    NoSuspend fail-mode is the experiment being run.
+
     This harness is the first version of code that will ship in the converter's
     prologue. It is written to that standard - it refuses before it touches
     anything it cannot cleanly undo.
@@ -57,6 +68,11 @@
 .PARAMETER RestoreBcd
     With -Check: also re-import the exported BCD backup, not just delete the
     test entry. Belt and braces; the delete alone is normally sufficient.
+
+.PARAMETER SelfTest
+    Run the harness's own logic tests (result classification, manage-bde
+    parsing, grubenv marker handling) against fabricated inputs. Needs no
+    elevation, no UEFI, touches nothing. CLAUDE.md rule #5, level 1.
 
 .PARAMETER StateDir
     Where the harness keeps its cross-reboot state and BCD backup.
@@ -97,16 +113,24 @@ param(
     [Parameter(ParameterSetName = 'Check')]
     [switch]$RestoreBcd,
 
+    [Parameter(ParameterSetName = 'SelfTest', Mandatory = $true)]
+    [switch]$SelfTest,
+
     [string]$StateDir,
     [string]$ResultsCsv
 )
 
 $ErrorActionPreference = 'Stop'
-$HarnessVersion = '0.1.0'
+$HarnessVersion = '0.2.0'
 
-# The marker the payload writes to the root of the stick. Keep in sync with
-# handoff-payload\startup.nsh.
+# The marker the Shell payload writes to the root of the stick. Keep in sync
+# with handoff-payload\startup.nsh.
 $FiredMarker = 'fired.txt'
+# The GRUB environment block the shim payload's grub.cfg writes into. Keep in
+# sync with handoff-payload\grub.cfg. GRUB's save_env rewrites this file in
+# place, so it must exist (1024 bytes, GRUB's header) before the boot.
+$GrubEnvRel   = 'EFI\BOOT\grubenv'
+$GrubFiredVar = 'upg_fired'
 
 # =============================================================================
 #  helpers
@@ -140,11 +164,91 @@ function Get-SecureBootState {
     catch { 'unknown' }   # cmdlet throws on legacy BIOS / unsupported
 }
 
+function ConvertFrom-ManageBdeStatus {
+    # Pure parse of `manage-bde -status C:` output -> on / off / unknown.
+    # Only the English "Protection Status: Protection On|Off" line is
+    # understood; anything else (localized Windows, an error, no BitLocker
+    # stack) is 'unknown', which -Arm refuses on. Better a refusal than a
+    # guess about whether the return boot will demand a recovery key.
+    param([string[]]$Lines)
+    $text = (@($Lines) -join "`n")
+    if ($text -match '(?im)^\s*Protection Status:\s*Protection (On|Off)\s*$') {
+        return $matches[1].ToLower()
+    }
+    'unknown'
+}
+
 function Get-BitLockerState {
+    # Returns @{ State = on|off|unknown; Source = cmdlet|manage-bde|none }.
+    # Get-BitLockerVolume lives in the BitLocker module, which Windows Home
+    # editions do not ship even though Device Encryption (BitLocker under
+    # another name) may be ON. manage-bde.exe is present on every edition,
+    # so it is the fallback - not a replacement, because its output is text.
     try {
         $v = Get-BitLockerVolume -MountPoint 'C:' -ErrorAction Stop
-        switch ($v.ProtectionStatus) { 'On' { 'on' } 'Off' { 'off' } default { 'unknown' } }
-    } catch { 'unknown' }
+        $st = switch ($v.ProtectionStatus) { 'On' { 'on' } 'Off' { 'off' } default { 'unknown' } }
+        if ($st -ne 'unknown') { return [pscustomobject]@{ State = $st; Source = 'cmdlet' } }
+    } catch { }
+    try {
+        $out = & manage-bde -status C: 2>&1
+        $st = ConvertFrom-ManageBdeStatus -Lines @($out | ForEach-Object { "$_" })
+        if ($st -ne 'unknown') { return [pscustomobject]@{ State = $st; Source = 'manage-bde' } }
+        return [pscustomobject]@{ State = 'unknown'; Source = 'none'; Raw = (@($out) -join "`n") }
+    } catch {
+        return [pscustomobject]@{ State = 'unknown'; Source = 'none'; Raw = "$_" }
+    }
+}
+
+function New-GrubEnvBlock {
+    # A clean 1024-byte GRUB environment block (what grub-editenv create
+    # makes): the header line, padded with '#' to exactly 1024 bytes.
+    $header = "# GRUB Environment Block`n"
+    $bytes = New-Object byte[] 1024
+    $h = [Text.Encoding]::ASCII.GetBytes($header)
+    [Array]::Copy($h, $bytes, $h.Length)
+    for ($i = $h.Length; $i -lt 1024; $i++) { $bytes[$i] = 0x23 }   # '#'
+    , $bytes
+}
+
+function Test-GrubEnvFired {
+    # Pure: does a grubenv's content carry our variable set to 1?
+    param([byte[]]$Bytes)
+    if (-not $Bytes -or $Bytes.Length -eq 0) { return $false }
+    $text = [Text.Encoding]::ASCII.GetString($Bytes)
+    [bool]($text -match ('(?m)^' + [regex]::Escape($GrubFiredVar) + '=1\s*$'))
+}
+
+function Reset-GrubEnv {
+    # Put a clean block in place if this stick carries the shim payload
+    # (grubx64.efi beside BOOTX64.EFI), so a stale upg_fired=1 from a previous
+    # run cannot produce a false 'fired-once'. The Shell stick has no grubenv
+    # and gets none.
+    param([string]$Root)
+    $env = Join-Path $Root $GrubEnvRel
+    $grub = Join-Path $Root 'EFI\BOOT\grubx64.efi'
+    if ((Test-Path $env) -or (Test-Path $grub)) {
+        [IO.File]::WriteAllBytes($env, (New-GrubEnvBlock))
+        return $true
+    }
+    $false
+}
+
+function Get-HandoffResult {
+    # Pure classifier. Inputs are the three facts -Check establishes plus the
+    # fail-mode that was armed; output is the CSV result vocabulary
+    # (docs/validation-results/README.md).
+    param([bool]$Fired, [bool]$SequenceCleared, [bool]$OrderUnchanged, [string]$FailMode)
+    if ($FailMode -eq 'NoFile' -or $FailMode -eq 'SecureBootUnsigned') {
+        # Expected outcome for these is a clean fall-through to Windows.
+        if (-not $Fired -and $OrderUnchanged) { return 'ignored' }        # PASS for a fail-mode
+        if ($Fired) { return 'persisted' }                                # firmware ran a bad/unsigned entry - notable
+        return 'reordered'
+    }
+    if ($Fired -and $SequenceCleared -and $OrderUnchanged) { return 'fired-once' }
+    if ($Fired -and -not $SequenceCleared)                 { return 'persisted' }
+    if (-not $Fired -and $OrderUnchanged)                  { return 'ignored' }
+    if (-not $OrderUnchanged)                              { return 'reordered' }
+    'error'
 }
 
 function Get-FwbootmgrSnapshot {
@@ -211,18 +315,37 @@ function Invoke-Arm {
     # A stale marker from a previous run would produce a false 'fired-once'.
     $marker = Join-Path $root $FiredMarker
     if (Test-Path $marker) { Remove-Item $marker -Force }
+    $grubEnvReset = Reset-GrubEnv -Root $root
 
     $cs   = Get-CimInstance Win32_ComputerSystem
     $bios = Get-CimInstance Win32_BIOS
+    $os   = Get-CimInstance Win32_OperatingSystem
     $sb   = Get-SecureBootState
-    $bl   = Get-BitLockerState
+    $blq  = Get-BitLockerState
+    $bl   = $blq.State
 
     New-Line ''
     New-Line '  upgrade_  V0 handoff test  -  ARM' 'Cyan'
     New-Line "  $($cs.Manufacturer) $($cs.Model)   firmware $($bios.SMBIOSBIOSVersion)" 'DarkGray'
-    New-Line "  Secure Boot: $sb    BitLocker(C:): $bl    payload: $root" 'DarkGray'
+    New-Line "  $($os.Caption) build $($os.BuildNumber)" 'DarkGray'
+    New-Line "  Secure Boot: $sb    BitLocker(C:): $bl (via $($blq.Source))    payload: $root" 'DarkGray'
+    if ($grubEnvReset) { New-Line "  shim payload detected: $GrubEnvRel reset to a clean block" 'DarkGray' }
     if ($FailMode) { New-Line "  FAIL MODE: $FailMode" 'Yellow' }
     New-Line ''
+
+    # Refuse-by-default, before the BCD is touched. An unknown BitLocker
+    # state means we cannot say whether the return boot will stop at a
+    # recovery-key prompt - on a machine nobody is watching, in the shipping
+    # prologue. No flag overrides this: make the state known instead (check
+    # Settings > Device encryption, decrypt, or report the manage-bde output
+    # below so the parser learns it).
+    if ($bl -eq 'unknown') {
+        if ($blq.Raw) { New-Line "  manage-bde said:`n$($blq.Raw)" 'DarkGray' }
+        throw 'BitLocker state on C: could not be determined; refusing to arm. Make it known (Settings > Privacy & security > Device encryption, or manage-bde -status C:) and re-run.'
+    }
+    if ($bl -eq 'on' -and -not $SuspendBitLocker -and $FailMode -ne 'NoSuspend') {
+        throw 'BitLocker is ON. Refusing to arm without suspension: re-run with -SuspendBitLocker (the shipping default), or -FailMode NoSuspend if the no-suspend path is the experiment. Have the recovery key saved somewhere that is not this computer first.'
+    }
 
     # 1. Undo button, before anything else.
     $backup = Join-Path $state 'bcd-backup.bin'
@@ -233,18 +356,17 @@ function Invoke-Arm {
     # 2. Snapshot boot order for the reordered/persisted checks.
     $before = Get-FwbootmgrSnapshot
 
-    # 3. Suspend BitLocker unless we are specifically testing the no-suspend path.
+    # 3. Suspend BitLocker unless we are specifically testing the no-suspend
+    #    path (the refusal above guarantees -SuspendBitLocker is set here).
     $didSuspend = $false
     if ($bl -eq 'on' -and $FailMode -ne 'NoSuspend') {
-        if ($SuspendBitLocker) {
-            New-Line '  suspending BitLocker for one reboot...' 'DarkGray'
-            & manage-bde -protectors -disable C: -rebootcount 1 | Out-Null
-            $didSuspend = $true
-        } else {
-            New-Line '  ! BitLocker is ON and -SuspendBitLocker was not passed.' 'Yellow'
-            New-Line '    The return boot may hit a recovery-key prompt. Have the key ready,' 'Yellow'
-            New-Line '    or Ctrl+C now and re-run with -SuspendBitLocker.' 'Yellow'
-        }
+        New-Line '  suspending BitLocker for one reboot...' 'DarkGray'
+        $susOut = & manage-bde -protectors -disable C: -rebootcount 1 2>&1
+        if ($LASTEXITCODE -ne 0) { throw "manage-bde could not suspend BitLocker; refusing to arm. Output: $($susOut -join ' ')" }
+        $didSuspend = $true
+    }
+    if ($bl -eq 'on' -and $FailMode -eq 'NoSuspend') {
+        New-Line '  ! NoSuspend: BitLocker stays ON through the handoff. Recovery key at hand?' 'Yellow'
     }
 
     # 4. The actual sequence under test - verbatim from docs/architecture.md.
@@ -274,8 +396,12 @@ function Invoke-Arm {
         Vendor         = $cs.Manufacturer
         Model          = $cs.Model
         Firmware       = $bios.SMBIOSBIOSVersion
+        OsCaption      = $os.Caption
+        OsBuild        = $os.BuildNumber
         SecureBoot     = $sb
         BitLocker      = $bl
+        BitLockerSource= $blq.Source
+        GrubEnvArmed   = $grubEnvReset
         Before         = $before
         BcdBackup      = $backup
     }
@@ -309,7 +435,13 @@ function Invoke-Check {
     New-Line ''
 
     $marker = Join-Path $r.PayloadRoot $FiredMarker
-    $fired = Test-Path $marker
+    $grubEnv = Join-Path $r.PayloadRoot $GrubEnvRel
+    $firedVia = @()
+    if (Test-Path $marker) { $firedVia += 'fired.txt' }
+    if (Test-Path $grubEnv) {
+        if (Test-GrubEnvFired -Bytes ([IO.File]::ReadAllBytes($grubEnv))) { $firedVia += 'grubenv' }
+    }
+    $fired = ($firedVia.Count -gt 0)
 
     $after = Get-FwbootmgrSnapshot
     $sequenceCleared = [string]::IsNullOrWhiteSpace($after.BootSequence)
@@ -327,24 +459,13 @@ function Invoke-Check {
     $beforeTokens = @($r.Before.DisplayOrder -split '\s+' | Where-Object { $_ })
     $orderUnchanged = (($afterTokens -join ' ') -eq ($beforeTokens -join ' '))
 
-    # Classify.
-    $result = 'error'
-    if ($r.FailMode -eq 'NoFile' -or $r.FailMode -eq 'SecureBootUnsigned') {
-        # Expected outcome for these is a clean fall-through to Windows.
-        if (-not $fired -and $orderUnchanged) { $result = 'ignored' }        # PASS for a fail-mode
-        elseif ($fired) { $result = 'persisted' }                            # firmware ran a bad/unsigned entry - notable
-        else { $result = 'reordered' }
-    } else {
-        if ($fired -and $sequenceCleared -and $orderUnchanged) { $result = 'fired-once' }
-        elseif ($fired -and -not $sequenceCleared)             { $result = 'persisted' }
-        elseif (-not $fired -and $orderUnchanged)              { $result = 'ignored' }
-        elseif (-not $orderUnchanged)                          { $result = 'reordered' }
-    }
+    # Classify (pure function, self-tested).
+    $result = Get-HandoffResult -Fired $fired -SequenceCleared $sequenceCleared -OrderUnchanged $orderUnchanged -FailMode ([string]$r.FailMode)
 
     $resultColor = switch ($result) {
         'fired-once' { 'Green' } 'ignored' { 'Yellow' } default { 'Red' }
     }
-    New-Line "  marker present:      $fired"
+    New-Line "  marker present:      $fired$(if ($fired) { ' (' + ($firedVia -join ', ') + ')' })"
     New-Line "  bootsequence clear:  $sequenceCleared"
     New-Line "  boot order intact:   $orderUnchanged"
     New-Line ''
@@ -361,13 +482,19 @@ function Invoke-Check {
         New-Line '  re-importing BCD backup...' 'DarkGray'
         & bcdedit /import $r.BcdBackup 2>&1 | Out-Null
     }
-    if ($fired) { Remove-Item $marker -Force -ErrorAction SilentlyContinue }
+    if (Test-Path $marker) { Remove-Item $marker -Force -ErrorAction SilentlyContinue }
+    Reset-GrubEnv -Root $r.PayloadRoot | Out-Null
 
     # Human-supplied fields.
     New-Line ''
     $keypress = Read-Host '  Did the machine reach the payload/Windows with NO keypress? (y/n/na)'
     $winBack  = Read-Host '  Are you back in Windows normally right now? (y/n)'
     $notes    = Read-Host '  Notes (recovery prompt? vendor logo hang? blank = none)'
+
+    # Harness-written facts go first in the notes, so the row says what the
+    # machine was and how the marker was read, independent of the operator.
+    $auto = "[harness: os=$($r.OsCaption) $($r.OsBuild); bitlocker-via=$($r.BitLockerSource); fired-via=$(if ($fired) { $firedVia -join '+' } else { 'none' })]"
+    $notes = if ([string]::IsNullOrWhiteSpace($notes)) { $auto } else { "$auto $notes" }
 
     # Append evidence.
     $csv = Resolve-ResultsCsv -State $state
@@ -395,8 +522,85 @@ function Invoke-Check {
 }
 
 # =============================================================================
+#  self-test (logic only - nothing here touches the machine)
+# =============================================================================
+
+function Invoke-SelfTest {
+    $cases = @(
+        # result classification: every branch of the vocabulary
+        @{ Name = 'classify: fired + cleared + order intact is fired-once'
+           Run = { Get-HandoffResult -Fired $true -SequenceCleared $true -OrderUnchanged $true -FailMode '' }; Expect = 'fired-once' }
+        @{ Name = 'classify: fired but one-shot not cleared is persisted'
+           Run = { Get-HandoffResult -Fired $true -SequenceCleared $false -OrderUnchanged $true -FailMode '' }; Expect = 'persisted' }
+        @{ Name = 'classify: not fired, order intact is ignored (fail-safe)'
+           Run = { Get-HandoffResult -Fired $false -SequenceCleared $true -OrderUnchanged $true -FailMode '' }; Expect = 'ignored' }
+        @{ Name = 'classify: fired, cleared, but order changed is reordered'
+           Run = { Get-HandoffResult -Fired $true -SequenceCleared $true -OrderUnchanged $false -FailMode '' }; Expect = 'reordered' }
+        @{ Name = 'classify: not fired and order changed is reordered'
+           Run = { Get-HandoffResult -Fired $false -SequenceCleared $true -OrderUnchanged $false -FailMode '' }; Expect = 'reordered' }
+        @{ Name = 'classify: NoSuspend is a baseline-shaped row (fired-once)'
+           Run = { Get-HandoffResult -Fired $true -SequenceCleared $true -OrderUnchanged $true -FailMode 'NoSuspend' }; Expect = 'fired-once' }
+        @{ Name = 'classify: NoFile not fired, order intact is ignored (the pass)'
+           Run = { Get-HandoffResult -Fired $false -SequenceCleared $true -OrderUnchanged $true -FailMode 'NoFile' }; Expect = 'ignored' }
+        @{ Name = 'classify: SecureBootUnsigned that fired is persisted (loud)'
+           Run = { Get-HandoffResult -Fired $true -SequenceCleared $true -OrderUnchanged $true -FailMode 'SecureBootUnsigned' }; Expect = 'persisted' }
+        @{ Name = 'classify: SecureBootUnsigned not fired but order changed is reordered'
+           Run = { Get-HandoffResult -Fired $false -SequenceCleared $true -OrderUnchanged $false -FailMode 'SecureBootUnsigned' }; Expect = 'reordered' }
+        # manage-bde parsing: the Home-edition fallback
+        @{ Name = 'manage-bde: Protection On parses as on'
+           Run = { ConvertFrom-ManageBdeStatus -Lines @('BitLocker Drive Encryption: Configuration Tool version 10.0.19041', 'Volume C: [Windows]', '[OS Volume]', '', '    Size:                 237.00 GB', '    Conversion Status:    Fully Encrypted', '    Protection Status:    Protection On', '    Lock Status:          Unlocked') }; Expect = 'on' }
+        @{ Name = 'manage-bde: Protection Off parses as off'
+           Run = { ConvertFrom-ManageBdeStatus -Lines @('Volume C: [Windows]', '    Conversion Status:    Fully Decrypted', '    Protection Status:    Protection Off') }; Expect = 'off' }
+        @{ Name = 'manage-bde: encrypted but suspended (Protection Off) is off - no TPM prompt'
+           Run = { ConvertFrom-ManageBdeStatus -Lines @('    Conversion Status:    Fully Encrypted', '    Protection Status:    Protection Off') }; Expect = 'off' }
+        @{ Name = 'manage-bde: an access-denied error is unknown, not off'
+           Run = { ConvertFrom-ManageBdeStatus -Lines @('ERROR: An attempt to access a required resource was denied.', '', 'Check that you have administrative rights on the computer.') }; Expect = 'unknown' }
+        @{ Name = 'manage-bde: localized output is unknown, not a guess'
+           Run = { ConvertFrom-ManageBdeStatus -Lines @('    Schutzstatus:         Der Schutz ist aktiviert.') }; Expect = 'unknown' }
+        @{ Name = 'manage-bde: empty output is unknown'
+           Run = { ConvertFrom-ManageBdeStatus -Lines @() }; Expect = 'unknown' }
+        # grubenv marker: the shim payload's self-record
+        @{ Name = 'grubenv: a clean block is exactly 1024 bytes with the GRUB header'
+           Run = { $b = New-GrubEnvBlock; if ($b.Length -eq 1024 -and [Text.Encoding]::ASCII.GetString($b, 0, 25) -eq "# GRUB Environment Block`n" -and $b[1023] -eq 0x23) { 'ok' } else { "bad: len=$($b.Length)" } }; Expect = 'ok' }
+        @{ Name = 'grubenv: a clean block is not fired'
+           Run = { Test-GrubEnvFired -Bytes (New-GrubEnvBlock) }; Expect = $false }
+        @{ Name = 'grubenv: upg_fired=1 written by save_env is fired'
+           Run = { $t = "# GRUB Environment Block`nupg_fired=1`n" + ('#' * 990); Test-GrubEnvFired -Bytes ([Text.Encoding]::ASCII.GetBytes($t)) }; Expect = $true }
+        @{ Name = 'grubenv: upg_fired=0 is not fired'
+           Run = { $t = "# GRUB Environment Block`nupg_fired=0`n" + ('#' * 990); Test-GrubEnvFired -Bytes ([Text.Encoding]::ASCII.GetBytes($t)) }; Expect = $false }
+        @{ Name = 'grubenv: an unrelated variable is not fired'
+           Run = { $t = "# GRUB Environment Block`nboot_success=1`n" + ('#' * 990); Test-GrubEnvFired -Bytes ([Text.Encoding]::ASCII.GetBytes($t)) }; Expect = $false }
+        @{ Name = 'grubenv: empty file is not fired'
+           Run = { Test-GrubEnvFired -Bytes ([byte[]]@()) }; Expect = $false }
+        # drive-letter parsing feeding the bcdedit device line
+        @{ Name = 'drive: E: normalizes to E:\'
+           Run = { Get-DriveRoot 'E:' }; Expect = 'E:\' }
+        @{ Name = 'drive: lowercase e normalizes to E:\'
+           Run = { Get-DriveRoot 'e' }; Expect = 'E:\' }
+        @{ Name = 'drive: a path is refused'
+           Run = { try { Get-DriveRoot 'E:\EFI'; 'accepted' } catch { 'refused' } }; Expect = 'refused' }
+    )
+    $failed = 0
+    New-Line ''
+    New-Line "  upgrade_  V0 handoff harness $HarnessVersion  -  SELF-TEST" 'Cyan'
+    New-Line ''
+    foreach ($c in $cases) {
+        $got = & $c.Run
+        $ok = ("$got" -eq "$($c.Expect)")
+        if ($ok) { New-Line "    PASS  $($c.Name)" 'Green' }
+        else { New-Line "    FAIL  $($c.Name)  (expected '$($c.Expect)', got '$got')" 'Red'; $failed++ }
+    }
+    New-Line ''
+    if ($failed -gt 0) { New-Line "  $failed check(s) failed" 'Red'; exit 1 }
+    New-Line '  all checks passed' 'Green'
+    New-Line ''
+}
+
+# =============================================================================
 #  main
 # =============================================================================
+
+if ($SelfTest) { Invoke-SelfTest; return }
 
 if (-not (Test-Elevated)) {
     throw 'Run this from an elevated PowerShell (Administrator). bcdedit requires it.'

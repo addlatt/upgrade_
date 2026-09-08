@@ -35,30 +35,67 @@ The shell auto-runs `startup.nsh` from the root of the volume it booted from.
 
 ## Fedora shim payload (signed, for Secure Boot on)
 
-From a Fedora system or the netinst image, take the signed chain:
+From the Fedora netinst image, take the signed chain (**the install-media
+build of grub** — the plain `grub2-efi-x64` RPM's binary has prefix
+`/EFI/fedora` and never reads `EFI\BOOT\grub.cfg`; `rig/vm/fetch-payload-bits.sh`
+extracts the right pair):
 
 ```
 <stick>\
   EFI\BOOT\BOOTX64.EFI      <- shimx64.efi, renamed
   EFI\BOOT\grubx64.efi      <- Fedora's grubx64.efi (shim loads this next)
-  EFI\BOOT\grub.cfg         <- one line:  reboot
+  EFI\BOOT\grub.cfg         <- this folder's grub.cfg
+  EFI\BOOT\grubenv          <- this folder's grubenv (a clean 1024-byte block)
 ```
 
-`shim` verifies `grub`, `grub` reads `grub.cfg`, `grub.cfg` says `reboot`. If
-you get to a reboot with Secure Boot on, the signed handoff works — and the
-same chain is what V1 will boot into Anaconda instead of rebooting.
+`shim` verifies `grub`, `grub` reads `grub.cfg`, and `grub.cfg` records the
+firing then reboots. Since harness 0.2.0 (2026-09-07) **the shim payload
+self-records too**: `grub.cfg` does `set upg_fired=1; save_env upg_fired`,
+which rewrites `EFI\BOOT\grubenv` in place (the one write GRUB can do on
+FAT), and `Test-Handoff.ps1 -Check` reads that block exactly as it reads
+`fired.txt` for the Shell payload. `-Arm` resets the block to clean first, so
+a stale record cannot fake a pass; if `save_env` is ever refused the reboot
+still happens and the row is `ignored` — fail-safe, never a false pass. If you
+get to a self-recorded reboot with Secure Boot on, the signed handoff works —
+and the same chain is what V1 will boot into Anaconda instead of rebooting.
 
-> The shim payload does not write `fired.txt` (GRUB rebooting immediately has
-> no easy way to). For the shim runs, "fired" = you observed the reboot;
-> record it in the `-Check` prompts. The Shell payload is the one that
-> self-records, so use it for the unattended matrix runs.
+> `grubenv` must stay exactly 1024 bytes with GRUB's header line. It is
+> committed as a build input with `-text` in `.gitattributes` so no checkout
+> converts its line ending. The harness's `-SelfTest` pins the block format
+> and the marker parse.
+
+## The kit: what actually goes on a stick
+
+Do not assemble a stick by hand. `./make-kit.sh` (repo root) lays out two
+complete stick folders under `dist/kit/` — `stick-shell/` and `stick-shim/` —
+each carrying the payload, `Test-Handoff.ps1`, the one-click launchers
+(`ARM-HANDOFF.cmd`, `CHECK-HANDOFF.cmd`, and the scanner's `RUN-SCANNER.cmd`
+with the single-file scanner), `README-STICK.txt` (the run-book for whoever
+holds the machine), `SHA256SUMS` and a `KIT-MANIFEST.txt` naming the commit,
+the harness and scanner versions and the payload bits' checksums. Before it
+writes anything it verifies: tree committed, `dist/` reproduces from source
+(R9), all three self-tests green on Windows PowerShell 5.1, shipped scripts
+parse under the 5.1 parser, `grubenv` well-formed. `--to <mounted-stick-root>
+--variant shell|shim` copies one layout and re-verifies every file at the
+destination. It never writes to a device (R16): format the stick in Explorer
+(FAT32, label `UPGV0`) and copy the folder's contents to its root.
+
+The launchers use the drive they run from as the payload drive (`%~d0`), so
+there is no drive letter to type and no other device to point at. Each
+harness row's notes start with a harness-written `[harness: os=…;
+bitlocker-via=…; fired-via=…]` prefix so the machine's edition and how the
+marker was read are in the row independent of the operator.
 
 ## Formatting the stick
 
-Windows, elevated:
+Prefer Explorer: right-click the stick → Format → FAT32, label `UPGV0`.
+Explorer only offers lettered volumes, which is the safest picker there is
+until a real stick writer clears R16. If the stick has a stale partition table
+that Explorer will not format, then, Windows elevated and **only after
+`Get-Disk` shows the number is the stick and nothing else is removable**:
 
 ```powershell
-# find the disk number first with: Get-Disk
+# find the disk number first with: Get-Disk   (BusType USB, the expected size)
 Clear-Disk -Number <n> -RemoveData -Confirm:$false
 New-Partition -DiskNumber <n> -UseMaximumSize -AssignDriveLetter |
     Format-Volume -FileSystem FAT32 -NewFileSystemLabel UPGV0

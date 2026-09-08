@@ -25,13 +25,13 @@ running the harness.
 | `result` | see vocabulary below |
 | `keypress_free` | y / n / na — did it reach the payload with no keypress |
 | `windows_returned` | y / n — back in Windows normally after |
-| `notes` | recovery prompt? logo hang? anything odd |
+| `notes` | recovery prompt? logo hang? anything odd. From harness 0.2.0 the row begins with a harness-written `[harness: os=…; bitlocker-via=cmdlet\|manage-bde; fired-via=fired.txt\|grubenv\|none]` prefix, then the operator's words |
 
 ### Result vocabulary
 
 | Result | Meaning | Verdict |
 |---|---|---|
-| `fired-once` | payload ran, one-shot self-cleared, boot order intact | **pass** |
+| `fired-once` | payload ran (marker: `fired.txt` from the Shell payload, or `upg_fired=1` in `EFI/BOOT/grubenv` from the shim payload — harness 0.2.0+), one-shot self-cleared, boot order intact | **pass** |
 | `ignored` | booted straight to Windows, order unchanged | fail-**safe** (and the *expected pass* for a fail-mode run) |
 | `persisted` | payload ran but the one-shot did not clear — would boot the stick again | fail-**loud** — prologue needs cleanup-on-return |
 | `reordered` | firmware permanently changed the boot order | fail-**loud** — design input |
@@ -50,7 +50,10 @@ running the harness.
   finding about that firmware's measurement behaviour, not a failed row. The
   prologue suspends regardless — cautious default.)
 - Every physical machine (≥3 vendors beyond the G16): `fired-once`, or a
-  *detectable* safe failure.
+  *detectable* safe failure. Physical rows are written by the harness to the
+  stick's own `v0-handoff.csv` (`CHECK-HANDOFF.cmd`) and transported
+  verbatim; the machine's `-DumpMachine` capture from the same run is
+  curated into `evaluate/windows/corpus/`.
 
 Any `persisted` or `reordered` on real hardware does not fail the project — it
 adds a required step to the shipping prologue. Record it and note the machine.

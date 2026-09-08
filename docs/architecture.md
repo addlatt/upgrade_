@@ -208,7 +208,11 @@ whole. That is what pulls the encrypted-read risk (RISKS R19) out of the
    ten-minute job, and the user must learn that before walking away. Windows
    reads its own BitLocker volume, so encryption never enters this path.
 3. Hard confirmation: type the word, not a checkbox.
-4. Suspend BitLocker, write the one-time boot entry, reboot.
+4. Suspend BitLocker, write the one-time boot entry, reboot. Decided
+   (2026-09-07, from the V0 harness): if the BitLocker state cannot be
+   determined — read through the PowerShell module, or `manage-bde` on
+   editions without it — the prologue **refuses** here rather than guess
+   whether the return boot will stop at a recovery-key prompt.
 
 Still fully reversible. Nothing has been destroyed; even the shrink can be
 undone by growing the partition back.
