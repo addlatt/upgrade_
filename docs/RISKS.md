@@ -639,9 +639,36 @@ the first path refuses (elevated only, 60 s hard timeout, output parsed
 against a line captured verbatim on the rig: `The maximum number of
 reclaimable bytes is:   17 GB (17417 MB)`). A number from that path is
 labelled `via diskpart` and still carries the first path's refusal, so a
-returned report says both what worked and what did not. Whether it succeeds
-where the cmdlet fails on the Aspire is the next scan's question, not a
-claim.
+returned report says both what worked and what did not.
+
+**The Aspire answered the same day (2026-09-08), and both paths agree.**
+Storage API: *"Cannot shrink a partition containing a volume with
+errors."* diskpart: *"Use Chkdsk to fix the corruption problem, and then try
+to shrink the volume again."* The C: volume carries NTFS's **dirty flag**,
+and Windows refuses to measure or shrink a flagged volume. Fast Startup was
+never the cause; the guessed remedy would have sent the user to a power
+setting and left the real precondition untouched. Two consequences, both
+built the same day:
+
+1. **`Volume health` is now a scanner check** (read-only, elevated only):
+   `fsutil dirty query C:` always (instant; parser written against the
+   rig's real line `Volume - C: is NOT Dirty`), and `Repair-Volume -Scan`
+   (online, never repairs) only when the flag is set or the shrink query
+   refused. A flagged volume is a **warn** that names `chkdsk C: /f` and
+   says plainly that the converter must run that step before it can
+   measure; the shrink line points at it. Nine self-test cases, including
+   that localized or error output parses to `unknown`, never `clean`.
+2. **This is a precondition the keep-Windows path must clear itself**, not
+   a manual step for the user (decided 2026-09-08 with the maintainer: the
+   preflight is a fully managed experience). The scanner stays read-only —
+   its "made no changes" line is the trust contract — so the fix belongs in
+   the one-click preflight / prologue, which already owns a restart: schedule
+   Windows' own check (`chkdsk /f` at boot, i.e. autochk), reboot, re-measure
+   on return through the same self-running check that V0 uses. **Not built
+   yet**, and it is the first thing in the flow that would modify the
+   internal disk (a filesystem repair, by Windows' own tool) — rule #4 says
+   it is disclosed to the user, recorded, and reviewed before it ships.
+   Owed code; tracked here until it lands.
 
 **If real.** The safety-copy path is offered to machines that cannot deliver
 it; the prologue fails late, after intent capture and hard confirmation —

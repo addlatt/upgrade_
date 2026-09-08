@@ -771,6 +771,9 @@ function Test-UpgDisk {
         }
         $at = if ($Facts.ShrinkFailedAt) { " (failed at $($Facts.ShrinkFailedAt))" } else { '' }
         if ($Facts.DiskpartError) { $at += " diskpart's shrink querymax also gave nothing usable: $($Facts.DiskpartError)." }
+        if ("$($Facts.ShrinkError) $($Facts.DiskpartError)" -match '(?i)volume with errors|corrupt|chkdsk') {
+            $at += " That is the volume flag - see 'Volume health' below; once the disk check has run, this number appears."
+        }
         New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'info' `
             -Detail 'could not measure shrinkable space' `
             -Note "$why$at We do not yet know why this happens on some machines, so we are not going to guess - the converter measures again before it does anything, and keeping Windows is only offered if the number is there. The clean-slate path (your files on the USB stick) does not depend on this." `
@@ -784,6 +787,82 @@ function Test-UpgDisk {
             -Note 'MBR discs allow only four primary partitions and you are at the limit. The installer will not be able to create a new one.' `
             -Remedy 'Delete or convert a partition, or erase the disk and let the installer create a fresh GPT layout.'
     }
+}
+
+function ConvertFrom-UpgFsutilDirty {
+    # Pure parse of `fsutil dirty query C:` -> clean / dirty / unknown.
+    # Real lines, captured on the rig 2026-09-08 (English Windows 10):
+    #   Volume - C: is NOT Dirty
+    # and, with the flag set, Windows prints the same line without NOT.
+    # Anything else (localized text, an access-denied error) is 'unknown'.
+    param([string[]]$Lines)
+    $text = (@($Lines) -join "`n")
+    if ($text -match '(?i)\bis\s+NOT\s+Dirty\b') { return 'clean' }
+    if ($text -match '(?i)\bis\s+Dirty\b')       { return 'dirty' }
+    'unknown'
+}
+
+function Get-UpgVolumeHealth {
+    # Collection half. The NTFS "dirty" flag on C: is what makes Windows
+    # refuse to measure or shrink the volume ("Cannot shrink a partition
+    # containing a volume with errors" - seen on the first physical machine,
+    # 2026-09-08, RISKS R18). fsutil is instant and read-only; the online
+    # scan (Repair-Volume -Scan, also read-only - it never repairs) is only
+    # run when there is a reason: the flag is set, or the shrink query
+    # refused. Both need Administrator.
+    param([bool]$IsAdmin, [string]$ShrinkError)
+    if (-not $IsAdmin) { return [pscustomobject]@{ Dirty = 'unknown'; Scan = $null; ScanRan = $false; Error = 'not elevated' } }
+    $dirty = 'unknown'; $err = $null
+    try {
+        $out = & fsutil dirty query C: 2>&1
+        $dirty = ConvertFrom-UpgFsutilDirty -Lines @($out | ForEach-Object { "$_" })
+        if ($dirty -eq 'unknown') { $err = (@($out) -join ' ').Trim() }
+    } catch { $err = "$($_.Exception.Message)" }
+
+    $scan = $null; $scanRan = $false
+    $reason = ($dirty -eq 'dirty') -or ($ShrinkError -match '(?i)volume with errors|corrupt')
+    if ($reason) {
+        try {
+            $scanRan = $true
+            $scan = "$(Repair-Volume -DriveLetter C -Scan -ErrorAction Stop)"
+        } catch { $scan = "scan failed: $($_.Exception.Message)" }
+    }
+    [pscustomobject]@{ Dirty = $dirty; Scan = $scan; ScanRan = $scanRan; Error = $err }
+}
+
+function Test-UpgVolumeHealth {
+    # Judgment half. A flagged volume is not data loss and not a refusal - it
+    # is a precondition the keep-Windows path must clear first, and the one
+    # thing Windows will not do for us silently.
+    param([bool]$IsAdmin, $Health)
+    if (-not $IsAdmin) {
+        New-UpgCheck -Section 'Storage' -Title 'Volume health' -Status 'info' `
+            -Detail 'requires Administrator to check' `
+            -Note 'Whether Windows has flagged C: for a disk check needs Administrator rights to read. A flagged volume cannot be shrunk, so this matters for keeping Windows as a fallback.'
+        return
+    }
+    if (-not $Health) { $Health = [pscustomobject]@{ Dirty = 'unknown'; Scan = $null; ScanRan = $false; Error = 'no data' } }
+
+    # Anchored on purpose: the enum value 'NoErrorsFound' contains the
+    # substring 'ErrorsFound' (the self-test caught exactly that, 2026-09-08).
+    $scanFoundErrors = ($Health.Scan -and ("$($Health.Scan)".Trim() -match '(?i)^(ErrorsFound|ErrorsNotFixed)$'))
+    if ($Health.Dirty -eq 'dirty' -or $scanFoundErrors) {
+        $detail = if ($Health.Dirty -eq 'dirty') { 'C: is flagged for a disk check (dirty)' } else { "online scan reported: $($Health.Scan)" }
+        $scanLine = if ($Health.ScanRan -and $Health.Scan) { " Windows' own online scan reported: $($Health.Scan)." } else { '' }
+        New-UpgCheck -Section 'Storage' -Title 'Volume health' -Status 'warn' `
+            -Detail $detail `
+            -Note "Windows has marked this volume as needing a check and will refuse to measure or shrink it until that check has run - this is exactly why 'Room to keep Windows' could not be measured, if it could not. The flag is usually left behind by an unclean shutdown or a crash; it is not by itself a sign that anything is lost.$scanLine" `
+            -Remedy 'Windows fixes this itself: open an Administrator prompt, run "chkdsk C: /f", answer Y so it runs at the next restart, then restart. The converter will do this step for you before it measures anything - it cannot skip it, because Windows will not shrink a flagged volume.'
+        return
+    }
+    if ($Health.Dirty -eq 'clean') {
+        $extra = if ($Health.ScanRan -and $Health.Scan) { "; online scan: $($Health.Scan)" } else { '' }
+        New-UpgCheck -Section 'Storage' -Title 'Volume health' -Status 'ok' -Detail "no disk check pending$extra"
+        return
+    }
+    New-UpgCheck -Section 'Storage' -Title 'Volume health' -Status 'unknown' `
+        -Detail 'could not read the volume flag' `
+        -Note "fsutil did not answer in a form this scanner understands$(if ($Health.Error) { ": $($Health.Error)" })."
 }
 
 function Get-UpgFastStartupState {
@@ -1653,6 +1732,41 @@ function Invoke-UpgSelfTest {
                      Disk0PartCount = 4 }) }
            Expect = @{ 'Room to keep Windows' = 'info' }
            Match  = @{ 'Room to keep Windows' = 'parameter is incorrect' } }
+        @{ Name = 'fsutil: the real NOT Dirty line parses clean'
+           Run = { $v = ConvertFrom-UpgFsutilDirty -Lines @('Volume - C: is NOT Dirty'); New-UpgCheck -Section 'Test' -Title 'parse' -Status $(if ($v -eq 'clean') { 'ok' } else { 'fail' }) -Detail $v }
+           Expect = @{ 'parse' = 'ok' } }
+        @{ Name = 'fsutil: the flagged line parses dirty'
+           Run = { $v = ConvertFrom-UpgFsutilDirty -Lines @('Volume - C: is Dirty'); New-UpgCheck -Section 'Test' -Title 'parse' -Status $(if ($v -eq 'dirty') { 'ok' } else { 'fail' }) -Detail $v }
+           Expect = @{ 'parse' = 'ok' } }
+        @{ Name = 'fsutil: an error or localized line is unknown, never clean'
+           Run = { $a = ConvertFrom-UpgFsutilDirty -Lines @('Error:  Access is denied.'); $b = ConvertFrom-UpgFsutilDirty -Lines @('Volume - C: ist NICHT fehlerhaft'); $c = ConvertFrom-UpgFsutilDirty -Lines @()
+                   New-UpgCheck -Section 'Test' -Title 'parse' -Status $(if ($a -eq 'unknown' -and $b -eq 'unknown' -and $c -eq 'unknown') { 'ok' } else { 'fail' }) -Detail "$a/$b/$c" }
+           Expect = @{ 'parse' = 'ok' } }
+        @{ Name = 'seam: a dirty volume warns and names chkdsk'
+           Run = { Test-UpgVolumeHealth -IsAdmin $true -Health ([pscustomobject]@{ Dirty = 'dirty'; Scan = 'ErrorsFound'; ScanRan = $true; Error = $null }) }
+           Expect = @{ 'Volume health' = 'warn' }
+           Match  = @{ 'Volume health' = 'chkdsk C: /f' } }
+        @{ Name = 'seam: a clean volume with a clean scan is ok'
+           Run = { Test-UpgVolumeHealth -IsAdmin $true -Health ([pscustomobject]@{ Dirty = 'clean'; Scan = 'NoErrorsFound'; ScanRan = $true; Error = $null }) }
+           Expect = @{ 'Volume health' = 'ok' } }
+        @{ Name = 'seam: a clean flag but a scan that found errors still warns'
+           Run = { Test-UpgVolumeHealth -IsAdmin $true -Health ([pscustomobject]@{ Dirty = 'clean'; Scan = 'ErrorsFound'; ScanRan = $true; Error = $null }) }
+           Expect = @{ 'Volume health' = 'warn' } }
+        @{ Name = 'seam: unelevated volume health is info'
+           Run = { Test-UpgVolumeHealth -IsAdmin $false -Health $null }
+           Expect = @{ 'Volume health' = 'info' } }
+        @{ Name = 'seam: unreadable volume flag is unknown, not ok'
+           Run = { Test-UpgVolumeHealth -IsAdmin $true -Health ([pscustomobject]@{ Dirty = 'unknown'; Scan = $null; ScanRan = $false; Error = 'Access is denied.' }) }
+           Expect = @{ 'Volume health' = 'unknown' } }
+        @{ Name = 'seam: a shrink refused for volume errors points at Volume health'
+           Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test SSD'; Size=(256*$gb); PartitionStyle='GPT'; BusType='SATA' })
+                     SysVolume = [pscustomobject]@{ Size=(237*$gb); SizeRemaining=(62*$gb) }
+                     ShrinkGB = $null; ShrinkError = 'Cannot shrink a partition containing a volume with errors. Activity ID: {x}'; ShrinkFailedAt = 'Get-PartitionSupportedSize'
+                     DiskpartError = 'Use Chkdsk to fix the corruption problem, and then try to shrink the | volume again.'
+                     Disk0PartCount = 4 }) }
+           Expect = @{ 'Room to keep Windows' = 'info' }
+           Match  = @{ 'Room to keep Windows' = 'Volume health' } }
         @{ Name = 'seam: an unmeasurable shrink carries Windows own reason, not a guess'
            Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
                      Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test NVMe'; Size=(500*$gb); PartitionStyle='GPT'; BusType='NVMe' })
@@ -1873,7 +1987,9 @@ Test-UpgArchitecture -Sys $sys
 Test-UpgMemory       -Sys $sys
 Test-UpgFirmware     -Sys $sys -SecureBoot (Get-UpgSecureBootState)
 Test-UpgStorageMode  -Pnp $pnp
-Test-UpgDisk         -Facts (Get-UpgDiskFacts) -IsAdmin $isAdmin
+$diskFacts = Get-UpgDiskFacts
+Test-UpgDisk         -Facts $diskFacts -IsAdmin $isAdmin
+Test-UpgVolumeHealth -IsAdmin $isAdmin -Health (Get-UpgVolumeHealth -IsAdmin $isAdmin -ShrinkError $diskFacts.ShrinkError)
 Test-UpgFastStartup  -HiberbootEnabled (Get-UpgFastStartupState)
 Test-UpgBitLocker    -IsAdmin $isAdmin -State $(if ($isAdmin) { Get-UpgBitLockerState })
 Test-UpgEsp          -IsAdmin $isAdmin -Facts $(if ($isAdmin) { Get-UpgEspFacts })
