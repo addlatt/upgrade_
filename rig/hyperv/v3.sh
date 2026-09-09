@@ -157,7 +157,8 @@ wait-off)
 windows)
     need_off; mkdir -p "$A"
     PS start; wait_secs 12; PS shot "C:\\upgrade-rig\\hv\\shots\\v3-grub-win.png"
-    PS key 40; PS key 40; PS key 13
+    # GRUB menu since the 2026-09-01 dnf upgrade: 6.19 kernel, 6.14 kernel, rescue, Windows, UEFI settings - Windows is THREE Downs (was two)
+    PS key 40; sleep 1; PS key 40; sleep 1; PS key 40; sleep 1; PS key 13
     # Windows boots; PS Direct answers once the guest's VMBus session is up
     t0=$(date +%s)
     while :; do

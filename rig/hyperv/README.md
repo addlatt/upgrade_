@@ -190,6 +190,10 @@ OEMDRV volumes: `oemdrv-v3.vhdx` (config 1, attached to UPGRIGHV),
   Yes → password → Reboot). A MokManager prompt that times out **deletes** the
   pending `MokNew` without enrolling — re-`mokutil --import` if that happens.
 
+- **GRUB entry order changed with the kernel upgrade (seen 2026-09-08):** the
+  menu is now 6.19 kernel / 6.14 kernel / rescue / **Windows Boot Manager** /
+  UEFI settings, so Windows is **three** Downs, not two. `v3.sh windows`
+  presses three now; take a screenshot before Enter when in doubt.
 - **V3 / R19, config XTS-AES-128 used-space-only — DONE 2026-09-01**
   (rows in `docs/validation-results/v3-bitlk-read.csv`, findings in RISKS
   R19). The bench is `v3.sh`; per config: `v3.sh oemdrv guest/v3-read.sh`
