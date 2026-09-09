@@ -644,9 +644,20 @@ gone after a wipe), but the population exposed to it shrank.
 **If real.** Files verified as "staged" do not exist, discovered after the
 wipe.
 
+**The read-back gate exists (2026-09-09).** `upgrade_/linux/verify.sh`
+(the kickstart's `%pre`) reads the chosen desktop image on the stick back
+against the stick's own `SHA256SUMS` in the live session — the same code
+path that will read the staged files back on the clean-slate path — and
+in install mode a mismatch is a refusal (exit 23, `%pre --erroronfail`),
+before the commit line, while Windows still exists. It also records the
+stick's read speed, which is the honest basis for the time estimate the
+person is shown before walking away. Rows in
+`docs/validation-results/v1-live-boot.csv` carry `desktop_image=` and the
+MB/s in `notes`. Not yet demonstrated on a counterfeit stick.
+
 **Closes when.** The cutover's read-back checksum verification (which runs
 before the commit line, while Windows still exists) is implemented as a hard
-gate and demonstrated to catch a known-counterfeit stick.
+gate — done — and demonstrated to catch a known-counterfeit stick.
 
 ## R18 — Windows shrink headroom is unmeasured · high · open
 
