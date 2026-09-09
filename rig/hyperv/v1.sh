@@ -27,7 +27,8 @@
 # template refuses Fedora's shim (rig/hyperv/README.md) - a VM row closes
 # plumbing only. Evidence rows are written by v1-verdict.py, never by hand.
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")"
+SELF=$(readlink -f "${BASH_SOURCE[0]}")
+cd "$(dirname "$SELF")"
 VMNAME=${VMNAME:-UPGRIGHV}
 A=artifacts/v1
 HV=/mnt/c/upgrade-rig/hv
@@ -35,6 +36,7 @@ KIT=../../dist/kit/stick
 STICK_IMG=$A/stick.img
 STICK_VHDX="$HV/vm/v1-stick.vhdx"
 STICK_VHDX_WIN='C:\upgrade-rig\hv\vm\v1-stick.vhdx'
+MAIN_VHDX_WIN="C:\\upgrade-rig\\hv\\vm\\$VMNAME.vhdx"
 GUEST_CSV='C:\upgrade_\v1\v0-handoff.csv'
 CSV=../../docs/validation-results/v1-live-boot.csv
 HARNESS_VERSION=0.1.0-hv
@@ -75,6 +77,11 @@ stick)
     mdir -i "$P" ::/ ; mdir -i "$P" ::/upgrade_ ; mdir -i "$P" ::/images
     rm -f "$STICK_VHDX"; qemu-img convert -f raw -O vhdx "$STICK_IMG" "$STICK_VHDX"
     PSC "Add-VMHardDiskDrive -VMName $VMNAME -ControllerType SCSI -Path '$STICK_VHDX_WIN'"
+    # The machine this leg models has not been converted: Windows Boot Manager
+    # is its firmware default. This guest has been dual-booting Fedora-first
+    # since the V1b install, so the one-shot's fall-through would land in GRUB
+    # (seen 2026-09-08). Put the Windows entry first for this leg.
+    PSC "\$fw = Get-VMFirmware -VMName $VMNAME; \$win = \$fw.BootOrder | Where-Object { \$_.FirmwarePath -like '*bootmgfw.efi' } | Select-Object -First 1; \$rest = \$fw.BootOrder | Where-Object { \$_ -ne \$win }; if (\$win) { Set-VMFirmware -VMName $VMNAME -BootOrder (@(\$win) + \$rest); 'boot order: Windows Boot Manager first' } else { 'no Windows Boot Manager entry found' }"
     echo "v1: built and attached $STICK_VHDX"
     ;;
 windows)
@@ -119,6 +126,11 @@ arm)
     echo "v1: armed; the guest reboots itself in ~20 s"
     ;;
 wait)
+    # Windows comes back, the logon task runs -Check -Auto, and its one human
+    # question (was a key needed?) sits in a popup for up to 5 min before it
+    # records 'unknown' and writes the row. The popup ignores the WMI
+    # keyboard (tried 2026-09-08), so this just waits; 'unknown' is honest
+    # for a rig with nobody at it, and it is not a V1 column.
     limit=${2:-1800}; t0=$(date +%s); sleep 60
     while :; do
         if guest "Test-Path $GUEST_CSV" 2>/dev/null | grep -q True; then echo "v1: return check wrote its row after $(( $(date +%s) - t0 )) s"; break; fi
@@ -137,12 +149,27 @@ verdict)
         guest "Get-Content ${L}:\\upgrade_\\report\\storage.ks -Raw -ErrorAction SilentlyContinue" > "$A/storage.ks" || true
         guest "Get-Content ${L}:\\upgrade_\\report\\lsblk.txt -Raw -ErrorAction SilentlyContinue" > "$A/lsblk.txt" || true
     fi
-    [ -s "$A/verify.json" ] || rm -f "$A/verify.json"
+    for f in verify.json verify.log storage.ks lsblk.txt; do
+        # a PS Direct error message is not a report file
+        if [ ! -s "$A/$f" ] || grep -q "Cannot find path" "$A/$f"; then rm -f "$A/$f"; fi
+    done
     python3 v1-verdict.py "$A" "$CSV" "$HARNESS_VERSION" "$FIRMWARE"
     ;;
+grubtest)
+    # Debug only: VM off -> boot the STICK first (no handoff involved), screenshot
+    # the console every 3 s for 90 s, then put the firmware order back. Shows
+    # what the stick's GRUB prints when it fails to start the installer.
+    need_off; mkdir -p "$A/grubtest"; rm -f "$A/grubtest"/*.png
+    PSC "\$d = Get-VMHardDiskDrive -VMName $VMNAME | Where-Object { \$_.Path -eq '$STICK_VHDX_WIN' }; Set-VMFirmware -VMName $VMNAME -FirstBootDevice \$d"
+    PS start
+    for i in $(seq 1 30); do sleep 3; PS shot "C:\\upgrade-rig\\hv\\shots\\v1-grubtest-$i.png" >/dev/null 2>&1 || true; cp "$HV/shots/v1-grubtest-$i.png" "$A/grubtest/" 2>/dev/null || true; done
+    PS kill || true; sleep 3
+    PSC "\$d = Get-VMHardDiskDrive -VMName $VMNAME | Where-Object { \$_.Path -eq '$MAIN_VHDX_WIN' }; Set-VMFirmware -VMName $VMNAME -FirstBootDevice \$d"
+    echo "v1: grubtest shots in $A/grubtest (firmware order restored: system disk first)"
+    ;;
 run)
-    "$0" stick; "$0" windows; "$0" job; "$0" arm; "$0" wait; "$0" verdict
+    "$SELF" stick; "$SELF" windows; "$SELF" job; "$SELF" arm; "$SELF" wait; "$SELF" verdict
     ;;
 *)
-    sed -n '2,30p' "$0"; exit 1 ;;
+    sed -n '2,30p' "$SELF"; exit 1 ;;
 esac

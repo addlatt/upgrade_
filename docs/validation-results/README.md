@@ -288,3 +288,51 @@ disk number.
   the same before and after, recorded in `notes`). A VM cannot run this
   row: Hyper-V has no USB emulation, so every VHDX is refused for its bus
   before the write path is reached.
+
+## `v1-live-boot.csv` — the stick boots through the handoff and verifies, nothing installed (gate V1, reversible half)
+
+One row per run, appended by `rig/hyperv/v1-verdict.py` from two pieces
+of evidence the run itself produced: the V0 harness row the guest wrote
+when Windows came back (`Test-Handoff.ps1 -Check -Auto`, `v0-handoff.csv`
+on the guest), and the report the `%pre` verifier left on the stick
+(`upgrade_/report/verify.json`, written by `upgrade_/linux/verify.sh`
+inside Anaconda's stage2). Do not hand-edit; add rows by running the bench
+(`rig/hyperv/v1.sh run`). The chain under test: one-time boot entry →
+shim → GRUB records `upg_fired` and boots the installer from the stick with
+`upg.mode=verify` → `%pre` resolves the job's disk by identity, checks the
+hardware, writes the storage `%include` and the report → reboot → Windows.
+
+| Column | Meaning |
+|---|---|
+| `timestamp` | UTC, ISO 8601, when the verdict was computed |
+| `harness` | v1.sh / v1-verdict.py version |
+| `firmware` | the machine or VM firmware under test |
+| `secureboot` | on / off at arm time (from the V0 row) |
+| `handoff_result` | the V0 row's result — `fired-once` is the only pass |
+| `windows_returned` | the V0 row's `windows_returned` |
+| `stage2_booted` | y/n — a `verify.json` exists on the stick, i.e. Anaconda's stage2 came up from the stick and ran our `%pre` |
+| `identity` | `pass` / `fail` / `not-reached` — the job's disk was found by unique id or serial **and** its size matched exactly |
+| `esp` | `pass` / `fail` / `skipped` — for keep-windows, an EFI partition holding `bootmgfw.efi` was found on that disk |
+| `display`, `wifi`, `audio_firmware` | `pass` / `fail` / `skipped` — see `verify.sh` for what each means; `skipped` is "nothing to test on this machine", never "not checked" |
+| `storage_include` | y/n — the `%include` the install would have used was written |
+| `result` | see vocabulary below |
+| `notes` | the V0 row's notes prefix, then the verifier's facts (kernel, disk, how it was matched, connector and mode, ESP device, the SecureBoot variable) |
+
+### Result vocabulary
+
+| Result | Meaning | Verdict |
+|---|---|---|
+| `pass-plumbing` | handoff `fired-once`, stage2 booted from the stick, identity matched, storage include written, no hardware check failed, Windows returned | **pass for the firmware in the row** — a VM row (Secure Boot off on Hyper-V, no USB) closes plumbing only |
+| `windows-not-returned` | no V0 row, or `windows_returned=n` | **fail-loud** — the reversible half did not come back |
+| `handoff-failed` | the V0 row is not `fired-once` | see `v0-handoff.csv`'s vocabulary |
+| `stage2-not-reached` | the entry fired but no report appeared — GRUB, the kernel, dracut or stage2 did not get as far as `%pre` | fail — capture the console |
+| `identity-mismatch` | the verifier could not match the job's disk on this machine, or the size differed | on the rig a harness bug; on a real machine **the refusal working as designed** |
+| `verify-incomplete` | identity matched but the include was not written, or a hardware check failed | fail — read `verify.log` |
+
+### What "V1 (reversible half) passes" requires
+
+- `pass-plumbing` on the rig, then on an owned physical machine with
+  Secure Boot **on** (the same signed chain that fired V0 on the Acer).
+- The physical rows are what the vendor matrix's "live boot" and
+  "hardware verify" columns are filled from — one half-hour visit per
+  machine, read-only.

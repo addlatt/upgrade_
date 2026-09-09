@@ -24,7 +24,7 @@ stick_size = int(sys.argv[5]) if len(sys.argv) > 5 else 2306867200
 
 job = json.load(open(root / "schemas/examples/job.keep-windows.json"))
 job["job_id"] = str(uuid.uuid4())
-job["created_utc"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+job["created_utc"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 job["identity"] = {
     "vendor": facts["vendor"], "model": facts["model"], "system_uuid": facts["uuid"],
     "bios_serial": facts["bios_serial"], "bios_version": facts["bios_version"],

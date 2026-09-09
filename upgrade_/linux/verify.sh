@@ -174,13 +174,13 @@ python3 - "$REPORT/verify.json" <<EOF
 import json, sys, datetime
 r = {
   "schema": "verify/1", "verify_version": "$VERIFY_VERSION", "job_id": "$JOB_ID", "mode": "$MODE",
-  "created_utc": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+  "created_utc": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
   "kernel": "$(uname -r)", "cmdline": open("/proc/cmdline").read().strip(),
   "identity": {"result": "$IDENTITY", "disk": "$DISK", "matched_by": "$MATCHED_BY", "disk_size_bytes": "$DISK_SIZE", "job_size_bytes": "$J_SIZE"},
   "hardware": {"display": "$DISPLAY_RESULT", "display_detail": "$DISPLAY_DETAIL".strip(),
                "wifi": "$WIFI_RESULT", "wifi_detail": "$WIFI_DETAIL",
                "audio_firmware": "$AUDIO_RESULT", "audio_detail": "$AUDIO_DETAIL".strip()},
-  "storage": {"path": "$PATH_CHOSEN", "esp": "$ESP", "esp_result": "$ESP_RESULT", "include_written": $([ -f "$STORAGE_KS" ] && echo true || echo false)},
+  "storage": {"path": "$PATH_CHOSEN", "esp": "$ESP", "esp_result": "$ESP_RESULT", "include_written": $([ -f "$STORAGE_KS" ] && echo True || echo False)},
   "secure_boot": "$(od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c 2>/dev/null | awk '{print $NF}')"
 }
 json.dump(r, open(sys.argv[1], "w"), indent=2)

@@ -1,0 +1,2 @@
+"timestamp","harness","firmware","secureboot","handoff_result","windows_returned","stage2_booted","identity","esp","display","wifi","audio_firmware","storage_include","result","notes"
+"2026-09-09T00:43:25Z","0.1.0-hv","Hyper-V UEFI Release v4.1","off","fired-once","y","y","unreported","unreported","not-reached","not-reached","not-reached","y","verify-incomplete","v0 row: [harness: os=Microsoft Windows 10 Pro 19045; bitlocker-via=cmdlet; fired-via=grubenv; mode=auto; payload=shim] | report files present but verify.json missing/unparsable: verify.log,storage.ks,lsblk.txt"
