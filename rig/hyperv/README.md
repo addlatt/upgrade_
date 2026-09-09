@@ -131,6 +131,14 @@ their recovery keys in `C:\upgrade-rig\hv\UPGRIGV3.<disk>-bitlocker-recovery.txt
 OEMDRV volumes: `oemdrv-v3.vhdx` (config 1, attached to UPGRIGHV),
 `oemdrv-v3-x256.vhdx`, `oemdrv-v3-full.vhdx`.
 
+**WSL's page cache starves Hyper-V (seen 2026-09-09):** after building a
+5.7 GB stick image in WSL, Windows had 0.8 GB free and `Start-VM` failed
+with "Not enough memory in the system". WSL does not return cached pages
+to the host on its own; `posix_fadvise(DONTNEED)` on the big files (the
+same `evict` helper the 9p trap uses) gave 9.4 GB back at once. `v1.sh
+stick` evicts what it wrote. `UPGRIGHV` runs at **4 GB** startup memory
+now (was 8), enough for Windows 10 and Anaconda's stage2 in text mode.
+
 **State after the V1 run (2026-09-08):** firmware boot order is **Windows
 Boot Manager first** (`v1.sh stick` sets it; the pre-conversion shape),
 BitLocker on C: is On and **re-sealed to that direct path** (suspend →

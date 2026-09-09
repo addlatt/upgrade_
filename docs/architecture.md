@@ -359,7 +359,11 @@ the stick.
 
 The live image carries Fedora as a squashfs on the USB — both desktops, so
 the intent-capture choice costs a question, not a download — and does **not**
-install over the network. The machines most likely to need converting are
+install over the network. (Built 2026-09-09: the images are the unmodified
+`LiveOS/squashfs.img` out of Fedora's own Workstation and KDE live ISOs,
+installed with kickstart `liveimg --checksum=`; the stick's installer boot
+files come from the netinst ISO, also unmodified. No composition of our
+own — the desktop a person gets is exactly Fedora's.) The machines most likely to need converting are
 exactly the ones with Broadcom Wi-Fi or a card too new for the shipped kernel
 — a network installer fails hardest on the hardware we most expect to see.
 Costs stick capacity; removes an entire class of mid-conversion failure.
@@ -729,8 +733,10 @@ one-click vertical**, split at the commit line:
   boot to a working desktop — untested anywhere today) and crosses no
   commit line. **Status 2026-09-08:** schemas, materialization, the writer
   and the live boot with identity + hardware verification have all fired
-  on the rig (VALIDATION V8, V1; RISKS R8, R16); the desktop squashfs and
-  the physical Secure-Boot-on row are what remain of this half.
+  on the rig (VALIDATION V8, V1; RISKS R8, R16), and since 2026-09-09 the
+  stick carries both desktop images and the live session reads the chosen
+  one back against the manifest (R17); the physical Secure-Boot-on row is
+  what remains of this half.
 - **Destructive half second**: shrink, the ESP `EFI/Boot` snapshot and
   restore (does not exist yet — every V1b row still reads
   `fallback-loader-replaced` for that reason), the alongside install, the

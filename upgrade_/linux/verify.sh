@@ -24,7 +24,7 @@
 set -u
 JOB=${1:?job.json path}
 LABEL=${2:-UPGV0}
-VERIFY_VERSION=0.2.0
+VERIFY_VERSION=0.2.1
 STICK=/run/install/repo
 REPORT=$STICK/upgrade_/report
 STORAGE_KS=/tmp/upgrade_-storage.ks
@@ -140,10 +140,11 @@ else
     if [ -z "$want" ]; then
         IMAGE_DETAIL="$IMG_REL not in SHA256SUMS"
     else
-        bytes=$(stat -c %s "$STICK/$IMG_REL"); t0=$(date +%s.%N)
+        # no `stat` in Anaconda's stage2 (coreutils-single; seen 2026-09-09) - python has the size
+        bytes=$(python3 -c 'import os,sys; print(os.path.getsize(sys.argv[1]))' "$STICK/$IMG_REL"); t0=$(date +%s.%N)
         got=$(sha256sum "$STICK/$IMG_REL" | cut -c1-64)
         t1=$(date +%s.%N)
-        IMAGE_MBPS=$(python3 -c "print(round($bytes/1e6/max($t1-$t0,0.001),1))")
+        IMAGE_MBPS=$(python3 -c 'import sys; b,t0,t1=float(sys.argv[1]),float(sys.argv[2]),float(sys.argv[3]); print(round(b/1e6/max(t1-t0,0.001),1))' "$bytes" "$t0" "$t1")
         if [ "$got" = "$want" ]; then IMAGE_RESULT=pass; IMAGE_DETAIL="$IMG_REL $bytes bytes sha256 ok, read at $IMAGE_MBPS MB/s"
         else IMAGE_DETAIL="$IMG_REL sha256 MISMATCH (want $want got $got)"; fi
     fi

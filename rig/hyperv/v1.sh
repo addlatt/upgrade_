@@ -49,6 +49,7 @@ PSC() { powershell.exe -NoProfile -Command "$1" < /dev/null; }
 vm_state() { PSC "(Get-VM $VMNAME).State" | tr -d '\r\n '; }
 need_off() { s=$(vm_state); [ "$s" = Off ] || { echo "v1: VM must be Off (state: $s)" >&2; exit 1; }; }
 guest() { PS ps "$1" 2>&1 | tr -d '\r'; }
+evict() { python3 -c 'import os,sys; fd=os.open(sys.argv[1],os.O_RDONLY); os.posix_fadvise(fd,0,0,os.POSIX_FADV_DONTNEED); os.close(fd)' "$1"; }
 stick_letter() { guest '(Get-Volume -FileSystemLabel UPGV0 -ErrorAction SilentlyContinue | Select-Object -First 1).DriveLetter' | tr -d ' \n'; }
 wait_windows() {
     t0=$(date +%s)
@@ -81,6 +82,10 @@ stick)
     printf 'v1\n' > "$A/boot-verify"; mcopy -o -i "$P" "$A/boot-verify" ::/upgrade_/boot-verify
     mdir -i "$P" ::/ ; mdir -i "$P" ::/upgrade_ ; mdir -i "$P" ::/images
     rm -f "$STICK_VHDX"; qemu-img convert -f raw -O vhdx "$STICK_IMG" "$STICK_VHDX"
+    # WSL keeps the gigabytes just written in its page cache and does not
+    # hand them back to Windows; Hyper-V then cannot find memory to start
+    # the guest ("Not enough memory in the system", 2026-09-09). Evict.
+    for f in "$STICK_IMG" "$KIT"/upgrade_/LiveOS/*.squashfs "$KIT"/images/install.img; do evict "$f" 2>/dev/null || true; done
     PSC "Add-VMHardDiskDrive -VMName $VMNAME -ControllerType SCSI -Path '$STICK_VHDX_WIN'"
     # The machine this leg models has not been converted: Windows Boot Manager
     # is its firmware default. This guest has been dual-booting Fedora-first

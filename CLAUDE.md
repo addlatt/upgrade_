@@ -137,9 +137,12 @@ kickstart generator `upgrade_/windows/New-Kickstart.ps1`; `%pre` verifier
 `upgrade_/linux/verify.sh`) all fired on the rig — `pass-plumbing` in
 `docs/validation-results/v1-live-boot.csv`: one-shot entry → stick →
 unmodified Fedora installer → identity + hardware verified → back to
-Windows, nothing installed. Next in the reversible half: the desktop
-squashfs on the stick, the Wi-Fi association check, then the physical
-row with Secure Boot on.
+Windows, nothing installed. **2026-09-09:** the stick carries Fedora's own
+Workstation and KDE live squashfs (unmodified; `rig/vm/fetch-desktops.sh`),
+the kickstart names the chosen one with its checksum, and `%pre` reads it
+back byte-for-byte on the stick before anything is decided (R17's gate) —
+row 3, `pass-plumbing`. Next in the reversible half: the Wi-Fi association
+check, then the physical row with Secure Boot on.
 
 **Decided (2026-09-08): the build is a vertical, not a list.** One
 front-to-back, one-click flow, reversible half first (schemas → OneDrive

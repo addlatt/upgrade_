@@ -142,7 +142,14 @@ first attempt, `verify-incomplete` (a bug in the report writer, fixed).
 Secure Boot was **off** (Hyper-V's template refuses shim — the usual rig
 clause); the chain is the simpler shape named below, not a composed image,
 so the "custom-composed live stick" half of this gate is now the *desktop
-squashfs* the kickstart's `liveimg` points at, still to be produced.
+squashfs* the kickstart's `liveimg` points at — **on the stick since
+2026-09-09** (row 3, `pass-plumbing`): Fedora's own Workstation and KDE
+live `squashfs.img`, unmodified, verified against Fedora's published ISO
+hashes at fetch (`rig/vm/fetch-desktops.sh`), shipped by `make-kit.sh`
+(the kit is 5.3 GB), named with `--checksum=` in the kickstart, and read
+back byte-for-byte against the stick's manifest by `%pre` in the live
+session before anything is decided. What this gate still lacks is the
+install itself — the destructive half — and Secure Boot on.
 
 **Pass.** Hands-off from power-on to login, Secure Boot still enabled.
 
