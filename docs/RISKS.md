@@ -585,7 +585,7 @@ the stick's own drive letter, so a physical operator types nothing.
 **Closes when.** The spine spike (build order step 0) passes in a VM and on
 physical machines from at least three vendors.
 
-## R16 — Stick authoring can write the wrong device · critical · open
+## R16 — Stick authoring can write the wrong device · critical · open (writer built, refusal matrix fired 2026-09-08)
 
 **What.** `evaluate` burns the live image with raw `\\.\PhysicalDrive`
 writes. The user may have other USB devices attached.
@@ -594,9 +594,40 @@ writes. The user may have other USB devices attached.
 one failure mode the whole architecture exists to prevent, committed by the
 component that promised to be safe.
 
-**Closes when.** Device selection refuses non-removable buses, confirms size
-and volume label with the user, refuses ambiguity outright — and the picker is
-tested with multiple sticks and a USB hard drive attached simultaneously.
+**Built (2026-09-08): `evaluate/windows/Write-UpgradeStick.ps1`.** The
+selection is a pure function over every attached disk (23 fabricated cases
+in `-SelfTest`): USB bus and not HDD/SSD media (a USB hard drive or SSD
+enclosure is somebody's backup — refused even when pointed at), not the
+system/boot disk and holding no volume Windows runs from, exactly one
+attached disk carrying the `-Target` unique id (cloned serials = ambiguity
+= refused), size matching what the person was shown (exact bytes from a
+job, ±10 % of the packaging's decimal GB from a human), online and
+writable, and the person typing the device's current label (or model) —
+never a bare "yes". Disk numbers are not accepted as a target. The write
+path re-resolves the target by unique id from a fresh enumeration
+immediately before `Clear-Disk` and hands the storage cmdlets the object,
+so a plug event between the plan and the write cannot move it; then MBR,
+FAT32 boot partition (active) + exFAT staging, copy, and every file read
+back against `SHA256SUMS`. Every run — `-Plan` (read-only) and `-Write` —
+appends a row to `docs/validation-results/r16-stick-writer.csv` listing
+every attached disk and the rules it broke.
+
+**Live, read-only (2026-09-08):** on the G16 the real 8 GB stick is
+selected only when pointed at with the right size, refused for a 32 GB
+claim, and the system NVMe is refused on five counts when pointed at; on
+the rig with four SAS disks attached (system, OEMDRV, two blank VHDX
+"sticks") every disk is refused, the pointed-at one for its bus. One
+finding for `job.json`: a stick's `UniqueId` on Windows is the USBSTOR
+device path **suffixed with the host name** (`…&0&_&0:addisons-laptop`)
+and its `SerialNumber` can be empty — so the identity the prologue
+re-verifies is the unique id as enumerated on the same machine, and the
+serial is a secondary field.
+
+**Closes when.** The physical write row: several sticks **and a USB hard
+drive attached at once**, `-Write` pointed at one stick — that one erased,
+written and verified, every other device untouched. A VM cannot run it
+(no USB emulation; every VHDX is refused for its bus first). The
+rule-#5 residue is exactly that row.
 
 ## R17 — Counterfeit or failing flash as the sole data carrier · high · open
 

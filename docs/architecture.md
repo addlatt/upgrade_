@@ -124,6 +124,10 @@ published for technical users and repair events.) Raw disk writes are the one
 place this tool could destroy data *before* the commit line, so device
 selection is defensive: removable-bus devices only, size and volume label
 confirmed with the user, refusal if anything is ambiguous. See RISKS R16.
+(`evaluate/windows/Write-UpgradeStick.ps1`, 2026-09-08: the rules as a
+pure function, a read-only `-Plan`, and a write path that re-resolves the
+device by unique id before the first destructive call; the physical
+several-devices write row is still owed.)
 
 ### It refuses
 

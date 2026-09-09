@@ -28,9 +28,10 @@
 #   7. after layout, SHA256SUMS re-verifies; with --to, the copy re-verifies
 #
 # This script never writes to a device. --to copies into a DIRECTORY (a
-# mounted stick, or a staging folder); formatting the stick is the human's
-# job in Explorer, precisely because a stick writer is R16 (critical, open)
-# and is not built until it can be tested with several devices attached.
+# mounted stick, or a staging folder). The device writer is
+# evaluate/windows/Write-UpgradeStick.ps1 (R16): point it at dist/kit/stick
+# with -Source and it partitions, formats, copies and re-verifies - after
+# refusing everything that is not the one USB stick pointed at.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -92,6 +93,8 @@ selftest() {  # $1 = label, $2 = script path (WSL)
 selftest "scanner"   "$SCANNER_SRC"
 selftest "harvester" "$HARVEST_SRC"
 selftest "handoff harness" "$HARNESS"
+selftest "V8 materialization harness" "$ROOT/evaluate/windows/Test-Materialize.ps1"
+selftest "stick writer" "$ROOT/evaluate/windows/Write-UpgradeStick.ps1"
 
 # --- 4. parse-check under the PS 5.1 parser ----------------------------------
 parsecheck() {

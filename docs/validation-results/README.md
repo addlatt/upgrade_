@@ -240,3 +240,51 @@ serve, so the refuse arm is exercised on every run.
   On-Demand: `Test-Materialize.ps1 -OneDrive` uploads a few MB to the
   account, asks the client to free up space, then materializes — run only
   on a machine and account you own, never unattended.
+
+## `r16-stick-writer.csv` — the stick writer refuses the wrong device (risk R16)
+
+One row per run of `evaluate/windows/Write-UpgradeStick.ps1` — every
+`-Plan` (read-only) and every `-Write`. Do not hand-edit. The writer is
+the first component that writes to a device; R16 is the risk that it
+writes the wrong one, before the commit line, destroying data the whole
+architecture exists to protect. The rules (all must hold, each reported):
+USB bus and not HDD/SSD media; not the system or boot disk and holding no
+volume Windows runs from; exactly one attached disk carries the `-Target`
+unique id; size matches what the person was shown; online and writable;
+the person types the device's current label (or model) to confirm. The
+write path re-resolves the target by unique id from a fresh enumeration
+immediately before `Clear-Disk` and hands the cmdlets the object, never a
+disk number.
+
+| Column | Meaning |
+|---|---|
+| `timestamp` | UTC, ISO 8601 |
+| `writer` | Write-UpgradeStick.ps1 version |
+| `machine`, `os_build` | where it ran |
+| `mode` | `plan` (nothing written) or `write` |
+| `disks_attached`, `usb_disks` | how many disks the run saw, and how many on the USB bus |
+| `target` | the unique id pointed at |
+| `expected_bytes` | the size the person was shown, in bytes (decimal GB × 10⁹ when typed) |
+| `decision` | `selected` or `refused` |
+| `refusals` | why, when refused — every rule the pointed-at device broke |
+| `written`, `verified` | y/n — was a disk erased and written; did every file read back against SHA256SUMS |
+| `notes` | harness-written: elevation, then every attached disk with bus/media/size and the rules it broke (`writable` for a candidate), then the write's letters and file counts |
+
+### What "R16 closes" requires
+
+- **The refusal matrix, fabricated** (`-SelfTest`, 23 cases): the system
+  disk pointed at, two sticks and a USB hard drive attached with the
+  right one selected, a USB SSD enclosure, cloned serials (ambiguous),
+  wrong size, off-by-one bytes, SD bus, SAS bus, offline, Windows To Go.
+- **The refusal matrix, live, read-only** (done 2026-09-08): the G16 with
+  the real 8 GB stick — selected only when pointed at with the right
+  size; refused for a 32 GB claim; the NVMe refused on five counts. The
+  rig with four SAS disks attached (system, OEMDRV, two blank VHDX
+  "sticks" of 8 GB and 32 GB) — every one refused, the pointed-at VHDX
+  for its bus.
+- **The write, physical** (owed): several sticks **and a USB hard drive
+  attached at once**, `-Write` pointed at one stick — that one erased,
+  written and verified, the rest untouched (their labels and file counts
+  the same before and after, recorded in `notes`). A VM cannot run this
+  row: Hyper-V has no USB emulation, so every VHDX is refused for its bus
+  before the write path is reached.
