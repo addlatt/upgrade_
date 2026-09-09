@@ -159,6 +159,16 @@ cp "$BITS/images/pxeboot/vmlinuz"    "$D/images/pxeboot/vmlinuz"
 cp "$BITS/images/pxeboot/initrd.img" "$D/images/pxeboot/initrd.img"
 cp "$BITS/images/install.img"        "$D/images/install.img"
 sed 's/\r$//' "$ROOT/upgrade_/linux/verify.sh" > "$D/upgrade_/verify.sh"
+# the desktops: Fedora's own live squashfs images, unmodified, one per
+# desktop the intent capture offers (rig/vm/fetch-desktops.sh). The
+# kickstart's liveimg line names one of them; verify.sh reads it back
+# against SHA256SUMS in the live session before anything is installed.
+for d in gnome kde; do
+    [ -f "$BITS/LiveOS/$d.squashfs" ] || fail "missing $BITS/LiveOS/$d.squashfs - run rig/vm/fetch-desktops.sh"
+done
+mkdir -p "$D/upgrade_/LiveOS"
+cp "$BITS/LiveOS/gnome.squashfs" "$D/upgrade_/LiveOS/gnome.squashfs"
+cp "$BITS/LiveOS/kde.squashfs"   "$D/upgrade_/LiveOS/kde.squashfs"
 
 # --- manifest + checksums -----------------------------------------------------
 (cd "$D" && find . -type f ! -name SHA256SUMS ! -name KIT-MANIFEST.txt | sort | xargs sha256sum > SHA256SUMS)
@@ -173,6 +183,8 @@ payload bits:     rig/vm/artifacts/payload-bits (gitignored inputs; fetch-payloa
   shimx64.efi     $(sha256sum "$BITS/shimx64.efi" | cut -c1-64)   -> EFI/BOOT/BOOTX64.EFI
   grubx64.efi     $(sha256sum "$BITS/grubx64.efi" | cut -c1-64)   -> EFI/BOOT/grubx64.efi
   install.img     $(sha256sum "$BITS/images/install.img" | cut -c1-64)   -> images/install.img (+ pxeboot vmlinuz, initrd.img)
+desktops:         rig/vm/artifacts/payload-bits/LiveOS (unmodified Fedora live squashfs; fetch-desktops.sh)
+$(sed 's/^/  /' "$BITS/LiveOS/source.txt")
   from netinst:   $NETINST_SRC
 verified at build: dist matches source; scanner/harvester/harness self-tests
                   passed on Windows PowerShell 5.1; shipped .ps1 parse under

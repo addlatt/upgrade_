@@ -39,7 +39,7 @@ STICK_VHDX_WIN='C:\upgrade-rig\hv\vm\v1-stick.vhdx'
 MAIN_VHDX_WIN="C:\\upgrade-rig\\hv\\vm\\$VMNAME.vhdx"
 GUEST_CSV='C:\upgrade_\v1\v0-handoff.csv'
 CSV=../../docs/validation-results/v1-live-boot.csv
-HARNESS_VERSION=0.1.0-hv
+HARNESS_VERSION=0.2.0-hv
 FIRMWARE='Hyper-V UEFI Release v4.1'
 ROOT=$(cd ../.. && pwd)
 
@@ -67,7 +67,10 @@ stick)
     [ -f "$KIT/images/install.img" ] || { echo "v1: run ./make-kit.sh first (needs images/ in the kit)" >&2; exit 1; }
     PSC "Get-VMHardDiskDrive $VMNAME | Where-Object { \$_.Path -eq '$STICK_VHDX_WIN' } | Remove-VMHardDiskDrive" >/dev/null
     rm -f "$STICK_IMG"
-    truncate -s 2200M "$STICK_IMG"
+    # sized from the kit: its bytes plus room for the report and FAT overhead
+    KIT_MB=$(( $(du -sb "$KIT" | cut -f1) / 1048576 + 320 ))
+    echo "v1: stick image ${KIT_MB} MiB (kit $(du -sh "$KIT" | cut -f1))"
+    truncate -s "${KIT_MB}M" "$STICK_IMG"
     parted -s "$STICK_IMG" mklabel msdos mkpart primary fat32 1MiB 100% set 1 boot on
     mkfs.fat -F 32 -n UPGV0 --offset 2048 "$STICK_IMG" >/dev/null
     P="$STICK_IMG@@1M"
@@ -113,7 +116,7 @@ $stick=Get-Volume -FileSystemLabel UPGV0 -ErrorAction SilentlyContinue | Get-Par
     SUID=$(python3 -c 'import json,sys; f=json.load(open(sys.argv[1])); print(f["stick"]["unique_id"])' "$A/facts.json")
     SSIZE=$(python3 -c 'import json,sys; f=json.load(open(sys.argv[1])); print(f["stick"]["size"])' "$A/facts.json")
     python3 v1-job.py "$A/facts.json" "$HASH" "$A/job.json" "$SUID" "$SSIZE"
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(wslpath -w ../../upgrade_/windows/New-Kickstart.ps1)" -JobPath "$(wslpath -w "$A/job.json")" -OutFile "$(wslpath -w "$A/ks.cfg")" -StickLabel UPGV0 < /dev/null | tr -d '\r'
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(wslpath -w ../../upgrade_/windows/New-Kickstart.ps1)" -JobPath "$(wslpath -w "$A/job.json")" -OutFile "$(wslpath -w "$A/ks.cfg")" -StickLabel UPGV0 -Manifest "$(wslpath -w "$KIT/SHA256SUMS")" < /dev/null | tr -d '\r'
     L=$(stick_letter); [ -n "$L" ] || { echo "v1: no UPGV0 volume in the guest" >&2; exit 1; }
     PS copy "$(wslpath -w "$A/job.json")" "${L}:\\upgrade_\\job.json" | tr -d '\r'
     PS copy "$(wslpath -w "$A/ks.cfg")" "${L}:\\upgrade_\\ks.cfg" | tr -d '\r'

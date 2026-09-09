@@ -26,12 +26,18 @@
 
 .PARAMETER StickLabel
     Volume label of the stick the installer boots from (default UPGV0).
+
+.PARAMETER Manifest
+    The stick's SHA256SUMS (make-kit.sh writes it). When given, the liveimg
+    line carries --checksum=<sha256 of the chosen desktop image>, so
+    Anaconda itself refuses an image that does not match what was shipped.
 #>
 [CmdletBinding()]
 param(
     [string]$JobPath,
     [string]$OutFile,
     [string]$StickLabel = 'UPGV0',
+    [string]$Manifest,
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
@@ -61,8 +67,21 @@ function ConvertTo-KsQuoted {
     '"' + ($s -replace '"', '\"') + '"'
 }
 
+function Get-KsImageChecksum {
+    # Pure: the sha256 a sha256sum-style manifest records for a relative path
+    # (forward slashes, optional leading ./), or $null.
+    param([string[]]$Lines, [string]$RelPath)
+    foreach ($l in @($Lines)) {
+        if ($l -match '^([0-9a-fA-F]{64})\s[\s*](.+)$') {
+            $p = ($matches[2].Trim() -replace '^\./', '')
+            if ($p -eq $RelPath) { return $matches[1].ToLower() }
+        }
+    }
+    $null
+}
+
 function New-Kickstart {
-    param($Job, [string]$Label)
+    param($Job, [string]$Label, [string[]]$ManifestLines)
     Test-KsJob -Job $Job
     $i = $Job.intent
     $L = New-Object System.Collections.Generic.List[string]
@@ -92,7 +111,9 @@ function New-Kickstart {
     $L.Add('%include /tmp/upgrade_-storage.ks')
     $L.Add('')
     $L.Add('# offline: the desktop image travels on the stick (architecture.md, "Design constraint: offline")')
-    $L.Add("liveimg --url=file:///run/install/repo/upgrade_/LiveOS/$($i.desktop).squashfs")
+    $imgRel = "upgrade_/LiveOS/$($i.desktop).squashfs"
+    $sum = if ($ManifestLines) { Get-KsImageChecksum -Lines $ManifestLines -RelPath $imgRel } else { $null }
+    $L.Add("liveimg --url=file:///run/install/repo/$imgRel$(if ($sum) { " --checksum=$sum" })")
     $L.Add('')
     $L.Add('reboot')
     $L.Add('')
@@ -144,6 +165,11 @@ function Invoke-SelfTest {
            Run = { $j = $keep | ConvertTo-Json -Depth 10 | ConvertFrom-Json; $j.intent.distro.name = 'ubuntu'; try { New-Kickstart -Job $j -Label 'X' | Out-Null; 'accepted' } catch { 'refused' } }; Expect = 'refused' }
         @{ Name = 'output uses LF line endings only (the installer reads it on Linux)'
            Run = { -not $ksK.Contains("`r") }; Expect = $true }
+        @{ Name = 'a manifest adds --checksum for the chosen desktop image'
+           Run = { $m = @('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  ./upgrade_/LiveOS/kde.squashfs', 'ffff  ./upgrade_/LiveOS/gnome.squashfs')
+                   (New-Kickstart -Job $keep -Label 'UPGV0' -ManifestLines $m) -match '(?m)^liveimg --url=file:///run/install/repo/upgrade_/LiveOS/kde\.squashfs --checksum=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef$' }; Expect = $true }
+        @{ Name = 'a manifest without the image adds no checksum (never a guess)'
+           Run = { (New-Kickstart -Job $keep -Label 'UPGV0' -ManifestLines @('ffff  ./other')) -notmatch '--checksum' }; Expect = $true }
     )
     $failed = 0
     Write-Host ''; Write-Host "  upgrade_  kickstart generator $KsGenVersion  -  SELF-TEST" -ForegroundColor Cyan; Write-Host ''
@@ -160,7 +186,8 @@ function Invoke-SelfTest {
 if ($SelfTest) { Invoke-SelfTest; return }
 if (-not $JobPath) { throw 'give -JobPath job.json (or -SelfTest)' }
 $job = Get-Content -LiteralPath $JobPath -Raw | ConvertFrom-Json
-$ks = New-Kickstart -Job $job -Label $StickLabel
+$mLines = if ($Manifest) { Get-Content -LiteralPath $Manifest } else { $null }
+$ks = New-Kickstart -Job $job -Label $StickLabel -ManifestLines $mLines
 if ($OutFile) {
     [IO.File]::WriteAllText($OutFile, $ks, (New-Object Text.UTF8Encoding($false)))
     Write-Host "  wrote $OutFile ($($ks.Length) bytes) for job $($job.job_id)"

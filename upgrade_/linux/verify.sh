@@ -24,7 +24,7 @@
 set -u
 JOB=${1:?job.json path}
 LABEL=${2:-UPGV0}
-VERIFY_VERSION=0.1.0
+VERIFY_VERSION=0.2.0
 STICK=/run/install/repo
 REPORT=$STICK/upgrade_/report
 STORAGE_KS=/tmp/upgrade_-storage.ks
@@ -122,6 +122,34 @@ fi
 lspci -nn > /tmp/upgrade_-lspci.txt 2>&1 || true
 dmesg > /tmp/upgrade_-dmesg.txt 2>&1 || true
 
+# --- 2b. the desktop image: is what the kickstart will install actually on the
+# stick, byte for byte? Read back against the stick's own SHA256SUMS - the
+# cutover's step 6 (architecture.md), and the counterfeit-flash test (RISKS
+# R17): a stick that lied about its capacity fails here, while Windows still
+# exists. The read speed is recorded too - it is the honest basis for the
+# time estimates the person is shown.
+DESKTOP=$(jq_ intent.desktop)
+IMG_REL="upgrade_/LiveOS/$DESKTOP.squashfs"
+IMAGE_RESULT=fail; IMAGE_DETAIL=""; IMAGE_MBPS=""
+if [ ! -f "$STICK/$IMG_REL" ]; then
+    IMAGE_DETAIL="missing: $IMG_REL"
+elif [ ! -f "$STICK/SHA256SUMS" ]; then
+    IMAGE_DETAIL="no SHA256SUMS on the stick"
+else
+    want=$(grep -E "[[:space:]]\./$IMG_REL\$|[[:space:]]$IMG_REL\$" "$STICK/SHA256SUMS" | head -1 | cut -c1-64)
+    if [ -z "$want" ]; then
+        IMAGE_DETAIL="$IMG_REL not in SHA256SUMS"
+    else
+        bytes=$(stat -c %s "$STICK/$IMG_REL"); t0=$(date +%s.%N)
+        got=$(sha256sum "$STICK/$IMG_REL" | cut -c1-64)
+        t1=$(date +%s.%N)
+        IMAGE_MBPS=$(python3 -c "print(round($bytes/1e6/max($t1-$t0,0.001),1))")
+        if [ "$got" = "$want" ]; then IMAGE_RESULT=pass; IMAGE_DETAIL="$IMG_REL $bytes bytes sha256 ok, read at $IMAGE_MBPS MB/s"
+        else IMAGE_DETAIL="$IMG_REL sha256 MISMATCH (want $want got $got)"; fi
+    fi
+fi
+echo "== desktop image: $IMAGE_RESULT - $IMAGE_DETAIL"
+
 # --- 3. storage %include, from the resolved disk --------------------------------
 ESP=""; ESP_RESULT=skipped
 if [ "$IDENTITY" = pass ]; then
@@ -181,6 +209,7 @@ r = {
                "wifi": "$WIFI_RESULT", "wifi_detail": "$WIFI_DETAIL",
                "audio_firmware": "$AUDIO_RESULT", "audio_detail": "$AUDIO_DETAIL".strip()},
   "storage": {"path": "$PATH_CHOSEN", "esp": "$ESP", "esp_result": "$ESP_RESULT", "include_written": $([ -f "$STORAGE_KS" ] && echo True || echo False)},
+  "payload": {"desktop": "$DESKTOP", "image": "$IMG_REL", "result": "$IMAGE_RESULT", "detail": "$IMAGE_DETAIL", "read_mbps": "$IMAGE_MBPS"},
   "secure_boot": "$(od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c 2>/dev/null | awk '{print $NF}')"
 }
 json.dump(r, open(sys.argv[1], "w"), indent=2)
@@ -189,7 +218,7 @@ cp "$STORAGE_KS" "$REPORT/storage.ks" 2>/dev/null || true
 for f in verify lsblk by-id fb0 nmcli lspci dmesg; do cp "/tmp/upgrade_-$f.txt" "$REPORT/$f.txt" 2>/dev/null || true; done
 cp "$LOG" "$REPORT/verify.log" 2>/dev/null || true
 sync; sync
-echo "== report written to $REPORT; identity=$IDENTITY display=$DISPLAY_RESULT wifi=$WIFI_RESULT audio=$AUDIO_RESULT esp=$ESP_RESULT"
+echo "== report written to $REPORT; identity=$IDENTITY display=$DISPLAY_RESULT wifi=$WIFI_RESULT audio=$AUDIO_RESULT esp=$ESP_RESULT image=$IMAGE_RESULT"
 
 if [ "$MODE" = verify ]; then
     echo "== verify mode: rebooting to Windows (nothing installed, nothing changed on the internal disk)"
@@ -202,4 +231,5 @@ fi
 [ "$IDENTITY" = pass ] || { echo "!! IDENTITY MISMATCH - refusing to install on this machine"; exit 20; }
 [ -f "$STORAGE_KS" ] || { echo "!! no storage include written - refusing"; exit 21; }
 [ "$ESP_RESULT" != fail ] || { echo "!! keep-windows needs the Windows ESP - refusing"; exit 22; }
+[ "$IMAGE_RESULT" = pass ] || { echo "!! the desktop image on the stick did not verify - refusing (RISKS R17)"; exit 23; }
 exit 0

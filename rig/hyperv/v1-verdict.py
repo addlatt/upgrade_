@@ -44,9 +44,13 @@ esp = verify["storage"]["esp_result"] if have_json else ("unreported" if stage2 
 hw = verify["hardware"] if have_json else {}
 disp = hw.get("display", "not-reached"); wifi = hw.get("wifi", "not-reached"); audio = hw.get("audio_firmware", "not-reached")
 inc = "y" if ((have_json and verify["storage"].get("include_written")) or (A / "storage.ks").exists()) else "n"
+image = "unreported"
 if have_json:
+    pl = verify.get("payload") or {}
+    image = pl.get("result", "unreported")
     notes.append(f"verify {verify.get('verify_version')} mode={verify.get('mode')} kernel={verify.get('kernel')} disk={verify['identity'].get('disk')} matched_by={verify['identity'].get('matched_by')} "
-                 f"display='{hw.get('display_detail','')}' wifi='{hw.get('wifi_detail','')}' esp={verify['storage'].get('esp')} sb_var={verify.get('secure_boot')}")
+                 f"display='{hw.get('display_detail','')}' wifi='{hw.get('wifi_detail','')}' esp={verify['storage'].get('esp')} sb_var={verify.get('secure_boot')} "
+                 f"desktop_image={image} ({pl.get('detail','')})")
 
 if v0 is None or returned != "y":
     result = "windows-not-returned"
@@ -58,7 +62,7 @@ elif not have_json:
     result = "verify-incomplete"
 elif ident != "pass":
     result = "identity-mismatch"
-elif inc != "y" or esp == "fail" or disp == "fail" or wifi == "fail" or audio == "fail":
+elif inc != "y" or esp == "fail" or disp == "fail" or wifi == "fail" or audio == "fail" or image == "fail":
     result = "verify-incomplete"
 else:
     result = "pass-plumbing"
@@ -70,5 +74,5 @@ with open(CSV, "a", newline="", encoding="utf-8") as f:
     w = csv.writer(f, quoting=csv.QUOTE_ALL, lineterminator="\n")
     if new: w.writerow(HEADER)
     w.writerow(row)
-print(f"v1-verdict: {result} (handoff={handoff} stage2={stage2} identity={ident} esp={esp} display={disp}) -> {CSV}")
+print(f"v1-verdict: {result} (handoff={handoff} stage2={stage2} identity={ident} esp={esp} display={disp} image={image}) -> {CSV}")
 sys.exit(0 if result == "pass-plumbing" else 1)

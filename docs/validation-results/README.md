@@ -316,7 +316,7 @@ hardware, writes the storage `%include` and the report → reboot → Windows.
 | `display`, `wifi`, `audio_firmware` | `pass` / `fail` / `skipped` — see `verify.sh` for what each means; `skipped` is "nothing to test on this machine", never "not checked" |
 | `storage_include` | y/n — the `%include` the install would have used was written |
 | `result` | see vocabulary below |
-| `notes` | the V0 row's notes prefix, then the verifier's facts (kernel, disk, how it was matched, connector and mode, ESP device, the SecureBoot variable) |
+| `notes` | the V0 row's notes prefix, then the verifier's facts (kernel, disk, how it was matched, connector and mode, ESP device, the SecureBoot variable, and from harness 0.2.0 `desktop_image=pass/fail` with the image's size, sha256 verdict against the stick's `SHA256SUMS` and the read speed in MB/s — the cutover's read-back step and RISKS R17's counterfeit-flash test, run in the live session) |
 
 ### Result vocabulary
 
@@ -327,7 +327,7 @@ hardware, writes the storage `%include` and the report → reboot → Windows.
 | `handoff-failed` | the V0 row is not `fired-once` | see `v0-handoff.csv`'s vocabulary |
 | `stage2-not-reached` | the entry fired but no report appeared — GRUB, the kernel, dracut or stage2 did not get as far as `%pre` | fail — capture the console |
 | `identity-mismatch` | the verifier could not match the job's disk on this machine, or the size differed | on the rig a harness bug; on a real machine **the refusal working as designed** |
-| `verify-incomplete` | identity matched but the include was not written, or a hardware check failed | fail — read `verify.log` |
+| `verify-incomplete` | identity matched but the include was not written, a hardware check failed, or (0.2.0+) the desktop image on the stick did not read back byte-identical | fail — read `verify.log` |
 
 ### What "V1 (reversible half) passes" requires
 
