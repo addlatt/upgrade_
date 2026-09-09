@@ -53,7 +53,9 @@ stick_letter() { guest '(Get-Volume -FileSystemLabel UPGV0 -ErrorAction Silently
 wait_windows() {
     t0=$(date +%s)
     while :; do
-        if guest 'hostname' 2>/dev/null | grep -q UPGRIG; then echo "v1: Windows up (PS Direct) after $(( $(date +%s) - t0 )) s"; return 0; fi
+        # exact match on its own line: a failed Invoke-Command's error text also
+        # contains the VM name, which fooled a substring test (2026-09-08)
+        if guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV'; then echo "v1: Windows up (PS Direct) after $(( $(date +%s) - t0 )) s"; return 0; fi
         [ $(( $(date +%s) - t0 )) -ge "${1:-900}" ] && { PS shot "C:\\upgrade-rig\\hv\\shots\\v1-stuck.png"; echo "v1: Windows did not answer within ${1:-900} s" >&2; return 2; }
         sleep 10
     done
@@ -87,7 +89,7 @@ stick)
 windows)
     PS start; sleep 10
     PS key 40; sleep 1; PS key 40; sleep 1; PS key 40; sleep 1
-    PS shot "C:\\upgrade-rig\\hv\\shots\\v1-grub-selected.png"; cp "$HV/shots/v1-grub-selected.png" "$A/" 2>/dev/null || true
+    PS shot "C:\\upgrade-rig\\hv\\shots\\v1-grub-selected.png" >/dev/null 2>&1 || true; cp "$HV/shots/v1-grub-selected.png" "$A/" 2>/dev/null || true
     PS key 13
     wait_windows 600
     ;;
@@ -137,7 +139,7 @@ wait)
         [ $(( $(date +%s) - t0 )) -ge "$limit" ] && { PS shot "C:\\upgrade-rig\\hv\\shots\\v1-wait-stuck.png"; cp "$HV/shots/v1-wait-stuck.png" "$A/" || true; echo "v1: no row within $limit s" >&2; exit 2; }
         sleep 15
     done
-    PS shot "C:\\upgrade-rig\\hv\\shots\\v1-returned.png"; cp "$HV/shots/v1-returned.png" "$A/" || true
+    PS shot "C:\\upgrade-rig\\hv\\shots\\v1-returned.png" >/dev/null 2>&1 || true; cp "$HV/shots/v1-returned.png" "$A/" 2>/dev/null || true
     ;;
 verdict)
     mkdir -p "$A"
@@ -169,6 +171,10 @@ grubtest)
     ;;
 run)
     "$SELF" stick; "$SELF" windows; "$SELF" job; "$SELF" arm; "$SELF" wait; "$SELF" verdict
+    ;;
+resume)
+    # Windows already booting/up with the stick attached: the rest of run
+    wait_windows 600; "$SELF" job; "$SELF" arm; "$SELF" wait; "$SELF" verdict
     ;;
 *)
     sed -n '2,30p' "$SELF"; exit 1 ;;

@@ -727,7 +727,10 @@ one-click vertical**, split at the commit line:
   automated hardware verification in the live session → a clean reboot
   back to Windows with the report on the stick. This proves V1 (unattended
   boot to a working desktop — untested anywhere today) and crosses no
-  commit line.
+  commit line. **Status 2026-09-08:** schemas, materialization, the writer
+  and the live boot with identity + hardware verification have all fired
+  on the rig (VALIDATION V8, V1; RISKS R8, R16); the desktop squashfs and
+  the physical Secure-Boot-on row are what remain of this half.
 - **Destructive half second**: shrink, the ESP `EFI/Boot` snapshot and
   restore (does not exist yet — every V1b row still reads
   `fallback-loader-replaced` for that reason), the alongside install, the

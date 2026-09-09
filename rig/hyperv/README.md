@@ -131,6 +131,14 @@ their recovery keys in `C:\upgrade-rig\hv\UPGRIGV3.<disk>-bitlocker-recovery.txt
 OEMDRV volumes: `oemdrv-v3.vhdx` (config 1, attached to UPGRIGHV),
 `oemdrv-v3-x256.vhdx`, `oemdrv-v3-full.vhdx`.
 
+**State after the V1 run (2026-09-08):** firmware boot order is **Windows
+Boot Manager first** (`v1.sh stick` sets it; the pre-conversion shape),
+BitLocker on C: is On and **re-sealed to that direct path** (suspend →
+reorder → boot → enable), the V1 stick `v1-stick.vhdx` (2.2 GB FAT32 `UPGV0`:
+the kit + installer boot files + `upgrade_/`) is attached on SCSI, Secure
+Boot off. To boot Fedora again, pick its entry in the firmware order.
+`v1.sh run` rebuilds the stick and reruns the whole leg.
+
 ## Planned run-books (not yet run — nothing below is evidence)
 
 - **V0 rows 3, 5, 6 — DONE 2026-08-30** (row 4 not meaningful here, see
@@ -194,6 +202,22 @@ OEMDRV volumes: `oemdrv-v3.vhdx` (config 1, attached to UPGRIGHV),
   menu is now 6.19 kernel / 6.14 kernel / rescue / **Windows Boot Manager** /
   UEFI settings, so Windows is **three** Downs, not two. `v3.sh windows`
   presses three now; take a screenshot before Enter when in doubt.
+- **BitLocker is sealed to the GRUB boot path (seen 2026-09-08):** since the
+  V1b install the guest re-sealed to shim → GRUB → `bootmgfw.efi`. Putting the
+  firmware's *Windows Boot Manager* entry first (what `v1.sh stick` does, to
+  model a machine that has not been converted) changes the measured chain and
+  Windows stops at the **BitLocker recovery prompt** — and a wrong or absent
+  key there makes the boot manager **power the VM off after ~40 s** ("shut
+  down by the guest operating system" in the Hyper-V-Worker log), which
+  looks like a guest that never comes up. The clean route needs no key:
+  boot Windows on the path the TPM is sealed to (GRUB → Windows),
+  `manage-bde -protectors -disable C:`, shut down, reorder, boot (suspended,
+  no prompt), `manage-bde -protectors -enable C:` — that re-seals to the
+  direct path. If a key must be typed, the host file's **`CURRENT` line** is
+  the live one (the last line is the dropped, stale key — `tail -1` typed
+  that on 2026-09-08), as VK codes over the WMI keyboard, never echoed.
+  And a PS Direct "is Windows up" probe must match the hostname exactly:
+  a failed `Invoke-Command`'s error text contains the VM name too.
 - **V3 / R19, config XTS-AES-128 used-space-only — DONE 2026-09-01**
   (rows in `docs/validation-results/v3-bitlk-read.csv`, findings in RISKS
   R19). The bench is `v3.sh`; per config: `v3.sh oemdrv guest/v3-read.sh`

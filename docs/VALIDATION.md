@@ -125,13 +125,33 @@ zero human input.
 Secure Boot enforcing, then the physical matrix. This gate covers the base
 install to a login screen; the alongside-specific concerns are V1b.
 
+**Reversible half fired on the rig (2026-09-08).** The vertical's first
+live boot: `rig/hyperv/v1.sh run`, row 2 of
+`docs/validation-results/v1-live-boot.csv`, `pass-plumbing`. The V0 harness
+armed the one-shot exactly as `RUN-TEST.cmd` does; the stick (the kit plus
+`upgrade_/{job.json,ks.cfg,boot-verify}`) booted shim → GRUB, which
+recorded the marker and started the **unmodified** Fedora 42 installer
+kernel and stage2 from the stick with `inst.ks=` and `upg.mode=verify`;
+`%pre` ran `upgrade_/linux/verify.sh`, which matched the job's disk by
+unique id (`scsi-3600224802f9d…` → `/dev/sda`) and exact size, saw the
+display driving 1024×768, found the Windows ESP on `sda1`, wrote the
+keep-windows storage `%include`, put `verify.json` on the stick and
+rebooted; Windows came back on its own and the return check wrote its
+row. Nothing installed, internal disk untouched. Row 1 is the same run's
+first attempt, `verify-incomplete` (a bug in the report writer, fixed).
+Secure Boot was **off** (Hyper-V's template refuses shim — the usual rig
+clause); the chain is the simpler shape named below, not a composed image,
+so the "custom-composed live stick" half of this gate is now the *desktop
+squashfs* the kickstart's `liveimg` points at, still to be produced.
+
 **Pass.** Hands-off from power-on to login, Secure Boot still enabled.
 
 **If it fails.** A known simpler shape exists: ship the *unmodified* Fedora
 ISO on one partition and the kickstart on a second volume labeled `OEMDRV`,
 which Anaconda picks up automatically. Less control, much less image
 engineering, same signed chain. If custom composition fights us, fall back to
-that rather than fighting.
+that rather than fighting. (2026-09-08: this is the shape the vertical
+uses, with `inst.ks=` on the stick itself instead of an OEMDRV volume.)
 
 ## V1b — Installing alongside a shrunk Windows leaves Windows bootable · kills: the default path's safety net · RISKS R21
 

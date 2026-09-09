@@ -131,6 +131,16 @@ V7 (scanner generalizes past the one test machine — ship it, collect reports).
 Start V5 and V6 immediately (cheap / calendar-bound). V0+R21 are the spine
 spike and block everything in `upgrade_/` and `settle-in/`.
 
+**Vertical progress (2026-09-08):** schemas, V8 materialization, the R16
+writer and the **live boot through the handoff** (`rig/hyperv/v1.sh`;
+kickstart generator `upgrade_/windows/New-Kickstart.ps1`; `%pre` verifier
+`upgrade_/linux/verify.sh`) all fired on the rig — `pass-plumbing` in
+`docs/validation-results/v1-live-boot.csv`: one-shot entry → stick →
+unmodified Fedora installer → identity + hardware verified → back to
+Windows, nothing installed. Next in the reversible half: the desktop
+squashfs on the stick, the Wi-Fi association check, then the physical
+row with Secure Boot on.
+
 **Decided (2026-09-08): the build is a vertical, not a list.** One
 front-to-back, one-click flow, reversible half first (schemas → OneDrive
 materialization → stick writer → live image → hardware verify → back to
