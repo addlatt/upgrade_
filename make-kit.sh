@@ -95,6 +95,8 @@ selftest "harvester" "$HARVEST_SRC"
 selftest "handoff harness" "$HARNESS"
 selftest "V8 materialization harness" "$ROOT/evaluate/windows/Test-Materialize.ps1"
 selftest "stick writer" "$ROOT/evaluate/windows/Write-UpgradeStick.ps1"
+selftest "kickstart generator" "$ROOT/upgrade_/windows/New-Kickstart.ps1"
+bash -n "$ROOT/upgrade_/linux/verify.sh" || fail "verify.sh does not parse"
 
 # --- 4. parse-check under the PS 5.1 parser ----------------------------------
 parsecheck() {
@@ -118,6 +120,7 @@ grep -q 'save_env' <(strings -n 6 "$BITS/grubx64.efi") || fail "grubx64.efi lack
 [ "$(stat -c %s "$PAYLOAD/grubenv")" = 1024 ] || fail "grubenv is not 1024 bytes"
 [ "$(head -c 25 "$PAYLOAD/grubenv")" = "# GRUB Environment Block" ] || fail "grubenv lacks the GRUB header"
 grep -q 'upg_fired' "$PAYLOAD/grub.cfg" || fail "grub.cfg does not set upg_fired"
+grep -q 'boot-verify' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the V1 boot-verify branch"
 grep -q "GrubFiredVar = 'upg_fired'" "$HARNESS" || fail "harness and grub.cfg disagree on the marker variable"
 grep -q "FiredMarker = 'fired.txt'" "$HARNESS" && grep -q 'fired.txt' "$PAYLOAD/startup.nsh" || fail "harness and startup.nsh disagree on the marker file"
 
@@ -144,6 +147,18 @@ cp "$PAYLOAD/grubenv"   "$D/EFI/BOOT/grubenv"
 # unsigned payload: the matrix rows (Test-Handoff.ps1 -Payload shell)
 cp "$BITS/Shell.efi"    "$D/EFI/SHELL/SHELLX64.EFI"
 cp "$PAYLOAD/startup.nsh" "$D/startup.nsh"
+# V1: the unmodified Fedora installer boot files, and the %pre verifier.
+# grub.cfg boots them only when upgrade_/boot-verify exists on the stick
+# (the rig's v1.sh puts it there beside job.json + ks.cfg); without it the
+# stick is the V0 marker stick, unchanged.
+for f in images/pxeboot/vmlinuz images/pxeboot/initrd.img images/install.img; do
+    [ -f "$BITS/$f" ] || fail "missing $BITS/$f - run rig/vm/fetch-payload-bits.sh"
+done
+mkdir -p "$D/images/pxeboot" "$D/upgrade_"
+cp "$BITS/images/pxeboot/vmlinuz"    "$D/images/pxeboot/vmlinuz"
+cp "$BITS/images/pxeboot/initrd.img" "$D/images/pxeboot/initrd.img"
+cp "$BITS/images/install.img"        "$D/images/install.img"
+sed 's/\r$//' "$ROOT/upgrade_/linux/verify.sh" > "$D/upgrade_/verify.sh"
 
 # --- manifest + checksums -----------------------------------------------------
 (cd "$D" && find . -type f ! -name SHA256SUMS ! -name KIT-MANIFEST.txt | sort | xargs sha256sum > SHA256SUMS)
@@ -157,6 +172,7 @@ payload bits:     rig/vm/artifacts/payload-bits (gitignored inputs; fetch-payloa
   Shell.efi       $(sha256sum "$BITS/Shell.efi" | cut -c1-64)   -> EFI/SHELL/SHELLX64.EFI
   shimx64.efi     $(sha256sum "$BITS/shimx64.efi" | cut -c1-64)   -> EFI/BOOT/BOOTX64.EFI
   grubx64.efi     $(sha256sum "$BITS/grubx64.efi" | cut -c1-64)   -> EFI/BOOT/grubx64.efi
+  install.img     $(sha256sum "$BITS/images/install.img" | cut -c1-64)   -> images/install.img (+ pxeboot vmlinuz, initrd.img)
   from netinst:   $NETINST_SRC
 verified at build: dist matches source; scanner/harvester/harness self-tests
                   passed on Windows PowerShell 5.1; shipped .ps1 parse under

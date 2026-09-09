@@ -52,5 +52,14 @@ if [ ! -f payload-bits/shimx64.efi ] || [ ! -f payload-bits/grubx64.efi ]; then
     rmdir payload-bits/EFI/BOOT payload-bits/EFI 2>/dev/null || true
 fi
 
+# --- the installer boot files (V1: the stick boots Anaconda's stage2) ---------
+# images/pxeboot/{vmlinuz,initrd.img} + images/install.img straight from the
+# same netinst ISO the shim/grub came from - unmodified, so the signed chain
+# and the kernel are exactly what Fedora ships.
+if [ ! -f payload-bits/images/install.img ]; then
+    bsdtar -x -f payload-bits/fedora-netinst.iso -C payload-bits \
+        --include 'images/pxeboot/vmlinuz' --include 'images/pxeboot/initrd.img' --include 'images/install.img'
+fi
+
 echo "fetch-payload-bits: done."
 ls -l payload-bits/*.efi
