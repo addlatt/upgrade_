@@ -16,7 +16,7 @@
 # settle-in to show, and Windows stays reachable from the GRUB menu.
 set -u
 JOB=${1:?job.json}
-OUTCOME_VERSION=0.1.0
+OUTCOME_VERSION=0.1.1
 STICK=/run/install/repo
 SYSROOT=/mnt/sysroot
 REPORT=$STICK/upgrade_/report
@@ -106,24 +106,34 @@ cp "$SYSROOT/root/upgrade_-post.log" "$REPORT/post.log" 2>/dev/null || true
 cp "$SYSROOT/root/anaconda-ks.cfg" "$REPORT/anaconda-ks.cfg" 2>/dev/null || true
 cp "$LOG" "$REPORT/outcome.log" 2>/dev/null || true
 
-python3 - "$JOB" "$REPORT/verify.json" "$STICK/upgrade_/outcome.json" <<EOF
-import json, sys, datetime
+# Every fact goes to Python through the environment - never interpolated
+# into source (a shell "true" is not a Python literal; that bit twice).
+UPG_PATH="$PATH_CHOSEN" UPG_VERSION="$OUTCOME_VERSION" UPG_WIN_PRESENT="$WIN_PRESENT" UPG_WIN_RECREATED="$WIN_RECREATED" \
+UPG_LINUX_FIRST="$LINUX_FIRST" UPG_BOOTMGFW_OK="$BOOTMGFW_OK" UPG_GRUB_WIN="$GRUB_WIN" UPG_FALLBACK="$FALLBACK" \
+UPG_KERNEL="$KERNEL" UPG_ROOTDEV="$ROOTDEV" UPG_RELEASE="$RELEASE" UPG_WINPART="$WINPART" UPG_WINGUID="$WINGUID" \
+UPG_WINSIZE="$WINSIZE" UPG_WINNUM="$WINNUM" \
+python3 - "$JOB" "$REPORT/verify.json" "$STICK/upgrade_/outcome.json" <<'EOF'
+import json, sys, os, datetime
+E = os.environ.get
+def b(k): return E(k, "false") == "true"
 job = json.load(open(sys.argv[1]))
 try: v = json.load(open(sys.argv[2]))
 except Exception: v = {}
 hw = v.get("hardware", {}); pl = v.get("payload", {}); snap = v.get("esp_snapshot", {})
 bl = job["harvest"]["bitlocker"]["status"]
+path = E("UPG_PATH", "keep-windows"); keep = path == "keep-windows"
+win_present, grub_win = b("UPG_WIN_PRESENT"), b("UPG_GRUB_WIN")
 o = {
   "schema": "outcome/1", "job_id": job["job_id"],
   "created_utc": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-  "converter_version": "$OUTCOME_VERSION",
+  "converter_version": E("UPG_VERSION", "0"),
   "status": "completed", "stopped_at": None, "reason": None,
-  "path_taken": "$PATH_CHOSEN",
-  "commit_line": {"crossed": "$PATH_CHOSEN" == "clean-slate", "crossed_utc": None, "act": "wipe" if "$PATH_CHOSEN" == "clean-slate" else None},
+  "path_taken": path,
+  "commit_line": {"crossed": not keep, "crossed_utc": None if keep else datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "act": None if keep else "wipe"},
   "prologue": {
     "revalidated": True, "mismatches": [],
     "volume_check": {"needed": False, "ran": False, "disk_health_at_check": None, "method": "none", "wininit_1001": None, "found000_present": None, "dirty_after": "unknown"},
-    "shrink": {"remeasured_gb": None, "fork_taken": "$PATH_CHOSEN", "requested_bytes": None, "freed_bytes": 0},
+    "shrink": {"remeasured_gb": None, "fork_taken": path, "requested_bytes": None, "freed_bytes": 0},
     "bitlocker": {"status_before": bl, "suspended": bl == "on", "reboot_count": 1 if bl == "on" else None},
     "handoff": {"armed": True, "entry_guid": None, "armed_utc": None, "bcd_backup": None}
   },
@@ -131,17 +141,17 @@ o = {
     "identity_verified": v.get("identity", {}).get("result") == "pass",
     "stick_verified": {"files": 1 if pl.get("result") == "pass" else 0, "bytes": 0, "failed": [] if pl.get("result") == "pass" else [pl.get("image", "")]},
     "hardware": {"display": hw.get("display", "skipped"), "wifi": hw.get("wifi", "skipped"), "audio_firmware": hw.get("audio_firmware", "skipped"), "human_gate": "not-required"},
-    "install": {"distro": "fedora", "release": "$RELEASE" or "42", "kernel": "$KERNEL", "root_partition": "$ROOTDEV", "esp_reused": "$PATH_CHOSEN" == "keep-windows", "artifacts_injected": []},
-    "boot_chain": {"windows_entry_present": $WIN_PRESENT, "windows_entry_recreated": $WIN_RECREATED, "linux_first_in_bootorder": $LINUX_FIRST,
-                   "bootmgfw_matches_snapshot": $BOOTMGFW_OK, "grub_lists_windows": $GRUB_WIN, "fallback_loader": "$FALLBACK"}
+    "install": {"distro": "fedora", "release": E("UPG_RELEASE") or "42", "kernel": E("UPG_KERNEL", ""), "root_partition": E("UPG_ROOTDEV", ""), "esp_reused": keep, "artifacts_injected": []},
+    "boot_chain": {"windows_entry_present": win_present, "windows_entry_recreated": b("UPG_WIN_RECREATED"), "linux_first_in_bootorder": b("UPG_LINUX_FIRST"),
+                   "bootmgfw_matches_snapshot": b("UPG_BOOTMGFW_OK"), "grub_lists_windows": grub_win, "fallback_loader": E("UPG_FALLBACK", "other")}
   },
-  "windows": {"kept": "$PATH_CHOSEN" == "keep-windows",
-              "partition": ({"number": int("$WINNUM" or 0), "guid": "$WINGUID", "size_bytes": int("$WINSIZE" or 0)} if "$WINPART" else None),
-              "reachable_via": ("both" if ($WIN_PRESENT and $GRUB_WIN) else "grub" if $GRUB_WIN else "firmware-entry" if $WIN_PRESENT else "none") if "$PATH_CHOSEN" == "keep-windows" else "none"},
-  "credentials": {"scrubbed": False, "scrub_after": "settle-in-pull" if "$PATH_CHOSEN" == "keep-windows" else "cutover"},
+  "windows": {"kept": keep,
+              "partition": ({"number": int(E("UPG_WINNUM") or 0), "guid": E("UPG_WINGUID", ""), "size_bytes": int(E("UPG_WINSIZE") or 0)} if E("UPG_WINPART") else None),
+              "reachable_via": ("both" if (win_present and grub_win) else "grub" if grub_win else "firmware-entry" if win_present else "none") if keep else "none"},
+  "credentials": {"scrubbed": False, "scrub_after": "settle-in-pull" if keep else "cutover"},
   "logs": ["upgrade_/report/outcome.log", "upgrade_/report/anaconda.log", "upgrade_/report/storage.log", "upgrade_/report/post.log"]
 }
-if "$PATH_CHOSEN" == "keep-windows" and snap.get("result") == "pass":
+if keep and snap.get("result") == "pass":
     o["cutover"]["esp_snapshot"] = {"path": "upgrade_/esp-snapshot", "files": int(snap.get("files") or 1), "boot_entries": "upgrade_/esp-snapshot/boot-entries.txt"}
 json.dump(o, open(sys.argv[3], "w"), indent=2)
 print("== outcome.json written:", sys.argv[3])
