@@ -16,7 +16,7 @@
 # settle-in to show, and Windows stays reachable from the GRUB menu.
 set -u
 JOB=${1:?job.json}
-OUTCOME_VERSION=0.1.1
+OUTCOME_VERSION=0.1.2
 STICK=/run/install/repo
 SYSROOT=/mnt/sysroot
 REPORT=$STICK/upgrade_/report
@@ -94,12 +94,21 @@ RELEASE=$(grep -oE 'VERSION_ID=.*' "$SYSROOT/etc/os-release" 2>/dev/null | cut -
 WINPART=""; WINGUID=""; WINSIZE=0; WINNUM=0
 if [ "$PATH_CHOSEN" = keep-windows ]; then
     espdev=$(findmnt -no SOURCE "$ESPMNT" 2>/dev/null); disk=$(lsblk -no PKNAME "$espdev" 2>/dev/null | head -1)
+    # the kept Windows volume: the largest "Microsoft basic data" partition.
+    # Not by filesystem - a BitLocker volume (even suspended) reports FSTYPE
+    # "BitLocker", not ntfs, which left this null on the rig (2026-09-10)
+    best=0
     for p in /sys/block/$disk/$disk*; do
+        [ -d "$p" ] || continue
         part=/dev/$(basename "$p")
-        if [ "$(lsblk -no FSTYPE "$part" 2>/dev/null)" = ntfs ] && [ "$(lsblk -no SIZE -b "$part")" -gt 10000000000 ]; then
-            WINPART=$part; WINGUID=$(lsblk -no PARTUUID "$part"); WINSIZE=$(lsblk -no SIZE -b "$part"); WINNUM=$(cat "$p/partition"); break
+        ptype=$(lsblk -no PARTTYPE "$part" 2>/dev/null | tr 'A-Z' 'a-z')
+        [ "$ptype" = "ebd0a0a2-b9e5-4433-87c0-68b6b72699c7" ] || continue
+        sz=$(lsblk -no SIZE -b "$part" 2>/dev/null || echo 0)
+        if [ "$sz" -gt "$best" ]; then
+            best=$sz; WINPART=$part; WINGUID=$(lsblk -no PARTUUID "$part"); WINSIZE=$sz; WINNUM=$(cat "$p/partition")
         fi
     done
+    echo "== windows partition: ${WINPART:-none} guid=$WINGUID size=$WINSIZE (fstype $(lsblk -no FSTYPE "$WINPART" 2>/dev/null))"
 fi
 for f in /tmp/anaconda.log /tmp/storage.log /tmp/program.log /tmp/packaging.log; do cp "$f" "$REPORT/" 2>/dev/null || true; done
 cp "$SYSROOT/root/upgrade_-post.log" "$REPORT/post.log" 2>/dev/null || true
