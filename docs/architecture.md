@@ -738,9 +738,14 @@ one-click vertical**, split at the commit line:
   one back against the manifest (R17); the physical Secure-Boot-on row is
   what remains of this half.
 - **Destructive half second**: shrink, the ESP `EFI/Boot` snapshot and
-  restore (does not exist yet — every V1b row still reads
-  `fallback-loader-replaced` for that reason), the alongside install, the
-  boot-chain verification, the settle-in pull, the reclaim offer.
+  restore, the alongside install, the boot-chain verification, the
+  settle-in pull, the reclaim offer. **Status 2026-09-10:** the snapshot
+  (`%pre`), the alongside install from the stick's squashfs, the
+  boot-chain checklist and `outcome.json` (`%post`) have fired on the rig
+  as the product's own kickstart — `docs/validation-results/v2-install.csv`
+  row 3, `pass-plumbing`. Still to build: the prologue (re-validate, the
+  R18 disk check, the shrink, the handoff as product code rather than the
+  harness), the restore half of the snapshot (rollback), `settle-in`.
 
 **Where it is built**: the Hyper-V rig first (disposable, restorable from a
 VHDX in a minute — where a first vertical gets broken and restarted twenty

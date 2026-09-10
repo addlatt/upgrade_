@@ -897,7 +897,7 @@ failure shape, in the feature most users will check first.
 browser and version pair, and `evaluate`'s claims are narrowed to what the
 evidence supports.
 
-## R21 — Installing alongside a shrunk Windows may not leave Windows bootable · critical · open (VM leg fired 2026-08-27)
+## R21 — Installing alongside a shrunk Windows may not leave Windows bootable · critical · open (VM leg fired 2026-08-27; the converter's own install fired 2026-09-10)
 
 **What.** The keep-Windows path — now the **default** — installs Linux into
 freed space and must leave the shrunk Windows fully bootable, because Windows
@@ -1116,6 +1116,18 @@ keep-Windows half of the V1 gate and should be validated as its own Tier-1
 item, not folded in as a "safety-copy variant". Fallback if it proves
 unreliable on some firmware: those machines are steered to clean slate (which
 never shares an ESP), and `evaluate` says so before committing.
+
+**The converter's own install, with the decided design built in (2026-09-10).**
+`upgrade_/linux/verify.sh` snapshots `EFI/Boot` and `EFI/Microsoft` (every
+file, sha256) plus the firmware's `Boot####` entries to the stick before
+Anaconda touches the ESP; `upgrade_/linux/outcome.sh` runs the checklist
+in `%post` — Windows Boot Manager entry present (re-created with
+`efibootmgr` if the firmware dropped it; Hyper-V kept it on all three
+runs this time), Linux first in `BootOrder`, `bootmgfw.efi` against the
+snapshot, `grub.cfg` lists Windows, and the fallback slot named (shim,
+kept on purpose) — and writes every result to `outcome.json`. Three rig
+runs in `docs/validation-results/v2-install.csv`; row 3 `pass-plumbing`.
+Residue unchanged: Secure Boot on, vendor firmware.
 
 ## R22 — Windows servicing re-takes the firmware boot order · medium · open
 

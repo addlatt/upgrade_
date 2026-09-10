@@ -162,6 +162,27 @@ uses, with `inst.ks=` on the stick itself instead of an OEMDRV volume.)
 
 ## V1b — Installing alongside a shrunk Windows leaves Windows bootable · kills: the default path's safety net · RISKS R21
 
+**The converter's own install ran it (2026-09-10).** Not a bench kickstart
+this time but the product's: `New-Kickstart.ps1` from a schema-valid job,
+`%pre` `verify.sh` (identity, image read-back, ESP snapshot to the stick,
+storage include), `liveimg` from the stick's KDE squashfs into the space
+behind the shrunk C: reusing the 100 MiB Windows ESP unformatted, `%post`
+`outcome.sh` (the R21 checklist, `outcome.json`). Row 3 of
+`docs/validation-results/v2-install.csv`, `pass-plumbing`: install in
+about four minutes; `bootmgfw.efi` byte-identical before, after and across
+four boot cycles; no Microsoft boot file changed; ESP +17 files / 19 MB;
+Windows Boot Manager entry kept by the firmware, Fedora first in BootOrder,
+GRUB listing Windows; **shim in the fallback slot with Windows' copy in the
+144-file snapshot on the stick** — the decided design, so this is the
+`pass-plumbing` the V1b vocabulary reserves for "once the converter's own
+install step is what runs"; Windows booted through GRUB twice and Fedora
+twice, markers on the stick. Rows 1–2 are the same run failing at the
+outcome writer (a shell boolean in Python; then the kept partition looked
+up by filesystem name — a BitLocker volume says `BitLocker`, not `ntfs`)
+and the schema refusing the result, which is what the schema is for.
+Secure Boot off (Hyper-V template clause); the physical SB-on install
+remains the residue.
+
 **VM leg fired (2026-08-27).** On the QEMU+OVMF rig (`rig/vm/v1b.sh`, SB off —
 the only mode this host can run): C: shrunk 32 GiB, Fedora 42 kickstarted into
 the gap reusing the Windows ESP unformatted, and all five checks held — ESP

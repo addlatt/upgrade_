@@ -139,6 +139,14 @@ same `evict` helper the 9p trap uses) gave 9.4 GB back at once. `v1.sh
 stick` evicts what it wrote. `UPGRIGHV` runs at **4 GB** startup memory
 now (was 8), enough for Windows 10 and Anaconda's stage2 in text mode.
 
+**State after the install runs (2026-09-10):** `v2.sh restore` put the
+main `UPGRIGHV.vhdx` back at SCSI 0:0; `UPGRIGHV.install.vhdx` (the
+converted copy of the pre-install disk: Fedora 42 KDE alongside Windows,
+Fedora first in BootOrder, boot marker unit installed) is kept host-side
+for inspection and is not attached. `v2.sh run` re-copies nothing: copy
+`UPGRIGHV.pre-install.vhdx` over `UPGRIGHV.install.vhdx` first. The bench
+needs `WIN_DOWNS=2` (Windows is the third GRUB entry of a fresh install).
+
 **State after the V1 run (2026-09-08):** firmware boot order is **Windows
 Boot Manager first** (`v1.sh stick` sets it; the pre-conversion shape),
 BitLocker on C: is On and **re-sealed to that direct path** (suspend →

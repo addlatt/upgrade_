@@ -141,8 +141,14 @@ Windows, nothing installed. **2026-09-09:** the stick carries Fedora's own
 Workstation and KDE live squashfs (unmodified; `rig/vm/fetch-desktops.sh`),
 the kickstart names the chosen one with its checksum, and `%pre` reads it
 back byte-for-byte on the stick before anything is decided (R17's gate) —
-row 3, `pass-plumbing`. Next in the reversible half: the Wi-Fi association
-check, then the physical row with Secure Boot on.
+row 3, `pass-plumbing`. **2026-09-10, the destructive half's first step:**
+the converter's own kickstart installed Fedora KDE alongside the kept
+Windows on the rig — `%pre` snapshots the ESP to the stick, `liveimg` from
+the stick, `%post` runs the R21 boot-chain checklist and writes a
+schema-valid `outcome.json` — `docs/validation-results/v2-install.csv`
+row 3, `pass-plumbing` (`rig/hyperv/v2.sh`). Next: the prologue as product
+code (re-validate, R18 disk check, shrink, handoff), rollback from the
+snapshot, then the physical rows with Secure Boot on.
 
 **Decided (2026-09-08): the build is a vertical, not a list.** One
 front-to-back, one-click flow, reversible half first (schemas → OneDrive
