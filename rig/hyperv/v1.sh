@@ -79,7 +79,15 @@ stick)
     (cd "$KIT" && find . -type d | sed 's|^\./||' | grep -v '^\.$' | sort | while read -r d; do mmd -i "$OLDPWD/$P" "::/$d" >/dev/null 2>&1 || true; done)
     (cd "$KIT" && find . -type f | sed 's|^\./||' | while read -r f; do mcopy -o -i "$OLDPWD/$P" "$f" "::/$f"; done)
     mmd -i "$P" ::/upgrade_ >/dev/null 2>&1 || true
-    printf 'v1\n' > "$A/boot-verify"; mcopy -o -i "$P" "$A/boot-verify" ::/upgrade_/boot-verify
+    # MODE=verify (default): the V1 reversible leg. MODE=install: the
+    # conversion itself (v2.sh) - boot-install + the bench marker (GRUB
+    # timeout, boot-marker unit) + autoshutdown after the first Linux boot.
+    if [ "${MODE:-verify}" = install ]; then
+        printf 'v2\n' > "$A/marker"; mcopy -o -i "$P" "$A/marker" ::/upgrade_/boot-install
+        mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench; mcopy -o -i "$P" "$A/marker" ::/upgrade_/autoshutdown
+    else
+        printf 'v1\n' > "$A/boot-verify"; mcopy -o -i "$P" "$A/boot-verify" ::/upgrade_/boot-verify
+    fi
     mdir -i "$P" ::/ ; mdir -i "$P" ::/upgrade_ ; mdir -i "$P" ::/images
     rm -f "$STICK_VHDX"; qemu-img convert -f raw -O vhdx "$STICK_IMG" "$STICK_VHDX"
     # WSL keeps the gigabytes just written in its page cache and does not

@@ -41,7 +41,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$KsGenVersion = '0.1.0'
+$KsGenVersion = '0.2.0'
 
 function Test-KsJob {
     # The shape checks a PS 5.1 host can do without a JSON Schema validator:
@@ -127,6 +127,11 @@ function New-Kickstart {
     }
     $L.Add('efibootmgr -v > /root/upgrade_-efibootmgr.txt 2>&1 || true')
     $L.Add('%end')
+    $L.Add('')
+    $L.Add('# the boot-chain checklist, then outcome.json and the logs onto the stick (stage 2, step 11)')
+    $L.Add('%post --nochroot --log=/tmp/upgrade_-outcome-post.log')
+    $L.Add('exec /bin/bash /run/install/repo/upgrade_/outcome.sh /run/install/repo/upgrade_/job.json')
+    $L.Add('%end')
     ($L -join "`n") + "`n"
 }
 
@@ -165,6 +170,8 @@ function Invoke-SelfTest {
            Run = { $j = $keep | ConvertTo-Json -Depth 10 | ConvertFrom-Json; $j.intent.distro.name = 'ubuntu'; try { New-Kickstart -Job $j -Label 'X' | Out-Null; 'accepted' } catch { 'refused' } }; Expect = 'refused' }
         @{ Name = 'output uses LF line endings only (the installer reads it on Linux)'
            Run = { -not $ksK.Contains("`r") }; Expect = $true }
+        @{ Name = 'the nochroot %post runs outcome.sh after the chroot %post'
+           Run = { ($ksK -match '(?m)^%post --nochroot --log=/tmp/upgrade_-outcome-post\.log$') -and ($ksK.IndexOf('%post --log=/root/upgrade_-post.log') -lt $ksK.IndexOf('%post --nochroot')) -and ($ksK -match 'outcome\.sh /run/install/repo/upgrade_/job\.json') }; Expect = $true }
         @{ Name = 'a manifest adds --checksum for the chosen desktop image'
            Run = { $m = @('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  ./upgrade_/LiveOS/kde.squashfs', 'ffff  ./upgrade_/LiveOS/gnome.squashfs')
                    (New-Kickstart -Job $keep -Label 'UPGV0' -ManifestLines $m) -match '(?m)^liveimg --url=file:///run/install/repo/upgrade_/LiveOS/kde\.squashfs --checksum=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef$' }; Expect = $true }

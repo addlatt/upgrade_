@@ -336,3 +336,48 @@ hardware, writes the storage `%include` and the report → reboot → Windows.
 - The physical rows are what the vendor matrix's "live boot" and
   "hardware verify" columns are filled from — one half-hour visit per
   machine, read-only.
+
+## `v2-install.csv` — the conversion itself, keep-windows, on the rig (destructive half, step 1)
+
+One row per run, appended by `rig/hyperv/v2-verdict.py` from the run's own
+evidence: offline inspections of the guest disk before the install, after
+it and after the boot cycles (`rig/vm/v1b-inspect.py`: GPT and ESP file
+manifest with sha256), the `outcome.json` the converter's `%post` wrote to
+the stick (validated against `schemas/outcome.schema.json`), the boot
+markers both OSes left on the stick, and the V0 harness row. Do not
+hand-edit; add rows by running the bench (`rig/hyperv/v2.sh run`). What runs
+is the product's own kickstart (`New-Kickstart.ps1`), `%pre` verifier and
+`%post` checklist (`upgrade_/linux/{verify,outcome}.sh`) against a copy of
+the V1b starting disk (C: shrunk, ESP 100 MiB, Windows only).
+
+| Column | Meaning |
+|---|---|
+| `timestamp`, `harness`, `firmware`, `secureboot` | as the other files |
+| `path`, `desktop` | from the job: `keep-windows`, `kde` / `gnome` |
+| `handoff_result` | the V0 row's result for the arming reboot |
+| `install_done` | y/n — `outcome.json` exists with `status=completed` |
+| `outcome_valid` | y/n — it validates against the schema |
+| `esp_size_mib`, `esp_free_before`, `esp_free_after`, `esp_added_bytes` | the shared ESP before and after |
+| `bootmgfw_intact` | y/n — `EFI/Microsoft/Boot/bootmgfw.efi` sha256 identical before, after, and after the cycles |
+| `microsoft_files_changed` | every pre-existing file under `EFI/Microsoft/` modified or removed (Windows' own `BCD*`/`BOOTSTAT.DAT` excluded), or `none` |
+| `fallback_loader` | what sits at `EFI/Boot/bootx64.efi` after the install as the checklist named it: `shim` (kept on purpose while Windows is kept), `windows`, `other` |
+| `snapshot_files` | files the `%pre` snapshot saved to the stick before the ESP was touched — Windows' fallback loader among them |
+| `windows_entry_present`, `linux_first`, `grub_lists_windows` | the checklist's three firmware/GRUB facts from `outcome.json` |
+| `windows_boots`, `linux_boots` | boot-marker rows after `install-done` (Windows rows are written by the bench when the return check answers; Linux rows by the marker unit the bench asked `%post` to install) |
+| `result` | see vocabulary below |
+| `notes` | outcome summary, ESP delta, boot counts, any changed files |
+
+### Result vocabulary
+
+| Result | Meaning | Verdict |
+|---|---|---|
+| `pass-plumbing` | install completed, outcome valid, no Microsoft file changed, `bootmgfw.efi` intact, Windows entry present and GRUB lists it, shim in the fallback slot **with** the snapshot holding Windows' copy, ≥2 boots of each OS | **pass for the firmware in the row** — SB off on Hyper-V: plumbing only |
+| `handoff-failed` | the arming reboot did not fire and no install ran | see `v0-handoff.csv` |
+| `install-failed` | no completed `outcome.json` — Anaconda stopped (a `%pre` refusal, a storage error, a bootloader error) | fail — read `report/anaconda.log`, `storage.log` |
+| `outcome-invalid` | `outcome.json` does not validate | fail — the contract is wrong or the writer is |
+| `windows-files-changed` | a Microsoft boot file changed, or `bootmgfw.efi` differs | **fail-loud** — the safety net is compromised |
+| `esp-full` | the ESP had no room | design input |
+| `windows-unbootable-via-grub` | no Windows boot arrived, or GRUB does not list Windows | fail |
+| `linux-unbootable` | the installed system never booted | fail |
+| `fallback-loader-unrecorded` | the fallback slot is not shim, or the snapshot is missing | fail — rollback could not restore Windows' loader |
+| `cycles-incomplete` | fewer than 2 boots of each OS | re-run the cycles |

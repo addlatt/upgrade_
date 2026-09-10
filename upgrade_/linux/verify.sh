@@ -24,7 +24,7 @@
 set -u
 JOB=${1:?job.json path}
 LABEL=${2:-UPGV0}
-VERIFY_VERSION=0.2.1
+VERIFY_VERSION=0.3.0
 STICK=/run/install/repo
 REPORT=$STICK/upgrade_/report
 STORAGE_KS=/tmp/upgrade_-storage.ks
@@ -151,6 +151,41 @@ else
 fi
 echo "== desktop image: $IMAGE_RESULT - $IMAGE_DETAIL"
 
+# --- 2c. the ESP snapshot (architecture.md step 8; RISKS R21). Before anything
+# touches the shared ESP: every file under EFI/Boot and EFI/Microsoft, with
+# sha256, and the firmware's Boot#### entries, copied to the stick. What
+# rollback restores Windows' fallback loader from, and what the boot-chain
+# checklist compares against after the install. Runs in verify mode too (a
+# rehearsal - it only reads the ESP and writes the stick).
+SNAP_RESULT=skipped; SNAP_FILES=0; SNAP_DIR="$REPORT/../esp-snapshot"
+if [ "$IDENTITY" = pass ] && [ "$PATH_CHOSEN" = keep-windows ]; then
+    mount -o remount,rw "$STICK" 2>/dev/null || true
+    rm -rf "$SNAP_DIR"; mkdir -p "$SNAP_DIR"
+    dev=$(basename "$DISK"); SNAP_RESULT=fail
+    for p in /sys/block/$dev/$dev*; do
+        [ -d "$p" ] || continue
+        part=/dev/$(basename "$p")
+        [ "$(lsblk -no PARTTYPE "$part" 2>/dev/null | tr 'A-Z' 'a-z')" = "c12a7328-f81f-11d2-ba4b-00a0c93ec93b" ] || continue
+        mkdir -p /tmp/upg-esp
+        if mount -o ro "$part" /tmp/upg-esp 2>/dev/null; then
+            if [ -f /tmp/upg-esp/EFI/Microsoft/Boot/bootmgfw.efi ]; then
+                for d in EFI/Boot EFI/BOOT EFI/Microsoft; do
+                    [ -d "/tmp/upg-esp/$d" ] && { mkdir -p "$SNAP_DIR/$(dirname "$d")"; cp -a "/tmp/upg-esp/$d" "$SNAP_DIR/$d"; }
+                done
+                (cd "$SNAP_DIR" && find . -type f ! -name SHA256SUMS ! -name boot-entries.txt | sort | xargs -r sha256sum > SHA256SUMS)
+                SNAP_FILES=$(grep -c . "$SNAP_DIR/SHA256SUMS" || echo 0)
+                efibootmgr -v > "$SNAP_DIR/boot-entries.txt" 2>&1 || true
+                printf 'disk=%s esp=%s taken_utc=%s\n' "$DISK" "$part" "$(date -u +%FT%TZ)" > "$SNAP_DIR/SOURCE"
+                SNAP_RESULT=pass
+            fi
+            umount /tmp/upg-esp
+        fi
+        [ "$SNAP_RESULT" = pass ] && break
+    done
+    sync
+fi
+echo "== esp snapshot: $SNAP_RESULT ($SNAP_FILES files) -> $SNAP_DIR"
+
 # --- 3. storage %include, from the resolved disk --------------------------------
 ESP=""; ESP_RESULT=skipped
 if [ "$IDENTITY" = pass ]; then
@@ -170,10 +205,13 @@ if [ "$IDENTITY" = pass ]; then
     if [ "$PATH_CHOSEN" = keep-windows ]; then
         if [ -n "$ESP" ]; then
             ESP_RESULT=pass
+            # the rig's bench drives GRUB by keystroke and needs a longer menu
+            # timeout; it says so with a marker file beside the kickstart
+            BL_EXTRA=""; [ -f "$STICK/upgrade_/bench" ] && BL_EXTRA=" --timeout=20"
             cat > "$STORAGE_KS" <<EOF
 # written by verify.sh: keep-windows on $DISK ($MATCHED_BY), ESP $ESP reused unformatted
 ignoredisk --only-use=$dev
-bootloader --location=mbr --boot-drive=$dev
+bootloader --location=mbr --boot-drive=$dev$BL_EXTRA
 part /boot/efi --onpart=$(basename "$ESP") --noformat
 part /boot --fstype=ext4 --size=1024 --ondisk=$dev
 part /     --fstype=ext4 --size=4096 --grow --ondisk=$dev
@@ -210,6 +248,7 @@ r = {
                "wifi": "$WIFI_RESULT", "wifi_detail": "$WIFI_DETAIL",
                "audio_firmware": "$AUDIO_RESULT", "audio_detail": "$AUDIO_DETAIL".strip()},
   "storage": {"path": "$PATH_CHOSEN", "esp": "$ESP", "esp_result": "$ESP_RESULT", "include_written": $([ -f "$STORAGE_KS" ] && echo True || echo False)},
+  "esp_snapshot": {"result": "$SNAP_RESULT", "files": $SNAP_FILES, "path": "upgrade_/esp-snapshot"},
   "payload": {"desktop": "$DESKTOP", "image": "$IMG_REL", "result": "$IMAGE_RESULT", "detail": "$IMAGE_DETAIL", "read_mbps": "$IMAGE_MBPS"},
   "secure_boot": "$(od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c 2>/dev/null | awk '{print $NF}')"
 }
@@ -233,4 +272,5 @@ fi
 [ -f "$STORAGE_KS" ] || { echo "!! no storage include written - refusing"; exit 21; }
 [ "$ESP_RESULT" != fail ] || { echo "!! keep-windows needs the Windows ESP - refusing"; exit 22; }
 [ "$IMAGE_RESULT" = pass ] || { echo "!! the desktop image on the stick did not verify - refusing (RISKS R17)"; exit 23; }
+[ "$PATH_CHOSEN" != keep-windows ] || [ "$SNAP_RESULT" = pass ] || { echo "!! the ESP snapshot failed - refusing to touch the ESP without it (RISKS R21)"; exit 24; }
 exit 0

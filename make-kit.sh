@@ -97,6 +97,8 @@ selftest "V8 materialization harness" "$ROOT/evaluate/windows/Test-Materialize.p
 selftest "stick writer" "$ROOT/evaluate/windows/Write-UpgradeStick.ps1"
 selftest "kickstart generator" "$ROOT/upgrade_/windows/New-Kickstart.ps1"
 bash -n "$ROOT/upgrade_/linux/verify.sh" || fail "verify.sh does not parse"
+bash -n "$ROOT/upgrade_/linux/outcome.sh" || fail "outcome.sh does not parse"
+grep -q 'boot-install' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the boot-install branch"
 
 # --- 4. parse-check under the PS 5.1 parser ----------------------------------
 parsecheck() {
@@ -158,7 +160,8 @@ mkdir -p "$D/images/pxeboot" "$D/upgrade_"
 cp "$BITS/images/pxeboot/vmlinuz"    "$D/images/pxeboot/vmlinuz"
 cp "$BITS/images/pxeboot/initrd.img" "$D/images/pxeboot/initrd.img"
 cp "$BITS/images/install.img"        "$D/images/install.img"
-sed 's/\r$//' "$ROOT/upgrade_/linux/verify.sh" > "$D/upgrade_/verify.sh"
+sed 's/\r$//' "$ROOT/upgrade_/linux/verify.sh"  > "$D/upgrade_/verify.sh"
+sed 's/\r$//' "$ROOT/upgrade_/linux/outcome.sh" > "$D/upgrade_/outcome.sh"
 # the desktops: Fedora's own live squashfs images, unmodified, one per
 # desktop the intent capture offers (rig/vm/fetch-desktops.sh). The
 # kickstart's liveimg line names one of them; verify.sh reads it back
