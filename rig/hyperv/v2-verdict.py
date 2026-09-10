@@ -17,6 +17,11 @@ HEADER = ["timestamp", "harness", "firmware", "secureboot", "path", "desktop", "
           "microsoft_files_changed", "fallback_loader", "snapshot_files", "windows_entry_present", "linux_first",
           "grub_lists_windows", "windows_boots", "linux_boots", "result", "notes"]
 WIN_EXCLUDE = ("BCD", "BCD.LOG", "BCD.LOG1", "BCD.LOG2", "BOOTSTAT.DAT")
+def windows_rewrites(name):
+    # Windows rewrites these on every boot: the BCD store and its logs, the
+    # boot status file, and BitLocker's TCG event log (FveTcg_N.log) -
+    # seen changing across a plain Windows boot on the rig, 2026-09-10
+    return name in WIN_EXCLUDE or (name.startswith("FveTcg_") and name.endswith(".log"))
 
 def load(p):
     try: return json.load(open(A / p, encoding="utf-8-sig"))
@@ -68,7 +73,7 @@ bootmgfw_ok = "n"
 shas = {rec.get("esp", {}).get("bootmgfw_sha256") for rec in (pre, post, cyc) if rec}
 shas.discard(None)
 if e0.get("bootmgfw_sha256") and len(shas) == 1: bootmgfw_ok = "y"
-ms_changed = sorted(k for k in m0 if k.startswith("/EFI/Microsoft/") and k.split("/")[-1] not in WIN_EXCLUDE
+ms_changed = sorted(k for k in m0 if k.startswith("/EFI/Microsoft/") and not windows_rewrites(k.split("/")[-1])
                     and (k not in m1 or m1[k]["sha256"] != m0[k]["sha256"]))
 other_changed = sorted(k for k in m0 if not k.startswith("/EFI/Microsoft/") and (k not in m1 or m1[k]["sha256"] != m0[k]["sha256"]))
 fallback = bc.get("fallback_loader", "unreported")
@@ -92,7 +97,10 @@ if v0: notes.append("v0 row: " + v0["notes"][:120])
 def yn(b): return "y" if b else "n"
 win_present, lin_first, grub_win = yn(bc.get("windows_entry_present")), yn(bc.get("linux_first_in_bootorder")), yn(bc.get("grub_lists_windows"))
 
-if handoff != "fired-once" and not outcome: result = "handoff-failed"
+# the converter puts Fedora first in BootOrder on purpose, so the V0 harness's
+# return check sees a permanent reorder: 'reordered' is the EXPECTED V0 result
+# for this leg, 'fired-once' means the firmware ignored the new order
+if handoff not in ("fired-once", "reordered") and not outcome: result = "handoff-failed"
 elif not outcome or install_done != "y": result = "install-failed"
 elif outcome_valid != "y": result = "outcome-invalid"
 elif ms_changed or bootmgfw_ok != "y": result = "windows-files-changed"; notes.append("Microsoft files changed: " + ",".join(ms_changed))

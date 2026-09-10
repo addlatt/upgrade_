@@ -82,12 +82,13 @@ cycle)
         # be pending on the FIRST Windows boot; give it time, then pull evidence
         t0=$(date +%s); until guest "Test-Path $GUEST_CSV" 2>/dev/null | grep -q True; do [ $(( $(date +%s) - t0 )) -ge 420 ] && break; sleep 15; done
         L=$(stick_letter)
+        # this Windows boot's marker first, then pull everything (the pull must see it)
+        guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-boot,' + (Get-Date).ToUniversalTime().ToString('o') + ',via-grub,BootCurrent=' + ((bcdedit /enum '{fwbootmgr}' | Select-String 'bootsequence|displayorder' | Select-Object -First 1) -replace '\\s+',' '))" >/dev/null 2>&1 || true
         guest "Get-Content $GUEST_CSV -Raw" > "$A/v0-handoff.csv" 2>/dev/null || true
         for f in outcome.json boots.log; do guest "Get-Content ${L}:\\upgrade_\\$f -Raw -ErrorAction SilentlyContinue" > "$A/$f" 2>/dev/null || true; done
         for f in verify.json verify.log outcome.log efibootmgr-after.txt; do guest "Get-Content ${L}:\\upgrade_\\report\\$f -Raw -ErrorAction SilentlyContinue" > "$A/$f" 2>/dev/null || true; done
         for f in outcome.json boots.log verify.json verify.log outcome.log efibootmgr-after.txt v0-handoff.csv; do if [ ! -s "$A/$f" ] || grep -q "Cannot find path" "$A/$f"; then rm -f "$A/$f"; fi; done
         guest "bcdedit /enum firmware | Select-String 'identifier|description|path'" > "$A/bcd-firmware-$tag.txt" 2>/dev/null || true
-        guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-boot,' + (Get-Date).ToUniversalTime().ToString('o') + ',via-grub')" >/dev/null 2>&1 || true
         PS stop; wait_off 300
     else
         shot "grub-default-$tag"; wait_off 900

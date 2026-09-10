@@ -372,7 +372,7 @@ the V1b starting disk (C: shrunk, ESP 100 MiB, Windows only).
 | Result | Meaning | Verdict |
 |---|---|---|
 | `pass-plumbing` | install completed, outcome valid, no Microsoft file changed, `bootmgfw.efi` intact, Windows entry present and GRUB lists it, shim in the fallback slot **with** the snapshot holding Windows' copy, ≥2 boots of each OS | **pass for the firmware in the row** — SB off on Hyper-V: plumbing only |
-| `handoff-failed` | the arming reboot did not fire and no install ran | see `v0-handoff.csv` |
+| `handoff-failed` | the arming reboot did not fire and no install ran. The V0 row for this leg reads `reordered` by design — the converter puts Fedora first in BootOrder — so `reordered` and `fired-once` both count as fired (classifier fixed 2026-09-10; row 1 predates the fix and stays as written) | see `v0-handoff.csv` |
 | `install-failed` | no completed `outcome.json` — Anaconda stopped (a `%pre` refusal, a storage error, a bootloader error) | fail — read `report/anaconda.log`, `storage.log` |
 | `outcome-invalid` | `outcome.json` does not validate | fail — the contract is wrong or the writer is |
 | `windows-files-changed` | a Microsoft boot file changed, or `bootmgfw.efi` differs | **fail-loud** — the safety net is compromised |
