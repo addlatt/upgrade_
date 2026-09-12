@@ -157,9 +157,14 @@ job forced clean-slate. **2026-09-12, the prologue as product code:**
 the R18 disk check (four guardrails, own restart, outcome recorded), the
 two-path re-measure, the fork, the shrink, BitLocker suspension, the
 handoff, a stopped `outcome.json` at every refusal; `outcome.sh` carries
-its record into `outcome.json`. Rig bench `rig/hyperv/prologue.sh`, rows
-in `docs/validation-results/r18-prologue.csv`. Next: rollback from the
-snapshot, the Aspire's real flag.
+its record into `outcome.json`. **Fired on the rig the same day**
+(`docs/validation-results/r18-prologue.csv` row 3 `pass-plumbing`,
+`v2-install.csv` row 4): injected flag → full boot-time check → 57.8 GB
+by both paths → 25 GB freed → handoff → install → record carried into
+`outcome.json`; and **rollback** (`Invoke-Rollback.ps1`, `ROLLBACK.cmd`;
+`r21-rollback.csv` row 1 `pass-plumbing`). Next: the Aspire's real flag
+through `RUN-CONVERT.cmd` (first physical step-1b row, and the first
+physical install with Windows kept if the fork lands there); `settle-in`.
 
 **Decided (2026-09-08): the build is a vertical, not a list.** One
 front-to-back, one-click flow, reversible half first (schemas → OneDrive

@@ -201,7 +201,11 @@ outcome writer (a shell boolean in Python; then the kept partition looked
 up by filesystem name — a BitLocker volume says `BitLocker`, not `ntfs`)
 and the schema refusing the result, which is what the schema is for.
 Secure Boot off (Hyper-V template clause); the physical SB-on install
-remains the residue.
+remains the residue. **2026-09-12:** the same install ran once more as
+the tail of the prologue's own run (`v2-install.csv` row 4, `pass-plumbing`;
+`r18-prologue.csv` row 3), i.e. the conversion end to end from the one
+typed word: disk check → shrink → handoff → install → cycles; and the
+restore half of the snapshot fired (`r21-rollback.csv` row 1).
 
 **VM leg fired (2026-08-27).** On the QEMU+OVMF rig (`rig/vm/v1b.sh`, SB off —
 the only mode this host can run): C: shrunk 32 GiB, Fedora 42 kickstarted into
@@ -401,7 +405,9 @@ separately, not as "cannot shrink".
 *The prologue's step (2026-09-12):* the disk check, the re-measure by both
 paths and the shrink are product code now (`Invoke-Prologue.ps1`, RISKS
 R18), with a rig bench that injects the flag (`rig/hyperv/prologue.sh`)
-and one evidence file, `docs/validation-results/r18-prologue.csv`, whose
+and one evidence file, `docs/validation-results/r18-prologue.csv` (row 3
+`pass-plumbing` the same day: flag → full boot-time check → 57.8 GB by
+both paths → 25 GB freed → install), whose
 `remeasured_gb` / `diskpart_gb` pair is the same two-path measurement V4
 counts — taken *after* the check, at the moment it matters. The Acer
 Aspire's real flag is the first physical row owed there.

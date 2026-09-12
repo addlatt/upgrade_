@@ -37,7 +37,8 @@ P = (rec or {}).get("prologue") or {}
 vc, sh, bl, ho = P.get("volume_check", {}), P.get("shrink", {}), P.get("bitlocker", {}), P.get("handoff", {})
 state = (rec or {}).get("state") or {}
 sb = (ret or {}).get("secure_boot", "unknown")
-handoff = ((ret or {}).get("handoff") or {}).get("result", "no-record")
+rh = (ret or {}).get("handoff") or {}
+handoff = rh.get("Result") or rh.get("result") or "no-record"   # the record is the prologue's state (PascalCase); run 2 was misjudged by a lower-case read
 if rec: notes.append(f"prologue {rec.get('prologue_version')} stage={rec.get('stage')} restarts={state.get('Restarts')}")
 if vc.get("scan") is not None: notes.append(f"scan='{vc.get('scan')}' chkntfs={state.get('VolumeCheck', {}).get('Chkntfs')}")
 if vc.get("wininit_1001"): notes.append("wininit 1001: " + " ".join(vc["wininit_1001"].split())[:200])

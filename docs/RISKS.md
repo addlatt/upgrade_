@@ -819,7 +819,17 @@ very fork the decision reserves for the prologue's measurement. Self-tests
 pin every rung, the gate, the fork, the plan arithmetic and the record's
 shape; the rig bench (`rig/hyperv/prologue.sh`) injects the flag with
 `fsutil dirty set C:` and the row goes to
-`docs/validation-results/r18-prologue.csv`. **Residue, explicitly:** the
+`docs/validation-results/r18-prologue.csv`. **Fired on the rig the same day** (`r18-prologue.csv` rows 1–3; the
+first run stopped on a prologue bug and its refusal path — C: grown
+back, stopped outcome, credentials scrubbed — is row 1; row 3 is
+`pass-plumbing`): the injected flag confirmed by the scan, `Healthy`
+read, the spot-fix scheduled, and at the restart Windows ran its own
+**full** three-stage check on the flagged volume (Wininit 1001, 6 s,
+"found no problems") — so on a dirty bit autochk does the whole check
+regardless of which rung was scheduled; both paths then measured
+57.8 GB, the fork kept Windows, `Resize-Partition` freed exactly 25 GB,
+the install completed and `outcome.json` carried the prologue's record
+unchanged. **Residue, explicitly:** the
 rig's flag is our model of the Aspire's — a stale bit with no corruption
 behind it. What a *real* flag Windows has kept through several restarts
 does under the ladder is the unspoofable clause, and the Aspire is the
@@ -1181,7 +1191,10 @@ disk's identity against the job, the snapshot's checksum for
 the file back from the snapshot (its own checksum verified before and
 after; the shim copy saved to `upgrade_/rollback/`), and `{bootmgr}`
 first in `{fwbootmgr}` `displayorder`. Deletes nothing; 14 self-test
-cases; rig rows in `docs/validation-results/r21-rollback.csv`. The
+cases; rig row 1 (2026-09-12) `pass-plumbing` in
+`docs/validation-results/r21-rollback.csv`: Windows' loader back
+byte-for-byte, `{bootmgr}` first, a keyless start reached Windows, GPT
+and `EFI/fedora` untouched. The
 Linux-side twin comes with `settle-in`.
 
 ## R22 — Windows servicing re-takes the firmware boot order · medium · open

@@ -446,6 +446,26 @@ writes its own row for the same run.
 | `not-armed`, `handoff-failed`, `install-failed`, `outcome-invalid` | as their names; see `v2-install.csv` | fail |
 | `record-mismatch` | `outcome.json` carries a `prologue` block that is not the prologue's record | fail — `outcome.sh` lost the hand-over |
 
+**Rows so far (2026-09-12, rig, Secure Boot off, BitLocker off).** Row 1,
+`stopped-arm-handoff`: everything up to the shrink held (flag confirmed
+`NoErrorsFound`, `Healthy`, spot-fix scheduled, restart, flag clear,
+57.8 GB by both paths, fork keep-windows, 25 GB freed) and the arm
+stopped on a prologue bug (the resumed copy copying itself over itself);
+the stop grew C: back, wrote the stopped `outcome.json`, scrubbed the
+credentials — the refusal path's first evidence. Row 2 is the same
+second run **misjudged** by a verdict script reading the wrong key of
+the return record (`handoff-failed` where the record says `reordered`);
+row 3 is that run judged correctly, `pass-plumbing`: Wininit 1001
+recorded (autochk ran the **full** three-stage check on the flagged
+volume, 6 s, "found no problems" — the scheduled spot-fix rung became
+Windows' own boot-time check), C: shrunk 79.9 → 54.9 GB with the GPT
+agreeing to the byte, install completed (`v2-install.csv` row 4, whose
+`handoff_result` reads `no-row` for the same verdict-key reason), and
+`outcome.json`'s `prologue` block equal to the record. Two rig facts:
+`Repair-Volume -SpotFix` on the boot volume answers `NoErrorsFound` and
+leaves the flag for autochk (`chkntfs` says "C: is dirty"), and Wininit
+logs event 1001 about 17 s *after* logon.
+
 ### What "the prologue passes" requires
 
 - `pass-plumbing` on the rig with the injected flag (the plumbing: scan →
@@ -479,6 +499,11 @@ running `rig/hyperv/prologue.sh rollback` on a converted rig disk.
 | `efi_fedora_intact` | y/n — every file under `EFI/fedora/` unchanged |
 | `result` | `pass-plumbing` when all of the above; else the first failing item by name (`record-missing`, `not-restored`, `loader-mismatch`, `windows-not-first`, `windows-not-direct`, `linux-touched`, `efi-fedora-touched`) |
 | `notes` | the shas and orders before/after, the GPT and `EFI/fedora` comparison |
+
+**Row 1 (2026-09-12, rig):** `pass-plumbing` on the disk converted by the
+prologue run above — shim's copy (`4773d74d…`) replaced by Windows'
+(`e721eb27…`, equal to the pre-conversion inspection), `{bootmgr}` first,
+a keyless start reached Windows directly, GPT and `EFI/fedora` untouched.
 
 A rig row closes the plumbing of the restore half of the R21 snapshot; the
 firmware clause (does *this* vendor's firmware honour `{fwbootmgr}

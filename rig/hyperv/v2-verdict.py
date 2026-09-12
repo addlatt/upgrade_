@@ -44,7 +44,8 @@ sb = v0["secureboot"] if v0 else "unknown"
 # the bench-armed legacy source
 pret = load("prologue-return.json")
 if pret and not v0:
-    handoff = (pret.get("handoff") or {}).get("result", "no-row"); sb = pret.get("secure_boot", "unknown")
+    rh = pret.get("handoff") or {}
+    handoff = rh.get("Result") or rh.get("result") or "no-row"; sb = pret.get("secure_boot", "unknown")
     notes.append("handoff from the prologue's return record: fired=%s via %s" % ((pret.get("handoff") or {}).get("Fired"), (pret.get("handoff") or {}).get("FiredVia")))
 
 # --- outcome.json: present, valid, completed ---------------------------------

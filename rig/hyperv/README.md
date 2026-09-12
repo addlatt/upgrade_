@@ -170,6 +170,14 @@ for the install part of the same run, `v2-install.csv` (`v2-verdict.py`
 now reads the prologue's `prologue-return.json` as the handoff source
 when no harness row exists).
 
+**State after the prologue runs (2026-09-12):** `prologue.sh restore` put
+the main `UPGRIGHV.vhdx` back; `UPGRIGHV.prologue.vhdx` (fresh.vhdx
+converted by the prologue: C: 54.9 GB, Fedora KDE alongside, then rolled
+back — Windows first, Windows' fallback loader restored, Fedora still on
+the disk) is kept host-side, detached. The guest's Windows clock reads
+about seven hours ahead of the Linux side in `boots.log` — a rig clock
+fact, not a finding.
+
 ## Planned run-books (not yet run — nothing below is evidence)
 
 - **V0 rows 3, 5, 6 — DONE 2026-08-30** (row 4 not meaningful here, see
