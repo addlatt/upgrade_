@@ -668,7 +668,7 @@ what would have caught a silent version of it.
 before the commit line, while Windows still exists) is implemented as a hard
 gate — done — and demonstrated to catch a known-counterfeit stick.
 
-## R18 — Windows shrink headroom is unmeasured · high · open
+## R18 — Windows shrink headroom is unmeasured · high · open (prologue disk-check step built 2026-09-12)
 
 **What.** Immovable files — MFT, VSS store, pagefile, hiberfil — cap how far
 `Resize-Partition` can shrink, often far short of free space. The
@@ -797,6 +797,33 @@ shrinkable unmeasured → keep-Windows not offered → `intent.path =
 clean-slate`, `path_reason = forced-no-room`, with the ESP and disk health
 both recorded as fine. The prologue's disk-check step that would turn
 that into a real measurement is still owed.
+
+**The prologue's disk-check step is built (2026-09-12).**
+`upgrade_/windows/Invoke-Prologue.ps1` does step 1b exactly as decided
+above: `Repair-Volume -Scan` (read-only) first and its answer recorded
+verbatim; `Get-PhysicalDisk` HealthStatus read again immediately before
+anything is scheduled, anything but `Healthy` a stop; the rung chosen by
+the scan (`NoErrorsFound` → `Repair-Volume -SpotFix`, confirmed by
+`chkntfs` and falling back to `chkdsk C: /spotfix` scheduling if the
+cmdlet did not take; `ErrorsFound`/`ErrorsNotFixed` → `chkdsk C: /f`;
+anything else → refuse); its own restart, resumed by a one-shot elevated
+logon task; on return the Wininit 1001 text, any `found.000` and the flag
+re-read. If the flag survives the spot-fix the prologue rescans and
+escalates to `/f` only if that rescan logs errors, once; otherwise it
+stops and says so. Then both read-only measurements, the fork from
+`job.json`, the shrink. **The job writer changed with it (0.2.0):** a
+flagged volume on a Healthy disk with room on the ESP is now a
+`keep-windows` job with the fork pending, not a forced clean slate — the
+0.1.0 writer's forced `clean-slate` on the Aspire (above) pre-empted the
+very fork the decision reserves for the prologue's measurement. Self-tests
+pin every rung, the gate, the fork, the plan arithmetic and the record's
+shape; the rig bench (`rig/hyperv/prologue.sh`) injects the flag with
+`fsutil dirty set C:` and the row goes to
+`docs/validation-results/r18-prologue.csv`. **Residue, explicitly:** the
+rig's flag is our model of the Aspire's — a stale bit with no corruption
+behind it. What a *real* flag Windows has kept through several restarts
+does under the ladder is the unspoofable clause, and the Aspire is the
+machine that answers it.
 
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations

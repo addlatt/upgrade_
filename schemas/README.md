@@ -87,7 +87,14 @@ volume, consent given, BitLocker on, OneDrive placeholders materialized).
 
 ## Status
 
-Schemas and examples exist (2026-09-08); no writer emits them yet. The
+Schemas and examples exist (2026-09-08). Writers (2026-09-12): the job
+writer `evaluate/windows/New-Job.ps1` emits `job.json`; the prologue
+`upgrade_/windows/Invoke-Prologue.ps1` emits a stopped `outcome.json` at
+any refusal and the `prologue` block (via `upgrade_/prologue.json` on the
+stick) that `upgrade_/linux/outcome.sh` carries into the completed
+`outcome.json`. The prologue block gained `volume_check.scan` and
+`.restarts`, `shrink.remeasured_by` and `.remeasured_diskpart_gb`, an
+optional `staged` block and `handoff.marker` the same day. Earlier text: The
 harvester's `state.json` is the seed of `job.json`; the intent-capture
 step that fills `intent` and `fork` is not built. When the writers land,
 the examples here are what their self-tests must produce.

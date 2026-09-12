@@ -398,6 +398,14 @@ machine whose C: carries the dirty flag reports no number at all until the
 prologue's disk-check step (decided 2026-09-08, R18) has run — count it
 separately, not as "cannot shrink".
 
+*The prologue's step (2026-09-12):* the disk check, the re-measure by both
+paths and the shrink are product code now (`Invoke-Prologue.ps1`, RISKS
+R18), with a rig bench that injects the flag (`rig/hyperv/prologue.sh`)
+and one evidence file, `docs/validation-results/r18-prologue.csv`, whose
+`remeasured_gb` / `diskpart_gb` pair is the same two-path measurement V4
+counts — taken *after* the check, at the moment it matters. The Acer
+Aspire's real flag is the first physical row owed there.
+
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.
 

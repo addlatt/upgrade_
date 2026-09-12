@@ -152,8 +152,14 @@ scanner → `New-Job.ps1` (the job writer, first version) → kickstart →
 handoff → installer through shim → identity by serial, display, **Wi-Fi
 (28 networks)**, image read back at 22.6 MB/s → back to Windows
 (`v1-live-boot.csv` row 4). Its C: still carries the dirty flag, so the
-job forced clean-slate. Next: the prologue as product code (re-validate,
-R18 disk check, shrink, handoff), rollback from the snapshot.
+job forced clean-slate. **2026-09-12, the prologue as product code:**
+`upgrade_/windows/Invoke-Prologue.ps1` + `RUN-CONVERT.cmd` — re-validate,
+the R18 disk check (four guardrails, own restart, outcome recorded), the
+two-path re-measure, the fork, the shrink, BitLocker suspension, the
+handoff, a stopped `outcome.json` at every refusal; `outcome.sh` carries
+its record into `outcome.json`. Rig bench `rig/hyperv/prologue.sh`, rows
+in `docs/validation-results/r18-prologue.csv`. Next: rollback from the
+snapshot, the Aspire's real flag.
 
 **Decided (2026-09-08): the build is a vertical, not a list.** One
 front-to-back, one-click flow, reversible half first (schemas → OneDrive

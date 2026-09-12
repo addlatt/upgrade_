@@ -378,8 +378,28 @@ in step 6 is a hard gate, not a warning.
 
 ### Current status
 
-Nothing built. Deliberate — these are the only components that write, and they
-are last in the build order so they can be reviewed hardest.
+**The prologue exists as product code (2026-09-12):**
+`upgrade_/windows/Invoke-Prologue.ps1`, grown from the V0 harness's
+lineage, driven by the one-click `RUN-CONVERT.cmd` on the kit stick
+(scanner → job writer → kickstart → the typed word → the prologue). Steps
+1, 1b, 2 (keep-Windows), 3 and 4 above are built with collect/judge seams
+and 55 self-test cases; the clean-slate half of step 2 stages files with
+checksums and a measured-speed estimate but then **stops** before the
+handoff, because the live session's human gate before the wipe is not
+built and this code will not arm an unattended wipe. Decided (2026-09-12)
+while building it: hibernation is switched off on every keep-Windows
+conversion (the kept volume must be mountable later), but **the pagefile
+is disabled only when the cold measurement does not fit**, with one restart
+to re-measure — the kept Windows otherwise stays a normal Windows; the
+shrink request is exactly what Linux needs (`linux_min_gb` plus the
+harvested bytes × 1.2), never the maximum, and the kept Windows must
+keep 8 GB free; a stop after the shrink grows C: back, re-enables
+BitLocker, removes the boot entry and scrubs the stick's credentials. The
+prologue's record (`upgrade_/prologue.json`) is what `%post`'s
+`outcome.sh` carries into `outcome.json` as the `prologue` block. Rows:
+`docs/validation-results/r18-prologue.csv`. The cutover (stage 2) is the
+kickstart, `%pre` verifier and `%post` checklist proven in
+`v2-install.csv`. Rollback and `settle-in` are not built.
 
 ---
 
@@ -743,9 +763,14 @@ one-click vertical**, split at the commit line:
   (`%pre`), the alongside install from the stick's squashfs, the
   boot-chain checklist and `outcome.json` (`%post`) have fired on the rig
   as the product's own kickstart — `docs/validation-results/v2-install.csv`
-  row 3, `pass-plumbing`. Still to build: the prologue (re-validate, the
-  R18 disk check, the shrink, the handoff as product code rather than the
-  harness), the restore half of the snapshot (rollback), `settle-in`.
+  row 3, `pass-plumbing`. **Status 2026-09-12:** the prologue is product
+  code (`Invoke-Prologue.ps1`, `RUN-CONVERT.cmd`): re-validate, the R18
+  disk check with its four guardrails and its own restart, the
+  re-measure by both read-only paths, the fork, the shrink, BitLocker
+  suspension, the handoff — and a stopped `outcome.json` at every
+  refusal. Its rig bench is `rig/hyperv/prologue.sh`
+  (`docs/validation-results/r18-prologue.csv`). Still to build: the
+  restore half of the snapshot (rollback), `settle-in`.
 
 **Where it is built**: the Hyper-V rig first (disposable, restorable from a
 VHDX in a minute — where a first vertical gets broken and restarted twenty

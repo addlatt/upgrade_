@@ -16,7 +16,7 @@
 # settle-in to show, and Windows stays reachable from the GRUB menu.
 set -u
 JOB=${1:?job.json}
-OUTCOME_VERSION=0.1.2
+OUTCOME_VERSION=0.2.0
 STICK=/run/install/repo
 SYSROOT=/mnt/sysroot
 REPORT=$STICK/upgrade_/report
@@ -115,9 +115,17 @@ cp "$SYSROOT/root/upgrade_-post.log" "$REPORT/post.log" 2>/dev/null || true
 cp "$SYSROOT/root/anaconda-ks.cfg" "$REPORT/anaconda-ks.cfg" 2>/dev/null || true
 cp "$LOG" "$REPORT/outcome.log" 2>/dev/null || true
 
+# The prologue's record (upgrade_/prologue.json, written by Invoke-Prologue.ps1
+# at every stage transition) carries the real `prologue` block: what the
+# disk check did, the re-measured number, the fork, the shrink, BitLocker,
+# the handoff. Without it (a harness-armed bench run) the placeholders below
+# stand in and the log says so - never silently.
+PROLOGUE_REC=""; [ -f "$STICK/upgrade_/prologue.json" ] && PROLOGUE_REC="$STICK/upgrade_/prologue.json"
+echo "== prologue record: ${PROLOGUE_REC:-none (placeholders)}"
+
 # Every fact goes to Python through the environment - never interpolated
 # into source (a shell "true" is not a Python literal; that bit twice).
-UPG_PATH="$PATH_CHOSEN" UPG_VERSION="$OUTCOME_VERSION" UPG_WIN_PRESENT="$WIN_PRESENT" UPG_WIN_RECREATED="$WIN_RECREATED" \
+UPG_PROLOGUE_REC="$PROLOGUE_REC" UPG_PATH="$PATH_CHOSEN" UPG_VERSION="$OUTCOME_VERSION" UPG_WIN_PRESENT="$WIN_PRESENT" UPG_WIN_RECREATED="$WIN_RECREATED" \
 UPG_LINUX_FIRST="$LINUX_FIRST" UPG_BOOTMGFW_OK="$BOOTMGFW_OK" UPG_GRUB_WIN="$GRUB_WIN" UPG_FALLBACK="$FALLBACK" \
 UPG_KERNEL="$KERNEL" UPG_ROOTDEV="$ROOTDEV" UPG_RELEASE="$RELEASE" UPG_WINPART="$WINPART" UPG_WINGUID="$WINGUID" \
 UPG_WINSIZE="$WINSIZE" UPG_WINNUM="$WINNUM" \
@@ -141,10 +149,10 @@ o = {
   "commit_line": {"crossed": not keep, "crossed_utc": None if keep else datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "act": None if keep else "wipe"},
   "prologue": {
     "revalidated": True, "mismatches": [],
-    "volume_check": {"needed": False, "ran": False, "disk_health_at_check": None, "method": "none", "wininit_1001": None, "found000_present": None, "dirty_after": "unknown"},
-    "shrink": {"remeasured_gb": None, "fork_taken": path, "requested_bytes": None, "freed_bytes": 0},
+    "volume_check": {"needed": False, "ran": False, "disk_health_at_check": None, "method": "none", "scan": None, "restarts": 0, "wininit_1001": None, "found000_present": None, "dirty_after": "unknown"},
+    "shrink": {"remeasured_gb": None, "remeasured_by": None, "remeasured_diskpart_gb": None, "fork_taken": path, "requested_bytes": None, "freed_bytes": 0},
     "bitlocker": {"status_before": bl, "suspended": bl == "on", "reboot_count": 1 if bl == "on" else None},
-    "handoff": {"armed": True, "entry_guid": None, "armed_utc": None, "bcd_backup": None}
+    "handoff": {"armed": True, "marker": "boot-install", "entry_guid": None, "armed_utc": None, "bcd_backup": None}
   },
   "cutover": {
     "identity_verified": v.get("identity", {}).get("result") == "pass",
@@ -160,6 +168,18 @@ o = {
   "credentials": {"scrubbed": False, "scrub_after": "settle-in-pull" if keep else "cutover"},
   "logs": ["upgrade_/report/outcome.log", "upgrade_/report/anaconda.log", "upgrade_/report/storage.log", "upgrade_/report/post.log"]
 }
+rec = E("UPG_PROLOGUE_REC")
+if rec:
+    try:
+        pr = json.load(open(rec))
+        if pr.get("schema") != "prologue/1": raise ValueError("prologue record schema %r is not prologue/1" % pr.get("schema"))
+        if pr.get("job_id") != job["job_id"]: raise ValueError("prologue record is for job %s, not %s" % (pr.get("job_id"), job["job_id"]))
+        o["prologue"] = pr["prologue"]
+        if pr["prologue"]["shrink"].get("fork_taken") in ("keep-windows", "clean-slate"): o["path_taken"] = pr["prologue"]["shrink"]["fork_taken"]
+        o["logs"].append("upgrade_/report/prologue.log")
+        print("== prologue block taken from the prologue's record (stage %s)" % pr.get("stage"))
+    except Exception as ex:
+        print("!! prologue record unusable, placeholders kept:", ex)
 if keep and snap.get("result") == "pass":
     o["cutover"]["esp_snapshot"] = {"path": "upgrade_/esp-snapshot", "files": int(snap.get("files") or 1), "boot_entries": "upgrade_/esp-snapshot/boot-entries.txt"}
 json.dump(o, open(sys.argv[3], "w"), indent=2)

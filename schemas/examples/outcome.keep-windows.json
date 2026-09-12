@@ -8,12 +8,12 @@
   "commit_line": { "crossed": false, "crossed_utc": null, "act": null },
   "prologue": {
     "revalidated": true, "mismatches": [],
-    "volume_check": { "needed": true, "ran": true, "disk_health_at_check": "Healthy", "method": "spot-fix",
+    "volume_check": { "needed": true, "ran": true, "disk_health_at_check": "Healthy", "method": "spot-fix", "scan": "NoErrorsFound", "restarts": 1,
       "wininit_1001": "Checking file system on C: ... Windows has made corrections to the file system. No further action is required.",
       "found000_present": false, "dirty_after": "clean" },
-    "shrink": { "remeasured_gb": 61.4, "fork_taken": "keep-windows", "requested_bytes": 34359738368, "freed_bytes": 34359738368, "pagefile_disabled": true, "hibernation_disabled": true },
+    "shrink": { "remeasured_gb": 61.4, "remeasured_by": "storage-api", "remeasured_diskpart_gb": 61.4, "fork_taken": "keep-windows", "requested_bytes": 34359738368, "freed_bytes": 34359738368, "pagefile_disabled": true, "hibernation_disabled": true },
     "bitlocker": { "status_before": "on", "suspended": true, "reboot_count": 1 },
-    "handoff": { "armed": true, "entry_guid": "{6f5a4b3c-2d1e-4f0a-9b8c-7d6e5f4a3b2c}", "armed_utc": "2026-09-09T00:02:00Z", "bcd_backup": "logs/bcd-backup.bin" }
+    "handoff": { "armed": true, "marker": "boot-install", "entry_guid": "{6f5a4b3c-2d1e-4f0a-9b8c-7d6e5f4a3b2c}", "armed_utc": "2026-09-09T00:02:00Z", "bcd_backup": "logs/bcd-backup.bin" }
   },
   "cutover": {
     "identity_verified": true,

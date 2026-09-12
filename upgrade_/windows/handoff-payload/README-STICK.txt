@@ -22,6 +22,22 @@ comes back, the same result window appears; the row lands in
 v0-handoff.csv and the report in upgrade_\report\verify.json.
 If it refuses to start it changes nothing - read its message.
 
+THE CONVERSION (RUN-CONVERT.cmd) - this one CHANGES the internal disk
+----------------------------------------------------------------------
+Only on a computer you mean to convert. Double-click RUN-CONVERT.cmd,
+click "Yes" on the blue prompt, and type CONVERT when asked. It scans,
+writes the job, generates the kickstart, then runs the prologue: it
+re-checks the job against this computer, runs Windows' own disk check
+if Windows has flagged C: (that is a restart of its own - leave the
+stick in, sign in when Windows is back, it continues by itself),
+re-measures the room, shrinks the Windows partition, suspends
+BitLocker for one restart, and restarts into the Linux installer on
+this stick. Linux is installed BESIDE Windows; Windows stays in the
+boot menu until you reclaim it later, in Linux. Every refusal happens
+before anything is changed, and a refusal writes upgrade_\outcome.json
+on this stick saying where and why. When you next boot Windows from
+the menu, a small window confirms the one-time boot entry was removed.
+
 THE ONE-CLICK WAY (V0)
 ----------------------
  1. Plug this stick into the computer under test.

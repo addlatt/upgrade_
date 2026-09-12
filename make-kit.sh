@@ -19,8 +19,9 @@
 #      override, and the manifest then says so)
 #   2. ./build.sh reproduces the committed dist/upgrade-scan.ps1 (R9: the
 #      shipped scanner matches source)
-#   3. the three self-tests pass on Windows PowerShell 5.1 - scanner,
-#      harvester, handoff harness
+#   3. every self-test passes on Windows PowerShell 5.1 - scanner,
+#      harvester, handoff harness, materialization harness, stick writer,
+#      kickstart generator, job writer, prologue - and schemas/check.py
 #   4. every shipped .ps1 parses under the PS 5.1 parser
 #   5. the EFI payload bits exist and are the ones the rig fetched
 #      (rig/vm/fetch-payload-bits.sh; gitignored build inputs)
@@ -97,6 +98,7 @@ selftest "V8 materialization harness" "$ROOT/evaluate/windows/Test-Materialize.p
 selftest "stick writer" "$ROOT/evaluate/windows/Write-UpgradeStick.ps1"
 selftest "kickstart generator" "$ROOT/upgrade_/windows/New-Kickstart.ps1"
 selftest "job writer" "$ROOT/evaluate/windows/New-Job.ps1"
+selftest "prologue" "$ROOT/upgrade_/windows/Invoke-Prologue.ps1"
 bash -n "$ROOT/upgrade_/linux/verify.sh" || fail "verify.sh does not parse"
 bash -n "$ROOT/upgrade_/linux/outcome.sh" || fail "outcome.sh does not parse"
 grep -q 'boot-install' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the boot-install branch"
@@ -112,6 +114,9 @@ parsecheck "$SCANNER_DIST"
 parsecheck "$HARNESS"
 parsecheck "$ROOT/evaluate/windows/New-Job.ps1"
 parsecheck "$ROOT/upgrade_/windows/New-Kickstart.ps1"
+parsecheck "$ROOT/upgrade_/windows/Invoke-Prologue.ps1"
+(cd "$ROOT" && python3 schemas/check.py >/dev/null) || fail "schemas/check.py failed - the contracts the prologue and outcome.sh write against are broken"
+step "schemas check passed"
 
 # --- 5. payload bits --------------------------------------------------------
 for f in Shell.efi shimx64.efi grubx64.efi; do
@@ -145,6 +150,8 @@ crlf "$PAYLOAD/ARM-HANDOFF.cmd"     "$D/ARM-HANDOFF.cmd"
 crlf "$PAYLOAD/CHECK-HANDOFF.cmd"   "$D/CHECK-HANDOFF.cmd"
 crlf "$PAYLOAD/README-STICK.txt"    "$D/README-STICK.txt"
 crlf "$PAYLOAD/RUN-VERIFY.cmd"      "$D/RUN-VERIFY.cmd"
+crlf "$PAYLOAD/RUN-CONVERT.cmd"     "$D/RUN-CONVERT.cmd"
+cp "$ROOT/upgrade_/windows/Invoke-Prologue.ps1" "$D/Invoke-Prologue.ps1"
 cp "$ROOT/evaluate/windows/New-Job.ps1"        "$D/New-Job.ps1"
 cp "$ROOT/upgrade_/windows/New-Kickstart.ps1"  "$D/New-Kickstart.ps1"
 # signed payload: the product path, at the removable-media default location

@@ -42,7 +42,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.1.0'
+$JobWriterVersion = '0.2.0'
 $LinuxMinGB = 25
 
 function Test-JobAdmin {
@@ -93,9 +93,15 @@ function ConvertTo-JobLinuxName {
 function Get-JobPath {
     # Pure: the path decision (architecture.md, "The conversion path is not a
     # coin flip"): keep Windows whenever the disk can, else clean slate, forced.
-    param([string]$DiskHealth, [bool]$EspFits, $ShrinkableGB)
-    if ($DiskHealth -eq 'Healthy' -and $EspFits -and $null -ne $ShrinkableGB -and $ShrinkableGB -ge $LinuxMinGB) {
-        return @{ Path = 'keep-windows'; Reason = 'default' }
+    # A volume that carries the dirty flag cannot be measured at all (RISKS
+    # R18): on a Healthy disk that is NOT "no room" - it is a keep-windows job
+    # whose number the prologue measures after its disk check, branching on
+    # fork.if_cannot_keep if it then does not fit (decided 2026-09-08; the
+    # 0.1.0 writer forced clean slate here, which pre-empted the fork).
+    param([string]$DiskHealth, [bool]$EspFits, $ShrinkableGB, [string]$Dirty = 'clean')
+    if ($DiskHealth -eq 'Healthy' -and $EspFits) {
+        if ($null -ne $ShrinkableGB -and $ShrinkableGB -ge $LinuxMinGB) { return @{ Path = 'keep-windows'; Reason = 'default' } }
+        if ($null -eq $ShrinkableGB -and $Dirty -eq 'dirty') { return @{ Path = 'keep-windows'; Reason = 'default' } }
     }
     @{ Path = 'clean-slate'; Reason = 'forced-no-room' }
 }
@@ -199,7 +205,7 @@ function New-JobDocument {
     if ($refusals.Count -gt 0) { return @{ Refusals = $refusals; Job = $null } }
 
     $espFits = ($F.EspFree -ge 32MB)
-    $path = Get-JobPath -DiskHealth $F.Health -EspFits $espFits -ShrinkableGB $F.ShrinkGB
+    $path = Get-JobPath -DiskHealth $F.Health -EspFits $espFits -ShrinkableGB $F.ShrinkGB -Dirty $F.Dirty
     $health = if ($F.Health -in @('Healthy', 'Warning', 'Unhealthy')) { $F.Health } else { 'Unknown' }
     $bl = $F.BitLocker
     $job = [ordered]@{
@@ -268,8 +274,12 @@ function Invoke-SelfTest {
            Run = { $r = New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r.txt'; "$($r.Refusals.Count):$($r.Job.intent.path):$($r.Job.intent.path_reason)" }; Expect = '0:keep-windows:default' }
         @{ Name = 'too little shrink room forces clean slate, with staged block'
            Run = { $r = New-JobDocument -F (With $good 'ShrinkGB' 10.0) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; "$($r.Job.intent.path):$($r.Job.intent.path_reason):$([bool]$r.Job.staged)" }; Expect = 'clean-slate:forced-no-room:True' }
-        @{ Name = 'an unmeasured shrink (null) forces clean slate'
+        @{ Name = 'an unmeasured shrink (null) on a clean volume forces clean slate'
            Run = { (New-JobDocument -F (With $good 'ShrinkGB' $null) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path }; Expect = 'clean-slate' }
+        @{ Name = 'an unmeasured shrink on a FLAGGED volume, Healthy disk, is a keep-windows job with the fork pending (R18)'
+           Run = { $r = New-JobDocument -F (With (With $good 'ShrinkGB' $null) 'Dirty' 'dirty') -Desktop kde -PasswordHash $ph -IfCannotKeep 'clean-slate' -ReportRel 'r'; "$($r.Job.intent.path):$($r.Job.fork.if_cannot_keep):$($r.Job.fork.volume_check_consented):$($r.Job.storage.volume_health.dirty):$($null -eq $r.Job.storage.shrinkable_gb)" }; Expect = 'keep-windows:clean-slate:True:dirty:True' }
+        @{ Name = 'a flagged volume on a Warning disk still forces clean slate'
+           Run = { (New-JobDocument -F (With (With (With $good 'ShrinkGB' $null) 'Dirty' 'dirty') 'Health' 'Warning') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path }; Expect = 'clean-slate' }
         @{ Name = 'a Warning disk forces clean slate'
            Run = { (New-JobDocument -F (With $good 'Health' 'Warning') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path }; Expect = 'clean-slate' }
         @{ Name = 'a full ESP forces clean slate'

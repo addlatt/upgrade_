@@ -8,10 +8,11 @@
   "commit_line": { "crossed": true, "crossed_utc": "2026-09-09T02:41:12Z", "act": "wipe" },
   "prologue": {
     "revalidated": true, "mismatches": [],
-    "volume_check": { "needed": false, "ran": false, "disk_health_at_check": null, "method": "none", "wininit_1001": null, "found000_present": null, "dirty_after": "clean" },
-    "shrink": { "remeasured_gb": 10.0, "fork_taken": "clean-slate", "requested_bytes": null, "freed_bytes": 0 },
+    "volume_check": { "needed": false, "ran": false, "disk_health_at_check": null, "method": "none", "scan": null, "restarts": 0, "wininit_1001": null, "found000_present": null, "dirty_after": "clean" },
+    "shrink": { "remeasured_gb": 10.0, "remeasured_by": "storage-api", "remeasured_diskpart_gb": 10.0, "fork_taken": "clean-slate", "requested_bytes": null, "freed_bytes": 0 },
+    "staged": { "files": 2850, "bytes": 1610612736, "failed": 0, "write_mbps": 21.4, "estimated_seconds": 75, "manifest": "upgrade_/staging/SHA256SUMS" },
     "bitlocker": { "status_before": "off", "suspended": false, "reboot_count": null },
-    "handoff": { "armed": true, "entry_guid": "{0f1e2d3c-4b5a-4697-8877-665544332211}", "armed_utc": "2026-09-09T02:20:00Z", "bcd_backup": "logs/bcd-backup.bin" }
+    "handoff": { "armed": true, "marker": "boot-install", "entry_guid": "{0f1e2d3c-4b5a-4697-8877-665544332211}", "armed_utc": "2026-09-09T02:20:00Z", "bcd_backup": "logs/bcd-backup.bin" }
   },
   "cutover": {
     "identity_verified": true,

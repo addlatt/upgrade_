@@ -51,10 +51,12 @@
           "description": "RISKS R18 step 1b. `evaluate` never repairs; this is the only place a disk check runs, with its four guardrails, and its real outcome is recorded here.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["needed", "ran", "disk_health_at_check", "method", "dirty_after"],
+          "required": ["needed", "ran", "disk_health_at_check", "method", "dirty_after", "scan", "restarts"],
           "properties": {
             "needed": { "description": "The online scan confirmed the flag before anything ran.", "type": "boolean" },
             "ran": { "type": "boolean" },
+            "scan": { "description": "What `Repair-Volume -Scan` (read-only) answered, verbatim - the guardrail that chooses spot-fix over the full check. Null when no scan ran.", "type": ["string", "null"] },
+            "restarts": { "description": "Restarts the check took (spot-fix once; a second one only if the flag survived and the rescan logged errors).", "type": "integer", "minimum": 0 },
             "disk_health_at_check": { "description": "`Get-PhysicalDisk` HealthStatus read immediately before the repair. Anything but Healthy is a refusal (`ran` false, status stopped).", "enum": ["Healthy", "Warning", "Unhealthy", "Unknown", null] },
             "method": { "description": "spot-fix: Repair-Volume -SpotFix (offline for seconds, fixes only what the scan logged). chkdsk-f: the full check, only when the scan logged real errors.", "enum": ["none", "spot-fix", "chkdsk-f"] },
             "wininit_1001": { "description": "The text of the Wininit event 1001 the check left behind, verbatim.", "type": ["string", "null"] },
@@ -67,9 +69,11 @@
         "shrink": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["remeasured_gb", "fork_taken", "freed_bytes"],
+          "required": ["remeasured_gb", "remeasured_by", "fork_taken", "freed_bytes"],
           "properties": {
             "remeasured_gb": { "description": "Shrinkable space measured by the prologue at the moment it mattered - the number the fork branched on. Null if never measured.", "type": ["number", "null"], "minimum": 0 },
+            "remeasured_by": { "description": "Which read-only path produced remeasured_gb: the Storage API (Get-PartitionSupportedSize) or diskpart's shrink querymax (VDS). Both are tried; the second number is kept beside it.", "enum": ["storage-api", "diskpart", null] },
+            "remeasured_diskpart_gb": { "description": "diskpart's independent figure, when it answered. Disagreement with the Storage API is a finding (VALIDATION V4).", "type": ["number", "null"], "minimum": 0 },
             "fork_taken": { "enum": ["keep-windows", "clean-slate", "stop", null] },
             "requested_bytes": { "type": ["integer", "null"], "minimum": 0 },
             "freed_bytes": { "description": "What Resize-Partition actually freed. 0 on clean-slate or a stop.", "type": "integer", "minimum": 0 },
@@ -87,12 +91,27 @@
             "reboot_count": { "type": ["integer", "null"], "minimum": 0 }
           }
         },
+        "staged": {
+          "description": "clean-slate only: the person's files copied to the stick with per-file checksums, at a measured write speed the time estimate was computed from.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["files", "bytes", "failed", "write_mbps", "estimated_seconds", "manifest"],
+          "properties": {
+            "files": { "type": "integer", "minimum": 0 },
+            "bytes": { "type": "integer", "minimum": 0 },
+            "failed": { "type": "integer", "minimum": 0 },
+            "write_mbps": { "type": ["number", "null"], "minimum": 0 },
+            "estimated_seconds": { "type": ["integer", "null"], "minimum": 0 },
+            "manifest": { "$ref": "#/definitions/relpath" }
+          }
+        },
         "handoff": {
           "type": "object",
           "additionalProperties": false,
           "required": ["armed"],
           "properties": {
             "armed": { "type": "boolean" },
+            "marker": { "description": "The marker file the prologue put beside the kickstart on the stick, which grub.cfg branches on: boot-install for the conversion.", "enum": ["boot-install", null] },
             "entry_guid": { "type": ["string", "null"] },
             "armed_utc": { "type": ["string", "null"], "format": "date-time" },
             "bcd_backup": { "oneOf": [{ "$ref": "#/definitions/relpath" }, { "type": "null" }] }

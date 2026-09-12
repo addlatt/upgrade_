@@ -85,6 +85,11 @@ stick)
     if [ "${MODE:-verify}" = install ]; then
         printf 'v2\n' > "$A/marker"; mcopy -o -i "$P" "$A/marker" ::/upgrade_/boot-install
         mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench; mcopy -o -i "$P" "$A/marker" ::/upgrade_/autoshutdown
+    elif [ "${MODE:-verify}" = prologue ]; then
+        # the prologue (product code) writes boot-install itself when it arms;
+        # the bench only asks for the GRUB timeout, the boot marker and the shutdown
+        printf 'prologue\n' > "$A/marker"
+        mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench; mcopy -o -i "$P" "$A/marker" ::/upgrade_/autoshutdown
     else
         printf 'v1\n' > "$A/boot-verify"; mcopy -o -i "$P" "$A/boot-verify" ::/upgrade_/boot-verify
     fi

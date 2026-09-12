@@ -386,3 +386,74 @@ the V1b starting disk (C: shrunk, ESP 100 MiB, Windows only).
 | `linux-unbootable` | the installed system never booted | fail |
 | `fallback-loader-unrecorded` | the fallback slot is not shim, or the snapshot is missing | fail — rollback could not restore Windows' loader |
 | `cycles-incomplete` | fewer than 2 boots of each OS | re-run the cycles |
+
+## `r18-prologue.csv` — the prologue as product code: re-validate, the disk check, the shrink, the handoff (risk R18, step 1b)
+
+One row per run, appended by `rig/hyperv/prologue-verdict.py` from the
+run's own evidence: the prologue's record on the stick
+(`upgrade_/prologue.json` — `Invoke-Prologue.ps1` writes it at every stage
+transition; its `prologue` block is what `outcome.json` must carry), the
+prologue's return record (`upgrade_/prologue-return.json` — the handoff
+classified by the prologue itself when Windows next boots), `outcome.json`
+(validated against the schema, its `prologue` block compared with the
+record), the bench's fault-injection note (`fsutil dirty set C:` before the
+flow) and the offline GPT inspections before and after (did C: shrink by
+exactly what the prologue says it freed). Do not hand-edit; add rows by
+running the bench (`rig/hyperv/prologue.sh run`). What runs is the one-click
+flow a person double-clicks (`RUN-CONVERT.cmd`: scanner → job writer →
+kickstart → the typed word → `Invoke-Prologue.ps1 -Start`) against a copy of
+the **unshrunk** install-day disk (`UPGRIGHV.fresh.vhdx`: C: 85.8 GB, 100 MiB
+ESP, BitLocker off), then the install as in `v2-install.csv`, whose verdict
+writes its own row for the same run.
+
+| Column | Meaning |
+|---|---|
+| `timestamp`, `harness`, `firmware`, `secureboot` | as the other files (`secureboot` from the return record) |
+| `dirty_injected` | y/n — the bench set NTFS's dirty flag on C: before the flow |
+| `revalidated` | y/n — job.json matched the live machine on every fact the prologue re-checks |
+| `scan` | what `Repair-Volume -Scan` (read-only) answered, verbatim — the rung chooser |
+| `disk_health` | `Get-PhysicalDisk` HealthStatus read immediately before the repair was scheduled — anything but `Healthy` is a refusal |
+| `method` | `spot-fix` / `chkdsk-f` / `none` — the rung the prologue scheduled |
+| `restarts` | restarts the check took |
+| `wininit_1001` | y/n — the boot-time check left its Wininit event 1001 (the text is in `notes`) |
+| `found000` | whether the check left a `found.000` |
+| `dirty_after` | `clean` / `dirty` / `unknown` — the flag after the check |
+| `remeasured_gb`, `remeasured_by`, `diskpart_gb` | shrinkable space at the moment it mattered: the number branched on, which read-only path gave it, and diskpart's independent figure |
+| `fork_taken` | `keep-windows` / `clean-slate` / `stop` — the pre-chosen fork, taken |
+| `requested_bytes`, `freed_bytes` | the planned shrink and what `Resize-Partition` freed |
+| `partition_shrunk` | y/n — the offline GPT shows C: smaller by exactly `freed_bytes` |
+| `hibernation_off`, `pagefile_off` | the mitigations the prologue applied |
+| `bitlocker_before`, `bitlocker_suspended` | as the outcome records them |
+| `armed`, `handoff_result` | the one-shot entry was armed; the return record's classification (`reordered` is expected here — the converter puts Fedora first) |
+| `install_done`, `outcome_valid` | as `v2-install.csv` |
+| `record_in_outcome` | y/n — `outcome.json`'s `prologue` block equals the record the prologue left on the stick |
+| `result` | see vocabulary below |
+| `notes` | the prologue version and stage, the scan and chkntfs answers, the Wininit text, the shrink plan, the GPT delta, the outcome's stop reason if any |
+
+### Result vocabulary
+
+| Result | Meaning | Verdict |
+|---|---|---|
+| `pass-plumbing` | flag confirmed by the scan, health read `Healthy`, a rung scheduled, restart taken, flag clear after, re-measured by a read-only path, fork `keep-windows`, C: shrunk by exactly the request (GPT agrees), handoff armed and fired, install completed, `outcome.json` valid and carrying the prologue's record | **pass for the firmware in the row** — a rig row closes plumbing, never the real-hardware clause (the Aspire's flag is the residue) |
+| `stopped-<stage>` | the prologue wrote a stopped `outcome.json` at that stage — an honest refusal; the reason is in `notes` | read it: on the rig a harness or product bug, on a real machine possibly the refusal working |
+| `prologue-not-run` | no record on the stick — the flow never reached the prologue | fail — read `convert.log` |
+| `flag-not-confirmed` | the flag was injected but the prologue did not find it | fail — the scan or the fsutil read is wrong |
+| `check-not-run` | the check was needed but no Wininit 1001 appeared and the flag did not clear | fail — the scheduling did not take |
+| `flag-persists` | the check ran and C: is still flagged | fail-loud — the ladder did not clear it; design input |
+| `not-remeasured` | neither read-only path gave a number after the check | fail |
+| `fork-<x>` | the fork landed elsewhere than keep-windows (recorded, not a pass for this leg) | design input |
+| `shrink-short` | `Resize-Partition` freed less than planned, or the GPT disagrees with the record | **fail-loud** |
+| `not-armed`, `handoff-failed`, `install-failed`, `outcome-invalid` | as their names; see `v2-install.csv` | fail |
+| `record-mismatch` | `outcome.json` carries a `prologue` block that is not the prologue's record | fail — `outcome.sh` lost the hand-over |
+
+### What "the prologue passes" requires
+
+- `pass-plumbing` on the rig with the injected flag (the plumbing: scan →
+  guardrail → rung → restart → outcome read → re-measure → fork → shrink →
+  arm → install → record carried through).
+- Then the **Acer Aspire**, whose C: carries a real flag Windows has kept
+  through several restarts: the first physical row for step 1b, and — if
+  the re-measured number fits — the first physical install with Windows
+  kept. What a real flag does under the ladder is exactly the unspoofable
+  residue (rule #5); the rig's `fsutil dirty set` is our model of it.
+

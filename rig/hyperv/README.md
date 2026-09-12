@@ -63,6 +63,7 @@ Two more Hyper-V facts learned the same day:
 | `new-vm.ps1` | creates the Gen 2 guest: Secure Boot on (template selectable), vTPM, two DVDs, DVD-first |
 | `vm.ps1` | the QMP stand-in: start/stop, WMI keyboard (`type`, `key`, `press-any-key`), thumbnail `shot`, `fw`, `sb`, `dvd`, `disk`, `boot-first`, PowerShell Direct `ps`, `copy` |
 | `v1b.sh` | the V1b alongside-install bench (run-book below) |
+| `prologue.sh`, `prologue-verdict.py` | the prologue bench: the product's one-click conversion flow with the dirty flag injected, then the install; writes `r18-prologue.csv` (and `v2-install.csv` via `v2-verdict.py`) |
 | `v3.sh`, `v3-verdict.py` | the V3 BITLK-read bench: builds the OEMDRV-v3 transport, drives the Windows plant and the Fedora read, writes the evidence rows |
 | `guest/oemdrv-run.sh`, `guest/v3-bootstrap.sh` | the Fedora-side **run hook**: a unit that runs `OEMDRV:/run.sh` as root on every boot and leaves `run.log` on the volume — installed once from the console by the bootstrap |
 | `guest/v3-plant.ps1`, `guest/v3-read.sh`, `guest/v3-encrypt.ps1` | V3 guest halves: Windows plants + hashes the corpus and `C:\Users` and does a full shutdown; Fedora unlocks, mounts read-only and re-hashes; the encrypt script builds the other configs in the product's order (encrypt, then shrink) |
@@ -154,6 +155,20 @@ reorder → boot → enable), the V1 stick `v1-stick.vhdx` (2.2 GB FAT32 `UPGV0`
 the kit + installer boot files + `upgrade_/`) is attached on SCSI, Secure
 Boot off. To boot Fedora again, pick its entry in the firmware order.
 `v1.sh run` rebuilds the stick and reruns the whole leg.
+
+**The prologue bench (2026-09-12):** `prologue.sh` runs the product's
+one-click `RUN-CONVERT.cmd` (with `CONVERT` on stdin) against
+`UPGRIGHV.prologue.vhdx`, a Windows-side copy of `UPGRIGHV.fresh.vhdx` —
+the **unshrunk** install-day disk, because the prologue's job is the
+shrink and `pre-install.vhdx` already carries the V1b bench's 32 GiB gap.
+`prologue.sh dirty` injects the flag (`fsutil dirty set C:`); the guest
+then restarts itself twice (disk check, then the installer) and the bench
+waits for the autoshutdown after the first Linux boot. `v1.sh stick`
+gained `MODE=prologue` (bench + autoshutdown markers only; the prologue
+writes `boot-install` itself when it arms). Rows: `r18-prologue.csv` and,
+for the install part of the same run, `v2-install.csv` (`v2-verdict.py`
+now reads the prologue's `prologue-return.json` as the handoff source
+when no harness row exists).
 
 ## Planned run-books (not yet run — nothing below is evidence)
 

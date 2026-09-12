@@ -39,6 +39,13 @@ if (A / "v0-handoff.csv").exists():
     except Exception: pass
 handoff = v0["result"] if v0 else "no-row"
 sb = v0["secureboot"] if v0 else "unknown"
+# the prologue (product code, 2026-09-12) classifies the handoff itself on
+# return and leaves prologue-return.json on the stick; the harness row is
+# the bench-armed legacy source
+pret = load("prologue-return.json")
+if pret and not v0:
+    handoff = (pret.get("handoff") or {}).get("result", "no-row"); sb = pret.get("secure_boot", "unknown")
+    notes.append("handoff from the prologue's return record: fired=%s via %s" % ((pret.get("handoff") or {}).get("Fired"), (pret.get("handoff") or {}).get("FiredVia")))
 
 # --- outcome.json: present, valid, completed ---------------------------------
 outcome_valid = "n"; install_done = "n"; bc = {}
