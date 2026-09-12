@@ -146,9 +146,14 @@ the converter's own kickstart installed Fedora KDE alongside the kept
 Windows on the rig — `%pre` snapshots the ESP to the stick, `liveimg` from
 the stick, `%post` runs the R21 boot-chain checklist and writes a
 schema-valid `outcome.json` — `docs/validation-results/v2-install.csv`
-row 3, `pass-plumbing` (`rig/hyperv/v2.sh`). Next: the prologue as product
-code (re-validate, R18 disk check, shrink, handoff), rollback from the
-snapshot, then the physical rows with Secure Boot on.
+row 3, `pass-plumbing` (`rig/hyperv/v2.sh`). **2026-09-12, first physical
+live-boot row, Secure Boot on:** the Acer Aspire ran `RUN-VERIFY.cmd` —
+scanner → `New-Job.ps1` (the job writer, first version) → kickstart →
+handoff → installer through shim → identity by serial, display, **Wi-Fi
+(28 networks)**, image read back at 22.6 MB/s → back to Windows
+(`v1-live-boot.csv` row 4). Its C: still carries the dirty flag, so the
+job forced clean-slate. Next: the prologue as product code (re-validate,
+R18 disk check, shrink, handoff), rollback from the snapshot.
 
 **Decided (2026-09-08): the build is a vertical, not a list.** One
 front-to-back, one-click flow, reversible half first (schemas → OneDrive

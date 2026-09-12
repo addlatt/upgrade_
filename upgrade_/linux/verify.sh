@@ -24,7 +24,7 @@
 set -u
 JOB=${1:?job.json path}
 LABEL=${2:-UPGV0}
-VERIFY_VERSION=0.3.0
+VERIFY_VERSION=0.3.1
 STICK=/run/install/repo
 REPORT=$STICK/upgrade_/report
 STORAGE_KS=/tmp/upgrade_-storage.ks
@@ -56,8 +56,13 @@ echo "== job $JOB_ID path=$PATH_CHOSEN disk serial='$J_SERIAL' unique_id='$J_UID
 # Linux exposes the same hex in /dev/disk/by-id names (nvme-eui.<hex>,
 # wwn-0x<hex>, scsi-3<hex>) - matched as a case-insensitive hex substring.
 # The serial, when Windows had one, is matched the same way as a second vote.
-norm() { echo "$1" | tr 'A-Z' 'a-z' | sed 's/^eui\.//; s/[^0-9a-f]//g'; }
-uid_hex=$(norm "$J_UID"); serial_norm=$(echo "$J_SERIAL" | tr 'A-Z' 'a-z' | tr -d ' _.-')
+# Only an id that IS hex (eui.<hex>, a WWN, a bare hex string) is matched by
+# its hex; a padded ATA text id ("ATA     HFS256G39TND-N210A   <serial>", as
+# the Aspire's Windows reports it, 2026-09-12) would otherwise be stripped to
+# meaningless hex fragments - the serial vote handles those disks.
+norm() { echo "$1" | tr 'A-Z' 'a-z' | sed 's/^eui\.//; s/^0x//' | tr -d ' _.-'; }
+uid_hex=$(norm "$J_UID"); echo "$uid_hex" | grep -qE '^[0-9a-f]{8,}$' || uid_hex=""
+serial_norm=$(echo "$J_SERIAL" | tr 'A-Z' 'a-z' | tr -d ' _.-')
 DISK=""; MATCHED_BY=""
 for link in /dev/disk/by-id/*; do
     [ -e "$link" ] || continue

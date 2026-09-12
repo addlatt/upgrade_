@@ -151,6 +151,26 @@ back byte-for-byte against the stick's manifest by `%pre` in the live
 session before anything is decided. What this gate still lacks is the
 install itself — the destructive half — and Secure Boot on.
 
+**First physical row, Secure Boot ON (2026-09-12).** Acer Aspire A515-51G
+(InsydeH2O V1.21, now Windows 11 Home 22631), the one-click
+`RUN-VERIFY.cmd` from the stick: scanner → job writer (`New-Job.ps1`) →
+kickstart → handoff. Row 4 of `v1-live-boot.csv`, `pass-plumbing` with
+`secureboot=on`: `fired-once`, no keypress; the unmodified Fedora installer
+booted through shim with the firmware's Secure Boot variable reading 1
+inside the live session; identity matched **by serial** (Windows reports
+an ATA disk's unique id as padded model+serial text, not hex — the
+verifier's hex match correctly found nothing and the serial vote found
+`ata-HFS256G39TND-N210A_…`) with the size exact, on a machine that also
+carries a second 1 TB disk with an Ubuntu install the check had to not
+pick; display 1920×1080 on HDMI; **Wi-Fi checked for the first time**
+(`wlp3s0` scanned 28 networks); the 2.6 GB KDE image read back
+byte-identical at **22.6 MB/s** — the honest number for that stick's
+time estimate; Windows returned by itself. The job writer forced
+**clean-slate**: this C: still carries the NTFS dirty flag (RISKS R18 —
+unchanged since 2026-09-08), so shrink is unmeasurable and keep-Windows
+cannot be offered; the ESP (100 MiB, 46 MB free) and disk health would
+have allowed it. Nothing installed.
+
 **Pass.** Hands-off from power-on to login, Secure Boot still enabled.
 
 **If it fails.** A known simpler shape exists: ship the *unmodified* Fedora

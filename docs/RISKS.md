@@ -655,6 +655,15 @@ person is shown before walking away. Rows in
 `docs/validation-results/v1-live-boot.csv` carry `desktop_image=` and the
 MB/s in `notes`. Not yet demonstrated on a counterfeit stick.
 
+**First physical read-back (2026-09-12).** On the Aspire the 2.6 GB KDE
+image read back byte-identical from the 8 GB "General UDisk" at
+**22.6 MB/s** — about two minutes, and the number the time estimate must
+be built from. The same stick, on the G16 that morning, dropped off the
+bus twice under a sustained 5 GB write with a burst of Windows disk
+errors (event 51) until it was re-seated: a loose connection this time,
+but exactly the shape a failing stick presents, and the read-back gate is
+what would have caught a silent version of it.
+
 **Closes when.** The cutover's read-back checksum verification (which runs
 before the commit line, while Windows still exists) is implemented as a hard
 gate — done — and demonstrated to catch a known-counterfeit stick.
@@ -780,6 +789,14 @@ built the same day:
 **If real.** The safety-copy path is offered to machines that cannot deliver
 it; the prologue fails late, after intent capture and hard confirmation —
 recoverable, but exactly the walk-away-killing stop the design forbids.
+
+**The fork, taken by code (2026-09-12).** The Aspire's C: still carries the
+dirty flag (`Cannot shrink a partition containing a volume with errors`),
+and the first job writer (`New-Job.ps1`) did what the decision says:
+shrinkable unmeasured → keep-Windows not offered → `intent.path =
+clean-slate`, `path_reason = forced-no-room`, with the ESP and disk health
+both recorded as fine. The prologue's disk-check step that would turn
+that into a real measurement is still owed.
 
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations

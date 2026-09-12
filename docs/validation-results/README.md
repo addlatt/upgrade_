@@ -333,6 +333,11 @@ hardware, writes the storage `%include` and the report → reboot → Windows.
 
 - `pass-plumbing` on the rig, then on an owned physical machine with
   Secure Boot **on** (the same signed chain that fired V0 on the Acer).
+  **Done 2026-09-12:** row 4, Acer Aspire A515-51G, `secureboot=on`, via
+  `RUN-VERIFY.cmd` — the stick's own files (`v0-handoff.csv`,
+  `upgrade_/report/verify.json`) fed to `v1-verdict.py` with the machine's
+  firmware string; the V0 row was transported verbatim into
+  `v0-handoff.csv` as well.
 - The physical rows are what the vendor matrix's "live boot" and
   "hardware verify" columns are filled from — one half-hour visit per
   machine, read-only.
