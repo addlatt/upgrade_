@@ -7,8 +7,23 @@ on its own when it cannot. Nothing on the internal disk is changed. The
 one boot-configuration change the test makes is undone on return
 whatever happens.
 
-THE ONE-CLICK WAY
------------------
+THE LIVE-BOOT TEST (V1) - the second thing this stick can do
+------------------------------------------------------------
+Double-click  RUN-VERIFY.cmd  instead of RUN-TEST.cmd. Same one click.
+It scans, writes job.json for this computer, generates the kickstart,
+arms the same one-time handoff and restarts. This time the stick boots
+the Fedora installer: it checks that this is the right computer (disk
+serial and size), checks the display and Wi-Fi hardware, reads the
+desktop image on this stick back byte for byte, writes its report to
+upgrade_\report\ on this stick and restarts back into Windows.
+NOTHING IS INSTALLED. It takes a few minutes longer than the V0 test
+(reading a 2.6 GB image off a slow stick is most of it). When Windows
+comes back, the same result window appears; the row lands in
+v0-handoff.csv and the report in upgrade_\report\verify.json.
+If it refuses to start it changes nothing - read its message.
+
+THE ONE-CLICK WAY (V0)
+----------------------
  1. Plug this stick into the computer under test.
  2. Open it and double-click  RUN-TEST.cmd .  Click "Yes" on the blue
     prompt. That is the only click.

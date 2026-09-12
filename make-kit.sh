@@ -96,6 +96,7 @@ selftest "handoff harness" "$HARNESS"
 selftest "V8 materialization harness" "$ROOT/evaluate/windows/Test-Materialize.ps1"
 selftest "stick writer" "$ROOT/evaluate/windows/Write-UpgradeStick.ps1"
 selftest "kickstart generator" "$ROOT/upgrade_/windows/New-Kickstart.ps1"
+selftest "job writer" "$ROOT/evaluate/windows/New-Job.ps1"
 bash -n "$ROOT/upgrade_/linux/verify.sh" || fail "verify.sh does not parse"
 bash -n "$ROOT/upgrade_/linux/outcome.sh" || fail "outcome.sh does not parse"
 grep -q 'boot-install' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the boot-install branch"
@@ -109,6 +110,8 @@ parsecheck() {
 }
 parsecheck "$SCANNER_DIST"
 parsecheck "$HARNESS"
+parsecheck "$ROOT/evaluate/windows/New-Job.ps1"
+parsecheck "$ROOT/upgrade_/windows/New-Kickstart.ps1"
 
 # --- 5. payload bits --------------------------------------------------------
 for f in Shell.efi shimx64.efi grubx64.efi; do
@@ -141,6 +144,9 @@ crlf "$PAYLOAD/RUN-TEST.cmd"        "$D/RUN-TEST.cmd"
 crlf "$PAYLOAD/ARM-HANDOFF.cmd"     "$D/ARM-HANDOFF.cmd"
 crlf "$PAYLOAD/CHECK-HANDOFF.cmd"   "$D/CHECK-HANDOFF.cmd"
 crlf "$PAYLOAD/README-STICK.txt"    "$D/README-STICK.txt"
+crlf "$PAYLOAD/RUN-VERIFY.cmd"      "$D/RUN-VERIFY.cmd"
+cp "$ROOT/evaluate/windows/New-Job.ps1"        "$D/New-Job.ps1"
+cp "$ROOT/upgrade_/windows/New-Kickstart.ps1"  "$D/New-Kickstart.ps1"
 # signed payload: the product path, at the removable-media default location
 cp "$BITS/shimx64.efi"  "$D/EFI/BOOT/BOOTX64.EFI"
 cp "$BITS/grubx64.efi"  "$D/EFI/BOOT/grubx64.efi"
