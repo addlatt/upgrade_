@@ -80,7 +80,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.1.0'
+$PrologueVersion = '0.1.1'
 $TaskName = 'upgrade_ prologue resume'
 $ConfirmExpected = 'CONVERT'
 $GrubEnvRel = 'EFI\BOOT\grubenv'
@@ -440,15 +440,26 @@ function Measure-PrologueShrink {
 
 function Get-PrologueCheckOutcome {
     # After the disk-check restart: what actually ran. Wininit logs chkdsk's
-    # boot-time output as event 1001; found.000 holds orphaned fragments.
-    param([string]$SinceUtc)
-    $r = [ordered]@{ Wininit1001 = $null; Found000 = $false; Dirty = 'unknown' }
-    try {
-        $since = ([DateTime]::Parse($SinceUtc, $null, [Globalization.DateTimeStyles]::RoundtripKind)).ToLocalTime()
-        $ev = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = 'Microsoft-Windows-Wininit'; Id = 1001; StartTime = $since } -ErrorAction SilentlyContinue |
-              Sort-Object TimeCreated -Descending | Select-Object -First 1
-        if ($ev) { $t = "$($ev.Message)" -replace "`r", ''; if ($t.Length -gt 6000) { $t = $t.Substring(0, 6000) + "`n[truncated]" }; $r.Wininit1001 = $t }
-    } catch { }
+    # boot-time output as event 1001 - and it does so AFTER logon (rig run 1,
+    # 2026-09-12: the event landed 17 s after the resume had looked for it),
+    # so this polls for up to two minutes before saying it is not there.
+    # found.000 holds orphaned fragments.
+    param([string]$SinceUtc, [int]$WaitSeconds = 120)
+    $r = [ordered]@{ Wininit1001 = $null; Found000 = $false; Dirty = 'unknown'; WaitedSeconds = 0 }
+    $since = try { ([DateTime]::Parse($SinceUtc, $null, [Globalization.DateTimeStyles]::RoundtripKind)).ToLocalTime().AddMinutes(-2) } catch { (Get-Date).AddHours(-2) }
+    $t0 = Get-Date
+    while ($true) {
+        try {
+            # filter by log, id and time only; the provider is matched here - a
+            # ProviderName in the hashtable threw "The parameter is incorrect" on the rig
+            $ev = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Id = 1001; StartTime = $since } -ErrorAction SilentlyContinue |
+                  Where-Object { "$($_.ProviderName)" -eq 'Microsoft-Windows-Wininit' } | Sort-Object TimeCreated -Descending | Select-Object -First 1
+            if ($ev) { $t = "$($ev.Message)" -replace "`r", ''; if ($t.Length -gt 6000) { $t = $t.Substring(0, 6000) + "`n[truncated]" }; $r.Wininit1001 = $t; break }
+        } catch { }
+        $r.WaitedSeconds = [int]((Get-Date) - $t0).TotalSeconds
+        if ($r.WaitedSeconds -ge $WaitSeconds) { break }
+        Start-Sleep -Seconds 10
+    }
     try { $r.Found000 = [bool](Get-ChildItem -Path 'C:\' -Force -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^found\.\d{3}$' }) } catch { }
     $r.Dirty = Get-PrologueDirty
     $r
@@ -567,7 +578,10 @@ function Reset-GrubEnv {
 
 function Register-ResumeTask {
     param([string]$State)
-    Copy-Item $PSCommandPath (Join-Path $State 'Invoke-Prologue.ps1') -Force
+    # a resumed run IS the state dir's copy already (run 1 on the rig, 2026-09-12:
+    # "Cannot overwrite the item ... with itself" stopped the conversion at the arm)
+    $copy = Join-Path $State 'Invoke-Prologue.ps1'
+    if ([IO.Path]::GetFullPath($PSCommandPath).ToLower() -ne [IO.Path]::GetFullPath($copy).ToLower()) { Copy-Item $PSCommandPath $copy -Force }
     $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
     $args = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $State 'Invoke-Prologue.ps1')`" -Resume -StateDir `"$State`""
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $args
@@ -655,6 +669,7 @@ function Stop-Prologue {
     $S.Stage = "stopped:$StoppedAt"
     if ($S.Handoff.Armed -and $S.Handoff.EntryGuid) {
         & bcdedit /deletevalue '{fwbootmgr}' bootsequence 2>&1 | Out-Null; & bcdedit /delete $S.Handoff.EntryGuid 2>&1 | Out-Null
+        $S.Handoff.Armed = $false; $S.Handoff.Marker = $null
         Write-Log '  removed the one-shot boot entry'
     }
     if ($S.BitLocker.Suspended) { & manage-bde -protectors -enable C: 2>&1 | Out-Null; Write-Log '  BitLocker protection re-enabled' }

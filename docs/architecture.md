@@ -347,7 +347,15 @@ Concretely (decided 2026-08-30): put the Windows Boot Manager entry first in
 `BootOrder` (re-creating it if absent), restore Windows' own
 `EFI/Boot/bootx64.efi` from the step-8 snapshot, and leave the Linux
 partitions and `EFI/fedora` in place until the user asks for the space back
-— rollback is a boot-order change, not a deletion. Owning it
+— rollback is a boot-order change, not a deletion. **Built 2026-09-12,
+Windows side:** `upgrade_/windows/Invoke-Rollback.ps1` (`ROLLBACK.cmd`
+on the kit stick, run from the kept Windows): reads the job, the outcome
+and the snapshot, refuses on a moved stick or a path that kept no
+Windows, restores `EFI/Boot/bootx64.efi` from the snapshot with its
+checksum verified (the shim copy saved to the stick), puts `{bootmgr}`
+first with `bcdedit`, records `upgrade_/rollback.json`; rows in
+`docs/validation-results/r21-rollback.csv`. The Linux-side twin
+(`efibootmgr`, from `settle-in`) comes with `settle-in`. Owning it
 here rather than leaving it implied is deliberate: unowned recovery paths are
 discovered by the person whose laptop is already a brick. On the clean-slate
 path there is no rollback, which is precisely why that path has a human gate
@@ -399,7 +407,8 @@ prologue's record (`upgrade_/prologue.json`) is what `%post`'s
 `outcome.sh` carries into `outcome.json` as the `prologue` block. Rows:
 `docs/validation-results/r18-prologue.csv`. The cutover (stage 2) is the
 kickstart, `%pre` verifier and `%post` checklist proven in
-`v2-install.csv`. Rollback and `settle-in` are not built.
+`v2-install.csv`. Rollback's Windows side is built (`Invoke-Rollback.ps1`, `ROLLBACK.cmd`,
+`r21-rollback.csv`); `settle-in` is not.
 
 ---
 
@@ -769,8 +778,9 @@ one-click vertical**, split at the commit line:
   re-measure by both read-only paths, the fork, the shrink, BitLocker
   suspension, the handoff — and a stopped `outcome.json` at every
   refusal. Its rig bench is `rig/hyperv/prologue.sh`
-  (`docs/validation-results/r18-prologue.csv`). Still to build: the
-  restore half of the snapshot (rollback), `settle-in`.
+  (`docs/validation-results/r18-prologue.csv`). The restore half of the
+  snapshot (rollback, Windows side: `Invoke-Rollback.ps1`,
+  `r21-rollback.csv`) is built the same day. Still to build: `settle-in`.
 
 **Where it is built**: the Hyper-V rig first (disposable, restorable from a
 VHDX in a minute — where a first vertical gets broken and restarted twenty

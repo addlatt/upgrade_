@@ -457,3 +457,31 @@ writes its own row for the same run.
   kept. What a real flag does under the ladder is exactly the unspoofable
   residue (rule #5); the rig's `fsutil dirty set` is our model of it.
 
+## `r21-rollback.csv` — rollback: Windows first again, its fallback loader restored from the snapshot (risk R21)
+
+One row per run, appended by `rig/hyperv/rollback-verdict.py` from the
+run's own evidence: the rollback's record on the stick
+(`upgrade_/rollback.json`, written by `Invoke-Rollback.ps1` run from the
+kept Windows through `ROLLBACK.cmd`), the offline ESP manifests before the
+conversion (Windows' own `EFI/Boot/bootx64.efi`), after the boot cycles
+and after the rollback, and the boot marker the bench writes when Windows
+comes up afterwards with **no key pressed**. Do not hand-edit; add rows by
+running `rig/hyperv/prologue.sh rollback` on a converted rig disk.
+
+| Column | Meaning |
+|---|---|
+| `record` | y/n — `rollback.json` exists |
+| `restored` | y/n — the rollback copied Windows' fallback loader back (it had been shim) |
+| `loader_matches_snapshot` | y/n — offline, `EFI/Boot/bootx64.efi` after the rollback is byte-identical (sha256) to the pre-conversion inspection's |
+| `windows_first` | y/n — `{bootmgr}` leads the firmware display order after `bcdedit ... /addfirst` |
+| `windows_direct_boot` | y/n — the next start reached Windows with no key pressed (bench marker `direct-after-rollback`) |
+| `linux_partitions_intact` | y/n — the GPT after the rollback equals the GPT after the cycles |
+| `efi_fedora_intact` | y/n — every file under `EFI/fedora/` unchanged |
+| `result` | `pass-plumbing` when all of the above; else the first failing item by name (`record-missing`, `not-restored`, `loader-mismatch`, `windows-not-first`, `windows-not-direct`, `linux-touched`, `efi-fedora-touched`) |
+| `notes` | the shas and orders before/after, the GPT and `EFI/fedora` comparison |
+
+A rig row closes the plumbing of the restore half of the R21 snapshot; the
+firmware clause (does *this* vendor's firmware honour `{fwbootmgr}
+displayorder` from Windows after a Linux install put its own entry first)
+is a physical-matrix column.
+

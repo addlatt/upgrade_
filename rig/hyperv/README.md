@@ -63,7 +63,7 @@ Two more Hyper-V facts learned the same day:
 | `new-vm.ps1` | creates the Gen 2 guest: Secure Boot on (template selectable), vTPM, two DVDs, DVD-first |
 | `vm.ps1` | the QMP stand-in: start/stop, WMI keyboard (`type`, `key`, `press-any-key`), thumbnail `shot`, `fw`, `sb`, `dvd`, `disk`, `boot-first`, PowerShell Direct `ps`, `copy` |
 | `v1b.sh` | the V1b alongside-install bench (run-book below) |
-| `prologue.sh`, `prologue-verdict.py` | the prologue bench: the product's one-click conversion flow with the dirty flag injected, then the install; writes `r18-prologue.csv` (and `v2-install.csv` via `v2-verdict.py`) |
+| `prologue.sh`, `prologue-verdict.py`, `rollback-verdict.py` | the prologue bench (and its `rollback` step, `r21-rollback.csv`): the product's one-click conversion flow with the dirty flag injected, then the install; writes `r18-prologue.csv` (and `v2-install.csv` via `v2-verdict.py`) |
 | `v3.sh`, `v3-verdict.py` | the V3 BITLK-read bench: builds the OEMDRV-v3 transport, drives the Windows plant and the Fedora read, writes the evidence rows |
 | `guest/oemdrv-run.sh`, `guest/v3-bootstrap.sh` | the Fedora-side **run hook**: a unit that runs `OEMDRV:/run.sh` as root on every boot and leaves `run.log` on the volume — installed once from the console by the bootstrap |
 | `guest/v3-plant.ps1`, `guest/v3-read.sh`, `guest/v3-encrypt.ps1` | V3 guest halves: Windows plants + hashes the corpus and `C:\Users` and does a full shutdown; Fedora unlocks, mounts read-only and re-hashes; the encrypt script builds the other configs in the product's order (encrypt, then shrink) |

@@ -1173,6 +1173,17 @@ kept on purpose) — and writes every result to `outcome.json`. Three rig
 runs in `docs/validation-results/v2-install.csv`; row 3 `pass-plumbing`.
 Residue unchanged: Secure Boot on, vendor firmware.
 
+**The restore half is built (2026-09-12).** `upgrade_/windows/Invoke-Rollback.ps1`
+(`ROLLBACK.cmd` on the stick, run from the kept Windows): every read
+first — job, outcome (`keep-windows`, Windows kept, snapshot named), this
+disk's identity against the job, the snapshot's checksum for
+`EFI/Boot/bootx64.efi`, what the slot holds now — then the two writes:
+the file back from the snapshot (its own checksum verified before and
+after; the shim copy saved to `upgrade_/rollback/`), and `{bootmgr}`
+first in `{fwbootmgr}` `displayorder`. Deletes nothing; 14 self-test
+cases; rig rows in `docs/validation-results/r21-rollback.csv`. The
+Linux-side twin comes with `settle-in`.
+
 ## R22 — Windows servicing re-takes the firmware boot order · medium · open
 
 **What.** On the keep-Windows path Windows stays installed, and Windows

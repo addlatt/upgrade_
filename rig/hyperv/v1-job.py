@@ -42,7 +42,8 @@ job["fork"] = {"if_cannot_keep": "stop", "volume_check_consented": True}
 job["storage"]["shrinkable_gb"] = float(facts.get("shrink_gb") or 0) or None
 job["storage"]["shrink_source"] = "storage-api" if job["storage"]["shrinkable_gb"] else None
 job["storage"]["shrink_error"] = None
-job["storage"]["volume_health"] = {"dirty": "clean", "scan": None}
+# the real flag: the prologue re-validates it against fsutil and stops on a change (2026-09-12)
+job["storage"]["volume_health"] = {"dirty": facts.get("dirty", "unknown"), "scan": None}
 job["storage"]["physical_disk"] = {"health_status": facts.get("health", "Healthy"), "operational_status": "OK"}
 job["storage"]["esp"] = {"size_bytes": int(facts["esp"]["size"]), "free_bytes": int(facts["esp"]["free"]),
                          "fits_alongside_install": int(facts["esp"]["free"]) >= 32 * 1024 * 1024}

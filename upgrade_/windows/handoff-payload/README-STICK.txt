@@ -38,6 +38,15 @@ before anything is changed, and a refusal writes upgrade_\outcome.json
 on this stick saying where and why. When you next boot Windows from
 the menu, a small window confirms the one-time boot entry was removed.
 
+ROLLING BACK (ROLLBACK.cmd) - Windows first again
+--------------------------------------------------
+On a computer converted with Windows kept: boot Windows from the boot
+menu, double-click ROLLBACK.cmd, type ROLLBACK. It puts Windows Boot
+Manager first in the firmware's order and puts Windows' own fallback
+boot file back from the copy this stick took before the conversion.
+It deletes nothing: Linux stays on the disk and in the firmware's boot
+menu. Restart, and Windows comes up by itself.
+
 THE ONE-CLICK WAY (V0)
 ----------------------
  1. Plug this stick into the computer under test.

@@ -29,6 +29,9 @@
 #                             own return record (prologue-return.json) and pulls every record
 #   prologue.sh verdict       prologue-verdict.py -> docs/validation-results/r18-prologue.csv,
 #                             then v2-verdict.py -> v2-install.csv (the install row)
+#   prologue.sh rollback      VM off, after the cycles: Windows via GRUB, ROLLBACK.cmd, record pulled,
+#                             ESP inspected offline, then a keyless start must bring Windows up
+#                             directly -> rollback-verdict.py -> r21-rollback.csv
 #   prologue.sh restore       VM off: main UPGRIGHV.vhdx back, prologue disk detached
 #   prologue.sh run           prepare -> stick -> windows -> inspect pre -> dirty -> convert -> wait-off
 #                             -> inspect post-install -> cycle windows w1 -> cycle linux l1
@@ -111,9 +114,15 @@ convert)
     mkdir -p "$A"
     L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume in the guest" >&2; exit 1; }
     guest "Remove-Item -Recurse -Force '$GUEST_STATE' -ErrorAction SilentlyContinue; Remove-Item ${L}:\\upgrade_\\prologue.json,${L}:\\upgrade_\\prologue-return.json,${L}:\\upgrade_\\outcome.json -Force -ErrorAction SilentlyContinue"
-    # the one-click flow itself, the typed word on stdin; the prologue's own restart ends it
-    guest "cmd /c \"echo CONVERT| ${L}:\\RUN-CONVERT.cmd\"" | tee "$A/convert.log"
-    grep -q 'restarting in 15 s' "$A/convert.log" || { echo "prologue: the flow did not reach a restart - read $A/convert.log" >&2; exit 1; }
+    # Hyper-V has no USB: the product's job writer refuses this SCSI "stick" (bus
+    # SAS) as it must (R16; seen 2026-09-12, artifacts/prologue/convert-runconvert-
+    # refused.log). So steps 1-3 of RUN-CONVERT.cmd are the rig's schema-validated
+    # job stand-in (v1.sh job -> v1-job.py + New-Kickstart.ps1, as V1/V2 did) and
+    # step 5 - the prologue, the code under test - runs exactly as the launcher
+    # runs it. The typed word is the launcher's; here it is passed straight.
+    ./v1.sh job
+    guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Start -StickDrive ${L}: -ConfirmWord CONVERT" | tee "$A/convert.log"
+    grep -q 'restarting in 15 s' "$A/convert.log" || { echo "prologue: the prologue did not reach a restart - read $A/convert.log" >&2; exit 1; }
     ;;
 wait-off) wait_off "${2:-5400}" ;;
 inspect)
@@ -137,6 +146,33 @@ cycle)
     fi
     ;;
 pull) mkdir -p "$A"; pull_all "${2:-manual}"; ls -la "$A" ;;
+rollback)
+    # VM off with the converted disk in place (after the cycles): boot Windows through
+    # GRUB, run the stick's ROLLBACK.cmd (ROLLBACK on stdin), pull its record, power off;
+    # inspect the ESP offline; then start with NO key pressed - the firmware must bring
+    # Windows up by itself - mark it, power off; verdict -> r21-rollback.csv
+    need_off; PS start; sleep 10; shot grub-rollback
+    for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; sleep 1; done; PS key 13
+    wait_windows 600; L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume" >&2; exit 1; }
+    guest "cmd /c \"echo ROLLBACK| ${L}:\\ROLLBACK.cmd\"" | tee "$A/rollback.log"
+    pull "${L}:\\upgrade_\\rollback.json" rollback.json
+    guest "bcdedit /enum '{fwbootmgr}'" > "$A/bcd-fwbootmgr-after-rollback.txt" 2>/dev/null || true
+    PS stop; wait_off 300
+    "$SELF" inspect post-rollback
+    PS start; t0=$(date +%s)
+    until guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV'; do
+        [ "$(vm_state)" = Off ] && { echo "prologue: the guest powered off instead of reaching Windows (GRUB default?)" >&2; break; }
+        [ $(( $(date +%s) - t0 )) -ge 600 ] && { shot rollback-stuck; echo "prologue: no Windows within 600 s" >&2; break; }
+        sleep 10
+    done
+    if guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV'; then
+        shot windows-direct
+        guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-boot,' + (Get-Date).ToUniversalTime().ToString('o') + ',direct-after-rollback,BootCurrent=' + ((bcdedit /enum '{fwbootmgr}' | Select-String 'displayorder' | Select-Object -First 1) -replace '\\s+',' '))" >/dev/null 2>&1 || true
+        pull "${L}:\\upgrade_\\boots.log" boots.log
+        PS stop; wait_off 300
+    fi
+    python3 rollback-verdict.py "$A" ../../docs/validation-results/r21-rollback.csv "$HARNESS_VERSION" "$FIRMWARE"
+    ;;
 verdict)
     mkdir -p "$A"
     python3 prologue-verdict.py "$A" "$CSV" "$HARNESS_VERSION" "$FIRMWARE" || true
