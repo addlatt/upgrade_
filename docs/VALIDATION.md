@@ -416,7 +416,10 @@ fired (the rig auto-logs on; the Aspire's person signed in), so prologue
 0.3.0 resumes as SYSTEM at startup and the bench now switches the guest's
 autologon **off** before the flow (`prologue.sh autologon off`); a row
 counts as walk-away only when `state.Resumes` shows SYSTEM, session 0, no
-explorer, and the verdict script writes `resume-attended` otherwise.
+explorer, and the verdict script writes `resume-attended` otherwise. Row 6
+(2026-09-13, `pass-plumbing`) is the first such row: both resumes SYSTEM
+in session 0 with autologon off, 472 s from the check restart to the first
+Linux boot, nobody signed in.
 
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.

@@ -824,12 +824,21 @@ escalation), records who ran it and whether a session existed
 (`state.Resumes`), and queues its messages as a `RunOnce` notice for the
 next sign-in. The alternative — holding the person's Windows password for
 an autologon — was considered and refused (`architecture.md`, "the
-walk-away resume"). Owed evidence: a rig row with autologon **off** in the
-guest, the resume recorded as SYSTEM in session 0 with no explorer, and
-the Wininit 1001 text read with no logon at all (it was only ever seen
-landing "after logon" under autologon, where logon follows boot by
-seconds); on return the Wininit 1001 text, any `found.000` and the flag
-re-read. If the flag survives the spot-fix the prologue rescans and
+walk-away resume"). **Fired the same day** (`r18-prologue.csv` row 6,
+`pass-plumbing`, autologon off in the guest, `query user` empty
+throughout): both resumes ran as `NT AUTHORITY\SYSTEM` in session 0, no
+explorer, 10 s and 6 s after boot, the stick found 4 s and 3 s later; the
+Wininit 1001 text was read with no logon at all (the earlier "lands after
+logon" was the rig's autologon following boot by seconds); the RunOnce
+notice was queued and the task removed on return; the state directory's
+ACL read back as SYSTEM + Administrators full, Users read. The whole
+check → resume → shrink → handoff → install → first Linux boot took
+472 s with nobody at the keyboard. Also seen on this row: with the 0.2.0
+evidence read, the rig's injected flag now resolves to `chkdsk /f`, not
+the spot-fix — `Repair-Volume -Scan` on a `fsutil dirty set` volume logs
+"found problems" and marks it "Full Repair Needed" — so the rig's model of
+a flag has moved closer to the Aspire's. On return the Wininit 1001 text,
+any `found.000` and the flag are re-read. If the flag survives the spot-fix the prologue rescans and
 escalates to `/f` only if that rescan logs errors, once; otherwise it
 stops and says so. Then both read-only measurements, the fork from
 `job.json`, the shrink. **The job writer changed with it (0.2.0):** a

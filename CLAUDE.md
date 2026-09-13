@@ -172,8 +172,13 @@ its record into `outcome.json`. **Fired on the rig the same day**
 `v2-install.csv` row 4): injected flag → full boot-time check → 57.8 GB
 by both paths → 25 GB freed → handoff → install → record carried into
 `outcome.json`; and **rollback** (`Invoke-Rollback.ps1`, `ROLLBACK.cmd`;
-`r21-rollback.csv` row 1 `pass-plumbing`). Next: the Aspire's real flag
-through `RUN-CONVERT.cmd` (first physical step-1b row, and the first
+`r21-rollback.csv` row 1 `pass-plumbing`). **2026-09-13, the walk-away
+resume:** prologue 0.3.0 resumes as SYSTEM at startup (no sign-in; the
+person's password is never taken — `architecture.md`, "the walk-away
+resume"); `r18-prologue.csv` row 6 `pass-plumbing` with the rig's
+autologon off, both resumes in session 0, 472 s from the check restart to
+the first Linux boot with nobody at the keyboard. Next: the Aspire's real
+flag through `RUN-CONVERT.cmd` (first physical step-1b row, and the first
 physical install with Windows kept if the fork lands there); `settle-in`.
 
 **Decided (2026-09-08): the build is a vertical, not a list.** One
