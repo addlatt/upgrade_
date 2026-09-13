@@ -39,11 +39,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0upgrade-scan.ps1" -Out
 
 echo.
 echo === Saving machine capture for the corpus ===
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0upgrade-scan.ps1" -DumpMachine "%~dp0machine-capture.json"
+REM The capture name carries the scan time so two runs on one visit (for
+REM example both SATA modes for V5) never overwrite each other.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& '%~dp0upgrade-scan.ps1' -DumpMachine ('%~dp0machine-capture-{0}.json' -f (Get-Date -Format yyyyMMdd-HHmm))"
 
 echo.
 echo ============================================================
-echo   Done. The report and machine-capture.json are saved onto
+echo   Done. The report and machine-capture-DATE-TIME.json are saved onto
 echo   this USB stick. Unplug it and bring it back.
 echo ============================================================
 echo.

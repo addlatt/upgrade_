@@ -593,3 +593,64 @@ no shrink, no handoff — those are `r18-prologue.csv`'s rows), and a rig row
 closes plumbing only (its stick is a SCSI disk, present from power-on).
 Residue named in R24: managed devices whose policy blocks task
 registration, Fast Startup's hybrid shutdown, BitLocker with a PIN.
+
+## `v5-controller-mode.csv` — the "Storage controller mode" check on real Intel RST hardware, both directions (gate V5, risk R1)
+
+One row per scanner run in one SATA mode, written by **`rig/v5-verdict.py`**
+from the two files `RUN-SCANNER.cmd` leaves on the stick — the JSON report
+and the `-DumpMachine` capture of that run — never by hand:
+
+    rig/v5-verdict.py --sata-mode-set raid|ahci|absent <upgrade-report-*.json> <machine-capture-*.json>
+
+The one operator input is the SATA mode the firmware setup was set to before
+the run. Everything else is read from the files, and `result` compares the
+operator's word against the PCI class code the controller actually declared
+to Windows, so a mislabelled pair records as `mode-mismatch`, not as
+evidence. A capture marked `Synthetic` is refused (`error`): the VM spoof is
+plumbing, never a V5 row. The report is discarded after the row is written
+(it holds the machine's details and is gitignored); the capture is curated
+into `evaluate/windows/corpus/` with an `Expected` block, so the machine is
+replayed on every `-SelfTest` forever.
+
+| Column | Meaning |
+|---|---|
+| `timestamp` | the report's `ScannedUtc` — when the scanner ran on the machine |
+| `harness` | `v5-verdict <version>` |
+| `vendor`, `model`, `firmware`, `os` | the machine under test, from the report's `System` block (`BiosVersion`, OS caption + build) |
+| `scanner_version` | the scanner that produced the report |
+| `sata_mode_set` | operator's word: `raid` (RST Premium / Optane / RAID), `ahci`, or `absent` (the setup has no SATA-mode option) |
+| `controller` | every Intel PCI mass-storage-class device (or one with an `iaStor*` service) in the capture, by Windows name; `;`-joined |
+| `pci_id` | its `vvvv:dddd` |
+| `class_code` | the PCI class+subclass Windows published in `CompatibleIDs` — `0104 (RAID)`, `0106 (AHCI)`, `0108 (NVMe)` — the check's third signal |
+| `compatible_ids` | the controller's full `CompatibleIDs` list, verbatim |
+| `driver_service` | the driver service bound (`storahci`, `stornvme`, `iaStorAC`, `iaStorAVC`, `iaStorVD`, …) |
+| `check_status`, `check_detail` | the `Storage controller mode` line of the report |
+| `verdict` | the report's overall level |
+| `result` | see vocabulary below |
+| `notes` | harness facts first (scan/capture times, controllers counted, classes seen, whether an RST or VMD service was bound), then any `operator:` words |
+
+### Result vocabulary
+
+| Result | Meaning | Verdict |
+|---|---|---|
+| `fail-fired` | set to RAID/RST; a controller declares class `0104` (or `iaStorVD` is bound); the check said `fail` and the report is RED | **the positive direction passes** for that machine |
+| `ok-passed` | set to AHCI; no RAID class, no RST service; the check said `ok` | **the negative direction passes** |
+| `warn-rst-on-ahci` | set to AHCI; controller declares AHCI class but an Intel RST driver (`iaStor*`) is bound; the check said `warn` | the negative direction, as the R7 guard designed it — Linux must be shown to see the disk for it to count (cite the row) |
+| `missed` | RAID class or `iaStorVD` present but the check did **not** fail | **the check is wrong** — fix the check, add the capture as a self-test case, never touch the row |
+| `false-fail` | no RAID class, no VMD service, yet the check failed | over-refusal — fix the check |
+| `mode-mismatch` | the operator's mode disagrees with the class code seen | not evidence: the setting did not take, or the wrong pair of files |
+| `option-absent` | the setup exposes no SATA-mode option; the AHCI-side run recorded for the record | this machine cannot give the positive row |
+| `error` | files unreadable, from different machines, unelevated, or a `Synthetic` capture | investigate |
+
+### What "V5 passes" requires
+
+At least one physical machine with **both** a `fail-fired` row and an
+`ok-passed` or `warn-rst-on-ahci` row, its RAID-mode capture curated in the
+corpus with `Expected` `Storage controller mode: fail` and marked real (not
+`Synthetic`). Which of the check's three signals fired is read from the row:
+`class_code` `0104` with a pre-VMD service (`iaStorAC`/`iaStorAVC`) is signal
+3 — the **pre-VMD RST clause** (Skylake–Comet Lake remap generation); a
+`pci_id` from the kernel's `vmd.c` table or `driver_service` `iaStorVD` is
+signal 1 or 2 — **VMD proper** (11th gen+). A row from a pre-VMD machine
+closes only the pre-VMD clause; VMD proper still takes an 11th-gen-or-newer
+machine with RST on. R1 carries the residue.

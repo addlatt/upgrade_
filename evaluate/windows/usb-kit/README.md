@@ -47,7 +47,9 @@ Windows`), and BitLocker all return nothing unelevated.
 ## What comes back on the stick
 
 - `upgrade-report-*.txt` — the human-readable report (also shown on screen).
-- `machine-capture.json` — hardware-only capture. Bring it back and curate it
+- `machine-capture-<date>-<time>.json` — hardware-only capture, one per run (the
+  name carries the scan time so two runs on one visit never overwrite each
+  other). Bring it back and curate it
   into `evaluate/windows/corpus/` with an `Expected` block, so this machine is
   regression-tested forever (CLAUDE.md rule #5). Both filenames are gitignored,
   so a capture left in this folder won't be committed by accident.
