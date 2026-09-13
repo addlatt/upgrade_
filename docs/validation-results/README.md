@@ -454,6 +454,15 @@ writes its own row for the same run.
 | `shrink-short` | `Resize-Partition` freed less than planned, or the GPT disagrees with the record | **fail-loud** |
 | `not-armed`, `handoff-failed`, `install-failed`, `outcome-invalid` | as their names; see `v2-install.csv` | fail |
 | `record-mismatch` | `outcome.json` carries a `prologue` block that is not the prologue's record | fail — `outcome.sh` lost the hand-over |
+| `resume-attended` | (prologue 0.3.0+) a resume ran with a session present — someone was signed in, or the task ran as the person | fail for the walk-away clause — the row's other columns still stand |
+| `resume-with-autologon` | the bench did not switch the guest's autologon off, so the row cannot say whether the resume needed a sign-in | incomplete — re-run with `autologon off` |
+
+From prologue 0.3.0 `notes` also carries one `resume N (<stage>): <account>
+session <id> interactive <bool> explorer <bool> uptime <s> s stick after <s> s`
+entry per restart, straight from `state.Resumes`, and `bench
+AutoAdminLogon=0|1`. A walk-away row is one where every resume reads
+`NT AUTHORITY\SYSTEM session 0 interactive False explorer False` and the
+bench line reads `=0`.
 
 **Rows so far (2026-09-12, rig, Secure Boot off, BitLocker off).** Row 1,
 `stopped-arm-handoff`: everything up to the shrink held (flag confirmed
@@ -530,3 +539,57 @@ firmware clause (does *this* vendor's firmware honour `{fwbootmgr}
 displayorder` from Windows after a Linux install put its own entry first)
 is a physical-matrix column.
 
+
+## `walkaway-probe.csv` — the resume fires with nobody signed in (the walk-away clause of V0/V4; risk R24)
+
+Written by **the prologue's own `-Probe` task, from session 0**
+(`Invoke-Prologue.ps1 -Probe`, launched by `RUN-PROBE.cmd` on the kit) —
+not by a bench script and never by hand. The probe registers the same
+SYSTEM startup task the conversion uses, restarts once, and the task
+itself appends the row to `upgrade_/walkaway-probe.csv` on the stick (and
+`upgrade_/probe.json` beside it), queues the sign-in notice and removes
+itself. Read-only: nothing on the disk changes but the locked state
+directory and the one-shot task. A physical row is **transported verbatim**
+from the stick's file (`tail -n +2`, the `harness` column inserted after
+`timestamp`); rig rows come through `rig/hyperv/prologue.sh probe` the
+same way. Rows 1–2 (2026-09-13): the rig, then the Acer Aspire A515-51G
+(Secure Boot on, Windows 11 Home, a real USB stick).
+
+| Column | Meaning |
+|---|---|
+| `timestamp` | UTC, ISO 8601, when the task wrote the row (after the restart) |
+| `harness` | `0.1.0-hv` (rig) or `<prologue>-physical`, inserted at transport |
+| `prologue_version` | the version that ran |
+| `vendor`, `model`, `bios` | `Win32_ComputerSystem` / `Win32_BIOS` SMBIOSBIOSVersion |
+| `os` | Windows caption and build |
+| `secure_boot` | on / off / unknown at arm time |
+| `stick_bus` | the stick's bus as Windows reports it — `USB` on a real machine, `SAS` on the Hyper-V rig |
+| `run_as` | the account the resume ran as — `NT AUTHORITY\SYSTEM` is the design |
+| `session_id` | the resume's session — `0` means no desktop |
+| `interactive` | `[Environment]::UserInteractive` in the resume |
+| `explorer_running` | whether any `explorer.exe` existed — a signed-in desktop |
+| `uptime_s` | seconds from boot to the resume starting |
+| `stick_wait_s` | seconds the resume polled before the stick's volume id appeared (real firmware enumerates USB late; the poll allows 120) |
+| `notice` | `queued` (RunOnce notice for the next sign-in) or `shown` (a popup, because a session existed) |
+| `task_removed` | y/n — the one-shot task unregistered itself |
+| `result` | see vocabulary below |
+| `notes` | state stage, resume stage, the resume's UTC |
+
+### Result vocabulary
+
+| Result | Meaning | Verdict |
+|---|---|---|
+| `resumed-unattended` | SYSTEM in session 0, no explorer, stick found, task removed | **pass for the firmware/edition in the row** |
+| `resumed-attended` | a session existed when the resume ran — someone signed in early, or the task ran as the person | not a walk-away row; re-run without signing in |
+| `stick-not-found` | the task ran but the stick's volume id never appeared within the poll | fail — USB enumeration slower than the poll, or the stick dropped (R16's loose-stick clause) |
+| `task-not-removed` | everything else held but the task could not unregister itself | fail-loud — clean-up bug |
+
+### What the probe closes
+
+The **resume mechanism** for that firmware and edition: a SYSTEM startup
+task registered by the prologue fires before any sign-in, sees a real
+stick, and cleans up. It does **not** close the conversion (no disk check,
+no shrink, no handoff — those are `r18-prologue.csv`'s rows), and a rig row
+closes plumbing only (its stick is a SCSI disk, present from power-on).
+Residue named in R24: managed devices whose policy blocks task
+registration, Fast Startup's hybrid shutdown, BitLocker with a PIN.

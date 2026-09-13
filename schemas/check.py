@@ -124,6 +124,9 @@ def main():
          del_path(oack, ["risk_acknowledgement"])),
         ("outcome", "an acknowledgement in the outcome with an unknown override is refused",
          set_path(oack, ["risk_acknowledgement", "overrides"], ["disk-health", "bitlocker"])),
+        # R24: the resume evidence names its account; anything but SYSTEM|user is refused
+        ("outcome", "a resume run_as outside SYSTEM|user is refused", set_path(out, ["prologue", "resumes", 0, "run_as"], "other")),
+        ("outcome", "a resume without unattended is refused", del_path(out, ["prologue", "resumes", 0, "unattended"])),
         # the reader rule: an unknown version is a refusal
         ("job", "unknown schema version is refused", set_path(job, ["schema"], "job/2")),
         ("outcome", "unknown outcome version is refused", set_path(out, ["schema"], "outcome/2")),

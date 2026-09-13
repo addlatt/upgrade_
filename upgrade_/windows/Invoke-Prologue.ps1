@@ -105,7 +105,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.3.0'
+$PrologueVersion = '0.3.1'
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -333,6 +333,15 @@ function Get-ResumeContext {
                 Unattended = (-not $UserInteractive -or $SessionId -eq 0) }
 }
 
+function ConvertTo-ResumeEvidence {
+    # The contract's view of one resume (outcome.schema.json prologue.resumes):
+    # SYSTEM or user, never the raw account name.
+    param($R)
+    [ordered]@{ utc = "$($R.Utc)"; run_as = $(if ("$($R.RunAs)" -match '(?i)(^|\\)SYSTEM$') { 'SYSTEM' } else { 'user' })
+                session_id = [int]$R.SessionId; unattended = [bool]$R.Unattended
+                stick_wait_seconds = $(if ($null -ne $R.StickWaitSeconds) { [int]$R.StickWaitSeconds } else { $null }) }
+}
+
 function Get-ProbeResult {
     # The probe's verdict from its own facts. 'resumed-unattended' is the
     # walk-away property; anything else names what was missing.
@@ -412,6 +421,9 @@ function New-PrologueBlock {
             fork_taken = $sh.ForkTaken; requested_bytes = $sh.RequestedBytes; freed_bytes = [long]$sh.FreedBytes
             pagefile_disabled = [bool]$sh.PagefileDisabled; hibernation_disabled = [bool]$sh.HibernationDisabled
         }
+    }
+    if ($S.Contains('Resumes') -and @($S.Resumes).Count -gt 0) {
+        $b.resumes = @(foreach ($r in @($S.Resumes)) { ConvertTo-ResumeEvidence $r })
     }
     if ($S.Staged) {
         $st = $S.Staged
@@ -731,7 +743,7 @@ function Register-ResumeTask {
     # "Cannot overwrite the item ... with itself" stopped the conversion at the arm)
     $copy = Join-Path $State 'Invoke-Prologue.ps1'
     if ([IO.Path]::GetFullPath($PSCommandPath).ToLower() -ne [IO.Path]::GetFullPath($copy).ToLower()) { Copy-Item $PSCommandPath $copy -Force }
-    Protect-StateDir -State $State
+    $script:StateDirAcl = @(Protect-StateDir -State $State)
     # SYSTEM at startup: runs before and without a sign-in (the walk-away half;
     # decided 2026-09-13). The task is registered by a run that already holds
     # UAC-consented elevation, only to survive its own restart, and every exit
@@ -761,8 +773,11 @@ function Protect-StateDir {
     }
     $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule('BUILTIN\Users', 'ReadAndExecute', $inh, 'None', 'Allow')))
     Set-Acl -LiteralPath $State -AclObject $acl
-    $check = (Get-Acl -LiteralPath $State).Access | Where-Object { $_.AccessControlType -eq 'Allow' -and "$($_.IdentityReference)" -match '(?i)Users|Everyone|Authenticated' -and "$($_.FileSystemRights)" -match '(?i)Write|Modify|FullControl|CreateFiles' }
+    $back = (Get-Acl -LiteralPath $State).Access
+    $check = $back | Where-Object { $_.AccessControlType -eq 'Allow' -and "$($_.IdentityReference)" -match '(?i)Users|Everyone|Authenticated' -and "$($_.FileSystemRights)" -match '(?i)Write|Modify|FullControl|CreateFiles' }
     if ($check) { throw "the state directory still grants write access to $(($check | ForEach-Object { $_.IdentityReference }) -join ', '); refusing to register a SYSTEM task over it" }
+    # the mitigation as evidence (RISKS R24): what the directory grants, read back
+    @($back | ForEach-Object { "$($_.IdentityReference)=$($_.FileSystemRights)" })
 }
 
 function Get-LiveResumeContext {
@@ -942,7 +957,7 @@ function Invoke-VolumeStage {
     $S.VolumeCheck.Restarts = [int]$S.VolumeCheck.Restarts + 1; $S.Restarts = [int]$S.Restarts + 1
     $S.Stage = 'check-armed'
     Save-State $S $State; Write-Record $S $Root
-    try { Register-ResumeTask -State $State } catch { Stop-Prologue $S $State $Root $Job 'volume-check' "could not register the resume task ($_); the scheduled check will still run at the next restart, but this conversion is not continuing" }
+    try { Register-ResumeTask -State $State; $S.StateDirAcl = $script:StateDirAcl; Save-State $S $State } catch { Stop-Prologue $S $State $Root $Job 'volume-check' "could not register the resume task ($_); the scheduled check will still run at the next restart, but this conversion is not continuing" }
     Write-Log "      the disk check runs at the next restart; it may be slow - DO NOT interrupt it." 'Yellow'
     Restart-Machine 'running the disk check on C:'
     'restart'
@@ -1219,7 +1234,7 @@ function Invoke-ProbeStart {
     Write-Log "  $($F.Vendor) $($F.Model)   BIOS $($F.BiosVersion)   $($F.OsCaption) $($F.OsBuild)   Secure Boot $($F.SecureBoot)   stick on $($F.Stick.Bus) as $root" 'DarkGray'
     Save-State $S $state
     Register-ResumeTask -State $state
-    $S.Restarts = 1; Save-State $S $state
+    $S.StateDirAcl = $script:StateDirAcl; $S.Restarts = 1; Save-State $S $state
     Write-Log '  the SYSTEM startup task is registered; the state directory is locked; restarting.' 'Green'
     Write-Log '  Do NOT sign in when Windows comes back - leave it at the sign-in screen for two minutes. The record lands on the stick by itself.' 'Yellow'
     Restart-Machine 'the walk-away probe'
@@ -1398,6 +1413,10 @@ function Invoke-SelfTest {
         @{ Name = 'resume context: session 0 is unattended even if the flag says interactive'; Run = { (Get-ResumeContext -UserName 'NT AUTHORITY\SYSTEM' -UserInteractive $true -SessionId 0 -ExplorerRunning $false).Unattended }; Expect = $true }
         @{ Name = 'notice: the RunOnce command is hidden, unelevated -Notify from the state copy'; Run = { New-NoticeCommand -ScriptPath 'C:\ProgramData\upgrade_\prologue\Invoke-Prologue.ps1' -State 'C:\ProgramData\upgrade_\prologue' }; Expect = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\ProgramData\upgrade_\prologue\Invoke-Prologue.ps1" -Notify -StateDir "C:\ProgramData\upgrade_\prologue"' }
         @{ Name = 'state: a fresh state carries an empty resume log; an old state without one round-trips'; Run = { $s = New-PrologueState -JobId 'j' -StickId 's' -Root 'E:\'; $old = ConvertTo-PrologueHashtable ((ConvertTo-PrologueJson $s) | ConvertFrom-Json); $old.Remove('Resumes'); "$(@($s.Resumes).Count):$($old.Contains('Resumes'))" }; Expect = '0:False' }
+        @{ Name = 'record: resumes carry SYSTEM/user, the session, unattended and the stick wait - never the raw account'
+           Run = { $s = New-PrologueState -JobId 'j' -StickId 's' -Root 'E:\'; $s.Resumes = @([ordered]@{ Utc = '2026-09-13T23:33:45Z'; RunAs = 'NT AUTHORITY\SYSTEM'; SessionId = 0; Unattended = $true; StickWaitSeconds = 4 }, [ordered]@{ Utc = '2026-09-13T23:40:00Z'; RunAs = 'PC\rig'; SessionId = 1; Unattended = $false; StickWaitSeconds = $null })
+                   $b = New-PrologueBlock $s; "$($b.resumes.Count):$($b.resumes[0].run_as):$($b.resumes[0].session_id):$($b.resumes[0].unattended):$($b.resumes[0].stick_wait_seconds):$($b.resumes[1].run_as):$($null -eq $b.resumes[1].stick_wait_seconds)" }; Expect = '2:SYSTEM:0:True:4:user:True' }
+        @{ Name = 'record: no resumes yet means no resumes key (the field is optional in the contract)'; Run = { (New-PrologueBlock (New-PrologueState -JobId 'j' -StickId 's' -Root 'E:\')).Contains('resumes') }; Expect = $false }
         @{ Name = 'probe: SYSTEM, stick found, task removed is resumed-unattended'; Run = { Get-ProbeResult -Unattended $true -StickFound $true -TaskRemoved $true }; Expect = 'resumed-unattended' }
         @{ Name = 'probe: a session present is resumed-attended'; Run = { Get-ProbeResult -Unattended $false -StickFound $true -TaskRemoved $true }; Expect = 'resumed-attended' }
         @{ Name = 'probe: no stick names that first, whatever else'; Run = { Get-ProbeResult -Unattended $false -StickFound $false -TaskRemoved $false }; Expect = 'stick-not-found' }

@@ -233,7 +233,10 @@ whole. That is what pulls the encrypted-read risk (RISKS R19) out of the
    restart → **re-measure shrinkable space** → take the fork the user chose
    in `evaluate` (keep Windows if it fits; else clean slate, or stop). The
    check's real outcome goes into `outcome.json`. Before the commit line, so
-   "stop" leaves Windows as it was plus a completed disk check.
+   "stop" leaves Windows as it was plus a completed disk check. Every
+   restart in this stage resumes as SYSTEM at startup with **nobody signed
+   in**; anything a person should read is queued for their next sign-in
+   (decided 2026-09-13, "The walk-away resume" below, RISKS R24).
 2. **Keep Windows (default):** disable pagefile and hibernation, then shrink
    C: with `Resize-Partition` — Microsoft's own code path, the most-tested
    NTFS resize there is, and it works with BitLocker still on. Stage only
@@ -564,7 +567,9 @@ alone.
 **The only credential we create** is the new Linux account password — typed
 once, hashed immediately to SHA-512 crypt, and only the hash reaches the USB.
 
-**Prompt budget for the entire conversion: four.** One UAC consent click, one
+**Prompt budget for the entire conversion: four.** (The SYSTEM resume adds
+none: the restarts need no sign-in, and its notices are queued, not asked.)
+One UAC consent click, one
 confirmation that the stick about to be written is the right device, one
 password the user chooses, and one polkit prompt in `settle-in` at reclaim.
 (The clean-slate path adds its two-minute live-session hardware check — a

@@ -43,7 +43,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$UpgVersion = '0.2.0'
+$UpgVersion = '0.3.0'
 
 # --- data ---------------------------------------------------------------
 # The build script replaces this block with the file contents inline, so the
@@ -517,6 +517,55 @@ function Test-UpgFirmware {
     } else {
         New-UpgCheck -Section 'Fundamentals' -Title 'Secure Boot' -Status 'info' -Detail 'could not determine'
     }
+}
+
+function Get-UpgResumeFacts {
+    # collect (read-only): can the prologue's SYSTEM startup task be registered
+    # here (RISKS R24). The Schedule service, the Task Scheduler creation
+    # policy, and the join state - managed devices are where it breaks.
+    $f = [ordered]@{ ScheduleService = $null; TaskCreationPolicy = $null; DomainJoined = $null; AzureAdJoined = $null; Mdm = $null }
+    try { $f.ScheduleService = "$((Get-Service -Name Schedule -ErrorAction Stop).Status)" } catch { }
+    try { $f.TaskCreationPolicy = [int](Get-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Task Scheduler5.0' -Name 'Task Creation' -ErrorAction Stop).'Task Creation' } catch { }
+    try { $f.DomainJoined = [bool](Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).PartOfDomain } catch { }
+    try {
+        $t = ((& dsregcmd /status 2>$null) -join "`n")
+        if ($t -match '(?m)^\s*AzureAdJoined\s*:\s*(YES|NO)') { $f.AzureAdJoined = ($matches[1] -eq 'YES') }
+        if ($t -match '(?m)^\s*MdmUrl\s*:\s*(\S+)') { $f.Mdm = $matches[1] }
+    } catch { }
+    $f
+}
+
+function Test-UpgResume {
+    # judge: info/warn only, never fail - the prologue refuses for real before
+    # its restart; this is the earlier word so the job writer has the fact.
+    param($Facts)
+    $title = 'Walk-away resume'
+    if ($null -eq $Facts -or ($null -eq $Facts.ScheduleService -and $null -eq $Facts.DomainJoined)) {
+        New-UpgCheck -Section 'Fundamentals' -Title $title -Status 'info' -Detail 'could not read the Task Scheduler state'
+        return
+    }
+    if ($Facts.ScheduleService -and $Facts.ScheduleService -ne 'Running') {
+        New-UpgCheck -Section 'Fundamentals' -Title $title -Status 'warn' -Detail "Task Scheduler service is $($Facts.ScheduleService)" `
+            -Note 'The conversion continues after its restarts through a startup task. With the service stopped it would wait at the sign-in screen.' `
+            -Remedy 'Set the Task Scheduler service to Automatic and start it.'
+        return
+    }
+    if ($Facts.TaskCreationPolicy -eq 0) {
+        New-UpgCheck -Section 'Fundamentals' -Title $title -Status 'warn' -Detail 'a policy prohibits creating scheduled tasks' `
+            -Note 'The conversion continues after its restarts through a startup task; this policy blocks registering it. The converter refuses before the restart, not after.' `
+            -Remedy 'This is usually a managed (work or school) device. Convert a personally owned one, or have the policy lifted.'
+        return
+    }
+    $managed = @()
+    if ($Facts.DomainJoined) { $managed += 'domain-joined' }
+    if ($Facts.AzureAdJoined) { $managed += 'Entra-joined' }
+    if ($Facts.Mdm) { $managed += 'MDM-enrolled' }
+    if ($managed.Count -gt 0) {
+        New-UpgCheck -Section 'Fundamentals' -Title $title -Status 'info' -Detail ("managed device: " + ($managed -join ', ')) `
+            -Note 'The unattended resume has only been tested on personally owned machines; management policy can remove the startup task.'
+        return
+    }
+    New-UpgCheck -Section 'Fundamentals' -Title $title -Status 'ok' -Detail 'a startup task can be registered; not a managed device'
 }
 
 function Test-UpgStorageMode {
@@ -1945,6 +1994,19 @@ function Invoke-UpgSelfTest {
         @{ Name = 'seam: Secure Boot unreadable is info, not a guess'
            Run = { Test-UpgFirmware -Sys $uefiSys -SecureBoot $null }
            Expect = @{ 'Secure Boot' = 'info' } }
+        # the walk-away resume (RISKS R24): info/warn only, never fail
+        @{ Name = 'seam: resume - a personal machine with the scheduler running is ok'
+           Run = { Test-UpgResume -Facts ([ordered]@{ ScheduleService = 'Running'; TaskCreationPolicy = $null; DomainJoined = $false; AzureAdJoined = $false; Mdm = $null }) }
+           Expect = @{ 'Walk-away resume' = 'ok' } }
+        @{ Name = 'seam: resume - a policy prohibiting task creation is warn'
+           Run = { Test-UpgResume -Facts ([ordered]@{ ScheduleService = 'Running'; TaskCreationPolicy = 0; DomainJoined = $false; AzureAdJoined = $false; Mdm = $null }) }
+           Expect = @{ 'Walk-away resume' = 'warn' } }
+        @{ Name = 'seam: resume - a managed device is info, not a refusal'
+           Run = { Test-UpgResume -Facts ([ordered]@{ ScheduleService = 'Running'; TaskCreationPolicy = $null; DomainJoined = $false; AzureAdJoined = $true; Mdm = 'https://enrollment.manage.microsoft.com' }) }
+           Expect = @{ 'Walk-away resume' = 'info' } }
+        @{ Name = 'seam: resume - unreadable is info'
+           Run = { Test-UpgResume -Facts $null }
+           Expect = @{ 'Walk-away resume' = 'info' } }
 
         @{ Name = 'seam: disk with shrink headroom keeps Windows'
            Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
@@ -2332,6 +2394,7 @@ $pnp = Get-UpgPnp
 Test-UpgArchitecture -Sys $sys
 Test-UpgMemory       -Sys $sys
 Test-UpgFirmware     -Sys $sys -SecureBoot (Get-UpgSecureBootState)
+Test-UpgResume       -Facts (Get-UpgResumeFacts)
 Test-UpgStorageMode  -Pnp $pnp
 $diskFacts = Get-UpgDiskFacts
 Test-UpgDisk         -Facts $diskFacts -IsAdmin $isAdmin

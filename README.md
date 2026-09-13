@@ -73,7 +73,7 @@ Full design in [docs/architecture.md](docs/architecture.md).
 kickstart, asks for one typed word, and hands over to the prologue
 (`Invoke-Prologue.ps1`): it re-validates the job against the live machine,
 runs Windows' own disk check with its own restart if the volume is
-flagged, re-measures the room by two read-only paths, takes the fork the
+flagged (and resumes with nobody signed in), re-measures the room by two read-only paths, takes the fork the
 person chose in advance, shrinks C:, suspends BitLocker for one restart
 and arms the one-time boot handoff. The stick then boots Fedora's
 installer (Secure Boot on, signed shim), which verifies the machine's

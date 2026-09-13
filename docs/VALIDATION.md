@@ -77,7 +77,10 @@ image as USB, run the four bcdedit commands, reboot. Then the physical
 matrix: the ASUS G16 plus borrowed machines from at least three other vendors
 (Dell, Lenovo, HP are the population). For each: does the stick boot exactly
 once; after a deliberate live-environment failure, does the machine boot
-Windows normally with no user action?
+Windows normally with no user action? **And, from 2026-09-13, the
+walk-away resume** (RISKS R24): does the SYSTEM startup task fire with
+nobody signed in and see the stick — `RUN-PROBE.cmd`, read-only, one
+restart, one `walkaway-probe.csv` row per vendor, the same half-hour visit.
 
 **Pass.** Fires on all tested firmware, or fails *safe* (Windows boots) on
 the ones where it doesn't — with the failure detectable so the tool can say
@@ -439,8 +442,8 @@ removed, no user session. **Row 2, the first physical row (2026-09-13,
 Acer Aspire A515-51G, InsydeH2O V1.21, Windows 11 Home 22631, Secure Boot
 on, a real USB stick): `resumed-unattended`** — SYSTEM, session 0, no
 explorer, 38 s after boot, the stick seen 5 s later, notice queued, task
-removed, transported verbatim from the stick's CSV. The residue is now
-other vendors' firmware and slower USB enumeration, one probe row each.
+removed, transported verbatim from the stick's CSV. The rest of the
+matrix is V0's (above); the stakes and residue are R24's.
 
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.

@@ -80,8 +80,10 @@ THE ONE-CLICK WAY (V0)
     this stick), arms the test with the signed payload, and restarts.
     Leave the stick in. If you can, watch the screen during the restart
     and remember whether you had to press anything.
- 4. When Windows comes back, sign in as usual. A window appears with
-    the result and one question (did it come back without a key press?).
+ 4. When Windows comes back, sign in as usual (this test harness still
+    needs a sign-in; the conversion and the probe do not). A window
+    appears with the result and one question (did it come back without
+    a key press?).
     Answer it; a second window says the row was saved. Done.
  5. Unplug the stick and send it back. It holds v0-handoff.csv,
     machine-capture.json and upgrade-report-*.txt. Never edit the CSV.
@@ -93,8 +95,9 @@ key somewhere that is NOT this computer, then run RUN-TEST.cmd again.
 If Windows does not come back by itself after the restart: at power-on
 press the firmware boot-menu key (F12 on Acer - it must be enabled in
 setup under Boot > F12 Boot Menu; F2 opens setup) and choose "Windows
-Boot Manager" once. Then sign in; the result window still appears and
-cleans up. Answer "No" to the key-press question.
+Boot Manager" once. Then sign in (the harness needs it; the conversion
+would not); the result window still appears and cleans up. Answer "No"
+to the key-press question.
 
 THE MATRIX WAY (for people running several rows by hand)
 --------------------------------------------------------

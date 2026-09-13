@@ -343,6 +343,10 @@ exports Wi-Fi passwords in cleartext, images a disk, and rewrites boot
 configuration. That is behaviourally an exact match for an infostealer followed
 by ransomware.
 
+(From 2026-09-13 the prologue also registers a SYSTEM startup task and an
+HKLM `RunOnce` entry to resume with nobody signed in — textbook persistence
+heuristics; that exposure is R24's, evidenced there.)
+
 **If real.** Unsigned, SmartScreen shows "Windows protected your PC" and
 Defender may quarantine it outright. The target user — non-technical, cautious,
 warned their whole life about exactly this — stops there permanently. No amount
@@ -1418,3 +1422,82 @@ like a broken Wi-Fi driver, not a text-encoding bug. Switched to
 `(?<!Microsoft )Visual Studio (?!Code)` excluded "Microsoft Visual Studio
 Community 2022" — the actual product the rule was written to flag, and how
 essentially every real install is named. Corrected to `Visual Studio (?!Code)`.
+
+## R24 — The walk-away resume: a SYSTEM startup task and a RunOnce entry · high · open (decided 2026-09-13)
+
+**What.** The prologue restarts Windows at least once before the handoff
+(the disk check; the pagefile re-measure) and must continue with nobody at
+the keyboard — the fork is pre-chosen in `job.json`, so nothing after the
+typed word needs a person. Until 2026-09-13 the resume was an elevated
+*logon* task in the person's session, and every row that had ever fired
+had someone signed in (the rig auto-logs on; the Aspire's owner signed in),
+so the walk-away half of the promise had never been exercised. Decided
+2026-09-13: the resume runs as `NT AUTHORITY\SYSTEM` at **startup**
+(`AtStartup`, `ServiceAccount`, `StartWhenAvailable`), polls for the stick
+by volume id, records who ran it and whether a session existed
+(`state.Resumes`), and queues anything a person should read as a one-shot
+HKLM `RunOnce` notice for the next sign-in. Holding the person's Windows
+password for an autologon was considered and refused
+(`architecture.md`, "The walk-away resume"): Microsoft-account holders
+often sign in with a PIN, Windows 11 accounts can be passwordless, the
+secret would sit on a disk settle-in later mounts, and a third-party
+password box is indistinguishable from phishing.
+
+**Two stakes that are not R18's.**
+
+1. **Antivirus exposure (with R12).** A SYSTEM `AtStartup` task registered
+   by an unsigned script, plus an HKLM `RunOnce` value, is exactly the
+   persistence pattern Defender and SmartScreen score. If Defender removes
+   the task or the RunOnce entry, the conversion stalls at the sign-in
+   screen with Windows intact (the task is one-shot; `state.json` stays,
+   `-Resume` can be run by hand) — a stall, not a loss, but the walk-away
+   promise is broken on that machine. **Evidence that it trips:** a
+   Defender detection during a probe or a conversion, on the rig or a
+   physical machine, recorded in `walkaway-probe.csv` / `r18-prologue.csv`
+   notes (event log `Microsoft-Windows-Windows Defender/Operational` 1116/1117
+   naming the task or the script). **Fallback if it does:** `shutdown /g`
+   (Automatic Restart Sign-On, what Windows Update uses — Windows holds the
+   credential, TPM-protected where available) with the resume back on an
+   at-logon trigger; or the signed release (R12), which is the real answer.
+2. **The privilege surface.** A task that runs as SYSTEM from a script under
+   `ProgramData` is a local privilege escalation if any standard user can
+   replace the script. Mitigation: `Protect-StateDir` strips inheritance and
+   grants SYSTEM and Administrators full control, Users read, and **refuses
+   to register the task** if any Users/Everyone/Authenticated write ACE
+   survives. The mitigation is evidence, not argument: the resume records
+   the ACL as read back (`state.StateDirAcl`, from 0.3.1) and the rig row of
+   2026-09-13 read it back as exactly that. The task is removed by every
+   exit path (return, stop, abort, probe).
+
+**Residue, explicitly.**
+
+- **BitLocker with a PIN or startup key**: the machine cannot boot without
+  a person, whatever the task does — the resume runs only after the volume
+  is unlocked. Not a fault of the mechanism, but the walk-away promise does
+  not apply to those machines, and `evaluate` should say so (the harvester
+  reads protector types; owed: name it in the report).
+- **TPM measurements**: the disk-check restart itself changes nothing the
+  TPM measures, and the row on the rig (BitLocker off) cannot say what a
+  TPM-only machine does at that restart. The Aspire probe (BitLocker off)
+  cannot either. A BitLocker-on physical row is owed before the promise
+  covers it.
+- **Fast Startup**: a hybrid *shutdown* is not a restart; the prologue uses
+  `shutdown /r`, which is a real restart regardless of the setting, and
+  `AtStartup` fires on it. Untested claim; one row with Fast Startup on.
+- **Managed devices**: a domain / Entra / Intune policy that prohibits task
+  creation or runs scripts through AppLocker breaks the resume before the
+  restart, where the prologue *can* refuse. Scanner 0.3.0 reads the
+  Schedule service, the Task Scheduler creation policy and the join state
+  (info/warn); the job writer has that fact before the prologue meets it.
+
+**Evidence so far.** `r18-prologue.csv` row 6 (rig, autologon off, both
+resumes SYSTEM in session 0, 472 s from the check restart to the first
+Linux boot, `query user` empty throughout); `walkaway-probe.csv` row 1 (rig)
+and row 2 (Acer Aspire A515-51G, InsydeH2O V1.21, Windows 11 Home 22631,
+Secure Boot on, a real USB stick: SYSTEM in session 0, 38 s after boot, the
+stick seen 5 s later, notice queued, task removed). The probe is the
+half-hour-visit row for every borrowed vendor (VALIDATION V0's matrix).
+
+**Closes when.** Probe rows from ≥3 more vendors, one BitLocker-on row, one
+Fast Startup row, and no Defender detection across them — or a signed
+release (R12), after which the AV half is moot.

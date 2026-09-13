@@ -105,6 +105,22 @@
             "manifest": { "$ref": "#/definitions/relpath" }
           }
         },
+        "resumes": {
+          "description": "One entry per restart the prologue resumed from (0.3.0+): who ran the resume and whether a session existed. 'this ran with nobody at the keyboard' is a claim settle-in can make only from these.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["utc", "run_as", "session_id", "unattended", "stick_wait_seconds"],
+            "properties": {
+              "utc": { "type": "string", "format": "date-time" },
+              "run_as": { "description": "SYSTEM is the design; user means the task ran in a person's session.", "enum": ["SYSTEM", "user"] },
+              "session_id": { "type": "integer", "minimum": 0 },
+              "unattended": { "description": "No interactive session existed when the resume ran.", "type": "boolean" },
+              "stick_wait_seconds": { "type": ["integer", "null"], "minimum": 0 }
+            }
+          }
+        },
         "handoff": {
           "type": "object",
           "additionalProperties": false,
