@@ -116,9 +116,16 @@ method in `docs/VALIDATION.md`; the killers, in order:
   directly. **Decided (2026-09-08):** `evaluate` never repairs; the `upgrade_`
   prologue clears the flag as reversible prep (scan → refuse if the disk is
   not Healthy → spot-fix or `chkdsk /f` → restart → re-measure → the fork the
-  user pre-chose). Owed code; RISKS R18 has the guardrails. The first
-  guardrail's read landed 2026-09-08: the scanner's `Disk health` line
-  (`Get-PhysicalDisk HealthStatus`; Unhealthy is RED).
+  user pre-chose). **Built 2026-09-12** (`Invoke-Prologue.ps1`, rig rows
+  in `r18-prologue.csv`). **The first physical machine answered
+  2026-09-13 with the dying-drive branch:** its flag survived the check
+  restart; the diagnostic found 18 corruption records queued for weeks,
+  `Get-Volume` "Full Repair Needed", 261 bad-block events and SMART 187 =
+  725 on an SSD that still said `Healthy`, and a scan cmdlet whose string
+  contradicted its own log. The scanner (0.2.0) and the prologue now read
+  the disk error log, SMART, the volume status and the Chkdsk/NTFS log;
+  bad blocks are RED. R18 has the whole record. The acknowledged-data-loss
+  path (R23) exists for that machine's owner; rule #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path
   delivers files: mount the kept Windows from installed Linux, unlock with the
   harvested key, copy. Bench-testable in VMs across BitLocker variants.
@@ -177,9 +184,15 @@ resume:** prologue 0.3.0 resumes as SYSTEM at startup (no sign-in; the
 person's password is never taken — `architecture.md`, "the walk-away
 resume"); `r18-prologue.csv` row 6 `pass-plumbing` with the rig's
 autologon off, both resumes in session 0, 472 s from the check restart to
-the first Linux boot with nobody at the keyboard. Next: the Aspire's real
-flag through `RUN-CONVERT.cmd` (first physical step-1b row, and the first
-physical install with Windows kept if the fork lands there); `settle-in`.
+the first Linux boot with nobody at the keyboard. **2026-09-13, the Aspire's flag:** first physical step-1b row,
+`stopped-volume-check` — the refusal path on a real machine, and the
+drive diagnosis behind it (R18). Built the same day: the R18 guardrail
+reads (scanner 0.2.0, prologue 0.2.0), the acknowledged-data-loss path
+(R23; `RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd`), the software inventory in
+`job.json` (`harvest.software`, private by placement), read-only drive
+diagnostics on the kit (`DIAG-VOLUME.cmd`, `DIAG-SMART.cmd`), and two
+physical R16 writes. Next: a physical keep-Windows install on a machine
+with a healthy drive; `settle-in`; the harvest into the job.
 
 **Decided (2026-09-08): the build is a vertical, not a list.** One
 front-to-back, one-click flow, reversible half first (schemas → OneDrive

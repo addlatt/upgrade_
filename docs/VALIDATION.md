@@ -409,8 +409,14 @@ and one evidence file, `docs/validation-results/r18-prologue.csv` (row 3
 `pass-plumbing` the same day: flag → full boot-time check → 57.8 GB by
 both paths → 25 GB freed → install), whose
 `remeasured_gb` / `diskpart_gb` pair is the same two-path measurement V4
-counts — taken *after* the check, at the moment it matters. The Acer
-Aspire's real flag is the first physical row owed there. *The walk-away
+counts — taken *after* the check, at the moment it matters. *The Acer
+Aspire's real flag answered (2026-09-13, row 5, `stopped-volume-check`):*
+it is not a shrink-headroom case at all but a failing SSD (RISKS R18 has
+the diagnosis), so the first physical measurement after a real check
+still waits for a machine with a healthy drive. What that row did prove
+is the refusal path on real hardware, and that `HealthStatus` and the
+scan cmdlet's return string are not evidence — the guardrails were
+rebuilt on the event log, SMART and the volume's own status the same day. *The walk-away
 resume (2026-09-13):* rows 1–5 all had someone signed in when the resume
 fired (the rig auto-logs on; the Aspire's person signed in), so prologue
 0.3.0 resumes as SYSTEM at startup and the bench now switches the guest's

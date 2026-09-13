@@ -7,10 +7,14 @@ Linux machine with your files, Wi-Fi and browsers intact — and, by default,
 your old system shrunk safely aside until you're sure. One stick is the whole
 kit.
 
-> **Status: the evaluator works. The conversion is designed, not built.**
-> Today you can run the preflight scanner and get a real answer about your
-> machine. Nothing in this repository writes to a disk yet — see
-> [Status](#status) for what exists and what doesn't.
+> **Status (2026-09-13): the whole conversion exists as code and has run
+> end to end on the rig; one physical machine has run it as far as its
+> failing drive allowed.** Scan → job → kickstart → the prologue (disk
+> check, shrink, boot handoff) → Fedora installed beside Windows → rollback,
+> each step written by the product's own scripts and each one leaving an
+> evidence row. It is not a release: the physical vendor matrix is one
+> machine wide, `settle-in` (the first boot on Linux) is not built, and the
+> converter is unsigned. See [Status](#status).
 
 ---
 
@@ -61,7 +65,35 @@ Full design in [docs/architecture.md](docs/architecture.md).
 
 ---
 
-## What works today: `evaluate`
+## What works today
+
+**The vertical, on the rig and once on a real machine.** One kit stick
+(`./make-kit.sh`, written by the R16 stick writer) carries everything.
+`RUN-CONVERT.cmd` on it runs the scanner, writes `job.json`, generates the
+kickstart, asks for one typed word, and hands over to the prologue
+(`Invoke-Prologue.ps1`): it re-validates the job against the live machine,
+runs Windows' own disk check with its own restart if the volume is
+flagged, re-measures the room by two read-only paths, takes the fork the
+person chose in advance, shrinks C:, suspends BitLocker for one restart
+and arms the one-time boot handoff. The stick then boots Fedora's
+installer (Secure Boot on, signed shim), which verifies the machine's
+identity, reads the desktop image back byte for byte, snapshots the boot
+files, installs alongside Windows into the freed space, checks the boot
+chain and writes `outcome.json`. `ROLLBACK.cmd` puts Windows first again
+from that snapshot. Every step writes a row under
+[docs/validation-results/](docs/validation-results/), by a harness, never
+by hand — including the runs that failed.
+
+**Two guardrails learned from the first physical machine (2026-09-13).**
+Its SSD said `Healthy` while Windows had logged 261 bad blocks on it and
+the drive itself reported 725 uncorrectable reads; the scan cmdlet said
+"no errors" while its own log said "found problems". The scanner now
+reads the disk error log, the SMART counters, the volume's own status and
+Windows' check log, and a drive like that is RED. The prologue refused it
+before any of that was read, for a weaker reason — the refusal path is the
+most-tested part of the tool.
+
+### The scanner: `evaluate`
 
 A read-only scanner. It tells you whether this specific machine can move to
 Linux, what will break, which distribution to use, and what to do first. It
@@ -123,8 +155,12 @@ unelevated; it just caps its verdict and says so.
 
 **Be honest about machines we can't do safely, and refuse them.**
 
-There is no override flag for a RED verdict, and there should never be one.
-The converter runs from a single USB stick and refuses machines it cannot fit
+There is no override flag for a RED verdict. One narrow, dated exception
+exists (2026-09-13, [RISKS R23](docs/RISKS.md)): a person who has already
+copied their files off a machine refused for its *drive* may type a fixed
+sentence on a separate launcher; it lifts those two refusals and no other,
+and everything it writes afterwards says DATA LOSS ACCEPTED. Widening it is
+what the rule forbids. The converter runs from a single USB stick and refuses machines it cannot fit
 — files too large for the stick and too little space to shrink Windows aside —
 but the refusal is a **gap report**, not a door slam: exactly how many GB to
 free or what stick size would change the answer. It will refuse machines with
@@ -134,7 +170,8 @@ software on every vendor's firmware.
 This still turns away real users, and that is the correct trade. A tool like this
 earns trust once and spends it permanently the first time it destroys someone's
 photos. Any component that writes to a disk has to clear a far higher bar than
-the scanner does — which is why none of them are written yet.
+the scanner does — which is why they were written last, behind the evidence,
+and why each refusal is tested harder than each success.
 
 ---
 
@@ -144,12 +181,16 @@ the scanner does — which is why none of them are written yet.
 |---|---|
 | `evaluate` — scanner (checks, verdict, distro recommendation) | **works**, tested on real hardware |
 | `evaluate` — state harvester (locale, folders, Wi-Fi, browsers, capacity) | **works**, read-only |
-| `evaluate` — artifact extraction (vendor firmware, BitLocker key) | designed |
-| `evaluate` — intent capture UI, `job.json` | designed |
-| `upgrade_` — prologue: imaging, staging, boot handoff | designed |
-| `upgrade_` — cutover: partition, install, inject, restore | designed |
-| `upgrade_` — rollback | designed |
-| `settle-in` | designed |
+| `evaluate` — OneDrive placeholder materialization (V8) | **works**, plumbing-fired against a real Cloud Files provider |
+| `evaluate` — job writer (`job.json`, the software inventory) | **works**; harvest of folders/Wi-Fi/browsers into the job, the BitLocker key and the intent UI still owed |
+| `evaluate` — stick writer (R16) | **works**, two physical writes verified |
+| `upgrade_` — prologue: re-validate, disk check, shrink, BitLocker, boot handoff | **works** on the rig (`r18-prologue.csv`); one physical row, a refusal |
+| `upgrade_` — cutover: identity, image read-back, ESP snapshot, install alongside, boot-chain check, `outcome.json` | **works** on the rig (`v2-install.csv`), Secure Boot off there; the physical Secure-Boot-on install is owed |
+| `upgrade_` — rollback (Windows side) | **works** on the rig (`r21-rollback.csv`) |
+| `upgrade_` — clean-slate path (wipe) | stops before the wipe on purpose: its human gate is not built |
+| `settle-in` — hardware verify, file pull, reclaim, software matching | designed; the BITLK read is bench-proven (`v3-bitlk-read.csv`) |
+| Physical vendor matrix | one machine (Acer, InsydeH2O); Dell, Lenovo, HP owed |
+| Code signing | not started; unsigned binaries look like malware to Defender |
 
 Known unknowns are tracked openly in [docs/RISKS.md](docs/RISKS.md) — what is
 unverified, what would happen if each risk is real, and what evidence would
@@ -219,22 +260,26 @@ every refusal path is currently tested only synthetically.
 
 ## Roadmap
 
-Next, in order:
+Done, with rows: the spine spike, the schemas, the kickstart generator,
+the live image on the stick with byte-for-byte read-back, the stick
+writer, the prologue (disk check, shrink, handoff), the alongside
+install with the boot-chain checklist, rollback. Next, in order:
 
-1. **The spine spike** — a hello-world conversion in a VM: boot handoff →
-   live image → kickstart → Fedora. Proves the walk-away mechanism on
-   evidence before anything is built on top of it.
-2. `job.json` schema — the contract between `evaluate` and `upgrade_`
-3. **Artifact extraction** — vendor firmware and keys. The one piece that
-   cannot be added later on a user's machine: once Windows is gone, those
-   files are unrecoverable.
-4. Kickstart generator — `job.json` → a Fedora install (per-target seam for
-   future distributions)
-5. Live image — Fedora squashfs (KDE and GNOME) plus the cutover orchestrator
-6. `settle-in` — hardware verify, the default path's file pull from the kept
-   partition, and reclaim
-7. Shrink, stick authoring, boot handoff hardening — **last, and reviewed
-   hardest**
+1. **A physical keep-Windows install, Secure Boot on** — on a machine with
+   a healthy drive (the first candidate's SSD is failing). This is the
+   V1b residue and the row the whole default path waits for.
+2. **`settle-in`** — hardware verify on first boot, the file pull from the
+   kept Windows partition (BITLK unlock, copy, checksum), the "you had
+   these programs" list with Linux equivalents from the software
+   inventory, the Linux-side rollback, and reclaim.
+3. **The harvest into `job.json`** — folders, Wi-Fi profiles, browser
+   profiles, the BitLocker key, and the intent-capture screen that asks
+   the person for a desktop, a password and the fork.
+4. **The vendor matrix** — Dell, Lenovo, HP visits: scan, handoff, live
+   boot, hardware verify, half an hour each, read-only.
+5. **Code signing** — a calendar item, not a code item; start now.
+6. A **rescue mode** for machines refused for their drive: the staging
+   step alone, reading what can be read onto the stick with checksums.
 
 Longer term: hardware data seeded from
 [linux-hardware.org](https://linux-hardware.org) probes rather than hand-curated,
