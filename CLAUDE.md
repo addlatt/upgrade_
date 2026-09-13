@@ -184,7 +184,10 @@ resume:** prologue 0.3.0 resumes as SYSTEM at startup (no sign-in; the
 person's password is never taken — `architecture.md`, "the walk-away
 resume"); `r18-prologue.csv` row 6 `pass-plumbing` with the rig's
 autologon off, both resumes in session 0, 472 s from the check restart to
-the first Linux boot with nobody at the keyboard. **2026-09-13, the Aspire's flag:** first physical step-1b row,
+the first Linux boot with nobody at the keyboard; **and the first physical
+row the same evening** — `RUN-PROBE.cmd` (read-only, one restart) on the
+Aspire, Secure Boot on: SYSTEM in session 0, 38 s after boot, stick seen
+5 s later (`walkaway-probe.csv` row 2). **2026-09-13, the Aspire's flag:** first physical step-1b row,
 `stopped-volume-check` — the refusal path on a real machine, and the
 drive diagnosis behind it (R18). Built the same day: the R18 guardrail
 reads (scanner 0.2.0, prologue 0.2.0), the acknowledged-data-loss path

@@ -833,7 +833,12 @@ logon" was the rig's autologon following boot by seconds); the RunOnce
 notice was queued and the task removed on return; the state directory's
 ACL read back as SYSTEM + Administrators full, Users read. The whole
 check → resume → shrink → handoff → install → first Linux boot took
-472 s with nobody at the keyboard. Also seen on this row: with the 0.2.0
+472 s with nobody at the keyboard. **The physical residue closed the
+same evening** by the read-only probe (`RUN-PROBE.cmd`,
+`walkaway-probe.csv` row 2): the Acer Aspire, Secure Boot on, Windows 11
+Home, a real USB stick — SYSTEM in session 0, 38 s after boot, the stick
+seen 5 s later, notice queued, task removed. What remains is other
+vendors' firmware, one probe row each. Also seen on this row: with the 0.2.0
 evidence read, the rig's injected flag now resolves to `chkdsk /f`, not
 the spot-fix — `Repair-Volume -Scan` on a `fsutil dirty set` volume logs
 "found problems" and marks it "Full Repair Needed" — so the rig's model of

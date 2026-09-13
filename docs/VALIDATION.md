@@ -435,7 +435,12 @@ probe`). It is what a borrowed machine can run in a half-hour visit; the
 Aspire's dying drive stops the conversion at the disk gate, so the probe
 is the row it can still give. Rig row 1 (2026-09-13): `resumed-unattended`
 — SYSTEM, session 0, 12 s after boot, stick after 4 s, notice queued, task
-removed, no user session. The physical rows are the residue.
+removed, no user session. **Row 2, the first physical row (2026-09-13,
+Acer Aspire A515-51G, InsydeH2O V1.21, Windows 11 Home 22631, Secure Boot
+on, a real USB stick): `resumed-unattended`** — SYSTEM, session 0, no
+explorer, 38 s after boot, the stick seen 5 s later, notice queued, task
+removed, transported verbatim from the stick's CSV. The residue is now
+other vendors' firmware and slower USB enumeration, one probe row each.
 
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.
