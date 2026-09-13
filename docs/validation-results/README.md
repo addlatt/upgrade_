@@ -270,6 +270,15 @@ disk number.
 | `written`, `verified` | y/n — was a disk erased and written; did every file read back against SHA256SUMS |
 | `notes` | harness-written: elevation, then every attached disk with bus/media/size and the rules it broke (`writable` for a candidate), then the write's letters and file counts |
 
+**First physical write (2026-09-13).** The General UDisk 8 GB stick, from
+the G16 host, elevated: the first attempt stopped after `Clear-Disk`
+because the real stick came back MBR-initialized and `Initialize-Disk`
+refused ("already been initialized") — the rig's VHDX had always come
+back RAW; row recorded, writer 0.1.1 initializes only a RAW disk. The
+second attempt wrote and verified all 27 kit files (7 GiB FAT32 `UPGV0`
++ 0.5 GiB exFAT `UPGDATA`), `written=y verified=y`. One device; the
+several-devices clause stays owed.
+
 ### What "R16 closes" requires
 
 - **The refusal matrix, fabricated** (`-SelfTest`, 23 cases): the system

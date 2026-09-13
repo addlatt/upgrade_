@@ -629,6 +629,12 @@ written and verified, every other device untouched. A VM cannot run it
 (no USB emulation; every VHDX is refused for its bus first). The
 rule-#5 residue is exactly that row.
 
+**First physical write (2026-09-13):** one real stick (General UDisk 8 GB)
+written and verified from the G16 host, after a first attempt found that
+`Clear-Disk` leaves a real stick MBR-initialized where the rig's VHDX had
+come back RAW (`Initialize-Disk` refused; writer 0.1.1 initializes only a
+RAW disk). Both rows in `r16-stick-writer.csv`. Several devices still owed.
+
 ## R17 — Counterfeit or failing flash as the sole data carrier · high · open
 
 **What.** On the clean-slate path the stick is briefly the only copy of the
