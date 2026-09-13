@@ -37,6 +37,18 @@ foreach ($rel in @('upgrade_\job.json', 'upgrade_\ks.cfg', 'upgrade_\boot-verify
     $p = "$l`:\$rel"; if (Test-Path $p) { Remove-Item $p -Recurse -Force; Write-Host "  removed stale $rel" }
 }
 
+# a previous copy interrupted by a bus drop can leave a full-length file with
+# wrong bytes, which robocopy /E (size + time) would skip: hash what is there
+# first and delete anything that does not match, so it is copied again
+Write-Host '  pre-checking files already on the stick (mismatches are deleted and re-copied)...'
+$pre = 0
+foreach ($line in Get-Content (Join-Path $Kit 'SHA256SUMS')) {
+    if ($line -notmatch '^([0-9a-f]{64})\s+\*?\./(.+)$') { continue }
+    $p = "$l`:\" + ($matches[2] -replace '/', '\')
+    if (-not (Test-Path -LiteralPath $p)) { continue }
+    if ((Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLower() -ne $matches[1]) { Remove-Item -LiteralPath $p -Force; $pre++; Write-Host "  deleted mismatching $($matches[2])" -ForegroundColor Yellow }
+}
+Write-Host "  $pre file(s) removed for re-copy"
 Write-Host "  copying $Kit -> $l`:\ (robocopy /E)..."
 & robocopy $Kit "$l`:\" /E /R:2 /W:5 /NP /NFL /NDL | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed with code $LASTEXITCODE (a stick dropping off the bus looks like this - re-seat it and re-run)" }
