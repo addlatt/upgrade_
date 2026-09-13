@@ -88,7 +88,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$WriterVersion = '0.1.0'
+$WriterVersion = '0.1.1'
 $CsvHeader = 'timestamp,writer,machine,os_build,mode,disks_attached,usb_disks,target,expected_bytes,decision,refusals,written,verified,notes'
 
 function New-Line { param([string]$s = '', [string]$c = 'Gray') Write-Host $s -ForegroundColor $c }
@@ -287,8 +287,15 @@ function Invoke-UpgStickWrite {
     New-Line "  clearing disk $($live.Number) ($($live.FriendlyName))..." 'DarkGray'
     Clear-Disk -InputObject $live -RemoveData -RemoveOEM -Confirm:$false -ErrorAction Stop
     $live = Get-Disk -UniqueId $Disk.UniqueId -ErrorAction Stop
-    Initialize-Disk -InputObject $live -PartitionStyle MBR -ErrorAction Stop
+    # On a real stick Clear-Disk left the disk initialized (MBR, no partitions)
+    # and Initialize-Disk refused with "already been initialized" - the first
+    # physical write, 2026-09-13; the rig's VHDX had come back RAW. Initialize
+    # only a RAW disk; an MBR disk with no partitions is already what we want,
+    # and a GPT one is converted through Clear-Disk's result by Set-Disk.
+    if ("$($live.PartitionStyle)" -eq 'RAW') { Initialize-Disk -InputObject $live -PartitionStyle MBR -ErrorAction Stop }
+    elseif ("$($live.PartitionStyle)" -ne 'MBR') { Set-Disk -InputObject $live -PartitionStyle MBR -ErrorAction Stop }
     $live = Get-Disk -UniqueId $Disk.UniqueId -ErrorAction Stop
+    if (@(Get-Partition -DiskNumber $live.Number -ErrorAction SilentlyContinue).Count -ne 0) { throw 'the disk still holds partitions after Clear-Disk; refusing to write' }
     $bootBytes = [long]$BootGB * 1GB
     if ($bootBytes -ge [long]$live.Size - 64MB) { $bootBytes = [long]$live.Size - 64MB; $result.Notes += 'boot partition capped to the disk' }
     New-Line "  boot partition: FAT32 $BootLabel, $([math]::Round($bootBytes / 1GB, 1)) GiB..." 'DarkGray'
