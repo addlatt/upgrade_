@@ -32,6 +32,24 @@ continue after a restart with nobody signed in (the row lands in
 upgrade_\walkaway-probe.csv on this stick; never edit it). Nothing on
 the disk is changed.
 
+THE STORAGE-MODE TEST (RUN-STORAGE-MODE.cmd) - both SATA modes, one click
+---------------------------------------------------------------------
+Proves the scanner's "Storage controller mode" line on this computer
+in BOTH SATA modes (Intel RST/RAID and AHCI). Double-click, click
+"Yes", read the window, click OK. The computer scans, then restarts
+straight into its setup screen: change SATA Mode to what the window
+asked for, F10, Yes. It boots Safe Mode once (so Windows binds the
+driver for the re-enumerated controller) and restarts by itself, scans
+again with nobody signed in, and opens the setup screen a second time:
+set SATA Mode back, F10, Yes. Safe Mode once more, a last scan, and
+everything it armed is removed. Sign in: a window shows the result.
+Your files are not touched - the mode changes how the disk is
+addressed, not what is on it. If the setup screen has no SATA Mode
+option (Acer: try Ctrl+S on the Main tab first), exit without saving;
+the test sees the mode did not change and stops on its own. The record
+is in upgrade_\storage-mode\ on this stick; never edit it. Not for a
+computer with BitLocker on (it refuses and changes nothing).
+
 THE CONVERSION (RUN-CONVERT.cmd) - this one CHANGES the internal disk
 ----------------------------------------------------------------------
 Only on a computer you mean to convert. Double-click RUN-CONVERT.cmd,

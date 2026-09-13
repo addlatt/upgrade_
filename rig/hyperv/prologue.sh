@@ -26,6 +26,11 @@
 #                             prepare -> stick -> windows -> autologon off -> -Probe -> restart -> the
 #                             SYSTEM task writes the row to the stick -> pulled -> transported verbatim
 #                             into docs/validation-results/walkaway-probe.csv -> restore
+#   prologue.sh storage-mode  the V5 one-click flow (Test-StorageMode.ps1 -Start -Bench -NoPrompt) on a fresh
+#                             copy with autologon off: leg-1 scan -> Safe Mode once through the copied boot
+#                             entry -> the SYSTEM task restarts from Safe Mode -> leg-2 scan as SYSTEM ->
+#                             mode-unchanged (a VM has no SATA mode to flip) -> cleanup -> record pulled ->
+#                             v5-verdict.py --from-run -> v5-controller-mode.csv (plumbing rows) -> restore
 #   prologue.sh convert       run the stick's RUN-CONVERT.cmd through cmd with CONVERT on stdin;
 #                             the prologue restarts the guest for the disk check
 #   prologue.sh wait-off [s]  wait until the guest powers itself off: check restart -> resume ->
@@ -157,6 +162,57 @@ if not dst.exists(): dst.write_text(header.replace('"timestamp",', '"timestamp",
 dst.open("a", encoding="utf-8").write(row.replace('",', '","' + harness + '",', 1) + "\n")
 print("probe: transported ->", dst, "|", row[:160])
 PY
+    ;;
+storage-mode) "$SELF" prepare; "$SELF" stick; "$SELF" storage-mode-run ;;
+storage-mode-run)
+    # the guest side alone (after prepare + stick)
+    SM_STATE='C:\ProgramData\upgrade_\storage-mode'; SA="$A/storage-mode"; mkdir -p "$SA/progress"
+    "$SELF" windows; "$SELF" autologon off
+    L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume in the guest" >&2; exit 1; }
+    guest "Test-Path ${L}:\\Test-StorageMode.ps1" | grep -q True || { echo "prologue: Test-StorageMode.ps1 is not on the stick - rebuild the kit (make-kit.sh) and the stick" >&2; exit 1; }
+    guest "Remove-Item -Recurse -Force '$SM_STATE' -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force ${L}:\\upgrade_\\storage-mode -ErrorAction SilentlyContinue"
+    # what the guest looks like before: no Schedule key in Safe Mode's list, no task, one Windows entry
+    guest "Test-Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SafeBoot\\Minimal\\Schedule'; (Get-ScheduledTask -TaskName 'upgrade_ storage-mode resume' -ErrorAction SilentlyContinue) -ne \$null; (bcdedit /enum osloader | Select-String '^identifier').Count" > "$SA/before.txt"
+    boot0=$(guest '(Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString("o")' 2>/dev/null || true)
+    guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Test-StorageMode.ps1 -Start -StickDrive ${L}: -Bench -NoPrompt" | tee "$SA/start.log"
+    grep -q 'armed: Safe Mode once' "$SA/start.log" || { echo "prologue: the harness did not arm - read $SA/start.log" >&2; guest "Get-Content '$SM_STATE\\storage-mode.log' -Raw" > "$SA/guest-storage-mode.log" 2>/dev/null || true; exit 1; }
+    # Safe Mode has no PS Direct (the integration services are not on its list), so the
+    # bench watches screenshots and waits for the record to say done. Budget: 20 min.
+    t0=$(date +%s); n=0
+    until guest "Test-Path '$SM_STATE\\state-done.json'" 2>/dev/null | grep -q True; do
+        [ $(( $(date +%s) - t0 )) -ge 1200 ] && { echo "prologue: storage-mode flow not done within 1200 s" >&2; break; }
+        n=$((n+1)); PS shot "C:\\upgrade-rig\\hv\\shots\\sm-$(printf %03d $n).png" >/dev/null 2>&1 || true; cp "$HV/shots/sm-$(printf %03d $n).png" "$SA/progress/" 2>/dev/null || true
+        sleep 20
+    done
+    echo "prologue: storage-mode flow reached done after $(( $(date +%s) - t0 )) s (boot0=$boot0)"
+    L=$(stick_letter || true)
+    # pull the record, the log and every leg file
+    for f in storage-mode.json storage-mode.log; do guest "Get-Content '${L}:\\upgrade_\\storage-mode\\$f' -Raw -ErrorAction SilentlyContinue" > "$SA/$f" 2>/dev/null || true; done
+    for f in state-done.json state-stopped.json storage-mode.log storage-mode.json notice.json; do guest "Get-Content '$SM_STATE\\$f' -Raw -ErrorAction SilentlyContinue" > "$SA/guest-$f" 2>/dev/null || true; done
+    guest "Get-ChildItem '${L}:\\upgrade_\\storage-mode' -Recurse -File | ForEach-Object { \$_.FullName.Substring(3) }" | tr -d '\r' | grep -i 'leg' | while read -r rel; do
+        [ -n "$rel" ] || continue; local_rel=$(echo "$rel" | sed 's|\\|/|g; s|^upgrade_/storage-mode/||'); mkdir -p "$SA/$(dirname "$local_rel")"
+        guest "Get-Content '${L}:\\$rel' -Raw" > "$SA/$local_rel" 2>/dev/null || true
+    done
+    find "$SA" -type f -size 0 -delete 2>/dev/null || true
+    # the cleanup read back from the guest itself: no Schedule key, no task, no RunOnce, the copied entry gone, no bootsequence
+    guest "'schedule_key=' + (Test-Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SafeBoot\\Minimal\\Schedule'); 'task=' + ((Get-ScheduledTask -TaskName 'upgrade_ storage-mode resume' -ErrorAction SilentlyContinue) -ne \$null); 'runonce=' + ((Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce' -ErrorAction SilentlyContinue).PSObject.Properties.Name -join ','); 'osloaders=' + (bcdedit /enum osloader | Select-String '^identifier').Count; 'bootmgr_bootsequence=' + [bool](bcdedit /enum '{bootmgr}' | Select-String 'bootsequence'); 'safeboot_entries=' + [bool](bcdedit /enum osloader | Select-String 'safeboot')" > "$SA/after.txt" 2>/dev/null || true
+    cat "$SA/after.txt"
+    PS stop; wait_off 300; "$SELF" restore
+    "$SELF" storage-mode-verdict
+    ;;
+storage-mode-verdict)
+    SA="$A/storage-mode"
+    [ -s "$SA/storage-mode.json" ] || { echo "prologue: no record in $SA" >&2; exit 1; }
+    python3 - "$SA/storage-mode.json" <<'PY'
+import json, sys
+r = json.load(open(sys.argv[1], encoding="utf-8-sig"))
+sb = r.get("safe_boots") or []; res = r.get("resumes") or []
+print("flow_result:", r.get("flow_result"), "| legs:", len(r.get("legs") or []), "| safe boots:", [(b.get("RunAs"), b.get("SessionId"), b.get("OptionValue")) for b in sb],
+      "| resumes:", [(x.get("RunAs"), x.get("SessionId"), x.get("Unattended"), x.get("StickWaitSeconds")) for x in res], "| fw:", [f.get("Method") for f in (r.get("fw_reboots") or [])],
+      "| cleanup:", r.get("cleanup"))
+PY
+    # the rows: v5-verdict exits 1 for plumbing rows (no Intel controller) by design; the flow verdict is above
+    python3 ../v5-verdict.py --from-run "$SA" --note "rig: Hyper-V Gen 2, no SATA mode to flip; plumbing of the one-click flow" || true
     ;;
 convert)
     mkdir -p "$A"

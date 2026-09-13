@@ -596,21 +596,31 @@ registration, Fast Startup's hybrid shutdown, BitLocker with a PIN.
 
 ## `v5-controller-mode.csv` — the "Storage controller mode" check on real Intel RST hardware, both directions (gate V5, risk R1)
 
-One row per scanner run in one SATA mode, written by **`rig/v5-verdict.py`**
-from the two files `RUN-SCANNER.cmd` leaves on the stick — the JSON report
-and the `-DumpMachine` capture of that run — never by hand:
+One row per scanner run in one SATA mode, written by **`rig/v5-verdict.py`**,
+never by hand, from two sources:
 
-    rig/v5-verdict.py --sata-mode-set raid|ahci|absent <upgrade-report-*.json> <machine-capture-*.json>
+- **the one-click path** (`RUN-STORAGE-MODE.cmd` → `Test-StorageMode.ps1`):
+  the harness scans in the mode the machine is in, restarts straight into
+  the firmware setup for the person to change SATA Mode, boots Safe Mode
+  once through a copied boot entry, scans again as SYSTEM with nobody signed
+  in, asks for the mode back, and scans a third time; it leaves
+  `upgrade_\storage-mode\leg1..3\` (report + capture per mode) and the record
+  `storage-mode.json` on the stick. `rig/v5-verdict.py --from-run <that
+  folder>` writes one row per leg. The mode-as-set is what the harness
+  **asked** the person to set (`initial` for leg 1); nobody types anything.
+- **the two-file path** (a plain `RUN-SCANNER.cmd` run): `rig/v5-verdict.py
+  --sata-mode-set raid|ahci|absent <upgrade-report-*.json>
+  <machine-capture-*.json>`. The one operator input is the mode the setup was
+  set to.
 
-The one operator input is the SATA mode the firmware setup was set to before
-the run. Everything else is read from the files, and `result` compares the
-operator's word against the PCI class code the controller actually declared
-to Windows, so a mislabelled pair records as `mode-mismatch`, not as
-evidence. A capture marked `Synthetic` is refused (`error`): the VM spoof is
-plumbing, never a V5 row. The report is discarded after the row is written
-(it holds the machine's details and is gitignored); the capture is curated
-into `evaluate/windows/corpus/` with an `Expected` block, so the machine is
-replayed on every `-SelfTest` forever.
+Either way `result` compares the mode word against the PCI class code the
+controller actually declared to Windows, so a setting that did not take, or a
+mislabelled pair, records as `mode-mismatch`, not as evidence. A capture
+marked `Synthetic` is refused (`error`): the VM spoof is plumbing, never a V5
+row. Reports are discarded after the row is written (they hold the machine's
+details and are gitignored); captures are curated into
+`evaluate/windows/corpus/` with an `Expected` block, one per mode, so the
+machine is replayed on every `-SelfTest` forever.
 
 | Column | Meaning |
 |---|---|
@@ -618,7 +628,8 @@ replayed on every `-SelfTest` forever.
 | `harness` | `v5-verdict <version>` |
 | `vendor`, `model`, `firmware`, `os` | the machine under test, from the report's `System` block (`BiosVersion`, OS caption + build) |
 | `scanner_version` | the scanner that produced the report |
-| `sata_mode_set` | operator's word: `raid` (RST Premium / Optane / RAID), `ahci`, or `absent` (the setup has no SATA-mode option) |
+| `leg` | one-click path: 1, 2 or 3; blank for a two-file row |
+| `sata_mode_set` | `initial` (leg 1: whatever the machine was in), `raid` (RST Premium / Optane / RAID), `ahci`, or `absent` (two-file path: the setup has no SATA-mode option) |
 | `controller` | every Intel PCI mass-storage-class device (or one with an `iaStor*` service) in the capture, by Windows name; `;`-joined |
 | `pci_id` | its `vvvv:dddd` |
 | `class_code` | the PCI class+subclass Windows published in `CompatibleIDs` — `0104 (RAID)`, `0106 (AHCI)`, `0108 (NVMe)` — the check's third signal |
@@ -627,19 +638,24 @@ replayed on every `-SelfTest` forever.
 | `check_status`, `check_detail` | the `Storage controller mode` line of the report |
 | `verdict` | the report's overall level |
 | `result` | see vocabulary below |
-| `notes` | harness facts first (scan/capture times, controllers counted, classes seen, whether an RST or VMD service was bound), then any `operator:` words |
+| `flow_result` | one-click path: the harness's own verdict on the run — `restored` (three legs, original mode back), `mode-unchanged` (leg 2 saw the same mode: no option, or not saved), `not-restored`, `no-intel-controller`, `cancelled`, `error`; `single-run` for a two-file row |
+| `resume_run_as` | who ran the resume that produced this leg — `SYSTEM unattended` is the design; `launcher` for leg 1 |
+| `safe_boot` | whether the Safe Mode boot before this leg was seen by the resume, and by whom (`y (SYSTEM, session 0)` means Task Scheduler ran in Safe Mode and restarted without a sign-in) |
+| `fw_reboot` | how the restart into setup before this leg was done: `fw` (`shutdown /r /fw`, straight into the firmware setup) or `plain` (the firmware refused `/fw`; the person pressed the setup key) |
+| `notes` | harness facts first (scan/capture times, controllers counted, classes seen, whether an RST or VMD service was bound; for the one-click path the stage, the mode seen and the cleanup read-back), then any `operator:` words |
 
 ### Result vocabulary
 
 | Result | Meaning | Verdict |
 |---|---|---|
-| `fail-fired` | set to RAID/RST; a controller declares class `0104` (or `iaStorVD` is bound); the check said `fail` and the report is RED | **the positive direction passes** for that machine |
-| `ok-passed` | set to AHCI; no RAID class, no RST service; the check said `ok` | **the negative direction passes** |
-| `warn-rst-on-ahci` | set to AHCI; controller declares AHCI class but an Intel RST driver (`iaStor*`) is bound; the check said `warn` | the negative direction, as the R7 guard designed it — Linux must be shown to see the disk for it to count (cite the row) |
+| `fail-fired` | set to RAID/RST (or `initial` and RAID seen); a controller declares class `0104` (or `iaStorVD` is bound); the check said `fail` and the report is RED | **the positive direction passes** for that machine |
+| `ok-passed` | AHCI seen; no RAID class, no RST service; the check said `ok` | **the negative direction passes** |
+| `warn-rst-on-ahci` | AHCI seen but an Intel RST driver (`iaStor*`) is bound; the check said `warn` | the negative direction, as the R7 guard designed it — Linux must be shown to see the disk for it to count (cite the row) |
 | `missed` | RAID class or `iaStorVD` present but the check did **not** fail | **the check is wrong** — fix the check, add the capture as a self-test case, never touch the row |
 | `false-fail` | no RAID class, no VMD service, yet the check failed | over-refusal — fix the check |
-| `mode-mismatch` | the operator's mode disagrees with the class code seen | not evidence: the setting did not take, or the wrong pair of files |
-| `option-absent` | the setup exposes no SATA-mode option; the AHCI-side run recorded for the record | this machine cannot give the positive row |
+| `mode-mismatch` | the mode asked/set disagrees with the class code seen | not evidence: the setting did not take (setup had no option, or it was not saved), or the wrong pair of files |
+| `option-absent` | two-file path: the setup exposes no SATA-mode option; the AHCI-side run recorded for the record | this machine cannot give the positive row |
+| `no-intel-controller` | the capture has no Intel storage controller (AMD, or a VM) | not V5 evidence; on the rig it is the flow's plumbing row (read `flow_result`) |
 | `error` | files unreadable, from different machines, unelevated, or a `Synthetic` capture | investigate |
 
 ### What "V5 passes" requires
@@ -654,3 +670,10 @@ corpus with `Expected` `Storage controller mode: fail` and marked real (not
 signal 1 or 2 — **VMD proper** (11th gen+). A row from a pre-VMD machine
 closes only the pre-VMD clause; VMD proper still takes an 11th-gen-or-newer
 machine with RST on. R1 carries the residue.
+
+The one-click flow itself has its own plumbing clause: a rig run
+(`rig/hyperv/prologue.sh storage-mode`) cannot change a SATA mode, so its
+rows are `no-intel-controller` with `flow_result` `mode-unchanged` — what it
+proves is the mechanics: Safe Mode boot through the copied entry, the resume
+in Safe Mode as SYSTEM, the restart, the SYSTEM scan on the way back, the
+cleanup read-back. `safe_boot` and `resume_run_as` are where to look.

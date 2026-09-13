@@ -57,3 +57,18 @@ Windows`), and BitLocker all return nothing unelevated.
 **A real capture is not `Synthetic`.** Unlike the VM/spoof corpus entries, a
 capture from a physical machine is ground truth for that machine — do not mark
 it `"Synthetic": true`.
+
+## `RUN-STORAGE-MODE.cmd` — the V5 one-click (both SATA modes)
+
+Pairs with `Test-StorageMode.ps1` and the single-file scanner on the same
+stick (`make-kit.sh` lays all three out). One double-click, one UAC "Yes",
+one OK on the window that explains the two setup-screen visits. The harness
+scans, arms a Safe Mode boot through a *copied* boot entry booted exactly once
+(`bcdedit /bootsequence`), registers the SYSTEM startup task, lets Task
+Scheduler run in Safe Mode so that boot restarts itself unattended, and
+restarts straight into the firmware setup (`shutdown /r /fw`). The person
+changes SATA Mode there; the rest is the machine's. Everything armed is undone
+on every exit path. What comes back: `upgrade_\storage-mode\leg1..3\` (a
+report and a capture per mode) and `upgrade_\storage-mode\storage-mode.json`
+(the record). Rows: `rig/v5-verdict.py --from-run <that folder>`. Captures
+are curated into `corpus/` like any other, one per mode.
