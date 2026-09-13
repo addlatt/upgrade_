@@ -47,6 +47,12 @@ invalid, and a module that finds an invalid document stops:
   result — a refusal at `evaluate` produces no job at all.
 - **No truncated sizing** (RISKS R6), **no undetermined BitLocker state**
   (decided 2026-09-07), **no legacy BIOS**, **no unelevated run**.
+- **The software inventory is private by placement** (decided
+  2026-09-13). `harvest.software` lists the person's desktop programs and
+  Store apps, names only, so `settle-in` can suggest Linux equivalents.
+  It lives in `job.json` on the stick and in nothing that leaves the
+  machine: not the text report, not the JSON report, not the machine
+  capture, not `outcome.json`.
 - **Secrets are files, not fields.** The BitLocker recovery key and the
   Wi-Fi keys live under `artifacts/credentials/` and `job.json` holds only
   their relative paths (no `..`, no absolute paths), so the credential wipe

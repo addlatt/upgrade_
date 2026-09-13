@@ -164,6 +164,11 @@ def main():
          set_path(job, ["harvest", "bitlocker", "recovery_key_file"], "/etc/key.txt")),
         # clean-slate must carry the staged manifest
         ("job", "clean-slate without staged files is refused", del_path(job2, ["staged"])),
+        # the software inventory is names, not free-form: an entry without a name is refused
+        ("job", "a software entry without a name is refused",
+         set_path(job, ["harvest", "software", "desktop", 0], {"version": "1.0"})),
+        ("job", "a job without the software inventory is refused",
+         del_path(job, ["harvest", "software"])),
         # unknown fields are a version skew signal, not noise
         ("job", "an unknown top-level field is refused", set_path(job, ["extra"], 1)),
         # the commit line is a fact, not a guess

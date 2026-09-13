@@ -43,7 +43,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.3.0'
+$JobWriterVersion = '0.4.0'
 $LinuxMinGB = 25
 # The acknowledged-data-loss path (RISKS R23, decided 2026-09-13). The person
 # types this sentence, verbatim, on the separate launcher; it lifts exactly
@@ -121,6 +121,47 @@ function ConvertFrom-JobFsutilDirty {
     'unknown'
 }
 
+function ConvertTo-JobSoftware {
+    # Pure (self-tested): raw registry uninstall entries and Store packages ->
+    # the harvest.software block. Drops what Apps & features hides (SystemComponent=1),
+    # Windows updates and hotfixes, nameless entries, Store frameworks and system
+    # packages; de-duplicates by name; sorts; caps at 2000 per list and says so.
+    param($Desktop, $Store, [int]$Cap = 2000)
+    $d = @{}
+    foreach ($e in @($Desktop)) {
+        $n = "$($e.DisplayName)".Trim()
+        if (-not $n) { continue }
+        if ("$($e.SystemComponent)" -eq '1') { continue }
+        if ($n -match '^(Security Update|Update|Hotfix|Service Pack)\b.* for ' -or $n -match '^KB\d{6,}') { continue }
+        if (-not $d.ContainsKey($n)) { $d[$n] = [ordered]@{ name = $n; version = $(if ($e.DisplayVersion) { "$($e.DisplayVersion)" } else { $null }); publisher = $(if ($e.Publisher) { "$($e.Publisher)" } else { $null }) } }
+    }
+    $st = @{}
+    foreach ($e in @($Store)) {
+        if ($e.IsFramework -or "$($e.SignatureKind)" -eq 'System' -or $e.NonRemovable) { continue }
+        $n = "$($e.DisplayName)".Trim(); if (-not $n -or $n -match '^ms-resource:') { $n = "$($e.Name)".Trim() }
+        if (-not $n) { continue }
+        if (-not $st.ContainsKey($n)) { $st[$n] = [ordered]@{ name = $n; package = $(if ($e.Name) { "$($e.Name)" } else { $null }); version = $(if ($e.Version) { "$($e.Version)" } else { $null }); publisher = $(if ($e.PublisherDisplayName) { "$($e.PublisherDisplayName)" } elseif ($e.Publisher) { "$($e.Publisher)" } else { $null }) } }
+    }
+    $dl = @($d.Keys | Sort-Object | ForEach-Object { $d[$_] }); $sl = @($st.Keys | Sort-Object | ForEach-Object { $st[$_] })
+    $trunc = ($dl.Count -gt $Cap) -or ($sl.Count -gt $Cap)
+    [ordered]@{ desktop = @($dl | Select-Object -First $Cap); store = @($sl | Select-Object -First $Cap); truncated = $trunc }
+}
+
+function Get-JobSoftware {
+    # Live half. The registry's Apps & features entries (three hives) and the
+    # person's Store packages. Names only; nothing here reads inside a program.
+    $desktop = @()
+    foreach ($hive in 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*') {
+        try { $desktop += @(Get-ItemProperty $hive -ErrorAction SilentlyContinue | Select-Object DisplayName, DisplayVersion, Publisher, SystemComponent) } catch { }
+    }
+    $store = @()
+    try { $store = @(Get-AppxPackage -PackageTypeFilter Main -ErrorAction Stop | ForEach-Object {
+            $m = $null; try { $m = Get-AppxPackageManifest $_ -ErrorAction Stop } catch { }
+            [pscustomobject]@{ Name = $_.Name; Version = "$($_.Version)"; Publisher = $_.Publisher; IsFramework = $_.IsFramework; SignatureKind = "$($_.SignatureKind)"; NonRemovable = $_.NonRemovable
+                               DisplayName = $(if ($m) { "$($m.Package.Properties.DisplayName)" } else { '' }); PublisherDisplayName = $(if ($m) { "$($m.Package.Properties.PublisherDisplayName)" } else { '' }) } }) } catch { }
+    ConvertTo-JobSoftware -Desktop $desktop -Store $store
+}
+
 # --- collection ------------------------------------------------------------------
 
 function Get-JobFacts {
@@ -191,6 +232,7 @@ function Get-JobFacts {
     $tz = Get-TimeZone; $loc = Get-WinSystemLocale
     $f.WindowsTz = $tz.Id; $f.Locale = $loc.Name
     $f.InputTip = try { (Get-WinUserLanguageList)[0].InputMethodTips[0] } catch { '' }
+    $f.Software = Get-JobSoftware
     $f.UserName = $env:USERNAME
     $f.FullName = try { (Get-CimInstance Win32_UserAccount -Filter "Name='$($env:USERNAME)' AND LocalAccount=True" | Select-Object -First 1).FullName } catch { $null }
     $f
@@ -273,6 +315,7 @@ function New-JobDocument {
             wifi = [ordered]@{ profiles = @(); secrets_file = $null }
             bitlocker = [ordered]@{ status = $bl; recovery_key_file = $(if ($bl -eq 'on') { 'artifacts/credentials/bitlocker-C.txt' } else { $null }) }
             firmware_artifacts = @()
+            software = $(if ($F.Software) { $F.Software } else { [ordered]@{ desktop = @(); store = @(); truncated = $false } })
         }
         stick = [ordered]@{ unique_id = $F.Stick.UniqueId; serial_number = "$($F.Stick.Serial)"; size_bytes = [long]$F.Stick.Size
                             friendly_name = $F.Stick.Name; label = $(if ($F.Stick.Label) { $F.Stick.Label } else { 'UPGV0' }); manifest = 'SHA256SUMS' }
@@ -342,6 +385,26 @@ function Invoke-SelfTest {
            Run = { [bool]((New-JobDocument -F (With $good 'Stick' @{ UniqueId = 'x'; Serial = ''; Size = 1; Name = 'n'; Label = 'L'; Bus = 'SAS' }) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match 'USB') }; Expect = $true }
         @{ Name = 'BitLocker on names the key file; off names none'
            Run = { $a = (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.harvest.bitlocker.recovery_key_file; $b = (New-JobDocument -F (With $good 'BitLocker' 'off') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.harvest.bitlocker.recovery_key_file; "$a|$($null -eq $b)" }; Expect = 'artifacts/credentials/bitlocker-C.txt|True' }
+        @{ Name = 'software: updates, hidden system components and nameless entries are dropped; duplicates merged; sorted'
+           Run = { $sw = ConvertTo-JobSoftware -Desktop @(
+                     [pscustomobject]@{ DisplayName = 'VLC media player'; DisplayVersion = '3.0.21'; Publisher = 'VideoLAN'; SystemComponent = $null },
+                     [pscustomobject]@{ DisplayName = 'Security Update for Microsoft Office (KB5002544)'; DisplayVersion = '1'; Publisher = 'Microsoft'; SystemComponent = $null },
+                     [pscustomobject]@{ DisplayName = 'Microsoft Visual C++ 2015 Redistributable'; DisplayVersion = '14'; Publisher = 'Microsoft'; SystemComponent = 1 },
+                     [pscustomobject]@{ DisplayName = ''; DisplayVersion = '1'; Publisher = 'x'; SystemComponent = $null },
+                     [pscustomobject]@{ DisplayName = 'Adobe Photoshop'; DisplayVersion = '25'; Publisher = 'Adobe'; SystemComponent = $null },
+                     [pscustomobject]@{ DisplayName = 'VLC media player'; DisplayVersion = '3.0.21'; Publisher = 'VideoLAN'; SystemComponent = $null }) -Store @()
+                   "$($sw.desktop.Count):$($sw.desktop[0].name):$($sw.desktop[1].name):$($sw.truncated)" }; Expect = '2:Adobe Photoshop:VLC media player:False' }
+        @{ Name = 'software: Store frameworks and system packages are dropped, ms-resource names fall back to the package name'
+           Run = { $sw = ConvertTo-JobSoftware -Desktop @() -Store @(
+                     [pscustomobject]@{ Name = 'SpotifyAB.SpotifyMusic'; DisplayName = 'Spotify'; Version = '1.2'; PublisherDisplayName = 'Spotify AB'; IsFramework = $false; SignatureKind = 'Store'; NonRemovable = $false },
+                     [pscustomobject]@{ Name = 'Microsoft.VCLibs.140.00'; DisplayName = 'VCLibs'; Version = '14'; PublisherDisplayName = 'Microsoft'; IsFramework = $true; SignatureKind = 'Store'; NonRemovable = $false },
+                     [pscustomobject]@{ Name = 'Microsoft.Windows.ShellExperienceHost'; DisplayName = 'Shell'; Version = '10'; PublisherDisplayName = 'Microsoft'; IsFramework = $false; SignatureKind = 'System'; NonRemovable = $true },
+                     [pscustomobject]@{ Name = 'Contoso.Thing'; DisplayName = 'ms-resource:AppName'; Version = '2'; PublisherDisplayName = 'Contoso'; IsFramework = $false; SignatureKind = 'Store'; NonRemovable = $false })
+                   "$($sw.store.Count):$($sw.store[0].name):$($sw.store[1].name):$($sw.store[1].package)" }; Expect = '2:Contoso.Thing:Spotify:SpotifyAB.SpotifyMusic' }
+        @{ Name = 'software: a list over the cap is cut and truncated=true'
+           Run = { $many = @(1..5 | ForEach-Object { [pscustomobject]@{ DisplayName = "App $_"; DisplayVersion = $null; Publisher = $null; SystemComponent = $null } }); $sw = ConvertTo-JobSoftware -Desktop $many -Store @() -Cap 3; "$($sw.desktop.Count):$($sw.truncated)" }; Expect = '3:True' }
+        @{ Name = 'software: the job carries the block, and an empty inventory is an empty block, not a refusal'
+           Run = { $r = New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; "$($r.Refusals.Count):$($null -ne $r.Job.harvest.software):$($r.Job.harvest.software.desktop.Count)" }; Expect = '0:True:0' }
         @{ Name = 'locale: en-US + 0409 + Eastern -> en_US.UTF-8 / us / America/New_York'
            Run = { $l = (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.locale; "$($l.lang)/$($l.keymap)/$($l.timezone)" }; Expect = 'en_US.UTF-8/us/America/New_York' }
         @{ Name = 'keymap: German KLID maps to de; unknown maps to null'
@@ -398,5 +461,6 @@ Write-Host "  path $($j.intent.path) ($($j.intent.path_reason))   desktop $($j.i
 Write-Host "  stick $($j.stick.friendly_name) $([math]::Round($j.stick.size_bytes/1e9,1)) GB '$($j.stick.label)'"
 if ($j.risk_acknowledgement) { Write-Host "  DATA LOSS ACCEPTED: the RED verdict was acknowledged; lifted: $($j.risk_acknowledgement.overrides -join ', ')" -ForegroundColor Red }
 Write-Host "  written: $jobPath" -ForegroundColor Cyan
+Write-Host "  software inventory: $($j.harvest.software.desktop.Count) desktop programs, $($j.harvest.software.store.Count) Store apps (names only; stays on the stick)" -ForegroundColor DarkGray
 Write-Host '  not in this job: folders, browsers, Wi-Fi, cloud files, the BitLocker key, a chosen password' -ForegroundColor DarkGray
 Write-Host ''

@@ -182,7 +182,35 @@
       "status": "on",
       "recovery_key_file": "artifacts/credentials/bitlocker-C.txt"
     },
-    "firmware_artifacts": []
+    "firmware_artifacts": [],
+    "software": {
+      "desktop": [
+        {
+          "name": "Mozilla Firefox (x64 en-US)",
+          "version": "130.0",
+          "publisher": "Mozilla"
+        },
+        {
+          "name": "Microsoft 365 - en-us",
+          "version": "16.0.17928.20156",
+          "publisher": "Microsoft Corporation"
+        },
+        {
+          "name": "VLC media player",
+          "version": "3.0.21",
+          "publisher": "VideoLAN"
+        }
+      ],
+      "store": [
+        {
+          "name": "Spotify",
+          "package": "SpotifyAB.SpotifyMusic",
+          "version": "1.2.45.0",
+          "publisher": "Spotify AB"
+        }
+      ],
+      "truncated": false
+    }
   },
   "stick": {
     "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&1A2B3C4D&0&_&0",

@@ -55,6 +55,7 @@ job["harvest"]["wifi"] = {"profiles": [], "secrets_file": None}
 bl = facts.get("bitlocker", "off")
 job["harvest"]["bitlocker"] = {"status": bl, "recovery_key_file": "artifacts/credentials/bitlocker-C.txt" if bl == "on" else None}
 job["harvest"]["firmware_artifacts"] = []
+job["harvest"]["software"] = {"desktop": [], "store": [], "truncated": False}
 job["stick"] = {"unique_id": stick_uid, "serial_number": "", "size_bytes": stick_size, "friendly_name": "Msft Virtual Disk",
                 "label": "UPGV0", "manifest": "SHA256SUMS"}
 

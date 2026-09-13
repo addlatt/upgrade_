@@ -116,6 +116,15 @@ Linux, so `evaluate` captures them while Windows is alive — this is the same
   `evaluate` forces them local now, while Windows can still download them, or
   refuses if it cannot. This is materialization, not just detection.
 
+**The software inventory (2026-09-13).** The job writer records every
+installed desktop program (the registry's Apps & features entries, minus
+updates and hidden components) and every Store app the person installed,
+names and versions only, as `harvest.software`. It is for `settle-in`: a
+"you had these" list with the Linux or web equivalent named for each,
+the migration's missing piece for someone who does not know what
+LibreOffice is. It is personal data, so it travels only in `job.json` on
+the stick and never in a report that leaves the machine.
+
 ### It writes the stick
 
 `evaluate` authors the USB stick itself — live image plus an exFAT staging

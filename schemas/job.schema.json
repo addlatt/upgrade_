@@ -422,7 +422,8 @@
         "browsers",
         "wifi",
         "bitlocker",
-        "firmware_artifacts"
+        "firmware_artifacts",
+        "software"
       ],
       "properties": {
         "folders": {
@@ -655,6 +656,86 @@
               "sha256": {
                 "$ref": "#/definitions/sha256"
               }
+            }
+          }
+        },
+        "software": {
+          "description": "The person's installed programs, names only, so settle-in can suggest what to install instead (decided 2026-09-13). Personal data: it lives in job.json on the stick and is never part of a report that leaves the machine. desktop = the registry's Apps & features entries (updates and hidden system components dropped); store = Microsoft Store packages the person installed (frameworks and system packages dropped).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "desktop",
+            "store",
+            "truncated"
+          ],
+          "properties": {
+            "desktop": {
+              "type": "array",
+              "maxItems": 2000,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "version": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "publisher": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "store": {
+              "type": "array",
+              "maxItems": 2000,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "package": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "version": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "publisher": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "truncated": {
+              "description": "True only if a list hit its cap; settle-in then says the list is incomplete.",
+              "type": "boolean"
             }
           }
         }
