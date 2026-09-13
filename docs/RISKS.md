@@ -813,7 +813,22 @@ the scan (`NoErrorsFound` → `Repair-Volume -SpotFix`, confirmed by
 `chkntfs` and falling back to `chkdsk C: /spotfix` scheduling if the
 cmdlet did not take; `ErrorsFound`/`ErrorsNotFixed` → `chkdsk C: /f`;
 anything else → refuse); its own restart, resumed by a one-shot elevated
-logon task; on return the Wininit 1001 text, any `found.000` and the flag
+task — **since 0.3.0 (decided 2026-09-13) a SYSTEM task at startup, not a
+logon task**: every rig row before it had the resume fire only because the
+rig guest auto-logs on, and the Aspire's row had a person sign in, so the
+walk-away half of the promise had never actually been exercised. The
+0.3.0 resume runs before and without a sign-in, polls for the stick by
+volume id, locks its state directory to SYSTEM and Administrators before
+the task exists (a SYSTEM task over a user-writable folder is a privilege
+escalation), records who ran it and whether a session existed
+(`state.Resumes`), and queues its messages as a `RunOnce` notice for the
+next sign-in. The alternative — holding the person's Windows password for
+an autologon — was considered and refused (`architecture.md`, "the
+walk-away resume"). Owed evidence: a rig row with autologon **off** in the
+guest, the resume recorded as SYSTEM in session 0 with no explorer, and
+the Wininit 1001 text read with no logon at all (it was only ever seen
+landing "after logon" under autologon, where logon follows boot by
+seconds); on return the Wininit 1001 text, any `found.000` and the flag
 re-read. If the flag survives the spot-fix the prologue rescans and
 escalates to `/f` only if that rescan logs errors, once; otherwise it
 stops and says so. Then both read-only measurements, the fork from

@@ -399,7 +399,7 @@ in step 6 is a hard gate, not a warning.
 lineage, driven by the one-click `RUN-CONVERT.cmd` on the kit stick
 (scanner → job writer → kickstart → the typed word → the prologue). Steps
 1, 1b, 2 (keep-Windows), 3 and 4 above are built with collect/judge seams
-and 55 self-test cases; the clean-slate half of step 2 stages files with
+and 68 self-test cases (0.3.0, 2026-09-13: the SYSTEM startup resume); the clean-slate half of step 2 stages files with
 checksums and a measured-speed estimate but then **stops** before the
 handoff, because the live session's human gate before the wipe is not
 built and this code will not arm an unattended wipe. Decided (2026-09-12)
@@ -522,6 +522,30 @@ with highest privileges", COM elevation moniker abuse. All are documented
 UAC-bypass patterns that Defender targets by name. They would get the tool
 flagged *and* genuinely weaken the machine, for nothing the manifest doesn't
 already provide.
+**Amended (2026-09-13):** that rule is about *obtaining* elevation without
+the consent click. The prologue does register one elevated scheduled task —
+but from a run that already holds UAC-consented elevation, only to survive
+its own restart, one-shot, removed by every exit path. Since 2026-09-13 it
+runs as SYSTEM at startup (below, "the walk-away resume"), and the directory
+it runs from is locked to SYSTEM and Administrators before the task exists,
+so it grants nothing to anyone who did not already click Yes.
+
+**The walk-away resume (decided 2026-09-13).** The prologue's restarts (the
+disk check, the pagefile re-measure) come back to Windows before the handoff,
+and everything after the typed word must run with nobody at the keyboard —
+the fork is pre-chosen in `job.json`, so nothing waits on a person. The
+resume therefore runs as SYSTEM at startup, before and without a sign-in,
+finds the stick by volume id (polled: USB enumerates late at boot), and
+queues anything a person should read as a one-shot `RunOnce` notice shown at
+their next sign-in, since session 0 has no screen. **What we will not do
+instead:** take the person's Windows password to automate the sign-in.
+Microsoft-account holders often sign in with a PIN and may not know it,
+Windows 11 accounts can be passwordless, autologon stores the secret on a
+disk that settle-in later mounts from Linux, and a third-party tool asking
+for a Microsoft password is indistinguishable from phishing (above). The
+plain alternative — `shutdown /g`, Automatic Restart Sign-On, which Windows
+Update uses — is a courtesy to add later; the SYSTEM resume makes it
+unnecessary for the mechanism.
 
 **We never ask for a Microsoft account password.** A Microsoft-branded
 credential box is indistinguishable from phishing, and it is unnecessary:

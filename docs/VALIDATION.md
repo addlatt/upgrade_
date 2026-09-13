@@ -410,7 +410,13 @@ and one evidence file, `docs/validation-results/r18-prologue.csv` (row 3
 both paths → 25 GB freed → install), whose
 `remeasured_gb` / `diskpart_gb` pair is the same two-path measurement V4
 counts — taken *after* the check, at the moment it matters. The Acer
-Aspire's real flag is the first physical row owed there.
+Aspire's real flag is the first physical row owed there. *The walk-away
+resume (2026-09-13):* rows 1–5 all had someone signed in when the resume
+fired (the rig auto-logs on; the Aspire's person signed in), so prologue
+0.3.0 resumes as SYSTEM at startup and the bench now switches the guest's
+autologon **off** before the flow (`prologue.sh autologon off`); a row
+counts as walk-away only when `state.Resumes` shows SYSTEM, session 0, no
+explorer, and the verdict script writes `resume-attended` otherwise.
 
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.

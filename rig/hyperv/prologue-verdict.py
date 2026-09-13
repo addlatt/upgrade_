@@ -42,6 +42,16 @@ handoff = rh.get("Result") or rh.get("result") or "no-record"   # the record is 
 if rec: notes.append(f"prologue {rec.get('prologue_version')} stage={rec.get('stage')} restarts={state.get('Restarts')}")
 if vc.get("scan") is not None: notes.append(f"scan='{vc.get('scan')}' chkntfs={state.get('VolumeCheck', {}).get('Chkntfs')}")
 if vc.get("wininit_1001"): notes.append("wininit 1001: " + " ".join(vc["wininit_1001"].split())[:200])
+# the walk-away resume (prologue 0.3.0): every resume must have run as SYSTEM in
+# session 0 with no explorer, and the bench must have had autologon off
+resumes = state.get("Resumes") or []
+attended = [r for r in resumes if r.get("Interactive") or int(r.get("SessionId") or 0) != 0 or r.get("ExplorerRunning")]
+autologon = ""
+try: autologon = open(A / "autologon.txt", encoding="utf-8", errors="replace").read().strip().splitlines()[-1]
+except Exception: pass
+for i, r in enumerate(resumes, 1):
+    notes.append(f"resume {i} ({r.get('Stage')}): {r.get('RunAs')} session {r.get('SessionId')} interactive {r.get('Interactive')} explorer {r.get('ExplorerRunning')} uptime {r.get('UptimeSeconds')} s stick after {r.get('StickWaitSeconds')} s")
+if autologon: notes.append(f"bench {autologon}")
 plan = (state.get("Shrink") or {}).get("Plan") or {}
 if plan: notes.append(f"plan target={plan.get('TargetBytes')} shrinkable={plan.get('ShrinkableBytes')} reason='{plan.get('Reason')}' api_error='{(state.get('Shrink') or {}).get('ApiError')}' diskpart_error='{(state.get('Shrink') or {}).get('DiskpartError')}'")
 
@@ -82,6 +92,8 @@ if rec is None: result = "prologue-not-run"
 elif stopped_at: result = f"stopped-{stopped_at}"
 elif dirty_injected == "y" and not needed: result = "flag-not-confirmed"
 elif needed and not ran: result = "check-not-run"
+elif resumes and attended: result = "resume-attended"
+elif resumes and autologon and not autologon.endswith("=0"): result = "resume-with-autologon"
 elif needed and vc.get("dirty_after") != "clean": result = "flag-persists"
 elif sh.get("remeasured_gb") is None: result = "not-remeasured"
 elif sh.get("fork_taken") != "keep-windows": result = f"fork-{sh.get('fork_taken')}"

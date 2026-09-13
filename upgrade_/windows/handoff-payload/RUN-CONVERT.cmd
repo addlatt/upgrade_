@@ -21,8 +21,9 @@ REM       runs the disk check if Windows flagged C: (restart), re-
 REM       measures the room, shrinks C:, suspends BitLocker for one
 REM       restart, arms the one-time boot handoff and restarts.
 REM  Every refusal happens before anything is changed. A restart
-REM  in the middle is normal: leave the stick in, sign in when
-REM  Windows comes back, and it continues by itself.
+REM  in the middle is normal: leave the stick in and walk away -
+REM  it continues by itself before anyone signs in. If it stops,
+REM  a window says so at your next sign-in.
 REM ============================================================
 
 net session >nul 2>&1

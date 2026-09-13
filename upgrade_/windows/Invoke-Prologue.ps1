@@ -46,9 +46,16 @@
           itself, undoes what it can (grows C: back, re-enables BitLocker,
           removes the boot entry) and scrubs the stick's credentials.
 
-    Restarts are resumed by a one-shot elevated logon task (-Resume). On the
-    return to Windows after the handoff the same task classifies the
-    handoff, removes the boot entry and the task, and leaves
+    Restarts are resumed by a one-shot task that runs as SYSTEM at startup
+    (-Resume), before and without anyone signing in - the walk-away half of
+    the promise (decided 2026-09-13; RISKS R18). Nothing after the typed word
+    needs a person: the fork is pre-chosen in job.json. Anything the person
+    should read (a stop, the return) is queued as a one-shot notice shown at
+    their next sign-in, since a task in session 0 has no screen. The state
+    directory is locked to SYSTEM and Administrators before the task is
+    registered: a SYSTEM task must never run a script a standard user can
+    replace. On the return to Windows after the handoff the same task
+    classifies the handoff, removes the boot entry and the task, and leaves
     upgrade_/prologue-return.json on the stick.
 
     Nothing here crosses the commit line. Every refusal happens before the
@@ -58,8 +65,12 @@
     Begin a conversion. Needs -StickDrive and -ConfirmWord CONVERT.
 
 .PARAMETER Resume
-    Continue after a restart (registered as the logon task; can be run by
-    hand). Reads the state the previous phase left.
+    Continue after a restart (registered as the SYSTEM startup task; can be
+    run by hand, elevated). Reads the state the previous phase left.
+
+.PARAMETER Notify
+    Show the notice the last unattended phase queued for the next sign-in
+    (registered under HKLM RunOnce; runs as the person, unelevated).
 
 .PARAMETER Abort
     Stop an in-progress conversion between phases: remove the task and the
@@ -78,11 +89,14 @@ param(
     [Parameter(ParameterSetName = 'Resume', Mandatory = $true)][switch]$Resume,
     [Parameter(ParameterSetName = 'Abort', Mandatory = $true)][switch]$Abort,
     [Parameter(ParameterSetName = 'SelfTest', Mandatory = $true)][switch]$SelfTest,
+    [Parameter(ParameterSetName = 'Notify', Mandatory = $true)][switch]$Notify,
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.2.0'
+$PrologueVersion = '0.3.0'
 $TaskName = 'upgrade_ prologue resume'
+$NoticeRunOnceName = 'upgrade_ prologue notice'
+$StickWaitSeconds = 120           # a USB stick can enumerate well after the startup task starts
 $ConfirmExpected = 'CONVERT'
 # The acknowledged-data-loss path (RISKS R23, decided 2026-09-13): when the job
 # carries risk_acknowledgement, the same sentence must be typed for THIS run,
@@ -297,6 +311,22 @@ function Find-StickRoot {
     $null
 }
 
+function Get-ResumeContext {
+    # Who is running this resume, and is there a screen. A SYSTEM startup task
+    # runs in session 0 with no interactive desktop: UserInteractive is false
+    # there, so every notice goes through RunOnce instead of a popup.
+    param([string]$UserName, [bool]$UserInteractive, [int]$SessionId, [bool]$ExplorerRunning)
+    [ordered]@{ RunAs = $UserName; Interactive = $UserInteractive; SessionId = $SessionId; ExplorerRunning = $ExplorerRunning
+                Unattended = (-not $UserInteractive -or $SessionId -eq 0) }
+}
+
+function New-NoticeCommand {
+    # The RunOnce value: show the notice file at the next sign-in, as the
+    # person, unelevated, from the state dir's copy of this script.
+    param([string]$ScriptPath, [string]$State)
+    "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`" -Notify -StateDir `"$State`""
+}
+
 function Get-DriveRoot {
     param([string]$Letter)
     $l = $Letter.TrimEnd(':', '\').ToUpper()
@@ -330,6 +360,7 @@ function New-PrologueState {
         Staged = $null
         BitLocker = [ordered]@{ StatusBefore = $null; Source = $null; Suspended = $false; RebootCount = $null }
         Handoff = [ordered]@{ Armed = $false; Marker = $null; EntryGuid = $null; ArmedUtc = $null; BcdBackup = $null; Before = $null; GrubEnvReset = $false }
+        Resumes = @()
         Return = $null
     }
 }
@@ -671,14 +702,76 @@ function Register-ResumeTask {
     # "Cannot overwrite the item ... with itself" stopped the conversion at the arm)
     $copy = Join-Path $State 'Invoke-Prologue.ps1'
     if ([IO.Path]::GetFullPath($PSCommandPath).ToLower() -ne [IO.Path]::GetFullPath($copy).ToLower()) { Copy-Item $PSCommandPath $copy -Force }
-    $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+    Protect-StateDir -State $State
+    # SYSTEM at startup: runs before and without a sign-in (the walk-away half;
+    # decided 2026-09-13). The task is registered by a run that already holds
+    # UAC-consented elevation, only to survive its own restart, and every exit
+    # path of this script removes it.
     $args = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $State 'Invoke-Prologue.ps1')`" -Resume -StateDir `"$State`""
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $args
-    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
-    $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Highest
-    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 4)
+    $trigger = New-ScheduledTaskTrigger -AtStartup
+    $principal = New-ScheduledTaskPrincipal -UserId 'NT AUTHORITY\SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 4)
     Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
-    if (-not (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue)) { throw 'the resume task is not present after registration' }
+    $t = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+    if (-not $t) { throw 'the resume task is not present after registration' }
+    if ("$($t.Principal.UserId)" -notmatch '(?i)SYSTEM') { Unregister-ResumeTask | Out-Null; throw "the resume task registered as '$($t.Principal.UserId)', not SYSTEM; removed again" }
+}
+
+function Protect-StateDir {
+    # The startup task runs this directory's copy of the script as SYSTEM, so
+    # nothing but SYSTEM and Administrators may write here (ProgramData's
+    # default ACL lets any user create files). Users keep read, for -Notify.
+    param([string]$State)
+    $acl = Get-Acl -LiteralPath $State
+    $acl.SetAccessRuleProtection($true, $false)
+    foreach ($r in @($acl.Access)) { [void]$acl.RemoveAccessRule($r) }
+    $inh = [Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
+    foreach ($who in @('NT AUTHORITY\SYSTEM', 'BUILTIN\Administrators')) {
+        $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($who, 'FullControl', $inh, 'None', 'Allow')))
+    }
+    $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule('BUILTIN\Users', 'ReadAndExecute', $inh, 'None', 'Allow')))
+    Set-Acl -LiteralPath $State -AclObject $acl
+    $check = (Get-Acl -LiteralPath $State).Access | Where-Object { $_.AccessControlType -eq 'Allow' -and "$($_.IdentityReference)" -match '(?i)Users|Everyone|Authenticated' -and "$($_.FileSystemRights)" -match '(?i)Write|Modify|FullControl|CreateFiles' }
+    if ($check) { throw "the state directory still grants write access to $(($check | ForEach-Object { $_.IdentityReference }) -join ', '); refusing to register a SYSTEM task over it" }
+}
+
+function Get-LiveResumeContext {
+    $explorer = [bool](Get-Process -Name explorer -ErrorAction SilentlyContinue)
+    Get-ResumeContext -UserName ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -UserInteractive ([Environment]::UserInteractive) -SessionId ([Diagnostics.Process]::GetCurrentProcess().SessionId) -ExplorerRunning $explorer
+}
+
+function Wait-Stick {
+    # At startup the stick may not be enumerated yet: poll by volume id.
+    param($S, [int]$Seconds = $StickWaitSeconds)
+    $t0 = Get-Date
+    while ($true) {
+        $r = Find-Stick $S
+        if ($r) { return $r }
+        if (((Get-Date) - $t0).TotalSeconds -ge $Seconds) { return $null }
+        Start-Sleep -Seconds 5
+    }
+}
+
+function Set-Notice {
+    # Queue text for the person's next sign-in (HKLM RunOnce: runs once, as
+    # whoever signs in, unelevated). Used whenever there is no screen to show.
+    param([string]$State, [string]$Title, [string]$Text, [int]$Buttons = 64)
+    try {
+        $n = [ordered]@{ title = $Title; text = $Text; buttons = $Buttons; queued_utc = (Get-Date).ToUniversalTime().ToString('o') }
+        [IO.File]::WriteAllText((Join-Path $State 'notice.json'), (ConvertTo-PrologueJson $n), (New-Object Text.UTF8Encoding($false)))
+        $k = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce'
+        Set-ItemProperty -Path $k -Name $NoticeRunOnceName -Value (New-NoticeCommand -ScriptPath (Join-Path $State 'Invoke-Prologue.ps1') -State $State)
+        $true
+    } catch { Write-Log "  ! could not queue the sign-in notice: $($_.Exception.Message)" 'Yellow'; $false }
+}
+
+function Show-Or-Queue {
+    # A popup when there is a screen, a queued notice when there is not.
+    param([string]$State, [string]$Title, [string]$Text, [int]$Seconds, [int]$Buttons = 64)
+    $ctx = Get-LiveResumeContext
+    if ($ctx.Unattended) { Set-Notice -State $State -Title $Title -Text $Text -Buttons $Buttons | Out-Null; return 'queued' }
+    Show-Popup -Title $Title -Seconds $Seconds -Buttons $Buttons -Text $Text | Out-Null; 'shown'
 }
 
 function Unregister-ResumeTask {
@@ -780,7 +873,7 @@ function Stop-Prologue {
     Write-Record -S $S -Root $Root
     Copy-Item (Join-Path $State 'state.json') (Join-Path $State 'state-stopped.json') -Force -ErrorAction SilentlyContinue
     Remove-Item (Join-Path $State 'state.json') -Force -ErrorAction SilentlyContinue
-    if (-not $Start) { Show-Popup -Title 'upgrade_ - stopped' -Seconds 600 -Buttons 48 -Text ("The conversion stopped at: $StoppedAt`n`n$Reason`n`nWindows is as it was. Nothing was installed. The record is on the USB stick (upgrade_\outcome.json).") | Out-Null }
+    if (-not $Start) { Show-Or-Queue -State $State -Title 'upgrade_ - stopped' -Seconds 600 -Buttons 48 -Text ("The conversion stopped at: $StoppedAt`n`n$Reason`n`nWindows is as it was. Nothing was installed. The record is on the USB stick (upgrade_\outcome.json).") | Out-Null }
     exit 2
 }
 
@@ -959,7 +1052,7 @@ function Invoke-Continue {
     Write-Log ''; Write-Log '  This computer restarts into the installer in 15 seconds. Leave the stick in.' 'Green'
     Write-Log '  Windows is still here and still bootable; it stays that way until you reclaim it in Linux.' 'DarkGray'
     Restart-Machine 'starting the installer from the USB stick'
-    if (-not $Start) { Show-Popup -Title 'upgrade_' -Seconds 12 -Text "Restarting into the installer in 15 seconds. Leave the USB stick in." | Out-Null }
+    if (-not $Start) { $ctx = Get-LiveResumeContext; if (-not $ctx.Unattended) { Show-Popup -Title 'upgrade_' -Seconds 12 -Text "Restarting into the installer in 15 seconds. Leave the USB stick in." | Out-Null } }
 }
 
 function Invoke-Return {
@@ -996,7 +1089,7 @@ function Invoke-Return {
     Copy-Item (Join-Path $State 'state.json') (Join-Path $State 'state-returned.json') -Force -ErrorAction SilentlyContinue
     Remove-Item (Join-Path $State 'state.json') -Force -ErrorAction SilentlyContinue
     Write-Log "      boot entry removed, task removed; record on the stick" 'Green'
-    Show-Popup -Title 'upgrade_ - back in Windows' -Seconds 120 -Buttons 64 -Text ("The one-time boot entry has been removed (handoff: $result).`n`nIf the conversion completed, Linux is the first boot choice and Windows is in its menu. The record is on the USB stick.") | Out-Null
+    Show-Or-Queue -State $State -Title 'upgrade_ - back in Windows' -Seconds 120 -Buttons 64 -Text ("The one-time boot entry has been removed (handoff: $result).`n`nIf the conversion completed, Linux is the first boot choice and Windows is in its menu. The record is on the USB stick.") | Out-Null
 }
 
 # =============================================================================
@@ -1006,7 +1099,7 @@ function Invoke-Return {
 function Invoke-StartPhase {
     if ($ConfirmWord -cne $ConfirmExpected) { throw "the confirmation word was not typed (expected $ConfirmExpected); nothing was started" }
     $state = Resolve-StateDir; New-Item -ItemType Directory -Path $state -Force | Out-Null
-    if (Test-Path (Join-Path $state 'state.json')) { throw "a conversion is already in progress (state in $state). Sign out and in to let it resume, or run -Abort." }
+    if (Test-Path (Join-Path $state 'state.json')) { throw "a conversion is already in progress (state in $state). Restart to let it resume, or run -Abort." }
     $root = Get-DriveRoot $StickDrive
     if (-not (Test-Path $root)) { throw "stick $root not found" }
     $jobFile = if ($JobPath) { $JobPath } else { Join-Path $root 'upgrade_\job.json' }
@@ -1050,12 +1143,21 @@ function Invoke-ResumePhase {
     $S = Read-State $state
     if (-not $S) { Write-Host "  nothing to resume (no state in $state)"; Unregister-ResumeTask | Out-Null; return }
     $script:LogFile = Join-Path $state 'prologue.log'
-    $root = Find-Stick $S
+    $ctx = Get-LiveResumeContext
+    $ctx.Utc = (Get-Date).ToUniversalTime().ToString('o'); $ctx.Stage = "$($S.Stage)"; $ctx.UptimeSeconds = [int]([Environment]::TickCount / 1000)
+    $root = Wait-Stick $S
+    $ctx.StickWaitSeconds = [int]((Get-Date) - [DateTime]::Parse($ctx.Utc, $null, [Globalization.DateTimeStyles]::RoundtripKind).ToLocalTime()).TotalSeconds
+    if (-not $S.Contains('Resumes')) { $S.Resumes = @() }
+    $S.Resumes = @($S.Resumes) + , $ctx
+    Save-State $S $state
     if ($root) { $script:StickLog = Join-Path $root 'upgrade_\report\prologue.log'; New-Item -ItemType Directory -Path (Split-Path $script:StickLog -Parent) -Force | Out-Null }
     Write-Log ''; Write-Log "  upgrade_  prologue $PrologueVersion  -  RESUME (stage $($S.Stage), restart $($S.Restarts))" 'Cyan'
+    Write-Log "  running as $($ctx.RunAs), session $($ctx.SessionId), interactive $($ctx.Interactive), explorer $($ctx.ExplorerRunning), uptime $($ctx.UptimeSeconds) s, stick after $($ctx.StickWaitSeconds) s -> $(if ($ctx.Unattended) { 'unattended' } else { 'attended' })" 'DarkGray'
     if (-not $root) {
-        Write-Log '  ! the USB stick is not present; plug it in and sign out and in again' 'Yellow'
-        Show-Popup -Title 'upgrade_' -Seconds 300 -Buttons 48 -Text "The USB stick is not plugged in. Plug it in, then sign out and back in - the conversion continues by itself." | Out-Null
+        # the task stays registered (startup, StartWhenAvailable): the next
+        # restart with the stick in continues by itself
+        Write-Log "  ! the USB stick is not present after $StickWaitSeconds s; leaving the task in place" 'Yellow'
+        Show-Or-Queue -State $state -Title 'upgrade_' -Seconds 300 -Buttons 48 -Text "The USB stick is not plugged in. Plug it in and restart the computer - the conversion continues by itself." | Out-Null
         return
     }
     if ($S.Stage -eq 'armed') { Invoke-Return $S $state $root; return }
@@ -1069,10 +1171,21 @@ function Invoke-ResumePhase {
     Invoke-Continue $S $state $root $job
 }
 
+function Invoke-NotifyPhase {
+    # RunOnce at sign-in, as the person: show what the unattended phase queued.
+    $state = Resolve-StateDir
+    $p = Join-Path $state 'notice.json'
+    if (-not (Test-Path $p)) { return }
+    $n = Get-Content $p -Raw | ConvertFrom-Json
+    Show-Popup -Title "$($n.title)" -Seconds 600 -Buttons ([int]$n.buttons) -Text "$($n.text)" | Out-Null
+    Remove-Item $p -Force -ErrorAction SilentlyContinue
+}
+
 function Invoke-AbortPhase {
     $state = Resolve-StateDir
     $S = Read-State $state
     Unregister-ResumeTask | Out-Null
+    Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce' -Name $NoticeRunOnceName -ErrorAction SilentlyContinue
     if (-not $S) { Write-Host '  nothing in progress'; return }
     if ($S.Handoff.Armed -and $S.Handoff.EntryGuid) { & bcdedit /deletevalue '{fwbootmgr}' bootsequence 2>&1 | Out-Null; & bcdedit /delete $S.Handoff.EntryGuid 2>&1 | Out-Null; Write-Host '  removed the one-shot boot entry' }
     if ($S.BitLocker.Suspended) { & manage-bde -protectors -enable C: 2>&1 | Out-Null; Write-Host '  BitLocker protection re-enabled' }
@@ -1198,6 +1311,12 @@ function Invoke-SelfTest {
            Run = { $s = New-PrologueState -JobId 'j' -StickId 's' -Root 'E:\'; $s.Shrink.ForkTaken = 'keep-windows'; $o = New-PrologueStoppedOutcome -Job $job -S $s -StoppedAt 'arm-handoff' -Reason 'x' -WindowsPartition $null; "$($o.path_taken):$($o.credentials.scrub_after)" }; Expect = 'keep-windows:settle-in-pull' }
         @{ Name = 'json: LF only, schema string present'
            Run = { $j = ConvertTo-PrologueJson (New-PrologueStoppedOutcome -Job $job -S (New-PrologueState -JobId 'j' -StickId 's' -Root 'E:\') -StoppedAt 'revalidate' -Reason 'r' -WindowsPartition $null); (-not $j.Contains("`r")) -and ($j -match '"schema":\s*"outcome/1"') }; Expect = $true }
+        # the unattended resume (SYSTEM at startup, no sign-in) and its notices
+        @{ Name = 'resume context: SYSTEM in session 0 is unattended'; Run = { (Get-ResumeContext -UserName 'NT AUTHORITY\SYSTEM' -UserInteractive $false -SessionId 0 -ExplorerRunning $false).Unattended }; Expect = $true }
+        @{ Name = 'resume context: a signed-in person in session 1 is attended'; Run = { (Get-ResumeContext -UserName 'PC\rig' -UserInteractive $true -SessionId 1 -ExplorerRunning $true).Unattended }; Expect = $false }
+        @{ Name = 'resume context: session 0 is unattended even if the flag says interactive'; Run = { (Get-ResumeContext -UserName 'NT AUTHORITY\SYSTEM' -UserInteractive $true -SessionId 0 -ExplorerRunning $false).Unattended }; Expect = $true }
+        @{ Name = 'notice: the RunOnce command is hidden, unelevated -Notify from the state copy'; Run = { New-NoticeCommand -ScriptPath 'C:\ProgramData\upgrade_\prologue\Invoke-Prologue.ps1' -State 'C:\ProgramData\upgrade_\prologue' }; Expect = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\ProgramData\upgrade_\prologue\Invoke-Prologue.ps1" -Notify -StateDir "C:\ProgramData\upgrade_\prologue"' }
+        @{ Name = 'state: a fresh state carries an empty resume log; an old state without one round-trips'; Run = { $s = New-PrologueState -JobId 'j' -StickId 's' -Root 'E:\'; $old = ConvertTo-PrologueHashtable ((ConvertTo-PrologueJson $s) | ConvertFrom-Json); $old.Remove('Resumes'); "$(@($s.Resumes).Count):$($old.Contains('Resumes'))" }; Expect = '0:False' }
         @{ Name = 'drive: e normalizes to E:\, a path is refused'; Run = { "$(Get-DriveRoot 'e')/$(try { Get-DriveRoot 'E:\x'; 'accepted' } catch { 'refused' })" }; Expect = 'E:\/refused' }
     )
     $failed = 0
@@ -1217,6 +1336,7 @@ function Invoke-SelfTest {
 # =============================================================================
 
 if ($SelfTest) { Invoke-SelfTest; return }
+if ($Notify) { Invoke-NotifyPhase; return }
 if (-not (Test-Elevated)) { throw 'the prologue needs Administrator: it reads and changes the disk and the boot configuration' }
 if (-not (Test-UefiBoot)) { throw 'this machine is not UEFI-booted; the boot handoff does not apply' }
 if ($Abort) { Invoke-AbortPhase; return }

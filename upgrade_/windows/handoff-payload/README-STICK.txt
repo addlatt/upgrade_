@@ -29,7 +29,8 @@ click "Yes" on the blue prompt, and type CONVERT when asked. It scans,
 writes the job, generates the kickstart, then runs the prologue: it
 re-checks the job against this computer, runs Windows' own disk check
 if Windows has flagged C: (that is a restart of its own - leave the
-stick in, sign in when Windows is back, it continues by itself),
+stick in and walk away; it continues by itself, before anyone signs
+in, and if it stops a window says so at your next sign-in),
 re-measures the room, shrinks the Windows partition, suspends
 BitLocker for one restart, and restarts into the Linux installer on
 this stick. Linux is installed BESIDE Windows; Windows stays in the

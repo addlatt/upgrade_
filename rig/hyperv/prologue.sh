@@ -19,6 +19,9 @@
 #                             the prologue writes that itself when it arms)
 #   prologue.sh windows       power on, wait for PS Direct (no GRUB on this disk)
 #   prologue.sh dirty         fsutil dirty set C: (the fault), record fsutil's answer
+#   prologue.sh autologon off|on   the guest's AutoAdminLogon (the rig template signs itself in;
+#                             the walk-away row needs NOBODY signed in when the resume fires -
+#                             prologue 0.3.0, SYSTEM at startup); records artifacts/autologon.txt
 #   prologue.sh convert       run the stick's RUN-CONVERT.cmd through cmd with CONVERT on stdin;
 #                             the prologue restarts the guest for the disk check
 #   prologue.sh wait-off [s]  wait until the guest powers itself off: check restart -> resume ->
@@ -33,7 +36,7 @@
 #                             ESP inspected offline, then a keyless start must bring Windows up
 #                             directly -> rollback-verdict.py -> r21-rollback.csv
 #   prologue.sh restore       VM off: main UPGRIGHV.vhdx back, prologue disk detached
-#   prologue.sh run           prepare -> stick -> windows -> inspect pre -> dirty -> convert -> wait-off
+#   prologue.sh run           prepare -> stick -> windows -> inspect pre -> dirty -> autologon off -> convert -> wait-off
 #                             -> inspect post-install -> cycle windows w1 -> cycle linux l1
 #                             -> cycle windows w2 -> cycle linux l2 -> inspect post-cycles -> verdict
 #
@@ -110,6 +113,13 @@ dirty)
     guest 'fsutil dirty set C:; fsutil dirty query C:' | tee "$A/dirty.txt"
     grep -q 'is Dirty' "$A/dirty.txt" || { echo "prologue: the flag did not set" >&2; exit 1; }
     ;;
+autologon)
+    mkdir -p "$A"; v=${2:?off|on}; [ "$v" = off ] && n=0 || n=1
+    # the unattend template's AutoLogon is the Winlogon key; PS Direct needs no
+    # interactive session, so the bench keeps working with it off
+    guest "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon' -Name AutoAdminLogon -Value '$n' -Type String; 'AutoAdminLogon=' + (Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon').AutoAdminLogon" | tee "$A/autologon.txt"
+    grep -q "AutoAdminLogon=$n" "$A/autologon.txt" || { echo "prologue: autologon did not switch" >&2; exit 1; }
+    ;;
 convert)
     mkdir -p "$A"
     L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume in the guest" >&2; exit 1; }
@@ -135,7 +145,7 @@ cycle)
         for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; sleep 1; done
         shot "grub-selected-$tag"; PS key 13
         wait_windows 600
-        # the prologue's return check runs at logon and leaves its record on the stick
+        # the prologue's return check runs as SYSTEM at startup and leaves its record on the stick
         L=$(stick_letter); t0=$(date +%s)
         until guest "Test-Path ${L}:\\upgrade_\\prologue-return.json" 2>/dev/null | grep -q True; do [ $(( $(date +%s) - t0 )) -ge 420 ] && break; sleep 15; done
         guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-boot,' + (Get-Date).ToUniversalTime().ToString('o') + ',via-grub,BootCurrent=' + ((bcdedit /enum '{fwbootmgr}' | Select-String 'bootsequence|displayorder' | Select-Object -First 1) -replace '\\s+',' '))" >/dev/null 2>&1 || true
@@ -184,7 +194,7 @@ restore)
     PS disk list
     ;;
 run)
-    "$SELF" prepare; "$SELF" stick; "$SELF" inspect pre-install; "$SELF" windows; "$SELF" dirty; "$SELF" convert
+    "$SELF" prepare; "$SELF" stick; "$SELF" inspect pre-install; "$SELF" windows; "$SELF" dirty; "$SELF" autologon off; "$SELF" convert
     "$SELF" wait-off 5400; "$SELF" inspect post-install
     "$SELF" cycle windows w1; "$SELF" cycle linux l1; "$SELF" cycle windows w2; "$SELF" cycle linux l2
     "$SELF" inspect post-cycles; "$SELF" verdict
