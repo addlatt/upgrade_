@@ -1322,6 +1322,42 @@ F2 has no direct pin — it was an invocation bug in the netsh call itself,
 which sits on the live side of the parse seam — but the seam now keeps the
 parsing logic, where a silent empty result would hide, under test.
 
+## R23 — The acknowledged-data-loss path exists · high · open (decided 2026-09-13)
+
+**What.** Rule #1 said there is no override for a RED verdict, ever. On
+2026-09-13, after the Acer Aspire's SSD was diagnosed as failing (R18) and
+the owner asked for a way to proceed anyway, the project owner decided to
+build one, narrowly: a separate launcher
+(`RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd`) on which the person types, verbatim
+and case-sensitively, *"I confirm that I understand the risks and could
+lose data"*. The job writer then accepts a RED verdict **only if every
+failing hardware check is one of two** — `Disk health`, `Volume health` —
+and records `risk_acknowledgement` (`statement`, `accepted_utc`,
+`overrides`) in `job.json`; the prologue requires the same sentence typed
+for its run, lifts exactly the listed refusals (the disk-health gate, the
+persistent-flag stop), and every screen and record says DATA LOSS
+ACCEPTED; `outcome.json` carries the block. The schemas encode the limits
+(`schemas/check.py`: a paraphrase is refused, an empty override list is
+refused, `identity` as an override is refused, RED without the block is
+refused, a repair on a non-Healthy disk without the block is refused).
+
+**What it never lifts.** Identity mismatch, a moved or non-USB stick,
+legacy BIOS, an unknown BitLocker state, RST/VMD, a failed image
+read-back, a failed ESP snapshot, a schema-invalid job. Their failure
+mode is "cannot work" or "wrong machine", not "this machine's own files".
+
+**If real (the risk).** The exception is how the first destroyed-photos
+incident happens: the sentence gets pasted from a forum, or typed by the
+person whose files are on the line because a tool told them they were
+being overcautious. The mitigations are the sentence itself (no short
+form, no flag), the separate launcher (the normal path never shows an
+escape hatch), the loud record, and this entry. **The path is for
+machines whose files are already copied off**; the launcher says so
+three times.
+
+**Closes when.** It never closes; it is a standing cost. What can change
+is its width, and the rule is that it does not widen.
+
 ## F1 — `break` inside `ForEach-Object` terminated the whole script · fixed
 
 `Get-HarvestFolderStats` used a 45-second stopwatch and `break` to bound work on

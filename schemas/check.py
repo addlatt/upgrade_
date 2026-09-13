@@ -105,8 +105,25 @@ def main():
     out2 = load(HERE / "examples/outcome.clean-slate.json")
     report(job2["job_id"] == out2["job_id"], "example pair: clean-slate job and outcome share job_id")
 
+    jack = load(HERE / "examples/job.acknowledged-data-loss.json")
+    oack = load(HERE / "examples/outcome.acknowledged-data-loss.json")
+    report(jack["job_id"] == oack["job_id"], "example pair: acknowledged-data-loss job and outcome share job_id")
+
     # --- documents that MUST be refused --------------------------------------
     negatives = [
+        # R23 (decided 2026-09-13): the acknowledged-data-loss path lifts exactly two refusals, with the statement verbatim
+        ("job", "RED verdict without the acknowledgement is refused", set_path(job, ["scan", "verdict"], "RED")),
+        ("job", "acknowledgement with a paraphrased statement is refused",
+         set_path(jack, ["risk_acknowledgement", "statement"], "I understand the risks and could lose data")),
+        ("job", "acknowledgement with no overrides is refused", set_path(jack, ["risk_acknowledgement", "overrides"], [])),
+        ("job", "acknowledgement that names identity as an override is refused",
+         set_path(jack, ["risk_acknowledgement", "overrides"], ["identity"])),
+        ("job", "keep-windows on a Warning disk without disk-health acknowledged is refused",
+         set_path(set_path(jack, ["storage", "physical_disk", "health_status"], "Warning"), ["risk_acknowledgement", "overrides"], ["volume-health"])),
+        ("outcome", "a repair on a Warning disk without the acknowledgement is refused",
+         del_path(oack, ["risk_acknowledgement"])),
+        ("outcome", "an acknowledgement in the outcome with an unknown override is refused",
+         set_path(oack, ["risk_acknowledgement", "overrides"], ["disk-health", "bitlocker"])),
         # the reader rule: an unknown version is a refusal
         ("job", "unknown schema version is refused", set_path(job, ["schema"], "job/2")),
         ("outcome", "unknown outcome version is refused", set_path(out, ["schema"], "outcome/2")),

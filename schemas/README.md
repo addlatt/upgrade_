@@ -24,8 +24,11 @@ The schemas are JSON Schema draft-07 and they carry the project's rules as
 constraints, not just shapes. A document that breaks one of these is
 invalid, and a module that finds an invalid document stops:
 
-- **No RED job.** `scan.verdict` is `GREEN | YELLOW`. A RED machine never
-  gets a job, and there is no override flag, ever (CLAUDE.md rule #1).
+- **No RED job** — except through `risk_acknowledgement` (decided
+  2026-09-13, RISKS R23): a RED verdict is accepted only with the block
+  present, its `statement` the fixed sentence verbatim, and `overrides`
+  naming one or both of `disk-health` / `volume-health`. Nothing else
+  lifts a RED, and the block never names another refusal.
 - **The fork is chosen in advance** (RISKS R18, decided 2026-09-08).
   `fork.if_cannot_keep` is `clean-slate | stop` — what the converter does
   if the shrinkable space it re-measures after the disk check does not fit

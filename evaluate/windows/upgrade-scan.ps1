@@ -43,7 +43,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$UpgVersion = '0.1.0'
+$UpgVersion = '0.2.0'
 
 # --- data ---------------------------------------------------------------
 # The build script replaces this block with the file contents inline, so the
@@ -517,6 +517,71 @@ function Test-UpgDisk {
     }
 }
 
+function ConvertFrom-UpgDiskEvents {
+    # Pure: 'disk' provider events (Id, TimeCreated, Message) -> counts for the
+    # one \Device\HarddiskN the disk holding C: is. Event 7 "has a bad block"
+    # is the drive telling Windows it could not read or write a sector; 51 is
+    # an error during a paging operation; 153 a reset. The trailing backslash
+    # keeps Harddisk1 from matching Harddisk10. Learned on the Acer Aspire
+    # (2026-09-13, RISKS R18): 261 event-7 entries on the SSD holding C: while
+    # Get-PhysicalDisk still said Healthy.
+    param($Events, [int]$DiskNumber)
+    $r = [pscustomobject]@{ BadBlock = 0; Paging = 0; Reset = 0; First = $null; Last = $null; Days = 30 }
+    $pat = [regex]::Escape('\Device\Harddisk' + $DiskNumber + '\')
+    foreach ($e in @($Events)) {
+        if (-not $e -or "$($e.Message)" -notmatch $pat) { continue }
+        switch ([int]$e.Id) { 7 { $r.BadBlock++ } 51 { $r.Paging++ } 153 { $r.Reset++ } default { continue } }
+        if ($null -eq $r.First -or $e.TimeCreated -lt $r.First) { $r.First = $e.TimeCreated }
+        if ($null -eq $r.Last -or $e.TimeCreated -gt $r.Last) { $r.Last = $e.TimeCreated }
+    }
+    $r
+}
+
+function Get-UpgDiskEventFacts {
+    # Live half: the System log is readable unelevated.
+    param([int]$DiskNumber)
+    try {
+        $ev = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; ProviderName = 'disk'; StartTime = (Get-Date).AddDays(-30) } -ErrorAction SilentlyContinue |
+                ForEach-Object { [pscustomobject]@{ Id = [int]$_.Id; TimeCreated = $_.TimeCreated; Message = "$($_.Message)" } })
+        ConvertFrom-UpgDiskEvents -Events $ev -DiskNumber $DiskNumber
+    } catch { $null }
+}
+
+function ConvertFrom-UpgSmartAttributes {
+    # Pure: the 512-byte ATA SMART data block (MSStorageDriver_FailurePredictData
+    # VendorSpecific) -> @{ id = raw } with the raw value's low 16 bits (the
+    # count; vendors park other data in the upper bytes of some attributes).
+    # Entries are 12 bytes from offset 2: id, flags(2), current, worst, raw(6), reserved.
+    param([byte[]]$Bytes)
+    $h = @{}
+    if (-not $Bytes) { return $h }
+    for ($i = 2; $i + 12 -le $Bytes.Length; $i += 12) {
+        $id = [int]$Bytes[$i]; if ($id -eq 0) { continue }
+        if (-not $h.ContainsKey($id)) { $h[$id] = [long]($Bytes[$i + 5] + 256 * $Bytes[$i + 6]) }
+    }
+    $h
+}
+
+function Get-UpgSmartFacts {
+    # Live half: the ATA SMART attributes Windows exposes through WMI (SATA
+    # drives; NVMe answers "Not supported", and unelevated runs may be denied).
+    # Carried as facts; the judgment names only 187/197 (uncorrectable /
+    # pending sectors: failing media), 5 (reallocated) and 199 (CRC: the
+    # link or connector, not the media).
+    param([int]$DiskNumber)
+    try {
+        $dd = Get-CimInstance Win32_DiskDrive -ErrorAction Stop | Where-Object { [int]$_.Index -eq $DiskNumber } | Select-Object -First 1
+        if (-not $dd) { return [pscustomobject]@{ Source = 'none'; Error = 'no Win32_DiskDrive for the disk' } }
+        $pnp = "$($dd.PNPDeviceID)".ToLower()
+        $data = @(Get-CimInstance -Namespace root\wmi -ClassName MSStorageDriver_FailurePredictData -ErrorAction Stop | Where-Object { "$($_.InstanceName)".ToLower().StartsWith($pnp) }) | Select-Object -First 1
+        if (-not $data) { return [pscustomobject]@{ Source = 'none'; Error = 'no SMART data instance for the disk' } }
+        $a = ConvertFrom-UpgSmartAttributes -Bytes ([byte[]]$data.VendorSpecific)
+        $st = @(Get-CimInstance -Namespace root\wmi -ClassName MSStorageDriver_FailurePredictStatus -ErrorAction SilentlyContinue | Where-Object { "$($_.InstanceName)".ToLower().StartsWith($pnp) }) | Select-Object -First 1
+        [pscustomobject]@{ Source = 'ata-smart'; Error = $null; PredictFailure = $(if ($st) { [bool]$st.PredictFailure } else { $null })
+                           Reallocated = $a[5]; Uncorrectable = $a[187]; Pending = $a[197]; OfflineUncorrectable = $a[198]; Crc = $a[199]; EndToEnd = $a[184] }
+    } catch { [pscustomobject]@{ Source = 'unavailable'; Error = ($_.Exception.Message -replace '\s+', ' ').Trim() } }
+}
+
 function Get-UpgPhysicalDiskFacts {
     # Collection half. The physical disk that holds C:, as Windows' own
     # storage stack reports it: Get-PhysicalDisk HealthStatus /
@@ -531,6 +596,7 @@ function Get-UpgPhysicalDiskFacts {
         Found = $false; DiskNumber = $null; FriendlyName = $null; MediaType = $null; BusType = $null
         HealthStatus = $null; OperationalStatus = $null; Size = $null
         Counters = $null; CountersError = $null; Error = $null
+        DiskEvents = $null; Smart = $null
     }
     try {
         $part = Get-Partition -DriveLetter C -ErrorAction Stop
@@ -552,6 +618,8 @@ function Get-UpgPhysicalDiskFacts {
             $facts.HealthStatus      = "$($p.HealthStatus)"
             $facts.OperationalStatus = (@($p.OperationalStatus) -join ',')
             $facts.Size              = $p.Size
+            $facts.DiskEvents        = Get-UpgDiskEventFacts -DiskNumber $part.DiskNumber
+            $facts.Smart             = Get-UpgSmartFacts -DiskNumber $part.DiskNumber
             if ($IsAdmin) {
                 try {
                     $c = $p | Get-StorageReliabilityCounter -ErrorAction Stop
@@ -600,10 +668,49 @@ function Test-UpgPhysicalDisk {
         if ($bits.Count -gt 0) { $counters = ' Windows also reports: ' + ($bits -join ', ') + '.' }
     }
     $what = "$($Facts.FriendlyName) - $($Facts.HealthStatus) ($($Facts.OperationalStatus))"
+
+    # HealthStatus is the drive's own pass/fail against the vendor's
+    # thresholds, and those are lax: the Aspire's SSD had reported 725
+    # uncorrectable reads and Windows had logged 261 bad blocks on it while
+    # it still said Healthy (2026-09-13, RISKS R18). Two more reads decide
+    # before HealthStatus does: the System log's disk events for this disk,
+    # and the SMART counters that mean failing media.
+    $ev = $Facts.DiskEvents; $sm = $Facts.Smart
+    $badBlocks = if ($ev) { [int]$ev.BadBlock } else { 0 }
+    $paging    = if ($ev) { [int]$ev.Paging } else { 0 }
+    $resets    = if ($ev) { [int]$ev.Reset } else { 0 }
+    $when = if ($ev -and $ev.First) { " between $($ev.First) and $($ev.Last)" } else { '' }
+    $media = @(); $link = @()
+    if ($sm -and $sm.Source -eq 'ata-smart') {
+        if ($sm.Uncorrectable -gt 0) { $media += "$($sm.Uncorrectable) uncorrectable read errors reported by the drive (SMART 187)" }
+        if ($sm.Pending -gt 0)       { $media += "$($sm.Pending) sectors pending reallocation (SMART 197)" }
+        if ($sm.Reallocated -gt 0)   { $media += "$($sm.Reallocated) sectors already reallocated (SMART 5)" }
+        if ($sm.Crc -gt 0)           { $link  += "$($sm.Crc) interface CRC errors (SMART 199) - that one points at the cable or connector, not the flash" }
+    }
+    $smartLine = if ($media.Count -or $link.Count) { ' The drive itself reports: ' + (@($media + $link) -join '; ') + '.' } else { '' }
+    $hardMedia = [bool]($sm -and $sm.Source -eq 'ata-smart' -and (($sm.Uncorrectable -gt 0) -or ($sm.Pending -gt 0)))
+
+    if ($Facts.HealthStatus -ne 'Unhealthy' -and ($badBlocks -gt 0 -or $hardMedia)) {
+        $why = if ($badBlocks -gt 0) { "Windows logged $badBlocks bad-block errors on this drive in the last 30 days$when" } else { 'the drive reports sectors it cannot read' }
+        New-UpgCheck -Section 'Storage' -Title 'Disk health' -Status 'fail' -Detail "$what - $why" `
+            -Note "The drive reports HealthStatus $($Facts.HealthStatus), but $why - sectors the drive could not read or write, which is what a failing drive looks like before its own health flag trips.$smartLine$counters Converting on it risks losing files during the copy, and the new system would live on it." `
+            -Remedy 'Do not convert on this drive. Copy your files off it now, while it still reads, then replace the drive and run this scanner again.'
+        return
+    }
+    if ($Facts.HealthStatus -eq 'Healthy' -and ($paging -gt 0 -or $resets -gt 0 -or $media.Count -gt 0 -or $link.Count -gt 0)) {
+        $bits = @()
+        if ($paging -gt 0) { $bits += "$paging paging errors" }
+        if ($resets -gt 0) { $bits += "$resets device resets" }
+        $evLine = if ($bits.Count) { " Windows logged " + ($bits -join ' and ') + " on this drive in the last 30 days$when." } else { '' }
+        New-UpgCheck -Section 'Storage' -Title 'Disk health' -Status 'warn' -Detail "$what - errors logged" `
+            -Note "Windows' health flag for the drive is fine, but there are signs of trouble.$evLine$smartLine$counters The converter will not shrink this drive or run a disk check on it, so keeping Windows as a fallback is not offered." `
+            -Remedy $(if ($link.Count -and -not $media.Count) { 'Interface CRC errors usually mean a loose or dirty connector or a bad cable: reseat the drive, then run this scanner again. Copy your important files somewhere else first regardless.' } else { 'Copy your important files somewhere else FIRST. Then consider replacing the drive before converting.' })
+        return
+    }
     switch ($Facts.HealthStatus) {
         'Healthy' {
             New-UpgCheck -Section 'Storage' -Title 'Disk health' -Status 'ok' -Detail $what `
-                -Note "Windows' own health check reports nothing wrong with the drive that holds Windows.$counters"
+                -Note "Windows' own health check reports nothing wrong with the drive that holds Windows, and the last 30 days of its error log hold no bad-block, paging or reset events for it.$counters"
         }
         'Warning' {
             New-UpgCheck -Section 'Storage' -Title 'Disk health' -Status 'warn' -Detail $what `
@@ -635,6 +742,25 @@ function ConvertFrom-UpgFsutilDirty {
     'unknown'
 }
 
+function ConvertFrom-UpgChkdskEvent {
+    # Pure: the text of a Chkdsk-provider event (26226 online scan, 26228
+    # verify of the corruption records, 26212/26214 spot-fix) -> what it
+    # concluded. Real lines from the Acer Aspire, 2026-09-13:
+    #   Examining 18 corruption records ...
+    #   Windows has examined the list of previously identified potential issues and found problems.
+    #   ... queued for offline repair.
+    #   Windows has scanned the file system and found no problems.
+    param([string]$Message)
+    $t = "$Message"
+    $r = [pscustomobject]@{ Verdict = 'unknown'; Records = 0; Queued = 0 }
+    if ($t -match '(?i)Examining\s+(\d+)\s+corruption records') { $r.Records = [int]$matches[1] }
+    $r.Queued = ([regex]::Matches($t, '(?i)queued for offline repair')).Count
+    if ($t -match '(?i)found problems') { $r.Verdict = 'found-problems' }
+    elseif ($t -match '(?i)found no problems') { $r.Verdict = 'no-problems' }
+    elseif ($r.Queued -gt 0) { $r.Verdict = 'found-problems' }
+    $r
+}
+
 function Get-UpgVolumeHealth {
     # Collection half. The NTFS "dirty" flag on C: is what makes Windows
     # refuse to measure or shrink the volume ("Cannot shrink a partition
@@ -652,15 +778,36 @@ function Get-UpgVolumeHealth {
         if ($dirty -eq 'unknown') { $err = (@($out) -join ' ').Trim() }
     } catch { $err = "$($_.Exception.Message)" }
 
-    $scan = $null; $scanRan = $false
-    $reason = ($dirty -eq 'dirty') -or ($ShrinkError -match '(?i)volume with errors|corrupt')
+    # The volume's own word, and Windows' own words in the log: on the Aspire
+    # (2026-09-13, RISKS R18) Get-Volume said "Full Repair Needed", NTFS event
+    # 98 said "needs to be taken offline to perform a Full Chkdsk", and every
+    # Chkdsk-provider event said "found problems" - while the cmdlet below
+    # kept returning NoErrorsFound. The cmdlet's string is recorded; it does
+    # not decide.
+    $volStatus = $null; $volHealth = $null
+    try { $v = Get-Volume -DriveLetter C -ErrorAction Stop; $volStatus = (@($v.OperationalStatus) -join ','); $volHealth = "$($v.HealthStatus)" } catch { }
+    $ntfsFull = $null
+    try {
+        $n98 = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 98; StartTime = (Get-Date).AddDays(-30) } -ErrorAction SilentlyContinue |
+                 Where-Object { "$($_.ProviderName)" -match 'Ntfs' -and "$($_.Message)" -match '(?i)Full Chkdsk' -and "$($_.Message)" -match '(?i)Volume C:' } | Sort-Object TimeCreated -Descending | Select-Object -First 1)
+        if ($n98.Count) { $ntfsFull = $n98[0].TimeCreated }
+    } catch { }
+    $scan = $null; $scanRan = $false; $scanStarted = Get-Date
+    $reason = ($dirty -eq 'dirty') -or ($ShrinkError -match '(?i)volume with errors|corrupt') -or ($volStatus -match '(?i)repair') -or $ntfsFull
     if ($reason) {
         try {
             $scanRan = $true
             $scan = "$(Repair-Volume -DriveLetter C -Scan -ErrorAction Stop)"
         } catch { $scan = "scan failed: $($_.Exception.Message)" }
     }
-    [pscustomobject]@{ Dirty = $dirty; Scan = $scan; ScanRan = $scanRan; Error = $err }
+    $logged = $null
+    try {
+        $since = if ($scanRan) { $scanStarted.AddSeconds(-5) } else { (Get-Date).AddDays(-7) }
+        $ce = @(Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = 'Chkdsk'; StartTime = $since } -ErrorAction SilentlyContinue | Sort-Object TimeCreated -Descending | Select-Object -First 1)
+        if ($ce.Count) { $logged = ConvertFrom-UpgChkdskEvent -Message "$($ce[0].Message)"; $logged | Add-Member -NotePropertyName When -NotePropertyValue $ce[0].TimeCreated }
+    } catch { }
+    [pscustomobject]@{ Dirty = $dirty; Scan = $scan; ScanRan = $scanRan; Error = $err
+                       VolumeStatus = $volStatus; VolumeHealth = $volHealth; NtfsFullChkdsk = $ntfsFull; Logged = $logged }
 }
 
 function Test-UpgVolumeHealth {
@@ -679,13 +826,25 @@ function Test-UpgVolumeHealth {
     # Anchored on purpose: the enum value 'NoErrorsFound' contains the
     # substring 'ErrorsFound' (the self-test caught exactly that, 2026-09-08).
     $scanFoundErrors = ($Health.Scan -and ("$($Health.Scan)".Trim() -match '(?i)^(ErrorsFound|ErrorsNotFixed)$'))
-    if ($Health.Dirty -eq 'dirty' -or $scanFoundErrors) {
-        $detail = if ($Health.Dirty -eq 'dirty') { 'C: is flagged for a disk check (dirty)' } else { "online scan reported: $($Health.Scan)" }
-        $scanLine = if ($Health.ScanRan -and $Health.Scan) { " Windows' own online scan reported: $($Health.Scan)." } else { '' }
+    $repairNeeded = ("$($Health.VolumeStatus)" -match '(?i)repair')
+    $ntfsFull = [bool]$Health.NtfsFullChkdsk
+    $lg = $Health.Logged
+    $logFound = [bool]($lg -and $lg.Verdict -eq 'found-problems')
+    if ($Health.Dirty -eq 'dirty' -or $scanFoundErrors -or $repairNeeded -or $ntfsFull -or $logFound) {
+        $facts = @()
+        if ($Health.Dirty -eq 'dirty') { $facts += 'C: is flagged for a disk check (dirty)' }
+        if ($repairNeeded) { $facts += "Windows reports the volume as '$($Health.VolumeStatus)'" }
+        if ($ntfsFull) { $facts += "NTFS logged on $($Health.NtfsFullChkdsk) that C: needs to be taken offline for a full chkdsk" }
+        if ($logFound) { $facts += "Windows' last check log found problems" + $(if ($lg.Records -gt 0) { " ($($lg.Records) corruption records)" }) + $(if ($lg.Queued -gt 0) { ", $($lg.Queued) item(s) queued for offline repair" }) }
+        elseif ($scanFoundErrors) { $facts += "online scan reported: $($Health.Scan)" }
+        $detail = $facts[0]
+        $real = ($repairNeeded -or $ntfsFull -or $logFound -or $scanFoundErrors)
+        $cmdletLine = if ($Health.ScanRan -and $Health.Scan) { " The Repair-Volume cmdlet answered '$($Health.Scan)'$(if ($logFound -and "$($Health.Scan)" -match '(?i)^NoErrorsFound$') { ' - which its own log contradicts; the log decides' })." } else { '' }
+        $meaning = if ($real) { ' This is real filesystem damage that Windows has queued for an offline repair, not just a stale flag: the full chkdsk (/f) is the only rung that clears it, and files whose sectors cannot be read come out of that repair truncated or missing.' } else { ' The flag is usually left behind by an unclean shutdown or a crash; it is not by itself a sign that anything is lost.' }
         New-UpgCheck -Section 'Storage' -Title 'Volume health' -Status 'warn' `
             -Detail $detail `
-            -Note "Windows has marked this volume as needing a check and will refuse to measure or shrink it until that check has run - this is exactly why 'Room to keep Windows' could not be measured, if it could not. The flag is usually left behind by an unclean shutdown or a crash; it is not by itself a sign that anything is lost.$scanLine" `
-            -Remedy 'Windows fixes this itself: open an Administrator prompt, run "chkdsk C: /f", answer Y so it runs at the next restart, then restart. The converter will do this step for you before it measures anything - it cannot skip it, because Windows will not shrink a flagged volume.'
+            -Note ("Windows has marked this volume as needing a check and will refuse to measure or shrink it until that check has run - this is exactly why 'Room to keep Windows' could not be measured, if it could not. Facts: " + ($facts -join '; ') + ".$cmdletLine$meaning") `
+            -Remedy $(if ($real) { 'Copy your important files somewhere else FIRST. Then let Windows repair the volume: open an Administrator prompt, run "chkdsk C: /f", answer Y, restart. The converter runs that same full check itself, with its own restart, before it measures anything - it cannot skip it.' } else { 'Windows fixes this itself: open an Administrator prompt, run "chkdsk C: /f", answer Y so it runs at the next restart, then restart. The converter will do this step for you before it measures anything - it cannot skip it, because Windows will not shrink a flagged volume.' })
         return
     }
     if ($Health.Dirty -eq 'clean') {
@@ -1618,6 +1777,61 @@ function Invoke-UpgSelfTest {
         @{ Name = 'seam: unreadable volume flag is unknown, not ok'
            Run = { Test-UpgVolumeHealth -IsAdmin $true -Health ([pscustomobject]@{ Dirty = 'unknown'; Scan = $null; ScanRan = $false; Error = 'Access is denied.' }) }
            Expect = @{ 'Volume health' = 'unknown' } }
+        @{ Name = 'seam: Get-Volume "Full Repair Needed" warns and names real damage, flag clear and cmdlet NoErrorsFound notwithstanding'
+           Run = { Test-UpgVolumeHealth -IsAdmin $true -Health ([pscustomobject]@{ Dirty = 'clean'; Scan = 'NoErrorsFound'; ScanRan = $true; Error = $null; VolumeStatus = 'Full Repair Needed'; VolumeHealth = 'Warning'; NtfsFullChkdsk = $null; Logged = $null }) }
+           Expect = @{ 'Volume health' = 'warn' }
+           Match  = @{ 'Volume health' = 'real filesystem damage' } }
+        @{ Name = "seam: the Chkdsk log's 'found problems' outranks the cmdlet's NoErrorsFound, and says so"
+           Run = { $lg = ConvertFrom-UpgChkdskEvent -Message "Examining 18 corruption records ...`ncorruption found.`nWindows has examined the list of previously identified potential issues and found problems."
+                   Test-UpgVolumeHealth -IsAdmin $true -Health ([pscustomobject]@{ Dirty = 'dirty'; Scan = 'NoErrorsFound'; ScanRan = $true; Error = $null; VolumeStatus = 'OK'; VolumeHealth = 'Healthy'; NtfsFullChkdsk = $null; Logged = $lg }) }
+           Expect = @{ 'Volume health' = 'warn' }
+           Match  = @{ 'Volume health' = 'its own log contradicts' } }
+        @{ Name = 'seam: NTFS event 98 (needs a Full Chkdsk) warns on its own'
+           Run = { Test-UpgVolumeHealth -IsAdmin $true -Health ([pscustomobject]@{ Dirty = 'clean'; Scan = $null; ScanRan = $false; Error = $null; VolumeStatus = 'OK'; VolumeHealth = 'Healthy'; NtfsFullChkdsk = (Get-Date); Logged = $null }) }
+           Expect = @{ 'Volume health' = 'warn' }
+           Match  = @{ 'Volume health' = 'full chkdsk' } }
+        @{ Name = 'chkdsk event: "found problems" with queued items parses; "found no problems" parses clean; localized is unknown'
+           Run = { $a = ConvertFrom-UpgChkdskEvent -Message "Stage 1: Examining basic file system structure ...`n        ... queued for offline repair.`n        ... queued for offline repair.`nWindows has examined the list of previously identified potential issues and found problems."
+                   $b = ConvertFrom-UpgChkdskEvent -Message "Examining 1 corruption records ...`nno corruption found.`nWindows has examined the list of previously identified potential issues and found no problems."
+                   $c = ConvertFrom-UpgChkdskEvent -Message 'Windows hat das Dateisystem untersucht und keine Probleme gefunden.'
+                   New-UpgCheck -Section 'Test' -Title 'parse' -Status $(if ($a.Verdict -eq 'found-problems' -and $a.Queued -eq 2 -and $b.Verdict -eq 'no-problems' -and $b.Records -eq 1 -and $c.Verdict -eq 'unknown') { 'ok' } else { 'fail' }) -Detail "$($a.Verdict)/$($a.Queued)/$($b.Verdict)/$($b.Records)/$($c.Verdict)" }
+           Expect = @{ 'parse' = 'ok' } }
+        @{ Name = 'disk events: only the C: disk counts, Harddisk1 does not match Harddisk10, ids 7/51 tallied, others ignored'
+           Run = { $t = Get-Date; $ev = @(
+                     [pscustomobject]@{ Id = 7; TimeCreated = $t.AddDays(-2); Message = 'The device, \Device\Harddisk1\DR1, has a bad block.' },
+                     [pscustomobject]@{ Id = 7; TimeCreated = $t.AddDays(-1); Message = 'The device, \Device\Harddisk1\DR1, has a bad block.' },
+                     [pscustomobject]@{ Id = 7; TimeCreated = $t; Message = 'The device, \Device\Harddisk10\DR9, has a bad block.' },
+                     [pscustomobject]@{ Id = 51; TimeCreated = $t; Message = 'An error was detected on device \Device\Harddisk1\DR1 during a paging operation.' },
+                     [pscustomobject]@{ Id = 7; TimeCreated = $t; Message = 'The device, \Device\Harddisk2\DR5, has a bad block.' })
+                   $r = ConvertFrom-UpgDiskEvents -Events $ev -DiskNumber 1
+                   New-UpgCheck -Section 'Test' -Title 'parse' -Status $(if ($r.BadBlock -eq 2 -and $r.Paging -eq 1 -and $r.Reset -eq 0 -and ($r.Last - $r.First).Days -eq 2) { 'ok' } else { 'fail' }) -Detail "$($r.BadBlock)/$($r.Paging)/$($r.Reset)" }
+           Expect = @{ 'parse' = 'ok' } }
+        @{ Name = 'seam: bad-block events make a Healthy drive a fail (RED), naming the count'
+           Run = { Test-UpgPhysicalDisk -Facts ([pscustomobject]@{ Found = $true; FriendlyName = 'HFS256G39TND'; HealthStatus = 'Healthy'; OperationalStatus = 'OK'; Counters = $null
+                     DiskEvents = [pscustomobject]@{ BadBlock = 261; Paging = 0; Reset = 0; First = (Get-Date).AddDays(-17); Last = (Get-Date).AddDays(-1) }; Smart = $null }) }
+           Expect = @{ 'Disk health' = 'fail' }
+           Match  = @{ 'Disk health' = '261 bad-block' } }
+        @{ Name = 'seam: SMART uncorrectable reads make a Healthy drive a fail even with no events'
+           Run = { Test-UpgPhysicalDisk -Facts ([pscustomobject]@{ Found = $true; FriendlyName = 'X'; HealthStatus = 'Healthy'; OperationalStatus = 'OK'; Counters = $null; DiskEvents = $null
+                     Smart = [pscustomobject]@{ Source = 'ata-smart'; Uncorrectable = 725; Pending = 0; Reallocated = 7; Crc = 0; EndToEnd = 639 } }) }
+           Expect = @{ 'Disk health' = 'fail' }
+           Match  = @{ 'Disk health' = '725 uncorrectable' } }
+        @{ Name = 'seam: CRC errors alone are a warn that names the connector, not the flash'
+           Run = { Test-UpgPhysicalDisk -Facts ([pscustomobject]@{ Found = $true; FriendlyName = 'X'; HealthStatus = 'Healthy'; OperationalStatus = 'OK'; Counters = $null; DiskEvents = $null
+                     Smart = [pscustomobject]@{ Source = 'ata-smart'; Uncorrectable = 0; Pending = 0; Reallocated = 0; Crc = 12; EndToEnd = 0 } }) }
+           Expect = @{ 'Disk health' = 'warn' }
+           Match  = @{ 'Disk health' = 'reseat' } }
+        @{ Name = 'seam: paging errors on the C: disk are a warn'
+           Run = { Test-UpgPhysicalDisk -Facts ([pscustomobject]@{ Found = $true; FriendlyName = 'X'; HealthStatus = 'Healthy'; OperationalStatus = 'OK'; Counters = $null; Smart = $null; DiskEvents = [pscustomobject]@{ BadBlock = 0; Paging = 3; Reset = 0; First = (Get-Date); Last = (Get-Date) } }) }
+           Expect = @{ 'Disk health' = 'warn' } }
+        @{ Name = 'seam: a Healthy drive with an empty error log and clean SMART is ok'
+           Run = { Test-UpgPhysicalDisk -Facts ([pscustomobject]@{ Found = $true; FriendlyName = 'X'; HealthStatus = 'Healthy'; OperationalStatus = 'OK'; Counters = $null; Smart = [pscustomobject]@{ Source = 'none' }; DiskEvents = [pscustomobject]@{ BadBlock = 0; Paging = 0; Reset = 0; First = $null; Last = $null } }) }
+           Expect = @{ 'Disk health' = 'ok' } }
+        @{ Name = 'smart: the 12-byte attribute layout parses ids and low-16 raw values'
+           Run = { $b = New-Object byte[] 512; $b[2] = 187; $b[7] = 0xD5; $b[8] = 0x02; $b[14] = 5; $b[19] = 7; $b[26] = 199
+                   $a = ConvertFrom-UpgSmartAttributes -Bytes $b
+                   New-UpgCheck -Section 'Test' -Title 'parse' -Status $(if ($a[187] -eq 725 -and $a[5] -eq 7 -and $a[199] -eq 0 -and $null -eq $a[197]) { 'ok' } else { 'fail' }) -Detail "$($a[187])/$($a[5])/$($a[199])" }
+           Expect = @{ 'parse' = 'ok' } }
         @{ Name = 'seam: a shrink refused for volume errors points at Volume health'
            Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
                      Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test SSD'; Size=(256*$gb); PartitionStyle='GPT'; BusType='SATA' })

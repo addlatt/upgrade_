@@ -16,7 +16,7 @@
 # settle-in to show, and Windows stays reachable from the GRUB menu.
 set -u
 JOB=${1:?job.json}
-OUTCOME_VERSION=0.2.0
+OUTCOME_VERSION=0.2.1
 STICK=/run/install/repo
 SYSROOT=/mnt/sysroot
 REPORT=$STICK/upgrade_/report
@@ -168,6 +168,8 @@ o = {
   "credentials": {"scrubbed": False, "scrub_after": "settle-in-pull" if keep else "cutover"},
   "logs": ["upgrade_/report/outcome.log", "upgrade_/report/anaconda.log", "upgrade_/report/storage.log", "upgrade_/report/post.log"]
 }
+# R23: the acknowledged-data-loss path travels in the job; the outcome says so too
+if job.get("risk_acknowledgement"): o["risk_acknowledgement"] = job["risk_acknowledgement"]
 rec = E("UPG_PROLOGUE_REC")
 if rec:
     try:

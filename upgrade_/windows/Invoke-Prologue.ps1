@@ -74,15 +74,21 @@ param(
     [Parameter(ParameterSetName = 'Start', Mandatory = $true)][string]$StickDrive,
     [Parameter(ParameterSetName = 'Start')][string]$JobPath,
     [Parameter(ParameterSetName = 'Start')][string]$ConfirmWord,
+    [Parameter(ParameterSetName = 'Start')][string]$AcknowledgeDataLoss,
     [Parameter(ParameterSetName = 'Resume', Mandatory = $true)][switch]$Resume,
     [Parameter(ParameterSetName = 'Abort', Mandatory = $true)][switch]$Abort,
     [Parameter(ParameterSetName = 'SelfTest', Mandatory = $true)][switch]$SelfTest,
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.1.1'
+$PrologueVersion = '0.2.0'
 $TaskName = 'upgrade_ prologue resume'
 $ConfirmExpected = 'CONVERT'
+# The acknowledged-data-loss path (RISKS R23, decided 2026-09-13): when the job
+# carries risk_acknowledgement, the same sentence must be typed for THIS run,
+# and only the two named refusals are lifted - the disk-health gate and the
+# volume-health stop. Nothing else in this file reads it.
+$RiskStatement = 'I confirm that I understand the risks and could lose data'
 $GrubEnvRel = 'EFI\BOOT\grubenv'
 $GrubFiredVar = 'upg_fired'
 $PayloadEfi = '\EFI\BOOT\BOOTX64.EFI'
@@ -134,25 +140,64 @@ function ConvertFrom-PrologueChkntfs {
     'unknown'
 }
 
-function Get-PrologueRepairMethod {
-    # Guardrail 3 (RISKS R18): the online scan chooses the rung. No errors
-    # logged -> Windows' spot-fix (offline for seconds, fixes only what the
-    # scan logged; on a stale flag, nothing). Errors logged -> the full
-    # check. A scan that answered anything else -> refuse: never repair on
-    # a guess about what is wrong.
-    param([string]$Scan)
-    $s = "$Scan".Trim()
-    switch -Regex ($s) {
-        '^(NoErrorsFound|ErrorsFixed)$' { return 'spot-fix' }
-        '^(ErrorsFound|ErrorsNotFixed)$' { return 'chkdsk-f' }
-        default { return 'refuse' }
+function ConvertFrom-PrologueChkdskEvent {
+    # Pure: a Chkdsk-provider event's text -> what it concluded (real lines,
+    # Acer Aspire 2026-09-13). The cmdlet's return string said NoErrorsFound
+    # on that machine while this log said "found problems" every day.
+    param([string]$Message)
+    $t = "$Message"
+    $r = [ordered]@{ Verdict = 'unknown'; Records = 0; Queued = 0 }
+    if ($t -match '(?i)Examining\s+(\d+)\s+corruption records') { $r.Records = [int]$matches[1] }
+    $r.Queued = ([regex]::Matches($t, '(?i)queued for offline repair')).Count
+    if ($t -match '(?i)found problems') { $r.Verdict = 'found-problems' }
+    elseif ($t -match '(?i)found no problems') { $r.Verdict = 'no-problems' }
+    elseif ($r.Queued -gt 0) { $r.Verdict = 'found-problems' }
+    $r
+}
+
+function ConvertFrom-PrologueDiskEvents {
+    # Pure: 'disk' provider events -> bad-block / paging / reset counts for \Device\HarddiskN.
+    param($Events, [int]$DiskNumber)
+    $r = [ordered]@{ BadBlock = 0; Paging = 0; Reset = 0; First = $null; Last = $null }
+    $pat = [regex]::Escape('\Device\Harddisk' + $DiskNumber + '\')
+    foreach ($e in @($Events)) {
+        if (-not $e -or "$($e.Message)" -notmatch $pat) { continue }
+        switch ([int]$e.Id) { 7 { $r.BadBlock++ } 51 { $r.Paging++ } 153 { $r.Reset++ } default { continue } }
+        if ($null -eq $r.First -or $e.TimeCreated -lt $r.First) { $r.First = $e.TimeCreated }
+        if ($null -eq $r.Last -or $e.TimeCreated -gt $r.Last) { $r.Last = $e.TimeCreated }
     }
+    $r
+}
+
+function Get-PrologueRepairMethod {
+    # Guardrail 3 (RISKS R18): the evidence chooses the rung. Real errors -
+    # the Chkdsk log saying "found problems", the volume reporting "Full
+    # Repair Needed", NTFS's own event 98 asking for a full chkdsk, or the
+    # cmdlet answering ErrorsFound - mean the full check (/f). A cmdlet
+    # NoErrorsFound with none of those means the spot-fix. Anything else is
+    # a refusal: never repair on a guess about what is wrong. The cmdlet's
+    # string alone never chooses /f over the evidence and never overrides it
+    # (on the Aspire it said NoErrorsFound against 18 queued corruption records).
+    param([string]$Scan, [string]$LogVerdict = '', [bool]$RepairNeeded = $false, [bool]$NtfsFullChkdsk = $false)
+    $s = "$Scan".Trim()
+    if ($LogVerdict -eq 'found-problems' -or $RepairNeeded -or $NtfsFullChkdsk -or $s -match '^(ErrorsFound|ErrorsNotFixed)$') { return 'chkdsk-f' }
+    if ($s -match '^(NoErrorsFound|ErrorsFixed)$') { return 'spot-fix' }
+    'refuse'
 }
 
 function Test-PrologueDiskHealthGate {
-    # Guardrail 2: only a disk that says Healthy gets a repair run on it.
-    param([string]$Health)
-    ("$Health".Trim() -eq 'Healthy')
+    # Guardrail 2: a repair runs only on a disk that says Healthy AND whose
+    # error log holds no bad-block events (the Aspire's said Healthy over 261
+    # of them). The acknowledged-data-loss path (R23) lifts this gate, and
+    # the record says so in words. Returns @{ Pass; Reason }.
+    param([string]$Health, [int]$BadBlocks = 0, [bool]$Acknowledged = $false)
+    $h = "$Health".Trim()
+    $why = @()
+    if ($h -ne 'Healthy') { $why += "HealthStatus is '$h', not Healthy" }
+    if ($BadBlocks -gt 0) { $why += "Windows logged $BadBlocks bad-block errors on this disk in the last 30 days" }
+    if ($why.Count -eq 0) { return @{ Pass = $true; Reason = 'Healthy, no bad-block events' } }
+    if ($Acknowledged) { return @{ Pass = $true; Reason = 'DATA LOSS ACCEPTED: ' + ($why -join '; ') + ' - the person acknowledged the disk-health refusal' } }
+    @{ Pass = $false; Reason = ($why -join '; ') + '; a repair on a failing drive can finish it off' }
 }
 
 function Compare-PrologueJob {
@@ -279,7 +324,8 @@ function New-PrologueState {
     [ordered]@{
         PrologueVersion = $PrologueVersion; Stage = 'started'; StartedUtc = (Get-Date).ToUniversalTime().ToString('o'); UpdatedUtc = $null
         JobId = $JobId; StickUniqueId = $StickId; StickRootAtStart = $Root; Restarts = 0; Mismatches = @()
-        VolumeCheck = [ordered]@{ Needed = $false; Ran = $false; Scan = $null; DiskHealthAtCheck = $null; Method = 'none'; ArmedUtc = $null; ArmText = $null; Chkntfs = $null; Wininit1001 = $null; Found000 = $null; DirtyAfter = 'unknown'; Restarts = 0 }
+        Ack = [ordered]@{ Present = $false; DiskHealth = $false; VolumeHealth = $false }
+        VolumeCheck = [ordered]@{ Needed = $false; Ran = $false; Scan = $null; DiskHealthAtCheck = $null; BadBlocks = 0; Gate = $null; Evidence = $null; Method = 'none'; ArmedUtc = $null; ArmText = $null; Chkntfs = $null; Wininit1001 = $null; Found000 = $null; DirtyAfter = 'unknown'; Restarts = 0 }
         Shrink = [ordered]@{ RemeasuredGB = $null; RemeasuredBy = $null; DiskpartGB = $null; ApiError = $null; DiskpartError = $null; PartSize = $null; SizeMin = $null; FreeBytes = $null; Plan = $null; ForkTaken = $null; RequestedBytes = $null; FreedBytes = 0; SizeBefore = $null; PagefileDisabled = $false; HibernationDisabled = $false; Mitigated = $false }
         Staged = $null
         BitLocker = [ordered]@{ StatusBefore = $null; Source = $null; Suspended = $false; RebootCount = $null }
@@ -321,17 +367,20 @@ function New-PrologueStoppedOutcome {
     param($Job, $S, [string]$StoppedAt, [string]$Reason, $WindowsPartition)
     $path = $S.Shrink.ForkTaken
     if ($path -notin @('keep-windows', 'clean-slate')) { $path = $null }
-    [ordered]@{
+    $o = [ordered]@{
         schema = 'outcome/1'; job_id = "$($Job.job_id)"
         created_utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
         converter_version = "prologue $PrologueVersion"
         status = 'stopped'; stopped_at = $StoppedAt; reason = $Reason; path_taken = $path
         commit_line = [ordered]@{ crossed = $false; crossed_utc = $null; act = $null }
         prologue = (New-PrologueBlock $S)
+        risk_acknowledgement = $(if ($Job.PSObject.Properties['risk_acknowledgement'] -and $Job.risk_acknowledgement) { [ordered]@{ statement = "$($Job.risk_acknowledgement.statement)"; accepted_utc = "$($Job.risk_acknowledgement.accepted_utc)"; overrides = @($Job.risk_acknowledgement.overrides) } } else { $null })
         windows = [ordered]@{ kept = $true; partition = $WindowsPartition; reachable_via = 'firmware-entry' }
         credentials = [ordered]@{ scrubbed = $true; scrub_after = $(if ($path -eq 'keep-windows') { 'settle-in-pull' } else { 'cutover' }) }
         logs = @('upgrade_/report/prologue.log')
     }
+    if ($null -eq $o.risk_acknowledgement) { $o.Remove('risk_acknowledgement') }
+    $o
 }
 
 # =============================================================================
@@ -370,6 +419,46 @@ function Get-PrologueDiskHealth {
         if ($pd) { return "$($pd.HealthStatus)" }
     } catch { }
     'Unknown'
+}
+
+function Get-PrologueDiskEvents {
+    param([int]$DiskNumber)
+    try {
+        $ev = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; ProviderName = 'disk'; StartTime = (Get-Date).AddDays(-30) } -ErrorAction SilentlyContinue |
+                ForEach-Object { [pscustomobject]@{ Id = [int]$_.Id; TimeCreated = $_.TimeCreated; Message = "$($_.Message)" } })
+        ConvertFrom-PrologueDiskEvents -Events $ev -DiskNumber $DiskNumber
+    } catch { [ordered]@{ BadBlock = 0; Paging = 0; Reset = 0; First = $null; Last = $null; Error = "$($_.Exception.Message)" } }
+}
+
+function Get-PrologueVolumeEvidence {
+    # What Windows itself says about C:, beyond the cmdlet's string: the
+    # volume's OperationalStatus, NTFS event 98 (needs a Full Chkdsk) and the
+    # latest Chkdsk-provider event since $Since.
+    param([DateTime]$Since)
+    $r = [ordered]@{ VolumeStatus = $null; VolumeHealth = $null; NtfsFullChkdsk = $null; LogVerdict = 'unknown'; LogRecords = 0; LogQueued = 0; LogWhen = $null }
+    try { $v = Get-Volume -DriveLetter C -ErrorAction Stop; $r.VolumeStatus = (@($v.OperationalStatus) -join ','); $r.VolumeHealth = "$($v.HealthStatus)" } catch { }
+    try {
+        $n98 = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 98; StartTime = (Get-Date).AddDays(-30) } -ErrorAction SilentlyContinue |
+                 Where-Object { "$($_.ProviderName)" -match 'Ntfs' -and "$($_.Message)" -match '(?i)Full Chkdsk' -and "$($_.Message)" -match '(?i)Volume C:' } | Sort-Object TimeCreated -Descending | Select-Object -First 1)
+        if ($n98.Count) { $r.NtfsFullChkdsk = $n98[0].TimeCreated.ToUniversalTime().ToString('o') }
+    } catch { }
+    try {
+        $ce = @(Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = 'Chkdsk'; StartTime = $Since } -ErrorAction SilentlyContinue | Sort-Object TimeCreated -Descending | Select-Object -First 1)
+        if ($ce.Count) { $lg = ConvertFrom-PrologueChkdskEvent -Message "$($ce[0].Message)"; $r.LogVerdict = $lg.Verdict; $r.LogRecords = $lg.Records; $r.LogQueued = $lg.Queued; $r.LogWhen = $ce[0].TimeCreated.ToUniversalTime().ToString('o') }
+    } catch { }
+    $r
+}
+
+function Format-PrologueScan {
+    # One string for outcome.json's volume_check.scan: the cmdlet's answer AND the evidence.
+    param([string]$Cmdlet, $Ev)
+    $parts = @("cmdlet: $Cmdlet")
+    if ($Ev) {
+        $parts += "log: $($Ev.LogVerdict)" + $(if ($Ev.LogRecords -gt 0) { " ($($Ev.LogRecords) corruption records" + $(if ($Ev.LogQueued -gt 0) { ", $($Ev.LogQueued) queued for offline repair" }) + ')' })
+        if ($Ev.VolumeStatus) { $parts += "volume: $($Ev.VolumeStatus)" }
+        if ($Ev.NtfsFullChkdsk) { $parts += "ntfs98: $($Ev.NtfsFullChkdsk)" }
+    }
+    $parts -join '; '
 }
 
 function Get-PrologueDirty {
@@ -707,15 +796,22 @@ function Invoke-VolumeStage {
     if ($F.Dirty -ne 'dirty') { Stop-Prologue $S $State $Root $Job 'volume-check' "the volume flag on C: could not be read (fsutil answered in a form this prologue does not understand)" }
     if (-not $Job.fork.volume_check_consented) { Stop-Prologue $S $State $Root $Job 'volume-check' 'C: is flagged for a disk check and the job carries no consent to run one' }
     Write-Log '  1b. C: carries the dirty flag - running the read-only online scan...'
-    $scan = Invoke-PrologueScan; $S.VolumeCheck.Scan = $scan; $S.VolumeCheck.Needed = $true
-    Write-Log "      online scan: $scan"
+    $scanStarted = (Get-Date).AddSeconds(-5)
+    $scan = Invoke-PrologueScan; $S.VolumeCheck.Needed = $true
+    $ev = Get-PrologueVolumeEvidence -Since $scanStarted; $S.VolumeCheck.Evidence = $ev
+    $S.VolumeCheck.Scan = Format-PrologueScan -Cmdlet $scan -Ev $ev
+    Write-Log "      online scan: $($S.VolumeCheck.Scan)"
     $health = Get-PrologueDiskHealth -DiskNumber $F.Disk.Number -UniqueId $F.Disk.UniqueId
-    $S.VolumeCheck.DiskHealthAtCheck = $health
-    Write-Log "      physical disk health: $health"
-    if (-not (Test-PrologueDiskHealthGate $health)) { Stop-Prologue $S $State $Root $Job 'volume-check' "C: is flagged for a disk check but the physical disk reports HealthStatus=$health; a repair on a failing drive can finish it off. Copy your files off this computer and replace the drive. Nothing was changed." }
-    $method = Get-PrologueRepairMethod $scan
-    if ($method -eq 'refuse') { Stop-Prologue $S $State $Root $Job 'volume-check' "the online scan did not give a usable answer ('$scan'); refusing to repair on a guess" }
-    Write-Log "      method: $method"
+    $de = Get-PrologueDiskEvents -DiskNumber $F.Disk.Number
+    $S.VolumeCheck.DiskHealthAtCheck = $health; $S.VolumeCheck.BadBlocks = [int]$de.BadBlock
+    Write-Log "      physical disk health: $health; disk error log (30 days): $($de.BadBlock) bad-block, $($de.Paging) paging, $($de.Reset) reset events"
+    $gate = Test-PrologueDiskHealthGate -Health $health -BadBlocks ([int]$de.BadBlock) -Acknowledged ([bool]$S.Ack.DiskHealth)
+    $S.VolumeCheck.Gate = $gate.Reason
+    if (-not $gate.Pass) { Stop-Prologue $S $State $Root $Job 'volume-check' "C: is flagged for a disk check but the drive is not one to repair: $($gate.Reason). Copy your files off this computer and replace the drive. Nothing was changed." }
+    if ($gate.Reason -like 'DATA LOSS ACCEPTED*') { Write-Log "      $($gate.Reason)" 'Red' } else { Write-Log "      disk gate: $($gate.Reason)" }
+    $method = Get-PrologueRepairMethod -Scan $scan -LogVerdict "$($ev.LogVerdict)" -RepairNeeded ("$($ev.VolumeStatus)" -match '(?i)repair') -NtfsFullChkdsk ([bool]$ev.NtfsFullChkdsk)
+    if ($method -eq 'refuse') { Stop-Prologue $S $State $Root $Job 'volume-check' "the online scan did not give a usable answer ('$scan') and nothing in Windows' own log says what is wrong; refusing to repair on a guess" }
+    Write-Log "      method: $method$(if ($method -eq 'chkdsk-f') { ' (Windows logged real corruption; the full check is the only rung that clears it - files on unreadable sectors come out truncated or missing)' })"
     $arm = Invoke-PrologueRepairArm -Method $method
     $S.VolumeCheck.Method = $method; $S.VolumeCheck.ArmText = $arm.Text; $S.VolumeCheck.Chkntfs = $arm.Chkntfs
     Write-Log ('      ' + ($arm.Text -replace "`n", "`n      "))
@@ -741,13 +837,25 @@ function Invoke-CheckReturn {
     if ($o.Dirty -eq 'clean') { return 'continue' }
     if ($o.Dirty -ne 'dirty') { Stop-Prologue $S $State $Root $Job 'volume-check' 'after the disk check the volume flag could not be read' }
     if ($S.VolumeCheck.Method -eq 'chkdsk-f' -or [int]$S.VolumeCheck.Restarts -ge 2) { Stop-Prologue $S $State $Root $Job 'volume-check' "C: still carries the dirty flag after $($S.VolumeCheck.Method) ($($S.VolumeCheck.Restarts) restart(s)); Windows needs a disk check this prologue will not escalate further" }
-    # the spot-fix left the flag: escalate only if a fresh scan now logs errors
-    $scan = Invoke-PrologueScan; $S.VolumeCheck.Scan = "$($S.VolumeCheck.Scan); rescan: $scan"
-    Write-Log "      flag still set; rescan: $scan"
-    if ((Get-PrologueRepairMethod $scan) -ne 'chkdsk-f') { Stop-Prologue $S $State $Root $Job 'volume-check' "C: still carries the dirty flag after the spot-fix and the online scan logs no errors ('$scan'); refusing to run the full check on a guess" }
+    # the spot-fix left the flag: escalate only if the evidence now says real
+    # errors - or if the person acknowledged the volume-health refusal (R23)
+    $scanStarted = (Get-Date).AddSeconds(-5)
+    $scan = Invoke-PrologueScan
+    $ev = Get-PrologueVolumeEvidence -Since $scanStarted; $S.VolumeCheck.Evidence = $ev
+    $rescan = Format-PrologueScan -Cmdlet $scan -Ev $ev
+    $S.VolumeCheck.Scan = "$($S.VolumeCheck.Scan) | rescan: $rescan"
+    Write-Log "      flag still set; rescan: $rescan"
+    $m = Get-PrologueRepairMethod -Scan $scan -LogVerdict "$($ev.LogVerdict)" -RepairNeeded ("$($ev.VolumeStatus)" -match '(?i)repair') -NtfsFullChkdsk ([bool]$ev.NtfsFullChkdsk)
+    if ($m -ne 'chkdsk-f') {
+        if ($S.Ack.VolumeHealth) { Write-Log '      DATA LOSS ACCEPTED: the flag survived the spot-fix and nothing names the cause; the person acknowledged the volume-health refusal, so the full check runs' 'Red' }
+        else { Stop-Prologue $S $State $Root $Job 'volume-check' "C: still carries the dirty flag after the spot-fix and neither the online scan nor Windows' own log names an error ($rescan); refusing to run the full check on a guess" }
+    }
     $health = Get-PrologueDiskHealth -DiskNumber ([int]$Job.identity.system_disk.number) -UniqueId "$($Job.identity.system_disk.unique_id)"
-    $S.VolumeCheck.DiskHealthAtCheck = $health
-    if (-not (Test-PrologueDiskHealthGate $health)) { Stop-Prologue $S $State $Root $Job 'volume-check' "the physical disk now reports HealthStatus=$health; refusing the full check" }
+    $de = Get-PrologueDiskEvents -DiskNumber ([int]$Job.identity.system_disk.number)
+    $S.VolumeCheck.DiskHealthAtCheck = $health; $S.VolumeCheck.BadBlocks = [int]$de.BadBlock
+    $gate = Test-PrologueDiskHealthGate -Health $health -BadBlocks ([int]$de.BadBlock) -Acknowledged ([bool]$S.Ack.DiskHealth)
+    $S.VolumeCheck.Gate = $gate.Reason
+    if (-not $gate.Pass) { Stop-Prologue $S $State $Root $Job 'volume-check' "before the full check the drive is not one to repair: $($gate.Reason)" }
     $arm = Invoke-PrologueRepairArm -Method 'chkdsk-f'
     $S.VolumeCheck.Method = 'chkdsk-f'; $S.VolumeCheck.ArmText = "$($S.VolumeCheck.ArmText)`n$($arm.Text)"; $S.VolumeCheck.Chkntfs = $arm.Chkntfs
     if (-not $arm.Scheduled) { Stop-Prologue $S $State $Root $Job 'volume-check' "Windows did not accept chkdsk /f for the next restart (chkntfs says '$($arm.Chkntfs)')" }
@@ -903,6 +1011,11 @@ function Invoke-StartPhase {
     if (-not (Test-Path $root)) { throw "stick $root not found" }
     $jobFile = if ($JobPath) { $JobPath } else { Join-Path $root 'upgrade_\job.json' }
     $job = Read-Job $jobFile
+    $jobAck = if ($job.PSObject.Properties['risk_acknowledgement'] -and $job.risk_acknowledgement) { $job.risk_acknowledgement } else { $null }
+    if ($jobAck) {
+        if ("$($jobAck.statement)" -cne $RiskStatement) { throw 'the job carries a risk acknowledgement whose statement is not the one this prologue knows; refusing' }
+        if ($AcknowledgeDataLoss -cne $RiskStatement) { throw "the job carries a data-loss acknowledgement but the statement was not typed for this run (-AcknowledgeDataLoss); refusing" }
+    } elseif ($AcknowledgeDataLoss) { throw 'a data-loss statement was given but the job carries no acknowledgement; use the normal launcher' }
     if (-not (Test-Path (Join-Path $root $PayloadEfi.TrimStart('\')))) { throw "no payload at $root$($PayloadEfi.TrimStart('\')) - this is not the kit stick" }
     if (-not (Test-Path (Join-Path $root 'upgrade_\ks.cfg'))) { throw 'no kickstart on the stick (upgrade_\ks.cfg) - run the generator first' }
     $report = Join-Path $root 'upgrade_\report'
@@ -914,6 +1027,11 @@ function Invoke-StartPhase {
     Write-Log "  job $($job.job_id)   path $($job.intent.path)   desktop $($job.intent.desktop)   stick $root" 'DarkGray'
     $F = Get-PrologueFacts -Root $root
     $S = New-PrologueState -JobId "$($job.job_id)" -StickId "$($F.Stick.VolumeId)" -Root $root
+    if ($jobAck) {
+        $ov = @($jobAck.overrides | ForEach-Object { "$_" })
+        $S.Ack = [ordered]@{ Present = $true; DiskHealth = ($ov -contains 'disk-health'); VolumeHealth = ($ov -contains 'volume-health'); AcceptedUtc = "$($jobAck.accepted_utc)" }
+        Write-Log "  DATA LOSS ACCEPTED (typed $($jobAck.accepted_utc)): this run lifts $($ov -join ', '). Files on this machine may be lost." 'Red'
+    }
     $S.Facts = [ordered]@{ vendor = $F.Vendor; model = $F.Model; os = "$($F.OsCaption) $($F.OsBuild)"; secure_boot = $F.SecureBoot; disk = $F.Disk; health = $F.Health; dirty_at_start = $F.Dirty; bitlocker = $F.BitLocker; bitlocker_via = $F.BitLockerSource; hiberfil = $F.Hiberfil; pagefile = $F.Pagefile }
     Write-Log "  $($F.Vendor) $($F.Model)   $($F.OsCaption) $($F.OsBuild)   Secure Boot $($F.SecureBoot)   BitLocker $($F.BitLocker) (via $($F.BitLockerSource))   disk health $($F.Health)   C: $($F.Dirty)" 'DarkGray'
     Save-State $S $state
@@ -997,15 +1115,32 @@ function Invoke-SelfTest {
         @{ Name = 'revalidate: a disk health that changed is a mismatch'; Run = { [bool](@(Compare-PrologueJob -Job $job -F (With $facts 'Health' 'Warning')) -match 'health_status') }; Expect = $true }
         @{ Name = 'revalidate: Secure Boot toggled is a mismatch'; Run = { [bool](@(Compare-PrologueJob -Job $job -F (With $facts 'SecureBoot' 'off')) -match 'secure_boot') }; Expect = $true }
         # step 1b: guardrails
-        @{ Name = 'scan: NoErrorsFound chooses the spot-fix'; Run = { Get-PrologueRepairMethod 'NoErrorsFound' }; Expect = 'spot-fix' }
-        @{ Name = 'scan: ErrorsFound chooses chkdsk /f'; Run = { Get-PrologueRepairMethod 'ErrorsFound' }; Expect = 'chkdsk-f' }
-        @{ Name = 'scan: ErrorsNotFixed chooses chkdsk /f'; Run = { Get-PrologueRepairMethod ' ErrorsNotFixed ' }; Expect = 'chkdsk-f' }
-        @{ Name = 'scan: a failed scan refuses, never a guess'; Run = { Get-PrologueRepairMethod 'scan failed: Access denied' }; Expect = 'refuse' }
-        @{ Name = 'scan: an empty answer refuses'; Run = { Get-PrologueRepairMethod '' }; Expect = 'refuse' }
-        @{ Name = 'health gate: Healthy passes'; Run = { Test-PrologueDiskHealthGate 'Healthy' }; Expect = $true }
-        @{ Name = 'health gate: Warning refuses'; Run = { Test-PrologueDiskHealthGate 'Warning' }; Expect = $false }
-        @{ Name = 'health gate: Unknown refuses'; Run = { Test-PrologueDiskHealthGate 'Unknown' }; Expect = $false }
-        @{ Name = 'health gate: an empty read refuses'; Run = { Test-PrologueDiskHealthGate '' }; Expect = $false }
+        @{ Name = 'rung: NoErrorsFound with no other evidence chooses the spot-fix'; Run = { Get-PrologueRepairMethod 'NoErrorsFound' }; Expect = 'spot-fix' }
+        @{ Name = 'rung: ErrorsFound / ErrorsNotFixed choose chkdsk /f'; Run = { "$(Get-PrologueRepairMethod 'ErrorsFound')/$(Get-PrologueRepairMethod ' ErrorsNotFixed ')" }; Expect = 'chkdsk-f/chkdsk-f' }
+        @{ Name = "rung: the Chkdsk log's found-problems outranks the cmdlet's NoErrorsFound (the Aspire)"; Run = { Get-PrologueRepairMethod -Scan 'NoErrorsFound' -LogVerdict 'found-problems' }; Expect = 'chkdsk-f' }
+        @{ Name = 'rung: Get-Volume "Full Repair Needed" chooses chkdsk /f'; Run = { Get-PrologueRepairMethod -Scan 'NoErrorsFound' -RepairNeeded $true }; Expect = 'chkdsk-f' }
+        @{ Name = 'rung: NTFS event 98 chooses chkdsk /f'; Run = { Get-PrologueRepairMethod -Scan 'NoErrorsFound' -NtfsFullChkdsk $true }; Expect = 'chkdsk-f' }
+        @{ Name = 'rung: a failed scan with no evidence refuses, never a guess'; Run = { Get-PrologueRepairMethod 'scan failed: Access denied' }; Expect = 'refuse' }
+        @{ Name = 'rung: a failed scan but the log found problems still goes to chkdsk /f'; Run = { Get-PrologueRepairMethod -Scan 'scan failed: x' -LogVerdict 'found-problems' }; Expect = 'chkdsk-f' }
+        @{ Name = 'rung: an empty answer refuses'; Run = { Get-PrologueRepairMethod '' }; Expect = 'refuse' }
+        @{ Name = 'chkdsk event: found problems with records and queued items; found no problems; localized unknown'
+           Run = { $a = ConvertFrom-PrologueChkdskEvent "Examining 18 corruption records ...`n ... queued for offline repair.`nWindows has examined the list of previously identified potential issues and found problems."; $b = ConvertFrom-PrologueChkdskEvent 'Windows has scanned the file system and found no problems.'; $c = ConvertFrom-PrologueChkdskEvent 'keine Probleme gefunden'; "$($a.Verdict)/$($a.Records)/$($a.Queued)/$($b.Verdict)/$($c.Verdict)" }; Expect = 'found-problems/18/1/no-problems/unknown' }
+        @{ Name = 'disk events: only \Device\Harddisk1\ counts (not Harddisk10), 7 and 51 tallied'
+           Run = { $t = Get-Date; $r = ConvertFrom-PrologueDiskEvents -DiskNumber 1 -Events @(
+                     [pscustomobject]@{ Id = 7; TimeCreated = $t; Message = 'The device, \Device\Harddisk1\DR1, has a bad block.' },
+                     [pscustomobject]@{ Id = 7; TimeCreated = $t; Message = 'The device, \Device\Harddisk10\DR9, has a bad block.' },
+                     [pscustomobject]@{ Id = 51; TimeCreated = $t; Message = 'An error was detected on device \Device\Harddisk1\DR1 during a paging operation.' }); "$($r.BadBlock)/$($r.Paging)" }; Expect = '1/1' }
+        @{ Name = 'health gate: Healthy with no bad blocks passes'; Run = { (Test-PrologueDiskHealthGate -Health 'Healthy' -BadBlocks 0).Pass }; Expect = $true }
+        @{ Name = 'health gate: Healthy with bad-block events refuses and names the count'; Run = { $g = Test-PrologueDiskHealthGate -Health 'Healthy' -BadBlocks 261; "$($g.Pass)/$([bool]($g.Reason -match '261 bad-block'))" }; Expect = 'False/True' }
+        @{ Name = 'health gate: Warning refuses; Unknown refuses; empty refuses'; Run = { "$((Test-PrologueDiskHealthGate 'Warning').Pass)/$((Test-PrologueDiskHealthGate 'Unknown').Pass)/$((Test-PrologueDiskHealthGate '').Pass)" }; Expect = 'False/False/False' }
+        @{ Name = 'health gate (R23): the acknowledgement lifts it and the reason says DATA LOSS ACCEPTED'; Run = { $g = Test-PrologueDiskHealthGate -Health 'Healthy' -BadBlocks 261 -Acknowledged $true; "$($g.Pass)/$($g.Reason -like 'DATA LOSS ACCEPTED*')" }; Expect = 'True/True' }
+        @{ Name = 'health gate (R23): acknowledged on a clean disk says nothing about data loss'; Run = { (Test-PrologueDiskHealthGate -Health 'Healthy' -BadBlocks 0 -Acknowledged $true).Reason -like 'DATA LOSS*' }; Expect = $false }
+        @{ Name = 'scan string: cmdlet and evidence in one line'; Run = { Format-PrologueScan -Cmdlet 'NoErrorsFound' -Ev ([ordered]@{ LogVerdict = 'found-problems'; LogRecords = 18; LogQueued = 12; VolumeStatus = 'Full Repair Needed'; NtfsFullChkdsk = '2026-09-13T14:10:04Z' }) }; Expect = 'cmdlet: NoErrorsFound; log: found-problems (18 corruption records, 12 queued for offline repair); volume: Full Repair Needed; ntfs98: 2026-09-13T14:10:04Z' }
+        @{ Name = 'stopped outcome (R23): carries the job''s acknowledgement when present, none otherwise'
+           Run = { $j2 = $job | ConvertTo-Json -Depth 8 | ConvertFrom-Json; $j2 | Add-Member -NotePropertyName risk_acknowledgement -NotePropertyValue ([pscustomobject]@{ statement = 'I confirm that I understand the risks and could lose data'; accepted_utc = '2026-09-13T15:00:00Z'; overrides = @('disk-health') })
+                   $a = New-PrologueStoppedOutcome -Job $j2 -S (New-PrologueState -JobId 'j' -StickId 's' -Root 'E:\') -StoppedAt 'shrink' -Reason 'x' -WindowsPartition $null
+                   $b = New-PrologueStoppedOutcome -Job $job -S (New-PrologueState -JobId 'j' -StickId 's' -Root 'E:\') -StoppedAt 'shrink' -Reason 'x' -WindowsPartition $null
+                   "$($a.risk_acknowledgement.overrides -join ',')/$($b.Contains('risk_acknowledgement'))" }; Expect = 'disk-health/False' }
         @{ Name = 'chkntfs: "is dirty" means a check runs at the restart'; Run = { ConvertFrom-PrologueChkntfs @('The type of the file system is NTFS.', 'C: is dirty.') }; Expect = 'dirty' }
         @{ Name = 'chkntfs: "is not dirty" means nothing will run'; Run = { ConvertFrom-PrologueChkntfs @('The type of the file system is NTFS.', 'C: is not dirty.') }; Expect = 'clean' }
         @{ Name = 'chkntfs: a manual schedule is scheduled'; Run = { ConvertFrom-PrologueChkntfs @('The type of the file system is NTFS.', 'Chkdsk has been scheduled manually to run on next reboot on C:.') }; Expect = 'scheduled' }

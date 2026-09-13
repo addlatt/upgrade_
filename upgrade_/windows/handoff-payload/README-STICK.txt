@@ -38,6 +38,19 @@ before anything is changed, and a refusal writes upgrade_\outcome.json
 on this stick saying where and why. When you next boot Windows from
 the menu, a small window confirms the one-time boot entry was removed.
 
+ACCEPTING DATA LOSS (RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd)
+----------------------------------------------------------
+Not the normal way. If the scanner refused this computer because its
+drive is failing (bad blocks, SMART errors) or its Windows volume needs
+a full repair, this launcher goes ahead anyway - after you have copied
+your files OFF the computer and typed, exactly:
+    I confirm that I understand the risks and could lose data
+It lifts only those two refusals. A wrong machine, a wrong stick,
+legacy BIOS, an unknown BitLocker state, a bad image or a failed
+boot-file snapshot still stop it. Everything it writes afterwards says
+DATA LOSS ACCEPTED. DIAG-VOLUME.cmd and DIAG-SMART.cmd (read-only) show
+you what the drive is reporting before you decide.
+
 ROLLING BACK (ROLLBACK.cmd) - Windows first again
 --------------------------------------------------
 On a computer converted with Windows kept: boot Windows from the boot

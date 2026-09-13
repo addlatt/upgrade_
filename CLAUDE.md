@@ -33,10 +33,20 @@ hurts someone.
 1. **Refuse by default.** The only asset is that the report is trustworthy. A
    scanner that says "probably fine" and isn't is worse than no scanner,
    because the person acted on it and lost their data. There is **no override
-   flag for a RED verdict, ever.** When unsure between two severities, pick the
+   flag for a RED verdict.** When unsure between two severities, pick the
    more cautious one. If a check is wrong, fix the check — don't remove it.
    There will be pressure (often from contributors whose own machine works) to
    soften warnings. Resist it.
+   **Amended (2026-09-13, RISKS R23):** one narrow exception exists, and it
+   is not a flag. A person may type, verbatim, on a separate launcher, *"I
+   confirm that I understand the risks and could lose data"*, and that lifts
+   exactly two refusals — the drive-health and volume-health ones, whose
+   failure mode is losing that machine's own files — after the scanner has
+   said RED in full. It lifts nothing whose failure mode is "cannot work" or
+   "wrong machine". The sentence travels in `job.json` and `outcome.json`,
+   every screen after it says DATA LOSS ACCEPTED, and no shorter form of
+   consent is accepted anywhere. Widening this exception is the thing rule
+   #1 forbids.
 
 2. **Evidence, not argument.** A risk closes only when a primary source or a
    real machine confirms it — never because the reasoning sounds right. This

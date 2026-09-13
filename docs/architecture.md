@@ -153,6 +153,14 @@ refuse for free:
   installed alongside. (Scanner check landed 2026-08-30 as "Boot partition
   (ESP)"; see RISKS R21 item 4.)
 
+**One exception, narrow and dated (2026-09-13, RISKS R23):** a person who
+has already copied their files off a machine the scanner refused for its
+*drive* (bad blocks, SMART media errors, a volume needing a full repair)
+may type a fixed sentence on a separate launcher and go ahead. It lifts
+those two refusals and no other, is recorded in `job.json` and
+`outcome.json`, and turns every later screen red. CLAUDE.md rule #1
+carries the amendment.
+
 ### Output
 
 A complete, validated **job spec** (`job.json`, versioned) plus an `artifacts/`

@@ -64,7 +64,7 @@
             "dirty_after": { "enum": ["clean", "dirty", "unknown"] }
           },
           "if": { "properties": { "ran": { "const": true } } },
-          "then": { "properties": { "disk_health_at_check": { "const": "Healthy" }, "method": { "enum": ["spot-fix", "chkdsk-f"] } } }
+          "then": { "properties": { "method": { "enum": ["spot-fix", "chkdsk-f"] } } }
         },
         "shrink": {
           "type": "object",
@@ -220,6 +220,17 @@
         "reachable_via": { "enum": ["grub", "firmware-entry", "both", "none"] }
       }
     },
+    "risk_acknowledgement": {
+      "description": "Copied from the job when the person took the acknowledged-data-loss path (RISKS R23, decided 2026-09-13). Its presence is why a repair on a non-Healthy disk or a shrink on a refused drive appears in this record at all.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statement", "accepted_utc", "overrides"],
+      "properties": {
+        "statement": { "const": "I confirm that I understand the risks and could lose data" },
+        "accepted_utc": { "type": "string", "format": "date-time" },
+        "overrides": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["disk-health", "volume-health"] } }
+      }
+    },
     "credentials": {
       "description": "RISKS R13. The recovery key is needed by settle-in's pull, so on keep-windows it is scrubbed after the pull, not here.",
       "type": "object",
@@ -233,6 +244,12 @@
     "logs": { "type": "array", "items": { "$ref": "#/definitions/relpath" } }
   },
   "allOf": [
+    {
+      "description": "A repair only on a Healthy disk - unless the disk-health refusal was acknowledged (RISKS R23).",
+      "if": { "properties": { "prologue": { "properties": { "volume_check": { "properties": { "ran": { "const": true } } } } } },
+              "not": { "required": ["risk_acknowledgement"], "properties": { "risk_acknowledgement": { "required": ["overrides"], "properties": { "overrides": { "contains": { "const": "disk-health" } } } } } } },
+      "then": { "properties": { "prologue": { "properties": { "volume_check": { "properties": { "disk_health_at_check": { "const": "Healthy" } } } } } } }
+    },
     {
       "if": { "properties": { "status": { "const": "completed" } } },
       "then": { "required": ["cutover"], "properties": { "stopped_at": { "const": null }, "path_taken": { "enum": ["keep-windows", "clean-slate"] } } }

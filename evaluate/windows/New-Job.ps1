@@ -39,11 +39,18 @@ param(
     [ValidateSet('kde', 'gnome')][string]$Desktop = 'kde',
     [string]$PasswordHash = '$6$upgradeV1$MkYfbaBe.FFp2fzSNrPiJ6RdPagcfI.crkepTcQpGsjGFMe8780OtkedouSyxvXdky5a6WiTWDy/.epwkWUk71',
     [ValidateSet('clean-slate', 'stop')][string]$IfCannotKeep = 'stop',
+    [string]$AcknowledgeDataLoss,
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.2.0'
+$JobWriterVersion = '0.3.0'
 $LinuxMinGB = 25
+# The acknowledged-data-loss path (RISKS R23, decided 2026-09-13). The person
+# types this sentence, verbatim, on the separate launcher; it lifts exactly
+# the two refusals whose failure mode is losing THIS machine's files, and
+# nothing else. Kept in one place so every module compares the same bytes.
+$RiskStatement = 'I confirm that I understand the risks and could lose data'
+$AcknowledgeableChecks = @{ 'Disk health' = 'disk-health'; 'Volume health' = 'volume-health' }
 
 function Test-JobAdmin {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -98,8 +105,8 @@ function Get-JobPath {
     # whose number the prologue measures after its disk check, branching on
     # fork.if_cannot_keep if it then does not fit (decided 2026-09-08; the
     # 0.1.0 writer forced clean slate here, which pre-empted the fork).
-    param([string]$DiskHealth, [bool]$EspFits, $ShrinkableGB, [string]$Dirty = 'clean')
-    if ($DiskHealth -eq 'Healthy' -and $EspFits) {
+    param([string]$DiskHealth, [bool]$EspFits, $ShrinkableGB, [string]$Dirty = 'clean', [bool]$DiskHealthAcknowledged = $false)
+    if (($DiskHealth -eq 'Healthy' -or $DiskHealthAcknowledged) -and $EspFits) {
         if ($null -ne $ShrinkableGB -and $ShrinkableGB -ge $LinuxMinGB) { return @{ Path = 'keep-windows'; Reason = 'default' } }
         if ($null -eq $ShrinkableGB -and $Dirty -eq 'dirty') { return @{ Path = 'keep-windows'; Reason = 'default' } }
     }
@@ -156,13 +163,16 @@ function Get-JobFacts {
         try { $out = (& manage-bde -status C: 2>&1) -join "`n"; if ($out -match '(?im)^\s*Protection Status:\s*Protection (On|Off)\s*$') { $f.BitLocker = $matches[1].ToLower() } } catch { }
     }
 
-    $f.Verdict = $null; $f.RequiredKernel = $null; $f.Report = $null
+    $f.Verdict = $null; $f.RequiredKernel = $null; $f.Report = $null; $f.FailedChecks = @(); $f.WarnChecks = @()
     if ($ScanDir -and (Test-Path $ScanDir)) {
         $j = Get-ChildItem -Path $ScanDir -Filter 'upgrade-report-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($j) {
             $r = Get-Content $j.FullName -Raw | ConvertFrom-Json
             $f.Verdict = "$($r.Verdict.Level)"; $f.RequiredKernel = $r.RequiredKernel
             $f.Report = $j.FullName
+            # which checks made it RED: only the two acknowledgeable ones may be lifted
+            $f.FailedChecks = @($r.Checks | Where-Object { $_.Status -eq 'fail' -and $_.Section -ne 'Software' } | ForEach-Object { "$($_.Title)" })
+            $f.WarnChecks = @($r.Checks | Where-Object { $_.Status -eq 'warn' } | ForEach-Object { "$($_.Title)" })
         }
     }
 
@@ -188,11 +198,31 @@ function Get-JobFacts {
 
 # --- the job (pure given facts; self-tested) ---------------------------------------
 
+function Get-JobAcknowledgement {
+    # Pure (self-tested). Returns @{ Refusal = <text or $null>; Block = <risk_acknowledgement or $null> }.
+    # A RED verdict is a job only when (a) the statement was typed verbatim
+    # and (b) every failing hardware check is one of the two the statement may
+    # lift. The overrides list what it lifted: the failing acknowledgeable
+    # checks, plus volume-health whenever that check warned (the repair the
+    # prologue will run on the acknowledged disk is itself a data-loss risk).
+    param([string]$Verdict, [string[]]$FailedChecks, [string[]]$WarnChecks, [string]$Typed)
+    if ($Verdict -ne 'RED') { return @{ Refusal = $null; Block = $null } }
+    if (-not $Typed) { return @{ Refusal = 'the scanner verdict is RED - no job, no override'; Block = $null } }
+    if ($Typed -cne $RiskStatement) { return @{ Refusal = "the scanner verdict is RED and the data-loss statement was not typed exactly (expected: $RiskStatement)"; Block = $null } }
+    $notLiftable = @($FailedChecks | Where-Object { -not $AcknowledgeableChecks.ContainsKey($_) })
+    if ($notLiftable.Count -gt 0) { return @{ Refusal = "the scanner verdict is RED for a reason no acknowledgement lifts: $($notLiftable -join ', ')"; Block = $null } }
+    $ov = @($FailedChecks | ForEach-Object { $AcknowledgeableChecks[$_] })
+    if (($WarnChecks -contains 'Volume health') -and ($ov -notcontains 'volume-health')) { $ov += 'volume-health' }
+    if ($ov.Count -eq 0) { return @{ Refusal = 'the scanner verdict is RED but no failing check was found in the report; refusing'; Block = $null } }
+    @{ Refusal = $null; Block = [ordered]@{ statement = $RiskStatement; accepted_utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); overrides = @($ov | Sort-Object -Unique) } }
+}
+
 function New-JobDocument {
-    param($F, [string]$Desktop, [string]$PasswordHash, [string]$IfCannotKeep, [string]$ReportRel)
+    param($F, [string]$Desktop, [string]$PasswordHash, [string]$IfCannotKeep, [string]$ReportRel, [string]$AcknowledgeDataLoss)
     $refusals = @()
-    if ($F.Verdict -eq 'RED') { $refusals += 'the scanner verdict is RED - no job, no override' }
-    elseif ($F.Verdict -notin @('GREEN', 'YELLOW')) { $refusals += "no scanner verdict found (got '$($F.Verdict)') - run the scanner with -Json first" }
+    $ack = Get-JobAcknowledgement -Verdict "$($F.Verdict)" -FailedChecks @($F.FailedChecks) -WarnChecks @($F.WarnChecks) -Typed $AcknowledgeDataLoss
+    if ($ack.Refusal) { $refusals += $ack.Refusal }
+    elseif ($F.Verdict -notin @('GREEN', 'YELLOW', 'RED')) { $refusals += "no scanner verdict found (got '$($F.Verdict)') - run the scanner with -Json first" }
     if ($F.Firmware -ne 'UEFI') { $refusals += "firmware is '$($F.Firmware)', not UEFI - the boot handoff does not apply" }
     if ($F.BitLocker -notin @('on', 'off')) { $refusals += 'BitLocker state on C: could not be determined' }
     $iana = ConvertTo-JobIanaTimeZone -WindowsId $F.WindowsTz
@@ -205,7 +235,8 @@ function New-JobDocument {
     if ($refusals.Count -gt 0) { return @{ Refusals = $refusals; Job = $null } }
 
     $espFits = ($F.EspFree -ge 32MB)
-    $path = Get-JobPath -DiskHealth $F.Health -EspFits $espFits -ShrinkableGB $F.ShrinkGB -Dirty $F.Dirty
+    $diskAck = [bool]($ack.Block -and ($ack.Block.overrides -contains 'disk-health'))
+    $path = Get-JobPath -DiskHealth $F.Health -EspFits $espFits -ShrinkableGB $F.ShrinkGB -Dirty $F.Dirty -DiskHealthAcknowledged $diskAck
     $health = if ($F.Health -in @('Healthy', 'Warning', 'Unhealthy')) { $F.Health } else { 'Unknown' }
     $bl = $F.BitLocker
     $job = [ordered]@{
@@ -246,6 +277,7 @@ function New-JobDocument {
         stick = [ordered]@{ unique_id = $F.Stick.UniqueId; serial_number = "$($F.Stick.Serial)"; size_bytes = [long]$F.Stick.Size
                             friendly_name = $F.Stick.Name; label = $(if ($F.Stick.Label) { $F.Stick.Label } else { 'UPGV0' }); manifest = 'SHA256SUMS' }
     }
+    if ($ack.Block) { $job.risk_acknowledgement = $ack.Block }
     if ($path.Path -eq 'clean-slate') { $job.staged = [ordered]@{ files = 0; bytes = 0; manifest = 'staging/SHA256SUMS' } }
     if ($path.Path -eq 'keep-windows' -and $F.Dirty -eq 'dirty') { $job.fork.volume_check_consented = $true }
     @{ Refusals = @(); Job = $job }
@@ -266,7 +298,8 @@ function Invoke-SelfTest {
                Health = 'Healthy'; Operational = 'OK'; MediaType = 'SSD'; ShrinkGB = 61.4; ShrinkError = $null; Dirty = 'clean'
                EspSize = 104857600; EspFree = 72219648; BitLocker = 'on'; Verdict = 'YELLOW'; RequiredKernel = '6.7'; Report = 'x'
                Stick = @{ UniqueId = 'USBSTOR\X'; Serial = ''; Size = 8053063680; Name = 'General UDisk'; Label = 'UPGV0'; Bus = 'USB' }
-               WindowsTz = 'Eastern Standard Time'; Locale = 'en-US'; InputTip = '0409:00000409'; UserName = 'Addison'; FullName = 'Addison Example' }
+               WindowsTz = 'Eastern Standard Time'; Locale = 'en-US'; InputTip = '0409:00000409'; UserName = 'Addison'; FullName = 'Addison Example'
+               FailedChecks = @(); WarnChecks = @() }
     function With { param($h, [string]$k, $v) $c = @{}; foreach ($e in $h.GetEnumerator()) { $c[$e.Key] = $e.Value }; $c[$k] = $v; $c }
     $ph = '$6$upgradeV1$MkYfbaBe.FFp2fzSNrPiJ6RdPagcfI.crkepTcQpGsjGFMe8780OtkedouSyxvXdky5a6WiTWDy/.epwkWUk71'
     $cases = @(
@@ -286,6 +319,17 @@ function Invoke-SelfTest {
            Run = { (New-JobDocument -F (With $good 'EspFree' 1000000) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path }; Expect = 'clean-slate' }
         @{ Name = 'refuse: RED verdict'
            Run = { (New-JobDocument -F (With $good 'Verdict' 'RED') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -join ';' }; Expect = 'the scanner verdict is RED - no job, no override' }
+        @{ Name = 'R23: RED for Disk health with the statement typed verbatim is a job carrying the acknowledgement (RED kept, overrides named)'
+           Run = { $f = With (With (With $good 'Verdict' 'RED') 'FailedChecks' @('Disk health')) 'WarnChecks' @('Volume health'); $r = New-JobDocument -F $f -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r' -AcknowledgeDataLoss 'I confirm that I understand the risks and could lose data'
+                   "$($r.Refusals.Count):$($r.Job.scan.verdict):$($r.Job.risk_acknowledgement.overrides -join '+'):$($r.Job.risk_acknowledgement.statement -ceq $RiskStatement)" }; Expect = '0:RED:disk-health+volume-health:True' }
+        @{ Name = 'R23: a paraphrased statement lifts nothing'
+           Run = { [bool]((New-JobDocument -F (With (With $good 'Verdict' 'RED') 'FailedChecks' @('Disk health')) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r' -AcknowledgeDataLoss 'I understand the risks and could lose data').Refusals -match 'not typed exactly') }; Expect = $true }
+        @{ Name = 'R23: the statement never lifts a RED from another check (CPU architecture, VMD)'
+           Run = { [bool]((New-JobDocument -F (With (With $good 'Verdict' 'RED') 'FailedChecks' @('Disk health', 'Storage controller mode')) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r' -AcknowledgeDataLoss 'I confirm that I understand the risks and could lose data').Refusals -match 'no acknowledgement lifts: Storage controller mode') }; Expect = $true }
+        @{ Name = 'R23: the statement typed on a YELLOW machine adds no acknowledgement block'
+           Run = { $null -eq (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r' -AcknowledgeDataLoss 'I confirm that I understand the risks and could lose data').Job.risk_acknowledgement }; Expect = $true }
+        @{ Name = 'R23: with disk-health acknowledged, keep-windows is offered on a Warning disk that has room'
+           Run = { $f = With (With (With $good 'Verdict' 'RED') 'FailedChecks' @('Disk health')) 'Health' 'Warning'; (New-JobDocument -F $f -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r' -AcknowledgeDataLoss 'I confirm that I understand the risks and could lose data').Job.intent.path }; Expect = 'keep-windows' }
         @{ Name = 'refuse: no verdict'
            Run = { [bool](New-JobDocument -F (With $good 'Verdict' $null) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals }; Expect = $true }
         @{ Name = 'refuse: legacy BIOS'
@@ -331,7 +375,7 @@ Write-Host ''; Write-Host "  upgrade_  job writer $JobWriterVersion" -Foreground
 Write-Host '  reads this machine; writes job.json; changes nothing' -ForegroundColor DarkGray
 $facts = Get-JobFacts -ScanDir $ScanDir -StickDrive $StickDrive
 $reportRel = if ($facts.Report) { 'reports/' + (Split-Path $facts.Report -Leaf) } else { 'reports/none' }
-$r = New-JobDocument -F $facts -Desktop $Desktop -PasswordHash $PasswordHash -IfCannotKeep $IfCannotKeep -ReportRel $reportRel
+$r = New-JobDocument -F $facts -Desktop $Desktop -PasswordHash $PasswordHash -IfCannotKeep $IfCannotKeep -ReportRel $reportRel -AcknowledgeDataLoss $AcknowledgeDataLoss
 if ($r.Refusals.Count -gt 0) {
     Write-Host ''; Write-Host '  REFUSED - no job written:' -ForegroundColor Red
     foreach ($x in $r.Refusals) { Write-Host "    - $x" -ForegroundColor Red }
@@ -352,6 +396,7 @@ Write-Host "  $($j.identity.vendor) $($j.identity.model)   disk $($j.identity.sy
 Write-Host "  verdict $($j.scan.verdict)   disk health $($j.storage.physical_disk.health_status)   shrinkable $($j.storage.shrinkable_gb) GB   ESP free $([math]::Round($j.storage.esp.free_bytes/1MB,1)) MB   volume $($j.storage.volume_health.dirty)"
 Write-Host "  path $($j.intent.path) ($($j.intent.path_reason))   desktop $($j.intent.desktop)   locale $($j.intent.locale.lang) $($j.intent.locale.keymap) $($j.intent.locale.timezone)"
 Write-Host "  stick $($j.stick.friendly_name) $([math]::Round($j.stick.size_bytes/1e9,1)) GB '$($j.stick.label)'"
+if ($j.risk_acknowledgement) { Write-Host "  DATA LOSS ACCEPTED: the RED verdict was acknowledged; lifted: $($j.risk_acknowledgement.overrides -join ', ')" -ForegroundColor Red }
 Write-Host "  written: $jobPath" -ForegroundColor Cyan
 Write-Host '  not in this job: folders, browsers, Wi-Fi, cloud files, the BitLocker key, a chosen password' -ForegroundColor DarkGray
 Write-Host ''
