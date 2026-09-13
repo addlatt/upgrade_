@@ -841,6 +841,60 @@ behind it. What a *real* flag Windows has kept through several restarts
 does under the ladder is the unspoofable clause, and the Aspire is the
 machine that answers it.
 
+**The Aspire answered (2026-09-13), and the answer is the dying-drive branch.**
+First physical step-1b row (`r18-prologue.csv` row 5, `stopped-volume-check`):
+the prologue confirmed the flag, read `Healthy`, scheduled the spot-fix,
+restarted — and came back to a volume still flagged, **no boot-time check
+logged**, a `found.000` already on C:, and a rescan that again returned
+`NoErrorsFound`; it refused to escalate on a guess. A read-only
+diagnostic (`DIAG-VOLUME.cmd`, kept out of the repo — it names the
+person's files) then showed what the prologue's two signals had missed:
+
+1. **`Repair-Volume -Scan`'s return value is not the truth.** Every one
+   of its runs on this machine (the scanner's, the prologue's, Windows'
+   own daily ones since at least 2026-08-27) returned `NoErrorsFound`
+   while the Chkdsk provider logged for the same run "Examining 18
+   corruption records ... corruption found ... Windows has examined the
+   list of previously identified potential issues and **found problems**.
+   Please run chkdsk /scan to fully analyze the problems and queue them
+   for repair." The online scans list cross-linked attribute records, a
+   corrupt `$UsnJrnl`, files owning the same clusters, `$I30` indexes
+   whose multi-sector headers read as zeros — all "queued for offline
+   repair", daily, for weeks. `Get-Volume` says it plainly:
+   `HealthStatus Warning`, `OperationalStatus Full Repair Needed`. **Both
+   the scanner and the prologue must read the event log and the volume's
+   own status, not the cmdlet's string.**
+2. **`Get-PhysicalDisk` HealthStatus `Healthy` is not enough.** The System
+   log holds **30 `disk` event 7 ("has a bad block") entries on
+   `\Device\Harddisk1\DR1`** — the internal SSD that holds C: — from
+   2026-09-12 20:17, while the disk still reports Healthy. Zeroed sector
+   headers plus bad blocks is the signature of failing flash. This is
+   the exact case guardrail 2 was written for ("a flag from a dying
+   drive is a different situation, and repair activity can finish it
+   off") and the guardrail's one read did not see it.
+3. **Windows 11 does not run the boot-time check on its own** for a
+   dirty volume here: `BootExecute` is the default `autocheck autochk *`,
+   the volume has been dirty for weeks, and there is no Wininit 1001 in
+   30 days. The flag persists because the offline repair never runs
+   unless a person asks for it (Windows' "Restart to repair drive
+   errors"), not because the check failed.
+
+**Decided (2026-09-13):** the disk-health guardrail gains a second read —
+`disk` events 7 / 51 / 153 on the physical disk holding C: in the last
+30 days — and any bad-block event is **RED** in the scanner and a
+refusal in the prologue, no override (rule #1). The volume-health check
+reads `Get-Volume`'s `OperationalStatus` and the latest Chkdsk-provider
+event's verdict ("found problems" / "queued for offline repair") and
+treats either as the flag's *reason*, replacing the cmdlet's string.
+The prologue's rung chooser uses the same facts: corruption records
+queued for offline repair are "real errors" (the `/f` rung), a flag with
+none is the spot-fix rung — and a disk with bad blocks gets no rung at
+all. For the Aspire the product answer is the one R18 already wrote:
+copy the files off this drive and replace it. The prologue's refusal was
+right; the reasons it had were weaker than the real ones. Owed code:
+scanner (`Disk health`, `Volume health`), prologue guardrails 1–2, the
+job schema's `volume_health.scan` meaning.
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.

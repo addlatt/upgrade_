@@ -475,6 +475,17 @@ agreeing to the byte, install completed (`v2-install.csv` row 4, whose
 leaves the flag for autochk (`chkntfs` says "C: is dirty"), and Wininit
 logs event 1001 about 17 s *after* logon.
 
+**Row 5 (2026-09-13, Acer Aspire A515-51G, InsydeH2O V1.21, Secure Boot on,
+Windows 11 Home) — the first physical step-1b row: `stopped-volume-check`.**
+The real flag: confirmed by the scan, `Healthy` read, spot-fix scheduled,
+restart taken — then no boot-time check logged, C: still flagged, a
+`found.000` already present, rescan `NoErrorsFound`; the prologue refused
+to escalate. The read-only diagnostic that followed (RISKS R18,
+2026-09-13) showed 18 corruption records queued for offline repair for
+weeks, `Get-Volume` "Full Repair Needed", and 30 bad-block events on the
+SSD holding C: — the dying-drive branch. The refusal stands; the
+guardrails that let it get that far are being strengthened.
+
 ### What "the prologue passes" requires
 
 - `pass-plumbing` on the rig with the injected flag (the plumbing: scan →
