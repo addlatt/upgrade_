@@ -22,6 +22,10 @@
 #   prologue.sh autologon off|on   the guest's AutoAdminLogon (the rig template signs itself in;
 #                             the walk-away row needs NOBODY signed in when the resume fires -
 #                             prologue 0.3.0, SYSTEM at startup); records artifacts/autologon.txt
+#   prologue.sh probe         the walk-away probe (prologue -Probe) on a fresh copy with autologon off:
+#                             prepare -> stick -> windows -> autologon off -> -Probe -> restart -> the
+#                             SYSTEM task writes the row to the stick -> pulled -> transported verbatim
+#                             into docs/validation-results/walkaway-probe.csv -> restore
 #   prologue.sh convert       run the stick's RUN-CONVERT.cmd through cmd with CONVERT on stdin;
 #                             the prologue restarts the guest for the disk check
 #   prologue.sh wait-off [s]  wait until the guest powers itself off: check restart -> resume ->
@@ -119,6 +123,30 @@ autologon)
     # interactive session, so the bench keeps working with it off
     guest "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon' -Name AutoAdminLogon -Value '$n' -Type String; 'AutoAdminLogon=' + (Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon').AutoAdminLogon" | tee "$A/autologon.txt"
     grep -q "AutoAdminLogon=$n" "$A/autologon.txt" || { echo "prologue: autologon did not switch" >&2; exit 1; }
+    ;;
+probe)
+    "$SELF" prepare; "$SELF" stick; "$SELF" windows; "$SELF" autologon off
+    L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume in the guest" >&2; exit 1; }
+    guest "Remove-Item -Recurse -Force '$GUEST_STATE' -ErrorAction SilentlyContinue; Remove-Item ${L}:\\upgrade_\\probe.json,${L}:\\upgrade_\\walkaway-probe.csv -Force -ErrorAction SilentlyContinue"
+    guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Probe -ProbeStickDrive ${L}:" | tee "$A/probe-start.log"
+    grep -q 'restarting in 15 s' "$A/probe-start.log" || { echo "prologue: the probe did not reach a restart - read $A/probe-start.log" >&2; exit 1; }
+    sleep 30; wait_windows 600; L=$(stick_letter); t0=$(date +%s)
+    until guest "Test-Path ${L}:\\upgrade_\\probe.json" 2>/dev/null | grep -q True; do [ $(( $(date +%s) - t0 )) -ge 300 ] && { echo "prologue: no probe.json within 300 s" >&2; break; }; sleep 10; done
+    guest "query user 2>&1 | Out-String" > "$A/probe-sessions.txt" 2>/dev/null || true
+    pull "${L}:\\upgrade_\\probe.json" probe.json; pull "${L}:\\upgrade_\\walkaway-probe.csv" walkaway-probe.csv; pull "${L}:\\upgrade_\\report\\probe.log" probe.log
+    for f in state-probe.json prologue.log; do pull "$GUEST_STATE\\$f" "guest-$f"; done
+    PS stop; wait_off 300; "$SELF" restore
+    # the row is the prologue's own, transported verbatim (never rewritten here)
+    python3 - "$A/walkaway-probe.csv" ../../docs/validation-results/walkaway-probe.csv "$HARNESS_VERSION" <<'PY'
+import sys, pathlib
+src, dst, harness = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3]
+lines = [l for l in src.read_text(encoding="utf-8-sig").splitlines() if l.strip()]
+if len(lines) < 2: sys.exit("probe: no row on the stick")
+header, row = lines[0], lines[-1]
+if not dst.exists(): dst.write_text(header.replace('"timestamp",', '"timestamp","harness",', 1) + "\n", encoding="utf-8")
+dst.open("a", encoding="utf-8").write(row.replace('",', '","' + harness + '",', 1) + "\n")
+print("probe: transported ->", dst, "|", row[:160])
+PY
     ;;
 convert)
     mkdir -p "$A"

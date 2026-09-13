@@ -72,6 +72,16 @@
     Show the notice the last unattended phase queued for the next sign-in
     (registered under HKLM RunOnce; runs as the person, unelevated).
 
+.PARAMETER Probe
+    The walk-away probe (read-only, one restart): register the same SYSTEM
+    startup task the conversion uses, restart, and on the way back record
+    who ran the resume, whether anyone was signed in, how long the stick
+    took to appear, and whether the sign-in notice queued - then remove
+    the task. Touches nothing but the state directory and the task. Row to
+    upgrade_/walkaway-probe.csv on the stick (never edited by hand),
+    record to upgrade_/probe.json. The physical residue of the SYSTEM
+    resume: a real USB stick at real firmware's boot, a real sign-in.
+
 .PARAMETER Abort
     Stop an in-progress conversion between phases: remove the task and the
     boot entry if armed, keep the state as prologue-aborted.json for reading.
@@ -90,12 +100,15 @@ param(
     [Parameter(ParameterSetName = 'Abort', Mandatory = $true)][switch]$Abort,
     [Parameter(ParameterSetName = 'SelfTest', Mandatory = $true)][switch]$SelfTest,
     [Parameter(ParameterSetName = 'Notify', Mandatory = $true)][switch]$Notify,
+    [Parameter(ParameterSetName = 'Probe', Mandatory = $true)][switch]$Probe,
+    [Parameter(ParameterSetName = 'Probe', Mandatory = $true)][string]$ProbeStickDrive,
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
 $PrologueVersion = '0.3.0'
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
+$ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
 $StickWaitSeconds = 120           # a USB stick can enumerate well after the startup task starts
 $ConfirmExpected = 'CONVERT'
 # The acknowledged-data-loss path (RISKS R23, decided 2026-09-13): when the job
@@ -320,6 +333,22 @@ function Get-ResumeContext {
                 Unattended = (-not $UserInteractive -or $SessionId -eq 0) }
 }
 
+function Get-ProbeResult {
+    # The probe's verdict from its own facts. 'resumed-unattended' is the
+    # walk-away property; anything else names what was missing.
+    param([bool]$Unattended, [bool]$StickFound, [bool]$TaskRemoved)
+    if (-not $StickFound) { return 'stick-not-found' }
+    if (-not $Unattended) { return 'resumed-attended' }
+    if (-not $TaskRemoved) { return 'task-not-removed' }
+    'resumed-unattended'
+}
+
+function ConvertTo-ProbeCsvLine {
+    # every field quoted, quotes doubled, no newlines
+    param([object[]]$Fields)
+    (@($Fields | ForEach-Object { '"' + (("$_" -replace '[\r\n]+', ' ') -replace '"', '""') + '"' }) -join ',')
+}
+
 function New-NoticeCommand {
     # The RunOnce value: show the notice file at the next sign-in, as the
     # person, unelevated, from the state dir's copy of this script.
@@ -502,7 +531,7 @@ function Get-PrologueFacts {
     $cs = Get-CimInstance Win32_ComputerSystem; $os = Get-CimInstance Win32_OperatingSystem
     $bios = Get-CimInstance Win32_BIOS; $sys = Get-CimInstance Win32_ComputerSystemProduct
     $f.Vendor = "$($cs.Manufacturer)"; $f.Model = "$($cs.Model)"; $f.Uuid = "$($sys.UUID)"; $f.BiosSerial = "$($bios.SerialNumber)"
-    $f.OsCaption = "$($os.Caption)"; $f.OsBuild = [int]$os.BuildNumber
+    $f.OsCaption = "$($os.Caption)"; $f.OsBuild = [int]$os.BuildNumber; $f.BiosVersion = "$($bios.SMBIOSBIOSVersion)"
     $f.Firmware = "$env:firmware_type"
     $f.SecureBoot = try { if (Confirm-SecureBootUEFI) { 'on' } else { 'off' } } catch { 'unknown' }
     $part = Get-Partition -DriveLetter C -ErrorAction Stop
@@ -1153,6 +1182,7 @@ function Invoke-ResumePhase {
     if ($root) { $script:StickLog = Join-Path $root 'upgrade_\report\prologue.log'; New-Item -ItemType Directory -Path (Split-Path $script:StickLog -Parent) -Force | Out-Null }
     Write-Log ''; Write-Log "  upgrade_  prologue $PrologueVersion  -  RESUME (stage $($S.Stage), restart $($S.Restarts))" 'Cyan'
     Write-Log "  running as $($ctx.RunAs), session $($ctx.SessionId), interactive $($ctx.Interactive), explorer $($ctx.ExplorerRunning), uptime $($ctx.UptimeSeconds) s, stick after $($ctx.StickWaitSeconds) s -> $(if ($ctx.Unattended) { 'unattended' } else { 'attended' })" 'DarkGray'
+    if (-not $root -and $S.Stage -eq 'probe-armed') { Invoke-ProbeReturn $S $state $null; return }
     if (-not $root) {
         # the task stays registered (startup, StartWhenAvailable): the next
         # restart with the stick in continues by itself
@@ -1161,6 +1191,7 @@ function Invoke-ResumePhase {
         return
     }
     if ($S.Stage -eq 'armed') { Invoke-Return $S $state $root; return }
+    if ($S.Stage -eq 'probe-armed') { Invoke-ProbeReturn $S $state $root; return }
     $job = Read-Job (Join-Path $root 'upgrade_\job.json')
     if ("$($job.job_id)" -ne "$($S.JobId)") { Stop-Prologue $S $state $root $job 'revalidate' "the job on the stick ($($job.job_id)) is not the one this conversion started with ($($S.JobId))" }
     switch ($S.Stage) {
@@ -1169,6 +1200,56 @@ function Invoke-ResumePhase {
         default { throw "state is at stage '$($S.Stage)', which -Resume does not continue from" }
     }
     Invoke-Continue $S $state $root $job
+}
+
+function Invoke-ProbeStart {
+    $state = Resolve-StateDir; New-Item -ItemType Directory -Path $state -Force | Out-Null
+    if (Test-Path (Join-Path $state 'state.json')) { throw "a conversion or probe is already in progress (state in $state). Restart to let it resume, or run -Abort." }
+    $root = Get-DriveRoot $ProbeStickDrive
+    if (-not (Test-Path $root)) { throw "stick $root not found" }
+    $report = Join-Path $root 'upgrade_\report'; New-Item -ItemType Directory -Path $report -Force | Out-Null
+    $script:LogFile = Join-Path $state 'prologue.log'; Remove-Item $script:LogFile -Force -ErrorAction SilentlyContinue
+    $script:StickLog = Join-Path $report 'probe.log'
+    Write-Log ''; Write-Log "  upgrade_  prologue $PrologueVersion  -  WALK-AWAY PROBE (read-only, one restart)" 'Cyan'
+    $F = Get-PrologueFacts -Root $root
+    if (-not $F.Stick) { throw "the stick's identity could not be read ($($F.StickError)); the probe needs it to find the stick again after the restart" }
+    $S = New-PrologueState -JobId 'probe' -StickId "$($F.Stick.VolumeId)" -Root $root
+    $S.Stage = 'probe-armed'
+    $S.Facts = [ordered]@{ vendor = $F.Vendor; model = $F.Model; bios = $F.BiosVersion; os = "$($F.OsCaption) $($F.OsBuild)"; secure_boot = $F.SecureBoot; stick_bus = $F.Stick.Bus }
+    Write-Log "  $($F.Vendor) $($F.Model)   BIOS $($F.BiosVersion)   $($F.OsCaption) $($F.OsBuild)   Secure Boot $($F.SecureBoot)   stick on $($F.Stick.Bus) as $root" 'DarkGray'
+    Save-State $S $state
+    Register-ResumeTask -State $state
+    $S.Restarts = 1; Save-State $S $state
+    Write-Log '  the SYSTEM startup task is registered; the state directory is locked; restarting.' 'Green'
+    Write-Log '  Do NOT sign in when Windows comes back - leave it at the sign-in screen for two minutes. The record lands on the stick by itself.' 'Yellow'
+    Restart-Machine 'the walk-away probe'
+}
+
+function Invoke-ProbeReturn {
+    # Back from the probe's restart, as whatever ran the task. Record, clean up, leave.
+    param($S, [string]$State, [string]$Root)
+    Write-Log '  probe: back after the restart'
+    $ctx = @($S.Resumes)[-1]
+    $removed = Unregister-ResumeTask
+    $result = Get-ProbeResult -Unattended ([bool]$ctx.Unattended) -StickFound ([bool]$Root) -TaskRemoved $removed
+    $facts = if ($S.Contains('Facts') -and $S.Facts) { $S.Facts } else { [ordered]@{} }
+    $notice = Show-Or-Queue -State $State -Title 'upgrade_ - walk-away probe' -Seconds 600 -Buttons 64 -Text ("The walk-away probe finished: $result.`n`nThe resume ran as $($ctx.RunAs) in session $($ctx.SessionId), $($ctx.UptimeSeconds) s after boot; the stick appeared after $($ctx.StickWaitSeconds) s.`n`nNothing on this computer was changed. The row is on the USB stick (upgrade_\walkaway-probe.csv).")
+    $S.Stage = "probe-done:$result"
+    $S.Return = [ordered]@{ ReturnedUtc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); Result = $result; Notice = $notice; TaskRemoved = $removed }
+    Save-State $S $State
+    $row = @(((Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')), $PrologueVersion, $facts.vendor, $facts.model, $facts.bios, $facts.os, $facts.secure_boot, $facts.stick_bus,
+             $ctx.RunAs, $ctx.SessionId, $ctx.Interactive, $ctx.ExplorerRunning, $ctx.UptimeSeconds, $ctx.StickWaitSeconds, $notice, $removed, $result,
+             "state stage=$($S.Stage); resume stage=$($ctx.Stage); resumed at $($ctx.Utc)")
+    if ($Root) {
+        $csv = Join-Path $Root 'upgrade_\walkaway-probe.csv'
+        if (-not (Test-Path $csv)) { [IO.File]::WriteAllText($csv, (ConvertTo-ProbeCsvLine $ProbeCsvHeader) + "`n", (New-Object Text.UTF8Encoding($false))) }
+        [IO.File]::AppendAllText($csv, (ConvertTo-ProbeCsvLine $row) + "`n", (New-Object Text.UTF8Encoding($false)))
+        $rec = [ordered]@{ schema = 'walkaway-probe/1'; prologue_version = $PrologueVersion; result = $result; facts = $facts; resume = $ctx; notice = $notice; task_removed = $removed; state = $S }
+        [IO.File]::WriteAllText((Join-Path $Root 'upgrade_\probe.json'), (ConvertTo-PrologueJson $rec), (New-Object Text.UTF8Encoding($false)))
+        Write-Log "  probe: $result - row appended to upgrade_\walkaway-probe.csv, record in upgrade_\probe.json" 'Green'
+    }
+    Copy-Item (Join-Path $State 'state.json') (Join-Path $State 'state-probe.json') -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $State 'state.json') -Force -ErrorAction SilentlyContinue
 }
 
 function Invoke-NotifyPhase {
@@ -1317,6 +1398,11 @@ function Invoke-SelfTest {
         @{ Name = 'resume context: session 0 is unattended even if the flag says interactive'; Run = { (Get-ResumeContext -UserName 'NT AUTHORITY\SYSTEM' -UserInteractive $true -SessionId 0 -ExplorerRunning $false).Unattended }; Expect = $true }
         @{ Name = 'notice: the RunOnce command is hidden, unelevated -Notify from the state copy'; Run = { New-NoticeCommand -ScriptPath 'C:\ProgramData\upgrade_\prologue\Invoke-Prologue.ps1' -State 'C:\ProgramData\upgrade_\prologue' }; Expect = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\ProgramData\upgrade_\prologue\Invoke-Prologue.ps1" -Notify -StateDir "C:\ProgramData\upgrade_\prologue"' }
         @{ Name = 'state: a fresh state carries an empty resume log; an old state without one round-trips'; Run = { $s = New-PrologueState -JobId 'j' -StickId 's' -Root 'E:\'; $old = ConvertTo-PrologueHashtable ((ConvertTo-PrologueJson $s) | ConvertFrom-Json); $old.Remove('Resumes'); "$(@($s.Resumes).Count):$($old.Contains('Resumes'))" }; Expect = '0:False' }
+        @{ Name = 'probe: SYSTEM, stick found, task removed is resumed-unattended'; Run = { Get-ProbeResult -Unattended $true -StickFound $true -TaskRemoved $true }; Expect = 'resumed-unattended' }
+        @{ Name = 'probe: a session present is resumed-attended'; Run = { Get-ProbeResult -Unattended $false -StickFound $true -TaskRemoved $true }; Expect = 'resumed-attended' }
+        @{ Name = 'probe: no stick names that first, whatever else'; Run = { Get-ProbeResult -Unattended $false -StickFound $false -TaskRemoved $false }; Expect = 'stick-not-found' }
+        @{ Name = 'probe: a task left behind is task-not-removed'; Run = { Get-ProbeResult -Unattended $true -StickFound $true -TaskRemoved $false }; Expect = 'task-not-removed' }
+        @{ Name = 'probe csv: fields quoted, quotes doubled, newlines flattened, header has 18 columns'; Run = { "$(ConvertTo-ProbeCsvLine @('a', 'say ""hi""', "x`r`ny", 3, $true))/$(@($ProbeCsvHeader).Count)" }; Expect = '"a","say ""hi""","x y","3","True"/18' }
         @{ Name = 'drive: e normalizes to E:\, a path is refused'; Run = { "$(Get-DriveRoot 'e')/$(try { Get-DriveRoot 'E:\x'; 'accepted' } catch { 'refused' })" }; Expect = 'E:\/refused' }
     )
     $failed = 0
@@ -1340,5 +1426,6 @@ if ($Notify) { Invoke-NotifyPhase; return }
 if (-not (Test-Elevated)) { throw 'the prologue needs Administrator: it reads and changes the disk and the boot configuration' }
 if (-not (Test-UefiBoot)) { throw 'this machine is not UEFI-booted; the boot handoff does not apply' }
 if ($Abort) { Invoke-AbortPhase; return }
+if ($Probe) { Invoke-ProbeStart; return }
 if ($Start) { Invoke-StartPhase; return }
 Invoke-ResumePhase

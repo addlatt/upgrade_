@@ -425,7 +425,15 @@ counts as walk-away only when `state.Resumes` shows SYSTEM, session 0, no
 explorer, and the verdict script writes `resume-attended` otherwise. Row 6
 (2026-09-13, `pass-plumbing`) is the first such row: both resumes SYSTEM
 in session 0 with autologon off, 472 s from the check restart to the first
-Linux boot, nobody signed in.
+Linux boot, nobody signed in. Its physical residue — a real USB stick at
+real firmware's boot, a real sign-in screen — has its own read-only probe:
+`RUN-PROBE.cmd` on the kit (`Invoke-Prologue.ps1 -Probe`) registers the
+same SYSTEM startup task, restarts once, and the task writes the row to
+`upgrade_/walkaway-probe.csv` on the stick (transported verbatim into
+`docs/validation-results/walkaway-probe.csv`; rig rows via `prologue.sh
+probe`). It is what a borrowed machine can run in a half-hour visit; the
+Aspire's dying drive stops the conversion at the disk gate, so the probe
+is the row it can still give.
 
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.

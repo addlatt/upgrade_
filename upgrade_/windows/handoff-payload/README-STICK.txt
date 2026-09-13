@@ -22,6 +22,16 @@ comes back, the same result window appears; the row lands in
 v0-handoff.csv and the report in upgrade_\report\verify.json.
 If it refuses to start it changes nothing - read its message.
 
+THE WALK-AWAY PROBE (RUN-PROBE.cmd) - read-only, one restart
+------------------------------------------------------------
+Double-click RUN-PROBE.cmd, click "Yes", press a key. The computer
+restarts once. When Windows comes back, DO NOT SIGN IN for two minutes
+- leave it at the sign-in screen with the stick in. Then sign in as
+usual: a window shows the result. It tests that the conversion can
+continue after a restart with nobody signed in (the row lands in
+upgrade_\walkaway-probe.csv on this stick; never edit it). Nothing on
+the disk is changed.
+
 THE CONVERSION (RUN-CONVERT.cmd) - this one CHANGES the internal disk
 ----------------------------------------------------------------------
 Only on a computer you mean to convert. Double-click RUN-CONVERT.cmd,
