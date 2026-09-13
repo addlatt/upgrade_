@@ -433,7 +433,9 @@ same SYSTEM startup task, restarts once, and the task writes the row to
 `docs/validation-results/walkaway-probe.csv`; rig rows via `prologue.sh
 probe`). It is what a borrowed machine can run in a half-hour visit; the
 Aspire's dying drive stops the conversion at the disk gate, so the probe
-is the row it can still give.
+is the row it can still give. Rig row 1 (2026-09-13): `resumed-unattended`
+— SYSTEM, session 0, 12 s after boot, stick after 4 s, notice queued, task
+removed, no user session. The physical rows are the residue.
 
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.

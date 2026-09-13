@@ -1,0 +1,2 @@
+"timestamp","harness","prologue_version","vendor","model","bios","os","secure_boot","stick_bus","run_as","session_id","interactive","explorer_running","uptime_s","stick_wait_s","notice","task_removed","result","notes"
+"2026-09-13T23:33:52Z","0.1.0-hv","0.3.0","Microsoft Corporation","Virtual Machine","Hyper-V UEFI Release v4.1","Microsoft Windows 10 Pro 19045","off","SAS","NT AUTHORITY\SYSTEM","0","False","False","12","4","queued","True","resumed-unattended","state stage=probe-done:resumed-unattended; resume stage=probe-armed; resumed at 2026-09-13T23:33:45.5163724Z"

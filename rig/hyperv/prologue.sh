@@ -52,7 +52,7 @@ set -euo pipefail
 SELF=$(readlink -f "${BASH_SOURCE[0]}")
 cd "$(dirname "$SELF")"
 VMNAME=${VMNAME:-UPGRIGHV}
-A=artifacts/prologue
+A=${A:-artifacts/prologue}
 HV=/mnt/c/upgrade-rig/hv
 MAIN_VHDX_WIN="C:\\upgrade-rig\\hv\\vm\\$VMNAME.vhdx"
 FRESH_VHDX_WIN="C:\\upgrade-rig\\hv\\vm\\$VMNAME.fresh.vhdx"
@@ -124,13 +124,23 @@ autologon)
     guest "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon' -Name AutoAdminLogon -Value '$n' -Type String; 'AutoAdminLogon=' + (Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon').AutoAdminLogon" | tee "$A/autologon.txt"
     grep -q "AutoAdminLogon=$n" "$A/autologon.txt" || { echo "prologue: autologon did not switch" >&2; exit 1; }
     ;;
-probe)
-    "$SELF" prepare; "$SELF" stick; "$SELF" windows; "$SELF" autologon off
+probe) "$SELF" prepare; "$SELF" stick; "$SELF" probe-run ;;
+probe-run)
+    # the guest side alone (after prepare + stick): a retry when the host could not start the VM
+    "$SELF" windows; "$SELF" autologon off
     L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume in the guest" >&2; exit 1; }
     guest "Remove-Item -Recurse -Force '$GUEST_STATE' -ErrorAction SilentlyContinue; Remove-Item ${L}:\\upgrade_\\probe.json,${L}:\\upgrade_\\walkaway-probe.csv -Force -ErrorAction SilentlyContinue"
     guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Probe -ProbeStickDrive ${L}:" | tee "$A/probe-start.log"
     grep -q 'restarting in 15 s' "$A/probe-start.log" || { echo "prologue: the probe did not reach a restart - read $A/probe-start.log" >&2; exit 1; }
-    sleep 30; wait_windows 600; L=$(stick_letter); t0=$(date +%s)
+    # the guest can take longer than its 15 s to actually go down: wait for a NEW boot
+    # (LastBootUpTime changes), not merely for PS Direct to answer (run 1: it answered
+    # the old session 2 s in, and the bench fell over the restart)
+    boot0=$(guest '(Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString("o")' 2>/dev/null || true); t0=$(date +%s)
+    until b=$(guest '(Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString("o")' 2>/dev/null || true); [ -n "$b" ] && [ "$b" != "$boot0" ]; do
+        [ $(( $(date +%s) - t0 )) -ge 600 ] && { echo "prologue: no new boot within 600 s" >&2; break; }; sleep 10
+    done
+    echo "prologue: new boot after $(( $(date +%s) - t0 )) s"
+    L=$(stick_letter || true); t0=$(date +%s)
     until guest "Test-Path ${L}:\\upgrade_\\probe.json" 2>/dev/null | grep -q True; do [ $(( $(date +%s) - t0 )) -ge 300 ] && { echo "prologue: no probe.json within 300 s" >&2; break; }; sleep 10; done
     guest "query user 2>&1 | Out-String" > "$A/probe-sessions.txt" 2>/dev/null || true
     pull "${L}:\\upgrade_\\probe.json" probe.json; pull "${L}:\\upgrade_\\walkaway-probe.csv" walkaway-probe.csv; pull "${L}:\\upgrade_\\report\\probe.log" probe.log
