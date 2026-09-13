@@ -895,6 +895,28 @@ right; the reasons it had were weaker than the real ones. Owed code:
 scanner (`Disk health`, `Volume health`), prologue guardrails 1–2, the
 job schema's `volume_health.scan` meaning.
 
+**Diagnosis finalized by SMART (2026-09-13, `DIAG-SMART.cmd`, read-only).**
+The SK hynix HFS256G39TND (SATA, firmware 30001P10, 8,566 h, 9,375
+power cycles) reports: **187 Reported_Uncorrectable = 725**, **5
+Reallocated_Sector_Ct = 7** (196 Reallocated_Event_Count 7), **184
+End-to-End_Error = 639**, 195 Hardware_ECC_Recovered raw 59.5 million
+with its normalized value having touched **1** (worst) — and **199
+UDMA_CRC_Error_Count = 0**, 188 Command_Timeout 0. Its own
+failure-prediction flag is `False`: every normalized value still sits
+above the vendor's lax thresholds, which is exactly why `Get-PhysicalDisk`
+says `Healthy`. The System log holds **261 bad-block events (disk id 7)
+on that disk since 2026-08-27**, 165 NTFS corruption events (id 55), and
+at the very boot after the prologue's spot-fix restart NTFS said it in
+words (id 98, 2026-09-13 10:10:04): *"Volume C: needs to be taken offline
+to perform a Full Chkdsk. Please run CHKDSK /F"*. The 1 TB HDD beside it
+is clean on every counter. **Verdict: the SSD's flash is failing (media
+errors the drive's ECC cannot correct, reaching the host), not its
+connector.** Replace it; copy the files off first. Two more reads for the
+guardrail code: NTFS event 98 is Windows' own "full chkdsk needed"
+statement and belongs in the rung chooser as the "real errors" signal,
+and SMART 187/5/197/199 (via `MSStorageDriver_FailurePredictData`, SATA
+only) can name *why* a drive is refused.
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.
