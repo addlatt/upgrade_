@@ -205,7 +205,7 @@ def run_rows(run_dir, note):
         if res and res.get("Unattended") is not None:
             run_as += " unattended" if res.get("Unattended") else " attended"
         flow = {"flow_result": flow_result, "resume_run_as": run_as,
-                "safe_boot": ("y (%s, session %s)" % ("SYSTEM" if re.search(r"(?i)SYSTEM$", str(sb.get("RunAs", ""))) else "user", sb.get("SessionId"))) if sb else ("n" if n >= 2 else ""),
+                "safe_boot": ("y (%s, option %s, %s)" % ("SYSTEM" if re.search(r"(?i)SYSTEM$", str(sb.get("RunAs", ""))) else "user sign-in", sb.get("OptionValue"), sb.get("Source", "task"))) if sb else ("n" if n >= 2 else ""),
                 "fw_reboot": (fwr.get("Method") or "") if fwr else "",
                 "note": f"harness={rec.get('harness_version', '')} stage={rec.get('stage', '')} leg_mode_seen={leg.get('Mode', '')} "
                         f"cleanup={','.join(f'{k}={v}' for k, v in cleanup.items()) or 'none'}" + (f" bench=y" if (rec.get('facts') or {}).get('Bench') or 'Virtual' in str((rec.get('facts') or {}).get('Model', '')) else "")}

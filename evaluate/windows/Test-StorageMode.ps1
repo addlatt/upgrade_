@@ -20,15 +20,18 @@
              (the documented way to change SATA mode without an
              INACCESSIBLE_BOOT_DEVICE stop: Safe Mode loads every installed
              storage-class driver, so the newly re-enumerated controller gets
-             its driver bound); a SYSTEM startup task (the walk-away resume
-             the prologue uses; RISKS R24); Task Scheduler allowed to start
-             in Safe Mode (SafeBoot\Minimal\Schedule) so the Safe Mode boot
-             restarts itself with nobody signed in - plus a *-prefixed RunOnce
-             that does the same if someone does sign in; then a restart
-             STRAIGHT INTO THE FIRMWARE SETUP (shutdown /fw), where the person
-             changes SATA Mode and saves
-      safe   Windows boots the safe copy once; the resume sees Safe Mode and
-             restarts
+             its driver bound); a SYSTEM startup task for the normal boots
+             (the walk-away resume the prologue uses; RISKS R24); a *-prefixed
+             RunOnce, guarded to Safe Mode, that restarts the Safe Mode boot
+             the moment someone signs in (Task Scheduler does not run our
+             boot-trigger task in Safe Mode, not even with a
+             SafeBoot\Minimal\Schedule entry - rig runs 4 and 5, 2026-09-14;
+             so the Safe Mode boot is the one place the person signs in);
+             then a restart STRAIGHT INTO THE FIRMWARE SETUP (shutdown /fw),
+             where the person changes SATA Mode and saves
+      safe   Windows boots the safe copy once, shows its sign-in screen
+             ("Safe Mode" in the corners); the person signs in and it restarts
+             by itself
       leg 2  the resume, as SYSTEM: scan + capture again. Mode unchanged ->
              the setup had no option or it was not saved: clean up, stop.
              Mode changed -> ask for the original mode back, re-arm, restart
@@ -90,10 +93,10 @@ $SafeRunOnceName   = '*upgrade_storage-mode-safe'      # the * makes RunOnce fir
 $NoticeRunOnceName = 'upgrade_storage-mode-notice'
 $BcdDescription    = 'upgrade_ storage-mode test (Safe Mode, one boot)'
 $SafeBootOptionKey = 'HKLM:\SYSTEM\CurrentControlSet\Control\SafeBoot\Option'
-$SafeBootMinimalSchedule = 'HKLM:\SYSTEM\CurrentControlSet\Control\SafeBoot\Minimal\Schedule'
 $RunOnceKey        = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce'
 $StickWaitSeconds  = 120
 $StickSubdir       = 'upgrade_\storage-mode'
+$SafeMarkerPath    = Join-Path $env:ProgramData 'upgrade_\storage-mode-safeboot.txt'
 $script:LogFile = $null; $script:StickLog = $null
 
 # =============================================================================
@@ -221,7 +224,22 @@ function New-SmSafeRunOnceCommand {
     # Fires at sign-in as the person (RunOnce; the * makes it run in Safe
     # Mode). It restarts ONLY inside Safe Mode - in a normal session it does
     # nothing, so a leftover entry can never restart someone's normal boot.
-    "powershell.exe -NoProfile -WindowStyle Hidden -Command `"if (Test-Path '$SafeBootOptionKey') { shutdown /r /t 5 /c 'upgrade_ storage-mode test: Safe Mode boot done, restarting' }`""
+    # Before restarting it leaves the Safe Mode boot's evidence (time, who
+    # signed in, the SafeBoot option value, seconds since boot) in a marker
+    # the next resume folds into the record; the marker lives beside the
+    # locked state directory because the person's account cannot write inside it.
+    "powershell.exe -NoProfile -WindowStyle Hidden -Command `"if (Test-Path '$SafeBootOptionKey') { Add-Content -Path '$SafeMarkerPath' -Value ((Get-Date).ToUniversalTime().ToString('o') + '|' + [Security.Principal.WindowsIdentity]::GetCurrent().Name + '|' + (Get-ItemProperty '$SafeBootOptionKey').OptionValue + '|' + [int]([Environment]::TickCount / 1000)); shutdown /r /t 5 /c 'upgrade_ storage-mode test: Safe Mode boot done, restarting' }`""
+}
+
+function ConvertFrom-SmSafeMarker {
+    # One line per Safe Mode sign-in: utc|user|option|uptime_s
+    param([string[]]$Lines)
+    $out = @()
+    foreach ($l in @($Lines)) {
+        $p = "$l".Split('|')
+        if ($p.Count -ge 4) { $out += [ordered]@{ Utc = $p[0]; RunAs = $p[1]; OptionValue = $p[2]; UptimeSeconds = $p[3]; Source = 'runonce-signin' } }
+    }
+    $out
 }
 
 function Get-SmFlowResult {
@@ -362,7 +380,20 @@ function Unregister-ResumeTask {
     $false
 }
 
-function Invoke-Bcd { param([string[]]$Arguments) $out = & bcdedit @Arguments 2>&1; [ordered]@{ Exit = $LASTEXITCODE; Text = (($out | ForEach-Object { "$_" }) -join ' ').Trim() } }
+function Invoke-Native {
+    # Run a native command and return its exit code and merged output. With
+    # $ErrorActionPreference = 'Stop', PowerShell 5.1 turns a native command's
+    # stderr line (redirected with 2>&1) into a TERMINATING error - which is how
+    # the rig's first run died inside shutdown /fw (Hyper-V has no boot-to-setup
+    # indication; shutdown prints Win32 error 203 to stderr) before the plain
+    # restart fallback could run. Here stderr is data, and the exit code decides.
+    param([string]$Command, [string[]]$Arguments)
+    $eap = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    try { $out = & $Command @Arguments 2>&1; $code = $LASTEXITCODE } finally { $ErrorActionPreference = $eap }
+    [ordered]@{ Exit = $code; Text = (($out | ForEach-Object { "$_" }) -join ' ').Trim() }
+}
+
+function Invoke-Bcd { param([string[]]$Arguments) Invoke-Native -Command 'bcdedit' -Arguments $Arguments }
 
 function Set-SafeBootOnce {
     # The boot manager boots $Guid exactly once (bootsequence is consumed on
@@ -384,16 +415,13 @@ function Arm-SafeEntry {
     if ($s.Exit -ne 0) { Invoke-Bcd @('/delete', $guid) | Out-Null; throw "bcdedit /set safeboot failed: $($s.Text)" }
     $e = Invoke-Bcd @('/enum', $guid)
     if ($e.Text -notmatch '(?i)safeboot\s+Minimal') { Invoke-Bcd @('/delete', $guid) | Out-Null; throw "the copied entry does not show safeboot Minimal: $($e.Text)" }
+    # /copy also appends the copy to the boot menu (displayorder), and a menu
+    # with two entries shows for 30 s on EVERY boot until cleanup (seen on the
+    # rig, run 4). The one-time sequence boots the copy without it: take it out.
+    $d = Invoke-Bcd @('/displayorder', $guid, '/remove')
+    if ($d.Exit -ne 0) { Invoke-Bcd @('/delete', $guid) | Out-Null; throw "bcdedit /displayorder /remove failed: $($d.Text)" }
     Set-SafeBootOnce $guid
     [ordered]@{ Guid = $guid; Enum = $e.Text }
-}
-
-function Enable-ScheduleInSafeMode {
-    # Task Scheduler is not on Safe Mode's service list; adding it lets the
-    # SYSTEM startup task fire in Safe Mode and restart without a sign-in.
-    $existed = Test-Path $SafeBootMinimalSchedule
-    if (-not $existed) { New-Item -Path $SafeBootMinimalSchedule -Force | Out-Null; Set-ItemProperty -Path $SafeBootMinimalSchedule -Name '(default)' -Value 'Service' }
-    $existed
 }
 
 function Set-SafeRunOnce { Set-ItemProperty -Path $RunOnceKey -Name $SafeRunOnceName -Value (New-SmSafeRunOnceCommand) }
@@ -408,8 +436,8 @@ function Invoke-Cleanup {
         if ($bs.Text -match [regex]::Escape("$($S.SafeEntry.Guid)")) { $c.BootSequenceRemoved = ((Invoke-Bcd @('/deletevalue', '{bootmgr}', 'bootsequence')).Exit -eq 0) } else { $c.BootSequenceRemoved = 'not-set' }
         $c.SafeEntryDeleted = ((Invoke-Bcd @('/delete', "$($S.SafeEntry.Guid)")).Exit -eq 0)
     }
-    if ($S.Contains('ScheduleKeyCreated') -and $S.ScheduleKeyCreated) { Remove-Item -Path $SafeBootMinimalSchedule -Force -ErrorAction SilentlyContinue; $c.ScheduleKeyRemoved = -not (Test-Path $SafeBootMinimalSchedule) } else { $c.ScheduleKeyRemoved = 'not-ours' }
     Remove-ItemProperty -Path $RunOnceKey -Name $SafeRunOnceName -ErrorAction SilentlyContinue; $c.SafeRunOnceRemoved = -not [bool](Get-ItemProperty -Path $RunOnceKey -Name $SafeRunOnceName -ErrorAction SilentlyContinue)
+    Remove-Item $SafeMarkerPath -Force -ErrorAction SilentlyContinue
     $c.TaskRemoved = Unregister-ResumeTask
     $c
 }
@@ -418,11 +446,19 @@ function Restart-IntoFirmware {
     # shutdown /fw boots straight into the firmware setup (UEFI OsIndications);
     # firmware without it makes shutdown fail, so fall back to a plain restart
     # and the person presses the setup key. Both recorded.
-    param([string]$Why)
-    $out = & shutdown /r /fw /t 20 /c "upgrade_ storage-mode test: $Why" 2>&1
-    if ($LASTEXITCODE -eq 0) { return 'fw' }
-    Write-Log "  shutdown /fw refused (${LASTEXITCODE}: $(($out | ForEach-Object { "$_" }) -join ' ')); plain restart instead - press the setup key at power-on" 'Yellow'
-    & shutdown /r /t 20 /c "upgrade_ storage-mode test: $Why. Press the setup key (F2 on Acer) as soon as the screen goes dark." 2>&1 | Out-Null
+    param([string]$Why, [bool]$SkipFirmware = $false)
+    if ($SkipFirmware) {
+        # bench: Hyper-V's firmware honours the indication but has no setup UI
+        # and stops at its boot summary until someone clicks Restart (rig run 4)
+        $p = Invoke-Native -Command 'shutdown' -Arguments @('/r', '/t', '20', '/c', "upgrade_ storage-mode test (bench): $Why")
+        if ($p.Exit -ne 0) { throw "shutdown /r failed ($($p.Exit): $($p.Text))" }
+        return 'plain-bench'
+    }
+    $r = Invoke-Native -Command 'shutdown' -Arguments @('/r', '/fw', '/t', '20', '/c', "upgrade_ storage-mode test: $Why")
+    if ($r.Exit -eq 0) { return 'fw' }
+    Write-Log "  shutdown /fw refused ($($r.Exit): $($r.Text)); plain restart instead - press the setup key at power-on" 'Yellow'
+    $p = Invoke-Native -Command 'shutdown' -Arguments @('/r', '/t', '20', '/c', "upgrade_ storage-mode test: $Why. Press the setup key (F2 on Acer) as soon as the screen goes dark.")
+    if ($p.Exit -ne 0) { throw "shutdown /r failed too ($($p.Exit): $($p.Text))" }
     'plain'
 }
 
@@ -438,7 +474,7 @@ function Invoke-Leg {
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
     Get-ChildItem $dir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
     Write-Log "  leg ${N}: scanning ($Scanner)..."
-    $scanOut = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Scanner -OutDir $dir 2>&1
+    $scanOut = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Scanner -Json -OutDir $dir 2>&1
     [IO.File]::WriteAllLines((Join-Path $dir 'scan.log'), @($scanOut | ForEach-Object { "$_" }))
     $capPath = Join-Path $dir 'machine-capture.json'
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Scanner -DumpMachine $capPath 2>&1 | Out-Null
@@ -461,7 +497,7 @@ function Write-Record {
     param($S, [string]$Root)
     $rec = [ordered]@{ schema = 'storage-mode/1'; harness_version = $HarnessVersion; flow_result = (Get-SmFlowResult -Stage "$($S.Stage)" -Legs @($S.Legs).Count -LastOutcome "$($S.LastOutcome)")
                        facts = $S.Facts; legs = $S.Legs; resumes = $S.Resumes; safe_boots = $S.SafeBoots; safe_entry = $S.SafeEntry; fw_reboots = $S.FwReboots
-                       schedule_key_created = $S.ScheduleKeyCreated; cleanup = $S.Cleanup; notice = $S.Notice; stage = $S.Stage; started_utc = $S.StartedUtc; updated_utc = $S.UpdatedUtc }
+                       cleanup = $S.Cleanup; notice = $S.Notice; stage = $S.Stage; started_utc = $S.StartedUtc; updated_utc = $S.UpdatedUtc }
     if ($Root) { Save-Json $rec (Join-Path (Join-Path $Root $StickSubdir) 'storage-mode.json') }
     Save-Json $rec (Join-Path (Resolve-StateDir) 'storage-mode.json')
 }
@@ -470,7 +506,7 @@ function Finish {
     param($S, [string]$State, [string]$Root, [string]$Result, [string]$Text)
     $S.Cleanup = Invoke-Cleanup $S
     $S.Stage = "done:$Result"
-    $S.Notice = Show-Or-Queue -State $State -Title 'upgrade_ - storage-mode test' -Text ("Storage-mode test finished: $Result.`n`n$Text`n`nEverything the test armed has been removed (boot entry copy, one-time boot sequence, Safe Mode key, startup task). The record is on the USB stick in upgrade_\storage-mode\.")
+    $S.Notice = Show-Or-Queue -State $State -Title 'upgrade_ - storage-mode test' -Text ("Storage-mode test finished: $Result.`n`n$Text`n`nEverything the test armed has been removed (boot entry copy, one-time boot sequence, RunOnce, startup task). The record is on the USB stick in upgrade_\storage-mode\.")
     Save-State $S $State
     Write-Record $S $Root
     Write-Log "  finished: $Result  cleanup=$(($S.Cleanup.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ' ')" 'Green'
@@ -486,7 +522,7 @@ function Arm-Next {
     $S.Stage = "armed-$(@($S.Legs).Count)"
     Save-State $S $State
     Write-Record $S $Root
-    $how = Restart-IntoFirmware $Why
+    $how = Restart-IntoFirmware -Why $Why -SkipFirmware ([bool]$S.Bench)
     if (-not $S.Contains('FwReboots')) { $S.FwReboots = @() }
     $S.FwReboots = @($S.FwReboots) + , ([ordered]@{ Utc = (Get-Date).ToUniversalTime().ToString('o'); Ask = $Ask; Method = $how })
     Save-State $S $State
@@ -515,7 +551,7 @@ function Invoke-StartPhase {
     Write-Log "  $($F.Vendor) $($F.Model)   BIOS $($F.BiosVersion)   $($F.OsCaption) $($F.OsBuild)   Secure Boot $($F.SecureBoot)   BitLocker $($F.BitLocker)   stick on $($F.StickBus) as $root" 'DarkGray'
     if ($F.BitLocker -eq 'on') { throw 'BitLocker protection is ON for C:. A Safe Mode boot through a copied boot entry can trip BitLocker recovery; suspend BitLocker (manage-bde -protectors -disable C:) or run this on a machine without it. Nothing was changed.' }
     $S = [ordered]@{ HarnessVersion = $HarnessVersion; StartedUtc = (Get-Date).ToUniversalTime().ToString('o'); Stage = 'start'; Facts = $F; StickVolumeId = $F.StickVolumeId; StickRootAtStart = $root
-                     Bench = [bool]$Bench; Legs = @(); Resumes = @(); SafeBoots = @(); FwReboots = @(); SafeEntry = $null; ScheduleKeyCreated = $false; Ask = $null; LastOutcome = ''; Cleanup = $null; Notice = $null }
+                     Bench = [bool]$Bench; Legs = @(); Resumes = @(); SafeBoots = @(); FwReboots = @(); SafeEntry = $null; Ask = $null; LastOutcome = ''; Cleanup = $null; Notice = $null }
     $leg1 = Invoke-Leg -N 1 -Root $root -Scanner $scanner -Asked 'initial'
     $S.Legs = @($leg1)
     if ($leg1.Mode -eq 'none' -and -not $Bench) {
@@ -532,10 +568,10 @@ function Invoke-StartPhase {
             "When you click OK the computer restarts straight into its setup screen (if it does not, press the setup key - F2 on Acer - the moment the screen goes dark).`n`n" +
             "  1st setup screen:  Main tab -> SATA Mode -> set it to  $(Get-SmModeLabel $ask)  -> F10 -> Yes`n" +
             "      (Acer hides SATA Mode on some models: press Ctrl+S on the Main tab to show it. If it is still not there, press Esc and exit WITHOUT saving - the test then stops by itself.)`n" +
-            "  Windows boots once into Safe Mode and restarts on its own. Do not sign in; if you do, it still restarts.`n" +
-            "  Windows scans by itself, then restarts into the setup screen again.`n" +
+            "  Windows then boots once into SAFE MODE (black screen, 'Safe Mode' in the corners) and shows the sign-in screen: sign in with your password. It restarts by itself a few seconds later.`n" +
+            "  Windows scans by itself before anyone signs in, then restarts into the setup screen again.`n" +
             "  2nd setup screen:  set SATA Mode back to  $(Get-SmModeLabel $back)  -> F10 -> Yes`n" +
-            "  Safe Mode once more, then Windows scans a last time and cleans up. Sign in: a window shows the result.`n`n" +
+            "  Safe Mode sign-in once more; it restarts, scans a last time and cleans up. Sign in: a window shows the result.`n`n" +
             "Your files are not touched - changing SATA mode changes how the disk is addressed, not what is on it. If Windows ever shows a blue screen after a change, go back into setup and set the mode back; the test records how far it got.`n`nLeave the USB stick in the whole time."
     if (-not $NoPrompt) {
         $r = Show-Popup -Title 'upgrade_ - storage-mode test: what happens next' -Seconds 300 -Buttons (1 + 64) -Text $text
@@ -545,10 +581,9 @@ function Invoke-StartPhase {
     Copy-Item $scanner (Join-Path $state 'upgrade-scan.ps1') -Force
     Protect-StateDir -State $state
     Register-ResumeTask -State $state
-    $S.ScheduleKeyCreated = -not (Enable-ScheduleInSafeMode)
     Save-State $S $state
     Arm-Next -S $S -State $state -Root $root -Ask $ask -Why "set SATA Mode to $(Get-SmModeLabel $ask) on the setup screen, then save"
-    Write-Log "  On the setup screen: SATA Mode -> $(Get-SmModeLabel $ask) -> F10 -> Yes. Leave the stick in." 'Yellow'
+    Write-Log "  On the setup screen: SATA Mode -> $(Get-SmModeLabel $ask) -> F10 -> Yes. Then sign in at the Safe Mode screen. Leave the stick in." 'Yellow'
 }
 
 function Invoke-ResumePhase {
@@ -565,8 +600,14 @@ function Invoke-ResumePhase {
         $S.SafeBoots = @($S.SafeBoots) + , ([ordered]@{ Utc = $ctx.Utc; RunAs = $ctx.RunAs; SessionId = $ctx.SessionId; OptionValue = $safe; UptimeSeconds = $ctx.UptimeSeconds; Stage = "$($S.Stage)" })
         Save-State $S $state
         Write-Log "  Safe Mode boot (option $safe) as $($ctx.RunAs), session $($ctx.SessionId), $($ctx.UptimeSeconds) s after boot - restarting in 10 s" 'Cyan'
-        & shutdown /r /t 10 /c 'upgrade_ storage-mode test: Safe Mode boot done, restarting' 2>&1 | Out-Null
+        $r = Invoke-Native -Command 'shutdown' -Arguments @('/r', '/t', '10', '/c', 'upgrade_ storage-mode test: Safe Mode boot done, restarting')
+        Write-Log "  shutdown from Safe Mode: exit $($r.Exit) $($r.Text)"
         return
+    }
+    if (Test-Path $SafeMarkerPath) {
+        if (-not $S.Contains('SafeBoots')) { $S.SafeBoots = @() }
+        $S.SafeBoots = @($S.SafeBoots) + @(ConvertFrom-SmSafeMarker -Lines @(Get-Content $SafeMarkerPath))
+        Remove-Item $SafeMarkerPath -Force -ErrorAction SilentlyContinue
     }
     $root = Wait-Stick $S
     $ctx.StickWaitSeconds = [int]((Get-Date) - [DateTime]::Parse($ctx.Utc, $null, [Globalization.DateTimeStyles]::RoundtripKind).ToLocalTime()).TotalSeconds
@@ -666,6 +707,8 @@ function Invoke-SelfTest {
         @{ Name = 'safe mode: OptionValue present is Safe Mode, absent is not'; Run = { "$(Test-SmSafeMode 1)/$(Test-SmSafeMode $null)" }; Expect = 'True/False' }
         @{ Name = 'safe RunOnce: restarts only inside Safe Mode (guards on the SafeBoot\Option key)'; Run = { $c = New-SmSafeRunOnceCommand; [bool]($c -match [regex]::Escape($SafeBootOptionKey)) -and [bool]($c -match 'shutdown /r') -and [bool]($c -match '^if|Test-Path') }; Expect = $true }
         @{ Name = 'safe RunOnce: the value name carries the Safe Mode asterisk'; Run = { $SafeRunOnceName.StartsWith('*') }; Expect = $true }
+        @{ Name = 'safe RunOnce: leaves the Safe Mode marker before restarting'; Run = { [bool]((New-SmSafeRunOnceCommand) -match [regex]::Escape($SafeMarkerPath)) }; Expect = $true }
+        @{ Name = 'safe marker: one line becomes one Safe Mode boot record; junk lines are dropped'; Run = { $b = @(ConvertFrom-SmSafeMarker @('2026-09-14T06:07:40Z|UPGRIGHV\rig|1|341', 'junk')); "$($b.Count) $($b[0].RunAs) opt=$($b[0].OptionValue) up=$($b[0].UptimeSeconds) $($b[0].Source)" }; Expect = '1 UPGRIGHV\rig opt=1 up=341 runonce-signin' }
         @{ Name = 'flow: three legs ending restored is restored; two legs unchanged is mode-unchanged; a stop names itself'; Run = { "$(Get-SmFlowResult 'done:restored' 3 'restored')/$(Get-SmFlowResult 'done:mode-unchanged' 2 'mode-unchanged')/$(Get-SmFlowResult 'stopped:no-intel-controller' 1 '')/$(Get-SmFlowResult 'armed-1' 1 '')" }; Expect = 'restored/mode-unchanged/no-intel-controller/in-progress' }
         @{ Name = 'csv: every field quoted, quotes doubled, newlines flattened'; Run = { ConvertTo-SmCsvLine @('a', 'b"c', "d`ne") }; Expect = '"a","b""c","d e"' }
     )

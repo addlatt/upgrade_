@@ -171,20 +171,45 @@ storage-mode-run)
     L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume in the guest" >&2; exit 1; }
     guest "Test-Path ${L}:\\Test-StorageMode.ps1" | grep -q True || { echo "prologue: Test-StorageMode.ps1 is not on the stick - rebuild the kit (make-kit.sh) and the stick" >&2; exit 1; }
     guest "Remove-Item -Recurse -Force '$SM_STATE' -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force ${L}:\\upgrade_\\storage-mode -ErrorAction SilentlyContinue"
+    # The rig guest boots with its clock 7 h ahead (Hyper-V hands it the host's
+    # local time as the RTC) and the time-sync integration service pulls it back
+    # at some later boot - run 4 (2026-09-14): it jumped back across the Safe
+    # Mode boot, and Task Scheduler then queued every boot-trigger task, ours
+    # included, until real time caught up with the timestamps it had stored.
+    # Set the guest to the host's UTC before the flow so nothing jumps mid-run.
+    guest "Set-Date -Date ([DateTime]::Parse('$(date -u +%Y-%m-%dT%H:%M:%SZ)', \$null, [Globalization.DateTimeStyles]::RoundtripKind).ToLocalTime()) | Out-Null; 'guest utc now ' + (Get-Date).ToUniversalTime().ToString('o')" | tee "$SA/clock.txt"
     # what the guest looks like before: no Schedule key in Safe Mode's list, no task, one Windows entry
     guest "Test-Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SafeBoot\\Minimal\\Schedule'; (Get-ScheduledTask -TaskName 'upgrade_ storage-mode resume' -ErrorAction SilentlyContinue) -ne \$null; (bcdedit /enum osloader | Select-String '^identifier').Count" > "$SA/before.txt"
     boot0=$(guest '(Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString("o")' 2>/dev/null || true)
     guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Test-StorageMode.ps1 -Start -StickDrive ${L}: -Bench -NoPrompt" | tee "$SA/start.log"
     grep -q 'armed: Safe Mode once' "$SA/start.log" || { echo "prologue: the harness did not arm - read $SA/start.log" >&2; guest "Get-Content '$SM_STATE\\storage-mode.log' -Raw" > "$SA/guest-storage-mode.log" 2>/dev/null || true; exit 1; }
-    # Safe Mode has no PS Direct (the integration services are not on its list), so the
-    # bench watches screenshots and waits for the record to say done. Budget: 20 min.
+    "$SELF" storage-mode-wait
+    ;;
+storage-mode-wait)
+    # After the arm. Safe Mode has no PS Direct (the integration services are
+    # not on its list), so the bench watches screenshots and waits for the
+    # record to say done. Hyper-V's firmware HONOURS shutdown /fw's
+    # boot-to-firmware indication but has no setup UI: it stops at "Virtual
+    # Machine Boot Summary - No boot devices were found - Restart now" (run 4,
+    # 2026-09-14; synthetic Enter does not press that button, only a hard
+    # reset moves it on). So -Bench restarts plainly instead of into the
+    # firmware, and the /fw behaviour stays a recorded rig finding. Budget: 20 min.
+    SM_STATE='C:\ProgramData\upgrade_\storage-mode'; SA="$A/storage-mode"; mkdir -p "$SA/progress"
     t0=$(date +%s); n=0
-    until guest "Test-Path '$SM_STATE\\state-done.json'" 2>/dev/null | grep -q True; do
-        [ $(( $(date +%s) - t0 )) -ge 1200 ] && { echo "prologue: storage-mode flow not done within 1200 s" >&2; break; }
+    # the Safe Mode boot needs a sign-in (Task Scheduler does not run the task
+    # there); a PS Direct call hangs for minutes in Safe Mode, so poll with a
+    # timeout and type the rig's sign-in when the guest has been silent a while
+    silent=0; done_flag=0
+    until [ $done_flag = 1 ]; do
+        [ $(( $(date +%s) - t0 )) -ge 1500 ] && { echo "prologue: storage-mode flow not done within 1500 s" >&2; break; }
+        if timeout 60 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$VMPS1" ps "Test-Path '$SM_STATE\\state-done.json'" -Name "$VMNAME" < /dev/null 2>/dev/null | grep -q True; then done_flag=1; continue; fi
+        if timeout 60 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$VMPS1" ps 'hostname' -Name "$VMNAME" < /dev/null 2>/dev/null | grep -q UPGRIGHV; then silent=0; else silent=$((silent+1)); fi
+        # three silent polls in a row = Safe Mode's sign-in screen: sign in for the person (the RunOnce restarts)
+        [ $silent -eq 3 ] && { echo "prologue: guest silent - typing the Safe Mode sign-in"; PS type rig >/dev/null 2>&1 || true; PS key 13 >/dev/null 2>&1 || true; }
         n=$((n+1)); PS shot "C:\\upgrade-rig\\hv\\shots\\sm-$(printf %03d $n).png" >/dev/null 2>&1 || true; cp "$HV/shots/sm-$(printf %03d $n).png" "$SA/progress/" 2>/dev/null || true
         sleep 20
     done
-    echo "prologue: storage-mode flow reached done after $(( $(date +%s) - t0 )) s (boot0=$boot0)"
+    [ $done_flag = 1 ] && echo "prologue: storage-mode flow reached done after $(( $(date +%s) - t0 )) s" || echo "prologue: storage-mode flow NOT done (timeout) after $(( $(date +%s) - t0 )) s"
     L=$(stick_letter || true)
     # pull the record, the log and every leg file
     for f in storage-mode.json storage-mode.log; do guest "Get-Content '${L}:\\upgrade_\\storage-mode\\$f' -Raw -ErrorAction SilentlyContinue" > "$SA/$f" 2>/dev/null || true; done

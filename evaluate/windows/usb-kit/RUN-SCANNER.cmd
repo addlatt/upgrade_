@@ -35,7 +35,7 @@ echo ============================================================
 echo   upgrade_ scanner  -  running as Administrator
 echo ============================================================
 echo.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0upgrade-scan.ps1" -OutDir "%~dp0."
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0upgrade-scan.ps1" -Json -OutDir "%~dp0."
 
 echo.
 echo === Saving machine capture for the corpus ===
