@@ -20,7 +20,7 @@ Status is `open` unless a primary source or a real machine has confirmed it.
 
 ---
 
-## R1 — VMD detection has never fired · critical · open (desk half closed 2026-08-22; level-3 spoof fired 2026-08-26)
+## R1 — VMD detection has never fired · critical · open (desk half closed 2026-08-22; level-3 spoof fired 2026-08-26; AHCI-side real row and the one-click both-modes harness 2026-09-13)
 
 **What.** RST/VMD detection was 10 hand-written PCI device IDs plus a guessed
 `iaStorV*` service-name regex (`data/devices.ps1`,
@@ -88,12 +88,84 @@ these IDs — and proves nothing about what real RST hardware actually presents.
 The real-hardware clause below is untouched; this capture must never be cited
 against it.
 
-**Still open — the half that needs hardware.** The check has never fired on a
-real RST-enabled machine. The remaining test is exactly V5's: a borrowed Intel
-laptop (11th gen or newer Dell/Lenovo ships with VMD/RST on by default) —
-scanner must FAIL with RST/VMD enabled, then OK after the BIOS is switched to
-AHCI. The only machine on hand, the ASUS G16, is AMD with standard NVMe and
-cannot exercise the positive path; it only confirms the negative one.
+**The negative direction on real Intel RST silicon (2026-08-27, re-read
+2026-09-13).** The Acer Aspire A515-51G (Kaby Lake-R, Sunrise Point-LP PCH)
+in its firmware's AHCI mode presents `PCI\VEN_8086&DEV_9D03`, CompatibleIDs
+`PCI\CC_010601` / `PCI\CC_0106`, with Acer's RST driver **iaStorAC** bound
+to it — the exact case the R7 guard was written for: `[WARN] Intel RST driver
+present, controller not in RAID mode (iaStorAC)`, verdict YELLOW, **not**
+`[OK]`. So on this machine the AHCI-side row is `warn-rst-on-ahci`, and the
+scanner's note "this combination has not been confirmed on real hardware yet"
+is no longer true in one respect: the Fedora installer booted through the
+handoff on this same machine and found the disk by serial
+(`v1-live-boot.csv` row 4, 2026-09-12), so with iaStorAC on an AHCI-class
+controller Linux does see the disk. The status stays `warn` — one machine is
+one data point. The capture is `corpus/acer-aspire-a515-51g.json` (Expected
+`warn`); the row is `v5-controller-mode.csv` row 1, written by
+`rig/v5-verdict.py` from the 2026-09-13 report and capture.
+
+**The positive direction: built as one click, fired on the rig (2026-09-13,
+UTC 09-14).** The Aspire has no VMD (11th gen+), but its setup may offer
+"Intel RST Premium with Intel Optane", under which the same controller
+re-enumerates as `8086:282A`, class code `0104` — the third signal, never
+fired on real hardware. Flipping a SATA mode by hand is four `bcdedit` lines,
+two Safe Mode boots and a setup-key timing, so the visit was made one click:
+`RUN-STORAGE-MODE.cmd` → `evaluate/windows/Test-StorageMode.ps1` scans (leg
+1), copies the Windows boot entry with `safeboot minimal`, takes the copy out
+of the boot menu and boots it exactly once through the boot manager's
+one-time `bootsequence` (Safe Mode loads every installed storage-class
+driver, so the re-enumerated controller gets its driver bound — the
+documented way round `INACCESSIBLE_BOOT_DEVICE`), registers the SYSTEM
+startup task the prologue uses (R24), sets a `*`-prefixed RunOnce guarded to
+Safe Mode, and restarts **straight into the firmware setup** (`shutdown /r
+/fw`; a plain restart if the firmware refuses). The person changes SATA Mode
+there and saves; Windows boots the copy in Safe Mode; the person signs in
+and it restarts by itself; the resume scans as SYSTEM before anyone signs in
+(leg 2), asks for the original mode back, and does it all once more (leg 3);
+every exit path removes the copy, the sequence, the RunOnce and the task and
+the record lands on the stick. What the rig taught (`rig/hyperv/prologue.sh
+storage-mode`, runs 4–5; the record in the harness's `storage-mode.json`):
+
+- `bcdedit /copy` also appends the copy to the boot menu — a two-entry
+  30-second menu on every boot until cleanup. The arm removes it from
+  `displayorder`; `bootsequence` boots it regardless.
+- Windows accepts `shutdown /r /fw` on Hyper-V and the firmware honours the
+  indication by stopping at "No boot devices were found" (it has no setup
+  UI); the flag is one-shot. A real firmware opens its setup instead; the
+  harness records which restart it used (`fw` / `plain`).
+- **Task Scheduler does not run a SYSTEM boot-trigger task in Safe Mode**,
+  not even with a `SafeBoot\Minimal\Schedule` entry (run 5 sat at the Safe
+  Mode sign-in for 42 minutes). The `*`-prefixed RunOnce restarts the
+  moment someone signs in (runs 4 and 5), and leaves a marker (UTC, who,
+  the SafeBoot option, uptime) the next resume folds into the record. So
+  the Safe Mode sign-in is the person's one extra step per mode change;
+  the Schedule idea is gone.
+- The SYSTEM resume on the normal boot: session 0, unattended, 7 s after
+  boot, the stick seen after 6 s, leg 2 scanned, cleanup read back from the
+  guest (no task, no RunOnce, no safeboot entry, no bootsequence).
+- Two rig traps for the record: PowerShell 5.1 turns a native command's
+  stderr into a terminating error under `$ErrorActionPreference = 'Stop'`
+  (shutdown's Win32 error 203 killed run 3 before the fallback could run;
+  every native call now goes through a helper that reads the exit code); and
+  Hyper-V hands the guest the host's local time as its RTC, the time-sync
+  service pulls it back hours at a later boot, and Task Scheduler then queues
+  every boot-trigger task until real time catches up (the bench pins the
+  guest clock first).
+
+A VM has no SATA mode to flip, so the rig's rows in `v5-controller-mode.csv`
+are `no-intel-controller` with `flow_result` `mode-unchanged`: plumbing for
+the flow, nothing for the check (rule #5).
+
+**Still open — the half that needs hardware.** The check has never fired on
+a real machine in RAID/RST mode. Next: the Aspire, `RUN-STORAGE-MODE.cmd`
+(if its InsydeH2O V1.21 setup exposes SATA Mode — Acer hides it on some
+models until Ctrl+S on the Main tab; if it is absent the harness records
+`mode-unchanged` and the positive row needs a Dell/Lenovo/HP). Expected:
+`8086:282a`, `CC_0104`, `iaStorAC` or `iaStorAVC` bound, `[FAIL]`, RED —
+`fail-fired` on signal 3, the **pre-VMD RST clause**. That row would not
+touch VMD proper: an 11th-gen-or-newer machine with RST on (kernel `vmd.c`
+IDs, `iaStorVD`) is still owed. The only other machine on hand, the ASUS G16,
+is AMD with standard NVMe and cannot exercise the positive path.
 
 **Why it matters most.** This is the flagship check. The README calls it "the
 single most common false 'Linux won't install'". If the IDs are wrong, the

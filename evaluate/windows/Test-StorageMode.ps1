@@ -68,6 +68,8 @@
     Undo everything this harness armed, elevated, by hand.
 .PARAMETER Notify
     From RunOnce at sign-in: show what the unattended phase queued.
+.PARAMETER SafeModeSignIn
+    From the *-prefixed RunOnce at the Safe Mode sign-in: leave the marker, restart. Does nothing outside Safe Mode.
 .PARAMETER SelfTest
     Logic-only cases (no restart, no registry, no BCD).
 #>
@@ -80,6 +82,7 @@ param(
     [Parameter(ParameterSetName = 'Resume', Mandatory = $true)][switch]$Resume,
     [Parameter(ParameterSetName = 'Abort', Mandatory = $true)][switch]$Abort,
     [Parameter(ParameterSetName = 'Notify', Mandatory = $true)][switch]$Notify,
+    [Parameter(ParameterSetName = 'SafeModeSignIn', Mandatory = $true)][switch]$SafeModeSignIn,
     [Parameter(ParameterSetName = 'SelfTest', Mandatory = $true)][switch]$SelfTest,
     [string]$StateDir
 )
@@ -222,13 +225,25 @@ function Get-SmLegOutcome {
 
 function New-SmSafeRunOnceCommand {
     # Fires at sign-in as the person (RunOnce; the * makes it run in Safe
-    # Mode). It restarts ONLY inside Safe Mode - in a normal session it does
-    # nothing, so a leftover entry can never restart someone's normal boot.
-    # Before restarting it leaves the Safe Mode boot's evidence (time, who
-    # signed in, the SafeBoot option value, seconds since boot) in a marker
-    # the next resume folds into the record; the marker lives beside the
-    # locked state directory because the person's account cannot write inside it.
-    "powershell.exe -NoProfile -WindowStyle Hidden -Command `"if (Test-Path '$SafeBootOptionKey') { Add-Content -Path '$SafeMarkerPath' -Value ((Get-Date).ToUniversalTime().ToString('o') + '|' + [Security.Principal.WindowsIdentity]::GetCurrent().Name + '|' + (Get-ItemProperty '$SafeBootOptionKey').OptionValue + '|' + [int]([Environment]::TickCount / 1000)); shutdown /r /t 5 /c 'upgrade_ storage-mode test: Safe Mode boot done, restarting' }`""
+    # Mode). A plain -File launch of this script's state-dir copy - the same
+    # shape as the sign-in notice - because a quoted -Command body did not
+    # survive the RunOnce launcher on the rig (run 6b, 2026-09-14). The
+    # -SafeModeSignIn phase restarts ONLY inside Safe Mode; in a normal session
+    # it does nothing, so a leftover entry can never restart someone's normal
+    # boot. Before restarting it leaves the Safe Mode boot's evidence (time,
+    # who signed in, the SafeBoot option value, seconds since boot) in a marker
+    # the next resume folds into the record; the marker lives beside the locked
+    # state directory because the person's account cannot write inside it.
+    param([string]$ScriptPath, [string]$State)
+    "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`" -SafeModeSignIn -StateDir `"$State`""
+}
+
+function Invoke-SafeModeSignInPhase {
+    $safe = Get-LiveSafeMode
+    if (-not (Test-SmSafeMode $safe)) { return }
+    $line = (Get-Date).ToUniversalTime().ToString('o') + '|' + [Security.Principal.WindowsIdentity]::GetCurrent().Name + '|' + $safe + '|' + [int]([Environment]::TickCount / 1000)
+    try { Add-Content -Path $SafeMarkerPath -Value $line } catch { }
+    Invoke-Native -Command 'shutdown' -Arguments @('/r', '/t', '5', '/c', 'upgrade_ storage-mode test: Safe Mode boot done, restarting') | Out-Null
 }
 
 function ConvertFrom-SmSafeMarker {
@@ -424,7 +439,7 @@ function Arm-SafeEntry {
     [ordered]@{ Guid = $guid; Enum = $e.Text }
 }
 
-function Set-SafeRunOnce { Set-ItemProperty -Path $RunOnceKey -Name $SafeRunOnceName -Value (New-SmSafeRunOnceCommand) }
+function Set-SafeRunOnce { param([string]$State) Set-ItemProperty -Path $RunOnceKey -Name $SafeRunOnceName -Value (New-SmSafeRunOnceCommand -ScriptPath (Join-Path $State 'Test-StorageMode.ps1') -State $State) }
 
 function Invoke-Cleanup {
     # Every exit path: undo the copy, the one-time sequence, the Safe Mode
@@ -517,7 +532,7 @@ function Arm-Next {
     # (Re)arm the Safe Mode boot and restart into the firmware setup.
     param($S, [string]$State, [string]$Root, [string]$Ask, [string]$Why)
     if (-not ($S.Contains('SafeEntry') -and $S.SafeEntry -and $S.SafeEntry.Guid)) { $S.SafeEntry = Arm-SafeEntry } else { Set-SafeBootOnce "$($S.SafeEntry.Guid)" }
-    Set-SafeRunOnce
+    Set-SafeRunOnce -State $State
     $S.Ask = $Ask
     $S.Stage = "armed-$(@($S.Legs).Count)"
     Save-State $S $State
@@ -705,9 +720,8 @@ function Invoke-SelfTest {
         @{ Name = 'bcdedit /copy: the GUID is parsed from the English line'; Run = { ConvertFrom-SmBcdCopy 'The entry was successfully copied to {6a3c1f2e-0b4d-4c8a-9e7f-1a2b3c4d5e6f}.' }; Expect = '{6a3c1f2e-0b4d-4c8a-9e7f-1a2b3c4d5e6f}' }
         @{ Name = 'bcdedit /copy: any other wording still yields the GUID; none yields null'; Run = { "$(ConvertFrom-SmBcdCopy 'Der Eintrag wurde erfolgreich in {6A3C1F2E-0B4D-4C8A-9E7F-1A2B3C4D5E6F} kopiert.')/$(if ($null -eq (ConvertFrom-SmBcdCopy 'The boot configuration data store could not be opened.')) { 'null' })" }; Expect = '{6A3C1F2E-0B4D-4C8A-9E7F-1A2B3C4D5E6F}/null' }
         @{ Name = 'safe mode: OptionValue present is Safe Mode, absent is not'; Run = { "$(Test-SmSafeMode 1)/$(Test-SmSafeMode $null)" }; Expect = 'True/False' }
-        @{ Name = 'safe RunOnce: restarts only inside Safe Mode (guards on the SafeBoot\Option key)'; Run = { $c = New-SmSafeRunOnceCommand; [bool]($c -match [regex]::Escape($SafeBootOptionKey)) -and [bool]($c -match 'shutdown /r') -and [bool]($c -match '^if|Test-Path') }; Expect = $true }
+        @{ Name = 'safe RunOnce: a plain -File launch of the state-dir copy with -SafeModeSignIn (no quoted command body)'; Run = { $c = New-SmSafeRunOnceCommand -ScriptPath 'C:\ProgramData\upgrade_\storage-mode\Test-StorageMode.ps1' -State 'C:\ProgramData\upgrade_\storage-mode'; [bool]($c -match '-File "C:\\ProgramData\\upgrade_\\storage-mode\\Test-StorageMode.ps1" -SafeModeSignIn') -and -not ($c -match '-Command') }; Expect = $true }
         @{ Name = 'safe RunOnce: the value name carries the Safe Mode asterisk'; Run = { $SafeRunOnceName.StartsWith('*') }; Expect = $true }
-        @{ Name = 'safe RunOnce: leaves the Safe Mode marker before restarting'; Run = { [bool]((New-SmSafeRunOnceCommand) -match [regex]::Escape($SafeMarkerPath)) }; Expect = $true }
         @{ Name = 'safe marker: one line becomes one Safe Mode boot record; junk lines are dropped'; Run = { $b = @(ConvertFrom-SmSafeMarker @('2026-09-14T06:07:40Z|UPGRIGHV\rig|1|341', 'junk')); "$($b.Count) $($b[0].RunAs) opt=$($b[0].OptionValue) up=$($b[0].UptimeSeconds) $($b[0].Source)" }; Expect = '1 UPGRIGHV\rig opt=1 up=341 runonce-signin' }
         @{ Name = 'flow: three legs ending restored is restored; two legs unchanged is mode-unchanged; a stop names itself'; Run = { "$(Get-SmFlowResult 'done:restored' 3 'restored')/$(Get-SmFlowResult 'done:mode-unchanged' 2 'mode-unchanged')/$(Get-SmFlowResult 'stopped:no-intel-controller' 1 '')/$(Get-SmFlowResult 'armed-1' 1 '')" }; Expect = 'restored/mode-unchanged/no-intel-controller/in-progress' }
         @{ Name = 'csv: every field quoted, quotes doubled, newlines flattened'; Run = { ConvertTo-SmCsvLine @('a', 'b"c', "d`ne") }; Expect = '"a","b""c","d e"' }
@@ -734,6 +748,7 @@ try {
     if ($Start)  { Invoke-StartPhase; return }
     if ($Resume) { Invoke-ResumePhase; return }
     if ($Notify) { Invoke-NotifyPhase; return }
+    if ($SafeModeSignIn) { Invoke-SafeModeSignInPhase; return }
     if ($Abort)  { Invoke-AbortPhase; return }
 } catch {
     $msg = $_.Exception.Message

@@ -116,7 +116,12 @@ prepare)
     PS disk list
     ;;
 stick)   MODE=prologue ./v1.sh stick ;;
-windows) PS start; wait_windows 900 ;;
+windows)
+    # WSL keeps what it just wrote (the stick image, its VHDX, the kit) in its
+    # page cache and Hyper-V then cannot allocate the guest's RAM ("Insufficient
+    # system resources", storage-mode runs 1 and 6): evict before every start
+    for f in "$HV/vm/v1-stick.vhdx" "$PRO_VHDX" artifacts/v1-stick.img ../../dist/kit/stick/upgrade_/LiveOS/*.squashfs ../../dist/kit/stick/images/install.img; do evict "$f" 2>/dev/null || true; done
+    PS start; wait_windows 900 ;;
 dirty)
     mkdir -p "$A"
     guest 'fsutil dirty set C:; fsutil dirty query C:' | tee "$A/dirty.txt"
@@ -204,8 +209,12 @@ storage-mode-wait)
         [ $(( $(date +%s) - t0 )) -ge 1500 ] && { echo "prologue: storage-mode flow not done within 1500 s" >&2; break; }
         if timeout 60 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$VMPS1" ps "Test-Path '$SM_STATE\\state-done.json'" -Name "$VMNAME" < /dev/null 2>/dev/null | grep -q True; then done_flag=1; continue; fi
         if timeout 60 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$VMPS1" ps 'hostname' -Name "$VMNAME" < /dev/null 2>/dev/null | grep -q UPGRIGHV; then silent=0; else silent=$((silent+1)); fi
-        # three silent polls in a row = Safe Mode's sign-in screen: sign in for the person (the RunOnce restarts)
-        [ $silent -eq 3 ] && { echo "prologue: guest silent - typing the Safe Mode sign-in"; PS type rig >/dev/null 2>&1 || true; PS key 13 >/dev/null 2>&1 || true; }
+        # three silent polls in a row = Safe Mode's sign-in screen: sign in for the person (the RunOnce
+        # restarts). Typed on every further silent poll too - run 6b typed once while the screen was
+        # still coming up and the guest then sat at the prompt for 25 min.
+        # password first, then Enter; a trailing Enter dismisses the "incorrect" dialog a stray
+        # keystroke may have raised (run 7: Enter-first submitted an empty password every time)
+        [ $silent -ge 3 ] && { echo "prologue: guest silent ($silent) - typing the Safe Mode sign-in"; PS type rig >/dev/null 2>&1 || true; PS key 13 >/dev/null 2>&1 || true; sleep 4; PS key 13 >/dev/null 2>&1 || true; }
         n=$((n+1)); PS shot "C:\\upgrade-rig\\hv\\shots\\sm-$(printf %03d $n).png" >/dev/null 2>&1 || true; cp "$HV/shots/sm-$(printf %03d $n).png" "$SA/progress/" 2>/dev/null || true
         sleep 20
     done

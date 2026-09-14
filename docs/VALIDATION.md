@@ -81,6 +81,10 @@ Windows normally with no user action? **And, from 2026-09-13, the
 walk-away resume** (RISKS R24): does the SYSTEM startup task fire with
 nobody signed in and see the stick — `RUN-PROBE.cmd`, read-only, one
 restart, one `walkaway-probe.csv` row per vendor, the same half-hour visit.
+**And, from 2026-09-13, the storage-mode visit** (V5): `RUN-STORAGE-MODE.cmd`
+on any Intel machine whose setup has a SATA Mode option — one click, the
+setup screen twice, a Safe Mode sign-in twice — fills that vendor's
+`v5-controller-mode.csv` rows in the same visit.
 
 **Pass.** Fires on all tested firmware, or fails *safe* (Windows boots) on
 the ones where it doesn't — with the failure detectable so the tool can say
@@ -518,12 +522,37 @@ and curated as the synthetic corpus regression
 is built from our own model of the IDs, so per CLAUDE.md rule #5 it narrows V5
 without closing it. See RISKS R1 for the full trail.
 
+**The evidence file and the one-click visit (2026-09-13).** Rows live in
+`validation-results/v5-controller-mode.csv`, written by `rig/v5-verdict.py`
+from a run's JSON report and capture — never by hand — with `result`
+cross-checking the mode asked for against the PCI class code the controller
+declared (vocabulary in the results README). Row 1 is real: the Acer Aspire
+A515-51G in AHCI mode, `8086:9d03`, class `0106`, **iaStorAC bound** →
+`warn-rst-on-ahci` — the R7 guard on real silicon, not `[OK]`; that machine's
+negative direction is `warn` by design. The positive direction is one click:
+`RUN-STORAGE-MODE.cmd` (`evaluate/windows/Test-StorageMode.ps1`) scans, arms
+a Safe Mode boot through a copied boot entry booted once, restarts straight
+into the firmware setup for the person to change SATA Mode, scans again as
+SYSTEM with nobody signed in, asks for the mode back, scans a third time and
+cleans up; the person's part is the vendor's setup screen twice and a Safe
+Mode sign-in twice. Fired on the Hyper-V rig (`rig/hyperv/prologue.sh
+storage-mode`): the copy boots Safe Mode exactly once, the RunOnce restarts
+it at sign-in, the SYSTEM resume scans 7 s after the normal boot, the
+cleanup reads back clean — rows 2–3, `no-intel-controller` /
+`flow_result=mode-unchanged`, plumbing only (RISKS R1 has the run-by-run
+findings, including that Task Scheduler will not run the task in Safe Mode
+and that `bcdedit /copy` puts the copy on the boot menu).
+
 **Pass.** Both directions on at least one physical machine, list reconciled
 with the kernel's. The reconciliation and the level-3 plumbing are done; **what
-remains is the physical machine**: a borrowed Intel laptop with RST/VMD enabled
-— FAIL with it on, OK after switching to AHCI. The G16 (AMD, standard NVMe)
-cannot exercise the positive path, and neither can the spoof: the synthetic
-capture is the residue's regression test, not a substitute for it.
+remains is the physical machine**. The Aspire can give the **pre-VMD RST
+clause** (signal 3, class `0104`, `8086:282a`) if its setup exposes SATA
+Mode; **VMD proper** (signals 1–2) still takes an 11th-gen-or-newer Intel
+laptop with RST on — FAIL with it on, OK (or `warn-rst-on-ahci`) after
+switching to AHCI, the same half-hour visit as V0's. The G16 (AMD, standard
+NVMe) cannot exercise the positive path, and neither can the spoof or the
+rig: the synthetic capture is the residue's regression test, not a
+substitute for it.
 
 **If it fails.** Fix the list and re-run; this one has no fallback because it
 has no excuse — it's cheap.

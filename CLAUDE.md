@@ -142,7 +142,12 @@ method in `docs/VALIDATION.md`; the killers, in order:
   on the rig and the G16. Residue: `-OneDrive` against a signed-in client.
 
 **Tier 4 — kills adoption, not the mechanism:** V5 (VMD detection fires — an
-afternoon, do it early), V6 (code-signing reputation — a calendar, start now),
+afternoon, do it early; **2026-09-13:** the AHCI-side real row exists
+(Aspire, `warn-rst-on-ahci` — iaStorAC on an AHCI-class controller, the R7
+guard), the both-modes visit is one click — `RUN-STORAGE-MODE.cmd`, Safe Mode
+through a copied boot entry booted once, resume as SYSTEM — and fired on the
+rig; the RAID-mode row on the Aspire is next, VMD proper still needs an
+11th-gen+ machine), V6 (code-signing reputation — a calendar, start now),
 V7 (scanner generalizes past the one test machine — ship it, collect reports).
 
 Start V5 and V6 immediately (cheap / calendar-bound). V0+R21 are the spine

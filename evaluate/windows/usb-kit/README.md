@@ -64,10 +64,12 @@ Pairs with `Test-StorageMode.ps1` and the single-file scanner on the same
 stick (`make-kit.sh` lays all three out). One double-click, one UAC "Yes",
 one OK on the window that explains the two setup-screen visits. The harness
 scans, arms a Safe Mode boot through a *copied* boot entry booted exactly once
-(`bcdedit /bootsequence`), registers the SYSTEM startup task, lets Task
-Scheduler run in Safe Mode so that boot restarts itself unattended, and
-restarts straight into the firmware setup (`shutdown /r /fw`). The person
-changes SATA Mode there; the rest is the machine's. Everything armed is undone
+(`bcdedit /bootsequence`), registers the SYSTEM startup task for the normal
+boots, sets a `*`-prefixed RunOnce that restarts the Safe Mode boot the
+moment the person signs in there (Task Scheduler does not run our task in
+Safe Mode — rig, 2026-09-14), and restarts straight into the firmware setup
+(`shutdown /r /fw`). The person changes SATA Mode there and signs in once at
+the Safe Mode screen; the rest is the machine's. Everything armed is undone
 on every exit path. What comes back: `upgrade_\storage-mode\leg1..3\` (a
 report and a capture per mode) and `upgrade_\storage-mode\storage-mode.json`
 (the record). Rows: `rig/v5-verdict.py --from-run <that folder>`. Captures

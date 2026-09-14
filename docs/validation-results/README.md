@@ -640,7 +640,7 @@ machine is replayed on every `-SelfTest` forever.
 | `result` | see vocabulary below |
 | `flow_result` | one-click path: the harness's own verdict on the run — `restored` (three legs, original mode back), `mode-unchanged` (leg 2 saw the same mode: no option, or not saved), `not-restored`, `no-intel-controller`, `cancelled`, `error`; `single-run` for a two-file row |
 | `resume_run_as` | who ran the resume that produced this leg — `SYSTEM unattended` is the design; `launcher` for leg 1 |
-| `safe_boot` | whether the Safe Mode boot before this leg was seen by the resume, and by whom (`y (SYSTEM, session 0)` means Task Scheduler ran in Safe Mode and restarted without a sign-in) |
+| `safe_boot` | the Safe Mode boot before this leg, as its evidence records it: `y (user sign-in, option 1, runonce-signin)` means the person signed in at the Safe Mode screen and the `*`-RunOnce left the marker and restarted (Task Scheduler does not run the task in Safe Mode; rig 2026-09-14); `n` means no marker reached the resume |
 | `fw_reboot` | how the restart into setup before this leg was done: `fw` (`shutdown /r /fw`, straight into the firmware setup) or `plain` (the firmware refused `/fw`; the person pressed the setup key) |
 | `notes` | harness facts first (scan/capture times, controllers counted, classes seen, whether an RST or VMD service was bound; for the one-click path the stage, the mode seen and the cleanup read-back), then any `operator:` words |
 
@@ -674,6 +674,6 @@ machine with RST on. R1 carries the residue.
 The one-click flow itself has its own plumbing clause: a rig run
 (`rig/hyperv/prologue.sh storage-mode`) cannot change a SATA mode, so its
 rows are `no-intel-controller` with `flow_result` `mode-unchanged` — what it
-proves is the mechanics: Safe Mode boot through the copied entry, the resume
-in Safe Mode as SYSTEM, the restart, the SYSTEM scan on the way back, the
+proves is the mechanics: Safe Mode boot through the copied entry, the
+sign-in RunOnce's marker and restart, the SYSTEM scan on the way back, the
 cleanup read-back. `safe_boot` and `resume_run_as` are where to look.
