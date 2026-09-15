@@ -11,11 +11,14 @@ REM  into the setup screen, boots Safe Mode once so Windows binds
 REM  the driver for the re-enumerated controller, scans with
 REM  nobody signed in, and undoes everything it armed.
 REM
-REM  YOUR PART, twice, on the setup screen the computer opens:
+REM  YOUR PART, twice, on the setup screen (the computer opens it
+REM  itself, or tap F2 repeatedly as the screen goes dark):
 REM    Main tab -> SATA Mode -> the mode the window asked for
 REM    -> F10 -> Yes.  (Acer: Ctrl+S on the Main tab if SATA
 REM    Mode is hidden. If it is still missing, Esc, exit WITHOUT
 REM    saving - the test stops by itself.)
+REM  Then, at the black Safe Mode sign-in screen: power icon
+REM  (bottom right) -> Restart. No password needed.
 REM
 REM  Your files are not touched. Windows is expected to boot in
 REM  either mode. Leave this stick in the whole time. When it is

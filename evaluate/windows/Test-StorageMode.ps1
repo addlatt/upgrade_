@@ -137,8 +137,10 @@ function Get-SmStorageControllers {
         $svc = "$(Get-Prop $d 'Service')"
         $storage = ($codes | Where-Object { $_.StartsWith('01') }) -or ((Get-Prop $d 'PNPClass') -in @('HDC', 'SCSIAdapter'))
         if ($storage -or $svc -match '^(?i)iastor') {
-            $out += [ordered]@{ Name = "$(Get-Prop $d 'Name')"; PciId = $pciId; Classes = @($codes | Where-Object { $_.StartsWith('01') }); Service = $svc
-                                CompatibleIds = @(@(Get-Prop $d 'CompatibleID') | Where-Object { $_ } | ForEach-Object { "$_" }) }
+            # [string[]] on purpose: ConvertTo-Json in the launcher's session wrote these as {"Length": n}
+            # objects once (Aspire, 2026-09-15, leg 1) while the SYSTEM session wrote strings
+            $out += [ordered]@{ Name = "$(Get-Prop $d 'Name')"; PciId = $pciId; Classes = [string[]]@($codes | Where-Object { $_.StartsWith('01') } | ForEach-Object { [string]$_ }); Service = $svc
+                                CompatibleIds = [string[]]@(@(Get-Prop $d 'CompatibleID') | Where-Object { $_ } | ForEach-Object { [string]$_ }) }
         }
     }
     $out
@@ -580,13 +582,13 @@ function Invoke-StartPhase {
     if (-not $ask) { $ask = 'raid' }   # bench: a VM has no mode to flip; exercise the mechanics anyway
     $back = $(if ($leg1.Mode -in @('raid', 'ahci')) { $leg1.Mode } else { 'ahci' })
     $text = "This computer's storage controller is in $(Get-SmModeLabel $leg1.Mode) mode now. The test needs one scan in each mode.`n`n" +
-            "When you click OK the computer restarts straight into its setup screen (if it does not, press the setup key - F2 on Acer - the moment the screen goes dark).`n`n" +
+            "When you click OK the computer restarts. Most firmware then opens its setup screen by itself; if yours boots normally instead (Acer's InsydeH2O V1.21 does), TAP F2 REPEATEDLY the moment the screen goes dark until the setup screen appears.`n`n" +
             "  1st setup screen:  Main tab -> SATA Mode -> set it to  $(Get-SmModeLabel $ask)  -> F10 -> Yes`n" +
             "      (Acer hides SATA Mode on some models: press Ctrl+S on the Main tab to show it. If it is still not there, press Esc and exit WITHOUT saving - the test then stops by itself.)`n" +
-            "  Windows then boots once into SAFE MODE (black screen, 'Safe Mode' in the corners) and shows the sign-in screen: sign in with your password. It restarts by itself a few seconds later.`n" +
+            "  Windows then boots once into SAFE MODE (black screen, 'Safe Mode' in the corners) and shows a sign-in screen. NO PASSWORD IS NEEDED: click the power icon in the bottom-right corner and choose Restart. (Signing in with your password instead also works - it restarts by itself; the PIN does not work in Safe Mode.)`n" +
             "  Windows scans by itself before anyone signs in, then restarts into the setup screen again.`n" +
             "  2nd setup screen:  set SATA Mode back to  $(Get-SmModeLabel $back)  -> F10 -> Yes`n" +
-            "  Safe Mode sign-in once more; it restarts, scans a last time and cleans up. Sign in: a window shows the result.`n`n" +
+            "  Safe Mode once more (power icon, Restart); it scans a last time and cleans up. Sign in normally: a window shows the result.`n`n" +
             "Your files are not touched - changing SATA mode changes how the disk is addressed, not what is on it. If Windows ever shows a blue screen after a change, go back into setup and set the mode back; the test records how far it got.`n`nLeave the USB stick in the whole time."
     if (-not $NoPrompt) {
         $r = Show-Popup -Title 'upgrade_ - storage-mode test: what happens next' -Seconds 300 -Buttons (1 + 64) -Text $text
@@ -598,7 +600,7 @@ function Invoke-StartPhase {
     Register-ResumeTask -State $state
     Save-State $S $state
     Arm-Next -S $S -State $state -Root $root -Ask $ask -Why "set SATA Mode to $(Get-SmModeLabel $ask) on the setup screen, then save"
-    Write-Log "  On the setup screen: SATA Mode -> $(Get-SmModeLabel $ask) -> F10 -> Yes. Then sign in at the Safe Mode screen. Leave the stick in." 'Yellow'
+    Write-Log "  On the setup screen: SATA Mode -> $(Get-SmModeLabel $ask) -> F10 -> Yes. At the Safe Mode screen: power icon -> Restart (no password). Leave the stick in." 'Yellow'
 }
 
 function Invoke-ResumePhase {
