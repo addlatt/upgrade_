@@ -17,8 +17,9 @@ REM    Main tab -> SATA Mode -> the mode the window asked for
 REM    -> F10 -> Yes.  (Acer: Ctrl+S on the Main tab if SATA
 REM    Mode is hidden. If it is still missing, Esc, exit WITHOUT
 REM    saving - the test stops by itself.)
-REM  Then, at the black Safe Mode sign-in screen: power icon
-REM  (bottom right) -> Restart. No password needed.
+REM  Then, at the black Safe Mode sign-in screen: hold the power
+REM  button until the computer turns off, start it again. No
+REM  password needed (Windows 11 Home shows no power icon there).
 REM
 REM  Your files are not touched. Windows is expected to boot in
 REM  either mode. Leave this stick in the whole time. When it is

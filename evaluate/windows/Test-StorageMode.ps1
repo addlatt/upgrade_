@@ -582,13 +582,13 @@ function Invoke-StartPhase {
     if (-not $ask) { $ask = 'raid' }   # bench: a VM has no mode to flip; exercise the mechanics anyway
     $back = $(if ($leg1.Mode -in @('raid', 'ahci')) { $leg1.Mode } else { 'ahci' })
     $text = "This computer's storage controller is in $(Get-SmModeLabel $leg1.Mode) mode now. The test needs one scan in each mode.`n`n" +
-            "When you click OK the computer restarts. Most firmware then opens its setup screen by itself; if yours boots normally instead (Acer's InsydeH2O V1.21 does), TAP F2 REPEATEDLY the moment the screen goes dark until the setup screen appears.`n`n" +
+            "When you click OK the computer restarts. TAP F2 REPEATEDLY (or your computer's setup key) from the moment the screen goes dark until the setup screen appears - do this every time, whether or not the firmware opens setup by itself: Acer's InsydeH2O V1.21 accepts the request and ignores it (2026-09-15).`n`n" +
             "  1st setup screen:  Main tab -> SATA Mode -> set it to  $(Get-SmModeLabel $ask)  -> F10 -> Yes`n" +
             "      (Acer hides SATA Mode on some models: press Ctrl+S on the Main tab to show it. If it is still not there, press Esc and exit WITHOUT saving - the test then stops by itself.)`n" +
-            "  Windows then boots once into SAFE MODE (black screen, 'Safe Mode' in the corners) and shows a sign-in screen. NO PASSWORD IS NEEDED: click the power icon in the bottom-right corner and choose Restart. (Signing in with your password instead also works - it restarts by itself; the PIN does not work in Safe Mode.)`n" +
+            "  Windows then boots once into SAFE MODE (black screen, 'Safe Mode' in the corners) and shows a sign-in screen. NO PASSWORD IS NEEDED: HOLD THE POWER BUTTON about ten seconds until the computer turns off, then press it once to start it. (Windows 11 Home shows no power icon on that screen. Signing in with your password instead also works - it restarts by itself; the PIN does not work in Safe Mode.)`n" +
             "  Windows scans by itself before anyone signs in, then restarts into the setup screen again.`n" +
             "  2nd setup screen:  set SATA Mode back to  $(Get-SmModeLabel $back)  -> F10 -> Yes`n" +
-            "  Safe Mode once more (power icon, Restart); it scans a last time and cleans up. Sign in normally: a window shows the result.`n`n" +
+            "  Safe Mode once more (hold the power button, start again); it scans a last time and cleans up. Sign in normally: a window shows the result.`n`n" +
             "Your files are not touched - changing SATA mode changes how the disk is addressed, not what is on it. If Windows ever shows a blue screen after a change, go back into setup and set the mode back; the test records how far it got.`n`nLeave the USB stick in the whole time."
     if (-not $NoPrompt) {
         $r = Show-Popup -Title 'upgrade_ - storage-mode test: what happens next' -Seconds 300 -Buttons (1 + 64) -Text $text
@@ -600,7 +600,7 @@ function Invoke-StartPhase {
     Register-ResumeTask -State $state
     Save-State $S $state
     Arm-Next -S $S -State $state -Root $root -Ask $ask -Why "set SATA Mode to $(Get-SmModeLabel $ask) on the setup screen, then save"
-    Write-Log "  On the setup screen: SATA Mode -> $(Get-SmModeLabel $ask) -> F10 -> Yes. At the Safe Mode screen: power icon -> Restart (no password). Leave the stick in." 'Yellow'
+    Write-Log "  On the setup screen: SATA Mode -> $(Get-SmModeLabel $ask) -> F10 -> Yes. At the Safe Mode screen: hold the power button, start again (no password). Leave the stick in." 'Yellow'
 }
 
 function Invoke-ResumePhase {
