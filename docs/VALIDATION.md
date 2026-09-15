@@ -543,13 +543,24 @@ cleanup reads back clean — rows 2–3, `no-intel-controller` /
 findings, including that Task Scheduler will not run the task in Safe Mode
 and that `bcdedit /copy` puts the copy on the boot menu).
 
+**Physical runs (2026-09-15, the Aspire, rows 6–9).** The one-click flow
+fired twice on real firmware — Safe Mode through the copied entry, the
+sign-in marker, the SYSTEM resume 21–27 s after boot, cleanup — and both
+runs ended `mode-unchanged` because the setup screen was never reached:
+the InsydeH2O V1.21 firmware ignores the boot-to-setup indication (refused
+it once with error 203, accepted-and-ignored it once), and F2 was not
+caught in time. The RAID row is still owed; RISKS R1 has the run-by-run
+record and the 2026-09-15 decision to stop unless a one-minute F2 look
+finds SATA Mode on this machine.
+
 **Pass.** Both directions on at least one physical machine, list reconciled
 with the kernel's. The reconciliation and the level-3 plumbing are done; **what
 remains is the physical machine**. The Aspire can give the **pre-VMD RST
 clause** (signal 3, class `0104`, `8086:282a`) if its setup exposes SATA
 Mode; **VMD proper** (signals 1–2) still takes an 11th-gen-or-newer Intel
-laptop with RST on — FAIL with it on, OK (or `warn-rst-on-ahci`) after
-switching to AHCI, the same half-hour visit as V0's. The G16 (AMD, standard
+laptop with RST on — its first scan is the FAIL row as shipped, then OK (or
+`warn-rst-on-ahci`) after switching to AHCI, the same half-hour visit as
+V0's. The G16 (AMD, standard
 NVMe) cannot exercise the positive path, and neither can the spoof or the
 rig: the synthetic capture is the residue's regression test, not a
 substitute for it.

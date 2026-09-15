@@ -146,8 +146,11 @@ afternoon, do it early; **2026-09-13:** the AHCI-side real row exists
 (Aspire, `warn-rst-on-ahci` — iaStorAC on an AHCI-class controller, the R7
 guard), the both-modes visit is one click — `RUN-STORAGE-MODE.cmd`, Safe Mode
 through a copied boot entry booted once, resume as SYSTEM — and fired on the
-rig; the RAID-mode row on the Aspire is next, VMD proper still needs an
-11th-gen+ machine), V6 (code-signing reputation — a calendar, start now),
+rig and twice on the Aspire (2026-09-15: Safe Mode, marker, SYSTEM resume
+all fired on real firmware; the setup screen was never reached — Acer's
+firmware ignores boot-to-setup — so the RAID row is still owed; VMD proper
+needs an 11th-gen+ machine, whose first scan is the FAIL row as shipped),
+V6 (code-signing reputation — a calendar, start now),
 V7 (scanner generalizes past the one test machine — ship it, collect reports).
 
 Start V5 and V6 immediately (cheap / calendar-bound). V0+R21 are the spine

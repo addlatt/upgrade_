@@ -156,16 +156,44 @@ A VM has no SATA mode to flip, so the rig's rows in `v5-controller-mode.csv`
 are `no-intel-controller` with `flow_result` `mode-unchanged`: plumbing for
 the flow, nothing for the check (rule #5).
 
+**Two physical runs of the one-click flow (2026-09-15, the Aspire, rows
+6–9 of `v5-controller-mode.csv`).** Both ended `mode-unchanged`: the setup
+screen was never reached, so the SATA mode never changed and the RAID row is
+still owed. What the runs proved on real firmware, from the harness's own
+record: the copied boot entry boots Safe Mode exactly once (both runs); the
+`*`-RunOnce at the Safe Mode sign-in wrote its marker (option 1, 126 s after
+boot) and restarted (run 2; in run 1 the person cut the Safe Mode boot short
+with the power button, which also works — the driver binding happens before
+the sign-in); the resume ran as SYSTEM in session 0, 27 s and 21 s after
+boot, the stick seen after 3 s and 2 s; leg 2 scanned before anyone signed
+in; every armed thing was removed (run 1 read back clean; run 2's stick
+record ends before the cleanup line — stick pulled or dropped — and the
+next boot completes it). And two firmware findings: **InsydeH2O V1.21
+refused `shutdown /r /fw` with Win32 error 203 in run 1 and accepted it in
+run 2, then booted straight on both times** — the boot-to-setup indication
+is not honoured by this firmware, so on Acer the setup key (F2, tapped from
+the moment the screen goes dark) is the only way in, and the person did not
+catch it either time; and **Windows 11 Home shows no power icon on the Safe
+Mode sign-in screen**, so "hold the power button" is what the harness now
+says. Both scans in both runs: `8086:9d03`, class `0106`, iaStorAC, `warn`
+— the AHCI-side row, four more times. The Aspire's overall verdict is RED
+for its dying drive (R18), which is unrelated to this check.
+
 **Still open — the half that needs hardware.** The check has never fired on
-a real machine in RAID/RST mode. Next: the Aspire, `RUN-STORAGE-MODE.cmd`
-(if its InsydeH2O V1.21 setup exposes SATA Mode — Acer hides it on some
-models until Ctrl+S on the Main tab; if it is absent the harness records
-`mode-unchanged` and the positive row needs a Dell/Lenovo/HP). Expected:
-`8086:282a`, `CC_0104`, `iaStorAC` or `iaStorAVC` bound, `[FAIL]`, RED —
-`fail-fired` on signal 3, the **pre-VMD RST clause**. That row would not
-touch VMD proper: an 11th-gen-or-newer machine with RST on (kernel `vmd.c`
-IDs, `iaStorVD`) is still owed. The only other machine on hand, the ASUS G16,
-is AMD with standard NVMe and cannot exercise the positive path.
+a real machine in RAID/RST mode. Whether the Aspire's setup even exposes
+SATA Mode is unknown until someone reaches its Main tab (F2 at power-on;
+Acer hides the option on some models until Ctrl+S). If it is there, one
+more run of `RUN-STORAGE-MODE.cmd` with F2 tapped at each restart gives
+the row: expected `8086:282a`, `CC_0104`, `iaStorAC` or `iaStorAVC` bound,
+`[FAIL]`, RED — `fail-fired` on signal 3, the **pre-VMD RST clause**. If it
+is absent, the Aspire is done and the row needs another vendor. Either way
+VMD proper is untouched: an 11th-gen-or-newer machine with RST on (kernel
+`vmd.c` IDs, `iaStorVD`) ships that way, so its first scan is the FAIL row
+with no firmware change at all. V5 is Tier 4 and blocks nothing; two full
+runs of the flow on the Aspire is enough of an owner's time (decided
+2026-09-15: skip unless the one-minute F2 look finds the option). The only
+other machine on hand, the ASUS G16, is AMD with standard NVMe and cannot
+exercise the positive path.
 
 **Why it matters most.** This is the flagship check. The README calls it "the
 single most common false 'Linux won't install'". If the IDs are wrong, the
