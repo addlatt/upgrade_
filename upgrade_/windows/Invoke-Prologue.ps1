@@ -105,7 +105,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.3.1'
+$PrologueVersion = '0.4.0'
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -152,6 +152,29 @@ function ConvertFrom-PrologueDiskpartQueryMax {
     if ($t -match '(?im)reclaimable bytes is:\s*[\d.,]+\s*[KMGT]?B\s*\(\s*([\d,]+)\s*MB\s*\)') { return [math]::Round(([double]($matches[1] -replace ',', '')) / 1024, 1) }
     if ($t -match '(?im)reclaimable bytes is:\s*([\d,]+)\s*MB\b') { return [math]::Round(([double]($matches[1] -replace ',', '')) / 1024, 1) }
     $null
+}
+
+function Test-PrologueRepairQueued {
+    # Pure (self-tested): Windows' own word that C: has an offline repair
+    # queued, whatever the dirty bit says - the volume's OperationalStatus
+    # naming a repair ("Full Repair Needed") or NTFS event 98 ("needs to be
+    # taken offline to perform a Full Chkdsk"). On the Aspire (2026-09-17,
+    # RISKS R18) the bit read clean with both of these set, and the Storage
+    # API answered 0 GB shrinkable with no error.
+    param([string]$VolumeStatus, $NtfsFullChkdsk)
+    $why = @()
+    if ("$VolumeStatus" -match '(?i)repair') { $why += "Get-Volume reports '$VolumeStatus'" }
+    if ($NtfsFullChkdsk) { $why += "NTFS logged at $NtfsFullChkdsk that C: needs a full chkdsk" }
+    @{ Queued = ($why.Count -gt 0); Why = ($why -join '; ') }
+}
+
+function Get-PrologueVolumeTrigger {
+    # Pure (self-tested): whether step 1b runs, and on which of Windows' two
+    # statements. 'none' skips it; 'unreadable' is a stop, never a skip.
+    param([string]$Dirty, [bool]$RepairQueued)
+    if ($Dirty -eq 'dirty') { return 'dirty-flag' }
+    if ($Dirty -eq 'clean') { if ($RepairQueued) { return 'repair-queued' } else { return 'none' } }
+    'unreadable'
 }
 
 function ConvertFrom-PrologueChkntfs {
@@ -247,6 +270,7 @@ function Compare-PrologueJob {
     } else { $m.Add("stick: the stick's disk identity could not be read ($($F.StickError))") }
     cmp 'bitlocker.status' $Job.harvest.bitlocker.status $F.BitLocker
     cmp 'volume_health.dirty' $Job.storage.volume_health.dirty $F.Dirty
+    cmp 'volume_health.repair_queued' ([bool]$Job.storage.volume_health.repair_queued) ([bool]$F.RepairQueued)
     cmp 'physical_disk.health_status' $Job.storage.physical_disk.health_status $F.Health
     $m.ToArray()
 }
@@ -393,7 +417,7 @@ function New-PrologueState {
         PrologueVersion = $PrologueVersion; Stage = 'started'; StartedUtc = (Get-Date).ToUniversalTime().ToString('o'); UpdatedUtc = $null
         JobId = $JobId; StickUniqueId = $StickId; StickRootAtStart = $Root; Restarts = 0; Mismatches = @()
         Ack = [ordered]@{ Present = $false; DiskHealth = $false; VolumeHealth = $false }
-        VolumeCheck = [ordered]@{ Needed = $false; Ran = $false; Scan = $null; DiskHealthAtCheck = $null; BadBlocks = 0; Gate = $null; Evidence = $null; Method = 'none'; ArmedUtc = $null; ArmText = $null; Chkntfs = $null; Wininit1001 = $null; Found000 = $null; DirtyAfter = 'unknown'; Restarts = 0 }
+        VolumeCheck = [ordered]@{ Trigger = $null; Needed = $false; Ran = $false; Scan = $null; DiskHealthAtCheck = $null; BadBlocks = 0; Gate = $null; Evidence = $null; Method = 'none'; ArmedUtc = $null; ArmText = $null; Chkntfs = $null; Wininit1001 = $null; Found000 = $null; DirtyAfter = 'unknown'; Restarts = 0 }
         Shrink = [ordered]@{ RemeasuredGB = $null; RemeasuredBy = $null; DiskpartGB = $null; ApiError = $null; DiskpartError = $null; PartSize = $null; SizeMin = $null; FreeBytes = $null; Plan = $null; ForkTaken = $null; RequestedBytes = $null; FreedBytes = 0; SizeBefore = $null; PagefileDisabled = $false; HibernationDisabled = $false; Mitigated = $false }
         Staged = $null
         BitLocker = [ordered]@{ StatusBefore = $null; Source = $null; Suspended = $false; RebootCount = $null }
@@ -415,6 +439,7 @@ function New-PrologueBlock {
             needed = [bool]$vc.Needed; ran = [bool]$vc.Ran; disk_health_at_check = $health; method = "$($vc.Method)"
             scan = $vc.Scan; restarts = [int]$vc.Restarts; wininit_1001 = $vc.Wininit1001
             found000_present = $vc.Found000; dirty_after = "$($vc.DirtyAfter)"
+            trigger = $(if ($vc.Trigger) { "$($vc.Trigger)" } else { $null })
         }
         shrink = [ordered]@{
             remeasured_gb = $sh.RemeasuredGB; remeasured_by = $sh.RemeasuredBy; remeasured_diskpart_gb = $sh.DiskpartGB
@@ -552,6 +577,9 @@ function Get-PrologueFacts {
     $f.Partition = [ordered]@{ number = [int]$part.PartitionNumber; guid = "$($part.Guid)"; size_bytes = [long]$part.Size }
     $f.Health = Get-PrologueDiskHealth -DiskNumber $disk.Number -UniqueId $disk.UniqueId
     $f.Dirty = Get-PrologueDirty
+    $ev0 = Get-PrologueVolumeEvidence -Since (Get-Date).AddDays(-30)
+    $rq = Test-PrologueRepairQueued -VolumeStatus "$($ev0.VolumeStatus)" -NtfsFullChkdsk $ev0.NtfsFullChkdsk
+    $f.RepairQueued = [bool]$rq.Queued; $f.RepairQueuedWhy = "$($rq.Why)"
     $blq = Get-BitLockerState; $f.BitLocker = $blq.State; $f.BitLockerSource = $blq.Source; $f.BitLockerRaw = $blq.Raw
     $f.Stick = $null; $f.StickError = $null
     try {
@@ -929,10 +957,13 @@ function Invoke-VolumeStage {
     # Step 1b. Returns 'continue' or 'restart'; stops on its own otherwise.
     param($S, [string]$State, [string]$Root, $Job, $F)
     if ($Job.intent.path -ne 'keep-windows') { Write-Log '  1b. disk check: not needed (the job does not keep Windows)'; return 'continue' }
-    if ($F.Dirty -eq 'clean') { Write-Log '  1b. disk check: not needed (C: carries no dirty flag)'; return 'continue' }
-    if ($F.Dirty -ne 'dirty') { Stop-Prologue $S $State $Root $Job 'volume-check' "the volume flag on C: could not be read (fsutil answered in a form this prologue does not understand)" }
-    if (-not $Job.fork.volume_check_consented) { Stop-Prologue $S $State $Root $Job 'volume-check' 'C: is flagged for a disk check and the job carries no consent to run one' }
-    Write-Log '  1b. C: carries the dirty flag - running the read-only online scan...'
+    $trigger = Get-PrologueVolumeTrigger -Dirty "$($F.Dirty)" -RepairQueued ([bool]$F.RepairQueued)
+    if ($trigger -eq 'none') { Write-Log '  1b. disk check: not needed (C: carries no dirty flag and Windows has no repair queued)'; return 'continue' }
+    if ($trigger -eq 'unreadable') { Stop-Prologue $S $State $Root $Job 'volume-check' "the volume flag on C: could not be read (fsutil answered in a form this prologue does not understand)" }
+    if (-not $Job.fork.volume_check_consented) { Stop-Prologue $S $State $Root $Job 'volume-check' 'C: needs a disk check and the job carries no consent to run one' }
+    $S.VolumeCheck.Trigger = $trigger
+    if ($trigger -eq 'dirty-flag') { Write-Log '  1b. C: carries the dirty flag - running the read-only online scan...' }
+    else { Write-Log "  1b. C: carries no dirty flag, but Windows says a repair is queued ($($F.RepairQueuedWhy)) - its shrink answer cannot be trusted until that check has run (R18, 2026-09-17); running the read-only online scan..." }
     $scanStarted = (Get-Date).AddSeconds(-5)
     $scan = Invoke-PrologueScan; $S.VolumeCheck.Needed = $true
     $ev = Get-PrologueVolumeEvidence -Since $scanStarted; $S.VolumeCheck.Evidence = $ev
@@ -968,9 +999,23 @@ function Invoke-CheckReturn {
     param($S, [string]$State, [string]$Root, $Job)
     $o = Get-PrologueCheckOutcome -SinceUtc $S.VolumeCheck.ArmedUtc
     $S.VolumeCheck.Wininit1001 = $o.Wininit1001; $S.VolumeCheck.Found000 = [bool]$o.Found000; $S.VolumeCheck.DirtyAfter = $o.Dirty
-    $S.VolumeCheck.Ran = [bool]($o.Wininit1001) -or ($o.Dirty -eq 'clean')
+    $S.VolumeCheck.Ran = [bool]($o.Wininit1001) -or ("$($S.VolumeCheck.Trigger)" -ne 'repair-queued' -and $o.Dirty -eq 'clean')
     Write-Log "  1b. after the restart: Wininit 1001 $(if ($o.Wininit1001) { 'recorded' } else { 'NOT found' }); found.000 $($o.Found000); C: is now $($o.Dirty)"
     if ($o.Wininit1001) { Write-Log ('      ' + (($o.Wininit1001 -split "`n" | Select-Object -First 12) -join "`n      ")) 'DarkGray' }
+    if ("$($S.VolumeCheck.Trigger)" -eq 'repair-queued') {
+        # The bit was clean before the check, so "clean after" proves nothing
+        # here: the check must have run (Wininit 1001) and Windows must no
+        # longer report a repair. NTFS event 98 stays in the log after a
+        # successful check, so only the volume's own status decides now.
+        $armedLocal = [DateTime]::Parse("$($S.VolumeCheck.ArmedUtc)", $null, [Globalization.DateTimeStyles]::RoundtripKind).ToLocalTime()
+        $after = Get-PrologueVolumeEvidence -Since $armedLocal
+        $rqa = Test-PrologueRepairQueued -VolumeStatus "$($after.VolumeStatus)" -NtfsFullChkdsk $null
+        Write-Log "      Windows after the check: volume '$($after.VolumeStatus)' ($($after.VolumeHealth)); check log $($after.LogVerdict)"
+        if (-not $o.Wininit1001) { Stop-Prologue $S $State $Root $Job 'volume-check' "the $($S.VolumeCheck.Method) scheduled for Windows' queued repair did not run at the restart (no Wininit 1001); refusing to measure a volume Windows still wants to repair" }
+        if ($rqa.Queued) { Stop-Prologue $S $State $Root $Job 'volume-check' "after $($S.VolumeCheck.Method) Windows still reports a repair queued ($($rqa.Why)); this prologue will not escalate further" }
+        if ($o.Dirty -ne 'clean') { Stop-Prologue $S $State $Root $Job 'volume-check' "after $($S.VolumeCheck.Method) the volume flag on C: reads '$($o.Dirty)'" }
+        return 'continue'
+    }
     if ($o.Dirty -eq 'clean') { return 'continue' }
     if ($o.Dirty -ne 'dirty') { Stop-Prologue $S $State $Root $Job 'volume-check' 'after the disk check the volume flag could not be read' }
     if ($S.VolumeCheck.Method -eq 'chkdsk-f' -or [int]$S.VolumeCheck.Restarts -ge 2) { Stop-Prologue $S $State $Root $Job 'volume-check' "C: still carries the dirty flag after $($S.VolumeCheck.Method) ($($S.VolumeCheck.Restarts) restart(s)); Windows needs a disk check this prologue will not escalate further" }
@@ -1170,7 +1215,7 @@ function Invoke-StartPhase {
         Write-Log "  DATA LOSS ACCEPTED (typed $($jobAck.accepted_utc)): this run lifts $($ov -join ', '). Files on this machine may be lost." 'Red'
     }
     $S.Facts = [ordered]@{ vendor = $F.Vendor; model = $F.Model; os = "$($F.OsCaption) $($F.OsBuild)"; secure_boot = $F.SecureBoot; disk = $F.Disk; health = $F.Health; dirty_at_start = $F.Dirty; bitlocker = $F.BitLocker; bitlocker_via = $F.BitLockerSource; hiberfil = $F.Hiberfil; pagefile = $F.Pagefile }
-    Write-Log "  $($F.Vendor) $($F.Model)   $($F.OsCaption) $($F.OsBuild)   Secure Boot $($F.SecureBoot)   BitLocker $($F.BitLocker) (via $($F.BitLockerSource))   disk health $($F.Health)   C: $($F.Dirty)" 'DarkGray'
+    Write-Log "  $($F.Vendor) $($F.Model)   $($F.OsCaption) $($F.OsBuild)   Secure Boot $($F.SecureBoot)   BitLocker $($F.BitLocker) (via $($F.BitLockerSource))   disk health $($F.Health)   C: $($F.Dirty)$(if ($F.RepairQueued) { " (repair queued: $($F.RepairQueuedWhy))" })" 'DarkGray'
     Save-State $S $state
     Write-Log '  1.  re-validating job.json against this machine...'
     $mm = Compare-PrologueJob -Job $job -F $F
@@ -1302,14 +1347,14 @@ function Invoke-SelfTest {
                                       system_disk = [pscustomobject]@{ number = 0; unique_id = 'eui.1'; serial_number = 'SER'; size_bytes = 250059350016 } }
         intent = [pscustomobject]@{ path = 'keep-windows' }
         fork = [pscustomobject]@{ if_cannot_keep = 'stop'; volume_check_consented = $true }
-        storage = [pscustomobject]@{ linux_min_gb = 25; volume_health = [pscustomobject]@{ dirty = 'dirty' }; physical_disk = [pscustomobject]@{ health_status = 'Healthy' } }
+        storage = [pscustomobject]@{ linux_min_gb = 25; volume_health = [pscustomobject]@{ dirty = 'dirty'; repair_queued = $false }; physical_disk = [pscustomobject]@{ health_status = 'Healthy' } }
         harvest = [pscustomobject]@{ bitlocker = [pscustomobject]@{ status = 'on' }; folders = @() }
         stick = [pscustomobject]@{ unique_id = 'USBSTOR\X'; size_bytes = 8053063680 }
     }
     $facts = [ordered]@{ BiosSerial = 'S1'; Uuid = 'U1'; Firmware = 'UEFI'; SecureBoot = 'on'; OsBuild = 19045
                          Disk = [ordered]@{ Number = 0; UniqueId = 'eui.1'; Serial = 'SER'; Size = 250059350016 }
                          Stick = [ordered]@{ UniqueId = 'USBSTOR\X'; Size = 8053063680 }; StickError = $null
-                         BitLocker = 'on'; Dirty = 'dirty'; Health = 'Healthy' }
+                         BitLocker = 'on'; Dirty = 'dirty'; Health = 'Healthy'; RepairQueued = $false; RepairQueuedWhy = '' }
     function With { param($h, [string]$k, $v) $c = [ordered]@{}; foreach ($e in $h.GetEnumerator()) { $c[$e.Key] = $e.Value }; $c[$k] = $v; $c }
     function WithDisk { param($h, [string]$k, $v) $c = With $h 'Disk' (With $h.Disk $k $v); $c }
     $cases = @(
@@ -1320,6 +1365,15 @@ function Invoke-SelfTest {
         @{ Name = 'revalidate: a different stick is a mismatch'; Run = { [bool](@(Compare-PrologueJob -Job $job -F (With $facts 'Stick' ([ordered]@{ UniqueId = 'OTHER'; Size = 1 }))) -match 'stick') }; Expect = $true }
         @{ Name = 'revalidate: an unreadable stick is a mismatch, not a pass'; Run = { [bool](@(Compare-PrologueJob -Job $job -F (With (With $facts 'Stick' $null) 'StickError' 'gone')) -match 'stick') }; Expect = $true }
         @{ Name = 'revalidate: BitLocker turned off since evaluate is a mismatch'; Run = { [bool](@(Compare-PrologueJob -Job $job -F (With $facts 'BitLocker' 'off')) -match 'bitlocker') }; Expect = $true }
+        @{ Name = 'revalidate (R18): a repair queued since evaluate is a mismatch'; Run = { [bool](@(Compare-PrologueJob -Job $job -F (With $facts 'RepairQueued' $true)) -match 'repair_queued') }; Expect = $true }
+        # step 1b's trigger (R18, 2026-09-17): the Aspire's clean bit with a queued repair
+        @{ Name = 'trigger (R18): the dirty flag runs the check'; Run = { Get-PrologueVolumeTrigger -Dirty 'dirty' -RepairQueued $false }; Expect = 'dirty-flag' }
+        @{ Name = 'trigger (R18): a clean bit with a queued repair runs it too'; Run = { Get-PrologueVolumeTrigger -Dirty 'clean' -RepairQueued $true }; Expect = 'repair-queued' }
+        @{ Name = 'trigger (R18): clean with nothing queued skips it'; Run = { Get-PrologueVolumeTrigger -Dirty 'clean' -RepairQueued $false }; Expect = 'none' }
+        @{ Name = 'trigger (R18): an unreadable bit never skips, queued or not'; Run = { "$(Get-PrologueVolumeTrigger -Dirty 'unknown' -RepairQueued $false)/$(Get-PrologueVolumeTrigger -Dirty 'unknown' -RepairQueued $true)" }; Expect = 'unreadable/unreadable' }
+        @{ Name = 'repair queued (R18): Full Repair Needed / NTFS 98 alone / neither'; Run = { "$((Test-PrologueRepairQueued -VolumeStatus 'Full Repair Needed' -NtfsFullChkdsk $null).Queued)/$((Test-PrologueRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk '2026-09-13T15:16:48Z').Queued)/$((Test-PrologueRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk $null).Queued)" }; Expect = 'True/True/False' }
+        @{ Name = 'repair queued (R18): the reason names the source'; Run = { (Test-PrologueRepairQueued -VolumeStatus 'Full Repair Needed' -NtfsFullChkdsk $null).Why }; Expect = "Get-Volume reports 'Full Repair Needed'" }
+        @{ Name = 'method (R18): a queued repair picks chkdsk-f even when the cmdlet says NoErrorsFound'; Run = { Get-PrologueRepairMethod -Scan 'NoErrorsFound' -LogVerdict 'unknown' -RepairNeeded $true -NtfsFullChkdsk $false }; Expect = 'chkdsk-f' }
         @{ Name = 'revalidate: the flag cleared since evaluate is a change, and a change stops'; Run = { [bool](@(Compare-PrologueJob -Job $job -F (With $facts 'Dirty' 'clean')) -match 'volume_health') }; Expect = $true }
         @{ Name = 'revalidate: a disk health that changed is a mismatch'; Run = { [bool](@(Compare-PrologueJob -Job $job -F (With $facts 'Health' 'Warning')) -match 'health_status') }; Expect = $true }
         @{ Name = 'revalidate: Secure Boot toggled is a mismatch'; Run = { [bool](@(Compare-PrologueJob -Job $job -F (With $facts 'SecureBoot' 'off')) -match 'secure_boot') }; Expect = $true }

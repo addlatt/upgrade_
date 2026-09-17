@@ -43,7 +43,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.4.0'
+$JobWriterVersion = '0.5.0'
 $LinuxMinGB = 25
 # The acknowledged-data-loss path (RISKS R23, decided 2026-09-13). The person
 # types this sentence, verbatim, on the separate launcher; it lifts exactly
@@ -105,10 +105,15 @@ function Get-JobPath {
     # whose number the prologue measures after its disk check, branching on
     # fork.if_cannot_keep if it then does not fit (decided 2026-09-08; the
     # 0.1.0 writer forced clean slate here, which pre-empted the fork).
-    param([string]$DiskHealth, [bool]$EspFits, $ShrinkableGB, [string]$Dirty = 'clean', [bool]$DiskHealthAcknowledged = $false)
+    # Same rule for a volume whose dirty bit is clean while Windows has a full
+    # chkdsk queued (NTFS event 98 / Get-Volume "Full Repair Needed"): on the
+    # Aspire (2026-09-17) that state made the Storage API answer 0 GB with no
+    # error, and the 0.4.0 writer forced clean slate on a number that was not
+    # a measurement. RISKS R18.
+    param([string]$DiskHealth, [bool]$EspFits, $ShrinkableGB, [string]$Dirty = 'clean', [bool]$DiskHealthAcknowledged = $false, [bool]$RepairQueued = $false)
     if (($DiskHealth -eq 'Healthy' -or $DiskHealthAcknowledged) -and $EspFits) {
         if ($null -ne $ShrinkableGB -and $ShrinkableGB -ge $LinuxMinGB) { return @{ Path = 'keep-windows'; Reason = 'default' } }
-        if ($null -eq $ShrinkableGB -and $Dirty -eq 'dirty') { return @{ Path = 'keep-windows'; Reason = 'default' } }
+        if ($null -eq $ShrinkableGB -and ($Dirty -eq 'dirty' -or $RepairQueued)) { return @{ Path = 'keep-windows'; Reason = 'default' } }
     }
     @{ Path = 'clean-slate'; Reason = 'forced-no-room' }
 }
@@ -119,6 +124,31 @@ function ConvertFrom-JobFsutilDirty {
     if ($t -match '(?i)\bis\s+NOT\s+Dirty\b') { return 'clean' }
     if ($t -match '(?i)\bis\s+Dirty\b') { return 'dirty' }
     'unknown'
+}
+
+function Test-JobRepairQueued {
+    # Pure (self-tested): does Windows say C: has an offline repair queued,
+    # whatever the dirty bit says? Two of its own statements count: the
+    # volume's OperationalStatus naming a repair ("Full Repair Needed" on the
+    # Aspire, 2026-09-13) and NTFS event 98 ("needs to be taken offline to
+    # perform a Full Chkdsk") within the last 30 days. RISKS R18.
+    param([string]$VolumeStatus, $NtfsFullChkdsk)
+    $why = @()
+    if ("$VolumeStatus" -match '(?i)repair') { $why += "Get-Volume reports '$VolumeStatus'" }
+    if ($NtfsFullChkdsk) { $why += "NTFS logged on $NtfsFullChkdsk that C: needs a full chkdsk" }
+    @{ Queued = ($why.Count -gt 0); Why = ($why -join '; ') }
+}
+
+function Get-JobRepairQueued {
+    # Live half: the same two reads the scanner and the prologue make.
+    $status = $null; $n98 = $null
+    try { $v = Get-Volume -DriveLetter C -ErrorAction Stop; $status = (@($v.OperationalStatus) -join ',') } catch { }
+    try {
+        $e = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 98; StartTime = (Get-Date).AddDays(-30) } -ErrorAction SilentlyContinue |
+               Where-Object { "$($_.ProviderName)" -match 'Ntfs' -and "$($_.Message)" -match '(?i)Full Chkdsk' -and "$($_.Message)" -match '(?i)Volume C:' } | Sort-Object TimeCreated -Descending | Select-Object -First 1)
+        if ($e.Count) { $n98 = $e[0].TimeCreated.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
+    } catch { }
+    Test-JobRepairQueued -VolumeStatus $status -NtfsFullChkdsk $n98
 }
 
 function ConvertTo-JobSoftware {
@@ -190,6 +220,7 @@ function Get-JobFacts {
 
     $f.Dirty = 'unknown'
     try { $f.Dirty = ConvertFrom-JobFsutilDirty -Lines @(& fsutil dirty query C: 2>&1 | ForEach-Object { "$_" }) } catch { }
+    $rq = Get-JobRepairQueued; $f.RepairQueued = [bool]$rq.Queued; $f.RepairQueuedWhy = $rq.Why
 
     $esp = Get-Partition -DiskNumber $disk.Number | Where-Object { $_.GptType -eq '{c12a7328-f81f-11d2-ba4b-00a0c93ec93b}' } | Select-Object -First 1
     $f.EspSize = 0; $f.EspFree = 0; $f.EspError = $null
@@ -278,7 +309,17 @@ function New-JobDocument {
 
     $espFits = ($F.EspFree -ge 32MB)
     $diskAck = [bool]($ack.Block -and ($ack.Block.overrides -contains 'disk-health'))
-    $path = Get-JobPath -DiskHealth $F.Health -EspFits $espFits -ShrinkableGB $F.ShrinkGB -Dirty $F.Dirty -DiskHealthAcknowledged $diskAck
+    # A shrink number read while Windows has a full chkdsk queued is not a
+    # measurement (the Aspire answered 0 GB with no error, 2026-09-17, R18):
+    # record it as unmeasured with the reason, and let the prologue measure
+    # after the check it will run.
+    $shrinkGB = $F.ShrinkGB; $shrinkError = $F.ShrinkError
+    if ($F.RepairQueued -and ($null -eq $shrinkGB -or $shrinkGB -lt $LinuxMinGB)) {
+        $answer = if ($null -ne $shrinkGB) { "$shrinkGB GB" } else { "no number ($shrinkError)" }
+        $shrinkError = "Windows answered $answer while a full disk check is queued ($($F.RepairQueuedWhy)) - not a trustworthy measurement; the prologue measures again after the check"
+        $shrinkGB = $null
+    }
+    $path = Get-JobPath -DiskHealth $F.Health -EspFits $espFits -ShrinkableGB $shrinkGB -Dirty $F.Dirty -DiskHealthAcknowledged $diskAck -RepairQueued ([bool]$F.RepairQueued)
     $health = if ($F.Health -in @('Healthy', 'Warning', 'Unhealthy')) { $F.Health } else { 'Unknown' }
     $bl = $F.BitLocker
     $job = [ordered]@{
@@ -302,9 +343,9 @@ function New-JobDocument {
         }
         fork = [ordered]@{ if_cannot_keep = $IfCannotKeep; volume_check_consented = $true }
         storage = [ordered]@{
-            shrinkable_gb = $F.ShrinkGB; shrink_source = $(if ($null -ne $F.ShrinkGB) { 'storage-api' } else { $null }); shrink_error = $F.ShrinkError
+            shrinkable_gb = $shrinkGB; shrink_source = $(if ($null -ne $shrinkGB) { 'storage-api' } else { $null }); shrink_error = $shrinkError
             linux_min_gb = $LinuxMinGB
-            volume_health = [ordered]@{ dirty = $F.Dirty; scan = $null }
+            volume_health = [ordered]@{ dirty = $F.Dirty; repair_queued = [bool]$F.RepairQueued; scan = $null }
             physical_disk = [ordered]@{ health_status = $health; operational_status = "$($F.Operational)"; media_type = "$($F.MediaType)" }
             esp = [ordered]@{ size_bytes = [long]$F.EspSize; free_bytes = [long]$F.EspFree; fits_alongside_install = $espFits }
         }
@@ -342,10 +383,25 @@ function Invoke-SelfTest {
                EspSize = 104857600; EspFree = 72219648; BitLocker = 'on'; Verdict = 'YELLOW'; RequiredKernel = '6.7'; Report = 'x'
                Stick = @{ UniqueId = 'USBSTOR\X'; Serial = ''; Size = 8053063680; Name = 'General UDisk'; Label = 'UPGV0'; Bus = 'USB' }
                WindowsTz = 'Eastern Standard Time'; Locale = 'en-US'; InputTip = '0409:00000409'; UserName = 'Addison'; FullName = 'Addison Example'
-               FailedChecks = @(); WarnChecks = @() }
+               FailedChecks = @(); WarnChecks = @(); RepairQueued = $false; RepairQueuedWhy = '' }
     function With { param($h, [string]$k, $v) $c = @{}; foreach ($e in $h.GetEnumerator()) { $c[$e.Key] = $e.Value }; $c[$k] = $v; $c }
     $ph = '$6$upgradeV1$MkYfbaBe.FFp2fzSNrPiJ6RdPagcfI.crkepTcQpGsjGFMe8780OtkedouSyxvXdky5a6WiTWDy/.epwkWUk71'
+    $aspire = With (With (With (With $good 'ShrinkGB' 0.0) 'Dirty' 'clean') 'RepairQueued' $true) 'RepairQueuedWhy' "Get-Volume reports 'Full Repair Needed'; NTFS logged on 2026-09-13T15:16:48Z that C: needs a full chkdsk"
     $cases = @(
+        # R18, 2026-09-17: a clean dirty bit with a full chkdsk queued is the Aspire's state; the Storage API's 0 GB is not a measurement
+        @{ Name = 'repair queued (R18): 0 GB with a clean bit and a queued full chkdsk is a keep-windows job, shrinkable unmeasured'
+           Run = { $r = New-JobDocument -F $aspire -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; "$($r.Job.intent.path):$($r.Job.intent.path_reason):$($null -eq $r.Job.storage.shrinkable_gb):$($r.Job.storage.volume_health.dirty):$($r.Job.storage.volume_health.repair_queued)" }; Expect = 'keep-windows:default:True:clean:True' }
+        @{ Name = 'repair queued (R18): the untrusted number and its reason are carried in shrink_error'
+           Run = { $j = (New-JobDocument -F $aspire -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; [bool]($j.storage.shrink_error -match '^Windows answered 0 GB while a full disk check is queued \(Get-Volume reports') -and ($null -eq $j.storage.shrink_source) }; Expect = $true }
+        @{ Name = 'repair queued (R18): 0 GB with a clean bit and NO repair queued is still no room (clean slate, forced)'
+           Run = { $j = (New-JobDocument -F (With (With $good 'ShrinkGB' 0.0) 'Dirty' 'clean') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; "$($j.intent.path):$($j.intent.path_reason):$($j.storage.shrinkable_gb):$($j.storage.volume_health.repair_queued)" }; Expect = 'clean-slate:forced-no-room:0:False' }
+        @{ Name = 'repair queued (R18): a measured number that already fits is kept as measured'
+           Run = { $j = (New-JobDocument -F (With $good 'RepairQueued' $true) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; "$($j.intent.path):$($j.storage.shrinkable_gb):$($j.storage.shrink_source)" }; Expect = 'keep-windows:61.4:storage-api' }
+        @{ Name = 'repair queued (R18): the Aspire as scanned - RED on Disk health, acknowledged, healthy status, 0 GB, repair queued - is a keep-windows job'
+           Run = { $f = With (With (With $aspire 'Verdict' 'RED') 'FailedChecks' @('Disk health')) 'WarnChecks' @('Volume health'); $r = New-JobDocument -F $f -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r' -AcknowledgeDataLoss 'I confirm that I understand the risks and could lose data'; "$($r.Refusals.Count):$($r.Job.intent.path):$($r.Job.risk_acknowledgement.overrides -join ',')" }; Expect = '0:keep-windows:disk-health,volume-health' }
+        @{ Name = 'repair queued: Get-Volume Full Repair Needed counts'; Run = { $t = Test-JobRepairQueued -VolumeStatus 'Full Repair Needed' -NtfsFullChkdsk $null; "$($t.Queued):$($t.Why)" }; Expect = "True:Get-Volume reports 'Full Repair Needed'" }
+        @{ Name = 'repair queued: NTFS event 98 counts on its own'; Run = { (Test-JobRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk '2026-09-13T15:16:48Z').Queued }; Expect = $true }
+        @{ Name = 'repair queued: OK and no event is not queued'; Run = { $t = Test-JobRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk $null; "$($t.Queued):[$($t.Why)]" }; Expect = 'False:[]' }
         @{ Name = 'a healthy machine with room gets a keep-windows job'
            Run = { $r = New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r.txt'; "$($r.Refusals.Count):$($r.Job.intent.path):$($r.Job.intent.path_reason)" }; Expect = '0:keep-windows:default' }
         @{ Name = 'too little shrink room forces clean slate, with staged block'

@@ -449,6 +449,13 @@ explorer, 38 s after boot, the stick seen 5 s later, notice queued, task
 removed, transported verbatim from the stick's CSV. The rest of the
 matrix is V0's (above); the stakes and residue are R24's.
 
+**2026-09-17, the Aspire again (R18):** with its dirty bit now clear and
+the repair still queued, the Storage API answered 0 GB shrinkable, no
+error, 33.6 GB free, and the job writer forced clean slate on it. Decided
+the same day: a queued repair makes the number "unmeasured" in the job and
+is a second trigger for the prologue's check; the launchers log every step
+to the stick. The physical keep-Windows row is still owed.
+
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.
 

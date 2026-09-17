@@ -43,7 +43,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$UpgVersion = '0.3.0'
+$UpgVersion = '0.3.1'
 
 # --- data ---------------------------------------------------------------
 # The build script replaces this block with the file contents inline, so the
@@ -484,7 +484,7 @@ function Get-UpgDiskFacts {
 }
 
 function Test-UpgDisk {
-    param($Facts, [bool]$IsAdmin)
+    param($Facts, [bool]$IsAdmin, [bool]$RepairQueued = $false)
     $disks = @($Facts.Disks)
     foreach ($d in $disks) {
         New-UpgCheck -Section 'Storage' -Title "Disk $($d.Number)" -Status 'info' `
@@ -520,7 +520,15 @@ function Test-UpgDisk {
             if ($Facts.ShrinkError) { $via += "; the Storage API path said: $($Facts.ShrinkError)" }
             $via += ')'
         }
-        if ($shrinkGB -lt 25) {
+        if ($RepairQueued -and $shrinkGB -lt 25) {
+            # Not a measurement (RISKS R18, 2026-09-17): with a repair queued
+            # Windows answered 0 GB, no error, 33 GB free. Say so; never steer
+            # toward clean slate on it. The job writer records it unmeasured.
+            New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'info' `
+                -Detail "Windows answered $shrinkGB GB$via, but a full disk check is queued - not a trustworthy number" `
+                -Note "Windows has an offline repair of C: queued (see 'Volume health' below). Until that check has run, its shrink answer is not a measurement: the first machine that showed this answered 0 GB with no error while 33 GB were free. The converter runs the check itself, with its own restart, then measures again - whether Windows can be kept is decided on that number, not this one." `
+                -Remedy 'Nothing to do now. If you want the number before converting: open an Administrator prompt, run "chkdsk C: /f", answer Y, restart, and run this scanner again.'
+        } elseif ($shrinkGB -lt 25) {
             New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'warn' `
                 -Detail "$shrinkGB GB can be freed by shrinking$via" `
                 -Note 'Too little room to install Linux while keeping Windows as a fallback. This machine can still convert - your files travel on the USB stick (the clean-slate path) - but there is no space to keep a safety copy of Windows on the internal disk.' `
@@ -857,6 +865,16 @@ function Get-UpgVolumeHealth {
     } catch { }
     [pscustomobject]@{ Dirty = $dirty; Scan = $scan; ScanRan = $scanRan; Error = $err
                        VolumeStatus = $volStatus; VolumeHealth = $volHealth; NtfsFullChkdsk = $ntfsFull; Logged = $logged }
+}
+
+function Test-UpgRepairQueued {
+    # Pure: Windows' own word that C: has an offline repair queued - the
+    # volume status naming a repair, or NTFS event 98 - whatever the dirty
+    # bit says. The Aspire (2026-09-17, RISKS R18) read a clean bit, a queued
+    # repair, and a Storage API that answered "0 GB" with no error.
+    param($Health)
+    if (-not $Health) { return $false }
+    [bool](("$($Health.VolumeStatus)" -match '(?i)repair') -or [bool]$Health.NtfsFullChkdsk)
 }
 
 function Test-UpgVolumeHealth {
@@ -1748,6 +1766,26 @@ function Invoke-UpgSelfTest {
                      SysVolume = [pscustomobject]@{ Size=(256*$gb); SizeRemaining=(20*$gb) }
                      ShrinkGB = 10.0; Disk0PartCount = 3 }) }
            Expect = @{ 'Room to keep Windows' = 'warn' } }
+        @{ Name = 'seam (R18): 0 GB with a repair queued is info saying the number is not trusted - never a warn toward clean slate'
+           Run = { Test-UpgDisk -IsAdmin $true -RepairQueued $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=1; FriendlyName='HFS256G39TND-N210A'; Size=(256*$gb); PartitionStyle='GPT'; BusType='SATA' })
+                     SysVolume = [pscustomobject]@{ Size=(237*$gb); SizeRemaining=(33*$gb) }
+                     ShrinkGB = 0.0; ShrinkSource = 'storage-api'; Disk0PartCount = 3 }) }
+           Expect = @{ 'Room to keep Windows' = 'info' }
+           Match  = @{ 'Room to keep Windows' = 'not a trustworthy number' } }
+        @{ Name = 'seam (R18): a number that already fits is trusted even with a repair queued'
+           Run = { Test-UpgDisk -IsAdmin $true -RepairQueued $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test NVMe'; Size=(1000*$gb); PartitionStyle='GPT'; BusType='NVMe' })
+                     SysVolume = [pscustomobject]@{ Size=(1000*$gb); SizeRemaining=(500*$gb) }
+                     ShrinkGB = 120.0; Disk0PartCount = 4 }) }
+           Expect = @{ 'Room to keep Windows' = 'ok' } }
+        @{ Name = 'repair queued (R18): Full Repair Needed / NTFS 98 / neither / no data'
+           Run = { $a = Test-UpgRepairQueued -Health ([pscustomobject]@{ VolumeStatus = 'Full Repair Needed'; NtfsFullChkdsk = $null })
+                   $b = Test-UpgRepairQueued -Health ([pscustomobject]@{ VolumeStatus = 'OK'; NtfsFullChkdsk = (Get-Date) })
+                   $c = Test-UpgRepairQueued -Health ([pscustomobject]@{ VolumeStatus = 'OK'; NtfsFullChkdsk = $null })
+                   $d = Test-UpgRepairQueued -Health $null
+                   New-UpgCheck -Section 'Test' -Title 'parse' -Status $(if ($a -and $b -and -not $c -and -not $d) { 'ok' } else { 'fail' }) -Detail "$a/$b/$c/$d" }
+           Expect = @{ 'parse' = 'ok' } }
         @{ Name = 'seam: unelevated shrink query says re-run as Administrator'
            Run = { Test-UpgDisk -IsAdmin $false -Facts ([pscustomobject]@{
                      Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test NVMe'; Size=(500*$gb); PartitionStyle='GPT'; BusType='NVMe' })
@@ -2125,9 +2163,10 @@ Test-UpgFirmware     -Sys $sys -SecureBoot (Get-UpgSecureBootState)
 Test-UpgResume       -Facts (Get-UpgResumeFacts)
 Test-UpgStorageMode  -Pnp $pnp
 $diskFacts = Get-UpgDiskFacts
-Test-UpgDisk         -Facts $diskFacts -IsAdmin $isAdmin
+$volHealth = Get-UpgVolumeHealth -IsAdmin $isAdmin -ShrinkError $diskFacts.ShrinkError
+Test-UpgDisk         -Facts $diskFacts -IsAdmin $isAdmin -RepairQueued (Test-UpgRepairQueued -Health $volHealth)
 Test-UpgPhysicalDisk -Facts (Get-UpgPhysicalDiskFacts -IsAdmin $isAdmin)
-Test-UpgVolumeHealth -IsAdmin $isAdmin -Health (Get-UpgVolumeHealth -IsAdmin $isAdmin -ShrinkError $diskFacts.ShrinkError)
+Test-UpgVolumeHealth -IsAdmin $isAdmin -Health $volHealth
 Test-UpgFastStartup  -HiberbootEnabled (Get-UpgFastStartupState)
 Test-UpgBitLocker    -IsAdmin $isAdmin -State $(if ($isAdmin) { Get-UpgBitLockerState })
 Test-UpgEsp          -IsAdmin $isAdmin -Facts $(if ($isAdmin) { Get-UpgEspFacts })

@@ -437,7 +437,7 @@ writes its own row for the same run.
 | `install_done`, `outcome_valid` | as `v2-install.csv` |
 | `record_in_outcome` | y/n — `outcome.json`'s `prologue` block equals the record the prologue left on the stick |
 | `result` | see vocabulary below |
-| `notes` | the prologue version and stage, the scan and chkntfs answers, the Wininit text, the shrink plan, the GPT delta, the outcome's stop reason if any |
+| `notes` | the prologue version and stage, the scan and chkntfs answers, the Wininit text, the shrink plan, the GPT delta, the outcome's stop reason if any; from prologue 0.4.0 the step-1b trigger (`trigger=dirty-flag`, or `repair-queued` when the bit was clean and Windows had a repair queued — R18, 2026-09-17) |
 
 ### Result vocabulary
 

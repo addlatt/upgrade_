@@ -23,7 +23,10 @@ if %errorlevel% neq 0 (
 )
 
 cd /d "%~dp0"
-for %%f in (Invoke-Prologue.ps1 upgrade-scan.ps1 New-Job.ps1 New-Kickstart.ps1 EFI\BOOT\BOOTX64.EFI images\install.img upgrade_\verify.sh upgrade_\outcome.sh upgrade_\LiveOS\kde.squashfs SHA256SUMS) do (
+if not exist "%~dp0upgrade_" mkdir "%~dp0upgrade_"
+echo.>> "%~dp0upgrade_\convert.log"
+echo ======== %date% %time%  RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd on %COMPUTERNAME%  (stick %~d0)>> "%~dp0upgrade_\convert.log"
+for %%f in (Invoke-Logged.ps1 Invoke-Prologue.ps1 upgrade-scan.ps1 New-Job.ps1 New-Kickstart.ps1 EFI\BOOT\BOOTX64.EFI images\install.img upgrade_\verify.sh upgrade_\outcome.sh upgrade_\LiveOS\kde.squashfs SHA256SUMS) do (
   if not exist "%~dp0%%f" (
     echo   ERROR: %%f is not on this stick - this is not a complete kit.
     pause
@@ -51,8 +54,8 @@ echo.
 echo   Step 1 of 5: scanning this computer (nothing is changed)...
 echo.
 if not exist "%~dp0upgrade_\reports" mkdir "%~dp0upgrade_\reports"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0upgrade-scan.ps1" -Json -OutDir "%~dp0upgrade_\reports"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0upgrade-scan.ps1" -DumpMachine "%~dp0machine-capture.json" >nul
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Invoke-Logged.ps1" -Log "%~dp0upgrade_\convert.log" -Script "%~dp0upgrade-scan.ps1" -Json -OutDir "%~dp0upgrade_\reports"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Invoke-Logged.ps1" -Log "%~dp0upgrade_\convert.log" -Script "%~dp0upgrade-scan.ps1" -DumpMachine "%~dp0machine-capture.json" >nul
 
 echo.
 echo   Step 2 of 5: your acknowledgement.
@@ -66,6 +69,7 @@ set /p ACK=  ^>
 if not "%ACK%"=="I confirm that I understand the risks and could lose data" (
   echo.
   echo   That is not the sentence. Nothing was changed.
+  echo %date% %time%  step 2: the sentence was not typed exactly; stopped>> "%~dp0upgrade_\convert.log"
   pause
   exit /b 1
 )
@@ -73,7 +77,7 @@ if not "%ACK%"=="I confirm that I understand the risks and could lose data" (
 echo.
 echo   Step 3 of 5: writing the job for this machine...
 echo.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0New-Job.ps1" -StickDrive %~d0 -OutDir "%~dp0upgrade_" -ScanDir "%~dp0upgrade_\reports" -Desktop kde -IfCannotKeep stop -AcknowledgeDataLoss "%ACK%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Invoke-Logged.ps1" -Log "%~dp0upgrade_\convert.log" -Script "%~dp0New-Job.ps1" -StickDrive %~d0 -OutDir "%~dp0upgrade_" -ScanDir "%~dp0upgrade_\reports" -Desktop kde -IfCannotKeep stop -AcknowledgeDataLoss "%ACK%"
 if %errorlevel% neq 0 (
   echo.
   echo   No job was written - the reasons are above. Nothing was changed.
@@ -85,7 +89,7 @@ if %errorlevel% neq 0 (
 echo.
 echo   Step 4 of 5: generating the kickstart...
 echo.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0New-Kickstart.ps1" -JobPath "%~dp0upgrade_\job.json" -OutFile "%~dp0upgrade_\ks.cfg" -StickLabel UPGV0 -Manifest "%~dp0SHA256SUMS"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Invoke-Logged.ps1" -Log "%~dp0upgrade_\convert.log" -Script "%~dp0New-Kickstart.ps1" -JobPath "%~dp0upgrade_\job.json" -OutFile "%~dp0upgrade_\ks.cfg" -StickLabel UPGV0 -Manifest "%~dp0SHA256SUMS"
 if %errorlevel% neq 0 (
   echo.
   echo   The kickstart could not be generated. Nothing was changed.
@@ -103,10 +107,11 @@ set /p WORD=  Type CONVERT (in capitals) to continue, anything else to stop:
 if not "%WORD%"=="CONVERT" (
   echo.
   echo   Not confirmed. Nothing was changed.
+  echo %date% %time%  the confirmation word was not typed; stopped>> "%~dp0upgrade_\convert.log"
   pause
   exit /b 1
 )
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Invoke-Prologue.ps1" -Start -StickDrive %~d0 -ConfirmWord %WORD% -AcknowledgeDataLoss "%ACK%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Invoke-Logged.ps1" -Log "%~dp0upgrade_\convert.log" -Script "%~dp0Invoke-Prologue.ps1" -Start -StickDrive %~d0 -ConfirmWord %WORD% -AcknowledgeDataLoss "%ACK%"
 if %errorlevel% neq 0 (
   echo.
   echo   The prologue stopped - read the message above. If it says STOPPED,

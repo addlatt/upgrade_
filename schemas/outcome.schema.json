@@ -61,7 +61,8 @@
             "method": { "description": "spot-fix: Repair-Volume -SpotFix (offline for seconds, fixes only what the scan logged). chkdsk-f: the full check, only when the scan logged real errors.", "enum": ["none", "spot-fix", "chkdsk-f"] },
             "wininit_1001": { "description": "The text of the Wininit event 1001 the check left behind, verbatim.", "type": ["string", "null"] },
             "found000_present": { "description": "Whether the check left a found.000 folder - orphaned fragments the person should be told about.", "type": ["boolean", "null"] },
-            "dirty_after": { "enum": ["clean", "dirty", "unknown"] }
+            "dirty_after": { "enum": ["clean", "dirty", "unknown"] },
+            "trigger": { "description": "Which of Windows' two statements made step 1b run (prologue 0.4.0+, RISKS R18 2026-09-17): the dirty flag, or a repair queued with the flag clean - in which case dirty_after proves nothing and the check must have run (Wininit 1001) with the volume no longer reporting a repair. Null when the step was not needed.", "enum": ["dirty-flag", "repair-queued", null] }
           },
           "if": { "properties": { "ran": { "const": true } } },
           "then": { "properties": { "method": { "enum": ["spot-fix", "chkdsk-f"] } } }

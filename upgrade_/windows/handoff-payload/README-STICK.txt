@@ -65,7 +65,8 @@ BitLocker for one restart, and restarts into the Linux installer on
 this stick. Linux is installed BESIDE Windows; Windows stays in the
 boot menu until you reclaim it later, in Linux. Every refusal happens
 before anything is changed, and a refusal writes upgrade_\outcome.json
-on this stick saying where and why. When you next boot Windows from
+on this stick saying where and why; everything each step printed is
+in upgrade_\convert.log there too. When you next boot Windows from
 the menu, a small window confirms the one-time boot entry was removed.
 
 ACCEPTING DATA LOSS (RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd)

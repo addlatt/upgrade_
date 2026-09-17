@@ -141,6 +141,11 @@ def main():
         ("job", "fork with an unknown branch is refused", set_path(job, ["fork", "if_cannot_keep"], "ask-later")),
         ("job", "flagged volume without consent to the disk check is refused",
          set_path(job, ["fork", "volume_check_consented"], False)),
+        # R18 (2026-09-17): Windows' own "repair queued" is a required fact, and it needs the same consent
+        ("job", "volume_health without repair_queued is refused",
+         del_path(job, ["storage", "volume_health", "repair_queued"])),
+        ("job", "a queued repair without consent to the disk check is refused",
+         set_path(set_path(job2, ["storage", "volume_health", "repair_queued"], True), ["fork", "volume_check_consented"], False)),
         # keep-windows needs a Healthy disk and an ESP with room
         ("job", "keep-windows on a Warning disk is refused",
          set_path(job, ["storage", "physical_disk", "health_status"], "Warning")),

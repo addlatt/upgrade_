@@ -63,6 +63,7 @@
     "linux_min_gb": 25,
     "volume_health": {
       "dirty": "dirty",
+      "repair_queued": true,
       "scan": "log: found problems (18 corruption records, 12 queued for offline repair); cmdlet: NoErrorsFound"
     },
     "physical_disk": {

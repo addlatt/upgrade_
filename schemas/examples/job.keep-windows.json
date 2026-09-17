@@ -63,6 +63,7 @@
     "linux_min_gb": 25,
     "volume_health": {
       "dirty": "dirty",
+      "repair_queued": false,
       "scan": "ErrorsFound"
     },
     "physical_disk": {

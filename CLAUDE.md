@@ -124,8 +124,13 @@ method in `docs/VALIDATION.md`; the killers, in order:
   725 on an SSD that still said `Healthy`, and a scan cmdlet whose string
   contradicted its own log. The scanner (0.2.0) and the prologue now read
   the disk error log, SMART, the volume status and the Chkdsk/NTFS log;
-  bad blocks are RED. R18 has the whole record. The acknowledged-data-loss
-  path (R23) exists for that machine's owner; rule #1 above says how narrow.
+  bad blocks are RED. R18 has the whole record. **2026-09-17:** the same
+  machine, dirty bit now clear, repair still queued, Storage API answering
+  0 GB with no error — the job writer, scanner and prologue now treat
+  Windows' "repair queued" as a second trigger beside the bit (R18), and
+  the launchers log every step to `upgrade_\convert.log` on the stick. The
+  acknowledged-data-loss path (R23) exists for that machine's owner; rule
+  #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path
   delivers files: mount the kept Windows from installed Linux, unlock with the
   harvested key, copy. Bench-testable in VMs across BitLocker variants.

@@ -1050,6 +1050,46 @@ statement and belongs in the rung chooser as the "real errors" signal,
 and SMART 187/5/197/199 (via `MSStorageDriver_FailurePredictData`, SATA
 only) can name *why* a drive is refused.
 
+**2026-09-17, the clean bit with a queued repair (the Aspire, first run of
+the acknowledged path).** The owner ran `RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd`
+with nothing on the SSD to lose. The scan said RED (Disk health: 368
+bad-block events, SMART 187 = 736), Volume health WARN (the NTFS 98 of
+2026-09-13 still standing, `Repair-Volume -Scan` "NoErrorsFound") — and
+`fsutil dirty query` said **NOT Dirty**: the bit set on 09-13 had cleared,
+with the repair still queued (`Get-Volume` "Full Repair Needed"). In that
+state `Get-PartitionSupportedSize` answered **0 GB shrinkable, no error,
+33.6 GB free** — not the "volume with errors" exception of 09-12, a number.
+The job writer (0.4.0) took the number: `clean-slate`, `forced-no-room`.
+Three consequences, none anticipated: (1) the acknowledged path could not
+reach a keep-Windows install on this machine at all — clean slate stages
+and stops at the unbuilt wipe gate; (2) the prologue's step 1b was keyed on
+the dirty bit alone and would have skipped the check — the very check the
+scanner's own Volume-health text says is the only thing that clears this;
+(3) the run ended at the kickstart step with an error nobody captured,
+because the launchers logged nothing (the same job and manifest generate a
+kickstart on the bench). The sentence is case-sensitive; a lowercase first
+attempt was refused, correctly.
+
+**Decided (2026-09-17):** Windows' own "repair queued" statement
+(`Get-Volume` OperationalStatus naming a repair, or NTFS event 98 within
+30 days) is a first-class fact beside the dirty bit —
+`job.storage.volume_health.repair_queued`, required in the schema,
+revalidated by the prologue, needing the same consent. With it set and
+the shrink answer below the Linux minimum, the job writer (0.5.0) records
+`shrinkable_gb` **null** with the answer and the reason in `shrink_error`,
+and the path is keep-windows pending the check — the 2026-09-08 rule
+extended to the second of Windows' two statements. The scanner (0.3.1)
+reports such a number as "not a trustworthy number" (info) instead of
+"too little room" (warn). The prologue (0.4.0) runs step 1b on either
+trigger (`volume_check.trigger` = `dirty-flag` | `repair-queued`); the
+evidence still chooses the rung (here `chkdsk-f`, as before), and on the
+repair-queued trigger "clean after" proves nothing — the check must have
+run (Wininit 1001) and `Get-Volume` must no longer name a repair, else it
+stops at `volume-check`. Every launcher step now runs through
+`Invoke-Logged.ps1`, which appends what the step printed to
+`upgrade_\convert.log` on the stick. R23's width is unchanged: nothing
+new is lifted. Owed: the rerun on the Aspire.
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.

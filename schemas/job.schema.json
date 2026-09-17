@@ -342,6 +342,7 @@
           "additionalProperties": false,
           "required": [
             "dirty",
+            "repair_queued",
             "scan"
           ],
           "properties": {
@@ -352,6 +353,10 @@
                 "dirty",
                 "unknown"
               ]
+            },
+            "repair_queued": {
+              "description": "Windows' own statement that C: has an offline repair queued - Get-Volume's OperationalStatus naming a repair, or NTFS event 98 within 30 days - whatever the dirty bit says. RISKS R18 (2026-09-17, the Aspire): with this true the Storage API's shrink answer is not a measurement (it said 0 GB, no error, 33 GB free), shrinkable_gb is written null with the reason in shrink_error, and the prologue runs the check before it measures.",
+              "type": "boolean"
             },
             "scan": {
               "description": "`Repair-Volume -Scan` result verbatim when it ran, else null.",
@@ -904,6 +909,11 @@
           }
         }
       }
+    },
+    {
+      "description": "A volume with a repair queued needs the same consent to the disk-check step (RISKS R18, 2026-09-17).",
+      "if": { "properties": { "storage": { "properties": { "volume_health": { "properties": { "repair_queued": { "const": true } } } } } } },
+      "then": { "properties": { "fork": { "properties": { "volume_check_consented": { "const": true } } } } }
     },
     {
       "description": "keep-windows can only be chosen when the ESP takes the alongside install (R21).",
