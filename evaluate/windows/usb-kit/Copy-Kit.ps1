@@ -41,16 +41,25 @@ foreach ($rel in @('upgrade_\job.json', 'upgrade_\ks.cfg', 'upgrade_\boot-verify
 # wrong bytes, which robocopy /E (size + time) would skip: hash what is there
 # first and delete anything that does not match, so it is copied again
 Write-Host '  pre-checking files already on the stick (mismatches are deleted and re-copied)...'
-$pre = 0
+# A file whose bytes already match is neither copied nor hashed again
+# (2026-09-20): make-kit gives the 5.5 GB of images fresh timestamps, robocopy
+# compares size + time, so every refresh rewrote them - and this stick drops
+# off the bus under exactly that sustained write. Verified-in-place is the
+# same evidence (the hash), with kilobytes written instead of gigabytes.
+$pre = 0; $same = New-Object System.Collections.Generic.List[string]; $sameRel = @{}
 foreach ($line in Get-Content (Join-Path $Kit 'SHA256SUMS')) {
     if ($line -notmatch '^([0-9a-f]{64})\s+\*?\./(.+)$') { continue }
-    $p = "$l`:\" + ($matches[2] -replace '/', '\')
+    $rel = ($matches[2] -replace '/', '\'); $want = $matches[1]
+    $p = "$l`:\" + $rel
     if (-not (Test-Path -LiteralPath $p)) { continue }
-    if ((Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLower() -ne $matches[1]) { Remove-Item -LiteralPath $p -Force; $pre++; Write-Host "  deleted mismatching $($matches[2])" -ForegroundColor Yellow }
+    if ((Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLower() -ne $want) { Remove-Item -LiteralPath $p -Force; $pre++; Write-Host "  deleted mismatching $rel" -ForegroundColor Yellow }
+    else { $same.Add((Join-Path $Kit $rel)); $sameRel[$rel] = $true }
 }
-Write-Host "  $pre file(s) removed for re-copy"
+Write-Host "  $pre file(s) removed for re-copy; $($same.Count) already correct (not rewritten)"
 Write-Host "  copying $Kit -> $l`:\ (robocopy /E)..."
-& robocopy $Kit "$l`:\" /E /R:2 /W:5 /NP /NFL /NDL | Out-Null
+$rc = @($Kit, "$l`:\", '/E', '/R:2', '/W:5', '/NP', '/NFL', '/NDL')
+if ($same.Count -gt 0) { $rc += '/XF'; $rc += $same.ToArray() }
+& robocopy @rc | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed with code $LASTEXITCODE (a stick dropping off the bus looks like this - re-seat it and re-run)" }
 
 Write-Host '  verifying every file on the stick against SHA256SUMS...'
@@ -60,6 +69,7 @@ foreach ($line in Get-Content (Join-Path $Kit 'SHA256SUMS')) {
     $want = $matches[1]; $rel = $matches[2] -replace '/', '\'
     $p = "$l`:\$rel"; $n++
     if (-not (Test-Path -LiteralPath $p)) { Write-Host "  MISSING $rel" -ForegroundColor Red; $bad++; continue }
+    if ($sameRel.ContainsKey($rel)) { continue }   # hashed above, not written since
     $got = (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLower()
     if ($got -ne $want) { Write-Host "  MISMATCH $rel" -ForegroundColor Red; $bad++ }
 }
