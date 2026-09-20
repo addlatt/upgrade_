@@ -1165,13 +1165,24 @@ answered by Windows' own records, and both answers overturn the
    the converter should reach.
 The stop itself stands: asked to prove a check ran, the prologue could
 not, and refused. What was wrong was upstream - sending it there.
-**Owed code (not yet decided or built):** an event 98 counts as "repair
-queued" only if no completed check (Wininit 1001 / autochk log) postdates
-it; and a cold shrink answer below the minimum is "mitigable, measure
-again" - keep-windows pending the prologue's own re-measure - when Windows
-names `hiberfil.sys`, `pagefile.sys` or `swapfile.sys` as the last
-unmovable file (Defrag 259), which replaces guessing at why the number is
-small.
+**Decided and built (2026-09-20)** - job writer 0.6.0, prologue 0.5.0,
+scanner 0.3.2: (1) an event 98 counts as "repair queued" only if no
+completed boot-time check (Wininit 1001, or autochk's own log under
+`System Volume Information\Chkdsk`) postdates it - an event is history,
+not state; `Get-Volume`'s status and the dirty bit are state and always
+count. The same freshness rule feeds the prologue's rung chooser and the
+scanner's Volume-health check, which now reports such a volume `ok` and
+says when the check completed. (2) When the cold shrink number is below
+the minimum, all three read what Windows names as the last unmovable file
+(Defrag 259; `shrink querymax`, which only reports, prompts the event if
+the Storage API did not): `job.storage.last_unmovable_file`. If it is
+`hiberfil.sys`, `pagefile.sys` or `swapfile.sys` - the files the prologue
+already turns off before its second measurement - the job is keep-windows
+with the fork pending and the scanner says so (info) instead of steering
+to clean slate; anything else (`$Mft`, a restore point, `$BadClus`, a
+person's file) is still "no room". The disk gate and the ESP gate are
+untouched, and R23 lifts nothing new. The 2026-09-17 `repair_queued` fact
+stays, for a repair that really is queued. Owed: the rerun.
 
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations

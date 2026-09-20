@@ -43,7 +43,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.5.0'
+$JobWriterVersion = '0.6.0'
 $LinuxMinGB = 25
 # The acknowledged-data-loss path (RISKS R23, decided 2026-09-13). The person
 # types this sentence, verbatim, on the separate launcher; it lifts exactly
@@ -110,9 +110,15 @@ function Get-JobPath {
     # Aspire (2026-09-17) that state made the Storage API answer 0 GB with no
     # error, and the 0.4.0 writer forced clean slate on a number that was not
     # a measurement. RISKS R18.
-    param([string]$DiskHealth, [bool]$EspFits, $ShrinkableGB, [string]$Dirty = 'clean', [bool]$DiskHealthAcknowledged = $false, [bool]$RepairQueued = $false)
+    # And (2026-09-20, the same machine, read over SSH): the 0 GB was the cold
+    # floor with hiberfil.sys on the last cluster - Windows names the last
+    # unmovable file itself (Defrag event 259). When that file is one the
+    # prologue turns off before it measures again (hibernation, page, swap),
+    # a small cold number is not "no room": keep-windows, fork pending.
+    param([string]$DiskHealth, [bool]$EspFits, $ShrinkableGB, [string]$Dirty = 'clean', [bool]$DiskHealthAcknowledged = $false, [bool]$RepairQueued = $false, [bool]$Mitigable = $false)
     if (($DiskHealth -eq 'Healthy' -or $DiskHealthAcknowledged) -and $EspFits) {
         if ($null -ne $ShrinkableGB -and $ShrinkableGB -ge $LinuxMinGB) { return @{ Path = 'keep-windows'; Reason = 'default' } }
+        if ($null -ne $ShrinkableGB -and $Mitigable) { return @{ Path = 'keep-windows'; Reason = 'default' } }
         if ($null -eq $ShrinkableGB -and ($Dirty -eq 'dirty' -or $RepairQueued)) { return @{ Path = 'keep-windows'; Reason = 'default' } }
     }
     @{ Path = 'clean-slate'; Reason = 'forced-no-room' }
@@ -132,11 +138,51 @@ function Test-JobRepairQueued {
     # volume's OperationalStatus naming a repair ("Full Repair Needed" on the
     # Aspire, 2026-09-13) and NTFS event 98 ("needs to be taken offline to
     # perform a Full Chkdsk") within the last 30 days. RISKS R18.
-    param([string]$VolumeStatus, $NtfsFullChkdsk)
-    $why = @()
+    # An event is history, not state (2026-09-20): on the Aspire the full
+    # check ran on 09-15 (autochk log, Wininit 1001) and the 09-13 event 98
+    # still sat inside the 30-day window. An event 98 counts only when no
+    # completed check postdates it; the volume's current status always counts.
+    param([string]$VolumeStatus, $NtfsFullChkdsk, $LastCheck)
+    $why = @(); $stale = ''
     if ("$VolumeStatus" -match '(?i)repair') { $why += "Get-Volume reports '$VolumeStatus'" }
-    if ($NtfsFullChkdsk) { $why += "NTFS logged on $NtfsFullChkdsk that C: needs a full chkdsk" }
-    @{ Queued = ($why.Count -gt 0); Why = ($why -join '; ') }
+    if ($NtfsFullChkdsk) {
+        if ($LastCheck -and ([DateTime]$LastCheck) -gt ([DateTime]$NtfsFullChkdsk)) { $stale = "NTFS asked for a full chkdsk on $NtfsFullChkdsk; a boot-time check completed after it, on $LastCheck" }
+        else { $why += "NTFS logged on $NtfsFullChkdsk that C: needs a full chkdsk" }
+    }
+    @{ Queued = ($why.Count -gt 0); Why = ($why -join '; '); Stale = $stale }
+}
+
+function ConvertFrom-JobDefrag259 {
+    # Pure (self-tested): Defrag event 259's text -> the last unmovable file
+    # ("\hiberfil.sys"), or $null. Windows writes it after a shrink analysis.
+    param([string]$Message)
+    if ("$Message" -match '(?im)last unmovable file appears to be:\s*(\S.*?)\s*$') { return ($matches[1] -replace '::\$DATA$', '') }
+    $null
+}
+
+function Test-JobShrinkMitigable {
+    # Pure (self-tested): is the file pinning the shrink floor one the prologue
+    # turns off before it measures again? Only these three; anything else
+    # (the MFT, a restore point, $BadClus, a user's file) is not ours to move.
+    param([string]$LastUnmovable)
+    [bool]("$LastUnmovable" -match '(?i)^\\?(hiberfil|pagefile|swapfile)\.sys$')
+}
+
+function Get-JobLastUnmovable {
+    # Live half, read-only. The shrink analysis behind Get-PartitionSupportedSize
+    # logs Defrag 259; if none appeared, diskpart's `shrink querymax` (which only
+    # reports) makes Windows write one.
+    param([DateTime]$Since)
+    function read259 { try { $e = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = 'Microsoft-Windows-Defrag'; Id = 259; StartTime = $Since } -ErrorAction SilentlyContinue | Sort-Object TimeCreated -Descending | Select-Object -First 1; if ($e) { ConvertFrom-JobDefrag259 -Message "$($e.Message)" } } catch { } }
+    $f = read259
+    if (-not $f) {
+        try {
+            $s = [IO.Path]::GetTempFileName(); "select volume C`r`nshrink querymax`r`n" | Set-Content -Path $s -Encoding ASCII
+            & diskpart /s $s 2>&1 | Out-Null; Remove-Item $s -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 3; $f = read259
+        } catch { }
+    }
+    $f
 }
 
 function Get-JobRepairQueued {
@@ -146,9 +192,13 @@ function Get-JobRepairQueued {
     try {
         $e = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 98; StartTime = (Get-Date).AddDays(-30) } -ErrorAction SilentlyContinue |
                Where-Object { "$($_.ProviderName)" -match 'Ntfs' -and "$($_.Message)" -match '(?i)Full Chkdsk' -and "$($_.Message)" -match '(?i)Volume C:' } | Sort-Object TimeCreated -Descending | Select-Object -First 1)
-        if ($e.Count) { $n98 = $e[0].TimeCreated.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
+        if ($e.Count) { $n98 = $e[0].TimeCreated }
     } catch { }
-    Test-JobRepairQueued -VolumeStatus $status -NtfsFullChkdsk $n98
+    # the last completed boot-time check: its Wininit 1001, or autochk's own log
+    $last = $null
+    try { $w = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Id = 1001; StartTime = (Get-Date).AddDays(-60) } -ErrorAction SilentlyContinue | Where-Object { "$($_.ProviderName)" -match 'Wininit' } | Sort-Object TimeCreated -Descending | Select-Object -First 1; if ($w) { $last = $w.TimeCreated } } catch { }
+    try { $l = Get-ChildItem 'C:\System Volume Information\Chkdsk' -Force -Filter 'Chkdsk*.log' -ErrorAction Stop | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($l -and (-not $last -or $l.LastWriteTime -gt $last)) { $last = $l.LastWriteTime } } catch { }
+    Test-JobRepairQueued -VolumeStatus $status -NtfsFullChkdsk $n98 -LastCheck $last
 }
 
 function ConvertTo-JobSoftware {
@@ -214,13 +264,15 @@ function Get-JobFacts {
     $f.Operational = if ($pd) { (@($pd.OperationalStatus) -join ',') } else { 'unknown' }
     $f.MediaType = if ($pd) { "$($pd.MediaType)" } else { '' }
 
-    $f.ShrinkGB = $null; $f.ShrinkError = $null
+    $f.ShrinkGB = $null; $f.ShrinkError = $null; $measureStart = (Get-Date).AddSeconds(-5)
     try { $s = Get-PartitionSupportedSize -DriveLetter C -ErrorAction Stop; $f.ShrinkGB = [math]::Round(($part.Size - $s.SizeMin) / 1GB, 1) }
     catch { $f.ShrinkError = ($_.Exception.Message -replace '\s+', ' ').Trim() }
 
     $f.Dirty = 'unknown'
     try { $f.Dirty = ConvertFrom-JobFsutilDirty -Lines @(& fsutil dirty query C: 2>&1 | ForEach-Object { "$_" }) } catch { }
-    $rq = Get-JobRepairQueued; $f.RepairQueued = [bool]$rq.Queued; $f.RepairQueuedWhy = $rq.Why
+    $rq = Get-JobRepairQueued; $f.RepairQueued = [bool]$rq.Queued; $f.RepairQueuedWhy = $rq.Why; $f.RepairStale = $rq.Stale
+    $f.LastUnmovable = $null
+    if ($null -ne $f.ShrinkGB -and $f.ShrinkGB -lt $LinuxMinGB) { $f.LastUnmovable = Get-JobLastUnmovable -Since $measureStart }
 
     $esp = Get-Partition -DiskNumber $disk.Number | Where-Object { $_.GptType -eq '{c12a7328-f81f-11d2-ba4b-00a0c93ec93b}' } | Select-Object -First 1
     $f.EspSize = 0; $f.EspFree = 0; $f.EspError = $null
@@ -319,7 +371,8 @@ function New-JobDocument {
         $shrinkError = "Windows answered $answer while a full disk check is queued ($($F.RepairQueuedWhy)) - not a trustworthy measurement; the prologue measures again after the check"
         $shrinkGB = $null
     }
-    $path = Get-JobPath -DiskHealth $F.Health -EspFits $espFits -ShrinkableGB $shrinkGB -Dirty $F.Dirty -DiskHealthAcknowledged $diskAck -RepairQueued ([bool]$F.RepairQueued)
+    $mitigable = Test-JobShrinkMitigable -LastUnmovable "$($F.LastUnmovable)"
+    $path = Get-JobPath -DiskHealth $F.Health -EspFits $espFits -ShrinkableGB $shrinkGB -Dirty $F.Dirty -DiskHealthAcknowledged $diskAck -RepairQueued ([bool]$F.RepairQueued) -Mitigable $mitigable
     $health = if ($F.Health -in @('Healthy', 'Warning', 'Unhealthy')) { $F.Health } else { 'Unknown' }
     $bl = $F.BitLocker
     $job = [ordered]@{
@@ -344,6 +397,7 @@ function New-JobDocument {
         fork = [ordered]@{ if_cannot_keep = $IfCannotKeep; volume_check_consented = $true }
         storage = [ordered]@{
             shrinkable_gb = $shrinkGB; shrink_source = $(if ($null -ne $shrinkGB) { 'storage-api' } else { $null }); shrink_error = $shrinkError
+            last_unmovable_file = $(if ($F.LastUnmovable) { "$($F.LastUnmovable)" } else { $null })
             linux_min_gb = $LinuxMinGB
             volume_health = [ordered]@{ dirty = $F.Dirty; repair_queued = [bool]$F.RepairQueued; scan = $null }
             physical_disk = [ordered]@{ health_status = $health; operational_status = "$($F.Operational)"; media_type = "$($F.MediaType)" }
@@ -383,11 +437,30 @@ function Invoke-SelfTest {
                EspSize = 104857600; EspFree = 72219648; BitLocker = 'on'; Verdict = 'YELLOW'; RequiredKernel = '6.7'; Report = 'x'
                Stick = @{ UniqueId = 'USBSTOR\X'; Serial = ''; Size = 8053063680; Name = 'General UDisk'; Label = 'UPGV0'; Bus = 'USB' }
                WindowsTz = 'Eastern Standard Time'; Locale = 'en-US'; InputTip = '0409:00000409'; UserName = 'Addison'; FullName = 'Addison Example'
-               FailedChecks = @(); WarnChecks = @(); RepairQueued = $false; RepairQueuedWhy = '' }
+               FailedChecks = @(); WarnChecks = @(); RepairQueued = $false; RepairQueuedWhy = ''; RepairStale = ''; LastUnmovable = $null }
     function With { param($h, [string]$k, $v) $c = @{}; foreach ($e in $h.GetEnumerator()) { $c[$e.Key] = $e.Value }; $c[$k] = $v; $c }
     $ph = '$6$upgradeV1$MkYfbaBe.FFp2fzSNrPiJ6RdPagcfI.crkepTcQpGsjGFMe8780OtkedouSyxvXdky5a6WiTWDy/.epwkWUk71'
     $aspire = With (With (With (With $good 'ShrinkGB' 0.0) 'Dirty' 'clean') 'RepairQueued' $true) 'RepairQueuedWhy' "Get-Volume reports 'Full Repair Needed'; NTFS logged on 2026-09-13T15:16:48Z that C: needs a full chkdsk"
+    $hiber = With (With (With $good 'ShrinkGB' 0.0) 'Dirty' 'clean') 'LastUnmovable' '\hiberfil.sys'
     $cases = @(
+        # R18, 2026-09-20: what the read-only diagnostic found on the Aspire
+        @{ Name = 'mitigable (R18): 0 GB with hiberfil.sys named as the last unmovable file is a keep-windows job, the cold number kept as measured'
+           Run = { $j = (New-JobDocument -F $hiber -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; "$($j.intent.path):$($j.intent.path_reason):$($j.storage.shrinkable_gb):$($j.storage.shrink_source):$($j.storage.last_unmovable_file):$($j.storage.volume_health.repair_queued)" }; Expect = 'keep-windows:default:0:storage-api:\hiberfil.sys:False' }
+        @{ Name = 'mitigable (R18): 0 GB pinned by anything else is still no room (clean slate, forced)'
+           Run = { $j = (New-JobDocument -F (With $hiber 'LastUnmovable' '\$Mft::$DATA') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; "$($j.intent.path):$($j.intent.path_reason):$($j.storage.last_unmovable_file)" }; Expect = 'clean-slate:forced-no-room:\$Mft::$DATA' }
+        @{ Name = 'mitigable (R18): it never buys a path the disk gate or the ESP refuses'
+           Run = { "$((New-JobDocument -F (With $hiber 'Health' 'Warning') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path)/$((New-JobDocument -F (With $hiber 'EspFree' 1000000) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path)" }; Expect = 'clean-slate/clean-slate' }
+        @{ Name = 'mitigable (R18): hiberfil, pagefile and swapfile only'
+           Run = { "$(Test-JobShrinkMitigable '\hiberfil.sys')/$(Test-JobShrinkMitigable '\pagefile.sys')/$(Test-JobShrinkMitigable '\swapfile.sys')/$(Test-JobShrinkMitigable '\$BadClus:$Bad')/$(Test-JobShrinkMitigable '\Users\a\pagefile.sys')/$(Test-JobShrinkMitigable '')" }; Expect = 'True/True/True/False/False/False' }
+        @{ Name = 'defrag 259: the Aspire''s real text parses to \hiberfil.sys'
+           Run = { ConvertFrom-JobDefrag259 -Message "A volume shrink analysis was initiated on volume Acer (C:).`n Diagnostic details:`n - The last unmovable file appears to be: \hiberfil.sys::`$DATA`n - The last cluster of the file is: 0x3b562fe" }; Expect = '\hiberfil.sys' }
+        @{ Name = 'defrag 259: text without the line parses to null'; Run = { $null -eq (ConvertFrom-JobDefrag259 -Message 'The storage optimizer successfully completed shrink estimation on Acer (C:)') }; Expect = $true }
+        @{ Name = 'repair queued (R18, 2026-09-20): an event 98 older than the last completed check is history, not a queued repair'
+           Run = { $t = Test-JobRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk ([DateTime]'2026-09-13T15:16:48') -LastCheck ([DateTime]'2026-09-15T18:02:32'); "$($t.Queued):$([bool]$t.Stale)" }; Expect = 'False:True' }
+        @{ Name = 'repair queued (R18, 2026-09-20): an event 98 newer than the last completed check still counts'
+           Run = { (Test-JobRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk ([DateTime]'2026-09-16T09:00:00') -LastCheck ([DateTime]'2026-09-15T18:02:32')).Queued }; Expect = $true }
+        @{ Name = 'repair queued (R18, 2026-09-20): the volume''s own status counts whatever the history says'
+           Run = { (Test-JobRepairQueued -VolumeStatus 'Full Repair Needed' -NtfsFullChkdsk ([DateTime]'2026-09-13T15:16:48') -LastCheck ([DateTime]'2026-09-15T18:02:32')).Queued }; Expect = $true }
         # R18, 2026-09-17: a clean dirty bit with a full chkdsk queued is the Aspire's state; the Storage API's 0 GB is not a measurement
         @{ Name = 'repair queued (R18): 0 GB with a clean bit and a queued full chkdsk is a keep-windows job, shrinkable unmeasured'
            Run = { $r = New-JobDocument -F $aspire -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; "$($r.Job.intent.path):$($r.Job.intent.path_reason):$($null -eq $r.Job.storage.shrinkable_gb):$($r.Job.storage.volume_health.dirty):$($r.Job.storage.volume_health.repair_queued)" }; Expect = 'keep-windows:default:True:clean:True' }
@@ -513,6 +586,8 @@ Write-Host ''
 Write-Host "  job $($j.job_id)" -ForegroundColor Green
 Write-Host "  $($j.identity.vendor) $($j.identity.model)   disk $($j.identity.system_disk.friendly_name) ($([math]::Round($j.identity.system_disk.size_bytes/1e9,1)) GB)   Secure Boot $($j.identity.secure_boot)   BitLocker $($j.harvest.bitlocker.status)"
 Write-Host "  verdict $($j.scan.verdict)   disk health $($j.storage.physical_disk.health_status)   shrinkable $($j.storage.shrinkable_gb) GB   ESP free $([math]::Round($j.storage.esp.free_bytes/1MB,1)) MB   volume $($j.storage.volume_health.dirty)"
+if ($j.storage.last_unmovable_file) { Write-Host "  Windows names the last unmovable file: $($j.storage.last_unmovable_file)$(if (Test-JobShrinkMitigable -LastUnmovable $j.storage.last_unmovable_file) { ' - the prologue turns it off and measures again' })" -ForegroundColor DarkGray }
+if ($facts.RepairStale) { Write-Host "  $($facts.RepairStale) - not a queued repair" -ForegroundColor DarkGray }
 Write-Host "  path $($j.intent.path) ($($j.intent.path_reason))   desktop $($j.intent.desktop)   locale $($j.intent.locale.lang) $($j.intent.locale.keymap) $($j.intent.locale.timezone)"
 Write-Host "  stick $($j.stick.friendly_name) $([math]::Round($j.stick.size_bytes/1e9,1)) GB '$($j.stick.label)'"
 if ($j.risk_acknowledgement) { Write-Host "  DATA LOSS ACCEPTED: the RED verdict was acknowledged; lifted: $($j.risk_acknowledgement.overrides -join ', ')" -ForegroundColor Red }

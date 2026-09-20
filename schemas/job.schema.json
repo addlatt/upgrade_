@@ -319,6 +319,13 @@
           ],
           "minimum": 0
         },
+        "last_unmovable_file": {
+          "description": "What Windows named as the last unmovable file after the shrink analysis (Defrag event 259), read only when the cold number is below linux_min_gb; null otherwise or when it could not be read. RISKS R18 (2026-09-20): hiberfil.sys on the last cluster made a disk with 42 GB free answer 0 GB. When it is hiberfil.sys, pagefile.sys or swapfile.sys - files the prologue turns off before it measures again - a small cold number is keep-windows with the fork pending, not forced clean slate.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "shrink_source": {
           "enum": [
             "storage-api",
@@ -355,7 +362,7 @@
               ]
             },
             "repair_queued": {
-              "description": "Windows' own statement that C: has an offline repair queued - Get-Volume's OperationalStatus naming a repair, or NTFS event 98 within 30 days - whatever the dirty bit says. RISKS R18 (2026-09-17, the Aspire): with this true the Storage API's shrink answer is not a measurement (it said 0 GB, no error, 33 GB free), shrinkable_gb is written null with the reason in shrink_error, and the prologue runs the check before it measures.",
+              "description": "Windows' own statement that C: has an offline repair queued - Get-Volume's OperationalStatus naming a repair, or an NTFS event 98 within 30 days that no completed boot-time check (Wininit 1001, autochk log) postdates (an event is history, not state: corrected 2026-09-20) - whatever the dirty bit says. RISKS R18 (2026-09-17, the Aspire): with this true the Storage API's shrink answer is not a measurement (it said 0 GB, no error, 33 GB free), shrinkable_gb is written null with the reason in shrink_error, and the prologue runs the check before it measures.",
               "type": "boolean"
             },
             "scan": {

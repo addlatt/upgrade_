@@ -43,7 +43,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$UpgVersion = '0.3.1'
+$UpgVersion = '0.3.2'
 
 # --- data ---------------------------------------------------------------
 # The build script replaces this block with the file contents inline, so the
@@ -716,6 +716,7 @@ function Get-UpgDiskFacts {
     $shrinkGB = $null
     $shrinkError = $null
     $shrinkFailedAt = $null
+    $measureStart = (Get-Date).AddSeconds(-5)
     try {
         $shrinkFailedAt = 'Get-Partition'
         $part = Get-Partition -DriveLetter C -ErrorAction Stop
@@ -743,9 +744,14 @@ function Get-UpgDiskFacts {
         }
     }
 
+    # A small number has a named cause: Windows logs the last unmovable file.
+    $lastUnmovable = $null
+    if ($null -ne $shrinkGB -and $shrinkGB -lt 25 -and (Test-UpgAdmin)) { $lastUnmovable = Get-UpgLastUnmovable -Since $measureStart }
+
     [pscustomobject]@{
         Disks          = $disks
         SysVolume      = $sysVolume
+        LastUnmovable  = $lastUnmovable
         ShrinkGB       = $shrinkGB
         ShrinkSource   = $shrinkSource
         ShrinkError    = $shrinkError
@@ -800,10 +806,17 @@ function Test-UpgDisk {
                 -Detail "Windows answered $shrinkGB GB$via, but a full disk check is queued - not a trustworthy number" `
                 -Note "Windows has an offline repair of C: queued (see 'Volume health' below). Until that check has run, its shrink answer is not a measurement: the first machine that showed this answered 0 GB with no error while 33 GB were free. The converter runs the check itself, with its own restart, then measures again - whether Windows can be kept is decided on that number, not this one." `
                 -Remedy 'Nothing to do now. If you want the number before converting: open an Administrator prompt, run "chkdsk C: /f", answer Y, restart, and run this scanner again.'
+        } elseif ($shrinkGB -lt 25 -and (Test-UpgShrinkMitigable -LastUnmovable "$($Facts.LastUnmovable)")) {
+            # The cold floor with a file the converter turns off (R18, 2026-09-20).
+            New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'info' `
+                -Detail "$shrinkGB GB can be freed as things stand$via - Windows names $($Facts.LastUnmovable) as the file in the way" `
+                -Note "Windows keeps its hibernation, page and swap files wherever they landed, and nothing behind the last of them can be released - here that file is $($Facts.LastUnmovable). That is ordinary and says nothing about how full the disk is. The converter turns those files off, restarts once and measures again; whether Windows can be kept is decided on that second number, not this one." `
+                -Remedy 'Nothing to do now - the converter handles this itself.'
         } elseif ($shrinkGB -lt 25) {
+            $pinned = if ($Facts.LastUnmovable) { " Windows names the last unmovable file: $($Facts.LastUnmovable)." } else { '' }
             New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'warn' `
                 -Detail "$shrinkGB GB can be freed by shrinking$via" `
-                -Note 'Too little room to install Linux while keeping Windows as a fallback. This machine can still convert - your files travel on the USB stick (the clean-slate path) - but there is no space to keep a safety copy of Windows on the internal disk.' `
+                -Note "Too little room to install Linux while keeping Windows as a fallback. This machine can still convert - your files travel on the USB stick (the clean-slate path) - but there is no space to keep a safety copy of Windows on the internal disk.$pinned" `
                 -Remedy 'Emptying the Recycle Bin, clearing Downloads, and removing large unused programs raises this number. No external drive is needed either way.'
         } else {
             New-UpgCheck -Section 'Storage' -Title 'Room to keep Windows' -Status 'ok' `
@@ -1121,6 +1134,13 @@ function Get-UpgVolumeHealth {
                  Where-Object { "$($_.ProviderName)" -match 'Ntfs' -and "$($_.Message)" -match '(?i)Full Chkdsk' -and "$($_.Message)" -match '(?i)Volume C:' } | Sort-Object TimeCreated -Descending | Select-Object -First 1)
         if ($n98.Count) { $ntfsFull = $n98[0].TimeCreated }
     } catch { }
+    # The last completed boot-time check - its Wininit 1001, or autochk's own
+    # log. An event 98 older than that is history: on the Aspire the check ran
+    # on 09-15 and the 09-13 request kept this check at WARN for a week more
+    # (RISKS R18, 2026-09-20).
+    $lastCheck = $null
+    try { $w = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Id = 1001; StartTime = (Get-Date).AddDays(-60) } -ErrorAction SilentlyContinue | Where-Object { "$($_.ProviderName)" -match 'Wininit' } | Sort-Object TimeCreated -Descending | Select-Object -First 1; if ($w) { $lastCheck = $w.TimeCreated } } catch { }
+    try { $l = Get-ChildItem 'C:\System Volume Information\Chkdsk' -Force -Filter 'Chkdsk*.log' -ErrorAction Stop | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($l -and (-not $lastCheck -or $l.LastWriteTime -gt $lastCheck)) { $lastCheck = $l.LastWriteTime } } catch { }
     $scan = $null; $scanRan = $false; $scanStarted = Get-Date
     $reason = ($dirty -eq 'dirty') -or ($ShrinkError -match '(?i)volume with errors|corrupt') -or ($volStatus -match '(?i)repair') -or $ntfsFull
     if ($reason) {
@@ -1136,7 +1156,7 @@ function Get-UpgVolumeHealth {
         if ($ce.Count) { $logged = ConvertFrom-UpgChkdskEvent -Message "$($ce[0].Message)"; $logged | Add-Member -NotePropertyName When -NotePropertyValue $ce[0].TimeCreated }
     } catch { }
     [pscustomobject]@{ Dirty = $dirty; Scan = $scan; ScanRan = $scanRan; Error = $err
-                       VolumeStatus = $volStatus; VolumeHealth = $volHealth; NtfsFullChkdsk = $ntfsFull; Logged = $logged }
+                       VolumeStatus = $volStatus; VolumeHealth = $volHealth; NtfsFullChkdsk = $ntfsFull; LastCheck = $lastCheck; Logged = $logged }
 }
 
 function Test-UpgRepairQueued {
@@ -1144,9 +1164,44 @@ function Test-UpgRepairQueued {
     # volume status naming a repair, or NTFS event 98 - whatever the dirty
     # bit says. The Aspire (2026-09-17, RISKS R18) read a clean bit, a queued
     # repair, and a Storage API that answered "0 GB" with no error.
+    # An event 98 counts only when no completed check postdates it (2026-09-20).
     param($Health)
     if (-not $Health) { return $false }
-    [bool](("$($Health.VolumeStatus)" -match '(?i)repair') -or [bool]$Health.NtfsFullChkdsk)
+    [bool](("$($Health.VolumeStatus)" -match '(?i)repair') -or (Test-UpgNtfs98Fresh -Health $Health))
+}
+
+function Test-UpgNtfs98Fresh {
+    # Pure: NTFS's request for a full chkdsk still stands - there is one, and
+    # no boot-time check has completed since.
+    param($Health)
+    if (-not $Health -or -not $Health.NtfsFullChkdsk) { return $false }
+    if (-not $Health.LastCheck) { return $true }
+    ([DateTime]$Health.NtfsFullChkdsk) -gt ([DateTime]$Health.LastCheck)
+}
+
+function ConvertFrom-UpgDefrag259 {
+    # Pure: Defrag event 259's text -> the last unmovable file, or $null.
+    param([string]$Message)
+    if ("$Message" -match '(?im)last unmovable file appears to be:\s*(\S.*?)\s*$') { return ($matches[1] -replace '::\$DATA$', '') }
+    $null
+}
+
+function Test-UpgShrinkMitigable {
+    # Pure: the converter turns these three off before it measures again, and
+    # nothing else (RISKS R18, 2026-09-20: hiberfil.sys on the last cluster
+    # made a disk with 42 GB free answer "0 GB").
+    param([string]$LastUnmovable)
+    [bool]("$LastUnmovable" -match '(?i)^\\?(hiberfil|pagefile|swapfile)\.sys$')
+}
+
+function Get-UpgLastUnmovable {
+    # Live half, read-only, elevated: what Windows named after the shrink
+    # analysis; `shrink querymax` (reports only) makes it write one if needed.
+    param([DateTime]$Since)
+    function read259 { try { $e = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = 'Microsoft-Windows-Defrag'; Id = 259; StartTime = $Since } -ErrorAction SilentlyContinue | Sort-Object TimeCreated -Descending | Select-Object -First 1; if ($e) { ConvertFrom-UpgDefrag259 -Message "$($e.Message)" } } catch { } }
+    $f = read259
+    if (-not $f) { try { Invoke-UpgDiskpartQueryMax | Out-Null; Start-Sleep -Seconds 3; $f = read259 } catch { } }
+    $f
 }
 
 function Test-UpgVolumeHealth {
@@ -1166,7 +1221,7 @@ function Test-UpgVolumeHealth {
     # substring 'ErrorsFound' (the self-test caught exactly that, 2026-09-08).
     $scanFoundErrors = ($Health.Scan -and ("$($Health.Scan)".Trim() -match '(?i)^(ErrorsFound|ErrorsNotFixed)$'))
     $repairNeeded = ("$($Health.VolumeStatus)" -match '(?i)repair')
-    $ntfsFull = [bool]$Health.NtfsFullChkdsk
+    $ntfsFull = Test-UpgNtfs98Fresh -Health $Health
     $lg = $Health.Logged
     $logFound = [bool]($lg -and $lg.Verdict -eq 'found-problems')
     if ($Health.Dirty -eq 'dirty' -or $scanFoundErrors -or $repairNeeded -or $ntfsFull -or $logFound) {
@@ -1188,6 +1243,7 @@ function Test-UpgVolumeHealth {
     }
     if ($Health.Dirty -eq 'clean') {
         $extra = if ($Health.ScanRan -and $Health.Scan) { "; online scan: $($Health.Scan)" } else { '' }
+        if ($Health.NtfsFullChkdsk -and $Health.LastCheck) { $extra += "; NTFS asked for a full check on $($Health.NtfsFullChkdsk) and a boot-time check completed on $($Health.LastCheck)" }
         New-UpgCheck -Section 'Storage' -Title 'Volume health' -Status 'ok' -Detail "no disk check pending$extra"
         return
     }
@@ -2051,6 +2107,31 @@ function Invoke-UpgSelfTest {
                      SysVolume = [pscustomobject]@{ Size=(1000*$gb); SizeRemaining=(500*$gb) }
                      ShrinkGB = 120.0; Disk0PartCount = 4 }) }
            Expect = @{ 'Room to keep Windows' = 'ok' } }
+        @{ Name = 'seam (R18, 2026-09-20): 0 GB pinned by hiberfil.sys is info naming the file - never a warn toward clean slate'
+           Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=1; FriendlyName='HFS256G39TND-N210A'; Size=(256*$gb); PartitionStyle='GPT'; BusType='SATA' })
+                     SysVolume = [pscustomobject]@{ Size=(237*$gb); SizeRemaining=(42*$gb) }
+                     ShrinkGB = 0.0; ShrinkSource = 'storage-api'; LastUnmovable = '\hiberfil.sys'; Disk0PartCount = 3 }) }
+           Expect = @{ 'Room to keep Windows' = 'info' }
+           Match  = @{ 'Room to keep Windows' = 'hiberfil.sys as the file in the way' } }
+        @{ Name = 'seam (R18, 2026-09-20): 0 GB pinned by anything else still warns'
+           Run = { Test-UpgDisk -IsAdmin $true -Facts ([pscustomobject]@{
+                     Disks = @([pscustomobject]@{ Number=0; FriendlyName='Test NVMe'; Size=(256*$gb); PartitionStyle='GPT'; BusType='NVMe' })
+                     SysVolume = [pscustomobject]@{ Size=(256*$gb); SizeRemaining=(20*$gb) }
+                     ShrinkGB = 0.0; LastUnmovable = '\$Mft::$DATA'; Disk0PartCount = 3 }) }
+           Expect = @{ 'Room to keep Windows' = 'warn' } }
+        @{ Name = 'pure (R18, 2026-09-20): defrag 259 parses; only hiberfil/pagefile/swapfile are mitigable; a 98 older than the last check is not fresh'
+           Run = { $f = ConvertFrom-UpgDefrag259 -Message " - The last unmovable file appears to be: \hiberfil.sys::`$DATA`n - The last cluster of the file is: 0x3b562fe"
+                   $ok = ($f -eq '\hiberfil.sys') -and (Test-UpgShrinkMitigable $f) -and (Test-UpgShrinkMitigable '\pagefile.sys') -and -not (Test-UpgShrinkMitigable '\$BadClus:$Bad') -and -not (Test-UpgShrinkMitigable '')
+                   $stale = [pscustomobject]@{ VolumeStatus = 'OK'; NtfsFullChkdsk = ([DateTime]'2026-09-13T15:16:48'); LastCheck = ([DateTime]'2026-09-15T18:02:32') }
+                   $fresh = [pscustomobject]@{ VolumeStatus = 'OK'; NtfsFullChkdsk = ([DateTime]'2026-09-16T09:00:00'); LastCheck = ([DateTime]'2026-09-15T18:02:32') }
+                   $ok = $ok -and -not (Test-UpgRepairQueued -Health $stale) -and (Test-UpgRepairQueued -Health $fresh)
+                   New-UpgCheck -Section 'Test' -Title 'parse' -Status $(if ($ok) { 'ok' } else { 'fail' }) -Detail "$f" }
+           Expect = @{ 'parse' = 'ok' } }
+        @{ Name = 'volume health (R18, 2026-09-20): a clean volume whose 98 predates a completed check is ok, and says so'
+           Run = { Test-UpgVolumeHealth -IsAdmin $true -Health ([pscustomobject]@{ Dirty = 'clean'; Scan = 'NoErrorsFound'; ScanRan = $true; Error = $null; VolumeStatus = 'OK'; VolumeHealth = 'Healthy'; NtfsFullChkdsk = ([DateTime]'2026-09-13T15:16:48'); LastCheck = ([DateTime]'2026-09-15T18:02:32'); Logged = $null }) }
+           Expect = @{ 'Volume health' = 'ok' }
+           Match  = @{ 'Volume health' = 'boot-time check completed' } }
         @{ Name = 'repair queued (R18): Full Repair Needed / NTFS 98 / neither / no data'
            Run = { $a = Test-UpgRepairQueued -Health ([pscustomobject]@{ VolumeStatus = 'Full Repair Needed'; NtfsFullChkdsk = $null })
                    $b = Test-UpgRepairQueued -Health ([pscustomobject]@{ VolumeStatus = 'OK'; NtfsFullChkdsk = (Get-Date) })

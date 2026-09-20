@@ -105,7 +105,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.4.0'
+$PrologueVersion = '0.5.0'
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -161,11 +161,45 @@ function Test-PrologueRepairQueued {
     # taken offline to perform a Full Chkdsk"). On the Aspire (2026-09-17,
     # RISKS R18) the bit read clean with both of these set, and the Storage
     # API answered 0 GB shrinkable with no error.
-    param([string]$VolumeStatus, $NtfsFullChkdsk)
-    $why = @()
+    # An event is history, not state (2026-09-20, the diagnostic over SSH):
+    # the full check had run on 09-15 (autochk log, Wininit 1001) and the
+    # 09-13 event still sat in the 30-day window - 0.4.0 scheduled a check
+    # for a repair already done. An event 98 counts only when no completed
+    # check postdates it; the volume's current status always counts.
+    param([string]$VolumeStatus, $NtfsFullChkdsk, $LastCheck)
+    $why = @(); $stale = ''
     if ("$VolumeStatus" -match '(?i)repair') { $why += "Get-Volume reports '$VolumeStatus'" }
-    if ($NtfsFullChkdsk) { $why += "NTFS logged at $NtfsFullChkdsk that C: needs a full chkdsk" }
-    @{ Queued = ($why.Count -gt 0); Why = ($why -join '; ') }
+    if ($NtfsFullChkdsk) {
+        if (Test-PrologueNtfs98Fresh -Ntfs98 $NtfsFullChkdsk -LastCheck $LastCheck) { $why += "NTFS logged at $NtfsFullChkdsk that C: needs a full chkdsk" }
+        else { $stale = "NTFS asked for a full chkdsk at $NtfsFullChkdsk; a boot-time check completed after it, at $LastCheck" }
+    }
+    @{ Queued = ($why.Count -gt 0); Why = ($why -join '; '); Stale = $stale }
+}
+
+function Test-PrologueNtfs98Fresh {
+    # Pure (self-tested): does NTFS's request still stand? Times are the
+    # round-trip strings the evidence carries (or DateTimes).
+    param($Ntfs98, $LastCheck)
+    if (-not $Ntfs98) { return $false }
+    if (-not $LastCheck) { return $true }
+    $rt = [Globalization.DateTimeStyles]::RoundtripKind
+    $a = if ($Ntfs98 -is [DateTime]) { $Ntfs98 } else { [DateTime]::Parse("$Ntfs98", $null, $rt) }
+    $b = if ($LastCheck -is [DateTime]) { $LastCheck } else { [DateTime]::Parse("$LastCheck", $null, $rt) }
+    $a.ToUniversalTime() -gt $b.ToUniversalTime()
+}
+
+function ConvertFrom-PrologueDefrag259 {
+    # Pure (self-tested): Defrag event 259 -> the last unmovable file, or $null.
+    param([string]$Message)
+    if ("$Message" -match '(?im)last unmovable file appears to be:\s*(\S.*?)\s*$') { return ($matches[1] -replace '::\$DATA$', '') }
+    $null
+}
+
+function Get-PrologueLastUnmovable {
+    # Live, read-only: what Windows named after the shrink analysis just run.
+    param([DateTime]$Since)
+    try { $e = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = 'Microsoft-Windows-Defrag'; Id = 259; StartTime = $Since } -ErrorAction SilentlyContinue | Sort-Object TimeCreated -Descending | Select-Object -First 1; if ($e) { return (ConvertFrom-PrologueDefrag259 -Message "$($e.Message)") } } catch { }
+    $null
 }
 
 function Get-PrologueVolumeTrigger {
@@ -418,7 +452,7 @@ function New-PrologueState {
         JobId = $JobId; StickUniqueId = $StickId; StickRootAtStart = $Root; Restarts = 0; Mismatches = @()
         Ack = [ordered]@{ Present = $false; DiskHealth = $false; VolumeHealth = $false }
         VolumeCheck = [ordered]@{ Trigger = $null; Needed = $false; Ran = $false; Scan = $null; DiskHealthAtCheck = $null; BadBlocks = 0; Gate = $null; Evidence = $null; Method = 'none'; ArmedUtc = $null; ArmText = $null; Chkntfs = $null; Wininit1001 = $null; Found000 = $null; DirtyAfter = 'unknown'; Restarts = 0 }
-        Shrink = [ordered]@{ RemeasuredGB = $null; RemeasuredBy = $null; DiskpartGB = $null; ApiError = $null; DiskpartError = $null; PartSize = $null; SizeMin = $null; FreeBytes = $null; Plan = $null; ForkTaken = $null; RequestedBytes = $null; FreedBytes = 0; SizeBefore = $null; PagefileDisabled = $false; HibernationDisabled = $false; Mitigated = $false }
+        Shrink = [ordered]@{ LastUnmovable = $null; RemeasuredGB = $null; RemeasuredBy = $null; DiskpartGB = $null; ApiError = $null; DiskpartError = $null; PartSize = $null; SizeMin = $null; FreeBytes = $null; Plan = $null; ForkTaken = $null; RequestedBytes = $null; FreedBytes = 0; SizeBefore = $null; PagefileDisabled = $false; HibernationDisabled = $false; Mitigated = $false }
         Staged = $null
         BitLocker = [ordered]@{ StatusBefore = $null; Source = $null; Suspended = $false; RebootCount = $null }
         Handoff = [ordered]@{ Armed = $false; Marker = $null; EntryGuid = $null; ArmedUtc = $null; BcdBackup = $null; Before = $null; GrubEnvReset = $false }
@@ -532,7 +566,16 @@ function Get-PrologueVolumeEvidence {
     # volume's OperationalStatus, NTFS event 98 (needs a Full Chkdsk) and the
     # latest Chkdsk-provider event since $Since.
     param([DateTime]$Since)
-    $r = [ordered]@{ VolumeStatus = $null; VolumeHealth = $null; NtfsFullChkdsk = $null; LogVerdict = 'unknown'; LogRecords = 0; LogQueued = 0; LogWhen = $null }
+    $r = [ordered]@{ VolumeStatus = $null; VolumeHealth = $null; NtfsFullChkdsk = $null; LastCheck = $null; LogVerdict = 'unknown'; LogRecords = 0; LogQueued = 0; LogWhen = $null }
+    # the last completed boot-time check: its Wininit 1001, or autochk's own log
+    try {
+        $last = $null
+        $w = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Id = 1001; StartTime = (Get-Date).AddDays(-60) } -ErrorAction SilentlyContinue | Where-Object { "$($_.ProviderName)" -match 'Wininit' } | Sort-Object TimeCreated -Descending | Select-Object -First 1
+        if ($w) { $last = $w.TimeCreated }
+        $l = Get-ChildItem 'C:\System Volume Information\Chkdsk' -Force -Filter 'Chkdsk*.log' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($l -and (-not $last -or $l.LastWriteTime -gt $last)) { $last = $l.LastWriteTime }
+        if ($last) { $r.LastCheck = $last.ToUniversalTime().ToString('o') }
+    } catch { }
     try { $v = Get-Volume -DriveLetter C -ErrorAction Stop; $r.VolumeStatus = (@($v.OperationalStatus) -join ','); $r.VolumeHealth = "$($v.HealthStatus)" } catch { }
     try {
         $n98 = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 98; StartTime = (Get-Date).AddDays(-30) } -ErrorAction SilentlyContinue |
@@ -578,8 +621,8 @@ function Get-PrologueFacts {
     $f.Health = Get-PrologueDiskHealth -DiskNumber $disk.Number -UniqueId $disk.UniqueId
     $f.Dirty = Get-PrologueDirty
     $ev0 = Get-PrologueVolumeEvidence -Since (Get-Date).AddDays(-30)
-    $rq = Test-PrologueRepairQueued -VolumeStatus "$($ev0.VolumeStatus)" -NtfsFullChkdsk $ev0.NtfsFullChkdsk
-    $f.RepairQueued = [bool]$rq.Queued; $f.RepairQueuedWhy = "$($rq.Why)"
+    $rq = Test-PrologueRepairQueued -VolumeStatus "$($ev0.VolumeStatus)" -NtfsFullChkdsk $ev0.NtfsFullChkdsk -LastCheck $ev0.LastCheck
+    $f.RepairQueued = [bool]$rq.Queued; $f.RepairQueuedWhy = "$($rq.Why)"; $f.RepairStale = "$($rq.Stale)"
     $blq = Get-BitLockerState; $f.BitLocker = $blq.State; $f.BitLockerSource = $blq.Source; $f.BitLockerRaw = $blq.Raw
     $f.Stick = $null; $f.StickError = $null
     try {
@@ -977,7 +1020,7 @@ function Invoke-VolumeStage {
     $S.VolumeCheck.Gate = $gate.Reason
     if (-not $gate.Pass) { Stop-Prologue $S $State $Root $Job 'volume-check' "C: is flagged for a disk check but the drive is not one to repair: $($gate.Reason). Copy your files off this computer and replace the drive. Nothing was changed." }
     if ($gate.Reason -like 'DATA LOSS ACCEPTED*') { Write-Log "      $($gate.Reason)" 'Red' } else { Write-Log "      disk gate: $($gate.Reason)" }
-    $method = Get-PrologueRepairMethod -Scan $scan -LogVerdict "$($ev.LogVerdict)" -RepairNeeded ("$($ev.VolumeStatus)" -match '(?i)repair') -NtfsFullChkdsk ([bool]$ev.NtfsFullChkdsk)
+    $method = Get-PrologueRepairMethod -Scan $scan -LogVerdict "$($ev.LogVerdict)" -RepairNeeded ("$($ev.VolumeStatus)" -match '(?i)repair') -NtfsFullChkdsk (Test-PrologueNtfs98Fresh -Ntfs98 $ev.NtfsFullChkdsk -LastCheck $ev.LastCheck)
     if ($method -eq 'refuse') { Stop-Prologue $S $State $Root $Job 'volume-check' "the online scan did not give a usable answer ('$scan') and nothing in Windows' own log says what is wrong; refusing to repair on a guess" }
     Write-Log "      method: $method$(if ($method -eq 'chkdsk-f') { ' (Windows logged real corruption; the full check is the only rung that clears it - files on unreadable sectors come out truncated or missing)' })"
     $arm = Invoke-PrologueRepairArm -Method $method
@@ -1027,7 +1070,7 @@ function Invoke-CheckReturn {
     $rescan = Format-PrologueScan -Cmdlet $scan -Ev $ev
     $S.VolumeCheck.Scan = "$($S.VolumeCheck.Scan) | rescan: $rescan"
     Write-Log "      flag still set; rescan: $rescan"
-    $m = Get-PrologueRepairMethod -Scan $scan -LogVerdict "$($ev.LogVerdict)" -RepairNeeded ("$($ev.VolumeStatus)" -match '(?i)repair') -NtfsFullChkdsk ([bool]$ev.NtfsFullChkdsk)
+    $m = Get-PrologueRepairMethod -Scan $scan -LogVerdict "$($ev.LogVerdict)" -RepairNeeded ("$($ev.VolumeStatus)" -match '(?i)repair') -NtfsFullChkdsk (Test-PrologueNtfs98Fresh -Ntfs98 $ev.NtfsFullChkdsk -LastCheck $ev.LastCheck)
     if ($m -ne 'chkdsk-f') {
         if ($S.Ack.VolumeHealth) { Write-Log '      DATA LOSS ACCEPTED: the flag survived the spot-fix and nothing names the cause; the person acknowledged the volume-health refusal, so the full check runs' 'Red' }
         else { Stop-Prologue $S $State $Root $Job 'volume-check' "C: still carries the dirty flag after the spot-fix and neither the online scan nor Windows' own log names an error ($rescan); refusing to run the full check on a guess" }
@@ -1052,6 +1095,7 @@ function Invoke-Continue {
     # Re-measure, take the fork, shrink or stage, then arm. Stops on its own.
     param($S, [string]$State, [string]$Root, $Job)
     Write-Log '  1b. re-measuring shrinkable space by both read-only paths...'
+    $measureStart = (Get-Date).AddSeconds(-5)
     $m = Measure-PrologueShrink
     $S.Shrink.PartSize = $m.PartSize; $S.Shrink.SizeMin = $m.SizeMin; $S.Shrink.FreeBytes = $m.FreeBytes
     $S.Shrink.ApiError = $m.ApiError; $S.Shrink.DiskpartGB = $m.DiskpartGB; $S.Shrink.DiskpartError = $m.DiskpartError
@@ -1067,6 +1111,11 @@ function Invoke-Continue {
         $plan = Get-PrologueShrinkPlan -PartSize ([long]$m.PartSize) -SizeMin $sizeMin -FreeBytes ([long]$m.FreeBytes) -LinuxMinGB $linuxMin -FilesBytes $filesBytes
         $S.Shrink.Plan = $plan; $fits = [bool]$plan.Fits
         Write-Log "      plan: Linux needs $([math]::Round($plan.TargetBytes/1GB,1)) GB (linux_min $linuxMin GB + files $([math]::Round($filesBytes/1GB,2)) GB x $FilesMargin); shrinkable $([math]::Round($plan.ShrinkableBytes/1GB,1)) GB; Windows keeps $([math]::Round($WindowsKeepFreeBytes/1GB,0)) GB free -> $($plan.Reason)"
+        if (-not $fits) {
+            # Windows names what pins the floor (Defrag 259); on the Aspire, 2026-09-20, it was hiberfil.sys on the last cluster
+            $lu = Get-PrologueLastUnmovable -Since $measureStart
+            if ($lu) { try { $S.Shrink.LastUnmovable = "$lu" } catch { }; Write-Log "      Windows names the last unmovable file: $lu" }
+        }
         if (-not $fits -and -not $S.Shrink.Mitigated -and $plan.TargetBytes -gt $plan.ShrinkableBytes) {
             # the immovable-file floor: pagefile off (effective after a restart), one restart, one re-measure
             Write-Log '      does not fit cold; disabling the pagefile and restarting once to re-measure'
@@ -1215,7 +1264,7 @@ function Invoke-StartPhase {
         Write-Log "  DATA LOSS ACCEPTED (typed $($jobAck.accepted_utc)): this run lifts $($ov -join ', '). Files on this machine may be lost." 'Red'
     }
     $S.Facts = [ordered]@{ vendor = $F.Vendor; model = $F.Model; os = "$($F.OsCaption) $($F.OsBuild)"; secure_boot = $F.SecureBoot; disk = $F.Disk; health = $F.Health; dirty_at_start = $F.Dirty; bitlocker = $F.BitLocker; bitlocker_via = $F.BitLockerSource; hiberfil = $F.Hiberfil; pagefile = $F.Pagefile }
-    Write-Log "  $($F.Vendor) $($F.Model)   $($F.OsCaption) $($F.OsBuild)   Secure Boot $($F.SecureBoot)   BitLocker $($F.BitLocker) (via $($F.BitLockerSource))   disk health $($F.Health)   C: $($F.Dirty)$(if ($F.RepairQueued) { " (repair queued: $($F.RepairQueuedWhy))" })" 'DarkGray'
+    Write-Log "  $($F.Vendor) $($F.Model)   $($F.OsCaption) $($F.OsBuild)   Secure Boot $($F.SecureBoot)   BitLocker $($F.BitLocker) (via $($F.BitLockerSource))   disk health $($F.Health)   C: $($F.Dirty)$(if ($F.RepairQueued) { " (repair queued: $($F.RepairQueuedWhy))" })$(if ($F.RepairStale) { " ($($F.RepairStale) - not a queued repair)" })" 'DarkGray'
     Save-State $S $state
     Write-Log '  1.  re-validating job.json against this machine...'
     $mm = Compare-PrologueJob -Job $job -F $F
@@ -1373,6 +1422,12 @@ function Invoke-SelfTest {
         @{ Name = 'trigger (R18): an unreadable bit never skips, queued or not'; Run = { "$(Get-PrologueVolumeTrigger -Dirty 'unknown' -RepairQueued $false)/$(Get-PrologueVolumeTrigger -Dirty 'unknown' -RepairQueued $true)" }; Expect = 'unreadable/unreadable' }
         @{ Name = 'repair queued (R18): Full Repair Needed / NTFS 98 alone / neither'; Run = { "$((Test-PrologueRepairQueued -VolumeStatus 'Full Repair Needed' -NtfsFullChkdsk $null).Queued)/$((Test-PrologueRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk '2026-09-13T15:16:48Z').Queued)/$((Test-PrologueRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk $null).Queued)" }; Expect = 'True/True/False' }
         @{ Name = 'repair queued (R18): the reason names the source'; Run = { (Test-PrologueRepairQueued -VolumeStatus 'Full Repair Needed' -NtfsFullChkdsk $null).Why }; Expect = "Get-Volume reports 'Full Repair Needed'" }
+        @{ Name = 'repair queued (R18, 2026-09-20): an event 98 older than the last completed check is history'; Run = { $t = Test-PrologueRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk '2026-09-13T19:16:48.1962215Z' -LastCheck '2026-09-15T22:02:32.0000000Z'; "$($t.Queued):$([bool]$t.Stale)" }; Expect = 'False:True' }
+        @{ Name = 'repair queued (R18, 2026-09-20): an event 98 after the last check still counts; with no check on record it counts'; Run = { "$((Test-PrologueRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk '2026-09-16T09:00:00.0000000Z' -LastCheck '2026-09-15T22:02:32.0000000Z').Queued)/$((Test-PrologueRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk '2026-09-13T19:16:48.1962215Z' -LastCheck $null).Queued)" }; Expect = 'True/True' }
+        @{ Name = 'repair queued (R18, 2026-09-20): the volume''s own status counts whatever the history says'; Run = { (Test-PrologueRepairQueued -VolumeStatus 'Full Repair Needed' -NtfsFullChkdsk '2026-09-13T19:16:48.1962215Z' -LastCheck '2026-09-15T22:02:32.0000000Z').Queued }; Expect = $true }
+        @{ Name = 'ntfs98 fresh: DateTimes and round-trip strings compare alike; none is not fresh'; Run = { "$(Test-PrologueNtfs98Fresh -Ntfs98 ([DateTime]'2026-09-16') -LastCheck '2026-09-15T22:02:32.0000000Z')/$(Test-PrologueNtfs98Fresh -Ntfs98 $null -LastCheck $null)" }; Expect = 'True/False' }
+        @{ Name = 'the Aspire on 2026-09-20: clean bit, volume OK, stale 98 -> step 1b does not run'; Run = { $t = Test-PrologueRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk '2026-09-13T19:16:48.1962215Z' -LastCheck '2026-09-15T22:01:15.0000000Z'; Get-PrologueVolumeTrigger -Dirty 'clean' -RepairQueued ([bool]$t.Queued) }; Expect = 'none' }
+        @{ Name = 'defrag 259: the Aspire''s real text parses to \hiberfil.sys; other text to null'; Run = { "$(ConvertFrom-PrologueDefrag259 -Message " - The last unmovable file appears to be: \hiberfil.sys::`$DATA`n - The last cluster of the file is: 0x3b562fe")/$($null -eq (ConvertFrom-PrologueDefrag259 -Message 'shrink estimation completed'))" }; Expect = '\hiberfil.sys/True' }
         @{ Name = 'method (R18): a queued repair picks chkdsk-f even when the cmdlet says NoErrorsFound'; Run = { Get-PrologueRepairMethod -Scan 'NoErrorsFound' -LogVerdict 'unknown' -RepairNeeded $true -NtfsFullChkdsk $false }; Expect = 'chkdsk-f' }
         @{ Name = 'revalidate: the flag cleared since evaluate is a change, and a change stops'; Run = { [bool](@(Compare-PrologueJob -Job $job -F (With $facts 'Dirty' 'clean')) -match 'volume_health') }; Expect = $true }
         @{ Name = 'revalidate: a disk health that changed is a mismatch'; Run = { [bool](@(Compare-PrologueJob -Job $job -F (With $facts 'Health' 'Warning')) -match 'health_status') }; Expect = $true }

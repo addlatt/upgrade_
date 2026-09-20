@@ -131,9 +131,15 @@ method in `docs/VALIDATION.md`; the killers, in order:
   the launchers log every step to `upgrade_\convert.log` on the stick.
   **2026-09-20, first physical row of the acknowledged path:**
   `stopped-volume-check` - the scheduled `chkdsk /f` did not run at the
-  restart (no Wininit 1001, a 36 s boot), the second time on this Windows 11
-  machine; whether scheduled checks run on Windows 11 at all is now an open
-  R18 question, and the rig has only ever tried Windows 10. The
+  restart (no Wininit 1001, a 36 s boot). The read-only diagnostic the same
+  evening (over SSH) showed the run should never have gone there: the full
+  check had already run on 09-15 (autochk log, Wininit 1001 - so scheduled
+  checks do run on this Windows 11), and the 0 GB was `hiberfil.sys` on the
+  last cluster (Defrag event 259), about 42 GB once it is off. An event 98
+  now counts only if no completed check postdates it, and a small cold
+  number pinned by hibernation/page/swap is keep-windows pending the
+  prologue's own re-measure (job writer 0.6.0, prologue 0.5.0, scanner
+  0.3.2). The
   acknowledged-data-loss path (R23) exists for that machine's owner; rule
   #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path
