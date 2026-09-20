@@ -81,7 +81,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Invoke-Logged.ps1" -Lo
 if %errorlevel% neq 0 (
   echo.
   echo   No job was written - the reasons are above. Nothing was changed.
-  echo   (A refusal your acknowledgement cannot lift stays a refusal.)
+  echo   ^(A refusal your acknowledgement cannot lift stays a refusal.^)
   pause
   exit /b 1
 )

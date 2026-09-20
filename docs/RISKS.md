@@ -1065,9 +1065,16 @@ reach a keep-Windows install on this machine at all — clean slate stages
 and stops at the unbuilt wipe gate; (2) the prologue's step 1b was keyed on
 the dirty bit alone and would have skipped the check — the very check the
 scanner's own Volume-health text says is the only thing that clears this;
-(3) the run ended at the kickstart step with an error nobody captured,
-because the launchers logged nothing (the same job and manifest generate a
-kickstart on the bench). The sentence is case-sensitive; a lowercase first
+(3) the run ended right after the job was written and nothing on the stick
+said why, because the launchers logged nothing. **Corrected 2026-09-20:**
+this was read at the time as a kickstart failure. The second run's
+`convert.log` shows the job step exiting 0 and no kickstart step at all:
+the launcher's own refusal text carried an unescaped `)` inside its `if`
+block, which closes the block in cmd, so `pause` and `exit /b 1` ran
+unconditionally. The data-loss launcher had never run past step 3
+anywhere (the rig drives the prologue directly). Reproduced in a
+nine-line script; fixed with `^(` / `^)`; `make-kit.sh` now refuses any
+launcher with the pattern. The sentence is case-sensitive; a lowercase first
 attempt was refused, correctly.
 
 **Decided (2026-09-17):** Windows' own "repair queued" statement
@@ -1088,7 +1095,13 @@ run (Wininit 1001) and `Get-Volume` must no longer name a repair, else it
 stops at `volume-check`. Every launcher step now runs through
 `Invoke-Logged.ps1`, which appends what the step printed to
 `upgrade_\convert.log` on the stick. R23's width is unchanged: nothing
-new is lifted. Owed: the rerun on the Aspire.
+new is lifted. **Second run (2026-09-20), as far as the launcher bug let it
+go:** on the real machine the scanner said "Windows answered 0 GB, but a
+full disk check is queued - not a trustworthy number", and the job writer
+wrote `keep-windows (default)`, shrinkable unmeasured, DATA LOSS ACCEPTED,
+lifting disk-health and volume-health (465 bad-block events by then) —
+the first three steps of the decision, fired on hardware. Owed: the
+prologue's half.
 
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations

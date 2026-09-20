@@ -118,6 +118,15 @@ parsecheck "$ROOT/evaluate/windows/New-Job.ps1"
 parsecheck "$ROOT/upgrade_/windows/New-Kickstart.ps1"
 parsecheck "$ROOT/upgrade_/windows/Invoke-Prologue.ps1"
 parsecheck "$ROOT/upgrade_/windows/Invoke-Logged.ps1"
+
+# --- .cmd launchers: an unescaped ( or ) in an echo inside an if-block closes
+# the block early in cmd, and the lines after it run unconditionally. The
+# data-loss launcher did exactly that on the Aspire (2026-09-17 and -20): it
+# paused and exited right after writing the job (RISKS R18).
+for c in "$PAYLOAD"/*.cmd "$ROOT"/evaluate/windows/usb-kit/*.cmd; do
+    bad=$(awk '/^if .*\(\r?$/ {inb=1; next} /^\)/ {inb=0} inb && /echo.*[()]/ && !/\^[()]/ {print FILENAME":"NR": "$0}' "$c")
+    [ -z "$bad" ] || fail "unescaped parenthesis inside an if-block (write ^( and ^)): $bad"
+done
 parsecheck "$ROOT/upgrade_/windows/Invoke-Rollback.ps1"
 parsecheck "$ROOT/evaluate/windows/Test-StorageMode.ps1"
 (cd "$ROOT" && python3 schemas/check.py >/dev/null) || fail "schemas/check.py failed - the contracts the prologue and outcome.sh write against are broken"
