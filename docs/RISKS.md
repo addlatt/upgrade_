@@ -1056,7 +1056,11 @@ with nothing on the SSD to lose. The scan said RED (Disk health: 368
 bad-block events, SMART 187 = 736), Volume health WARN (the NTFS 98 of
 2026-09-13 still standing, `Repair-Volume -Scan` "NoErrorsFound") — and
 `fsutil dirty query` said **NOT Dirty**: the bit set on 09-13 had cleared,
-with the repair still queued (`Get-Volume` "Full Repair Needed"). In that
+with NTFS's 09-13 request for a full chkdsk still inside the 30-day window
+(**corrected 2026-09-20:** this entry first said `Get-Volume` still read
+"Full Repair Needed"; that was 09-13's reading. On 09-17 and 09-20 the
+volume read `OK` / `Healthy` and the week-old event 98 was the only
+"repair queued" signal). In that
 state `Get-PartitionSupportedSize` answered **0 GB shrinkable, no error,
 33.6 GB free** — not the "volume with errors" exception of 09-12, a number.
 The job writer (0.4.0) took the number: `clean-slate`, `forced-no-room`.
@@ -1100,8 +1104,39 @@ go:** on the real machine the scanner said "Windows answered 0 GB, but a
 full disk check is queued - not a trustworthy number", and the job writer
 wrote `keep-windows (default)`, shrinkable unmeasured, DATA LOSS ACCEPTED,
 lifting disk-health and volume-health (465 bad-block events by then) —
-the first three steps of the decision, fired on hardware. Owed: the
-prologue's half.
+the first three steps of the decision, fired on hardware.
+
+**Third run (2026-09-20), the first physical row of the acknowledged path:
+`stopped-volume-check`** (`r18-prologue.csv` row 7, `0.4.0-physical`; job
+and outcome both schema-valid, the outcome carrying the acknowledgement).
+All five launcher steps ran and logged. Prologue 0.4.0: re-validation
+matched; trigger `repair-queued`; disk gate lifted by the acknowledgement
+(465 bad-block events); the evidence chose `chkdsk-f`; Windows accepted it
+("This volume will be checked the next time the system restarts", chkntfs
+`scheduled`); restart; the resume ran as SYSTEM in session 0, nobody signed
+in, 36 s after boot, stick seen 3 s later - the walk-away resume on the
+product path, on real firmware. Then the stop, and it is the right one:
+**no Wininit 1001 after two minutes of polling, and a 36-second boot leaves
+no room for a full check to have run.** The prologue refused to measure and
+wrote its stopped outcome. Two things this leaves open, neither closed by
+argument:
+1. **A boot-time check that Windows accepted did not run - for the second
+   time on this machine** (09-13: the spot-fix restart, no 1001 either).
+   The rig's guest is Windows 10; this is Windows 11 Home 22631. If
+   scheduled checks do not run on current Windows 11, step 1b's whole
+   ladder fails for every flagged machine in the audience, not just this
+   one. Evidence that would say: `BootExecute` and `chkntfs C:` read after
+   scheduling and again after the restart, the Wininit and Chkdsk events
+   of that boot, whether the "press any key to skip" screen appeared - and
+   a Windows 11 guest on the rig with an injected flag.
+2. **The 0 GB answer is unexplained.** With the volume reading `OK` and the
+   bit clean, "a repair is queued" rests on one week-old event. An
+   untested candidate: clusters NTFS has marked bad (`$BadClus`) sit near
+   the end of the volume and pin the shrink floor; Windows names the last
+   unmovable file in Defrag event 259 after a shrink query. Read-only, and
+   owed before anyone reasons further.
+Owed: a read-only diagnostic visit for both (extend `DIAG-VOLUME.cmd`), the
+Windows 11 rig row, and the keep-Windows install on a healthy drive.
 
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations

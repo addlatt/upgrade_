@@ -128,7 +128,12 @@ method in `docs/VALIDATION.md`; the killers, in order:
   machine, dirty bit now clear, repair still queued, Storage API answering
   0 GB with no error — the job writer, scanner and prologue now treat
   Windows' "repair queued" as a second trigger beside the bit (R18), and
-  the launchers log every step to `upgrade_\convert.log` on the stick. The
+  the launchers log every step to `upgrade_\convert.log` on the stick.
+  **2026-09-20, first physical row of the acknowledged path:**
+  `stopped-volume-check` - the scheduled `chkdsk /f` did not run at the
+  restart (no Wininit 1001, a 36 s boot), the second time on this Windows 11
+  machine; whether scheduled checks run on Windows 11 at all is now an open
+  R18 question, and the rig has only ever tried Windows 10. The
   acknowledged-data-loss path (R23) exists for that machine's owner; rule
   #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path
