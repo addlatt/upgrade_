@@ -495,6 +495,18 @@ weeks, `Get-Volume` "Full Repair Needed", and 30 bad-block events on the
 SSD holding C: — the dying-drive branch. The refusal stands; the
 guardrails that let it get that far are being strengthened.
 
+**Row 7 (2026-09-20, the same machine, prologue 0.4.0, the
+acknowledged-data-loss path) — `stopped-volume-check`, `trigger=repair-queued`.**
+The launcher's five steps, re-validation, the disk gate lifted by the typed
+sentence (465 bad-block events), `chkdsk-f` chosen and accepted by Windows,
+the restart, and the resume as SYSTEM in session 0 with nobody signed in
+(36 s after boot, stick after 3 s) — then no Wininit 1001 in two minutes
+of polling, and the prologue refused to measure. Read with its sequel: the
+read-only diagnostic that evening (RISKS R18) found the check had already
+run on 09-15 and the trigger had fired on a week-old event; 0.5.0 corrects
+that. The row stands as what 0.4.0 did, and as the first physical evidence
+of the walk-away resume on the product path.
+
 ### What "the prologue passes" requires
 
 - `pass-plumbing` on the rig with the injected flag (the plumbing: scan →

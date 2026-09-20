@@ -456,6 +456,21 @@ the same day: a queued repair makes the number "unmeasured" in the job and
 is a second trigger for the prologue's check; the launchers log every step
 to the stick. The physical keep-Windows row is still owed.
 
+**2026-09-20 (R18), three runs and a read-only diagnostic:** the launcher
+had been exiting after every job (an unescaped `)` in cmd); fixed, it ran
+all five steps and gave the first physical row of the acknowledged path,
+`stopped-volume-check` (`r18-prologue.csv` row 7) - the scheduled check
+left no proof it ran, and the prologue refused to measure. The diagnostic
+(over SSH, Windows' own records) showed it should never have been asked:
+the full check had already run on 09-15, and the 0 GB was `hiberfil.sys`
+on the last cluster (Defrag event 259), about 42 GB once it is off. Built
+the same day: an event 98 counts only if no completed check postdates it,
+and a small cold number pinned by hibernation/page/swap is keep-windows
+pending the prologue's own re-measure. For V4 this is the first real
+measurement of *why* a cold number is small - and the cause was the
+mitigable kind. Owed: the rerun, which would be the first time the
+prologue's mitigation, shrink and handoff run on real hardware.
+
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.
 

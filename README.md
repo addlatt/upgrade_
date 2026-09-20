@@ -7,14 +7,18 @@ Linux machine with your files, Wi-Fi and browsers intact — and, by default,
 your old system shrunk safely aside until you're sure. One stick is the whole
 kit.
 
-> **Status (2026-09-13): the whole conversion exists as code and has run
+> **Status (2026-09-20): the whole conversion exists as code and has run
 > end to end on the rig; one physical machine has run it as far as its
-> failing drive allowed.** Scan → job → kickstart → the prologue (disk
+> failing drive, and then its own record, allowed.** Scan → job → kickstart → the prologue (disk
 > check, shrink, boot handoff) → Fedora installed beside Windows → rollback,
 > each step written by the product's own scripts and each one leaving an
 > evidence row. It is not a release: the physical vendor matrix is one
 > machine wide, `settle-in` (the first boot on Linux) is not built, and the
-> converter is unsigned. See [Status](#status).
+> converter is unsigned. The latest physical runs (2026-09-17 to -20, the
+> acknowledged-data-loss path on the Aspire) each stopped honestly and each
+> taught the tool something: a launcher bug, a week-old log entry mistaken
+> for a pending repair, and a "0 GB can be freed" that was only the
+> hibernation file sitting on the last cluster. See [Status](#status).
 
 ---
 
@@ -184,7 +188,7 @@ and why each refusal is tested harder than each success.
 | `evaluate` — OneDrive placeholder materialization (V8) | **works**, plumbing-fired against a real Cloud Files provider |
 | `evaluate` — job writer (`job.json`, the software inventory) | **works**; harvest of folders/Wi-Fi/browsers into the job, the BitLocker key and the intent UI still owed |
 | `evaluate` — stick writer (R16) | **works**, two physical writes verified |
-| `upgrade_` — prologue: re-validate, disk check, shrink, BitLocker, boot handoff | **works** on the rig (`r18-prologue.csv`); one physical row, a refusal |
+| `upgrade_` — prologue: re-validate, disk check, shrink, BitLocker, boot handoff | **works** on the rig (`r18-prologue.csv`); two physical rows, both honest stops at the disk check (2026-09-13; 2026-09-20 on the acknowledged path, with the walk-away resume as SYSTEM). The shrink and the handoff have not yet run from the prologue on real hardware |
 | `upgrade_` — cutover: identity, image read-back, ESP snapshot, install alongside, boot-chain check, `outcome.json` | **works** on the rig (`v2-install.csv`), Secure Boot off there; the physical Secure-Boot-on install is owed |
 | `upgrade_` — rollback (Windows side) | **works** on the rig (`r21-rollback.csv`) |
 | `upgrade_` — clean-slate path (wipe) | stops before the wipe on purpose: its human gate is not built |
@@ -267,7 +271,13 @@ install with the boot-chain checklist, rollback. Next, in order:
 
 1. **A physical keep-Windows install, Secure Boot on** — on a machine with
    a healthy drive (the first candidate's SSD is failing). This is the
-   V1b residue and the row the whole default path waits for.
+   V1b residue and the row the whole default path waits for. **Plan
+   (2026-09-20):** the Aspire's drive is an M.2 2280 *SATA* part; a
+   replacement and a fresh Windows make it the healthy-drive machine on
+   firmware that already has handoff rows. Until then the same machine is
+   running the acknowledged-data-loss path on the dying drive - useful for
+   exercising the path end to end, never for a row a failure could be
+   pinned on (RISKS R18, R23).
 2. **`settle-in`** — hardware verify on first boot, the file pull from the
    kept Windows partition (BITLK unlock, copy, checksum), the "you had
    these programs" list with Linux equivalents from the software
@@ -275,10 +285,25 @@ install with the boot-chain checklist, rollback. Next, in order:
 3. **The harvest into `job.json`** — folders, Wi-Fi profiles, browser
    profiles, the BitLocker key, and the intent-capture screen that asks
    the person for a desktop, a password and the fork.
-4. **The vendor matrix** — Dell, Lenovo, HP visits: scan, handoff, live
+4. **The front door: one window instead of the console** — a managed
+   experience means the person never sees a black window. **Decided
+   (2026-09-13):** the Windows-side face is a WPF window hosted inside
+   Windows PowerShell 5.1 (no new binary, no new toolchain, same
+   signature, still readable in Notepad); a native .NET Framework app is
+   the later phase once code signing (item 5) has reputation, and a
+   PS2EXE-style wrapper is ruled out for the antivirus flags it draws.
+   The window is a shell over the tested scripts: it renders the
+   scanner's JSON, calls the job writer, the kickstart generator and the
+   prologue in the order the launchers already do, refuses on RED with
+   no forward button, and takes the R23 sentence as typed text. Nothing
+   after the restart is shown live (the resume runs as SYSTEM in
+   session 0); the sign-in notice stays the return path. Screens are
+   designed before they are built, and the build waits for items 1–3.
+   Estimate: about eight focused days to a proof of concept.
+5. **The vendor matrix** — Dell, Lenovo, HP visits: scan, handoff, live
    boot, hardware verify, half an hour each, read-only.
-5. **Code signing** — a calendar item, not a code item; start now.
-6. A **rescue mode** for machines refused for their drive: the staging
+6. **Code signing** — a calendar item, not a code item; start now.
+7. A **rescue mode** for machines refused for their drive: the staging
    step alone, reading what can be read onto the stick with checksums.
 
 Longer term: hardware data seeded from
