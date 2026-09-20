@@ -1138,6 +1138,41 @@ argument:
 Owed: a read-only diagnostic visit for both (extend `DIAG-VOLUME.cmd`), the
 Windows 11 rig row, and the keep-Windows install on a healthy drive.
 
+**The diagnostic, the same evening (2026-09-20, read-only, over SSH to the
+Aspire, the check-restart boot still the current one). Both questions
+answered by Windows' own records, and both answers overturn the
+2026-09-17 reading:**
+1. **The 0 GB is `hiberfil.sys`.** Storage API: SizeMin = size; diskpart
+   `shrink querymax`: 0 B; Defrag event 259: *"The last unmovable file
+   appears to be: \hiberfil.sys::$DATA"*, last cluster `0x3b562fe` (the
+   end of the volume), shrink potential target LCN `0x30db0ab` - about
+   42 GB once it is gone. Not the SSD, not a repair: the cold floor with
+   a hibernation file parked at the last cluster, which is exactly what
+   the prologue's hibernation-off-then-re-measure step exists for - the
+   step after the one this run stopped at.
+2. **There was no repair queued.** The full boot-time check **ran on
+   2026-09-15 18:01** (a restart of the storage-mode visit): autochk's own
+   log `Chkdsk20260915220115.log`, `found.011`, and a **Wininit 1001** at
+   18:02:32. That is what cleared the bit and set the volume to `OK`. The
+   NTFS 98 of 09-13 was history by 09-17; the "repair queued" trigger
+   (event 98 within 30 days) fired on a repair already done, and the
+   scanner's Volume-health warning had the same flaw. It also answers the
+   wider worry: a scheduled boot-time check **does** run on this Windows
+   11 machine and **does** log Wininit 1001. Today's scheduled `/f` on a
+   volume with nothing to repair left no trace (no autochk log, no 1001,
+   volume mounted 2 s after kernel start) and the schedule is gone from
+   `chkntfs`; why is unknown and, with the trigger corrected, not a state
+   the converter should reach.
+The stop itself stands: asked to prove a check ran, the prologue could
+not, and refused. What was wrong was upstream - sending it there.
+**Owed code (not yet decided or built):** an event 98 counts as "repair
+queued" only if no completed check (Wininit 1001 / autochk log) postdates
+it; and a cold shrink answer below the minimum is "mitigable, measure
+again" - keep-windows pending the prologue's own re-measure - when Windows
+names `hiberfil.sys`, `pagefile.sys` or `swapfile.sys` as the last
+unmovable file (Defrag 259), which replaces guessing at why the number is
+small.
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.
