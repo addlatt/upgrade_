@@ -188,7 +188,7 @@ and why each refusal is tested harder than each success.
 | `evaluate` — OneDrive placeholder materialization (V8) | **works**, plumbing-fired against a real Cloud Files provider |
 | `evaluate` — job writer (`job.json`, the software inventory) | **works**; harvest of folders/Wi-Fi/browsers into the job, the BitLocker key and the intent UI still owed |
 | `evaluate` — stick writer (R16) | **works**, two physical writes verified |
-| `upgrade_` — prologue: re-validate, disk check, shrink, BitLocker, boot handoff | **works** on the rig (`r18-prologue.csv`); two physical rows, both honest stops at the disk check (2026-09-13; 2026-09-20 on the acknowledged path, with the walk-away resume as SYSTEM). The shrink and the handoff have not yet run from the prologue on real hardware |
+| `upgrade_` — prologue: re-validate, disk check, shrink, BitLocker, boot handoff | **works** on the rig (`r18-prologue.csv`); three physical rows, all honest stops: two at the disk check (2026-09-13; 2026-09-20 on the acknowledged path, with the walk-away resume as SYSTEM), one at the shrink (2026-09-20, row 8: the mitigation ran, 7.2 GB shrinkable of 25 needed, System Restore storage in the way). Known bug from that run: a stop after the mitigation leaves hibernation and the pagefile off (R18). The shrink and the handoff have not yet run from the prologue on real hardware |
 | `upgrade_` — cutover: identity, image read-back, ESP snapshot, install alongside, boot-chain check, `outcome.json` | **works** on the rig (`v2-install.csv`), Secure Boot off there; the physical Secure-Boot-on install is owed |
 | `upgrade_` — rollback (Windows side) | **works** on the rig (`r21-rollback.csv`) |
 | `upgrade_` — clean-slate path (wipe) | stops before the wipe on purpose: its human gate is not built |
@@ -277,7 +277,11 @@ install with the boot-chain checklist, rollback. Next, in order:
    firmware that already has handoff rows. Until then the same machine is
    running the acknowledged-data-loss path on the dying drive - useful for
    exercising the path end to end, never for a row a failure could be
-   pinned on (RISKS R18, R23).
+   pinned on (RISKS R18, R23). **2026-09-20, run 4:** the dying drive has
+   said what it can - `stopped-shrink`, 7.2 GB shrinkable behind System
+   Restore's storage; the install will not happen on this Windows. The
+   drive swap is now the next step, after the stop-restores-Windows fix
+   the run exposed (R18).
 2. **`settle-in`** — hardware verify on first boot, the file pull from the
    kept Windows partition (BITLK unlock, copy, checksum), the "you had
    these programs" list with Linux equivalents from the software

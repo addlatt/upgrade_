@@ -507,6 +507,21 @@ run on 09-15 and the trigger had fired on a week-old event; 0.5.0 corrects
 that. The row stands as what 0.4.0 did, and as the first physical evidence
 of the walk-away resume on the product path.
 
+**Row 8 (2026-09-20 evening, the same machine, prologue 0.5.0, kit
+08a852a) — `stopped-shrink`.** Both 0.5.0 corrections fired as predicted:
+trigger `none`, cold 0 GB naming `\hiberfil.sys`, hibernation and pagefile
+off, one restart, the SYSTEM resume (20 s after boot, stick after 2 s).
+The re-measure answered 7.2 GB (Storage API) / 3.3 GB (diskpart) against
+25 GB needed; the pre-chosen fork was `stop`, so it stopped, before any
+shrink or handoff. `secureboot` reads `unknown` and `partition_shrunk`
+`unreported` because a run that never arms has no return record and a
+physical run has no offline GPT inspections - the script's words, not
+edits. Read with RISKS R18's fourth-run entry: the next unmovable file
+was System Restore's shadow-copy storage (the "about 42 GB" expectation
+is corrected there), the two paths differ because the person signed in
+and Slack started between them, and the stop left hibernation and the
+pagefile off while saying "Windows is as it was" - a bug, owed a fix.
+
 ### What "the prologue passes" requires
 
 - `pass-plumbing` on the rig with the injected flag (the plumbing: scan →

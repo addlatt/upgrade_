@@ -139,7 +139,14 @@ method in `docs/VALIDATION.md`; the killers, in order:
   now counts only if no completed check postdates it, and a small cold
   number pinned by hibernation/page/swap is keep-windows pending the
   prologue's own re-measure (job writer 0.6.0, prologue 0.5.0, scanner
-  0.3.2). The
+  0.3.2). **Run 4 the same evening: `stopped-shrink`** (row 8) - both
+  fixes fired as predicted, the mitigation ran on real hardware, and the
+  re-measure was 7.2 GB of the 25 needed: behind `hiberfil.sys` sat System
+  Restore's shadow-copy storage (the "about 42 GB" was an argument from
+  Defrag 259's shrink *target*, corrected in R18). It also exposed a bug -
+  a stop after the mitigation leaves hibernation and the pagefile off
+  while saying "Windows is as it was" - owed a fix before the next
+  physical run. The
   acknowledged-data-loss path (R23) exists for that machine's owner; rule
   #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path

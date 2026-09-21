@@ -1184,6 +1184,62 @@ person's file) is still "no room". The disk gate and the ESP gate are
 untouched, and R23 lifts nothing new. The 2026-09-17 `repair_queued` fact
 stays, for a repair that really is queued. Owed: the rerun.
 
+**Fourth run (2026-09-20 evening, kit 08a852a): `stopped-shrink`**
+(`r18-prologue.csv` row 8, `0.5.0-physical`; job and outcome both
+schema-valid; the run's files copied off the stick and hash-matched before
+anything was read). Everything the two fixes predicted fired on the real
+machine: the scanner RED on Disk health alone (465 bad-block events),
+Volume health `ok`; the job keep-windows with the fork pending, lifting
+`disk-health` only; the prologue's trigger `none` ("a boot-time check
+completed after it ... not a queued repair"); cold 0 GB by both paths,
+"Windows names the last unmovable file: \hiberfil.sys"; hibernation and
+pagefile off; restart 1; the resume as SYSTEM in session 0, 20 s after
+boot, stick seen 2 s later. Then the honest stop: **re-measured 7.2 GB
+(Storage API) / 3.3 GB (diskpart) against the 25 GB Linux needs**, fork
+`stop`, stopped outcome written, resume task removed, no boot entry left.
+The commit line was never approached. What the run overturns and exposes:
+1. **Corrected (2026-09-20): "about 42 GB once it is gone" was wrong, and
+   it was an argument.** That figure was read off Defrag 259's "shrink
+   potential target" LCN. The target is where Windows would like to get
+   to; what removing the named file actually buys is only the distance to
+   the *next* unmovable file, and nothing reports that until the first one
+   is gone. With `hiberfil.sys` and the pagefile gone, the next one is
+   **`\System Volume Information\{...}{3808876b-...}` - shadow-copy
+   (System Restore) storage** at cluster `0x3985c3f`, which is exactly the
+   7.2 GB the Storage API answered (`vssadmin`: three shadow copies,
+   4.31 GB used, the newest made 2026-09-20 15:20 local). The scanner's
+   and job writer's "pending the prologue's own re-measure" wording was
+   right to promise nothing; the handoff note's "~42 GB" was not.
+2. **V4's first mitigated number from a real disk is a no:** 48.5 GB free,
+   7.2 GB shrinkable after every mitigation the prologue has. Shadow-copy
+   storage is not on the mitigation ladder. Shrinking or deleting it
+   destroys restore points, which is not reversible prep - so whether the
+   prologue may ever touch it is a decision, not a fix, and is not made
+   here. One machine, a dying one; a data point, not a rate.
+3. **The two read-only paths disagreed because the machine changed between
+   them.** The person saw Windows "come back", took the run for failed and
+   signed in (logon 23:59:48Z); Slack auto-started at 00:00:17Z and at
+   00:00:33Z created a cache file at cluster `0x3a82d73`, open and so
+   unmovable, which is exactly diskpart's 3.3 GB at 00:00:51Z (Defrag 259
+   names it; `fsutil volume querycluster` confirms both clusters). The
+   stop used the larger number and would have stopped on either. Two
+   findings: a sign-in during the re-measure can lower the number, and
+   **the walk-away resume shows a person at the lock screen nothing at
+   all** - "you can walk away" reads as "it failed" to someone who stayed.
+4. **Bug: a stop after the mitigation does not undo it, and says it did.**
+   `Stop-Prologue` grows C: back, re-enables BitLocker and removes the boot
+   entry, but never restores hibernation or the pagefile; the message says
+   "Windows is as it was". Read after the stop: `HibernateEnabled` 0, no
+   `pagefile.sys`, automatic management off, no pagefile setting - a
+   Windows with no pagefile at all. Worse, `Invoke-ProloguePagefileOff`
+   deletes the existing pagefile settings without recording them, so a
+   custom configuration could not be put back. Owed: record the before
+   state, restore it at every stop and abort, a self-test case, a rig row.
+   No refusal may leave the machine worse than it found it (rule #3).
+Owed after this run: item 4's fix; something on screen during an
+unattended resume (R24); the shadow-storage decision, with more machines'
+numbers before it; and, still, the keep-Windows install on a healthy drive.
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.

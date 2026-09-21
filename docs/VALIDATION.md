@@ -471,6 +471,21 @@ measurement of *why* a cold number is small - and the cause was the
 mitigable kind. Owed: the rerun, which would be the first time the
 prologue's mitigation, shrink and handoff run on real hardware.
 
+**2026-09-20 evening, the rerun: `stopped-shrink`** (`r18-prologue.csv`
+row 8). The mitigation ran on real hardware for the first time and the
+answer is V4's first mitigated number from a physical disk: **48.5 GB
+free, 7.2 GB shrinkable** - behind `hiberfil.sys` sat System Restore's
+shadow-copy storage, which nothing on the ladder moves. **Corrected:**
+the "about 42 GB" above was read from Defrag 259's shrink *target*, which
+does not say what removing the named file frees; only re-measuring does.
+"The cause was the mitigable kind" was half true: the first cause was,
+the second was not. One dying machine is a data point, not the fraction
+this section asks for - but it is a no, and shadow storage is now a named
+candidate for why real disks fall short. Also exposed (R18): a stop after
+the mitigation leaves hibernation and the pagefile off (bug, fix owed),
+and a sign-in during the re-measure lowered the second path's number. The
+shrink and the handoff have still not run on real hardware.
+
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.
 
