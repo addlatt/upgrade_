@@ -145,8 +145,11 @@ method in `docs/VALIDATION.md`; the killers, in order:
   Restore's shadow-copy storage (the "about 42 GB" was an argument from
   Defrag 259's shrink *target*, corrected in R18). It also exposed a bug -
   a stop after the mitigation leaves hibernation and the pagefile off
-  while saying "Windows is as it was" - owed a fix before the next
-  physical run. The
+  while saying "Windows is as it was" - fixed the same night in prologue
+  0.5.1 (before-state recorded, restored at every stop; act half unproven
+  until a row). **Decided (2026-09-20): the Aspire keeps its dying SSD** as
+  the bad-conditions machine; the healthy-drive install needs another
+  machine or a later swap. The
   acknowledged-data-loss path (R23) exists for that machine's owner; rule
   #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path

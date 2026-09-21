@@ -55,6 +55,10 @@ for i, r in enumerate(resumes, 1):
 if autologon: notes.append(f"bench {autologon}")
 plan = (state.get("Shrink") or {}).get("Plan") or {}
 if plan: notes.append(f"plan target={plan.get('TargetBytes')} shrinkable={plan.get('ShrinkableBytes')} reason='{plan.get('Reason')}' api_error='{(state.get('Shrink') or {}).get('ApiError')}' diskpart_error='{(state.get('Shrink') or {}).get('DiskpartError')}'")
+_sh = state.get("Shrink") or {}
+if _sh.get("Before") is not None or _sh.get("Restored") is not None:   # prologue 0.5.1+: what a stop put back (R18, Aspire 2026-09-20)
+    _b = _sh.get("Before") or {}
+    notes.append(f"before: hibernation={_b.get('HibernateEnabled')} auto_pagefile={_b.get('AutoPagefile')} pagefile_settings={len(_b.get('PagefileSettings') or [])}; restored: {'; '.join(_sh.get('Restored') or []) or 'nothing'}")
 
 # the partition table's own word on the shrink
 shrunk = "unreported"

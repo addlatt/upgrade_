@@ -422,7 +422,11 @@ to re-measure — the kept Windows otherwise stays a normal Windows; the
 shrink request is exactly what Linux needs (`linux_min_gb` plus the
 harvested bytes × 1.2), never the maximum, and the kept Windows must
 keep 8 GB free; a stop after the shrink grows C: back, re-enables
-BitLocker, removes the boot entry and scrubs the stick's credentials. The
+BitLocker, removes the boot entry and scrubs the stick's credentials;
+**any stop puts hibernation and the pagefile back as the prologue found
+them** (0.5.1, 2026-09-20 - recorded before they are touched; the Aspire's
+fourth run stopped with both left off), and the return after an install
+brings the pagefile back while hibernation stays off. The
 prologue's record (`upgrade_/prologue.json`) is what `%post`'s
 `outcome.sh` carries into `outcome.json` as the `prologue` block. Rows:
 `docs/validation-results/r18-prologue.csv`. The cutover (stage 2) is the

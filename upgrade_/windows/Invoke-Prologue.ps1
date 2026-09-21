@@ -44,7 +44,8 @@
           outcome.json) is what the cutover's %post writer carries into
           outcome.json. A stop at any step writes a stopped outcome.json
           itself, undoes what it can (grows C: back, re-enables BitLocker,
-          removes the boot entry) and scrubs the stick's credentials.
+          removes the boot entry, puts hibernation and the pagefile back
+          as it found them) and scrubs the stick's credentials.
 
     Restarts are resumed by a one-shot task that runs as SYSTEM at startup
     (-Resume), before and without anyone signing in - the walk-away half of
@@ -105,7 +106,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.5.0'
+$PrologueVersion = '0.5.1'
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -452,7 +453,7 @@ function New-PrologueState {
         JobId = $JobId; StickUniqueId = $StickId; StickRootAtStart = $Root; Restarts = 0; Mismatches = @()
         Ack = [ordered]@{ Present = $false; DiskHealth = $false; VolumeHealth = $false }
         VolumeCheck = [ordered]@{ Trigger = $null; Needed = $false; Ran = $false; Scan = $null; DiskHealthAtCheck = $null; BadBlocks = 0; Gate = $null; Evidence = $null; Method = 'none'; ArmedUtc = $null; ArmText = $null; Chkntfs = $null; Wininit1001 = $null; Found000 = $null; DirtyAfter = 'unknown'; Restarts = 0 }
-        Shrink = [ordered]@{ LastUnmovable = $null; RemeasuredGB = $null; RemeasuredBy = $null; DiskpartGB = $null; ApiError = $null; DiskpartError = $null; PartSize = $null; SizeMin = $null; FreeBytes = $null; Plan = $null; ForkTaken = $null; RequestedBytes = $null; FreedBytes = 0; SizeBefore = $null; PagefileDisabled = $false; HibernationDisabled = $false; Mitigated = $false }
+        Shrink = [ordered]@{ LastUnmovable = $null; RemeasuredGB = $null; RemeasuredBy = $null; DiskpartGB = $null; ApiError = $null; DiskpartError = $null; PartSize = $null; SizeMin = $null; FreeBytes = $null; Plan = $null; ForkTaken = $null; RequestedBytes = $null; FreedBytes = 0; SizeBefore = $null; PagefileDisabled = $false; HibernationDisabled = $false; Mitigated = $false; Before = $null; Restored = $null }
         Staged = $null
         BitLocker = [ordered]@{ StatusBefore = $null; Source = $null; Suspended = $false; RebootCount = $null }
         Handoff = [ordered]@{ Armed = $false; Marker = $null; EntryGuid = $null; ArmedUtc = $null; BcdBackup = $null; Before = $null; GrubEnvReset = $false }
@@ -735,6 +736,62 @@ function Invoke-PrologueRepairArm {
     [ordered]@{ Text = ($texts -join "`n"); Chkntfs = $ck; Scheduled = ($ck -in @('scheduled', 'dirty')) }
 }
 
+function Get-PrologueMemoryFilesBefore {
+    # Read before either is touched (Aspire, 2026-09-20: a stop left both off
+    # and nothing had recorded what they were). Read-only.
+    $b = [ordered]@{ HibernateEnabled = $null; AutoPagefile = $null; PagefileSettings = @() }
+    try { $b.HibernateEnabled = [bool]((Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Power' -ErrorAction Stop).HibernateEnabled) } catch { }
+    try { $b.AutoPagefile = [bool](Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).AutomaticManagedPagefile } catch { }
+    try { $b.PagefileSettings = @(Get-CimInstance Win32_PageFileSetting -ErrorAction Stop | ForEach-Object { [ordered]@{ Name = "$($_.Name)"; InitialSize = [int]$_.InitialSize; MaximumSize = [int]$_.MaximumSize } }) } catch { }
+    $b
+}
+
+function Get-PrologueRestorePlan {
+    # Judge: what a stop (or, -KeepHibernationOff, the return after an install,
+    # where the kept volume must stay mountable) puts back. Only what this run
+    # turned off, and only to what it was. With no record of what it was, a
+    # Windows with no pagefile is the worse guess, so that one goes to automatic;
+    # hibernation is left alone and the caller says so.
+    param($Shrink, [switch]$KeepHibernationOff)
+    $plan = @()
+    if (-not $Shrink) { return $plan }
+    $b = $Shrink.Before
+    if ($Shrink.HibernationDisabled -and -not $KeepHibernationOff) {
+        if ($b -and $b.HibernateEnabled -eq $true) { $plan += 'hibernation-on' }
+        elseif (-not $b -or $null -eq $b.HibernateEnabled) { $plan += 'hibernation-unknown' }
+    }
+    if ($Shrink.PagefileDisabled) {
+        if ($b -and $b.AutoPagefile -eq $false -and @($b.PagefileSettings).Count -gt 0) { $plan += 'pagefile-settings' }
+        elseif ($b -and $b.AutoPagefile -eq $false) { }   # it had none before; it has none now
+        else { $plan += 'pagefile-auto' }
+    }
+    $plan
+}
+
+function Invoke-PrologueRestoreMemoryFiles {
+    # Act on the plan; returns what was done, in words, for the log and the record.
+    param($S, [switch]$KeepHibernationOff)
+    $done = @()
+    foreach ($a in (Get-PrologueRestorePlan -Shrink $S.Shrink -KeepHibernationOff:$KeepHibernationOff)) {
+        try {
+            switch ($a) {
+                'hibernation-on' { & powercfg /h on 2>&1 | Out-Null; if ($LASTEXITCODE -eq 0) { $S.Shrink.HibernationDisabled = $false; $done += 'hibernation back on' } else { $done += "! hibernation could not be turned back on (powercfg exit $LASTEXITCODE)" } }
+                'hibernation-unknown' { $done += '! hibernation left off: no record of how it was set (powercfg /h on turns it back on)' }
+                'pagefile-auto' { Get-CimInstance Win32_ComputerSystem | Set-CimInstance -Property @{ AutomaticManagedPagefile = $true } -ErrorAction Stop; $S.Shrink.PagefileDisabled = $false; $done += 'pagefile back to automatic (returns at the next restart)' }
+                'pagefile-settings' {
+                    foreach ($p in @($S.Shrink.Before.PagefileSettings)) {
+                        $i = New-CimInstance -ClassName Win32_PageFileSetting -Property @{ Name = "$($p.Name)" } -ErrorAction Stop
+                        $i | Set-CimInstance -Property @{ InitialSize = [uint32]$p.InitialSize; MaximumSize = [uint32]$p.MaximumSize } -ErrorAction Stop
+                    }
+                    $S.Shrink.PagefileDisabled = $false; $done += "pagefile settings put back ($(@($S.Shrink.Before.PagefileSettings).Count); returns at the next restart)"
+                }
+            }
+        } catch { $done += "! $a failed: $($_.Exception.Message)" }
+    }
+    $S.Shrink.Restored = @($done)
+    $done
+}
+
 function Invoke-PrologueHibernationOff {
     & powercfg /h off 2>&1 | Out-Null
     -not (Test-Path 'C:\hiberfil.sys')
@@ -958,6 +1015,16 @@ function Find-Stick {
     $null
 }
 
+function Get-PrologueStopSentence {
+    # "Windows is as it was" only when that is true (Aspire, 2026-09-20).
+    param($Restored)
+    $r = @($Restored | Where-Object { $_ })
+    $bad = @($r | Where-Object { $_ -like '!*' })
+    if ($bad.Count -gt 0) { return "Windows was NOT fully put back: $((($bad | ForEach-Object { $_.TrimStart('!',' ') }) -join '; '))." }
+    if (@($r | Where-Object { $_ -like '*next restart*' }).Count -gt 0) { return 'Windows is as it was, once it has restarted: the pagefile returns at the next restart.' }
+    'Windows is as it was.'
+}
+
 function Stop-Prologue {
     # A refusal: undo what this run did, record everything, write the stopped
     # outcome to the stick, scrub the stick's credentials, and exit 2.
@@ -974,6 +1041,8 @@ function Stop-Prologue {
         if (Invoke-PrologueGrowBack -SizeBefore ([long]$S.Shrink.SizeBefore)) { Write-Log "  C: grown back to its original size"; $S.Shrink.FreedBytes = 0 }
         else { Write-Log "  ! could not grow C: back; $($S.Shrink.FreedBytes) bytes remain unallocated (Disk Management can extend C: into them)" 'Yellow' }
     }
+    $restored = @(Invoke-PrologueRestoreMemoryFiles -S $S)
+    foreach ($r in $restored) { if ($r -like '!*') { Write-Log "  $r" 'Yellow' } else { Write-Log "  $r" } }
     if ($Root) { Remove-Item (Join-Path $Root 'upgrade_\boot-install') -Force -ErrorAction SilentlyContinue }
     Unregister-ResumeTask | Out-Null
     if ($Root -and $Job) {
@@ -988,7 +1057,7 @@ function Stop-Prologue {
     Write-Record -S $S -Root $Root
     Copy-Item (Join-Path $State 'state.json') (Join-Path $State 'state-stopped.json') -Force -ErrorAction SilentlyContinue
     Remove-Item (Join-Path $State 'state.json') -Force -ErrorAction SilentlyContinue
-    if (-not $Start) { Show-Or-Queue -State $State -Title 'upgrade_ - stopped' -Seconds 600 -Buttons 48 -Text ("The conversion stopped at: $StoppedAt`n`n$Reason`n`nWindows is as it was. Nothing was installed. The record is on the USB stick (upgrade_\outcome.json).") | Out-Null }
+    if (-not $Start) { Show-Or-Queue -State $State -Title 'upgrade_ - stopped' -Seconds 600 -Buttons 48 -Text ("The conversion stopped at: $StoppedAt`n`n$Reason`n`n$(Get-PrologueStopSentence -Restored $restored) Nothing was installed. The record is on the USB stick (upgrade_\outcome.json).") | Out-Null }
     exit 2
 }
 
@@ -1119,6 +1188,7 @@ function Invoke-Continue {
         if (-not $fits -and -not $S.Shrink.Mitigated -and $plan.TargetBytes -gt $plan.ShrinkableBytes) {
             # the immovable-file floor: pagefile off (effective after a restart), one restart, one re-measure
             Write-Log '      does not fit cold; disabling the pagefile and restarting once to re-measure'
+            if (-not $S.Shrink.Before) { $S.Shrink.Before = Get-PrologueMemoryFilesBefore; Save-State $S $State }
             $S.Shrink.HibernationDisabled = Invoke-PrologueHibernationOff
             $S.Shrink.PagefileDisabled = Invoke-ProloguePagefileOff
             $S.Shrink.Mitigated = $true; $S.Restarts = [int]$S.Restarts + 1; $S.Stage = 'mitigated'
@@ -1135,6 +1205,7 @@ function Invoke-Continue {
 
     if ($fork -eq 'keep-windows') {
         Write-Log '  2.  keep Windows: hibernation off, then the shrink'
+        if (-not $S.Shrink.Before) { $S.Shrink.Before = Get-PrologueMemoryFilesBefore; Save-State $S $State }
         $S.Shrink.HibernationDisabled = Invoke-PrologueHibernationOff
         $S.Shrink.RequestedBytes = [long]$plan.RequestedBytes
         try {
@@ -1215,6 +1286,8 @@ function Invoke-Return {
     if ($guid) { & bcdedit /delete $guid 2>&1 | Out-Null }
     if (-not $cleared) { & bcdedit /deletevalue '{fwbootmgr}' bootsequence 2>&1 | Out-Null }
     if ($Root) { Remove-Item (Join-Path $Root 'upgrade_\boot-install') -Force -ErrorAction SilentlyContinue; Reset-GrubEnv -Root $Root | Out-Null }
+    # the kept Windows stays a normal Windows: the pagefile comes back; hibernation stays off (the volume must be mountable from Linux)
+    foreach ($r in @(Invoke-PrologueRestoreMemoryFiles -S $S -KeepHibernationOff)) { Write-Log "      $r" }
     $S.Return = [ordered]@{ ReturnedUtc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); Fired = $fired; FiredVia = ($via -join '+'); SequenceCleared = $cleared; OrderUnchanged = $unchanged
                             Result = $result; DisplayOrderAfter = $after.DisplayOrder; BitLockerNow = (Get-BitLockerState).State }
     $S.Stage = 'returned'
@@ -1379,6 +1452,7 @@ function Invoke-AbortPhase {
     if (-not $S) { Write-Host '  nothing in progress'; return }
     if ($S.Handoff.Armed -and $S.Handoff.EntryGuid) { & bcdedit /deletevalue '{fwbootmgr}' bootsequence 2>&1 | Out-Null; & bcdedit /delete $S.Handoff.EntryGuid 2>&1 | Out-Null; Write-Host '  removed the one-shot boot entry' }
     if ($S.BitLocker.Suspended) { & manage-bde -protectors -enable C: 2>&1 | Out-Null; Write-Host '  BitLocker protection re-enabled' }
+    foreach ($r in @(Invoke-PrologueRestoreMemoryFiles -S $S)) { Write-Host "  $r" }
     $root = Find-Stick $S
     if ($root) { Remove-Item (Join-Path $root 'upgrade_\boot-install') -Force -ErrorAction SilentlyContinue }
     Move-Item (Join-Path $state 'state.json') (Join-Path $state 'state-aborted.json') -Force
@@ -1406,7 +1480,22 @@ function Invoke-SelfTest {
                          BitLocker = 'on'; Dirty = 'dirty'; Health = 'Healthy'; RepairQueued = $false; RepairQueuedWhy = '' }
     function With { param($h, [string]$k, $v) $c = [ordered]@{}; foreach ($e in $h.GetEnumerator()) { $c[$e.Key] = $e.Value }; $c[$k] = $v; $c }
     function WithDisk { param($h, [string]$k, $v) $c = With $h 'Disk' (With $h.Disk $k $v); $c }
+    function Sh { param($hib, $pf, $before) [ordered]@{ HibernationDisabled = $hib; PagefileDisabled = $pf; Before = $before } }
+    $bAuto = [ordered]@{ HibernateEnabled = $true; AutoPagefile = $true; PagefileSettings = @() }
+    $bCustom = [ordered]@{ HibernateEnabled = $false; AutoPagefile = $false; PagefileSettings = @([ordered]@{ Name = 'C:\pagefile.sys'; InitialSize = 2048; MaximumSize = 4096 }) }
+    $bNone = [ordered]@{ HibernateEnabled = $true; AutoPagefile = $false; PagefileSettings = @() }
     $cases = @(
+        # a stop puts back what the mitigation turned off (R18, Aspire 2026-09-20: it did not, and said it had)
+        @{ Name = 'restore (R18): both off, both were on -> both come back'; Run = { (Get-PrologueRestorePlan -Shrink (Sh $true $true $bAuto)) -join ',' }; Expect = 'hibernation-on,pagefile-auto' }
+        @{ Name = 'restore (R18): nothing was turned off -> nothing to do'; Run = { @(Get-PrologueRestorePlan -Shrink (Sh $false $false $bAuto)).Count }; Expect = 0 }
+        @{ Name = 'restore (R18): hibernation was already off -> it stays off; custom pagefile settings go back as they were'; Run = { (Get-PrologueRestorePlan -Shrink (Sh $true $true $bCustom)) -join ',' }; Expect = 'pagefile-settings' }
+        @{ Name = 'restore (R18): a machine that had no pagefile is not given one'; Run = { (Get-PrologueRestorePlan -Shrink (Sh $true $true $bNone)) -join ',' }; Expect = 'hibernation-on' }
+        @{ Name = 'restore (R18): no record of before (a 0.5.0 state) -> pagefile to automatic, hibernation named as left off'; Run = { (Get-PrologueRestorePlan -Shrink (Sh $true $true $null)) -join ',' }; Expect = 'hibernation-unknown,pagefile-auto' }
+        @{ Name = 'restore (R18): the return after an install keeps hibernation off and brings the pagefile back'; Run = { (Get-PrologueRestorePlan -Shrink (Sh $true $true $bAuto) -KeepHibernationOff) -join ',' }; Expect = 'pagefile-auto' }
+        @{ Name = 'restore (R18): one custom pagefile setting survives the state round trip across the restart'; Run = { $rt = ConvertTo-PrologueHashtable ((ConvertTo-PrologueJson (Sh $true $true $bCustom)) | ConvertFrom-Json); (Get-PrologueRestorePlan -Shrink $rt) -join ',' }; Expect = 'pagefile-settings' }
+        @{ Name = 'stop sentence (R18): nothing changed -> as it was'; Run = { Get-PrologueStopSentence -Restored @() }; Expect = 'Windows is as it was.' }
+        @{ Name = 'stop sentence (R18): a pagefile pending a restart is said'; Run = { [bool]((Get-PrologueStopSentence -Restored @('hibernation back on', 'pagefile back to automatic (returns at the next restart)')) -match 'once it has restarted') }; Expect = $true }
+        @{ Name = 'stop sentence (R18): a failed restore never reads "as it was"'; Run = { $t = Get-PrologueStopSentence -Restored @('! hibernation could not be turned back on (powercfg exit 1)'); [bool]($t -match 'NOT fully put back' -and $t -notmatch 'as it was') }; Expect = $true }
         # step 1: re-validation
         @{ Name = 'revalidate: an identical machine has no mismatches'; Run = { @(Compare-PrologueJob -Job $job -F $facts).Count }; Expect = 0 }
         @{ Name = 'revalidate: a different system disk id is a mismatch'; Run = { @(Compare-PrologueJob -Job $job -F (WithDisk $facts 'UniqueId' 'eui.2')) -join ';' }; Expect = "system_disk.unique_id: job says 'eui.1', machine says 'eui.2'" }

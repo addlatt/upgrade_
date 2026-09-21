@@ -1240,6 +1240,34 @@ Owed after this run: item 4's fix; something on screen during an
 unattended resume (R24); the shadow-storage decision, with more machines'
 numbers before it; and, still, the keep-Windows install on a healthy drive.
 
+**Built (2026-09-20), prologue 0.5.1 - item 4.** Before hibernation or the
+pagefile is touched the prologue records how they were
+(`state.Shrink.Before`: `HibernateEnabled`, automatic management, any
+custom pagefile settings). `Stop-Prologue` and `-Abort` put back exactly
+what this run turned off, to what it was - a machine that had hibernation
+off, or no pagefile, is not given one; a state with no record (0.5.0)
+gets the pagefile back on automatic and is told hibernation was left off.
+The return after a completed install restores the pagefile only:
+hibernation stays off there by design (the kept volume must be
+mountable). The stop window says "Windows is as it was" only when that is
+true - "once it has restarted" when a pagefile is pending, "NOT fully put
+back" with the reason when a restore failed. Ten self-test cases on the
+judge half (99 pass); `prologue-verdict.py` writes before/restored into
+the row's notes. **Not closed:** the act half (`powercfg /h on`,
+`Set-CimInstance`, re-creating `Win32_PageFileSetting`) has run nowhere.
+Closes on a row whose stop follows the mitigation, with the settings read
+back after the next restart - the rig, and the Aspire, whose next run
+will stop at the same place for the same reason.
+
+**Decided (2026-09-20, the owner's call): the Aspire keeps its dying SSD.**
+It is the project's bad-conditions machine - what someone in the field
+with an old computer might actually plug the stick into - and it goes on
+being run as it is. This replaces the same day's plan to swap the drive
+next. What does not change: a drive or stick failure mid-run is a note
+here, never a fail row, and rows from this machine never stand in for the
+healthy-drive keep-Windows install (V1b's residue), which is still owed
+and now needs a different machine or a later swap.
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.
