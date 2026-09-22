@@ -92,6 +92,16 @@ has room for it**. Clean slate — wiping Windows and staging files to the stick
 — is not offered as an equal; it appears only when the user explicitly wants
 Windows gone, or as the forced fallback when the disk is too full to keep
 both. Most users never make this choice at all.
+**Amended (2026-09-22, RISKS R18, the Aspire's fifth run):** the forced
+fallback happens only when the person's pre-chosen fork allows it
+(`fork.if_cannot_keep = clean-slate`). Under `stop`, the job writer never
+writes a clean-slate job: if the disk and the ESP allow keeping Windows,
+the job is keep-windows and the prologue's own re-measure decides (it
+stops if Linux still does not fit); if they do not, there is no job, and
+the person is told why before CONVERT. The prologue refuses a stale
+forced clean-slate job under `stop` the same way, and refuses clean slate
+whenever the job lists no folders or nothing was staged. A "stop" is
+never turned into a wipe.
 
 The one consequence the interface must still state plainly: clean slate
 requires the user to be present for a two-minute hardware check in the live

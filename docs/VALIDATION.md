@@ -495,7 +495,9 @@ file on a real disk changes with ordinary use - which is why the
 decision belongs to the prologue's re-measure right before the shrink,
 not to the job writer's reading at scan time. The run also exposed that
 the job writer turns a person's `stop` into a clean-slate job when the
-cold number is not mitigable (RISKS R18, fifth run; fix owed). No new
+cold number is not mitigable (RISKS R18, fifth run; fixed the same day in job writer 0.8.0 - under
+`stop` a small cold number is now keep-windows for the prologue to
+re-measure - self-tested, unfired). No new
 mitigated number: the mitigation never ran.
 
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines

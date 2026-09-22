@@ -43,7 +43,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.7.0'
+$JobWriterVersion = '0.8.0'
 $LinuxMinGB = 25
 # The acknowledged-data-loss path (RISKS R23, decided 2026-09-13). The person
 # types this sentence, verbatim, on the separate launcher; it lifts exactly
@@ -115,12 +115,21 @@ function Get-JobPath {
     # unmovable file itself (Defrag event 259). When that file is one the
     # prologue turns off before it measures again (hibernation, page, swap),
     # a small cold number is not "no room": keep-windows, fork pending.
-    param([string]$DiskHealth, [bool]$EspFits, $ShrinkableGB, [string]$Dirty = 'clean', [bool]$DiskHealthAcknowledged = $false, [bool]$RepairQueued = $false, [bool]$Mitigable = $false)
+    # And (2026-09-22, the Aspire's fifth run, R18): the forced fallback is
+    # the person's to allow, not ours. With if_cannot_keep = stop, the 0.7.0
+    # writer still wrote clean slate for a cold 3.2 GB pinned by $UsnJrnl -
+    # a wipe job the person had declined, under a launcher that described
+    # keep-Windows. Under stop the answer is keep-windows whenever the disk
+    # and the ESP allow it (the prologue re-measures and stops if it still
+    # does not fit), and no path at all - a refusal - when they do not.
+    param([string]$DiskHealth, [bool]$EspFits, $ShrinkableGB, [string]$Dirty = 'clean', [bool]$DiskHealthAcknowledged = $false, [bool]$RepairQueued = $false, [bool]$Mitigable = $false, [string]$IfCannotKeep = 'stop')
     if (($DiskHealth -eq 'Healthy' -or $DiskHealthAcknowledged) -and $EspFits) {
         if ($null -ne $ShrinkableGB -and $ShrinkableGB -ge $LinuxMinGB) { return @{ Path = 'keep-windows'; Reason = 'default' } }
         if ($null -ne $ShrinkableGB -and $Mitigable) { return @{ Path = 'keep-windows'; Reason = 'default' } }
         if ($null -eq $ShrinkableGB -and ($Dirty -eq 'dirty' -or $RepairQueued)) { return @{ Path = 'keep-windows'; Reason = 'default' } }
+        if ($IfCannotKeep -ne 'clean-slate') { return @{ Path = 'keep-windows'; Reason = 'default' } }
     }
+    if ($IfCannotKeep -ne 'clean-slate') { return @{ Path = $null; Reason = $null } }
     @{ Path = 'clean-slate'; Reason = 'forced-no-room' }
 }
 
@@ -372,7 +381,11 @@ function New-JobDocument {
         $shrinkGB = $null
     }
     $mitigable = Test-JobShrinkMitigable -LastUnmovable "$($F.LastUnmovable)"
-    $path = Get-JobPath -DiskHealth $F.Health -EspFits $espFits -ShrinkableGB $shrinkGB -Dirty $F.Dirty -DiskHealthAcknowledged $diskAck -RepairQueued ([bool]$F.RepairQueued) -Mitigable $mitigable
+    $path = Get-JobPath -DiskHealth $F.Health -EspFits $espFits -ShrinkableGB $shrinkGB -Dirty $F.Dirty -DiskHealthAcknowledged $diskAck -RepairQueued ([bool]$F.RepairQueued) -Mitigable $mitigable -IfCannotKeep $IfCannotKeep
+    if (-not $path.Path) {
+        $why = if (-not $espFits) { "the EFI system partition has $([math]::Round([long]$F.EspFree/1MB,1)) MB free, too little for Linux's boot files beside Windows'" } else { "the system disk reports '$($F.Health)'" }
+        return @{ Refusals = @("Windows cannot be kept on this machine ($why), and you chose to stop rather than wipe it - no job; nothing was changed"); Job = $null }
+    }
     $health = if ($F.Health -in @('Healthy', 'Warning', 'Unhealthy')) { $F.Health } else { 'Unknown' }
     $bl = $F.BitLocker
     $job = [ordered]@{
@@ -447,10 +460,14 @@ function Invoke-SelfTest {
         # R18, 2026-09-20: what the read-only diagnostic found on the Aspire
         @{ Name = 'mitigable (R18): 0 GB with hiberfil.sys named as the last unmovable file is a keep-windows job, the cold number kept as measured'
            Run = { $j = (New-JobDocument -F $hiber -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; "$($j.intent.path):$($j.intent.path_reason):$($j.storage.shrinkable_gb):$($j.storage.shrink_source):$($j.storage.last_unmovable_file):$($j.storage.volume_health.repair_queued)" }; Expect = 'keep-windows:default:0:storage-api:\hiberfil.sys:False' }
-        @{ Name = 'mitigable (R18): 0 GB pinned by anything else is still no room (clean slate, forced)'
-           Run = { $j = (New-JobDocument -F (With $hiber 'LastUnmovable' '\$Mft::$DATA') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; "$($j.intent.path):$($j.intent.path_reason):$($j.storage.last_unmovable_file)" }; Expect = 'clean-slate:forced-no-room:\$Mft::$DATA' }
+        @{ Name = 'mitigable (R18): 0 GB pinned by anything else, fork clean-slate, is no room (clean slate, forced - the person allowed it)'
+           Run = { $j = (New-JobDocument -F (With $hiber 'LastUnmovable' '\$Mft::$DATA') -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r').Job; "$($j.intent.path):$($j.intent.path_reason):$($j.storage.last_unmovable_file)" }; Expect = 'clean-slate:forced-no-room:\$Mft::$DATA' }
+        @{ Name = 'fork stop (R18, 2026-09-22): 0 GB pinned by anything else is keep-windows - the prologue re-measures and stops; never a wipe the person declined'
+           Run = { $j = (New-JobDocument -F (With $hiber 'LastUnmovable' '\$Mft::$DATA') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; "$($j.intent.path):$($j.intent.path_reason):$($j.fork.if_cannot_keep):$($null -eq $j.staged)" }; Expect = 'keep-windows:default:stop:True' }
+        @{ Name = 'fork stop (R18, 2026-09-22): the Aspire run 5 as scanned - RED on Disk health acknowledged, 3.2 GB pinned by $UsnJrnl - is keep-windows, no staged block'
+           Run = { $f = With (With (With (With (With $good 'Verdict' 'RED') 'FailedChecks' @('Disk health')) 'ShrinkGB' 3.2) 'Dirty' 'clean') 'LastUnmovable' '\$Extend\$UsnJrnl:$J:$DATA'; $r = New-JobDocument -F $f -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r' -AcknowledgeDataLoss 'I confirm that I understand the risks and could lose data'; "$($r.Refusals.Count):$($r.Job.intent.path):$($r.Job.intent.path_reason):$($r.Job.storage.shrinkable_gb):$($null -eq $r.Job.staged)" }; Expect = '0:keep-windows:default:3.2:True' }
         @{ Name = 'mitigable (R18): it never buys a path the disk gate or the ESP refuses'
-           Run = { "$((New-JobDocument -F (With $hiber 'Health' 'Warning') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path)/$((New-JobDocument -F (With $hiber 'EspFree' 1000000) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path)" }; Expect = 'clean-slate/clean-slate' }
+           Run = { "$((New-JobDocument -F (With $hiber 'Health' 'Warning') -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r').Job.intent.path)/$((New-JobDocument -F (With $hiber 'EspFree' 1000000) -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r').Job.intent.path)" }; Expect = 'clean-slate/clean-slate' }
         @{ Name = 'mitigable (R18): hiberfil, pagefile and swapfile only'
            Run = { "$(Test-JobShrinkMitigable '\hiberfil.sys')/$(Test-JobShrinkMitigable '\pagefile.sys')/$(Test-JobShrinkMitigable '\swapfile.sys')/$(Test-JobShrinkMitigable '\$BadClus:$Bad')/$(Test-JobShrinkMitigable '\Users\a\pagefile.sys')/$(Test-JobShrinkMitigable '')" }; Expect = 'True/True/True/False/False/False' }
         @{ Name = 'defrag 259: the Aspire''s real text parses to \hiberfil.sys'
@@ -467,8 +484,8 @@ function Invoke-SelfTest {
            Run = { $r = New-JobDocument -F $aspire -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; "$($r.Job.intent.path):$($r.Job.intent.path_reason):$($null -eq $r.Job.storage.shrinkable_gb):$($r.Job.storage.volume_health.dirty):$($r.Job.storage.volume_health.repair_queued)" }; Expect = 'keep-windows:default:True:clean:True' }
         @{ Name = 'repair queued (R18): the untrusted number and its reason are carried in shrink_error'
            Run = { $j = (New-JobDocument -F $aspire -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; [bool]($j.storage.shrink_error -match '^Windows answered 0 GB while a full disk check is queued \(Get-Volume reports') -and ($null -eq $j.storage.shrink_source) }; Expect = $true }
-        @{ Name = 'repair queued (R18): 0 GB with a clean bit and NO repair queued is still no room (clean slate, forced)'
-           Run = { $j = (New-JobDocument -F (With (With $good 'ShrinkGB' 0.0) 'Dirty' 'clean') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; "$($j.intent.path):$($j.intent.path_reason):$($j.storage.shrinkable_gb):$($j.storage.volume_health.repair_queued)" }; Expect = 'clean-slate:forced-no-room:0:False' }
+        @{ Name = 'repair queued (R18): 0 GB with a clean bit and NO repair queued, fork clean-slate, is no room (clean slate, forced)'
+           Run = { $j = (New-JobDocument -F (With (With $good 'ShrinkGB' 0.0) 'Dirty' 'clean') -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r').Job; "$($j.intent.path):$($j.intent.path_reason):$($j.storage.shrinkable_gb):$($j.storage.volume_health.repair_queued)" }; Expect = 'clean-slate:forced-no-room:0:False' }
         @{ Name = 'repair queued (R18): a measured number that already fits is kept as measured'
            Run = { $j = (New-JobDocument -F (With $good 'RepairQueued' $true) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; "$($j.intent.path):$($j.storage.shrinkable_gb):$($j.storage.shrink_source)" }; Expect = 'keep-windows:61.4:storage-api' }
         @{ Name = 'repair queued (R18): the Aspire as scanned - RED on Disk health, acknowledged, healthy status, 0 GB, repair queued - is a keep-windows job'
@@ -478,18 +495,28 @@ function Invoke-SelfTest {
         @{ Name = 'repair queued: OK and no event is not queued'; Run = { $t = Test-JobRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk $null; "$($t.Queued):[$($t.Why)]" }; Expect = 'False:[]' }
         @{ Name = 'a healthy machine with room gets a keep-windows job'
            Run = { $r = New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r.txt'; "$($r.Refusals.Count):$($r.Job.intent.path):$($r.Job.intent.path_reason)" }; Expect = '0:keep-windows:default' }
-        @{ Name = 'too little shrink room forces clean slate, with staged block'
-           Run = { $r = New-JobDocument -F (With $good 'ShrinkGB' 10.0) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; "$($r.Job.intent.path):$($r.Job.intent.path_reason):$([bool]$r.Job.staged)" }; Expect = 'clean-slate:forced-no-room:True' }
-        @{ Name = 'an unmeasured shrink (null) on a clean volume forces clean slate'
-           Run = { (New-JobDocument -F (With $good 'ShrinkGB' $null) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path }; Expect = 'clean-slate' }
+        @{ Name = 'too little shrink room, fork clean-slate, forces clean slate, with staged block'
+           Run = { $r = New-JobDocument -F (With $good 'ShrinkGB' 10.0) -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r'; "$($r.Job.intent.path):$($r.Job.intent.path_reason):$([bool]$r.Job.staged)" }; Expect = 'clean-slate:forced-no-room:True' }
+        @{ Name = 'too little shrink room, fork stop, is keep-windows with no staged block (R18, 2026-09-22)'
+           Run = { $r = New-JobDocument -F (With $good 'ShrinkGB' 10.0) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; "$($r.Job.intent.path):$($r.Job.intent.path_reason):$([bool]$r.Job.staged)" }; Expect = 'keep-windows:default:False' }
+        @{ Name = 'an unmeasured shrink (null) on a clean volume: clean slate under fork clean-slate, keep-windows under fork stop'
+           Run = { "$((New-JobDocument -F (With $good 'ShrinkGB' $null) -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r').Job.intent.path)/$((New-JobDocument -F (With $good 'ShrinkGB' $null) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path)" }; Expect = 'clean-slate/keep-windows' }
         @{ Name = 'an unmeasured shrink on a FLAGGED volume, Healthy disk, is a keep-windows job with the fork pending (R18)'
            Run = { $r = New-JobDocument -F (With (With $good 'ShrinkGB' $null) 'Dirty' 'dirty') -Desktop kde -PasswordHash $ph -IfCannotKeep 'clean-slate' -ReportRel 'r'; "$($r.Job.intent.path):$($r.Job.fork.if_cannot_keep):$($r.Job.fork.volume_check_consented):$($r.Job.storage.volume_health.dirty):$($null -eq $r.Job.storage.shrinkable_gb)" }; Expect = 'keep-windows:clean-slate:True:dirty:True' }
-        @{ Name = 'a flagged volume on a Warning disk still forces clean slate'
-           Run = { (New-JobDocument -F (With (With (With $good 'ShrinkGB' $null) 'Dirty' 'dirty') 'Health' 'Warning') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path }; Expect = 'clean-slate' }
-        @{ Name = 'a Warning disk forces clean slate'
-           Run = { (New-JobDocument -F (With $good 'Health' 'Warning') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path }; Expect = 'clean-slate' }
-        @{ Name = 'a full ESP forces clean slate'
-           Run = { (New-JobDocument -F (With $good 'EspFree' 1000000) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.path }; Expect = 'clean-slate' }
+        @{ Name = 'a flagged volume on a Warning disk still forces clean slate (fork clean-slate)'
+           Run = { (New-JobDocument -F (With (With (With $good 'ShrinkGB' $null) 'Dirty' 'dirty') 'Health' 'Warning') -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r').Job.intent.path }; Expect = 'clean-slate' }
+        @{ Name = 'a Warning disk forces clean slate (fork clean-slate)'
+           Run = { (New-JobDocument -F (With $good 'Health' 'Warning') -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r').Job.intent.path }; Expect = 'clean-slate' }
+        @{ Name = 'a full ESP forces clean slate (fork clean-slate)'
+           Run = { (New-JobDocument -F (With $good 'EspFree' 1000000) -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r').Job.intent.path }; Expect = 'clean-slate' }
+        @{ Name = 'refuse (R18, 2026-09-22): a Warning disk under fork stop is no job, never a wipe - named'
+           Run = { $r = New-JobDocument -F (With $good 'Health' 'Warning') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; "$($null -eq $r.Job):$([bool]($r.Refusals -match '^Windows cannot be kept on this machine \(the system disk reports .Warning.\), and you chose to stop rather than wipe it'))" }; Expect = 'True:True' }
+        @{ Name = 'refuse (R18, 2026-09-22): a full ESP under fork stop is no job, never a wipe - named'
+           Run = { $r = New-JobDocument -F (With $good 'EspFree' 1000000) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; "$($null -eq $r.Job):$([bool]($r.Refusals -match 'EFI system partition has 1 MB free'))" }; Expect = 'True:True' }
+        @{ Name = 'fork stop never yields a clean-slate job, over every disk state (R18, 2026-09-22)'
+           Run = { $bad = 0; foreach ($h in 'Healthy', 'Warning', 'Unknown') { foreach ($e in 1000000, 50000000) { foreach ($g in $null, 0.0, 3.2, 24.9, 61.4) { foreach ($d in 'clean', 'dirty') { foreach ($l in $null, '\hiberfil.sys', '\$Extend\$UsnJrnl:$J:$DATA') {
+                   $r = New-JobDocument -F (With (With (With (With (With $good 'Health' $h) 'EspFree' $e) 'ShrinkGB' $g) 'Dirty' $d) 'LastUnmovable' $l) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'
+                   if ($r.Job -and $r.Job.intent.path -ne 'keep-windows') { $bad++ } } } } } }; $bad }; Expect = 0 }
         @{ Name = 'refuse: RED verdict'
            Run = { (New-JobDocument -F (With $good 'Verdict' 'RED') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -join ';' }; Expect = 'the scanner verdict is RED - no job, no override' }
         @{ Name = 'R23: RED for Disk health with the statement typed verbatim is a job carrying the acknowledgement (RED kept, overrides named)'
@@ -589,6 +616,7 @@ Write-Host "  $($j.identity.vendor) $($j.identity.model)   disk $($j.identity.sy
 Write-Host "  verdict $($j.scan.verdict)   disk health $($j.storage.physical_disk.health_status)   shrinkable $($j.storage.shrinkable_gb) GB   ESP free $([math]::Round($j.storage.esp.free_bytes/1MB,1)) MB   volume $($j.storage.volume_health.dirty)"
 if ($j.storage.last_unmovable_file) { Write-Host "  Windows names the last unmovable file: $($j.storage.last_unmovable_file)$(if (Test-JobShrinkMitigable -LastUnmovable $j.storage.last_unmovable_file) { ' - the prologue turns it off and measures again' })" -ForegroundColor DarkGray }
 if ($facts.RepairStale) { Write-Host "  $($facts.RepairStale) - not a queued repair" -ForegroundColor DarkGray }
+if ($j.intent.path -eq 'keep-windows' -and ($null -eq $j.storage.shrinkable_gb -or $j.storage.shrinkable_gb -lt $LinuxMinGB)) { Write-Host "  not enough room measured yet: the prologue measures again before it changes anything, and if Linux still does not fit it $(if ($j.fork.if_cannot_keep -eq 'stop') { 'stops, as you chose' } else { 'takes the clean slate you chose' })" -ForegroundColor DarkGray }
 Write-Host "  path $($j.intent.path) ($($j.intent.path_reason))   desktop $($j.intent.desktop)   locale $($j.intent.locale.lang) $($j.intent.locale.keymap) $($j.intent.locale.timezone)"
 Write-Host "  stick $($j.stick.friendly_name) $([math]::Round($j.stick.size_bytes/1e9,1)) GB '$($j.stick.label)'"
 if ($j.risk_acknowledgement) { Write-Host "  DATA LOSS ACCEPTED: the RED verdict was acknowledged; lifted: $($j.risk_acknowledgement.overrides -join ', ')" -ForegroundColor Red }

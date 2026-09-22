@@ -537,7 +537,8 @@ mitigation never ran; `before: hibernation=None` because nothing was
 recorded before an act that did not happen. Neither 0.5.1's restore nor
 0.6.0's restore-point deletion fired. Read with RISKS R18's fifth-run
 entry: two defects (a "stop" turned into a wipe job; "your files are
-staged" after staging none), both owed fixes before the next run.
+staged" after staging none), both fixed the same day in job writer 0.8.0
+and prologue 0.7.0 (self-tested; unfired).
 
 ### What "the prologue passes" requires
 

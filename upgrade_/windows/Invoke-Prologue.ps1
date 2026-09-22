@@ -106,7 +106,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.6.0'
+$PrologueVersion = '0.7.0'
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -329,8 +329,15 @@ function Get-PrologueShrinkPlan {
 
 function Get-PrologueFork {
     # The fork, exactly as job.json pre-chose it (RISKS R18): never asked here.
-    param([string]$JobPath, [bool]$Fits, [string]$IfCannotKeep)
-    if ($JobPath -eq 'clean-slate') { return 'clean-slate' }
+    # A clean-slate job the writer forced for lack of room is only honoured when
+    # the person's fork allowed a wipe: job writer 0.7.0 forced one under
+    # if_cannot_keep = stop (the Aspire, 2026-09-22, R18); a stale job like
+    # that stops here, never stages toward a wipe the person declined.
+    param([string]$JobPath, [bool]$Fits, [string]$IfCannotKeep, [string]$PathReason)
+    if ($JobPath -eq 'clean-slate') {
+        if ($PathReason -eq 'forced-no-room' -and $IfCannotKeep -ne 'clean-slate') { return 'stop' }
+        return 'clean-slate'
+    }
     if ($Fits) { return 'keep-windows' }
     if ($IfCannotKeep -in @('clean-slate', 'stop')) { return $IfCannotKeep }
     'stop'
@@ -855,6 +862,17 @@ function Invoke-PrologueGrowBack {
     try { Resize-Partition -DriveLetter C -Size $SizeBefore -ErrorAction Stop; return $true } catch { return $false }
 }
 
+function Get-PrologueStageRefusal {
+    # Pure (self-tested). Clean slate wipes Windows, and what is staged is the
+    # person's only copy. On the Aspire (2026-09-22, R18) a job with no folder
+    # map staged 0 files and the stop said "your files are staged". Nothing to
+    # stage, or nothing staged, is a refusal - never a copy that reads complete.
+    param([int]$Folders, $StagedFiles)
+    if ($Folders -lt 1) { return 'the job lists none of your folders (this version does not collect them yet), so there is nothing to copy to the stick; refusing to prepare a wipe with no copy of your files' }
+    if ($null -ne $StagedFiles -and [int]$StagedFiles -lt 1) { return "no files were copied to the stick from the $Folders folder(s) the job lists; refusing to prepare a wipe with no copy of your files" }
+    $null
+}
+
 function Invoke-PrologueStage {
     # clean-slate: every harvested folder to <stick>\upgrade_\staging\, sha256 per file,
     # at a write speed measured on this stick right now.
@@ -1243,7 +1261,7 @@ function Invoke-Continue {
             return
         }
     }
-    $fork = Get-PrologueFork -JobPath "$($Job.intent.path)" -Fits $fits -IfCannotKeep "$($Job.fork.if_cannot_keep)"
+    $fork = Get-PrologueFork -JobPath "$($Job.intent.path)" -Fits $fits -IfCannotKeep "$($Job.fork.if_cannot_keep)" -PathReason "$($Job.intent.path_reason)"
     $S.Shrink.ForkTaken = $fork
     Write-Log "      fork: $fork (job path $($Job.intent.path), if_cannot_keep $($Job.fork.if_cannot_keep))"
     if ($fork -eq 'stop') { Save-State $S $State; Stop-Prologue $S $State $Root $Job 'shrink' "re-measured $(if ($null -ne $S.Shrink.RemeasuredGB) { "$($S.Shrink.RemeasuredGB) GB" } else { 'no figure' }) shrinkable; Linux needs $([math]::Round(($(if ($plan) { $plan.TargetBytes } else { $linuxMin * 1GB }))/1GB,1)) GB; you chose to stop rather than give up Windows$(if ($plan) { " ($($plan.Reason))" })" }
@@ -1262,12 +1280,17 @@ function Invoke-Continue {
         Save-State $S $State; Write-Record $S $Root
     } else {
         Write-Log '  2.  clean slate: staging your files to the stick'
+        $nFolders = @($Job.harvest.folders | Where-Object { $_.exists -and $_.path }).Count
+        $why = Get-PrologueStageRefusal -Folders $nFolders
+        if ($why) { Save-State $S $State; Stop-Prologue $S $State $Root $Job 'stage-files' $why }
         $st = Invoke-PrologueStage -Job $Job -Root $Root
         $S.Staged = $st; Save-State $S $State; Write-Record $S $Root
         if ($st.Error) { Stop-Prologue $S $State $Root $Job 'stage-files' $st.Error }
         if ($st.Failed -gt 0) { Stop-Prologue $S $State $Root $Job 'stage-files' "$($st.Failed) file(s) could not be staged to the stick" }
+        $why = Get-PrologueStageRefusal -Folders $nFolders -StagedFiles $st.Files
+        if ($why) { Stop-Prologue $S $State $Root $Job 'stage-files' $why }
         Write-Log "      staged $($st.Files) files, $([math]::Round($st.Bytes/1GB,2)) GB, checksums in $($st.Manifest)"
-        Stop-Prologue $S $State $Root $Job 'confirm' "clean slate needs the live session's two-minute human check before the wipe, and that gate is not built in this version; the prologue will not arm an unattended wipe. Your files are staged on the stick with checksums; Windows is untouched."
+        Stop-Prologue $S $State $Root $Job 'confirm' "clean slate needs the live session's two-minute human check before the wipe, and that gate is not built in this version; the prologue will not arm an unattended wipe. $($st.Files) file(s), $([math]::Round($st.Bytes/1GB,2)) GB, are staged on the stick with checksums; Windows is untouched."
     }
 
     # 4. suspend BitLocker, arm the handoff, restart into the installer
@@ -1627,7 +1650,12 @@ function Invoke-SelfTest {
         @{ Name = 'fork: keep-windows job that does not fit takes if_cannot_keep=clean-slate'; Run = { Get-PrologueFork -JobPath 'keep-windows' -Fits $false -IfCannotKeep 'clean-slate' }; Expect = 'clean-slate' }
         @{ Name = 'fork: keep-windows job that does not fit takes if_cannot_keep=stop'; Run = { Get-PrologueFork -JobPath 'keep-windows' -Fits $false -IfCannotKeep 'stop' }; Expect = 'stop' }
         @{ Name = 'fork: an unknown if_cannot_keep stops, never guesses'; Run = { Get-PrologueFork -JobPath 'keep-windows' -Fits $false -IfCannotKeep 'ask' }; Expect = 'stop' }
-        @{ Name = 'fork: a clean-slate job is clean slate whatever the number'; Run = { Get-PrologueFork -JobPath 'clean-slate' -Fits $true -IfCannotKeep 'stop' }; Expect = 'clean-slate' }
+        @{ Name = 'fork: a clean-slate job the person chose is clean slate whatever the number'; Run = { Get-PrologueFork -JobPath 'clean-slate' -Fits $true -IfCannotKeep 'stop' -PathReason 'user-chose-clean-slate' }; Expect = 'clean-slate' }
+        @{ Name = 'fork (R18, 2026-09-22): a forced clean-slate job under if_cannot_keep=stop stops - the Aspire run 5 job'; Run = { "$(Get-PrologueFork -JobPath 'clean-slate' -Fits $false -IfCannotKeep 'stop' -PathReason 'forced-no-room')/$(Get-PrologueFork -JobPath 'clean-slate' -Fits $false -IfCannotKeep 'ask' -PathReason 'forced-no-room')" }; Expect = 'stop/stop' }
+        @{ Name = 'fork: a forced clean-slate job the person allowed (if_cannot_keep=clean-slate) is clean slate'; Run = { Get-PrologueFork -JobPath 'clean-slate' -Fits $false -IfCannotKeep 'clean-slate' -PathReason 'forced-no-room' }; Expect = 'clean-slate' }
+        @{ Name = 'stage (R18, 2026-09-22): no folders in the job refuses before anything is staged, and says why'; Run = { [bool]((Get-PrologueStageRefusal -Folders 0) -match '^the job lists none of your folders .* refusing to prepare a wipe with no copy of your files$') }; Expect = $true }
+        @{ Name = 'stage (R18, 2026-09-22): folders listed but 0 files staged refuses'; Run = { [bool]((Get-PrologueStageRefusal -Folders 3 -StagedFiles 0) -match '^no files were copied to the stick from the 3 folder') }; Expect = $true }
+        @{ Name = 'stage: folders listed, before staging, and files staged, after, are not refusals'; Run = { "$($null -eq (Get-PrologueStageRefusal -Folders 3))/$($null -eq (Get-PrologueStageRefusal -Folders 3 -StagedFiles 1204))" }; Expect = 'True/True' }
         # the time estimate is computed from a measurement, never assumed
         @{ Name = 'estimate: 20 GB at 20 MB/s is 1000 s, shown as about 17 minutes'; Run = { $s = Get-PrologueTimeEstimate -Bytes 20000000000 -Mbps 20; "$s/$(Format-PrologueDuration $s)" }; Expect = '1000/about 17 minutes' }
         @{ Name = 'estimate: no measurement gives null, shown as unknown'; Run = { $s = Get-PrologueTimeEstimate -Bytes 1 -Mbps $null; "$($null -eq $s)/$(Format-PrologueDuration $s)" }; Expect = 'True/unknown (no write speed measured)' }

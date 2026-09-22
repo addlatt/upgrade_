@@ -158,8 +158,12 @@ method in `docs/VALIDATION.md`; the killers, in order:
   job writer wrote a **clean-slate job although the person chose `stop`**
   and the launcher had described keep-Windows; clean slate "staged" 0 files
   (no folder map in the job yet) and said the files were staged. Only the
-  unbuilt confirm gate stopped it. Both defects owed fixes before run 6;
-  0.5.1 and 0.6.0 still unfired (R18). The
+  unbuilt confirm gate stopped it. Both fixed the same day (job writer
+  0.8.0: under `stop` never a clean-slate job - keep-windows for the
+  prologue's re-measure, or a named refusal before CONVERT; prologue 0.7.0:
+  refuses a stale forced clean-slate job under `stop`, and clean slate with
+  no folders or 0 files staged); logic-level only, unfired. 0.5.1 and 0.6.0
+  still unfired (R18). The
   acknowledged-data-loss path (R23) exists for that machine's owner; rule
   #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path

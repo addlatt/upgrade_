@@ -1361,6 +1361,36 @@ it, possibly somewhere else near the end. Whether that frees anything,
 and what sits behind it, only a re-measure can say (the shadow storage
 of run 4 is one known candidate).
 
+**Fixed (2026-09-22), job writer 0.8.0 and prologue 0.7.0 - items 2 and
+3.** Item 2: `Get-JobPath` takes the fork. Under `stop` it returns
+keep-windows whenever the disk (Healthy or acknowledged) and the ESP
+allow it - a small, unmeasured or unmitigable cold number goes to the
+prologue's re-measure and fork, which stops - and no path at all
+otherwise, which `New-JobDocument` turns into a named refusal before
+CONVERT ("Windows cannot be kept on this machine (...), and you chose to
+stop rather than wipe it"). Forced clean slate remains only under
+`if_cannot_keep = clean-slate`. The prologue's `Get-PrologueFork` also
+takes `path_reason` and stops a `forced-no-room` clean-slate job whose
+fork is not clean-slate - run 5's own `job.json` would now stop at the
+fork, before staging. Item 3: `Get-PrologueStageRefusal` refuses clean
+slate when the job lists no folders (before anything is written to the
+stick) and when folders were listed but 0 files were staged; the confirm
+stop now states the count staged. Self-tests: the job writer's
+forced-clean-slate cases now pass `-IfCannotKeep clean-slate`, with new
+cases for `stop` (run 5's facts as scanned give keep-windows with no
+staged block; a Warning disk and a full ESP are named refusals; a sweep
+of 180 disk states under `stop` yields no clean-slate job); the prologue
+gains five (111 pass). Scanner, harvester, kickstart and schema checks
+pass. **Not closed:** judged on fabricated facts only (rule #5, logic
+level); the refusal paths have run on no machine. Consequence for the
+Aspire as it stands: run 6 would get a keep-windows job, the prologue
+would re-measure, take its mitigation rung (hibernation and pagefile
+off, one restart), re-measure, and - if the change journal still pins
+the floor - stop and put both back, which is the row 0.5.1 is still
+owed. `RUN-VERIFY.cmd`, which passes no fork and so means `stop`, now
+gets keep-windows jobs on full disks too, and a refusal on a disk whose
+ESP or health rules keeping Windows out.
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.
