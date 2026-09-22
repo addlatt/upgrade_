@@ -152,7 +152,14 @@ method in `docs/VALIDATION.md`; the killers, in order:
   machine or a later swap. **Decided (2026-09-20):** restore points that
   pin the shrink are deleted with consent (prologue 0.6.0, job writer
   0.7.0, `fork.restore_points_consented`; both launchers say so before
-  CONVERT) - the one pre-commit act a stop cannot undo; unfired. The
+  CONVERT) - the one pre-commit act a stop cannot undo; unfired. **Run 5
+  (2026-09-22): `stopped-confirm`** (row 9) - cold 3.2 GB pinned by NTFS's
+  change journal (`$UsnJrnl`, new since run 4: cold layouts drift), so the
+  job writer wrote a **clean-slate job although the person chose `stop`**
+  and the launcher had described keep-Windows; clean slate "staged" 0 files
+  (no folder map in the job yet) and said the files were staged. Only the
+  unbuilt confirm gate stopped it. Both defects owed fixes before run 6;
+  0.5.1 and 0.6.0 still unfired (R18). The
   acknowledged-data-loss path (R23) exists for that machine's owner; rule
   #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path

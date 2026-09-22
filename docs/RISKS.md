@@ -1292,6 +1292,75 @@ about". Seven self-test cases on the judge; the act half (`vssadmin`) has
 run nowhere. Closes on the Aspire's next run, where run 4's evidence
 says this is exactly the file in the way.
 
+**Fifth run (2026-09-22, kit 3dbf910, prologue 0.6.0, job writer 0.7.0):
+`stopped-confirm`** (`r18-prologue.csv` row 9, `0.6.0-physical`; job and
+outcome both schema-valid; the run's files copied off the stick and
+hash-matched, all ten, before anything was read). Before it, with the
+owner's consent and over SSH, hibernation and automatic pagefile
+management were put back after run 4 and the machine restarted (the one
+change allowed); read back: `hiberfil.sys` 5.1 GB, `pagefile.sys` 1.9 GB,
+volume clean, one restore point left of run 4's three (Windows ages them
+out at its 4.75 GB cap). The run itself took 52 seconds and no restart:
+scan RED on Disk health alone (465 bad-block events), the sentence,
+CONVERT, and then not the flow this entry's owners expected. Neither new
+piece of code fired - 0.5.1's restore and 0.6.0's restore-point deletion
+are still unfired.
+1. **The cold layout was not run 4's, and the expected flow was an
+   argument.** Cold: 3.2 GB by both paths, Windows naming
+   **`\$Extend\$UsnJrnl:$J` - NTFS's change journal** - as the last
+   unmovable file, last cluster `0x3a84077` (Defrag 259, four times,
+   22:13:54Z-22:23:21Z). The volume has 62,219,007 clusters of 4 KB:
+   (62,219,007 - 61,358,199) x 4 KB = 3.28 GB, the number both paths gave.
+   At run 4's re-measure nothing unmovable lay past `0x3985c3f` except
+   Slack's open cache at `0x3a82d73`, so this journal extent was
+   allocated after 2026-09-21 00:00:51Z, in the tail run 4's mitigation
+   had emptied; the re-created `hiberfil.sys` landed elsewhere. The
+   predicted "cold 0 GB naming hiberfil.sys" (the handoff note and the
+   run card) was reasoning from the last run's layout. A cold layout is
+   not stable between runs: ordinary use puts new unmovable allocations
+   into freed space at the end of the volume.
+2. **Defect: the person chose "stop" and the job said "wipe".** The job
+   writer judged the cold number: 3.2 GB, pinned by a file not in
+   `Test-JobShrinkMitigable` (hibernation, page and swap only), so
+   `intent.path = clean-slate`, `path_reason = forced-no-room` - with
+   `fork.if_cannot_keep = stop` beside it in the same job. The prologue's
+   fork treats a clean-slate job as clean slate "whatever the number"
+   and started staging. The launcher had told the person, on the screen
+   where CONVERT is typed, that the Windows partition would be shrunk and
+   Linux installed beside it; the job it wrote carried the opposite
+   operation. This was by design in the writer (its self-test expects
+   forced clean slate under `stop`), and it contradicts the schema's own
+   description of `fork` ("chosen here, in advance, by the person - never
+   guessed at run time") and the consent text. What stopped the run was
+   not a check: it was that clean slate's confirm gate is not built yet
+   ("the prologue will not arm an unattended wipe"). Rule #1: a person's
+   "stop" may never become a wipe; a job that cannot keep Windows under
+   `stop` must refuse, before CONVERT is asked for.
+3. **Defect: "your files are staged" after staging none.** The job
+   carries no folder map yet ("not in this job: folders"), so the
+   staging step found 0 folders, wrote an empty `staging/SHA256SUMS`,
+   and the stop said "Your files are staged on the stick with
+   checksums". Harmless today only because the wipe is unbuilt; once the
+   gate exists it is the trust-ending class (R8's family: an empty copy
+   that reads as a complete one). Clean slate must refuse when the job
+   lists no folders, and no message may claim files were staged when
+   none were.
+4. **What held.** The scanner's verdict, the acknowledgement lifting
+   `disk-health` only, re-validation (all seven facts), the two
+   independent measurements agreeing, the refusal to arm an unattended
+   wipe, a truthful `outcome.json` apart from item 3's sentence, and
+   Windows as found: read back over SSH at 22:38Z, hibernation on,
+   pagefile on (automatic), one restore point, no resume task, no
+   one-time boot entry, C: the same size.
+Owed after this run: items 2 and 3 fixed with self-test cases before the
+Aspire runs again; and a decision on the next rung, since the change
+journal is now what pins this disk cold. Deleting it (`fsutil usn
+deletejournal`) loses Windows' record of recent file changes (not the
+person's files; indexers and sync clients re-scan) and Windows re-creates
+it, possibly somewhere else near the end. Whether that frees anything,
+and what sits behind it, only a re-measure can say (the shadow storage
+of run 4 is one known candidate).
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.

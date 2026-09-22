@@ -486,6 +486,18 @@ the mitigation leaves hibernation and the pagefile off (bug, fix owed),
 and a sign-in during the re-measure lowered the second path's number. The
 shrink and the handoff have still not run on real hardware.
 
+**2026-09-22, run 5: `stopped-confirm`** (`r18-prologue.csv` row 9). The
+same disk, two days on, measured cold at 3.2 GB, pinned this time by
+NTFS's change journal (`$UsnJrnl`), allocated since run 4 in the tail
+run 4's mitigation had emptied. For V4 that is a second lesson about
+cold numbers: they are not stable between runs, and the first unmovable
+file on a real disk changes with ordinary use - which is why the
+decision belongs to the prologue's re-measure right before the shrink,
+not to the job writer's reading at scan time. The run also exposed that
+the job writer turns a person's `stop` into a clean-slate job when the
+cold number is not mitigable (RISKS R18, fifth run; fix owed). No new
+mitigated number: the mitigation never ran.
+
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.
 

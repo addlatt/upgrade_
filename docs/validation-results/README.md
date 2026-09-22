@@ -522,6 +522,23 @@ is corrected there), the two paths differ because the person signed in
 and Slack started between them, and the stop left hibernation and the
 pagefile off while saying "Windows is as it was" - a bug, owed a fix.
 
+**Row 9 (2026-09-22, the same machine, prologue 0.6.0, job writer 0.7.0,
+kit 3dbf910) — `stopped-confirm`.** Hibernation and the pagefile had been
+put back (with consent, over SSH) before the run. The cold measurement
+this time was 3.2 GB by both paths, pinned by NTFS's change journal
+(`\$Extend\$UsnJrnl:$J`), which the job writer does not count as
+mitigable, so it wrote a clean-slate job (`forced-no-room`) although the
+person had chosen `stop`, and the launcher had described keep-Windows
+before CONVERT. The prologue staged 0 files (the job carries no folder
+map yet) and stopped at clean slate's unbuilt confirm gate, 52 s after
+CONVERT, with no restart and nothing changed. `fork_taken` reads
+`clean-slate` and `hibernation_off`/`pagefile_off` `n` because the
+mitigation never ran; `before: hibernation=None` because nothing was
+recorded before an act that did not happen. Neither 0.5.1's restore nor
+0.6.0's restore-point deletion fired. Read with RISKS R18's fifth-run
+entry: two defects (a "stop" turned into a wipe job; "your files are
+staged" after staging none), both owed fixes before the next run.
+
 ### What "the prologue passes" requires
 
 - `pass-plumbing` on the rig with the injected flag (the plumbing: scan →

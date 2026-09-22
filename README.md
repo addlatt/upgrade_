@@ -188,7 +188,7 @@ and why each refusal is tested harder than each success.
 | `evaluate` — OneDrive placeholder materialization (V8) | **works**, plumbing-fired against a real Cloud Files provider |
 | `evaluate` — job writer (`job.json`, the software inventory) | **works**; harvest of folders/Wi-Fi/browsers into the job, the BitLocker key and the intent UI still owed |
 | `evaluate` — stick writer (R16) | **works**, two physical writes verified |
-| `upgrade_` — prologue: re-validate, disk check, shrink, BitLocker, boot handoff | **works** on the rig (`r18-prologue.csv`); three physical rows, all honest stops: two at the disk check (2026-09-13; 2026-09-20 on the acknowledged path, with the walk-away resume as SYSTEM), one at the shrink (2026-09-20, row 8: the mitigation ran, 7.2 GB shrinkable of 25 needed, System Restore storage in the way). That run's bug - a stop after the mitigation left hibernation and the pagefile off - is fixed in 0.5.1, not yet fired (R18). The shrink and the handoff have not yet run from the prologue on real hardware |
+| `upgrade_` — prologue: re-validate, disk check, shrink, BitLocker, boot handoff | **works** on the rig (`r18-prologue.csv`); four physical rows, all stops before anything changed: two at the disk check (2026-09-13; 2026-09-20 on the acknowledged path, with the walk-away resume as SYSTEM), one at the shrink (2026-09-20, row 8: the mitigation ran, 7.2 GB shrinkable of 25 needed, System Restore storage in the way), one at clean slate's unbuilt confirm gate (2026-09-22, row 9: the cold number was pinned by NTFS's change journal, and the job writer turned the person's `stop` into a clean-slate job - a defect, fix owed, R18). Row 8's bug - a stop after the mitigation left hibernation and the pagefile off - is fixed in 0.5.1; that fix and 0.6.0's restore-point deletion have not yet fired. The shrink and the handoff have not yet run from the prologue on real hardware |
 | `upgrade_` — cutover: identity, image read-back, ESP snapshot, install alongside, boot-chain check, `outcome.json` | **works** on the rig (`v2-install.csv`), Secure Boot off there; the physical Secure-Boot-on install is owed |
 | `upgrade_` — rollback (Windows side) | **works** on the rig (`r21-rollback.csv`) |
 | `upgrade_` — clean-slate path (wipe) | stops before the wipe on purpose: its human gate is not built |
@@ -285,7 +285,10 @@ install with the boot-chain checklist, rollback. Next, in order:
    row needs another machine or a later swap (R18). **Decided
    (2026-09-20):** restore points in the way of the shrink are deleted by
    the prologue with the person's consent (prologue 0.6.0, job writer
-   0.7.0; unfired) - the Aspire's next run is where that fires.
+   0.7.0; unfired). **2026-09-22, run 5: `stopped-confirm`** (row 9) -
+   cold 3.2 GB behind NTFS's change journal; the job writer made a
+   clean-slate job out of the person's `stop`, and clean slate "staged"
+   0 files. Both are defects owed fixes before run 6 (R18).
 2. **`settle-in`** — hardware verify on first boot, the file pull from the
    kept Windows partition (BITLK unlock, copy, checksum), the "you had
    these programs" list with Linux equivalents from the software
