@@ -58,6 +58,9 @@ if plan: notes.append(f"plan target={plan.get('TargetBytes')} shrinkable={plan.g
 _sh = state.get("Shrink") or {}
 if _sh.get("RestorePoints"):   # prologue 0.6.0+: restore points deleted with consent because they pinned the shrink (R18, 2026-09-20)
     _rp = _sh["RestorePoints"]; notes.append(f"restore points deleted: {_rp.get('Deleted')} ({_rp.get('Before')} -> {_rp.get('After')}) at {_rp.get('Utc')}")
+if _sh.get("UsnJournal"):   # prologue 0.8.0+: the change journal deleted with consent because it pinned the shrink (R18, 2026-09-22)
+    _uj = _sh["UsnJournal"]; _b = _uj.get("Before") or {}
+    notes.append(f"change journal deleted: {_uj.get('Deletions')}x (last exit {_uj.get('ExitCode')} at {_uj.get('Utc')}, was {'%s bytes max' % _b.get('MaxBytes') if _b.get('Active') else 'not active'}); created again: {bool(_uj.get('Recreated'))}")
 if _sh.get("Before") is not None or _sh.get("Restored") is not None:   # prologue 0.5.1+: what a stop put back (R18, Aspire 2026-09-20)
     _b = _sh.get("Before") or {}
     notes.append(f"before: hibernation={_b.get('HibernateEnabled')} auto_pagefile={_b.get('AutoPagefile')} pagefile_settings={len(_b.get('PagefileSettings') or [])}; restored: {'; '.join(_sh.get('Restored') or []) or 'nothing'}")

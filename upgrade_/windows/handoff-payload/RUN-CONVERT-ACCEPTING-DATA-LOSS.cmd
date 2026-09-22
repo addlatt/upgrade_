@@ -107,7 +107,11 @@ echo   check may run (with a restart), the Windows partition will be shrunk,
 echo   and Linux will be installed beside it. If Windows' restore points are
 echo   what stops the partition shrinking, they will be deleted - they are
 echo   Windows' own undo history for system changes, not your files, and
-echo   deleting them cannot be undone.
+echo   deleting them cannot be undone. The same goes for Windows' change
+echo   journal, its running list of which files changed recently: if it is
+echo   what stops the shrinking, it is deleted and started again empty. Your
+echo   files are not touched, but search and sync programs will look through
+echo   them again afterwards.
 echo.
 set WORD=
 set /p WORD=  Type CONVERT (in capitals) to continue, anything else to stop:

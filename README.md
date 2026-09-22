@@ -289,7 +289,9 @@ install with the boot-chain checklist, rollback. Next, in order:
    cold 3.2 GB behind NTFS's change journal; the job writer made a
    clean-slate job out of the person's `stop`, and clean slate "staged"
    0 files. Both defects fixed the same day (job writer 0.8.0, prologue
-   0.7.0; self-tested, unfired) - R18.
+   0.7.0; self-tested, unfired) - R18. **Decided (2026-09-22):** the change
+   journal in the way of the shrink is deleted with the person's consent and
+   created again afterwards (prologue 0.8.0, job writer 0.9.0; unfired).
 2. **`settle-in`** — hardware verify on first boot, the file pull from the
    kept Windows partition (BITLK unlock, copy, checksum), the "you had
    these programs" list with Linux equivalents from the software

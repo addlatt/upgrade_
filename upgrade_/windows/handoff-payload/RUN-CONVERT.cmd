@@ -92,7 +92,11 @@ echo.
 echo   If Windows' restore points are what stops the partition shrinking,
 echo   they will be deleted. Restore points are Windows' own undo history
 echo   for system changes, not your files, and deleting them cannot be
-echo   undone. Nothing else is deleted before Linux is installed.
+echo   undone. The same goes for Windows' change journal, its running list
+echo   of which files changed recently: if it is what stops the shrinking,
+echo   it is deleted and started again empty. Your files are not touched,
+echo   but search and sync programs will look through them again afterwards.
+echo   Nothing else is deleted before Linux is installed.
 echo.
 set WORD=
 set /p WORD=  Type CONVERT (in capitals) to continue, anything else to stop:

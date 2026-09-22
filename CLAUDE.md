@@ -162,8 +162,12 @@ method in `docs/VALIDATION.md`; the killers, in order:
   0.8.0: under `stop` never a clean-slate job - keep-windows for the
   prologue's re-measure, or a named refusal before CONVERT; prologue 0.7.0:
   refuses a stale forced clean-slate job under `stop`, and clean slate with
-  no folders or 0 files staged); logic-level only, unfired. 0.5.1 and 0.6.0
-  still unfired (R18). The
+  no folders or 0 files staged); logic-level only, unfired. **Decided
+  (2026-09-22):** the change journal that pins the shrink is deleted with
+  consent (both launchers say so before CONVERT; `fork.usn_journal_consented`),
+  at most once per boot, and created again with its old sizes after the
+  shrink and at every stop (prologue 0.8.0, job writer 0.9.0; unfired).
+  0.5.1 and 0.6.0 still unfired (R18). The
   acknowledged-data-loss path (R23) exists for that machine's owner; rule
   #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path

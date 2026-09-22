@@ -1391,6 +1391,40 @@ owed. `RUN-VERIFY.cmd`, which passes no fork and so means `stop`, now
 gets keep-windows jobs on full disks too, and a refusal on a disk whose
 ESP or health rules keeping Windows out.
 
+**Decided and built (2026-09-22, the owner's call): the change journal in
+the way of the shrink is deleted, with consent, by the conversion** -
+the next rung the fifth run named. Prologue 0.8.0, job writer 0.9.0. The
+judge (`Get-PrologueUsnJournalStep`) says `delete` only when the
+re-measured number does not fit, Windows names `\$Extend\$UsnJrnl` (the
+exact Defrag 259 form from run 5, `:$J:$DATA` stream included) as the
+last unmovable file, `job.fork.usn_journal_consented` is true (a job
+written before the field existed reads as no consent), and it has not
+been done since the last restart - Windows creates the journal again, so
+the pagefile rung's restart can put it back in the way, and then once
+more is allowed. The act is `fsutil usn deletejournal /n C:` (Microsoft's
+documented form; `/n` returns once the journal is disabled), after
+`fsutil usn queryjournal C:` records its sizes (32 MB / 8 MB on the
+Aspire); then one re-measure. The journal is created again with those
+sizes (`fsutil usn createjournal m= a=`) right after a successful shrink
+and by every stop and abort. Both launchers say it on the CONVERT screen;
+`RUN-CONVERT.cmd`'s "nothing else is deleted before Linux is installed"
+now follows it, so it stays true. What it costs: Windows' record of
+recent file changes (Microsoft's own caution: the Indexing Service and
+replication must rescan the volume, and disabling "can take several
+minutes, and it can continue after the system restarts"). No file of the
+person's. The owner, on the acknowledged launcher: it is "essentially the
+user saying, fuck it" - but this rung is a consent on both launchers,
+like restore points, not a widening of R23's acknowledgement, which
+still lifts exactly two refusals. Eight self-test cases on the judge,
+the parser (the Aspire's real `queryjournal` text) and the restore plan
+(120 pass); the act half has run nowhere - the syntax was taken from
+Microsoft's documentation, not run, because running even `fsutil usn
+deletejournal`'s help on the G16 was refused by the session's safety
+check. **Not closed.** Unknowns only a real run answers: whether deleting
+it frees the extent Defrag named, how fast Windows recreates it and
+where, and what sits behind it (run 4's shadow storage is one
+candidate).
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.

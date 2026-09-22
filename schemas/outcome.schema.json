@@ -80,7 +80,8 @@
             "freed_bytes": { "description": "What Resize-Partition actually freed. 0 on clean-slate or a stop.", "type": "integer", "minimum": 0 },
             "pagefile_disabled": { "type": "boolean" },
             "hibernation_disabled": { "type": "boolean" },
-            "restore_points_deleted": { "description": "How many of Windows' restore points (shadow copies on C:) the prologue deleted because they pinned the shrink and job.fork.restore_points_consented was true. Not undone by a stop - it cannot be. Absent or 0: none touched.", "type": "integer", "minimum": 0 }
+            "restore_points_deleted": { "description": "How many of Windows' restore points (shadow copies on C:) the prologue deleted because they pinned the shrink and job.fork.restore_points_consented was true. Not undone by a stop - it cannot be. Absent or 0: none touched.", "type": "integer", "minimum": 0 },
+            "usn_journal_deleted": { "description": "RISKS R18, decided 2026-09-22: how many times the prologue deleted NTFS's change journal on C: because Windows named it as the file pinning the shrink and job.fork.usn_journal_consented was true (at most once per boot). The journal is created again with its old sizes after the shrink and at every stop; the record of changes it held is not. Absent or 0: never touched.", "type": "integer", "minimum": 0 }
           }
         },
         "bitlocker": {

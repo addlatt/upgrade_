@@ -300,6 +300,10 @@
         "restore_points_consented": {
           "description": "RISKS R18, decided 2026-09-20: the person was told that, if Windows' restore points are what stops the partition shrinking, the prologue deletes them (System Restore's shadow copies on C: - Windows' own undo history, not the person's files) and that this cannot be undone. Absent means false: the prologue then leaves them alone and takes the fork.",
           "type": "boolean"
+        },
+        "usn_journal_consented": {
+          "description": "RISKS R18, decided 2026-09-22: the person was told that, if NTFS's change journal ($Extend\\$UsnJrnl - Windows' record of recent file changes, not a file of theirs) is what stops the partition shrinking, the prologue deletes it; that Windows keeps no copy of the record it held; and that search and sync programs look through the files again afterwards. The prologue creates the journal again, with its old sizes, after the shrink and at every stop. Absent means false: the prologue then leaves it alone and takes the fork.",
+          "type": "boolean"
         }
       }
     },

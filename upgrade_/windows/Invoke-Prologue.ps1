@@ -106,7 +106,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.7.0'
+$PrologueVersion = '0.8.0'
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -460,7 +460,7 @@ function New-PrologueState {
         JobId = $JobId; StickUniqueId = $StickId; StickRootAtStart = $Root; Restarts = 0; Mismatches = @()
         Ack = [ordered]@{ Present = $false; DiskHealth = $false; VolumeHealth = $false }
         VolumeCheck = [ordered]@{ Trigger = $null; Needed = $false; Ran = $false; Scan = $null; DiskHealthAtCheck = $null; BadBlocks = 0; Gate = $null; Evidence = $null; Method = 'none'; ArmedUtc = $null; ArmText = $null; Chkntfs = $null; Wininit1001 = $null; Found000 = $null; DirtyAfter = 'unknown'; Restarts = 0 }
-        Shrink = [ordered]@{ LastUnmovable = $null; RemeasuredGB = $null; RemeasuredBy = $null; DiskpartGB = $null; ApiError = $null; DiskpartError = $null; PartSize = $null; SizeMin = $null; FreeBytes = $null; Plan = $null; ForkTaken = $null; RequestedBytes = $null; FreedBytes = 0; SizeBefore = $null; PagefileDisabled = $false; HibernationDisabled = $false; Mitigated = $false; Before = $null; Restored = $null; RestorePoints = $null }
+        Shrink = [ordered]@{ LastUnmovable = $null; RemeasuredGB = $null; RemeasuredBy = $null; DiskpartGB = $null; ApiError = $null; DiskpartError = $null; PartSize = $null; SizeMin = $null; FreeBytes = $null; Plan = $null; ForkTaken = $null; RequestedBytes = $null; FreedBytes = 0; SizeBefore = $null; PagefileDisabled = $false; HibernationDisabled = $false; Mitigated = $false; Before = $null; Restored = $null; RestorePoints = $null; UsnJournal = $null }
         Staged = $null
         BitLocker = [ordered]@{ StatusBefore = $null; Source = $null; Suspended = $false; RebootCount = $null }
         Handoff = [ordered]@{ Armed = $false; Marker = $null; EntryGuid = $null; ArmedUtc = $null; BcdBackup = $null; Before = $null; GrubEnvReset = $false }
@@ -486,7 +486,7 @@ function New-PrologueBlock {
         shrink = [ordered]@{
             remeasured_gb = $sh.RemeasuredGB; remeasured_by = $sh.RemeasuredBy; remeasured_diskpart_gb = $sh.DiskpartGB
             fork_taken = $sh.ForkTaken; requested_bytes = $sh.RequestedBytes; freed_bytes = [long]$sh.FreedBytes
-            pagefile_disabled = [bool]$sh.PagefileDisabled; hibernation_disabled = [bool]$sh.HibernationDisabled; restore_points_deleted = $(if ($sh.RestorePoints) { [int]$sh.RestorePoints.Deleted } else { 0 })
+            pagefile_disabled = [bool]$sh.PagefileDisabled; hibernation_disabled = [bool]$sh.HibernationDisabled; restore_points_deleted = $(if ($sh.RestorePoints) { [int]$sh.RestorePoints.Deleted } else { 0 }); usn_journal_deleted = $(if ($sh.UsnJournal) { [int]$sh.UsnJournal.Deletions } else { 0 })
         }
     }
     if ($S.Contains('Resumes') -and @($S.Resumes).Count -gt 0) {
@@ -777,6 +777,63 @@ function Invoke-PrologueDeleteRestorePoints {
                 Text = $text; Utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
 }
 
+function Test-PrologueUsnJournalFile {
+    # NTFS's change journal, as Defrag 259 names it (Aspire, 2026-09-22):
+    # \$Extend\$UsnJrnl:$J:$DATA. Only that stream of that file counts.
+    param([string]$LastUnmovable)
+    [bool]("$LastUnmovable" -match '(?i)^\\?\$Extend\\\$UsnJrnl(:\$J)?(:\$DATA|::\$DATA)?$')
+}
+
+function Get-PrologueUsnJournalStep {
+    # Judge (R18, decided 2026-09-22). The change journal is deleted only when
+    # the number does not fit, Windows itself names the journal as the file in
+    # the way, the job carries the person's consent, and it has not been done
+    # since the last restart - Windows creates the journal again, so a restart
+    # (the pagefile rung) can put it back in the way, and then once more is allowed.
+    param([bool]$Fits, [string]$LastUnmovable, [bool]$Consented, [bool]$DoneThisBoot)
+    if ($Fits -or -not (Test-PrologueUsnJournalFile -LastUnmovable $LastUnmovable)) { return 'none' }
+    if ($DoneThisBoot) { return 'already-done' }
+    if (-not $Consented) { return 'no-consent' }
+    'delete'
+}
+
+function ConvertFrom-PrologueUsnQuery {
+    # Pure (self-tested): `fsutil usn queryjournal C:` -> the journal's two sizes
+    # in bytes, or Active = $false when there is no active journal to report.
+    param([string[]]$Lines)
+    $t = (@($Lines) -join "`n")
+    $m = [regex]::Match($t, '(?im)^\s*Maximum Size\s*:\s*0x([0-9a-f]+)')
+    $a = [regex]::Match($t, '(?im)^\s*Allocation Delta\s*:\s*0x([0-9a-f]+)')
+    if ($m.Success -and $a.Success) { return [ordered]@{ Active = $true; MaxBytes = [Convert]::ToInt64($m.Groups[1].Value, 16); DeltaBytes = [Convert]::ToInt64($a.Groups[1].Value, 16) } }
+    [ordered]@{ Active = $false; MaxBytes = $null; DeltaBytes = $null }
+}
+
+function Invoke-PrologueDeleteUsnJournal {
+    # Windows' own tool, C: only; /n returns once the journal is gone. What is
+    # lost is Windows' record of recent file changes, not a file. The journal's
+    # sizes are read first, so the shrink and every stop create it again as it was.
+    param($S)
+    $before = ConvertFrom-PrologueUsnQuery @(& fsutil usn queryjournal C: 2>&1 | ForEach-Object { "$_" })
+    $text = (& fsutil usn deletejournal /n C: 2>&1 | Out-String).Trim(); $code = $LASTEXITCODE
+    $j = $S.Shrink.UsnJournal
+    if (-not $j) { $j = [ordered]@{ Before = $before; Deletions = 0; LastRestarts = $null; Recreated = $false; ExitCode = $null; Text = $null; Utc = $null } }
+    elseif (-not ($j.Before -and $j.Before.Active) -and $before.Active) { $j.Before = $before }
+    if ($code -eq 0) { $j.Deletions = [int]$j.Deletions + 1; $j.Recreated = $false }
+    $j.LastRestarts = [int]$S.Restarts; $j.ExitCode = $code; $j.Text = $text; $j.Utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $S.Shrink.UsnJournal = $j
+    $j
+}
+
+function Invoke-PrologueRecreateUsnJournal {
+    # Puts the journal back with the sizes it had (a no-op resize if Windows
+    # already created one). Returns what was done, in words.
+    param($S)
+    $b = $S.Shrink.UsnJournal.Before
+    & fsutil usn createjournal "m=$([long]$b.MaxBytes)" "a=$([long]$b.DeltaBytes)" C: 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) { $S.Shrink.UsnJournal.Recreated = $true; return "change journal created again ($([math]::Round([long]$b.MaxBytes/1MB,1)) MB; its record of earlier changes is gone)" }
+    "! the change journal could not be created again (fsutil exit $LASTEXITCODE; Windows creates it when a program next needs it)"
+}
+
 function Get-PrologueMemoryFilesBefore {
     # Read before either is touched (Aspire, 2026-09-20: a stop left both off
     # and nothing had recorded what they were). Read-only.
@@ -796,6 +853,9 @@ function Get-PrologueRestorePlan {
     param($Shrink, [switch]$KeepHibernationOff)
     $plan = @()
     if (-not $Shrink) { return $plan }
+    # the change journal (R18, 2026-09-22) comes back on every path, the return after an install included
+    $uj = $Shrink.UsnJournal
+    if ($uj -and [int]$uj.Deletions -gt 0 -and -not $uj.Recreated -and $uj.Before -and $uj.Before.Active) { $plan += 'usn-journal' }
     $b = $Shrink.Before
     if ($Shrink.HibernationDisabled -and -not $KeepHibernationOff) {
         if ($b -and $b.HibernateEnabled -eq $true) { $plan += 'hibernation-on' }
@@ -817,6 +877,7 @@ function Invoke-PrologueRestoreMemoryFiles {
         try {
             switch ($a) {
                 'hibernation-on' { & powercfg /h on 2>&1 | Out-Null; if ($LASTEXITCODE -eq 0) { $S.Shrink.HibernationDisabled = $false; $done += 'hibernation back on' } else { $done += "! hibernation could not be turned back on (powercfg exit $LASTEXITCODE)" } }
+                'usn-journal' { $done += (Invoke-PrologueRecreateUsnJournal -S $S) }
                 'hibernation-unknown' { $done += '! hibernation left off: no record of how it was set (powercfg /h on turns it back on)' }
                 'pagefile-auto' { Get-CimInstance Win32_ComputerSystem | Set-CimInstance -Property @{ AutomaticManagedPagefile = $true } -ErrorAction Stop; $S.Shrink.PagefileDisabled = $false; $done += 'pagefile back to automatic (returns at the next restart)' }
                 'pagefile-settings' {
@@ -1247,6 +1308,17 @@ function Invoke-Continue {
             }
             elseif ($rp -eq 'no-consent') { Write-Log "      that is System Restore's storage; the job carries no consent to delete restore points - left alone" }
             elseif ($rp -eq 'already-done') { Write-Log "      restore points were already deleted and their storage is still named - nothing more to try there" }
+            # the change journal in the way (R18, decided 2026-09-22; the Aspire's fifth run): deleted with the job's consent, once per boot, then one re-measure
+            $uj = Get-PrologueUsnJournalStep -Fits $fits -LastUnmovable "$lu" -Consented ([bool]$Job.fork.usn_journal_consented) -DoneThisBoot ([bool]($S.Shrink.UsnJournal -and $null -ne $S.Shrink.UsnJournal.LastRestarts -and [int]$S.Shrink.UsnJournal.LastRestarts -eq [int]$S.Restarts))
+            if ($uj -eq 'delete') {
+                Write-Log "      that is NTFS's change journal; the job consents - deleting it (Windows' record of recent file changes, not a file; it is created again afterwards)" 'Yellow'
+                $r = Invoke-PrologueDeleteUsnJournal -S $S
+                Write-Log "      change journal: $(if ($r.ExitCode -eq 0) { 'deleted' } else { "fsutil exit $($r.ExitCode)" }); was $(if ($r.Before.Active) { "$([math]::Round([long]$r.Before.MaxBytes/1MB,1)) MB max" } else { 'not active' }); fsutil: $((($r.Text -split "`n") | Select-Object -Last 1).Trim())"
+                Save-State $S $State; Write-Record $S $Root
+                return (Invoke-Continue $S $State $Root $Job)
+            }
+            elseif ($uj -eq 'no-consent') { Write-Log "      that is NTFS's change journal; the job carries no consent to delete it - left alone" }
+            elseif ($uj -eq 'already-done') { Write-Log "      the change journal was already deleted since the last restart and is still named - nothing more to try there" }
         }
         if (-not $fits -and -not $S.Shrink.Mitigated -and $plan.TargetBytes -gt $plan.ShrinkableBytes) {
             # the immovable-file floor: pagefile off (effective after a restart), one restart, one re-measure
@@ -1277,6 +1349,8 @@ function Invoke-Continue {
             Write-Log "      Resize-Partition: C: $([math]::Round($r.SizeBefore/1GB,1)) GB -> $([math]::Round($r.SizeAfter/1GB,1)) GB, freed $([math]::Round($r.Freed/1GB,1)) GB"
         } catch { Save-State $S $State; Stop-Prologue $S $State $Root $Job 'shrink' "Resize-Partition refused: $($_.Exception.Message)" }
         if ([long]$S.Shrink.FreedBytes -lt [long]$plan.RequestedBytes) { Save-State $S $State; Stop-Prologue $S $State $Root $Job 'shrink' "the shrink freed $($S.Shrink.FreedBytes) bytes, less than the $($plan.RequestedBytes) planned" }
+        # the space is freed; the change journal goes back now, not at the end (R18, 2026-09-22)
+        if (@(Get-PrologueRestorePlan -Shrink $S.Shrink -KeepHibernationOff) -contains 'usn-journal') { Write-Log "      $(Invoke-PrologueRecreateUsnJournal -S $S)" }
         Save-State $S $State; Write-Record $S $Root
     } else {
         Write-Log '  2.  clean slate: staging your files to the stick'
@@ -1553,7 +1627,23 @@ function Invoke-SelfTest {
     $bCustom = [ordered]@{ HibernateEnabled = $false; AutoPagefile = $false; PagefileSettings = @([ordered]@{ Name = 'C:\pagefile.sys'; InitialSize = 2048; MaximumSize = 4096 }) }
     $bNone = [ordered]@{ HibernateEnabled = $true; AutoPagefile = $false; PagefileSettings = @() }
     $vss = '\System Volume Information\{1d038256-b528-11f1-af8c-00f48d7649b6}{3808876b-c176-4e48-b7ae-04046e6cc752}'
+    $usn = '\$Extend\$UsnJrnl:$J:$DATA'
     $cases = @(
+        # the change journal in the way of the shrink (R18, decided 2026-09-22; the Aspire's real Defrag 259 name and queryjournal text)
+        @{ Name = 'change journal (R18): the Aspire''s name is recognised; \$Extend\$ObjId, \$MFT, hiberfil and a person''s file named UsnJrnl are not'
+           Run = { "$(Test-PrologueUsnJournalFile $usn)/$(Test-PrologueUsnJournalFile '\$Extend\$UsnJrnl')/$(Test-PrologueUsnJournalFile '\$Extend\$ObjId:$O:$INDEX_ALLOCATION')/$(Test-PrologueUsnJournalFile '\$Mft')/$(Test-PrologueUsnJournalFile '\hiberfil.sys')/$(Test-PrologueUsnJournalFile '\Users\a\$UsnJrnl')/$(Test-PrologueUsnJournalFile '')" }; Expect = 'True/True/False/False/False/False/False' }
+        @{ Name = 'change journal (R18): named, consented, not done this boot -> delete'; Run = { Get-PrologueUsnJournalStep -Fits $false -LastUnmovable $usn -Consented $true -DoneThisBoot $false }; Expect = 'delete' }
+        @{ Name = 'change journal (R18): no consent in the job (a 0.8.0-or-older job) -> never deleted'; Run = { Get-PrologueUsnJournalStep -Fits $false -LastUnmovable $usn -Consented ([bool]$job.fork.usn_journal_consented) -DoneThisBoot $false }; Expect = 'no-consent' }
+        @{ Name = 'change journal (R18): not twice in one boot'; Run = { Get-PrologueUsnJournalStep -Fits $false -LastUnmovable $usn -Consented $true -DoneThisBoot $true }; Expect = 'already-done' }
+        @{ Name = 'change journal (R18): a number that fits, or another file in the way, deletes nothing'; Run = { "$(Get-PrologueUsnJournalStep -Fits $true -LastUnmovable $usn -Consented $true -DoneThisBoot $false)/$(Get-PrologueUsnJournalStep -Fits $false -LastUnmovable $vss -Consented $true -DoneThisBoot $false)" }; Expect = 'none/none' }
+        @{ Name = 'change journal: the Aspire''s queryjournal text parses to 32 MB max, 8 MB delta'
+           Run = { $q = ConvertFrom-PrologueUsnQuery @('Usn Journal ID   : 0x01d47af5555868d0', 'First Usn        : 0x00000007db660000', 'Maximum Size     : 0x0000000002000000 (32.0 MB)', 'Allocation Delta : 0x0000000000800000 ( 8.0 MB)', 'Minimum record version supported : 2'); "$($q.Active):$($q.MaxBytes):$($q.DeltaBytes)" }; Expect = 'True:33554432:8388608' }
+        @{ Name = 'change journal: no active journal parses to Active=False'; Run = { (ConvertFrom-PrologueUsnQuery @('Error:  The volume change journal is not active.')).Active }; Expect = $false }
+        @{ Name = 'restore (R18): a deleted journal that was active comes back, on a stop and on the return; once created, not again'
+           Run = { $d = Sh $false $false $bAuto; $d.UsnJournal = [ordered]@{ Before = [ordered]@{ Active = $true; MaxBytes = 33554432; DeltaBytes = 8388608 }; Deletions = 1; Recreated = $false }
+                   $a = (Get-PrologueRestorePlan -Shrink $d) -join ','; $b = (Get-PrologueRestorePlan -Shrink $d -KeepHibernationOff) -join ','; $d.UsnJournal.Recreated = $true; "$a/$b/$(@(Get-PrologueRestorePlan -Shrink $d).Count)" }; Expect = 'usn-journal/usn-journal/0' }
+        @{ Name = 'restore (R18): a journal that was not active, or a delete that failed, is not created'
+           Run = { $d = Sh $false $false $bAuto; $d.UsnJournal = [ordered]@{ Before = [ordered]@{ Active = $false }; Deletions = 1; Recreated = $false }; $e = Sh $false $false $bAuto; $e.UsnJournal = [ordered]@{ Before = [ordered]@{ Active = $true; MaxBytes = 1; DeltaBytes = 1 }; Deletions = 0; Recreated = $false }; "$(@(Get-PrologueRestorePlan -Shrink $d).Count)/$(@(Get-PrologueRestorePlan -Shrink $e).Count)" }; Expect = '0/0' }
         # restore points in the way of the shrink (R18, decided 2026-09-20; the Aspire's real file name)
         @{ Name = 'restore points (R18): the Aspire''s shadow-storage file is recognised; other System Volume Information files, hiberfil and a person''s file are not'
            Run = { "$(Test-PrologueShadowStorageFile $vss)/$(Test-PrologueShadowStorageFile '\System Volume Information\tracking.log')/$(Test-PrologueShadowStorageFile '\hiberfil.sys')/$(Test-PrologueShadowStorageFile '\Users\a\{3808876b-c176-4e48-b7ae-04046e6cc752}')" }; Expect = 'True/False/False/False' }

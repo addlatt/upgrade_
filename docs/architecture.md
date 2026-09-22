@@ -440,8 +440,15 @@ brings the pagefile back while hibernation stays off. **Restore
 points that pin the shrink are deleted** (0.6.0, decided 2026-09-20) when
 Windows names their storage as the last unmovable file and the job
 carries the person's consent, which the launcher's decision screen asks
-for in plain words - the one pre-commit act a stop cannot undo (R18). The
-prologue's record (`upgrade_/prologue.json`) is what `%post`'s
+for in plain words - the one pre-commit act a stop cannot undo (R18).
+**NTFS's change journal that pins the shrink is deleted** (0.8.0, decided
+2026-09-22, the Aspire's fifth run) on the same terms - Windows names
+`\$Extend\$UsnJrnl:$J` as the last unmovable file, the job carries the
+consent the same screen asks for - at most once per boot, then one
+re-measure; its sizes are read first and it is created again right after
+the shrink and at every stop. What does not come back is the record of
+changes it held: search and sync programs look through the files again.
+The prologue's record (`upgrade_/prologue.json`) is what `%post`'s
 `outcome.sh` carries into `outcome.json` as the `prologue` block. Rows:
 `docs/validation-results/r18-prologue.csv`. The cutover (stage 2) is the
 kickstart, `%pre` verifier and `%post` checklist proven in

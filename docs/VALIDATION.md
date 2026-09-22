@@ -498,7 +498,10 @@ the job writer turns a person's `stop` into a clean-slate job when the
 cold number is not mitigable (RISKS R18, fifth run; fixed the same day in job writer 0.8.0 - under
 `stop` a small cold number is now keep-windows for the prologue to
 re-measure - self-tested, unfired). No new
-mitigated number: the mitigation never ran.
+mitigated number: the mitigation never ran. **Decided and built the same
+day:** the change journal joins the ladder (deleted with consent, created
+again afterwards; prologue 0.8.0) - what it frees is the next row's
+question.
 
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.

@@ -43,7 +43,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.8.0'
+$JobWriterVersion = '0.9.0'
 $LinuxMinGB = 25
 # The acknowledged-data-loss path (RISKS R23, decided 2026-09-13). The person
 # types this sentence, verbatim, on the separate launcher; it lifts exactly
@@ -408,7 +408,8 @@ function New-JobDocument {
             locale = [ordered]@{ lang = (($F.Locale -replace '-', '_') + '.UTF-8'); timezone = $iana; keymap = $keymap }
         }
         # restore_points_consented (R18, decided 2026-09-20): the launcher's step-of-decision text says restore points go if they are in the way of the shrink and that this cannot be undone; CONVERT typed there is the consent
-        fork = [ordered]@{ if_cannot_keep = $IfCannotKeep; volume_check_consented = $true; restore_points_consented = $true }
+        # usn_journal_consented (R18, decided 2026-09-22): the same screen says NTFS's change journal goes if it is what stops the shrink - Windows' record of recent file changes, not a file; search and sync programs look through the files again
+        fork = [ordered]@{ if_cannot_keep = $IfCannotKeep; volume_check_consented = $true; restore_points_consented = $true; usn_journal_consented = $true }
         storage = [ordered]@{
             shrinkable_gb = $shrinkGB; shrink_source = $(if ($null -ne $shrinkGB) { 'storage-api' } else { $null }); shrink_error = $shrinkError
             last_unmovable_file = $(if ($F.LastUnmovable) { "$($F.LastUnmovable)" } else { $null })
@@ -493,6 +494,8 @@ function Invoke-SelfTest {
         @{ Name = 'repair queued: Get-Volume Full Repair Needed counts'; Run = { $t = Test-JobRepairQueued -VolumeStatus 'Full Repair Needed' -NtfsFullChkdsk $null; "$($t.Queued):$($t.Why)" }; Expect = "True:Get-Volume reports 'Full Repair Needed'" }
         @{ Name = 'repair queued: NTFS event 98 counts on its own'; Run = { (Test-JobRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk '2026-09-13T15:16:48Z').Queued }; Expect = $true }
         @{ Name = 'repair queued: OK and no event is not queued'; Run = { $t = Test-JobRepairQueued -VolumeStatus 'OK' -NtfsFullChkdsk $null; "$($t.Queued):[$($t.Why)]" }; Expect = 'False:[]' }
+        @{ Name = 'consents (R18): every job carries the launcher''s restore-point and change-journal consent'
+           Run = { $f = (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.fork; "$($f.restore_points_consented):$($f.usn_journal_consented)" }; Expect = 'True:True' }
         @{ Name = 'a healthy machine with room gets a keep-windows job'
            Run = { $r = New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r.txt'; "$($r.Refusals.Count):$($r.Job.intent.path):$($r.Job.intent.path_reason)" }; Expect = '0:keep-windows:default' }
         @{ Name = 'too little shrink room, fork clean-slate, forces clean slate, with staged block'

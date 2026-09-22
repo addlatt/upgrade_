@@ -144,6 +144,9 @@ def main():
         # R18 (2026-09-20): restore-point consent is optional (a job written before it existed reads as no consent) but typed
         ("job", "restore_points_consented that is not a boolean is refused",
          set_path(job, ["fork", "restore_points_consented"], "yes")),
+        # R18 (2026-09-22): the change-journal consent, the same shape
+        ("job", "usn_journal_consented that is not a boolean is refused",
+         set_path(job, ["fork", "usn_journal_consented"], "yes")),
         # R18 (2026-09-17): Windows' own "repair queued" is a required fact, and it needs the same consent
         ("job", "volume_health without repair_queued is refused",
          del_path(job, ["storage", "volume_health", "repair_queued"])),
