@@ -149,7 +149,10 @@ method in `docs/VALIDATION.md`; the killers, in order:
   0.5.1 (before-state recorded, restored at every stop; act half unproven
   until a row). **Decided (2026-09-20): the Aspire keeps its dying SSD** as
   the bad-conditions machine; the healthy-drive install needs another
-  machine or a later swap. The
+  machine or a later swap. **Decided (2026-09-20):** restore points that
+  pin the shrink are deleted with consent (prologue 0.6.0, job writer
+  0.7.0, `fork.restore_points_consented`; both launchers say so before
+  CONVERT) - the one pre-commit act a stop cannot undo; unfired. The
   acknowledged-data-loss path (R23) exists for that machine's owner; rule
   #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path

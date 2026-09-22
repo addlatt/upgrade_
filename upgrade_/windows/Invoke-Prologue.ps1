@@ -106,7 +106,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.5.1'
+$PrologueVersion = '0.6.0'
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -453,7 +453,7 @@ function New-PrologueState {
         JobId = $JobId; StickUniqueId = $StickId; StickRootAtStart = $Root; Restarts = 0; Mismatches = @()
         Ack = [ordered]@{ Present = $false; DiskHealth = $false; VolumeHealth = $false }
         VolumeCheck = [ordered]@{ Trigger = $null; Needed = $false; Ran = $false; Scan = $null; DiskHealthAtCheck = $null; BadBlocks = 0; Gate = $null; Evidence = $null; Method = 'none'; ArmedUtc = $null; ArmText = $null; Chkntfs = $null; Wininit1001 = $null; Found000 = $null; DirtyAfter = 'unknown'; Restarts = 0 }
-        Shrink = [ordered]@{ LastUnmovable = $null; RemeasuredGB = $null; RemeasuredBy = $null; DiskpartGB = $null; ApiError = $null; DiskpartError = $null; PartSize = $null; SizeMin = $null; FreeBytes = $null; Plan = $null; ForkTaken = $null; RequestedBytes = $null; FreedBytes = 0; SizeBefore = $null; PagefileDisabled = $false; HibernationDisabled = $false; Mitigated = $false; Before = $null; Restored = $null }
+        Shrink = [ordered]@{ LastUnmovable = $null; RemeasuredGB = $null; RemeasuredBy = $null; DiskpartGB = $null; ApiError = $null; DiskpartError = $null; PartSize = $null; SizeMin = $null; FreeBytes = $null; Plan = $null; ForkTaken = $null; RequestedBytes = $null; FreedBytes = 0; SizeBefore = $null; PagefileDisabled = $false; HibernationDisabled = $false; Mitigated = $false; Before = $null; Restored = $null; RestorePoints = $null }
         Staged = $null
         BitLocker = [ordered]@{ StatusBefore = $null; Source = $null; Suspended = $false; RebootCount = $null }
         Handoff = [ordered]@{ Armed = $false; Marker = $null; EntryGuid = $null; ArmedUtc = $null; BcdBackup = $null; Before = $null; GrubEnvReset = $false }
@@ -479,7 +479,7 @@ function New-PrologueBlock {
         shrink = [ordered]@{
             remeasured_gb = $sh.RemeasuredGB; remeasured_by = $sh.RemeasuredBy; remeasured_diskpart_gb = $sh.DiskpartGB
             fork_taken = $sh.ForkTaken; requested_bytes = $sh.RequestedBytes; freed_bytes = [long]$sh.FreedBytes
-            pagefile_disabled = [bool]$sh.PagefileDisabled; hibernation_disabled = [bool]$sh.HibernationDisabled
+            pagefile_disabled = [bool]$sh.PagefileDisabled; hibernation_disabled = [bool]$sh.HibernationDisabled; restore_points_deleted = $(if ($sh.RestorePoints) { [int]$sh.RestorePoints.Deleted } else { 0 })
         }
     }
     if ($S.Contains('Resumes') -and @($S.Resumes).Count -gt 0) {
@@ -734,6 +734,40 @@ function Invoke-PrologueRepairArm {
         $texts += "chkntfs after chkdsk: $ck"
     } else { throw "no such repair method '$Method'" }
     [ordered]@{ Text = ($texts -join "`n"); Chkntfs = $ck; Scheduled = ($ck -in @('scheduled', 'dirty')) }
+}
+
+function Test-PrologueShadowStorageFile {
+    # System Restore's shadow-copy storage, as Defrag 259 names it (Aspire,
+    # 2026-09-20): \System Volume Information\{id}{3808876b-c176-4e48-b7ae-04046e6cc752}.
+    # The second GUID is the Volume Shadow Copy service's own; nothing else under
+    # System Volume Information counts.
+    param([string]$LastUnmovable)
+    [bool]("$LastUnmovable" -match '(?i)^\\?System Volume Information\\[^\\]*\{3808876b-c176-4e48-b7ae-04046e6cc752\}')
+}
+
+function Get-PrologueRestorePointStep {
+    # Judge (R18, decided 2026-09-20). Restore points are deleted only when the
+    # number does not fit, Windows itself names their storage as the file in the
+    # way, the job carries the person's consent, and it has not been done already.
+    param([bool]$Fits, [string]$LastUnmovable, [bool]$Consented, [bool]$AlreadyDone)
+    if ($Fits -or -not (Test-PrologueShadowStorageFile -LastUnmovable $LastUnmovable)) { return 'none' }
+    if ($AlreadyDone) { return 'already-done' }
+    if (-not $Consented) { return 'no-consent' }
+    'delete'
+}
+
+function Get-PrologueShadowCopyCount {
+    try { $dev = (Get-CimInstance Win32_Volume -Filter "DriveLetter='C:'" -ErrorAction Stop).DeviceID
+          @(Get-CimInstance Win32_ShadowCopy -ErrorAction Stop | Where-Object { $_.VolumeName -eq $dev }).Count } catch { $null }
+}
+
+function Invoke-PrologueDeleteRestorePoints {
+    # The one thing the prologue does that no stop can undo. Windows' own tool, C: only.
+    $before = Get-PrologueShadowCopyCount
+    $text = (& vssadmin delete shadows /for=C: /all /quiet 2>&1 | Out-String).Trim()
+    $after = Get-PrologueShadowCopyCount
+    [ordered]@{ Before = $before; After = $after; Deleted = $(if ($null -ne $before -and $null -ne $after) { [math]::Max(0, [int]$before - [int]$after) } else { 0 })
+                Text = $text; Utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
 }
 
 function Get-PrologueMemoryFilesBefore {
@@ -1184,6 +1218,17 @@ function Invoke-Continue {
             # Windows names what pins the floor (Defrag 259); on the Aspire, 2026-09-20, it was hiberfil.sys on the last cluster
             $lu = Get-PrologueLastUnmovable -Since $measureStart
             if ($lu) { try { $S.Shrink.LastUnmovable = "$lu" } catch { }; Write-Log "      Windows names the last unmovable file: $lu" }
+            # restore points in the way (R18, decided 2026-09-20): deleted with the job's consent, once, then one re-measure
+            $rp = Get-PrologueRestorePointStep -Fits $fits -LastUnmovable "$lu" -Consented ([bool]$Job.fork.restore_points_consented) -AlreadyDone ([bool]$S.Shrink.RestorePoints)
+            if ($rp -eq 'delete') {
+                Write-Log "      that is System Restore's storage; the job consents - deleting Windows' restore points on C: (this cannot be undone)" 'Yellow'
+                $S.Shrink.RestorePoints = Invoke-PrologueDeleteRestorePoints
+                Write-Log "      restore points: $($S.Shrink.RestorePoints.Before) before, $($S.Shrink.RestorePoints.After) after; vssadmin: $((($S.Shrink.RestorePoints.Text -split "`n") | Select-Object -Last 1).Trim())"
+                Save-State $S $State; Write-Record $S $Root
+                return (Invoke-Continue $S $State $Root $Job)
+            }
+            elseif ($rp -eq 'no-consent') { Write-Log "      that is System Restore's storage; the job carries no consent to delete restore points - left alone" }
+            elseif ($rp -eq 'already-done') { Write-Log "      restore points were already deleted and their storage is still named - nothing more to try there" }
         }
         if (-not $fits -and -not $S.Shrink.Mitigated -and $plan.TargetBytes -gt $plan.ShrinkableBytes) {
             # the immovable-file floor: pagefile off (effective after a restart), one restart, one re-measure
@@ -1484,7 +1529,17 @@ function Invoke-SelfTest {
     $bAuto = [ordered]@{ HibernateEnabled = $true; AutoPagefile = $true; PagefileSettings = @() }
     $bCustom = [ordered]@{ HibernateEnabled = $false; AutoPagefile = $false; PagefileSettings = @([ordered]@{ Name = 'C:\pagefile.sys'; InitialSize = 2048; MaximumSize = 4096 }) }
     $bNone = [ordered]@{ HibernateEnabled = $true; AutoPagefile = $false; PagefileSettings = @() }
+    $vss = '\System Volume Information\{1d038256-b528-11f1-af8c-00f48d7649b6}{3808876b-c176-4e48-b7ae-04046e6cc752}'
     $cases = @(
+        # restore points in the way of the shrink (R18, decided 2026-09-20; the Aspire's real file name)
+        @{ Name = 'restore points (R18): the Aspire''s shadow-storage file is recognised; other System Volume Information files, hiberfil and a person''s file are not'
+           Run = { "$(Test-PrologueShadowStorageFile $vss)/$(Test-PrologueShadowStorageFile '\System Volume Information\tracking.log')/$(Test-PrologueShadowStorageFile '\hiberfil.sys')/$(Test-PrologueShadowStorageFile '\Users\a\{3808876b-c176-4e48-b7ae-04046e6cc752}')" }; Expect = 'True/False/False/False' }
+        @{ Name = 'restore points (R18): named, consented, not yet done -> delete'; Run = { Get-PrologueRestorePointStep -Fits $false -LastUnmovable $vss -Consented $true -AlreadyDone $false }; Expect = 'delete' }
+        @{ Name = 'restore points (R18): no consent in the job -> never deleted'; Run = { Get-PrologueRestorePointStep -Fits $false -LastUnmovable $vss -Consented $false -AlreadyDone $false }; Expect = 'no-consent' }
+        @{ Name = 'restore points (R18): never twice'; Run = { Get-PrologueRestorePointStep -Fits $false -LastUnmovable $vss -Consented $true -AlreadyDone $true }; Expect = 'already-done' }
+        @{ Name = 'restore points (R18): a number that fits deletes nothing, consent or not'; Run = { Get-PrologueRestorePointStep -Fits $true -LastUnmovable $vss -Consented $true -AlreadyDone $false }; Expect = 'none' }
+        @{ Name = 'restore points (R18): another file in the way deletes nothing'; Run = { Get-PrologueRestorePointStep -Fits $false -LastUnmovable '\$Mft::$DATA' -Consented $true -AlreadyDone $false }; Expect = 'none' }
+        @{ Name = 'restore points (R18): a job written before the consent existed reads as no consent'; Run = { Get-PrologueRestorePointStep -Fits $false -LastUnmovable $vss -Consented ([bool]$job.fork.restore_points_consented) -AlreadyDone $false }; Expect = 'no-consent' }
         # a stop puts back what the mitigation turned off (R18, Aspire 2026-09-20: it did not, and said it had)
         @{ Name = 'restore (R18): both off, both were on -> both come back'; Run = { (Get-PrologueRestorePlan -Shrink (Sh $true $true $bAuto)) -join ',' }; Expect = 'hibernation-on,pagefile-auto' }
         @{ Name = 'restore (R18): nothing was turned off -> nothing to do'; Run = { @(Get-PrologueRestorePlan -Shrink (Sh $false $false $bAuto)).Count }; Expect = 0 }

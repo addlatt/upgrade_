@@ -79,7 +79,8 @@
             "requested_bytes": { "type": ["integer", "null"], "minimum": 0 },
             "freed_bytes": { "description": "What Resize-Partition actually freed. 0 on clean-slate or a stop.", "type": "integer", "minimum": 0 },
             "pagefile_disabled": { "type": "boolean" },
-            "hibernation_disabled": { "type": "boolean" }
+            "hibernation_disabled": { "type": "boolean" },
+            "restore_points_deleted": { "description": "How many of Windows' restore points (shadow copies on C:) the prologue deleted because they pinned the shrink and job.fork.restore_points_consented was true. Not undone by a stop - it cannot be. Absent or 0: none touched.", "type": "integer", "minimum": 0 }
           }
         },
         "bitlocker": {

@@ -296,6 +296,10 @@
         "volume_check_consented": {
           "description": "The person was told the prologue may run Windows' disk check with its own restart, that it may be slow, and that it must not be interrupted. Required true when the volume is flagged.",
           "type": "boolean"
+        },
+        "restore_points_consented": {
+          "description": "RISKS R18, decided 2026-09-20: the person was told that, if Windows' restore points are what stops the partition shrinking, the prologue deletes them (System Restore's shadow copies on C: - Windows' own undo history, not the person's files) and that this cannot be undone. Absent means false: the prologue then leaves them alone and takes the fork.",
+          "type": "boolean"
         }
       }
     },

@@ -102,6 +102,13 @@ if exist "%~dp0upgrade_\boot-install" del "%~dp0upgrade_\boot-install"
 echo.
 echo   Step 5 of 5: the prologue, DATA LOSS ACCEPTED.
 echo.
+echo   This will change the internal disk of this computer: Windows' disk
+echo   check may run (with a restart), the Windows partition will be shrunk,
+echo   and Linux will be installed beside it. If Windows' restore points are
+echo   what stops the partition shrinking, they will be deleted - they are
+echo   Windows' own undo history for system changes, not your files, and
+echo   deleting them cannot be undone.
+echo.
 set WORD=
 set /p WORD=  Type CONVERT (in capitals) to continue, anything else to stop:
 if not "%WORD%"=="CONVERT" (

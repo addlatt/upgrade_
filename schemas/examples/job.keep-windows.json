@@ -54,7 +54,8 @@
   },
   "fork": {
     "if_cannot_keep": "clean-slate",
-    "volume_check_consented": true
+    "volume_check_consented": true,
+    "restore_points_consented": true
   },
   "storage": {
     "shrinkable_gb": null,

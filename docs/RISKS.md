@@ -1268,6 +1268,30 @@ here, never a fail row, and rows from this machine never stand in for the
 healthy-drive keep-Windows install (V1b's residue), which is still owed
 and now needs a different machine or a later swap.
 
+**Decided and built (2026-09-20, the owner's call): restore points in the
+way of the shrink are deleted, with consent, by the conversion.** "We
+don't want a user to ever have to run commands, and this blocks
+conversion." Prologue 0.6.0, job writer 0.7.0. The judge
+(`Get-PrologueRestorePointStep`) says `delete` only when all four hold:
+the re-measured number does not fit; Windows itself names System
+Restore's shadow-copy storage as the last unmovable file (the exact
+`System Volume Information\{...}{3808876b-...}` form from run 4, nothing
+else under that folder); `job.fork.restore_points_consented` is true (a
+job written before the field existed reads as no consent); and it has not
+been done in this run. Then `vssadmin delete shadows /for=C: /all`, the
+counts before and after into the record and `outcome.json`
+(`shrink.restore_points_deleted`), and one more re-measure before the
+fork. Both launchers say it in plain words on the screen where CONVERT is
+typed: restore points are Windows' own undo history, not the person's
+files, and deleting them cannot be undone. The cost, stated: this is the
+first thing the prologue does before the commit line that a stop cannot
+undo. It is a modest loss (Windows stays bootable, no personal file is
+touched) and the person is told before the word; rule #3's promise is
+now "one irreversible moment, plus the restore points you were told
+about". Seven self-test cases on the judge; the act half (`vssadmin`) has
+run nowhere. Closes on the Aspire's next run, where run 4's evidence
+says this is exactly the file in the way.
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.

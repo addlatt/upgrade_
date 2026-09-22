@@ -426,7 +426,11 @@ BitLocker, removes the boot entry and scrubs the stick's credentials;
 **any stop puts hibernation and the pagefile back as the prologue found
 them** (0.5.1, 2026-09-20 - recorded before they are touched; the Aspire's
 fourth run stopped with both left off), and the return after an install
-brings the pagefile back while hibernation stays off. The
+brings the pagefile back while hibernation stays off. **Restore
+points that pin the shrink are deleted** (0.6.0, decided 2026-09-20) when
+Windows names their storage as the last unmovable file and the job
+carries the person's consent, which the launcher's decision screen asks
+for in plain words - the one pre-commit act a stop cannot undo (R18). The
 prologue's record (`upgrade_/prologue.json`) is what `%post`'s
 `outcome.sh` carries into `outcome.json` as the `prologue` block. Rows:
 `docs/validation-results/r18-prologue.csv`. The cutover (stage 2) is the

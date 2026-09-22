@@ -282,7 +282,10 @@ install with the boot-chain checklist, rollback. Next, in order:
    storage. The stop bug it exposed is fixed in prologue 0.5.1 (act half
    unproven until a row). **Decided (2026-09-20):** the Aspire keeps the
    dying drive as the bad-conditions machine, so this item's healthy-drive
-   row needs another machine or a later swap (R18).
+   row needs another machine or a later swap (R18). **Decided
+   (2026-09-20):** restore points in the way of the shrink are deleted by
+   the prologue with the person's consent (prologue 0.6.0, job writer
+   0.7.0; unfired) - the Aspire's next run is where that fires.
 2. **`settle-in`** — hardware verify on first boot, the file pull from the
    kept Windows partition (BITLK unlock, copy, checksum), the "you had
    these programs" list with Linux equivalents from the software

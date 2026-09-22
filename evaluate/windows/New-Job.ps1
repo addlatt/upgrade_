@@ -43,7 +43,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.6.0'
+$JobWriterVersion = '0.7.0'
 $LinuxMinGB = 25
 # The acknowledged-data-loss path (RISKS R23, decided 2026-09-13). The person
 # types this sentence, verbatim, on the separate launcher; it lifts exactly
@@ -394,7 +394,8 @@ function New-JobDocument {
                                   linux_name = (ConvertTo-JobLinuxName $F.UserName); password_hash = $PasswordHash }
             locale = [ordered]@{ lang = (($F.Locale -replace '-', '_') + '.UTF-8'); timezone = $iana; keymap = $keymap }
         }
-        fork = [ordered]@{ if_cannot_keep = $IfCannotKeep; volume_check_consented = $true }
+        # restore_points_consented (R18, decided 2026-09-20): the launcher's step-of-decision text says restore points go if they are in the way of the shrink and that this cannot be undone; CONVERT typed there is the consent
+        fork = [ordered]@{ if_cannot_keep = $IfCannotKeep; volume_check_consented = $true; restore_points_consented = $true }
         storage = [ordered]@{
             shrinkable_gb = $shrinkGB; shrink_source = $(if ($null -ne $shrinkGB) { 'storage-api' } else { $null }); shrink_error = $shrinkError
             last_unmovable_file = $(if ($F.LastUnmovable) { "$($F.LastUnmovable)" } else { $null })

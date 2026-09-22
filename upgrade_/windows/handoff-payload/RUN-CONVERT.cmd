@@ -89,6 +89,11 @@ echo   and Linux will be installed beside it. Windows stays bootable from
 echo   the boot menu until you reclaim it later. If the disk check runs it
 echo   may be slow - do not switch the computer off while it runs.
 echo.
+echo   If Windows' restore points are what stops the partition shrinking,
+echo   they will be deleted. Restore points are Windows' own undo history
+echo   for system changes, not your files, and deleting them cannot be
+echo   undone. Nothing else is deleted before Linux is installed.
+echo.
 set WORD=
 set /p WORD=  Type CONVERT (in capitals) to continue, anything else to stop:
 if not "%WORD%"=="CONVERT" (
