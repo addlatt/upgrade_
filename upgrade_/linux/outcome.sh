@@ -223,13 +223,17 @@ for i in $(seq 1 30); do [ -e "$dev" ] && break; sleep 1; done
 mkdir -p /mnt/upgstick; mount "$dev" /mnt/upgstick || exit 0
 cur=$(efibootmgr 2>/dev/null | awk '/BootCurrent/{print $2}')
 sha=$(sha256sum /boot/efi/EFI/Microsoft/Boot/bootmgfw.efi 2>/dev/null | cut -c1-64)
-printf 'linux-boot,%s,%s,BootCurrent=%s,bootmgfw_sha256=%s\n' "$(date -u +%FT%TZ)" "$(uname -r)" "$cur" "$sha" >> /mnt/upgstick/upgrade_/boots.log
+# V9 (R27): the account the job created - a fingerprint of its stored hash, never the hash itself - and where /home lives
+u=$(cat /etc/upg-mark.user 2>/dev/null); pw=$(getent shadow "$u" 2>/dev/null | cut -d: -f2 | tr -d '\n' | sha256sum | cut -c1-64)
+hsrc=$(findmnt -no SOURCE /home 2>/dev/null); hdisk=$( [ -n "$hsrc" ] && lsblk -no PKNAME "$hsrc" 2>/dev/null | head -1 ); rdisk=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)" 2>/dev/null | head -1)
+printf 'linux-boot,%s,%s,BootCurrent=%s,bootmgfw_sha256=%s,user=%s,pw_sha256=%s,home_dir=%s,home_disk=%s,root_disk=%s\n' "$(date -u +%FT%TZ)" "$(uname -r)" "$cur" "$sha" "$u" "$pw" "$([ -d "/home/$u" ] && echo present || echo missing)" "${hdisk:-none}" "$rdisk" >> /mnt/upgstick/upgrade_/boots.log
 auto=0; [ -e /mnt/upgstick/upgrade_/autoshutdown ] && auto=1
 sync; umount /mnt/upgstick
 [ "$auto" = 1 ] && systemctl poweroff
 exit 0
 EOS
     chmod +x "$SYSROOT/usr/local/sbin/upg-mark"
+    jq_ intent.account.linux_name > "$SYSROOT/etc/upg-mark.user"
     cat > "$SYSROOT/etc/systemd/system/upg-mark.service" <<'EOS'
 [Unit]
 Description=upgrade_ rig boot marker (writes a row to the stick)
