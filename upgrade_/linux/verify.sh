@@ -30,7 +30,7 @@
 set -u
 JOB=${1:?job.json path}
 LABEL=${2:-UPGV0}
-VERIFY_VERSION=0.4.0
+VERIFY_VERSION=0.4.1
 STICK=/run/install/repo
 REPORT=$STICK/upgrade_/report
 STORAGE_KS=/tmp/upgrade_-storage.ks
@@ -352,18 +352,74 @@ PYEOF
         exit 26
     fi
     echo "== countdown: $COUNT_SECS s on $CTTY, erasing $what ($names)"
-    while read -t 0.2 -n 1 -s _ < "$CTTY"; do :; done   # keys pressed earlier do not count
-    RESULT=elapsed
-    for ((i = COUNT_SECS; i > 0; i--)); do
-        {
-            printf '\033[2J\033[H\n\n'
-            printf '   ERASING %s IN %d:%02d\n\n' "$what" $((i / 60)) $((i % 60))
-            printf '   Windows and everything on this computer will be deleted.\n'
-            printf '   (%s)\n\n' "$names"
-            printf '   Press any key to CANCEL and restart into Windows.\n'
-        } > "$CTTY"
-        if read -t 1 -n 1 -s _ < "$CTTY"; then RESULT=cancelled; break; fi
-    done
+    # Python, not bash `read -t -n`: on the rig (2026-09-26, V9 arm B) a key
+    # pressed during the countdown left bash 5.2.37 blocked in read(2) on tty6
+    # with its timeout dead - the countdown froze at 0:02 and neither cancelled
+    # nor erased. Here the terminal goes raw ONCE for the whole countdown (no
+    # canonical window between reads for a key to fall into), input waits in
+    # select() on a non-blocking descriptor against a monotonic deadline, and
+    # a console the kernel reports narrower than 40 columns (12, same run) is
+    # set to 80x25. Exit 0 = elapsed, 1 = a key cancelled it, anything else =
+    # it could not be shown, which is a refusal.
+    python3 - "$CTTY" "$COUNT_SECS" "$what" "$names" <<'PYEOF'
+import fcntl, os, select, struct, sys, termios, textwrap, time
+path, secs, what, names = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
+fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+old = termios.tcgetattr(fd)
+raw = termios.tcgetattr(fd)
+raw[3] &= ~(termios.ICANON | termios.ECHO | termios.ISIG)   # any key, Ctrl-C included, is a key
+raw[6][termios.VMIN] = 0; raw[6][termios.VTIME] = 0
+termios.tcsetattr(fd, termios.TCSANOW, raw)
+termios.tcflush(fd, termios.TCIFLUSH)                          # keys pressed before the countdown do not count
+rows, cols = struct.unpack("HHHH", fcntl.ioctl(fd, termios.TIOCGWINSZ, bytes(8)))[:2]
+print("== countdown console %dx%d" % (cols, rows), file=sys.stderr)
+if cols < 40:
+    try:
+        fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", 25, 80, 0, 0))
+        rows, cols = struct.unpack("HHHH", fcntl.ioctl(fd, termios.TIOCGWINSZ, bytes(8)))[:2]
+        print("== countdown console set to %dx%d" % (cols, rows), file=sys.stderr)
+    except OSError as ex:
+        print("== countdown console could not be resized: %s" % ex, file=sys.stderr)
+width = max(20, min(cols, 100) - 6)
+def put(text):
+    data = text.encode()
+    while data:
+        try: n = os.write(fd, data); data = data[n:]
+        except BlockingIOError: time.sleep(0.01)
+def screen(left):
+    body = ["ERASING %s IN %d:%02d" % (what, left // 60, left % 60), "",
+            "Windows and everything on this computer will be deleted."]
+    if names: body += ["(%s)" % names]
+    body += ["", "Press any key to CANCEL and restart into Windows."]
+    lines = []
+    for b in body: lines += (textwrap.wrap(b, width) or [""])
+    put("\033[2J\033[H\n\n" + "".join("   %s\n" % l for l in lines))
+result = "elapsed"
+end = time.monotonic() + secs
+try:
+    while True:
+        left = end - time.monotonic()
+        if left <= 0: break
+        whole = int(left) + (1 if left % 1 else 0)
+        screen(whole)
+        r, _, _ = select.select([fd], [], [], max(0.05, left - (whole - 1)))
+        if r:
+            try: data = os.read(fd, 64)
+            except BlockingIOError: data = b""
+            if data: result = "cancelled"; break
+finally:
+    termios.tcsetattr(fd, termios.TCSANOW, old)
+print("== countdown %s after %.1f s" % (result, secs - max(0.0, end - time.monotonic())), file=sys.stderr)
+sys.exit(0 if result == "elapsed" else 1)
+PYEOF
+    rc=$?
+    RESULT=elapsed; [ "$rc" = 1 ] && RESULT=cancelled
+    if [ "$rc" != 0 ] && [ "$rc" != 1 ]; then
+        echo "!! the countdown could not run (python exit $rc) - refusing to erase without a visible last exit"
+        cp "$LOG" "$REPORT/verify.log" 2>/dev/null || true; sync
+        chvt 1 2>/dev/null || true
+        exit 26
+    fi
     if [ "$RESULT" = cancelled ]; then
         printf '\033[2J\033[H\n\n   CANCELLED. Nothing was erased. Restarting into Windows...\n' > "$CTTY"
         echo "== countdown CANCELLED by a key press - nothing erased; restarting into Windows"

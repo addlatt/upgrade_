@@ -3,7 +3,7 @@
 # V9 / RISKS R27 - the one-click erase and install, on the Hyper-V rig.
 # The guest under test is a COPY of UPGRIGHV.fresh.vhdx (install-day
 # Windows, Windows only) at SCSI 0:0 plus a new blank 64 GiB home disk at
-# 0:1; the real UPGRIGHV.vhdx is swapped out and untouched. Three arms, in
+# 0:4 (0:1-2 hold empty DVD drives); the real UPGRIGHV.vhdx is swapped out and untouched. Three arms, in
 # this order (only the last one erases):
 #
 #   A  refuse   a job naming a home disk that is not attached, armed by the
@@ -72,7 +72,7 @@ prepare)
     echo "v9: copying fresh.vhdx -> erase.vhdx, and a new blank 64 GiB home disk..."
     PSC "Copy-Item -Path '$FRESH_VHDX_WIN' -Destination '$ERA_VHDX_WIN' -Force; Remove-Item '$HOME_VHDX_WIN' -Force -ErrorAction SilentlyContinue; New-VHD -Path '$HOME_VHDX_WIN' -SizeBytes 64GB -Dynamic | Out-Null"
     evict "$ERA_VHDX" || true
-    PSC "Add-VMHardDiskDrive -VMName $VMNAME -ControllerType SCSI -ControllerNumber 0 -ControllerLocation 0 -Path '$ERA_VHDX_WIN'; Add-VMHardDiskDrive -VMName $VMNAME -ControllerType SCSI -ControllerNumber 0 -ControllerLocation 1 -Path '$HOME_VHDX_WIN'"
+    PSC "Add-VMHardDiskDrive -VMName $VMNAME -ControllerType SCSI -ControllerNumber 0 -ControllerLocation 0 -Path '$ERA_VHDX_WIN'; Add-VMHardDiskDrive -VMName $VMNAME -ControllerType SCSI -ControllerNumber 0 -ControllerLocation 4 -Path '$HOME_VHDX_WIN'"
     PSC "\$fw = Get-VMFirmware -VMName $VMNAME; \$win = \$fw.BootOrder | Where-Object { \$_.FirmwarePath -like '*bootmgfw.efi' } | Select-Object -First 1; \$rest = \$fw.BootOrder | Where-Object { \$_ -ne \$win }; if (\$win) { Set-VMFirmware -VMName $VMNAME -BootOrder (@(\$win) + \$rest) }; 'first: ' + (Get-VMFirmware -VMName $VMNAME).BootOrder[0].FirmwarePath"
     PS disk list
     ;;
