@@ -545,6 +545,24 @@ the Aspire: 16.6 GB in the six folders, one file over 4 GB - no offer on
 today's 8 GB FAT32 stick (`validation-results/harvest-folder-map.csv`,
 RISKS R26).
 
+## V9 — One-click erase and install (R27)
+
+**Decided (2026-09-26), not built.** The owner's first end-to-end
+destructive target: erase every internal drive, install Fedora, keep
+nothing (`architecture.md`, "Erase and install").
+
+**Method.** Rig first, on a copy of the rig's Windows disk plus a blank
+second disk: (1) a job naming a disk that is not attached - `%pre`
+refuses before any countdown; (2) the countdown with a key pressed -
+Windows comes back, both disks byte-unchanged at the partition table;
+(3) the countdown left alone - both disks cleared, Fedora on the first,
+`/home` on the second, `outcome.json` with the commit line crossed at
+the countdown's end, and the account's password signs in. Then the
+Aspire (system on the failing SSD under R23, `/home` on the 1 TB drive).
+
+**Pass.** All three rig arms, then the physical row: one click, the two
+typed answers, nobody at the keyboard afterwards, Fedora signs in.
+
 # Tier 3 — silent data loss (the trust-ending class)
 
 ## V8 — OneDrive placeholders are materialized at evaluate · kills: file integrity on the default path · RISKS R8

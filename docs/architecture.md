@@ -313,6 +313,65 @@ so the build waits for the harvest and for a first physical install row
 (V1/V1b). The design is recorded now so that the pieces built before it
 are built to fit it.
 
+### Erase and install: the one-click fresh start
+
+**Decided (2026-09-26, the owner's call), not built** — RISKS R27,
+VALIDATION V9. The first destructive path to be proven end to end is the
+simplest one: **erase every internal drive and install Fedora, keeping
+nothing.** The owner's goal is to validate the mechanism - one click, one
+consent, a machine that comes back as Linux - before carrying anything
+across. Carrying files (the folder map, staging, `settle-in`'s pull) is
+stage 2; this path neither needs nor pretends to do it. It is a
+`clean-slate` job whose reason is `user-chose-fresh-start`, and it
+differs from the discard offer (R26) in one way that matters: the person
+said, before anything started, that nothing is to be kept.
+
+1. **Its own launcher, its own sentence.** `RUN-ERASE-AND-INSTALL.cmd`
+   (and, for a RED machine, `RUN-ERASE-AND-INSTALL-ACCEPTING-DATA-LOSS.cmd`,
+   which also asks the R23 sentence - neither sentence stands in for the
+   other). The consent is typed verbatim, before anything else happens:
+   *"I confirm that everything on this computer will be deleted and
+   nothing will be kept"*. The launcher then asks for the Linux password
+   (typed twice, hidden); the job holds only its SHA-512 crypt hash.
+2. **The job names every drive it will erase.** The job writer lists the
+   machine's internal drives (not USB) by serial, unique id and size in
+   `erase_consent.disks`, each with a role: the drive holding C: is
+   `system` (Fedora's boot files and system), a second internal drive is
+   `home` (the person's home folder - so a failing system drive can be
+   reinstalled without losing what is on the other). More than two
+   internal drives, a `home` drive that is not Healthy, or a drive that
+   cannot be identified is a refusal. (Decided 2026-09-26 on the Aspire:
+   system on the SSD, `/home` on the 1 TB drive.)
+3. **The prologue changes nothing on the disks.** No disk check, no
+   shrink, no staging: it re-validates the job (both drives by identity),
+   lets a waiting Windows update finish (R25), arms the one-time boot to
+   the stick and restarts. Windows is untouched and still boots if
+   anything stops before the countdown ends.
+4. **The installer checks, then counts down.** `%pre` (`verify.sh`)
+   finds each listed drive by identity and exact size and refuses on any
+   mismatch (a stick moved to another computer never erases it), reads
+   the desktop image back against its checksum (R17), and then shows a
+   **two-minute countdown on screen: "Erasing both drives in 1:59 - press
+   any key to cancel and restart into Windows."** Any key cancels: the
+   report goes to the stick and the machine restarts into an untouched
+   Windows (the handoff was one-time). If nobody touches it, the moment
+   it reaches zero is **the commit line**: `verify.sh` writes the time to
+   the stick and the installer erases and installs (rule #3 - "you can
+   still cancel" is on screen until that exact moment, and nothing on
+   the internal drives has been written before it).
+5. **After it:** Anaconda clears both drives, installs Fedora (EFI, `/boot`
+   and `/` on the system drive, `/home` on the home drive), `%post`
+   writes `outcome.json` (`commit_line.crossed = true`, the countdown's
+   end as `crossed_utc`, `act = wipe`) to the stick, and the machine
+   reboots into Fedora with the person's account. Walk-away holds
+   throughout: one click, two typed answers, then nobody needs to be
+   there.
+
+What it does not do: carry files, Wi-Fi, browsers or programs (stage 2);
+keep Windows as a fallback (there is none after the commit line - the
+countdown is the last exit). The existing clean-slate path with staged
+files still stops before arming, as before: its restore is not built.
+
 ### Stage 1 — prologue (runs in Windows, reversible)
 
 1. Re-validate `job.json` against the live machine. Anything changed since

@@ -91,6 +91,15 @@ by rule #2 counts for nothing. **No component that writes to a disk gets built
 until the spine it depends on is proven on real hardware.** Full plan and
 method in `docs/VALIDATION.md`; the killers, in order:
 
+**Decided (2026-09-26, the owner's call): the next destructive target is
+V9 / R27, the one-click erase and install** - erase every internal drive,
+install Fedora, keep nothing; its own launcher and typed sentence, a
+2-minute cancellable countdown in the installer as the commit line,
+system on the C: drive and `/home` on a second internal drive. Carrying
+files across is stage 2. Rig first (copy of the rig disk + a blank
+second disk), then the Aspire. Design in `architecture.md`, "Erase and
+install".
+
 **Tier 1 — no product if these fail:**
 - **V0 / R15 — the boot handoff fires.** Walk-away rests entirely on `bcdedit`
   `{fwbootmgr} bootsequence` booting the stick exactly once and failing safe to

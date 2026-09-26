@@ -2303,3 +2303,53 @@ matching checksums, and the "files do not fit" and "stick drops" paths
 refusing before the wipe. Then one physical row, on a machine whose
 owner has chosen to lose Windows. Plus evidence of the folder map's
 coverage on real machines (what fraction of a person's files it finds).
+
+## R27 — The one-click erase and install · critical · open (decided 2026-09-26, not built)
+
+**What.** A launcher that, after one typed sentence and a password,
+erases every internal drive and installs Fedora with nothing kept
+(`architecture.md`, "Erase and install"). It is the first path whose
+commit line destroys everything on the machine, and the owner chose it
+as the first destructive path to prove end to end: the mechanism before
+the migration.
+
+**If real** - what can go wrong:
+- **The wrong drive is erased.** A stick moved to another computer, a
+  USB disk mistaken for an internal one, a drive swapped since the job
+  was written. The answer is identity: every drive to be erased is named
+  in the job by serial, unique id and size, the prologue re-checks them
+  in Windows and `verify.sh` again in the installer, exact size or
+  refuse; the installer is told to use only those drives. Unproven for
+  two drives, and never fired as an erase.
+- **The countdown does not show, or does not cancel.** `%pre` normally
+  logs to a file; the countdown has to reach the screen and read a key
+  from it inside Anaconda's environment. Never run. Must be seen on the
+  rig and on the Aspire, both arms: cancel (Windows comes back
+  untouched) and time out (the erase).
+- **Consent is a sentence people type without reading.** The sentence
+  says exactly what happens; the countdown is the second chance; the
+  launcher is separate from every other one. Whether that is enough is
+  not provable here.
+- **A failing system drive (the Aspire's) fails the install half-way.**
+  After the commit line there is no Windows to go back to; the stick
+  can run the install again. On the Aspire this is accepted under R23
+  and is itself evidence.
+- **The password.** Hashed on Windows (SHA-512 crypt, written in
+  PowerShell 5.1 - no library) and never stored in clear; a wrong hash
+  means an account nobody can sign in to. Checked against the published
+  test vectors and by signing in.
+
+**Decided (2026-09-26, the owner's answers).** Two drives: system on the
+drive holding C:, `/home` on the second internal drive; a 2-minute
+countdown where any key cancels and silence proceeds; the sentence
+"I confirm that everything on this computer will be deleted and nothing
+will be kept", on its own launcher, with R23's sentence also typed on a
+RED machine. Carrying files is stage 2.
+
+**Closes when.** On the rig (a copy of its Windows disk plus a blank
+second disk): the cancel arm returns to an untouched Windows; the
+time-out arm erases both disks, installs, `outcome.json` records the
+commit line, and the account signs in; a job naming a disk that is not
+attached refuses before the countdown. Then one physical row on the
+Aspire.
+
