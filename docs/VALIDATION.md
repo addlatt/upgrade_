@@ -519,6 +519,16 @@ could host Linux + their data in shrinkable space.
 
 **If it fails.** Keep-Windows becomes the lucky path rather than the default;
 messaging, stick-size guidance and the intent UI reweight toward clean slate.
+**Designed (2026-09-26), not built:** the concrete form of that reweighting
+is the offer to discard Windows after a failed shrink (`architecture.md`,
+"When Windows cannot be kept"; RISKS R26) - asked only of a person who
+chose *ask me then*, with the real numbers, no offer when the files do
+not fit the stick, a typed sentence, and the wipe still behind the
+live-session checks. Its validation: rig rows for the yes path (staged,
+read back, wiped, every file restored with matching checksums) and for
+each refusal (files too big, a stick that drops, 0 folders), then one
+physical row on a machine whose owner chose to lose Windows. Built after
+the harvest and a first physical install row.
 
 # Tier 3 — silent data loss (the trust-ending class)
 

@@ -2101,3 +2101,56 @@ gate, which is the evidence this entry is waiting for.
 CONVERT and the prologue neither arms nor shrinks until it has cleared -
 and a rig row that injects the pending state.
 
+
+## R26 — The offer to discard Windows after a failed shrink · critical · open (designed 2026-09-26, not built)
+
+**What.** When keep-Windows cannot fit and the person chose *ask me then*
+at CONVERT, the prologue stops as it does today and, at the next sign-in,
+offers to delete Windows and keep only the listed folders, staged to the
+stick (`architecture.md`, "When Windows cannot be kept"). It is the
+owner's design, prompted by the Aspire (R18): a disk that cannot free
+25 GB after every mitigation, and a person left with stop or a wipe they
+had to choose blind.
+
+**If real** - what can go wrong, each a trust-ending way to lose files:
+- **A file outside the folder map is gone.** Anything not in the known
+  folders (a `C:\Projects`, a second user's profile, mail stores, a game's
+  saves) is not staged. The window names the rule; a person will still
+  not read it. The folder map's coverage is the first thing to evidence.
+- **The stick is the only copy for a while.** Cheap flash that lies about
+  its size or drops under writes (the Aspire's stick does; R17) turns
+  "staged" into lost. The read-back in the live session is a hard gate;
+  it has to be proven with a failing stick, not argued.
+- **Consent under frustration.** The offer comes after something the
+  person wanted did not work. A typed sentence, "Keep Windows" as the
+  default, the numbers on screen and the two-minute check at the wipe
+  are the design's answers; whether people read them is not something
+  this project can prove alone.
+- **Stale numbers.** Days can pass between the stop and the yes. The
+  design measures again when the window opens and again in the prologue;
+  a gap between staging and the wipe (files changed after staging) is
+  lost work - small, but it must be named in the window.
+- **Programs and their licences.** Installed programs are not carried
+  (the software inventory lists them); product keys and licences that
+  live only in Windows are lost with it.
+- **OneDrive online-only files** copy as empty stubs unless materialized
+  first (R8); the staging must run the materializer's verification or
+  refuse.
+
+**Decided (2026-09-26).** Stop is the default at every step; the offer
+is made only on the failure branch of a person who chose *ask me then*;
+no offer when the files do not fit the stick; the consent is the typed
+sentence, verbatim, separate from R23's and never lifting a refusal;
+a "yes" only re-runs the normal chain (job writer, kickstart, prologue)
+with a new job carrying the sentence and the numbers shown; the wipe
+stays in the live session behind the checksum read-back and the human
+check. Build waits for the harvest (folder map), the staging at real
+size, the live-session check, the cutover restore and `settle-in`, and
+for a first physical install row (V1/V1b) - CLAUDE.md rule #4.
+
+**Closes when.** On the rig: a failed shrink → the offer → the typed yes
+→ staged and read back → wipe install → every staged file restored with
+matching checksums, and the "files do not fit" and "stick drops" paths
+refusing before the wipe. Then one physical row, on a machine whose
+owner has chosen to lose Windows. Plus evidence of the folder map's
+coverage on real machines (what fraction of a person's files it finds).

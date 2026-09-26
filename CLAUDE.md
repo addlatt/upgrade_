@@ -178,7 +178,14 @@ method in `docs/VALIDATION.md`; the killers, in order:
   before the shrink, and a pending one right before the arm stops the
   run; the restore-point step records vssadmin's exit code, tries each
   shadow copy's WMI object if the count did not drop, and words every
-  line from the counts. Unfired. Windows is 26200 now. The
+  line from the counts. Unfired. Windows is 26200 now. **Designed
+  (2026-09-26), not built:** when Windows cannot be kept and the person
+  chose *ask me then*, the prologue stops as today and offers, at the next
+  sign-in, to delete Windows and keep the listed folders on the stick -
+  real numbers, no offer if they do not fit, a typed sentence separate
+  from R23's, the wipe still behind the live-session checks
+  (`architecture.md`, "When Windows cannot be kept"; **RISKS R26**,
+  critical). Build waits for the harvest and a first physical install. The
   acknowledged-data-loss path (R23) exists for that machine's owner; rule
   #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path

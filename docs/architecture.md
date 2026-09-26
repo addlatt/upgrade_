@@ -229,6 +229,73 @@ user's; the files come across afterward, in `settle-in`, with Windows still
 whole. That is what pulls the encrypted-read risk (RISKS R19) out of the
 "unattended, only copy, pre-wipe" corner it used to sit in.
 
+### When Windows cannot be kept: the offer to discard it
+
+**Designed (2026-09-26, the owner's call), not built** — RISKS R26. The
+Aspire's runs 4-6 (RISKS R18) showed a real disk that cannot free the
+25 GB Linux needs after every mitigation, and a person who then has two
+bad outcomes: stop, or a wipe they had to choose before anyone knew the
+number. The fork gets a third value, and the wipe is asked for only
+when the answer is known:
+
+1. **At CONVERT, the fork is asked plainly:** if Windows cannot be kept,
+   *stop* (the default) or *ask me then*. `fork.if_cannot_keep = ask` is
+   recorded in `job.json`. The existing `clean-slate` value stays for a
+   person who wants Windows gone from the start; nothing ever wipes on a
+   pre-chosen answer made without the number.
+2. **When the shrink cannot fit, the prologue stops exactly as it does
+   today** - the mitigations put back, C: as it was, the resume task
+   removed, a stopped `outcome.json`. Windows is a normal Windows while
+   the person decides, whether that takes a minute or a week. The only
+   difference: the stop registers the question for the next sign-in
+   instead of the plain stop notice (the resume runs in session 0 and
+   cannot show a window - "The walk-away resume" below).
+3. **The question is a window with the real numbers,** measured again
+   when it opens, not copied from the stop: what the drive could free
+   and what Linux needs; the folders that would be kept, each with its
+   size, from the folder map (`harvest.folders`, with OneDrive's online-
+   only files counted as materialized - R8); the stick's free space. It
+   names what is lost in plain words: every installed program, Windows'
+   settings, and every file outside the listed folders.
+4. **If the files do not fit on the stick, there is no offer** - only the
+   gap, in GB, and "a stick of at least N GB would". The same honest
+   sizing as "one stick, honestly sized" below; a stick is the whole kit.
+5. **Consent is a typed sentence, verbatim**, like R23's and separate
+   from it: *"I confirm that Windows will be deleted and only the listed
+   folders will be kept"*. "Keep Windows" is the default button; closing
+   the window is "keep Windows". On a RED machine the R23 sentence is
+   still typed as well - neither sentence stands in for the other, and
+   neither widens the other (CLAUDE.md rule #1).
+6. **A "yes" wipes nothing by itself.** It runs the normal chain again,
+   elevated (one UAC consent): the job writer writes a new job
+   (`intent.path = clean-slate`, `path_reason = user-chose-clean-slate`)
+   carrying the typed sentence and the numbers the person was shown,
+   the kickstart generator follows, and the prologue starts on that job:
+   re-validate, measure the folders again, refuse if they no longer fit,
+   stage them with per-file checksums at a measured speed, refuse on 0
+   folders or 0 files (0.7.0), arm the handoff only if no Windows update
+   waits (R25).
+7. **The wipe is where it always was:** in the live session, after
+   identity, the staged checksums read back from the stick (R17), the
+   hardware checks, and the two-minute human check. "You can still
+   cancel" is on screen until that moment (rule #3); cancelling there
+   boots back into an untouched Windows. After it, the files are restored
+   from the stick during cutover and `settle-in` shows what came across.
+
+What this does not change: stop remains the default at every step; the
+walk-away path (keep Windows) is untouched; the extra prompt exists only
+on the branch where keep-Windows failed.
+
+**Build order.** Every piece this depends on is either unbuilt or
+unproven: the folder map in the job (Build order, the harvest), staging
+at real size, the live-session human check, the cutover restore from
+the stick, and `settle-in`. And the wipe is the most destructive writer
+in the project (CLAUDE.md rule #4, "no component that writes to a disk
+gets built until the spine it depends on is proven on real hardware"),
+so the build waits for the harvest and for a first physical install row
+(V1/V1b). The design is recorded now so that the pieces built before it
+are built to fit it.
+
 ### Stage 1 — prologue (runs in Windows, reversible)
 
 1. Re-validate `job.json` against the live machine. Anything changed since
@@ -603,7 +670,9 @@ One UAC consent click, one
 confirmation that the stick about to be written is the right device, one
 password the user chooses, and one polkit prompt in `settle-in` at reclaim.
 (The clean-slate path adds its two-minute live-session hardware check — a
-gate, not a prompt.)
+gate, not a prompt. The offer to discard Windows after a failed shrink,
+designed 2026-09-26, adds one typed sentence and one UAC consent, and only
+on that branch — "When Windows cannot be kept" above.)
 
 ### Stack
 

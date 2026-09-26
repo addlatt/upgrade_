@@ -328,6 +328,14 @@ install with the boot-chain checklist, rollback. Next, in order:
 6. **Code signing** — a calendar item, not a code item; start now.
 7. A **rescue mode** for machines refused for their drive: the staging
    step alone, reading what can be read onto the stick with checksums.
+8. **The offer to discard Windows when it cannot be kept** — designed
+   2026-09-26, not built (`architecture.md`, "When Windows cannot be
+   kept"; RISKS R26). At CONVERT the person picks *stop* (default) or
+   *ask me then*; if the shrink cannot fit, the prologue stops as today
+   and, at the next sign-in, shows the real numbers and the folders that
+   would be kept, and deletes Windows only after a typed sentence - never
+   when the files do not fit the stick, and the wipe still waits for the
+   live-session checks. Built after items 1 and 3.
 
 Longer term: hardware data seeded from
 [linux-hardware.org](https://linux-hardware.org) probes rather than hand-curated,
