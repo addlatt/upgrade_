@@ -10,9 +10,21 @@
     unreadable BitLocker state never gets a job; a Windows time zone with no
     IANA mapping is a refusal, not a guess.
 
+    The folder map (0.10.0, 2026-09-26): the person's six known folders,
+    read by the harvester (Harvest-UpgradeState.ps1 -FolderMapOut, beside
+    this script, in its own process), go into harvest.folders with their
+    sizes, and harvest.stick_fit says whether they fit on the stick. It
+    refuses when the map could be wrong: the folders belong to another
+    account than the one signed in, a folder could not be fully read or
+    counted (R6), or OneDrive online-only files were found and not made
+    local (R8 - that download happens only with -Materialize, which the
+    launchers do not pass yet). A clean-slate job whose folders do not fit
+    the stick, or on a machine with other people's profiles (R5), is
+    refused with the gap.
+
     What it does NOT yet do (said plainly so the job is read as what it is):
-    it does not harvest folders, browsers or Wi-Fi (those blocks are empty),
-    does not materialize cloud files, does not extract the BitLocker key
+    it does not harvest browsers or Wi-Fi (those blocks are empty),
+    does not extract the BitLocker key
     (a placeholder file is written where the key would go), and takes the
     account password hash as a parameter - the intent-capture UI that asks
     for a password is not built. -PasswordHash defaults to the hash of the
@@ -30,6 +42,11 @@
 
 .PARAMETER Desktop
     kde (default) or gnome.
+
+.PARAMETER Materialize
+    Download OneDrive online-only files in the folders before the map is
+    written (RISKS R8) - the one step that changes the machine, so only
+    after the person has agreed to it.
 #>
 [CmdletBinding()]
 param(
@@ -40,10 +57,13 @@ param(
     [string]$PasswordHash = '$6$upgradeV1$MkYfbaBe.FFp2fzSNrPiJ6RdPagcfI.crkepTcQpGsjGFMe8780OtkedouSyxvXdky5a6WiTWDy/.epwkWUk71',
     [ValidateSet('clean-slate', 'stop')][string]$IfCannotKeep = 'stop',
     [string]$AcknowledgeDataLoss,
+    [switch]$Materialize,
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.9.0'
+$JobWriterVersion = '0.10.0'
+# the harvester versions whose folder map this writer reads; any other is refused, not guessed
+$KnownHarvestVersions = @('0.3.0')
 $LinuxMinGB = 25
 # The acknowledged-data-loss path (RISKS R23, decided 2026-09-13). The person
 # types this sentence, verbatim, on the separate launcher; it lifts exactly
@@ -253,8 +273,26 @@ function Get-JobSoftware {
 
 # --- collection ------------------------------------------------------------------
 
+function Get-JobFolderMap {
+    # Live half: the harvester's folder map, in its own process (the shape the
+    # R8 materializer was proven in). Returns @{ Map; Error }.
+    param([string]$StickDrive, [bool]$Materialize)
+    $hs = Join-Path $PSScriptRoot 'Harvest-UpgradeState.ps1'
+    if (-not (Test-Path -LiteralPath $hs)) { return @{ Map = $null; Error = 'Harvest-UpgradeState.ps1 is not beside the job writer' } }
+    $tmp = Join-Path $env:TEMP ('upgrade-foldermap-' + [guid]::NewGuid().ToString('N') + '.json')
+    $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $hs, '-FolderMapOut', $tmp)
+    if ($StickDrive) { $a += @('-StickDrive', $StickDrive) }
+    if ($Materialize) { $a += '-Materialize' }
+    & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" @a
+    $code = $LASTEXITCODE
+    if (-not (Test-Path -LiteralPath $tmp)) { return @{ Map = $null; Error = "the harvester wrote no folder map (exit $code)" } }
+    try { $m = Get-Content -LiteralPath $tmp -Raw -Encoding UTF8 | ConvertFrom-Json; @{ Map = $m; Error = $null } }
+    catch { @{ Map = $null; Error = "the folder map could not be parsed: $($_.Exception.Message)" } }
+    finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+}
+
 function Get-JobFacts {
-    param([string]$ScanDir, [string]$StickDrive)
+    param([string]$ScanDir, [string]$StickDrive, [bool]$Materialize = $false)
     $f = @{}
     $cs = Get-CimInstance Win32_ComputerSystem; $os = Get-CimInstance Win32_OperatingSystem
     $bios = Get-CimInstance Win32_BIOS; $sys = Get-CimInstance Win32_ComputerSystemProduct
@@ -325,6 +363,7 @@ function Get-JobFacts {
     $f.WindowsTz = $tz.Id; $f.Locale = $loc.Name
     $f.InputTip = try { (Get-WinUserLanguageList)[0].InputMethodTips[0] } catch { '' }
     $f.Software = Get-JobSoftware
+    $fm = Get-JobFolderMap -StickDrive $StickDrive -Materialize $Materialize; $f.Harvest = $fm.Map; $f.HarvestError = $fm.Error
     $f.UserName = $env:USERNAME
     $f.FullName = try { (Get-CimInstance Win32_UserAccount -Filter "Name='$($env:USERNAME)' AND LocalAccount=True" | Select-Object -First 1).FullName } catch { $null }
     $f
@@ -351,6 +390,70 @@ function Get-JobAcknowledgement {
     @{ Refusal = $null; Block = [ordered]@{ statement = $RiskStatement; accepted_utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); overrides = @($ov | Sort-Object -Unique) } }
 }
 
+function Get-JobHarvestRefusals {
+    # Pure (self-tested). The folder map is what settle-in pulls and what a
+    # clean slate stages to the stick; a map that is wrong is silent data
+    # loss, discovered after Windows is gone. So each of these is a refusal,
+    # never a note (CLAUDE.md rule #1).
+    param($H, [string]$HarvestError)
+    if (-not $H) { return @("the list of your folders could not be read ($HarvestError)") }
+    if ("$($H.HarvestVersion)" -notin $KnownHarvestVersions) { return @("the folder map comes from harvester '$($H.HarvestVersion)', which this job writer does not read (it reads $($KnownHarvestVersions -join ', ')) - the kit is mixed; nothing was changed") }
+    $r = @()
+    $o = $H.Owner
+    $owners = @($o.DesktopOwnerSids | Where-Object { $_ })
+    if ($owners.Count -eq 0) { $r += "could not tell who is signed in on this screen, so could not tell whose folders these are (this window runs as $($o.ProcessName)) - start the launcher from the desktop of the person whose computer this is" }
+    elseif ($owners -notcontains "$($o.ProcessSid)") { $r += "this window runs as $($o.ProcessName), but another account is signed in on this screen - the folders read would be the wrong person's. Start the launcher from an account that is itself an administrator" }
+    foreach ($f in @($H.UserFolders | Where-Object { $_.Exists })) {
+        if ($f.Truncated) { $r += "$($f.Name) holds more files than this version counts ($($f.Files)), so its size would be too low (RISKS R6)" }
+        if ([int]$f.Unreadable -gt 0) { $r += "Windows would not let the harvest read $($f.Unreadable) folder(s) inside $($f.Name) (first: $(@($f.UnreadableFirst)[0])) - its size would be too low and those files would not be copied (RISKS R6)" }
+    }
+    $c = $H.CloudFiles
+    if ("$($c.Result)" -eq 'refused' -or [int]$c.Failed -gt 0) { $r += "$($c.Failed) of $($c.PlaceholdersFound) OneDrive online-only file(s) could not be downloaded; copied from Linux they would arrive EMPTY (RISKS R8). Check that OneDrive is running and signed in, then run it again" }
+    elseif ("$($c.Result)" -eq 'not-attempted') { $r += "$($c.PlaceholdersFound) file(s) in your folders are OneDrive online-only files; copied from Linux they would arrive EMPTY (RISKS R8), and this launcher does not download them yet" }
+    elseif ("$($c.Result)" -eq 'materialized') {
+        $again = [int](@($H.UserFolders | Where-Object { $_.Exists } | Measure-Object -Property CloudOnlyNow -Sum).Sum)
+        if ($again -gt 0) { $r += "after downloading, $again OneDrive file(s) were online-only again - OneDrive freed them while the list was being made (RISKS R8)" }
+    }
+    elseif ("$($c.Result)" -ne 'none-found') { $r += "the OneDrive check ended as '$($c.Result)', which this version does not understand" }
+    if (-not $H.StickFit) { $r += "the stick's free space could not be read ($($H.Stick.Error))" }
+    $r
+}
+
+function Get-JobStickFitRefusal {
+    # Pure (self-tested). Clean slate stages the folders to the stick and then
+    # wipes Windows: a job whose folders do not fit, or that would leave other
+    # people's files behind (RISKS R5), is no job - with the gap, so the next
+    # try can converge (architecture.md, "It refuses").
+    param($H, [string]$Path)
+    if ($Path -ne 'clean-slate') { return $null }
+    $fit = $H.StickFit
+    if (-not $fit.Fits) {
+        $more = if ([long]$fit.GapBytes -gt 0) { ("; a stick with at least {0:N1} GB free would hold them" -f ([math]::Ceiling([long]$fit.NeededBytes / 1GB * 10) / 10)) } else { '' }
+        return "Windows cannot be kept, and your folders do not fit on this stick: $($fit.Reason)$more"
+    }
+    $others = @($H.Owner.OtherProfiles)
+    if ($others.Count -gt 0) { return "this computer has $($others.Count) other account(s) ($(@($others | ForEach-Object { $_.Path }) -join ', ')); a clean slate would delete their files, and this version copies only yours (RISKS R5)" }
+    $null
+}
+
+function ConvertTo-JobHarvest {
+    # Pure (self-tested): the harvester's folder map -> the job's harvest.folders,
+    # harvest.cloud_files and harvest.stick_fit. Called only after
+    # Get-JobHarvestRefusals found nothing.
+    param($H)
+    $folders = @(@($H.UserFolders) | ForEach-Object {
+        [ordered]@{ name = "$($_.Name)"; path = $(if ($_.Path) { "$($_.Path)" } else { $null }); exists = [bool]$_.Exists; is_onedrive = [bool]$_.IsOneDrive
+                    files = [int]$_.Files; bytes = [long]$_.Bytes; cloud_only_files = [int]$_.CloudOnlyFiles; truncated = $false } })
+    $c = $H.CloudFiles
+    $fit = $H.StickFit
+    [ordered]@{
+        folders = $folders
+        cloud_files = [ordered]@{ placeholders_found = [int]$c.PlaceholdersFound; materialized = [int]$c.Materialized; failed = 0; result = "$($c.Result)" }
+        stick_fit = [ordered]@{ filesystem = "$($fit.FileSystem)"; cluster_bytes = [long]$fit.ClusterBytes; free_bytes = [long]$fit.FreeBytes; files_bytes = [long]$fit.FilesBytes
+                                needed_bytes = [long]$fit.NeededBytes; files_over_4gib = [int]$fit.FilesOver4GiB; fits = [bool]$fit.Fits; gap_bytes = [long]$fit.GapBytes }
+    }
+}
+
 function New-JobDocument {
     param($F, [string]$Desktop, [string]$PasswordHash, [string]$IfCannotKeep, [string]$ReportRel, [string]$AcknowledgeDataLoss)
     $refusals = @()
@@ -366,6 +469,7 @@ function New-JobDocument {
     if (-not $F.Stick) { $refusals += "the stick's identity could not be read ($($F.StickError))" }
     if ($F.Stick -and $F.Stick.Bus -ne 'USB') { $refusals += "the stick is on bus '$($F.Stick.Bus)', not USB" }
     if (-not $F.Disk.UniqueId) { $refusals += 'the system disk has no unique id' }
+    $refusals += @(Get-JobHarvestRefusals -H $F.Harvest -HarvestError "$($F.HarvestError)")
     if ($refusals.Count -gt 0) { return @{ Refusals = $refusals; Job = $null } }
 
     $espFits = ($F.EspFree -ge 32MB)
@@ -386,13 +490,16 @@ function New-JobDocument {
         $why = if (-not $espFits) { "the EFI system partition has $([math]::Round([long]$F.EspFree/1MB,1)) MB free, too little for Linux's boot files beside Windows'" } else { "the system disk reports '$($F.Health)'" }
         return @{ Refusals = @("Windows cannot be kept on this machine ($why), and you chose to stop rather than wipe it - no job; nothing was changed"); Job = $null }
     }
+    $fitRefusal = Get-JobStickFitRefusal -H $F.Harvest -Path $path.Path
+    if ($fitRefusal) { return @{ Refusals = @("$fitRefusal - no job; nothing was changed"); Job = $null } }
+    $hv = ConvertTo-JobHarvest -H $F.Harvest
     $health = if ($F.Health -in @('Healthy', 'Warning', 'Unhealthy')) { $F.Health } else { 'Unknown' }
     $bl = $F.BitLocker
     $job = [ordered]@{
         schema = 'job/1'
         job_id = [guid]::NewGuid().ToString()
         created_utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-        evaluate = [ordered]@{ version = $JobWriterVersion; scanner_version = 'see report'; harvest_version = 'none'; ran_as_admin = $true }
+        evaluate = [ordered]@{ version = $JobWriterVersion; scanner_version = 'see report'; harvest_version = "$($F.Harvest.HarvestVersion)"; ran_as_admin = $true }
         identity = [ordered]@{
             vendor = $F.Vendor; model = $F.Model; system_uuid = $F.Uuid; bios_serial = $F.BiosSerial; bios_version = $F.BiosVersion
             firmware_mode = 'UEFI'; secure_boot = $F.SecureBoot; os_caption = $F.OsCaption; os_build = [int]$F.OsBuild
@@ -419,8 +526,9 @@ function New-JobDocument {
             esp = [ordered]@{ size_bytes = [long]$F.EspSize; free_bytes = [long]$F.EspFree; fits_alongside_install = $espFits }
         }
         harvest = [ordered]@{
-            folders = @()
-            cloud_files = [ordered]@{ placeholders_found = 0; materialized = 0; failed = 0; result = 'none-found' }
+            folders = $hv.folders
+            cloud_files = $hv.cloud_files
+            stick_fit = $hv.stick_fit
             browsers = @()
             wifi = [ordered]@{ profiles = @(); secrets_file = $null }
             bitlocker = [ordered]@{ status = $bl; recovery_key_file = $(if ($bl -eq 'on') { 'artifacts/credentials/bitlocker-C.txt' } else { $null }) }
@@ -446,13 +554,30 @@ function ConvertTo-JobJson {
 # --- self-test ---------------------------------------------------------------------
 
 function Invoke-SelfTest {
+    # a folder map as the harvester's -FolderMapOut writes it (parsed JSON shape)
+    function New-TestHarvest {
+        param([string]$Version = '0.3.0', $Owners = @('S-1-5-21-9-1001'), [string]$Sid = 'S-1-5-21-9-1001', $Others = @(), [bool]$Truncated = $false, [int]$Unreadable = 0,
+              [string]$CloudResult = 'none-found', [int]$Found = 0, [int]$Failed = 0, [int]$Again = 0, [bool]$Fits = $true, [long]$Free = 1833394176, [long]$Needed = 1500000000,
+              [string]$FitReason = $null, [switch]$NoStick)
+        $docs = [pscustomobject]@{ Name = 'Documents'; Path = 'C:\Users\a\OneDrive\Documents'; Exists = $true; IsOneDrive = $true; Files = 473; Bytes = 1400000000; CloudOnlyFiles = $Found; CloudOnlyNow = $Again
+                                   Truncated = $Truncated; Unreadable = $Unreadable; UnreadableFirst = @($(if ($Unreadable) { 'C:\Users\a\OneDrive\Documents\locked' })) }
+        $music = [pscustomobject]@{ Name = 'Music'; Path = 'C:\Users\a\Music'; Exists = $false; IsOneDrive = $false; Files = 0; Bytes = 0; CloudOnlyFiles = 0; CloudOnlyNow = 0; Truncated = $false; Unreadable = 0; UnreadableFirst = @() }
+        $fit = [pscustomobject]@{ FileSystem = 'FAT32'; ClusterBytes = 4096; FreeBytes = $Free; FilesBytes = 1400000000; NeededBytes = $Needed; FilesOver4GiB = 0; Fits = $Fits
+                                  GapBytes = [long]([math]::Max([long]0, [long]($Needed - $Free))); Reason = $FitReason }
+        [pscustomobject]@{ HarvestVersion = $Version
+                           Owner = [pscustomobject]@{ ProcessSid = $Sid; ProcessName = 'PC\a'; SessionId = 1; DesktopOwnerSids = @($Owners); OtherProfiles = @($Others) }
+                           UserFolders = @($docs, $music)
+                           CloudFiles = [pscustomobject]@{ PlaceholdersFound = $Found; Materialized = $(if ($CloudResult -eq 'materialized') { $Found - $Failed } else { 0 }); Failed = $Failed; Result = $CloudResult }
+                           Stick = [pscustomobject]@{ Error = 'the drive was removed' }; StickFit = $(if ($NoStick) { $null } else { $fit }) }
+    }
     $good = @{ Vendor = 'Acer'; Model = 'Aspire'; Uuid = 'u'; BiosSerial = 's'; BiosVersion = 'v'; OsCaption = 'Windows 10'; OsBuild = 19045
                Firmware = 'UEFI'; SecureBoot = 'on'; Disk = @{ Number = 0; Serial = 'S1'; UniqueId = 'eui.1'; Name = 'SSD'; Size = 250059350016; Style = 'GPT' }
                Health = 'Healthy'; Operational = 'OK'; MediaType = 'SSD'; ShrinkGB = 61.4; ShrinkError = $null; Dirty = 'clean'
                EspSize = 104857600; EspFree = 72219648; BitLocker = 'on'; Verdict = 'YELLOW'; RequiredKernel = '6.7'; Report = 'x'
                Stick = @{ UniqueId = 'USBSTOR\X'; Serial = ''; Size = 8053063680; Name = 'General UDisk'; Label = 'UPGV0'; Bus = 'USB' }
                WindowsTz = 'Eastern Standard Time'; Locale = 'en-US'; InputTip = '0409:00000409'; UserName = 'Addison'; FullName = 'Addison Example'
-               FailedChecks = @(); WarnChecks = @(); RepairQueued = $false; RepairQueuedWhy = ''; RepairStale = ''; LastUnmovable = $null }
+               FailedChecks = @(); WarnChecks = @(); RepairQueued = $false; RepairQueuedWhy = ''; RepairStale = ''; LastUnmovable = $null
+               Harvest = (New-TestHarvest); HarvestError = $null }
     function With { param($h, [string]$k, $v) $c = @{}; foreach ($e in $h.GetEnumerator()) { $c[$e.Key] = $e.Value }; $c[$k] = $v; $c }
     $ph = '$6$upgradeV1$MkYfbaBe.FFp2fzSNrPiJ6RdPagcfI.crkepTcQpGsjGFMe8780OtkedouSyxvXdky5a6WiTWDy/.epwkWUk71'
     $aspire = With (With (With (With $good 'ShrinkGB' 0.0) 'Dirty' 'clean') 'RepairQueued' $true) 'RepairQueuedWhy' "Get-Volume reports 'Full Repair Needed'; NTFS logged on 2026-09-13T15:16:48Z that C: needs a full chkdsk"
@@ -565,6 +690,48 @@ function Invoke-SelfTest {
            Run = { $many = @(1..5 | ForEach-Object { [pscustomobject]@{ DisplayName = "App $_"; DisplayVersion = $null; Publisher = $null; SystemComponent = $null } }); $sw = ConvertTo-JobSoftware -Desktop $many -Store @() -Cap 3; "$($sw.desktop.Count):$($sw.truncated)" }; Expect = '3:True' }
         @{ Name = 'software: the job carries the block, and an empty inventory is an empty block, not a refusal'
            Run = { $r = New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; "$($r.Refusals.Count):$($null -ne $r.Job.harvest.software):$($r.Job.harvest.software.desktop.Count)" }; Expect = '0:True:0' }
+        # --- the folder map (roadmap item 3, 2026-09-26) ---------------------
+        @{ Name = 'folder map: the job carries the folders, the OneDrive result, the stick fit and the harvester version'
+           Run = { $j = (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; $h = $j.harvest
+                   "$($h.folders.Count):$($h.folders[0].name):$($h.folders[0].bytes):$($h.folders[0].is_onedrive):$($h.folders[1].exists):$($h.folders[1].path):$($h.cloud_files.result):$($h.stick_fit.fits):$($h.stick_fit.needed_bytes):$($j.evaluate.harvest_version)" }
+           Expect = '2:Documents:1400000000:True:False:C:\Users\a\Music:none-found:True:1500000000:0.3.0' }
+        @{ Name = 'folder map: refuse when there is no map, with the reason'
+           Run = { (New-JobDocument -F (With (With $good 'Harvest' $null) 'HarvestError' 'the harvester wrote no folder map (exit 1)') -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -join ';' }
+           Expect = 'the list of your folders could not be read (the harvester wrote no folder map (exit 1))' }
+        @{ Name = 'folder map: refuse a harvester version this writer does not read (a mixed kit)'
+           Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -Version '0.2.0')) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match "harvester '0\.2\.0'") }; Expect = $true }
+        @{ Name = 'folder map: refuse when another account is signed in on this screen (UAC with someone else''s password)'
+           Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -Owners @('S-1-5-21-9-1002'))) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match 'the wrong person''s') }; Expect = $true }
+        @{ Name = 'folder map: refuse when no desktop owner can be found (who these folders belong to is unknown)'
+           Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -Owners @())) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match '^could not tell who is signed in') }; Expect = $true }
+        @{ Name = 'folder map (R6): refuse a folder that hit the file cap'
+           Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -Truncated $true)) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match '^Documents holds more files than this version counts') }; Expect = $true }
+        @{ Name = 'folder map (R6): refuse a folder with parts Windows would not list, naming the first'
+           Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -Unreadable 2)) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match 'read 2 folder\(s\) inside Documents \(first: C:\\Users\\a\\OneDrive\\Documents\\locked\)') }; Expect = $true }
+        @{ Name = 'folder map (R8): online-only files not downloaded are a refusal, whatever the path'
+           Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -CloudResult 'not-attempted' -Found 12 -Again 12)) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match '^12 file\(s\) in your folders are OneDrive online-only files; copied from Linux they would arrive EMPTY') }; Expect = $true }
+        @{ Name = 'folder map (R8): a download that failed is a refusal'
+           Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -CloudResult 'refused' -Found 12 -Failed 1)) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match '^1 of 12 OneDrive online-only file\(s\) could not be downloaded') }; Expect = $true }
+        @{ Name = 'folder map (R8): files online-only again after the download are a refusal'
+           Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -CloudResult 'materialized' -Found 12 -Again 3)) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match '^after downloading, 3 OneDrive file') }; Expect = $true }
+        @{ Name = 'folder map (R8): a clean download is a job recording what was online-only before it'
+           Run = { $j = (New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -CloudResult 'materialized' -Found 12)) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; "$($j.harvest.cloud_files.result):$($j.harvest.cloud_files.placeholders_found):$($j.harvest.cloud_files.materialized):$($j.harvest.folders[0].cloud_only_files)" }
+           Expect = 'materialized:12:12:12' }
+        @{ Name = 'folder map: a stick whose free space cannot be read is a refusal'
+           Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -NoStick)) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match 'free space could not be read \(the drive was removed\)') }; Expect = $true }
+        @{ Name = 'stick fit: keep-windows whose folders do not fit the stick is still a job - it records fits=false (no discard offer later, R26)'
+           Run = { $j = (New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -Fits $false -Needed 14320352249 -FitReason 'x')) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; "$($j.intent.path):$($j.harvest.stick_fit.fits):$($j.harvest.stick_fit.gap_bytes)" }
+           Expect = 'keep-windows:False:12486958073' }
+        @{ Name = 'stick fit: clean slate whose folders do not fit is no job, with the gap (a stick of at least N GB)'
+           Run = { $r = New-JobDocument -F (With (With $good 'ShrinkGB' 3.0) 'Harvest' (New-TestHarvest -Fits $false -Needed 14320352249 -FitReason 'the folders need 13.34 GB on the stick and it has 1.71 GB free')) -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r'; "$($null -eq $r.Job):$($r.Refusals -join ';')" }
+           Expect = 'True:Windows cannot be kept, and your folders do not fit on this stick: the folders need 13.34 GB on the stick and it has 1.71 GB free; a stick with at least 13.4 GB free would hold them - no job; nothing was changed' }
+        @{ Name = 'stick fit (R5): clean slate on a computer with another account is no job - naming it'
+           Run = { $r = New-JobDocument -F (With (With $good 'ShrinkGB' 3.0) 'Harvest' (New-TestHarvest -Others @([pscustomobject]@{ Sid = 'S-1-5-21-9-1002'; Path = 'C:\Users\kid' }))) -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r'; "$($null -eq $r.Job):$([bool]($r.Refusals -match '1 other account\(s\) \(C:\\Users\\kid\); a clean slate would delete their files'))" }
+           Expect = 'True:True' }
+        @{ Name = 'stick fit: clean slate that fits, one account, is a job with the staged block'
+           Run = { $j = (New-JobDocument -F (With $good 'ShrinkGB' 3.0) -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r').Job; "$($j.intent.path):$([bool]$j.staged):$($j.harvest.stick_fit.fits)" }; Expect = 'clean-slate:True:True' }
+        @{ Name = 'folder map (R5): another account on a keep-windows machine is not a refusal (their files stay in the kept Windows)'
+           Run = { $null -ne (New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -Others @([pscustomobject]@{ Sid = 's'; Path = 'C:\Users\kid' }))) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job }; Expect = $true }
         @{ Name = 'locale: en-US + 0409 + Eastern -> en_US.UTF-8 / us / America/New_York'
            Run = { $l = (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.locale; "$($l.lang)/$($l.keymap)/$($l.timezone)" }; Expect = 'en_US.UTF-8/us/America/New_York' }
         @{ Name = 'keymap: German KLID maps to de; unknown maps to null'
@@ -596,7 +763,7 @@ if (-not (Test-JobAdmin)) { throw 'the job writer needs Administrator: the shrin
 
 Write-Host ''; Write-Host "  upgrade_  job writer $JobWriterVersion" -ForegroundColor Cyan
 Write-Host '  reads this machine; writes job.json; changes nothing' -ForegroundColor DarkGray
-$facts = Get-JobFacts -ScanDir $ScanDir -StickDrive $StickDrive
+$facts = Get-JobFacts -ScanDir $ScanDir -StickDrive $StickDrive -Materialize $Materialize.IsPresent
 $reportRel = if ($facts.Report) { 'reports/' + (Split-Path $facts.Report -Leaf) } else { 'reports/none' }
 $r = New-JobDocument -F $facts -Desktop $Desktop -PasswordHash $PasswordHash -IfCannotKeep $IfCannotKeep -ReportRel $reportRel -AcknowledgeDataLoss $AcknowledgeDataLoss
 if ($r.Refusals.Count -gt 0) {
@@ -625,5 +792,15 @@ Write-Host "  stick $($j.stick.friendly_name) $([math]::Round($j.stick.size_byte
 if ($j.risk_acknowledgement) { Write-Host "  DATA LOSS ACCEPTED: the RED verdict was acknowledged; lifted: $($j.risk_acknowledgement.overrides -join ', ')" -ForegroundColor Red }
 Write-Host "  written: $jobPath" -ForegroundColor Cyan
 Write-Host "  software inventory: $($j.harvest.software.desktop.Count) desktop programs, $($j.harvest.software.store.Count) Store apps (names only; stays on the stick)" -ForegroundColor DarkGray
-Write-Host '  not in this job: folders, browsers, Wi-Fi, cloud files, the BitLocker key, a chosen password' -ForegroundColor DarkGray
+Write-Host '  your folders (settle-in copies these; a clean slate stages them to the stick):'
+foreach ($fo in @($j.harvest.folders)) {
+    if (-not $fo.exists) { Write-Host ("    {0,-10} not found" -f $fo.name) -ForegroundColor DarkGray; continue }
+    Write-Host ("    {0,-10} {1,8:N2} GB  {2,7} files{3}  {4}" -f $fo.name, ($fo.bytes / 1GB), $fo.files, $(if ($fo.is_onedrive) { '  (OneDrive)' } else { '' }), $fo.path) -ForegroundColor DarkGray
+}
+$sf = $j.harvest.stick_fit
+Write-Host ("  on the stick they would need {0:N2} GB; it has {1:N2} GB free ({2}) - {3}" -f ($sf.needed_bytes / 1GB), ($sf.free_bytes / 1GB), $sf.filesystem, $(if ($sf.fits) { 'they fit' } else { "they do not fit: $($facts.Harvest.StickFit.Reason)" })) -ForegroundColor DarkGray
+if ($j.harvest.cloud_files.result -eq 'materialized') { Write-Host "  OneDrive: $($j.harvest.cloud_files.materialized) online-only file(s) downloaded and kept on this device" -ForegroundColor DarkGray }
+$op = @($facts.Harvest.Owner.OtherProfiles)
+if ($op.Count -gt 0) { Write-Host "  other accounts on this computer: $(@($op | ForEach-Object { $_.Path }) -join ', ') - their files are not in this job (RISKS R5)" -ForegroundColor Yellow }
+Write-Host '  not in this job: browsers, Wi-Fi, the BitLocker key, a chosen password' -ForegroundColor DarkGray
 Write-Host ''

@@ -148,6 +148,16 @@
       "failed": 0,
       "result": "materialized"
     },
+    "stick_fit": {
+      "filesystem": "FAT32",
+      "cluster_bytes": 4096,
+      "free_bytes": 1833394176,
+      "files_bytes": 29726081024,
+      "needed_bytes": 30387711509,
+      "files_over_4gib": 0,
+      "fits": false,
+      "gap_bytes": 28554317333
+    },
     "browsers": [
       {
         "name": "Firefox",

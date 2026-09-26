@@ -168,6 +168,11 @@ def main():
         ("job", "cloud files with failures is refused", set_path(job, ["harvest", "cloud_files", "failed"], 3)),
         ("job", "cloud files 'refused' is not a writable result",
          set_path(job, ["harvest", "cloud_files", "result"], "refused")),
+        # the stick fit (2026-09-26, R26): required, and a clean slate must fit
+        ("job", "a job without the stick fit is refused", del_path(job, ["harvest", "stick_fit"])),
+        ("job", "clean-slate whose folders do not fit the stick is refused",
+         set_path(job2, ["harvest", "stick_fit", "fits"], False)),
+        ("job", "a negative gap is refused", set_path(job, ["harvest", "stick_fit", "gap_bytes"], -1)),
         # R6: truncated sizing is a refusal at evaluate
         ("job", "truncated folder sizing is refused",
          set_path(job, ["harvest", "folders", 1, "truncated"], True)),

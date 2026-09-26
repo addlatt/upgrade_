@@ -220,9 +220,13 @@ reads (scanner 0.2.0, prologue 0.2.0), the acknowledged-data-loss path
 (R23; `RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd`), the software inventory in
 `job.json` (`harvest.software`, private by placement), read-only drive
 diagnostics on the kit (`DIAG-VOLUME.cmd`, `DIAG-SMART.cmd`), and two
-physical R16 writes. **Next (2026-09-26):** the harvest into the job
-(folders, Wi-Fi, browsers - read-only, buildable now, and the first thing
-both `settle-in` and the discard offer need); a physical keep-Windows
+physical R16 writes. **Next (2026-09-26):** the harvest into the job -
+**folder map built the same day** (job writer 0.10.0, harvester 0.3.0:
+`harvest.folders` + `harvest.stick_fit`, refusals for the wrong account,
+unreadable folders, online-only files, and a clean slate that does not
+fit the stick or has other profiles; unfired on a physical job); still
+owed: the OneDrive download step in the launchers (consent text first),
+staging moved to the exFAT partition, Wi-Fi, browsers; a physical keep-Windows
 install on a machine with a healthy drive (not the Aspire); `settle-in`.
 
 **Decided (2026-09-08): the build is a vertical, not a list.** One

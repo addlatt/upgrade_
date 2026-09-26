@@ -439,6 +439,7 @@
       "required": [
         "folders",
         "cloud_files",
+        "stick_fit",
         "browsers",
         "wifi",
         "bitlocker",
@@ -532,6 +533,54 @@
                 "none-found",
                 "materialized"
               ]
+            }
+          }
+        },
+        "stick_fit": {
+          "description": "Do the folders fit on the stick volume the prologue stages to (decided 2026-09-26, roadmap item 3; RISKS R26)? Measured at evaluate from the harvester's folder map: every file rounded up to the volume's clusters, the directories and the SHA256SUMS manifest - or the prologue's bytes x 1.02, whichever is larger - plus a 64 MB reserve. FAT32 cannot hold a file larger than 4 GB. A clean-slate job must fit; on keep-windows it is recorded so the discard offer knows whether to offer at all.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "filesystem",
+            "cluster_bytes",
+            "free_bytes",
+            "files_bytes",
+            "needed_bytes",
+            "files_over_4gib",
+            "fits",
+            "gap_bytes"
+          ],
+          "properties": {
+            "filesystem": {
+              "type": "string"
+            },
+            "cluster_bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "free_bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "files_bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "needed_bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "files_over_4gib": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fits": {
+              "type": "boolean"
+            },
+            "gap_bytes": {
+              "description": "needed_bytes - free_bytes when positive, else 0.",
+              "type": "integer",
+              "minimum": 0
             }
           }
         },
@@ -927,8 +976,32 @@
     },
     {
       "description": "A volume with a repair queued needs the same consent to the disk-check step (RISKS R18, 2026-09-17).",
-      "if": { "properties": { "storage": { "properties": { "volume_health": { "properties": { "repair_queued": { "const": true } } } } } } },
-      "then": { "properties": { "fork": { "properties": { "volume_check_consented": { "const": true } } } } }
+      "if": {
+        "properties": {
+          "storage": {
+            "properties": {
+              "volume_health": {
+                "properties": {
+                  "repair_queued": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "fork": {
+            "properties": {
+              "volume_check_consented": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
     },
     {
       "description": "keep-windows can only be chosen when the ESP takes the alongside install (R21).",
@@ -1024,6 +1097,35 @@
         "required": [
           "staged"
         ]
+      }
+    },
+    {
+      "description": "clean-slate stages the folders to the stick before the wipe: they must fit (decided 2026-09-26, RISKS R26).",
+      "if": {
+        "properties": {
+          "intent": {
+            "properties": {
+              "path": {
+                "const": "clean-slate"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "harvest": {
+            "properties": {
+              "stick_fit": {
+                "properties": {
+                  "fits": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   ],

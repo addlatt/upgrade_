@@ -115,6 +115,7 @@ parsecheck() {
 parsecheck "$SCANNER_DIST"
 parsecheck "$HARNESS"
 parsecheck "$ROOT/evaluate/windows/New-Job.ps1"
+parsecheck "$HARVEST_SRC"
 parsecheck "$ROOT/upgrade_/windows/New-Kickstart.ps1"
 parsecheck "$ROOT/upgrade_/windows/Invoke-Prologue.ps1"
 parsecheck "$ROOT/upgrade_/windows/Invoke-Logged.ps1"
@@ -177,6 +178,8 @@ cp "$ROOT/upgrade_/windows/Invoke-Logged.ps1"   "$D/Invoke-Logged.ps1"
 crlf "$PAYLOAD/ROLLBACK.cmd"        "$D/ROLLBACK.cmd"
 cp "$ROOT/upgrade_/windows/Invoke-Rollback.ps1" "$D/Invoke-Rollback.ps1"
 cp "$ROOT/evaluate/windows/New-Job.ps1"        "$D/New-Job.ps1"
+# the folder map (0.10.0): the job writer runs the harvester beside it, in its own process
+cp "$HARVEST_SRC"                             "$D/Harvest-UpgradeState.ps1"
 cp "$ROOT/upgrade_/windows/New-Kickstart.ps1"  "$D/New-Kickstart.ps1"
 # signed payload: the product path, at the removable-media default location
 cp "$BITS/shimx64.efi"  "$D/EFI/BOOT/BOOTX64.EFI"

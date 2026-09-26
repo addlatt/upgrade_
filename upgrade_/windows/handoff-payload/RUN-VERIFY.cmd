@@ -32,7 +32,7 @@ cd /d "%~dp0"
 if not exist "%~dp0upgrade_" mkdir "%~dp0upgrade_"
 echo.>> "%~dp0upgrade_\convert.log"
 echo ======== %date% %time%  RUN-VERIFY.cmd on %COMPUTERNAME%  (stick %~d0)>> "%~dp0upgrade_\convert.log"
-for %%f in (Invoke-Logged.ps1 Test-Handoff.ps1 upgrade-scan.ps1 New-Job.ps1 New-Kickstart.ps1 EFI\BOOT\BOOTX64.EFI images\install.img upgrade_\verify.sh upgrade_\LiveOS\kde.squashfs SHA256SUMS) do (
+for %%f in (Invoke-Logged.ps1 Test-Handoff.ps1 upgrade-scan.ps1 New-Job.ps1 Harvest-UpgradeState.ps1 New-Kickstart.ps1 EFI\BOOT\BOOTX64.EFI images\install.img upgrade_\verify.sh upgrade_\LiveOS\kde.squashfs SHA256SUMS) do (
   if not exist "%~dp0%%f" (
     echo   ERROR: %%f is not on this stick - this is not a complete kit.
     pause

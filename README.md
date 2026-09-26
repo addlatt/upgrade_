@@ -289,7 +289,12 @@ install with the boot-chain checklist, rollback. Next, in order:
    inventory, the Linux-side rollback, and reclaim.
 3. **The harvest into `job.json`** — folders, Wi-Fi profiles, browser
    profiles, the BitLocker key, and the intent-capture screen that asks
-   the person for a desktop, a password and the fork.
+   the person for a desktop, a password and the fork. **The folder map
+   is in (2026-09-26):** the six folders with their sizes, the OneDrive
+   check, whose folders they are, and whether they fit the stick; the
+   job writer refuses when any of those could be wrong. Still owed: the
+   launcher step that downloads OneDrive online-only files (consent text
+   first), Wi-Fi, browsers, the key, the intent screen.
 4. **The front door: one window instead of the console** — a managed
    experience means the person never sees a black window. **Decided
    (2026-09-13):** the Windows-side face is a WPF window hosted inside

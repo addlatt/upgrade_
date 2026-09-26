@@ -106,7 +106,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.9.0'
+$PrologueVersion = '0.9.1'   # 0.9.1 (2026-09-26): only the no-folders stop message - the job writer now lists the folders
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -1047,7 +1047,7 @@ function Get-PrologueStageRefusal {
     # map staged 0 files and the stop said "your files are staged". Nothing to
     # stage, or nothing staged, is a refusal - never a copy that reads complete.
     param([int]$Folders, $StagedFiles)
-    if ($Folders -lt 1) { return 'the job lists none of your folders (this version does not collect them yet), so there is nothing to copy to the stick; refusing to prepare a wipe with no copy of your files' }
+    if ($Folders -lt 1) { return 'the job lists none of your folders (none of the six was found on this computer), so there is nothing to copy to the stick; refusing to prepare a wipe with no copy of your files' }
     if ($null -ne $StagedFiles -and [int]$StagedFiles -lt 1) { return "no files were copied to the stick from the $Folders folder(s) the job lists; refusing to prepare a wipe with no copy of your files" }
     $null
 }

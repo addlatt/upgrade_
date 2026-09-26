@@ -194,9 +194,20 @@ and are tested. The `job.json` / `outcome.json` contracts exist as JSON
 Schema in `schemas/` (2026-09-08; `schemas/check.py` holds the examples and
 the documents each schema must refuse); since 2026-09-12 the job writer
 (`evaluate/windows/New-Job.ps1`) emits `job.json` and the prologue and
-`outcome.sh` emit `outcome.json`. **Not yet built:** artifact extraction,
-intent capture UI, multi-user handling, the harvest of folders, Wi-Fi and
-browsers into the job. **Materialization of cloud placeholders exists**
+`outcome.sh` emit `outcome.json`. **The folder map is in the job
+(2026-09-26, job writer 0.10.0, harvester 0.3.0):** the job writer runs
+the harvester (`-FolderMapOut`, its own process) and writes the six known
+folders into `harvest.folders` and whether they fit the stick into
+`harvest.stick_fit`. It refuses when the map could be wrong: the elevated
+account is not the one signed in on the screen (UAC with another
+account's password reads the wrong person's folders), a folder hit the
+file cap or holds sub-folders Windows would not list (R6), OneDrive
+online-only files were found and not made local (R8), or - on the clean
+slate - the folders do not fit the stick or other people's profiles
+exist (R5). **Not yet built:** artifact extraction, intent capture UI,
+multi-user migration, Wi-Fi and browsers into the job, and the launcher
+step that downloads online-only files (the job writer's `-Materialize`
+exists; the launchers do not pass it until their consent text says so). **Materialization of cloud placeholders exists**
 (`Harvest-UpgradeState.ps1 -Materialize`, 2026-09-08) and its plumbing is
 proven against Windows' own cloud files filter (RISKS R8).
 
@@ -479,7 +490,18 @@ Costs stick capacity; removes an entire class of mid-conversion failure.
 
 `evaluate` computes what the stick must hold — live image, artifacts, and on
 the clean-slate path the staged files — and refuses a stick that cannot, with
-the gap report saying what would fit. The stick is also, briefly, the only
+the gap report saying what would fit. **Built for the staged files
+(2026-09-26):** `harvest.stick_fit` sizes the folders as the prologue's
+staging lays them down on the stick volume it stages to - each file
+rounded up to the volume's clusters, the directories, the manifest, or
+the prologue's own bytes × 1.02 if larger, plus 64 MB - and a FAT32
+volume never fits a file over 4 GB. A clean-slate job must fit (the
+schema refuses one that does not); a keep-Windows job records the answer
+for the discard offer. **Found while building it:** the prologue stages
+to the stick's FAT32 kit volume, not to the exFAT `UPGDATA` partition the
+stick writer creates for staging; the gate measures the volume actually
+used, so it is honest about today's stick, and moving staging to exFAT is
+owed before the discard offer is built. The stick is also, briefly, the only
 copy of the user's files on that path, which is why the read-back verification
 in step 6 is a hard gate, not a warning.
 

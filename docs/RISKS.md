@@ -316,6 +316,22 @@ audience, who are the most likely to share a machine.
 either migrates all of them or refuses multi-user machines explicitly. Refusing
 is an acceptable v1 answer. Silently migrating one is not.
 
+**Partly built (2026-09-26, harvester 0.3.0 / job writer 0.10.0).** The
+folder map lists every other profile on the machine (local, domain and
+Microsoft Entra accounts; `Win32_UserProfile`, not special), and the job
+writer **refuses a clean-slate job** when any exists - naming them - since
+the wipe would delete their files. A keep-Windows job is still written
+(their files stay in the kept Windows) and the job writer says plainly
+that their files are not in it; the reclaim in `settle-in` will have to
+refuse on the same fact. The same step closes a second way to take the
+wrong person's files: an elevated run under **another account** (UAC on a
+standard account asks for an administrator's password, and the elevated
+process then reads the administrator's folders) - the job writer compares
+the elevated account with the owner of the desktop in its session, by
+SID, and refuses when they differ or no desktop owner is found.
+Still open: whether a Windows leftover such as `defaultuser100000` (found
+on the Aspire, 2026-09-26) should count - see R26's measurement.
+
 ## R6 — Truncated sizing undersizes the backup · medium · open
 
 **What.** `Get-HarvestFolderStats` stops at 250,000 files and sets
@@ -327,6 +343,21 @@ do not actually fit the stick, discovered at staging — or worse, trusted.
 
 **Closes when.** The Phase A UI treats `Truncated` as a hard blocker rather
 than a note, or sizing is made exact for the folders that feed the estimate.
+
+**Refusal built (2026-09-26, job writer 0.10.0), and a sibling found.**
+The job writer refuses any folder that hit the cap. Building it found a
+second way to size low that nothing counted: `Get-ChildItem -Recurse
+-ErrorAction SilentlyContinue` skips a sub-folder Windows will not list
+without a word - and the prologue's staging copies with the same call, so
+those files would also be left off the stick. The harvester now counts
+such folders (`Unreadable`, with the first paths) and the job writer
+refuses on any. Read on real Windows PowerShell 5.1 (G16, 2026-09-26)
+before relying on it: a recursive listing does **not** follow junctions
+or directory symlinks (a link to a whole other tree is not counted -
+correct, it is not the person's folder) and **does** walk OneDrive's
+cloud directories, which are reparse points too. Self-tests use a real
+junction and a real folder with a deny rule. On the G16 and the Aspire
+the count was 0 in all six folders.
 
 ## R7 — Broadcom vendor fallback over-refuses · medium · open
 
@@ -390,6 +421,17 @@ and the pinned/unpinned bits are confirmed **not** part of detection (a
 self-test case pins that). Two cfapi facts learned: parent directories must
 themselves be placeholders, and a placeholder name is bare, relative to its
 own directory.
+
+**In the job (2026-09-26, job writer 0.10.0).** The job writer reads the
+folder map and **refuses** any job while online-only files remain: found
+and not downloaded, a download that failed, or files online-only again
+when read after the download. The download itself is the job writer's
+`-Materialize`, which no launcher passes yet: it changes the machine
+(downloads, and pins "always keep on this device"), and the launchers
+write the job *before* the typed CONVERT, so it waits for consent text
+the owner approves. Measured 2026-09-26: 0 online-only files in the six
+folders on the G16 and on the Aspire (whose Desktop, Documents and
+Pictures are redirected into a work-or-school OneDrive).
 
 **Closes when.** `Test-Materialize.ps1 -OneDrive` passes against a
 signed-in OneDrive with Files On-Demand — the residue no test provider can
@@ -1531,6 +1573,16 @@ Status (2026-09-26): one such disk exists - the Aspire, mitigated, a "no"
 Pass line: the fraction of elevated machines that can, which only more
 machines answer.
 
+**The folder map raises the target (2026-09-26, job writer 0.10.0).**
+Until now every job carried an empty folder list, so the prologue's shrink
+target was `linux_min_gb` alone (25 GB). Its rule was always 25 GB plus
+the harvested bytes × 1.2 (the files are pulled into Linux before Windows
+is reclaimed); with the folders in the job the rule applies for real. On
+the Aspire (16.6 GB of folders) the target becomes about **45 GB**, not
+25 - keep-Windows was already refused there at 9.5 GB, so no verdict
+changes, but every earlier "N of 25 GB" in this entry was measured
+against the smaller target. Not re-measured; a job on 0.10.0 will say.
+
 ## R19 — cryptsetup BITLK read is a new trust dependency · medium · open (VM leg fired 2026-09-01)
 
 **What.** The keep-Windows path (now the default) reads the BitLocker NTFS
@@ -2184,6 +2236,28 @@ stays in the live session behind the checksum read-back and the human
 check. Build waits for the harvest (folder map), the staging at real
 size, the live-session check, the cutover restore and `settle-in`, and
 for a first physical install row (V1/V1b) - CLAUDE.md rule #4.
+
+**The harvest half built, and the Aspire measured (2026-09-26).** The
+folder map is in the job and `harvest.stick_fit` answers "do the files
+fit on the stick" (job writer 0.10.0; `architecture.md`, "one stick,
+honestly sized"). Read-only over SSH, the Aspire's six folders hold
+**16.6 GB** (15.4 GiB) in 35,351 files - Desktop, Documents and Pictures
+redirected into a work-or-school OneDrive, 0 online-only, 0 unreadable -
+10.2 GiB of it in Downloads, including one 5.9 GB file. On today's 8 GB
+stick (FAT32 kit volume, 1.71 GiB free) **the offer would not be made**:
+the files need at least 15.8 GiB, and the 5.9 GB file can never go on
+FAT32. It would take a stick of at least ~17 GB free, staged to exFAT.
+The coverage question, answered for one machine: outside the map sit
+70 GB of AppData - chiefly a Docker disk (36 GB) and a **WSL Ubuntu disk
+(4.9 GB) that holds the person's Linux-side files** - an Outlook cache
+(re-downloadable), ~2.2 GB of tool folders in the profile, and 38.9 GB
+of `Windows.old` (the 2026-09-23 feature update). One other profile was
+found: `defaultuser100000`, a Windows setup leftover with no local
+account and 0.11 GB - a clean-slate job refuses on it today (R5), which
+is the cautious direction until a rule for setup leftovers has evidence.
+Row: `docs/validation-results/harvest-folder-map.csv`. Found while
+building: the prologue stages to the FAT32 kit volume, not the exFAT
+`UPGDATA` partition - moving it is owed before the offer is built.
 
 **Closes when.** On the rig: a failed shrink → the offer → the typed yes
 → staged and read back → wipe install → every staged file restored with

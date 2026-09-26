@@ -38,6 +38,17 @@
     harness (Test-Materialize.ps1) drives, in a separate process from the
     sync provider - exactly the shape of the real thing.
 
+.PARAMETER FolderMapOut
+    Run only the folder map - the user folders, their cloud placeholders
+    (materialized first when -Materialize is given), whose folders they are,
+    and, with -StickDrive, whether they fit on the stick - and write it as
+    JSON to this file. This is the seam the job writer (New-Job.ps1) drives
+    in its own process; the job writer judges, this only measures.
+
+.PARAMETER StickDrive
+    With -FolderMapOut: the stick's drive letter. The folders are sized as
+    the prologue's staging would lay them down on that volume.
+
 .EXAMPLE
     .\Harvest-UpgradeState.ps1
 
@@ -53,11 +64,13 @@ param(
     [string]$MaterializePath,
     [string]$MaterializeResult,
     [int]$MaterializeTimeoutSec = 600,
+    [string]$FolderMapOut,
+    [string]$StickDrive,
     [switch]$SelfTest
 )
 
 $ErrorActionPreference = 'Stop'
-$HarvestVersion = '0.2.0'
+$HarvestVersion = '0.3.0'
 
 # Windows sets this on files that live in the cloud and have not been
 # downloaded. Copying one gives you an empty file, silently.
@@ -197,36 +210,77 @@ function Get-HarvestAccount {
 # =============================================================================
 
 function Get-HarvestFolderStats {
-    param([string]$Path, [int]$MaxFiles = 250000)
+    # $ClusterBytes > 0 also sizes the folder as the prologue's staging would
+    # lay it down on the stick (clean slate, and the discard offer - R26):
+    # every file rounded up to whole clusters, one cluster or more per
+    # directory for its entries, and the file's line in the SHA256SUMS
+    # manifest. $StageName is the folder's name under staging/.
+    param([string]$Path, [int]$MaxFiles = 250000, [long]$ClusterBytes = 0, [string]$StageName = '')
 
-    $bytes = 0; $files = 0; $cloudOnly = 0
+    $bytes = 0; $files = 0; $cloudOnly = 0; $maxFile = 0; $over4 = 0
+    $stickFiles = [long]0; $manifest = [long]0; $dirEntries = @{}
+    $root = $Path.TrimEnd('\')
+    $utf8 = New-Object Text.UTF8Encoding($false)
+    $enumErrors = @()
 
     # Do NOT use `break` inside ForEach-Object here. With no enclosing loop,
     # PowerShell unwinds past the function and terminates the entire script -
     # silently, with exit code 0. Select-Object -First is the supported way to
     # stop a pipeline early, and it bounds the work on pathological trees.
+    # Windows PowerShell 5.1 does not descend into junctions or directory
+    # symlinks (the Documents\My Music kind) but does descend into OneDrive's
+    # cloud directories, which are reparse points too - both read on the G16,
+    # 2026-09-26. A directory Windows will not list is NOT skipped silently:
+    # it is counted in Unreadable, because a size without it is a low
+    # estimate and staging would leave its files behind (RISKS R6).
     try {
-        Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue |
+        Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue -ErrorVariable +enumErrors |
             Select-Object -First $MaxFiles |
             ForEach-Object {
                 $files++
-                $bytes += $_.Length
+                $len = [long]$_.Length
+                $bytes += $len
+                if ($len -gt $maxFile) { $maxFile = $len }
+                if ($len -gt 4294967295) { $over4++ }
                 $a = [int]$_.Attributes
                 if (($a -band $FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) -or
                     ($a -band $FILE_ATTRIBUTE_OFFLINE)) { $cloudOnly++ }
+                if ($ClusterBytes -gt 0) {
+                    $stickFiles += [long]([math]::Ceiling($len / $ClusterBytes)) * $ClusterBytes
+                    $rel = $_.FullName.Substring($root.Length).TrimStart('\') -replace '\\', '/'
+                    # "<64 hex>  ./staging/<Name>/<rel>\n", as Invoke-PrologueStage writes it
+                    $manifest += 64 + 2 + $utf8.GetByteCount("./staging/$StageName/$rel") + 1
+                    # a directory entry set per file: FAT32 1 + ceil(name/13), exFAT
+                    # 2 + ceil(name/15) entries of 32 bytes; the larger of the two
+                    $d = $_.DirectoryName
+                    $e = 32 * (2 + [math]::Ceiling($_.Name.Length / 13))
+                    if ($dirEntries.ContainsKey($d)) { $dirEntries[$d] += $e } else { $dirEntries[$d] = $e }
+                }
             }
-    } catch { }
+    } catch { $enumErrors += $_ }
+
+    $stickBytes = [long]0
+    if ($ClusterBytes -gt 0) {
+        $dirBytes = [long]0
+        foreach ($v in $dirEntries.Values) { $dirBytes += [long]([math]::Max([double]1, [math]::Ceiling($v / $ClusterBytes))) * $ClusterBytes }
+        $stickBytes = $stickFiles + $dirBytes + $manifest
+    }
 
     [pscustomobject]@{
-        Files          = $files
-        Bytes          = $bytes
-        CloudOnlyFiles = $cloudOnly
-        Truncated      = ($files -ge $MaxFiles)
+        Files            = $files
+        Bytes            = $bytes
+        CloudOnlyFiles   = $cloudOnly
+        Truncated        = ($files -ge $MaxFiles)
+        Unreadable       = @($enumErrors).Count
+        UnreadableFirst  = @($enumErrors | Select-Object -First 3 | ForEach-Object { "$($_.TargetObject)" })
+        MaxFileBytes     = $maxFile
+        FilesOver4GiB    = $over4
+        StickBytes       = $stickBytes
     }
 }
 
 function Get-HarvestUserFolders {
-    param([switch]$SkipSizes)
+    param([switch]$SkipSizes, [long]$ClusterBytes = 0)
 
     # GetFolderPath resolves OneDrive redirection correctly, which the plain
     # %USERPROFILE%\Documents guess does not.
@@ -252,27 +306,33 @@ function Get-HarvestUserFolders {
             $results += [pscustomobject]@{
                 Name = $t.Name; Path = $t.Path; Exists = $false
                 IsOneDrive = $false; Files = 0; Bytes = 0
-                CloudOnlyFiles = 0; Truncated = $false
+                CloudOnlyFiles = 0; Truncated = $false; Unreadable = 0; UnreadableFirst = @()
+                MaxFileBytes = 0; FilesOver4GiB = 0; StickBytes = 0
             }
             continue
         }
 
         if (-not $SkipSizes) { Write-Step "sizing $($t.Name)..." }
         $stats = if ($SkipSizes) {
-            [pscustomobject]@{ Files=0; Bytes=0; CloudOnlyFiles=0; Truncated=$false }
+            [pscustomobject]@{ Files=0; Bytes=0; CloudOnlyFiles=0; Truncated=$false; Unreadable=0; UnreadableFirst=@(); MaxFileBytes=0; FilesOver4GiB=0; StickBytes=0 }
         } else {
-            Get-HarvestFolderStats -Path $t.Path
+            Get-HarvestFolderStats -Path $t.Path -ClusterBytes $ClusterBytes -StageName $t.Name
         }
 
         $results += [pscustomobject]@{
-            Name           = $t.Name
-            Path           = $t.Path
-            Exists         = $true
-            IsOneDrive     = ($t.Path -match 'OneDrive')
-            Files          = $stats.Files
-            Bytes          = $stats.Bytes
-            CloudOnlyFiles = $stats.CloudOnlyFiles
-            Truncated      = $stats.Truncated
+            Name            = $t.Name
+            Path            = $t.Path
+            Exists          = $true
+            IsOneDrive      = ($t.Path -match 'OneDrive')
+            Files           = $stats.Files
+            Bytes           = $stats.Bytes
+            CloudOnlyFiles  = $stats.CloudOnlyFiles
+            Truncated       = $stats.Truncated
+            Unreadable      = $stats.Unreadable
+            UnreadableFirst = $stats.UnreadableFirst
+            MaxFileBytes    = $stats.MaxFileBytes
+            FilesOver4GiB   = $stats.FilesOver4GiB
+            StickBytes      = $stats.StickBytes
         }
     }
     $results
@@ -589,6 +649,90 @@ function Get-HarvestBrowsers {
 }
 
 # =============================================================================
+#  the folder map's two questions: whose folders, and do they fit the stick
+# =============================================================================
+
+function Get-HarvestStickFit {
+    # Pure (self-tested). Do the folders fit on the stick volume the prologue
+    # stages to (clean slate; the discard offer, RISKS R26)? Needed is the
+    # cluster-exact size (files, directories, the manifest) or the prologue's
+    # own "bytes x 1.02" rule, whichever is larger, plus the prologue's 64 MB
+    # reserve - so a "fits" here also passes the prologue's check at staging.
+    # FAT32 cannot hold a file larger than 4 GB: one such file is "does not fit".
+    param($Folders, [long]$FreeBytes, [string]$FileSystem, [long]$ClusterBytes, [long]$ReserveBytes = 64MB)
+    $filesBytes = [long]0; $stick = [long]0; $over4 = 0
+    foreach ($f in @($Folders)) {
+        if (-not $f.Exists) { continue }
+        $filesBytes += [long]$f.Bytes; $stick += [long]$f.StickBytes; $over4 += [int]$f.FilesOver4GiB
+    }
+    $needed = [long]([math]::Max([double]$stick, [math]::Ceiling($filesBytes * 1.02))) + $ReserveBytes
+    $gap = [long]([math]::Max([long]0, [long]($needed - $FreeBytes)))
+    $reason = $null
+    if ($FileSystem -notin @('FAT32', 'exFAT')) { $reason = "the stick's volume is '$FileSystem'; this version sizes only FAT32 and exFAT" }
+    elseif ($ClusterBytes -le 0) { $reason = "the stick's cluster size could not be read" }
+    elseif ($FileSystem -eq 'FAT32' -and $over4 -gt 0) { $reason = "$over4 file(s) are larger than 4 GB, and the stick's FAT32 volume cannot hold a file that large" }
+    elseif ($gap -gt 0) { $reason = ("the folders need {0:N2} GB on the stick and it has {1:N2} GB free" -f ($needed / 1GB), ($FreeBytes / 1GB)) }
+    [pscustomobject]@{
+        FileSystem    = $FileSystem
+        ClusterBytes  = $ClusterBytes
+        FreeBytes     = $FreeBytes
+        FilesBytes    = $filesBytes
+        NeededBytes   = $needed
+        FilesOver4GiB = $over4
+        Fits          = (-not $reason)
+        GapBytes      = $gap
+        Reason        = $reason
+    }
+}
+
+function Get-HarvestStick {
+    # Live half, read-only: the stick volume's filesystem, cluster and free space.
+    param([string]$Drive)
+    $l = $Drive.TrimEnd(':', '\')
+    try {
+        $v = Get-Volume -DriveLetter $l -ErrorAction Stop
+        [pscustomobject]@{ Drive = "${l}:"; FileSystem = "$($v.FileSystemType)"; ClusterBytes = [long]$v.AllocationUnitSize
+                           FreeBytes = [long]$v.SizeRemaining; SizeBytes = [long]$v.Size; Error = $null }
+    } catch {
+        [pscustomobject]@{ Drive = "${l}:"; FileSystem = $null; ClusterBytes = 0; FreeBytes = 0; SizeBytes = 0
+                           Error = ($_.Exception.Message -replace '\s+', ' ').Trim() }
+    }
+}
+
+function Get-HarvestOwner {
+    # Live half, read-only. Whose folders are these? The known-folder paths
+    # belong to the account this process runs as. The launcher elevates with
+    # UAC; on an account that is not an administrator, UAC asks for ANOTHER
+    # account's password and the elevated process runs as that account - its
+    # Documents, not the person's. So the job writer compares this process's
+    # account with the owner of the desktop (explorer.exe) in this process's
+    # session, by SID. Also lists the machine's other people's profiles (R5).
+    $me = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $sid = $me.User.Value
+    $session = [Diagnostics.Process]::GetCurrentProcess().SessionId
+    $owners = @()
+    try {
+        foreach ($p in @(Get-CimInstance Win32_Process -Filter "Name='explorer.exe'" -ErrorAction Stop | Where-Object { $_.SessionId -eq $session })) {
+            try { $o = Invoke-CimMethod -InputObject $p -MethodName GetOwnerSid -ErrorAction Stop; if ($o.Sid) { $owners += "$($o.Sid)" } } catch { }
+        }
+    } catch { }
+    $others = @()
+    try {
+        # S-1-5-21: local and domain accounts; S-1-12-1: Microsoft Entra (work or school) accounts
+        $others = @(Get-CimInstance Win32_UserProfile -ErrorAction Stop |
+            Where-Object { -not $_.Special -and $_.SID -ne $sid -and "$($_.SID)" -match '^S-1-(5-21|12-1)-' } |
+            ForEach-Object { [pscustomobject]@{ Sid = "$($_.SID)"; Path = "$($_.LocalPath)"; LastUseUtc = $(if ($_.LastUseTime) { ([DateTime]$_.LastUseTime).ToUniversalTime().ToString('o') } else { $null }) } })
+    } catch { }
+    [pscustomobject]@{
+        ProcessSid       = $sid
+        ProcessName      = $me.Name
+        SessionId        = $session
+        DesktopOwnerSids = @($owners | Sort-Object -Unique)
+        OtherProfiles    = $others
+    }
+}
+
+# =============================================================================
 #  capacity
 # =============================================================================
 
@@ -719,6 +863,68 @@ function Invoke-HarvestSelfTest {
         Assert-H 'folder stats: file cap truncates and says so (F1/R6)' `
             ($s.Files -eq 2 -and $s.Truncated) `
             "got Files=$($s.Files) Truncated=$($s.Truncated)"
+
+        # on-stick size (R26 fit gate): 3 files x one 4 KB cluster, two
+        # directories x one cluster, and the three manifest lines
+        # (64 + 2 + len("./staging/Documents/a.txt") + 1 = 92, 92, 96)
+        $s = Get-HarvestFolderStats -Path $tree -ClusterBytes 4096 -StageName 'Documents'
+        Assert-H 'folder stats: on-stick size = clusters + directories + manifest lines' `
+            ($s.StickBytes -eq 20760 -and $s.MaxFileBytes -eq 30 -and $s.FilesOver4GiB -eq 0 -and $s.Unreadable -eq 0) `
+            "got StickBytes=$($s.StickBytes) MaxFileBytes=$($s.MaxFileBytes) Over4=$($s.FilesOver4GiB) Unreadable=$($s.Unreadable)"
+        Assert-H 'folder stats: no cluster size, no on-stick size' `
+            ((Get-HarvestFolderStats -Path $tree).StickBytes -eq 0)
+
+        # a real junction (the Documents\My Music kind): not followed, so a
+        # folder's size never includes what a link points at (G16, 2026-09-26)
+        $jt = Join-Path $work 'jt'; $outside = Join-Path $work 'outside'
+        New-Item -ItemType Directory -Path $jt, $outside -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $jt 'own.txt'), 'o')
+        [IO.File]::WriteAllText((Join-Path $outside 'big.txt'), ('y' * 1000))
+        $link = Join-Path $jt 'link'
+        New-Item -ItemType Junction -Path $link -Target $outside | Out-Null
+        $s = Get-HarvestFolderStats -Path $jt
+        [IO.Directory]::Delete($link)
+        Assert-H 'folder stats: a junction is not followed' `
+            ($s.Files -eq 1 -and $s.Bytes -eq 1 -and $s.Unreadable -eq 0) "got Files=$($s.Files) Bytes=$($s.Bytes) Unreadable=$($s.Unreadable)"
+
+        # a real directory this account may not list: counted, never skipped
+        # silently (a low size, and files staging would leave behind - R6)
+        $lt = Join-Path $work 'lt'; $locked = Join-Path $lt 'locked'
+        New-Item -ItemType Directory -Path $locked -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $lt 'open.txt'), 'o')
+        [IO.File]::WriteAllText((Join-Path $locked 'hidden.txt'), 'h')
+        $me = [Security.Principal.WindowsIdentity]::GetCurrent().User
+        $deny = New-Object Security.AccessControl.FileSystemAccessRule($me, 'ListDirectory', 'Deny')
+        $acl = Get-Acl -LiteralPath $locked; $acl.AddAccessRule($deny); Set-Acl -LiteralPath $locked -AclObject $acl
+        try { $s = Get-HarvestFolderStats -Path $lt }
+        finally { $acl = Get-Acl -LiteralPath $locked; $null = $acl.RemoveAccessRule($deny); Set-Acl -LiteralPath $locked -AclObject $acl }
+        Assert-H 'folder stats: a directory Windows will not list is counted as unreadable (R6)' `
+            ($s.Unreadable -ge 1 -and $s.Files -eq 1 -and "$($s.UnreadableFirst)" -match 'locked') "got Unreadable=$($s.Unreadable) Files=$($s.Files) first=$($s.UnreadableFirst)"
+
+        # --- does it fit on the stick (R26): the pure judgment -----------
+        $GB = 1073741824
+        function New-FitFolder { param([long]$Bytes, [long]$StickBytes, [int]$Over4 = 0, [bool]$Exists = $true)
+            [pscustomobject]@{ Exists = $Exists; Bytes = $Bytes; StickBytes = $StickBytes; FilesOver4GiB = $Over4; Files = 1 } }
+        $fit = Get-HarvestStickFit -Folders @((New-FitFolder (1 * $GB) (1 * $GB + 50MB)), (New-FitFolder (5 * $GB) (5 * $GB) -Exists $false)) -FreeBytes (2 * $GB) -FileSystem 'FAT32' -ClusterBytes 4096
+        Assert-H 'stick fit: 1 GB of folders on 2 GB free fits; a missing folder counts nothing' `
+            ($fit.Fits -and $fit.FilesBytes -eq $GB -and $fit.NeededBytes -eq ($GB + 50MB + 64MB) -and $fit.GapBytes -eq 0) "got fits=$($fit.Fits) files=$($fit.FilesBytes) needed=$($fit.NeededBytes)"
+        $fit = Get-HarvestStickFit -Folders @(New-FitFolder (10 * $GB) (10 * $GB)) -FreeBytes (1833394176) -FileSystem 'FAT32' -ClusterBytes 4096
+        Assert-H 'stick fit: too big says so, with the gap in bytes and a plain reason' `
+            ((-not $fit.Fits) -and $fit.GapBytes -eq ($fit.NeededBytes - 1833394176) -and $fit.Reason -match '^the folders need 10\.2\d GB on the stick and it has 1\.71 GB free$') "got fits=$($fit.Fits) gap=$($fit.GapBytes) reason=$($fit.Reason)"
+        $fit = Get-HarvestStickFit -Folders @(New-FitFolder (10 * $GB) (10 * $GB)) -FreeBytes (100 * $GB) -FileSystem 'exFAT' -ClusterBytes 32768
+        Assert-H 'stick fit: large files - the prologue''s 2% rule is the floor of what is needed' `
+            ($fit.Fits -and $fit.NeededBytes -eq ([long][math]::Ceiling(10 * $GB * 1.02) + 64MB)) "got needed=$($fit.NeededBytes)"
+        $fit = Get-HarvestStickFit -Folders @(New-FitFolder (5 * $GB) (5 * $GB) -Over4 1) -FreeBytes (100 * $GB) -FileSystem 'FAT32' -ClusterBytes 4096
+        Assert-H 'stick fit: a file over 4 GB never fits a FAT32 stick, whatever the space' `
+            ((-not $fit.Fits) -and $fit.GapBytes -eq 0 -and $fit.Reason -match 'larger than 4 GB') "got fits=$($fit.Fits) reason=$($fit.Reason)"
+        $fit = Get-HarvestStickFit -Folders @(New-FitFolder (5 * $GB) (5 * $GB) -Over4 1) -FreeBytes (100 * $GB) -FileSystem 'exFAT' -ClusterBytes 32768
+        Assert-H 'stick fit: the same file fits exFAT' ($fit.Fits -and $fit.FilesOver4GiB -eq 1)
+        $fit = Get-HarvestStickFit -Folders @(New-FitFolder $GB $GB) -FreeBytes (100 * $GB) -FileSystem 'NTFS' -ClusterBytes 4096
+        Assert-H 'stick fit: a filesystem this version does not size is not a fit (refuse, not guess)' ((-not $fit.Fits) -and $fit.Reason -match 'NTFS')
+        $fit = Get-HarvestStickFit -Folders @(New-FitFolder $GB 0) -FreeBytes (100 * $GB) -FileSystem 'FAT32' -ClusterBytes 0
+        Assert-H 'stick fit: an unread cluster size is not a fit' ((-not $fit.Fits) -and $fit.Reason -match 'cluster')
+        $fit = Get-HarvestStickFit -Folders @() -FreeBytes (100MB) -FileSystem 'FAT32' -ClusterBytes 4096
+        Assert-H 'stick fit: no folders needs only the reserve' ($fit.Fits -and $fit.NeededBytes -eq 64MB)
 
         # R8 detection arm: FILE_ATTRIBUTE_OFFLINE set on a real NTFS file -
         # the genuine attribute, not a fabricated object. (The cloud filter's
@@ -887,6 +1093,50 @@ if ($MaterializePath) {
     $m | ConvertTo-Json -Depth 5 | Out-File -FilePath $MaterializeResult -Encoding UTF8
     Write-Host ("  placeholders {0}, materialized {1}, failed {2} -> {3}" -f $m.PlaceholdersFound, $m.Materialized, $m.Failed, $m.Result)
     if ($m.Failed -gt 0) { exit 3 }
+    exit 0
+}
+
+if ($FolderMapOut) {
+    # The job writer's seam: measure, write, and leave the judging to it.
+    # Materializes only when asked (-Materialize) - the one step here that
+    # is not a read, and the job writer passes it only after consent.
+    $stick = $null; $cluster = [long]0
+    if ($StickDrive) { $stick = Get-HarvestStick -Drive $StickDrive; $cluster = [long]$stick.ClusterBytes }
+    $folders = @(Get-HarvestUserFolders -ClusterBytes $cluster)
+    $found = [int](@($folders | Measure-Object -Property CloudOnlyFiles -Sum).Sum)
+    $cloud = [pscustomobject]@{ PlaceholdersFound = $found; Materialized = 0; Failed = 0; Bytes = 0
+                                Result = $(if ($found -eq 0) { 'none-found' } else { 'not-attempted' }); FailedFiles = @() }
+    $before = @{}; foreach ($f in $folders) { $before[$f.Name] = [int]$f.CloudOnlyFiles }
+    if ($Materialize -and $found -gt 0) {
+        Write-Step 'cloud placeholders...'
+        $m = Invoke-HarvestMaterialize -Paths @($folders | Where-Object { $_.Exists } | ForEach-Object { $_.Path }) -TimeoutSec $MaterializeTimeoutSec
+        $cloud = [pscustomobject]@{ PlaceholdersFound = $m.PlaceholdersFound; Materialized = $m.Materialized; Failed = $m.Failed; Bytes = $m.Bytes; Result = $m.Result
+                                    FailedFiles = @($m.Files | Where-Object { -not $_.Materialized } | Select-Object -First 20 | ForEach-Object { [pscustomobject]@{ Path = $_.Path; Error = $_.Error } }) }
+        $folders = @(Get-HarvestUserFolders -ClusterBytes $cluster)
+    }
+    # CloudOnlyFiles is what was online-only at harvest, before any
+    # materialization (the job's cloud_only_files); CloudOnlyNow is what a
+    # fresh read finds after it - anything above 0 there is a refusal.
+    foreach ($f in $folders) {
+        $f | Add-Member -NotePropertyName CloudOnlyNow -NotePropertyValue ([int]$f.CloudOnlyFiles) -Force
+        $f.CloudOnlyFiles = [int]$before[$f.Name]
+    }
+    $fit = $null
+    if ($stick -and -not $stick.Error) { $fit = Get-HarvestStickFit -Folders $folders -FreeBytes $stick.FreeBytes -FileSystem $stick.FileSystem -ClusterBytes $stick.ClusterBytes }
+    $map = [pscustomobject]@{
+        HarvestVersion = $HarvestVersion
+        HarvestedUtc   = (Get-Date).ToUniversalTime().ToString('o')
+        Owner          = Get-HarvestOwner
+        UserFolders    = $folders
+        CloudFiles     = $cloud
+        Stick          = $stick
+        StickFit       = $fit
+    }
+    $map | ConvertTo-Json -Depth 6 | Out-File -FilePath $FolderMapOut -Encoding UTF8
+    $total = [long](@($folders | Where-Object { $_.Exists } | Measure-Object -Property Bytes -Sum).Sum)
+    Write-Host ("  folder map: {0} folder(s), {1:N2} GB, {2} online-only file(s) found{3}" -f @($folders | Where-Object { $_.Exists }).Count, ($total / 1GB), $found,
+        $(if ($fit) { "; stick: $(if ($fit.Fits) { 'fits' } else { 'does not fit - ' + $fit.Reason })" } else { '' }))
+    if ($cloud.Result -eq 'refused') { exit 3 }
     exit 0
 }
 

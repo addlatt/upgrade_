@@ -49,6 +49,13 @@ invalid, and a module that finds an invalid document stops:
   records placeholders found and materialized; `failed` is a constant 0,
   `result` is `none-found | materialized`. "Refused" is not a writable
   result — a refusal at `evaluate` produces no job at all.
+- **A clean slate must fit the stick** (decided 2026-09-26, RISKS R26).
+  `harvest.stick_fit` is required on every job: the stick volume's
+  filesystem, cluster size and free bytes, the folders' bytes, what they
+  need on that volume (cluster-rounded files, directories and manifest,
+  or bytes × 1.02 if larger, plus 64 MB), files over 4 GB (FAT32 cannot
+  hold one), `fits` and the gap. `intent.path = clean-slate` requires
+  `fits = true`; a keep-windows job records it for the discard offer.
 - **No truncated sizing** (RISKS R6), **no undetermined BitLocker state**
   (decided 2026-09-07), **no legacy BIOS**, **no unelevated run**.
 - **The software inventory is private by placement** (decided
@@ -114,5 +121,8 @@ optional `staged` block and `handoff.marker` the same day. Later:
 `windows-update` (2026-09-26, RISKS R25). Still not built: the
 intent-capture step that fills `intent` and `fork` from the person's
 answers (the launchers pass fixed values today), and the harvest of
-folders, Wi-Fi and browsers into `harvest`. The examples here are what
+Wi-Fi and browsers into `harvest`. The folder map is in (job writer
+0.10.0, 2026-09-26): `harvest.folders`, `harvest.cloud_files` and
+`harvest.stick_fit` come from the harvester's `-FolderMapOut`, and
+`evaluate.harvest_version` names it. The examples here are what
 the writers' self-tests must keep producing.

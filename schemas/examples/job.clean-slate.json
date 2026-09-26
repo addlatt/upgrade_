@@ -95,6 +95,16 @@
       "failed": 0,
       "result": "none-found"
     },
+    "stick_fit": {
+      "filesystem": "exFAT",
+      "cluster_bytes": 32768,
+      "free_bytes": 30000000000,
+      "files_bytes": 1610612736,
+      "needed_bytes": 1709933855,
+      "files_over_4gib": 0,
+      "fits": true,
+      "gap_bytes": 0
+    },
     "browsers": [],
     "wifi": {
       "profiles": [],

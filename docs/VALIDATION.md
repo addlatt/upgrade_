@@ -539,7 +539,11 @@ live-session checks. Its validation: rig rows for the yes path (staged,
 read back, wiped, every file restored with matching checksums) and for
 each refusal (files too big, a stick that drops, 0 folders), then one
 physical row on a machine whose owner chose to lose Windows. Built after
-the harvest and a first physical install row.
+the harvest and a first physical install row. **The harvest half landed
+2026-09-26** (folder map + stick fit in the job); first measurement,
+the Aspire: 16.6 GB in the six folders, one file over 4 GB - no offer on
+today's 8 GB FAT32 stick (`validation-results/harvest-folder-map.csv`,
+RISKS R26).
 
 # Tier 3 — silent data loss (the trust-ending class)
 

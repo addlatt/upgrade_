@@ -749,3 +749,24 @@ rows are `no-intel-controller` with `flow_result` `mode-unchanged` — what it
 proves is the mechanics: Safe Mode boot through the copied entry, the
 sign-in RunOnce's marker and restart, the SYSTEM scan on the way back, the
 cleanup read-back. `safe_boot` and `resume_run_as` are where to look.
+
+## `harvest-folder-map.csv` — what the folder map finds on real machines (roadmap item 3; risks R5, R6, R8, R26)
+
+One row per read-only measurement with the harvester's `-FolderMapOut`
+(the step the job writer runs). A measurement, not a pass: it is the
+evidence R26 asks for about the folder map's coverage, and the size a
+clean slate or the discard offer would have to stage. Hand-written from
+the harvester's JSON; personal file names stay out of the row.
+
+| Column | Meaning |
+|---|---|
+| `timestamp`, `harvester` | when, and `HarvestVersion` |
+| `machine`, `os_build` | the machine measured |
+| `folders_found`, `files`, `bytes` | the six known folders that exist, and their contents |
+| `online_only` | OneDrive online-only files found (R8; a job refuses while any remain) |
+| `unreadable` | sub-folders Windows would not list (R6; a job refuses on any) |
+| `files_over_4gib`, `largest_file_bytes` | FAT32 cannot hold a file over 4 GB |
+| `onedrive_folders` | how many of the six are redirected into OneDrive |
+| `other_profiles` | other accounts' profiles (R5; a clean slate refuses on any) |
+| `stick`, `needed_bytes`, `fits` | the stick volume measured against, what the folders need on it, the answer (`n/a` with no stick) |
+| `notes` | how it was run, and what lies outside the map |
