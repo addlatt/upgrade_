@@ -192,9 +192,11 @@ Largely built. `evaluate/windows/upgrade-scan.ps1` (state reading, refusals)
 and `evaluate/windows/Harvest-UpgradeState.ps1` (state + intent scaffolding) exist
 and are tested. The `job.json` / `outcome.json` contracts exist as JSON
 Schema in `schemas/` (2026-09-08; `schemas/check.py` holds the examples and
-the documents each schema must refuse) — no writer emits them yet. **Not yet
-built:** artifact extraction, intent capture UI, multi-user handling, the
-`job.json` writer. **Materialization of cloud placeholders exists**
+the documents each schema must refuse); since 2026-09-12 the job writer
+(`evaluate/windows/New-Job.ps1`) emits `job.json` and the prologue and
+`outcome.sh` emit `outcome.json`. **Not yet built:** artifact extraction,
+intent capture UI, multi-user handling, the harvest of folders, Wi-Fi and
+browsers into the job. **Materialization of cloud placeholders exists**
 (`Harvest-UpgradeState.ps1 -Materialize`, 2026-09-08) and its plumbing is
 proven against Windows' own cloud files filter (RISKS R8).
 
@@ -232,7 +234,7 @@ whole. That is what pulls the encrypted-read risk (RISKS R19) out of the
 ### When Windows cannot be kept: the offer to discard it
 
 **Designed (2026-09-26, the owner's call), not built** — RISKS R26. The
-Aspire's runs 4-6 (RISKS R18) showed a real disk that cannot free the
+Aspire's runs 4-7 (RISKS R18) showed a real disk that cannot free the
 25 GB Linux needs after every mitigation, and a person who then has two
 bad outcomes: stop, or a wipe they had to choose before anyone knew the
 number. The fork gets a third value, and the wipe is asked for only
@@ -488,7 +490,10 @@ in step 6 is a hard gate, not a warning.
 lineage, driven by the one-click `RUN-CONVERT.cmd` on the kit stick
 (scanner → job writer → kickstart → the typed word → the prologue). Steps
 1, 1b, 2 (keep-Windows), 3 and 4 above are built with collect/judge seams
-and 68 self-test cases (0.3.0, 2026-09-13: the SYSTEM startup resume); the clean-slate half of step 2 stages files with
+and self-test cases (130 at 0.9.0, 2026-09-26); on real hardware it has
+run seven times on the Aspire (RISKS R18: the disk check, the pagefile
+rung, the stop that puts Windows back - proven - the change-journal rung,
+and a correct refusal of keep-Windows on that disk); the clean-slate half of step 2 stages files with
 checksums and a measured-speed estimate but then **stops** before the
 handoff, because the live session's human gate before the wipe is not
 built and this code will not arm an unattended wipe. Decided (2026-09-12)
@@ -909,8 +914,8 @@ one-click vertical**, split at the commit line:
   and the live boot with identity + hardware verification have all fired
   on the rig (VALIDATION V8, V1; RISKS R8, R16), and since 2026-09-09 the
   stick carries both desktop images and the live session reads the chosen
-  one back against the manifest (R17); the physical Secure-Boot-on row is
-  what remains of this half.
+  one back against the manifest (R17); the physical Secure-Boot-on row
+  came on 2026-09-12 (the Aspire, `v1-live-boot.csv` row 4).
 - **Destructive half second**: shrink, the ESP `EFI/Boot` snapshot and
   restore, the alongside install, the boot-chain verification, the
   settle-in pull, the reclaim offer. **Status 2026-09-10:** the snapshot
@@ -940,7 +945,7 @@ author, handoff, live boot, hardware verify) instead of one V0 row — a grid
 of vendors × stages, strictly more informative for the same cost.
 
 One precondition surfaced by the first physical machine is **decided
-(2026-09-08)** and owed as code: the Acer's C: carried NTFS's dirty flag and
+(2026-09-08)** and built (2026-09-12): the Acer's C: carried NTFS's dirty flag and
 Windows refused to measure shrink until a disk check ran (RISKS R18).
 `evaluate` never repairs — it detects, and captures the user's fork; the
 `upgrade_` prologue clears the flag as reversible prep (step 1b above) with

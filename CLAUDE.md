@@ -100,6 +100,9 @@ method in `docs/VALIDATION.md`; the killers, in order:
   stick built by `./make-kit.sh`). One vendor is not the matrix: **≥3 more
   vendors** (Dell, Lenovo, HP) still owed, plus the fail-safe rows on real
   firmware.
+- **V1 — the unattended install completes, Secure Boot on.** Rig
+  `pass-plumbing`; the physical live boot with Secure Boot on fired
+  2026-09-12 (the Aspire); a physical install is still owed.
 - **V1b / R21 — installing alongside a shrunk Windows leaves Windows bootable.** The
   default path keeps Windows as the safety net; if the alongside install breaks
   Windows boot (shared ESP too small, `bootmgfw.efi` clobbered, `os-prober`
@@ -108,90 +111,39 @@ method in `docs/VALIDATION.md`; the killers, in order:
 
 **Tier 2 — a core promise breaks (recoverable, but the default is broken):**
 - **V4 / R18 — real disks can shrink enough.** Keep-Windows is the default and
-  requires shrinkable space; if most disks can't free ~20 GB past immovable
-  files, the default rarely applies. Scanner measures it (elevated only) by two
-  independent read-only paths. **First physical machine (2026-09-08) could not
-  be measured at all: its C: carried NTFS's dirty flag**, which Windows refuses
-  to shrink past — the scanner's new `Volume health` check now names that
-  directly. **Decided (2026-09-08):** `evaluate` never repairs; the `upgrade_`
-  prologue clears the flag as reversible prep (scan → refuse if the disk is
-  not Healthy → spot-fix or `chkdsk /f` → restart → re-measure → the fork the
-  user pre-chose). **Built 2026-09-12** (`Invoke-Prologue.ps1`, rig rows
-  in `r18-prologue.csv`). **The first physical machine answered
-  2026-09-13 with the dying-drive branch:** its flag survived the check
-  restart; the diagnostic found 18 corruption records queued for weeks,
-  `Get-Volume` "Full Repair Needed", 261 bad-block events and SMART 187 =
-  725 on an SSD that still said `Healthy`, and a scan cmdlet whose string
-  contradicted its own log. The scanner (0.2.0) and the prologue now read
-  the disk error log, SMART, the volume status and the Chkdsk/NTFS log;
-  bad blocks are RED. R18 has the whole record. **2026-09-17:** the same
-  machine, dirty bit now clear, repair still queued, Storage API answering
-  0 GB with no error — the job writer, scanner and prologue now treat
-  Windows' "repair queued" as a second trigger beside the bit (R18), and
-  the launchers log every step to `upgrade_\convert.log` on the stick.
-  **2026-09-20, first physical row of the acknowledged path:**
-  `stopped-volume-check` - the scheduled `chkdsk /f` did not run at the
-  restart (no Wininit 1001, a 36 s boot). The read-only diagnostic the same
-  evening (over SSH) showed the run should never have gone there: the full
-  check had already run on 09-15 (autochk log, Wininit 1001 - so scheduled
-  checks do run on this Windows 11), and the 0 GB was `hiberfil.sys` on the
-  last cluster (Defrag event 259), about 42 GB once it is off. An event 98
-  now counts only if no completed check postdates it, and a small cold
-  number pinned by hibernation/page/swap is keep-windows pending the
-  prologue's own re-measure (job writer 0.6.0, prologue 0.5.0, scanner
-  0.3.2). **Run 4 the same evening: `stopped-shrink`** (row 8) - both
-  fixes fired as predicted, the mitigation ran on real hardware, and the
-  re-measure was 7.2 GB of the 25 needed: behind `hiberfil.sys` sat System
-  Restore's shadow-copy storage (the "about 42 GB" was an argument from
-  Defrag 259's shrink *target*, corrected in R18). It also exposed a bug -
-  a stop after the mitigation leaves hibernation and the pagefile off
-  while saying "Windows is as it was" - fixed the same night in prologue
-  0.5.1 (before-state recorded, restored at every stop; act half unproven
-  until a row). **Decided (2026-09-20): the Aspire keeps its dying SSD** as
-  the bad-conditions machine; the healthy-drive install needs another
-  machine or a later swap. **Decided (2026-09-20):** restore points that
-  pin the shrink are deleted with consent (prologue 0.6.0, job writer
-  0.7.0, `fork.restore_points_consented`; both launchers say so before
-  CONVERT) - the one pre-commit act a stop cannot undo; unfired. **Run 5
-  (2026-09-22): `stopped-confirm`** (row 9) - cold 3.2 GB pinned by NTFS's
-  change journal (`$UsnJrnl`, new since run 4: cold layouts drift), so the
-  job writer wrote a **clean-slate job although the person chose `stop`**
-  and the launcher had described keep-Windows; clean slate "staged" 0 files
-  (no folder map in the job yet) and said the files were staged. Only the
-  unbuilt confirm gate stopped it. Both fixed the same day (job writer
-  0.8.0: under `stop` never a clean-slate job - keep-windows for the
-  prologue's re-measure, or a named refusal before CONVERT; prologue 0.7.0:
-  refuses a stale forced clean-slate job under `stop`, and clean slate with
-  no folders or 0 files staged); logic-level only, unfired. **Decided
-  (2026-09-22):** the change journal that pins the shrink is deleted with
-  consent (both launchers say so before CONVERT; `fork.usn_journal_consented`),
-  at most once per boot, and created again with its old sizes after the
-  shrink and at every stop (prologue 0.8.0, job writer 0.9.0). **Run 6
-  (2026-09-23): `stopped-shrink`** (row 10) - keep-windows under `stop`
-  (0.8.0 held); the journal rung fired twice, 8.4 -> 9.5 GB; restore-point
-  deletion ran and deleted 0 of 2 with no exit code recorded (fix owed);
-  the stop restored journal, hibernation and pagefile, read back after
-  restarts - **0.5.1 proven**. A pending Windows update restarted the
-  machine twice mid-run: **new RISKS R25**. **Decided and built
-  (2026-09-26), prologue 0.9.0:** a waiting Windows update is let finish
-  (the prologue's own restart, at most three) before anything changes and
-  before the shrink, and a pending one right before the arm stops the
-  run; the restore-point step records vssadmin's exit code, tries each
-  shadow copy's WMI object if the count did not drop, and words every
-  line from the counts. Windows is 26200 now. **Run 7 (2026-09-26):
-  `stopped-shrink`** (row 11) at 7.2 GB behind `$Mft::$BITMAP` (NTFS
-  metadata, nothing on the ladder moves it; runs 5-7 named three different
-  files as the disk changed); the update gate read nothing waiting; keep-
-  Windows is refused on this disk. **Designed
-  (2026-09-26), not built:** when Windows cannot be kept and the person
-  chose *ask me then*, the prologue stops as today and offers, at the next
-  sign-in, to delete Windows and keep the listed folders on the stick -
-  real numbers, no offer if they do not fit, a typed sentence separate
-  from R23's, the wipe still behind the live-session checks
-  (`architecture.md`, "When Windows cannot be kept"; **RISKS R26**,
-  critical). Build waits for the harvest and a first physical install. The
-  acknowledged-data-loss path (R23) exists for that machine's owner; rule
-  #1 above says how narrow.
+  requires shrinkable space; if most disks can't free ~25 GB past immovable
+  files, the default rarely applies. The scanner measures it (elevated only)
+  by two independent read-only paths. **Decided (2026-09-08):** `evaluate`
+  never repairs; the prologue clears NTFS's dirty flag - or a repair Windows
+  has queued, the second trigger (2026-09-17) - as reversible prep, and
+  branches on the fork the person chose in advance. **The Acer Aspire is the
+  bad-conditions machine:** a dying SSD (SMART 187 = 725, hundreds of
+  bad-block events; bad blocks are RED), kept by decision (2026-09-20), run
+  under the acknowledged path (R23). **Where it stands (2026-09-26; R18 has
+  the whole record, runs 1-7):**
+  - The shrink ladder, all behind the typed CONVERT: hibernation and pagefile
+    off with one restart, restored at every stop (0.5.1, **proven** run 6);
+    restore points deleted with consent (`fork.restore_points_consented`; ran
+    in run 6 and deleted 0 of 2 - 0.9.0 records Windows' answer and tries
+    WMI, unfired); the change journal deleted with consent and created again
+    (`fork.usn_journal_consented`, 0.8.0, **fired**, +1.1 GB).
+  - Under `stop` a job is never a wipe (job writer 0.8.0, held in runs 6-7).
+    A waiting Windows update is let finish, and nothing is armed while one
+    waits (R25, prologue 0.9.0; markers read false in run 7 - detector
+    unproven).
+  - On the Aspire, runs 4-7 all stopped before anything irreversible; best
+    9.5 of 25 GB; three runs named three different last unmovable files (the
+    journal, System Restore's storage, `$Mft::$BITMAP`) because cold layouts
+    drift with use. Never predict a shrink number - only a re-measure says
+    (the "about 42 GB" of 2026-09-20 was wrong). **Keep-Windows is refused
+    on this disk.**
+  - **Designed (2026-09-26), not built:** the offer to discard Windows when
+    it cannot be kept (fork *ask me then*; `architecture.md`, "When Windows
+    cannot be kept"; R26, critical) - waits for the harvest and a first
+    physical install.
+  - The healthy-drive keep-Windows install (V1b's residue) needs another
+    machine. R23 exists for the Aspire's owner; rule #1 above says how
+    narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path
   delivers files: mount the kept Windows from installed Linux, unlock with the
   harvested key, copy. Bench-testable in VMs across BitLocker variants.
@@ -242,14 +194,14 @@ live-boot row, Secure Boot on:** the Acer Aspire ran `RUN-VERIFY.cmd` —
 scanner → `New-Job.ps1` (the job writer, first version) → kickstart →
 handoff → installer through shim → identity by serial, display, **Wi-Fi
 (28 networks)**, image read back at 22.6 MB/s → back to Windows
-(`v1-live-boot.csv` row 4). Its C: still carries the dirty flag, so the
-job forced clean-slate. **2026-09-12, the prologue as product code:**
+(`v1-live-boot.csv` row 4). Its C: then carried the dirty flag, so the
+job was clean-slate (a verify-only run; nothing installed). **2026-09-12, the prologue as product code:**
 `upgrade_/windows/Invoke-Prologue.ps1` + `RUN-CONVERT.cmd` — re-validate,
 the R18 disk check (four guardrails, own restart, outcome recorded), the
 two-path re-measure, the fork, the shrink, BitLocker suspension, the
 handoff, a stopped `outcome.json` at every refusal; `outcome.sh` carries
 its record into `outcome.json`. **Fired on the rig the same day**
-(`docs/validation-results/r18-prologue.csv` row 3 `pass-plumbing`,
+(`docs/validation-results/r18-prologue.csv` row 4 `pass-plumbing`,
 `v2-install.csv` row 4): injected flag → full boot-time check → 57.8 GB
 by both paths → 25 GB freed → handoff → install → record carried into
 `outcome.json`; and **rollback** (`Invoke-Rollback.ps1`, `ROLLBACK.cmd`;
@@ -268,8 +220,10 @@ reads (scanner 0.2.0, prologue 0.2.0), the acknowledged-data-loss path
 (R23; `RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd`), the software inventory in
 `job.json` (`harvest.software`, private by placement), read-only drive
 diagnostics on the kit (`DIAG-VOLUME.cmd`, `DIAG-SMART.cmd`), and two
-physical R16 writes. Next: a physical keep-Windows install on a machine
-with a healthy drive; `settle-in`; the harvest into the job.
+physical R16 writes. **Next (2026-09-26):** the harvest into the job
+(folders, Wi-Fi, browsers - read-only, buildable now, and the first thing
+both `settle-in` and the discard offer need); a physical keep-Windows
+install on a machine with a healthy drive (not the Aspire); `settle-in`.
 
 **Decided (2026-09-08): the build is a vertical, not a list.** One
 front-to-back, one-click flow, reversible half first (schemas → OneDrive
@@ -301,7 +255,7 @@ data/            hardware + distro knowledge base — community PRs land here
   devices.ps1      Wi-Fi/GPU/audio/storage quirks by PCI ID
   distros.ps1      distro kernel table (goes stale; verify against release notes)
 evaluate/windows/  scanner (upgrade-scan.ps1), harvester, V0 handoff harness
-upgrade_/          the converter — windows/ prologue, linux/ cutover (nothing built)
+upgrade_/          the converter — windows/ prologue, rollback, kickstart, launchers; linux/ %pre verify + outcome
 settle-in/         first-boot verify + file pull + reclaim (nothing built)
 schemas/           job.json / outcome.json contracts (change rarely, review hard)
 docs/              architecture.md, RISKS.md, VALIDATION.md, validation-results/

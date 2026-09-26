@@ -398,6 +398,11 @@ the V1b starting disk (C: shrunk, ESP 100 MiB, Windows only).
 
 ## `r18-prologue.csv` — the prologue as product code: re-validate, the disk check, the shrink, the handoff (risk R18, step 1b)
 
+**Numbering (stated 2026-09-26):** "row N" everywhere in these docs means
+line N of the CSV file, the header being line 1 - so the first data row
+is row 2. Rows 5 onward were always numbered this way; the rig rows once
+called 1-3 are rows 2-4.
+
 One row per run, appended by `rig/hyperv/prologue-verdict.py` from the
 run's own evidence: the prologue's record on the stick
 (`upgrade_/prologue.json` — `Invoke-Prologue.ps1` writes it at every stage
@@ -464,16 +469,16 @@ AutoAdminLogon=0|1`. A walk-away row is one where every resume reads
 `NT AUTHORITY\SYSTEM session 0 interactive False explorer False` and the
 bench line reads `=0`.
 
-**Rows so far (2026-09-12, rig, Secure Boot off, BitLocker off).** Row 1,
+**Rows so far (2026-09-12, rig, Secure Boot off, BitLocker off).** Row 2,
 `stopped-arm-handoff`: everything up to the shrink held (flag confirmed
 `NoErrorsFound`, `Healthy`, spot-fix scheduled, restart, flag clear,
 57.8 GB by both paths, fork keep-windows, 25 GB freed) and the arm
 stopped on a prologue bug (the resumed copy copying itself over itself);
 the stop grew C: back, wrote the stopped `outcome.json`, scrubbed the
-credentials — the refusal path's first evidence. Row 2 is the same
+credentials — the refusal path's first evidence. Row 3 is the same
 second run **misjudged** by a verdict script reading the wrong key of
 the return record (`handoff-failed` where the record says `reordered`);
-row 3 is that run judged correctly, `pass-plumbing`: Wininit 1001
+row 4 is that run judged correctly, `pass-plumbing`: Wininit 1001
 recorded (autochk ran the **full** three-stage check on the flagged
 volume, 6 s, "found no problems" — the scheduled spot-fix rung became
 Windows' own boot-time check), C: shrunk 79.9 → 54.9 GB with the GPT
@@ -520,7 +525,8 @@ edits. Read with RISKS R18's fourth-run entry: the next unmovable file
 was System Restore's shadow-copy storage (the "about 42 GB" expectation
 is corrected there), the two paths differ because the person signed in
 and Slack started between them, and the stop left hibernation and the
-pagefile off while saying "Windows is as it was" - a bug, owed a fix.
+pagefile off while saying "Windows is as it was" - a bug, fixed in
+prologue 0.5.1 and proven on this machine in row 10.
 
 **Row 9 (2026-09-22, the same machine, prologue 0.6.0, job writer 0.7.0,
 kit 3dbf910) — `stopped-confirm`.** Hibernation and the pagefile had been
@@ -538,7 +544,8 @@ recorded before an act that did not happen. Neither 0.5.1's restore nor
 0.6.0's restore-point deletion fired. Read with RISKS R18's fifth-run
 entry: two defects (a "stop" turned into a wipe job; "your files are
 staged" after staging none), both fixed the same day in job writer 0.8.0
-and prologue 0.7.0 (self-tested; unfired).
+and prologue 0.7.0; the job writer's fix held on this machine in rows 10
+and 11.
 
 **Row 10 (2026-09-23, the same machine, now Windows 11 26200, prologue
 0.8.0, job writer 0.9.0, kit 537e093) — `stopped-shrink`.** The job was

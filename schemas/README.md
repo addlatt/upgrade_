@@ -36,7 +36,11 @@ invalid, and a module that finds an invalid document stops:
   volume that carries the dirty flag additionally requires
   `fork.volume_check_consented = true`: the person was told the prologue
   will run Windows' disk check, with its own restart, and that it must not
-  be interrupted.
+  be interrupted. Two more consents are optional booleans (absent reads as
+  no consent): `fork.restore_points_consented` (2026-09-20) and
+  `fork.usn_journal_consented` (2026-09-22) - the person was told, on the
+  screen where CONVERT is typed, that Windows' restore points or NTFS's
+  change journal are deleted if they are what stops the shrink.
 - **keep-windows needs a Healthy disk and an ESP with room.** A job whose
   `intent.path` is `keep-windows` must carry
   `storage.physical_disk.health_status = Healthy` and
@@ -103,7 +107,12 @@ any refusal and the `prologue` block (via `upgrade_/prologue.json` on the
 stick) that `upgrade_/linux/outcome.sh` carries into the completed
 `outcome.json`. The prologue block gained `volume_check.scan` and
 `.restarts`, `shrink.remeasured_by` and `.remeasured_diskpart_gb`, an
-optional `staged` block and `handoff.marker` the same day. Earlier text: The
-harvester's `state.json` is the seed of `job.json`; the intent-capture
-step that fills `intent` and `fork` is not built. When the writers land,
-the examples here are what their self-tests must produce.
+optional `staged` block and `handoff.marker` the same day. Later:
+`volume_check.trigger` (2026-09-17), `resumes[]` (2026-09-13),
+`shrink.restore_points_deleted` (2026-09-20), `shrink.usn_journal_deleted`
+(2026-09-22), and `prologue.windows_update` with the `stopped_at` value
+`windows-update` (2026-09-26, RISKS R25). Still not built: the
+intent-capture step that fills `intent` and `fork` from the person's
+answers (the launchers pass fixed values today), and the harvest of
+folders, Wi-Fi and browsers into `harvest`. The examples here are what
+the writers' self-tests must keep producing.

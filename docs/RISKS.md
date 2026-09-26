@@ -778,12 +778,14 @@ what would have caught a silent version of it.
 before the commit line, while Windows still exists) is implemented as a hard
 gate — done — and demonstrated to catch a known-counterfeit stick.
 
-## R18 — Windows shrink headroom is unmeasured · high · open (prologue disk-check step built 2026-09-12)
+## R18 — Windows shrink headroom is unmeasured · high · open (prologue disk-check step built 2026-09-12; shrink ladder built, runs 4-7 physical, keep-Windows refused on the Aspire 2026-09-26)
 
 **What.** Immovable files — MFT, VSS store, pagefile, hiberfil — cap how far
 `Resize-Partition` can shrink, often far short of free space. The
-mitigations (disable pagefile/hibernation/system restore, reboot, retry) are
-designed, not built.
+mitigations were designed here first; they are now built and have run on
+real hardware (hibernation and pagefile off with a restart, 0.5.0, restored
+at every stop, 0.5.1; restore points with consent, 0.6.0/0.9.0; the change
+journal with consent, 0.8.0) - the dated entries below carry each one.
 
 **Partly addressed (2026-08-22).** The scanner now queries shrinkable space
 via `Get-PartitionSupportedSize` (`Test-UpgDisk`) and reports it as `Room to
@@ -958,9 +960,9 @@ very fork the decision reserves for the prologue's measurement. Self-tests
 pin every rung, the gate, the fork, the plan arithmetic and the record's
 shape; the rig bench (`rig/hyperv/prologue.sh`) injects the flag with
 `fsutil dirty set C:` and the row goes to
-`docs/validation-results/r18-prologue.csv`. **Fired on the rig the same day** (`r18-prologue.csv` rows 1–3; the
+`docs/validation-results/r18-prologue.csv`. **Fired on the rig the same day** (`r18-prologue.csv` rows 2–4; the
 first run stopped on a prologue bug and its refusal path — C: grown
-back, stopped outcome, credentials scrubbed — is row 1; row 3 is
+back, stopped outcome, credentials scrubbed — is row 2; row 4 is
 `pass-plumbing`): the injected flag confirmed by the scan, `Healthy`
 read, the spot-fix scheduled, and at the restart Windows ran its own
 **full** three-stage check on the flagged volume (Wininit 1001, 6 s,
@@ -1524,6 +1526,10 @@ open question, not an argument this entry makes.
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.
+Status (2026-09-26): one such disk exists - the Aspire, mitigated, a "no"
+(best 9.5 of 25 GB; runs 5-7). What closes this risk is VALIDATION V4's
+Pass line: the fraction of elevated machines that can, which only more
+machines answer.
 
 ## R19 — cryptsetup BITLK read is a new trust dependency · medium · open (VM leg fired 2026-09-01)
 
@@ -1926,7 +1932,7 @@ F2 has no direct pin — it was an invocation bug in the netsh call itself,
 which sits on the live side of the parse seam — but the seam now keeps the
 parsing logic, where a silent empty result would hide, under test.
 
-## R23 — The acknowledged-data-loss path exists · high · open (decided 2026-09-13)
+## R23 — The acknowledged-data-loss path exists · high · open (decided 2026-09-13; in use on the Aspire since 2026-09-20)
 
 **What.** Rule #1 said there is no override for a RED verdict, ever. On
 2026-09-13, after the Acer Aspire's SSD was diagnosed as failing (R18) and
@@ -2068,12 +2074,16 @@ and row 2 (Acer Aspire A515-51G, InsydeH2O V1.21, Windows 11 Home 22631,
 Secure Boot on, a real USB stick: SYSTEM in session 0, 38 s after boot, the
 stick seen 5 s later, notice queued, task removed). The probe is the
 half-hour-visit row for every borrowed vendor (VALIDATION V0's matrix).
+On the product path, the Aspire's own conversion runs (`r18-prologue.csv`
+rows 7, 8, 10 and 11, 2026-09-20..26) each resumed as SYSTEM in session 0
+with nobody signed in - run 6 through two Windows Update restarts it did
+not ask for (R25).
 
 **Closes when.** Probe rows from ≥3 more vendors, one BitLocker-on row, one
 Fast Startup row, and no Defender detection across them — or a signed
 release (R12), after which the AV half is moot.
 
-## R25 — Windows Update restarts the machine during the prologue · high · open (found 2026-09-23)
+## R25 — Windows Update restarts the machine during the prologue · high · open (found 2026-09-23; gate built 0.9.0, detector unproven)
 
 **What.** The prologue restarts Windows before the commit line (the disk
 check, the pagefile rung) and relies on Windows restarting only when it
@@ -2103,12 +2113,10 @@ way") and built, prologue 0.9.0: refuse, by default, before it can
 bite.** The
 prologue reads Windows' pending-restart state before it changes anything
 and again immediately before it arms the handoff, and does not arm - or
-start - while Windows says an update is waiting for a restart. How it
-reads that state, and whether it restarts once itself to let the update
-finish and then re-checks (walk-away) rather than asking the person to,
-is the design step owed; the indicators Windows exposes must be
-confirmed on a real machine before any of them is trusted (rule #2 - the
-registry keys commonly cited are not a documented contract).
+start - while Windows says an update is waiting for a restart. The
+indicators Windows exposes must be confirmed on a real machine before
+any of them is trusted (rule #2 - the registry keys commonly cited are
+not a documented contract).
 As built: `Invoke-UpdateGate` reads three markers (Component Based
 Servicing `RebootPending` and `RebootInProgress`, Windows Update `Auto
 Update\RebootRequired`), records each check with all three values, and

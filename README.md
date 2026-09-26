@@ -188,7 +188,7 @@ and why each refusal is tested harder than each success.
 | `evaluate` — OneDrive placeholder materialization (V8) | **works**, plumbing-fired against a real Cloud Files provider |
 | `evaluate` — job writer (`job.json`, the software inventory) | **works**; harvest of folders/Wi-Fi/browsers into the job, the BitLocker key and the intent UI still owed |
 | `evaluate` — stick writer (R16) | **works**, two physical writes verified |
-| `upgrade_` — prologue: re-validate, disk check, shrink, BitLocker, boot handoff | **works** on the rig (`r18-prologue.csv`); four physical rows, all stops before anything changed: two at the disk check (2026-09-13; 2026-09-20 on the acknowledged path, with the walk-away resume as SYSTEM), one at the shrink (2026-09-20, row 8: the mitigation ran, 7.2 GB shrinkable of 25 needed, System Restore storage in the way), one at clean slate's unbuilt confirm gate (2026-09-22, row 9: the cold number was pinned by NTFS's change journal, and the job writer turned the person's `stop` into a clean-slate job - a defect, fixed the same day in job writer 0.8.0 / prologue 0.7.0, unfired, R18). Row 8's bug - a stop after the mitigation left hibernation and the pagefile off - is fixed in 0.5.1; that fix and 0.6.0's restore-point deletion have not yet fired. The shrink and the handoff have not yet run from the prologue on real hardware |
+| `upgrade_` — prologue: re-validate, disk check, shrink, BitLocker, boot handoff | **works** on the rig (`r18-prologue.csv`); six physical rows on the Aspire (2026-09-13..26), every one a stop before anything irreversible: two at the disk check, three at the shrink and one at clean slate's unbuilt confirm gate. On real hardware: the walk-away resume, the pagefile rung, the stop that puts Windows back (0.5.1, proven), "stop" never becoming a wipe (0.8.0, held) and the change-journal rung (fired, +1.1 GB); restore-point deletion ran and deleted nothing (0.9.0 now records why - unfired), and the Windows Update gate (0.9.0) has not yet met a waiting update. Keep-Windows is refused on that disk (best 9.5 of 25 GB, R18). The shrink and the handoff have not yet run from the prologue on real hardware |
 | `upgrade_` — cutover: identity, image read-back, ESP snapshot, install alongside, boot-chain check, `outcome.json` | **works** on the rig (`v2-install.csv`), Secure Boot off there; the physical Secure-Boot-on install is owed |
 | `upgrade_` — rollback (Windows side) | **works** on the rig (`r21-rollback.csv`) |
 | `upgrade_` — clean-slate path (wipe) | stops before the wipe on purpose: its human gate is not built |
@@ -270,40 +270,19 @@ writer, the prologue (disk check, shrink, handoff), the alongside
 install with the boot-chain checklist, rollback. Next, in order:
 
 1. **A physical keep-Windows install, Secure Boot on** — on a machine with
-   a healthy drive (the first candidate's SSD is failing). This is the
-   V1b residue and the row the whole default path waits for. **Plan
-   (2026-09-20):** the Aspire's drive is an M.2 2280 *SATA* part; a
-   replacement and a fresh Windows make it the healthy-drive machine on
-   firmware that already has handoff rows. Until then the same machine is
-   running the acknowledged-data-loss path on the dying drive - useful for
-   exercising the path end to end, never for a row a failure could be
-   pinned on (RISKS R18, R23). **2026-09-20, run 4:** the dying drive has
-   said `stopped-shrink`: 7.2 GB shrinkable behind System Restore's
-   storage. The stop bug it exposed is fixed in prologue 0.5.1 (act half
-   unproven until a row). **Decided (2026-09-20):** the Aspire keeps the
-   dying drive as the bad-conditions machine, so this item's healthy-drive
-   row needs another machine or a later swap (R18). **Decided
-   (2026-09-20):** restore points in the way of the shrink are deleted by
-   the prologue with the person's consent (prologue 0.6.0, job writer
-   0.7.0; unfired). **2026-09-22, run 5: `stopped-confirm`** (row 9) -
-   cold 3.2 GB behind NTFS's change journal; the job writer made a
-   clean-slate job out of the person's `stop`, and clean slate "staged"
-   0 files. Both defects fixed the same day (job writer 0.8.0, prologue
-   0.7.0; self-tested, unfired) - R18. **Decided (2026-09-22):** the change
-   journal in the way of the shrink is deleted with the person's consent and
-   created again afterwards (prologue 0.8.0, job writer 0.9.0).
-   **2026-09-23, run 6: `stopped-shrink`** (row 10) - the journal rung
-   fired (8.4 -> 9.5 GB), restore-point deletion ran but deleted nothing
-   (fix owed), a pending Windows update restarted the machine twice
-   mid-run (new RISKS R25), and the stop put everything back (0.5.1
-   proven on real hardware). **Built 2026-09-26 (prologue 0.9.0):** the
-   restore-point step records what Windows answered and tries a second
-   documented way; and, decided the same day, a waiting Windows update is
-   let finish before anything changes, and nothing is armed while one
-   waits (R25). Both unfired. **2026-09-26, run 7: `stopped-shrink`**
-   (row 11) at 7.2 GB behind NTFS's own master-file-table bitmap, which
-   nothing on the ladder moves: on this disk keep-Windows is refused, as
-   it should be - the case item 8 is designed for.
+   a healthy drive. This is the V1b residue and the row the whole default
+   path waits for. It needs **another machine**: the Aspire keeps its
+   dying drive as the bad-conditions machine (decided 2026-09-20; a plan
+   the same day to swap its M.2 SATA drive was superseded), and
+   keep-Windows is refused on its disk. There, runs 4-7 (2026-09-20..26,
+   acknowledged-data-loss path, R18, R23) all stopped before anything
+   irreversible, best 9.5 of 25 GB, with three different files in the way
+   as the disk changed. What they proved on real hardware: the walk-away
+   resume, the pagefile rung, the stop that puts Windows back (0.5.1),
+   "stop" never becoming a wipe (job writer 0.8.0) and the change-journal
+   rung (0.8.0). Built and not yet fired: restore-point deletion that
+   records Windows' answer, and the Windows Update gate (prologue 0.9.0,
+   R25).
 2. **`settle-in`** — hardware verify on first boot, the file pull from the
    kept Windows partition (BITLK unlock, copy, checksum), the "you had
    these programs" list with Linux equivalents from the software

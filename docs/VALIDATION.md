@@ -208,9 +208,11 @@ outcome writer (a shell boolean in Python; then the kept partition looked
 up by filesystem name — a BitLocker volume says `BitLocker`, not `ntfs`)
 and the schema refusing the result, which is what the schema is for.
 Secure Boot off (Hyper-V template clause); the physical SB-on install
-remains the residue. **2026-09-12:** the same install ran once more as
+remains the residue - and it needs a machine other than the Aspire, where
+keep-Windows is refused (runs 5-7, RISKS R18) and which keeps its dying
+drive by decision (2026-09-20). **2026-09-12:** the same install ran once more as
 the tail of the prologue's own run (`v2-install.csv` row 4, `pass-plumbing`;
-`r18-prologue.csv` row 3), i.e. the conversion end to end from the one
+`r18-prologue.csv` row 4), i.e. the conversion end to end from the one
 typed word: disk check → shrink → handoff → install → cycles; and the
 restore half of the snapshot fired (`r21-rollback.csv` row 1).
 
@@ -482,7 +484,8 @@ does not say what removing the named file frees; only re-measuring does.
 the second was not. One dying machine is a data point, not the fraction
 this section asks for - but it is a no, and shadow storage is now a named
 candidate for why real disks fall short. Also exposed (R18): a stop after
-the mitigation leaves hibernation and the pagefile off (bug, fix owed),
+the mitigation leaves hibernation and the pagefile off (bug; fixed in
+0.5.1, proven in run 6),
 and a sign-in during the re-measure lowered the second path's number. The
 shrink and the handoff have still not run on real hardware.
 
@@ -497,7 +500,7 @@ not to the job writer's reading at scan time. The run also exposed that
 the job writer turns a person's `stop` into a clean-slate job when the
 cold number is not mitigable (RISKS R18, fifth run; fixed the same day in job writer 0.8.0 - under
 `stop` a small cold number is now keep-windows for the prologue to
-re-measure - self-tested, unfired). No new
+re-measure - it held on the real machine in runs 6 and 7). No new
 mitigated number: the mitigation never ran. **Decided and built the same
 day:** the change journal joins the ladder (deleted with consent, created
 again afterwards; prologue 0.8.0) - what it frees is the next row's
@@ -506,7 +509,7 @@ question.
 **2026-09-23, run 6: `stopped-shrink`** (row 10). The journal rung works
 and buys little (8.4 -> 9.5 GB); behind it sits System Restore's
 storage, and the restore-point deletion ran but deleted nothing - cause
-not recorded, fix owed (R18). This disk's best measured number is 9.5 GB
+not recorded (R18; the reporting is fixed in 0.9.0, unfired). This disk's best measured number is 9.5 GB
 of 25. The stop restored everything it touched, read back after
 restarts - 0.5.1 proven. New: a pending Windows update turned the
 prologue's one restart into three (RISKS R25). Built 2026-09-26 in
