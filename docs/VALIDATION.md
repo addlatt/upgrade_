@@ -514,6 +514,14 @@ prologue 0.9.0: the update gate (R25) and a restore-point act that
 records what Windows answered and tries its WMI objects if vssadmin
 deletes nothing.
 
+**2026-09-26, run 7: `stopped-shrink`** (row 11) at 7.2 GB, pinned by
+NTFS's own `$Mft::$BITMAP`, which nothing on the ladder moves. Runs 5-7
+on one disk named three different last files (the journal, System
+Restore's storage, the MFT's bitmap), each moving with ordinary use; the
+ladder bought at most 1.1 GB. This disk's answer for V4 is no - one used,
+failing disk, a data point, not a rate - and it is the case the discard
+offer (R26) is designed for.
+
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.
 

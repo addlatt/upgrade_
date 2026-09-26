@@ -178,7 +178,11 @@ method in `docs/VALIDATION.md`; the killers, in order:
   before the shrink, and a pending one right before the arm stops the
   run; the restore-point step records vssadmin's exit code, tries each
   shadow copy's WMI object if the count did not drop, and words every
-  line from the counts. Unfired. Windows is 26200 now. **Designed
+  line from the counts. Windows is 26200 now. **Run 7 (2026-09-26):
+  `stopped-shrink`** (row 11) at 7.2 GB behind `$Mft::$BITMAP` (NTFS
+  metadata, nothing on the ladder moves it; runs 5-7 named three different
+  files as the disk changed); the update gate read nothing waiting; keep-
+  Windows is refused on this disk. **Designed
   (2026-09-26), not built:** when Windows cannot be kept and the person
   chose *ask me then*, the prologue stops as today and offers, at the next
   sign-in, to delete Windows and keep the listed folders on the stick -

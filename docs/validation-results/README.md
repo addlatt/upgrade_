@@ -552,6 +552,14 @@ journal, hibernation and the pagefile back - read back after two
 restarts on 2026-09-26 (`post-run-state.txt` in the run's gitignored
 artifacts). Read with RISKS R18's sixth-run entry and the new R25.
 
+**Row 11 (2026-09-26, the same machine, prologue 0.9.0, kit 29a1d9f) —
+`stopped-shrink`.** 7.2 GB, cold and after the pagefile rung, pinned by
+`\$Mft::$BITMAP` (NTFS's own metadata; Defrag 259 names it at the same
+cluster six times). The update gate read nothing waiting (notes: `windows
+update: before-changes pending=False`). No restore-point or journal step
+was reached. The stop put hibernation and the pagefile back. Read with
+RISKS R18's seventh-run entry: on this disk keep-Windows is refused.
+
 ### What "the prologue passes" requires
 
 - `pass-plumbing` on the rig with the injected flag (the plumbing: scan →

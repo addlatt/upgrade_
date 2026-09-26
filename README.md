@@ -300,7 +300,10 @@ install with the boot-chain checklist, rollback. Next, in order:
    restore-point step records what Windows answered and tries a second
    documented way; and, decided the same day, a waiting Windows update is
    let finish before anything changes, and nothing is armed while one
-   waits (R25). Both unfired.
+   waits (R25). Both unfired. **2026-09-26, run 7: `stopped-shrink`**
+   (row 11) at 7.2 GB behind NTFS's own master-file-table bitmap, which
+   nothing on the ladder moves: on this disk keep-Windows is refused, as
+   it should be - the case item 8 is designed for.
 2. **`settle-in`** — hardware verify on first boot, the file pull from the
    kept Windows partition (BITLK unlock, copy, checksum), the "you had
    these programs" list with Linux equivalents from the software

@@ -1492,6 +1492,35 @@ run 6's own record. The WMI path is Windows' documented object, not yet
 run on any machine; why vssadmin deleted nothing on the Aspire is still
 unknown and the next run records it.
 
+**Seventh run (2026-09-26, kit 29a1d9f, prologue 0.9.0): `stopped-shrink`
+at 7.2 GB** (`r18-prologue.csv` row 11, `0.9.0-physical`; job and
+outcome schema-valid; nine files copied off the stick and hash-matched
+first). Scan RED on Disk health alone; keep-windows under `stop`; R25's
+gate before any change read all three markers false ("nothing is
+waiting for a restart" - the first physical reading, with no pending
+update to compare it against). Cold 7.2 GB by both paths, and Windows
+named neither the journal nor System Restore's storage but
+**`\$Mft::$BITMAP` - the bitmap of NTFS's own master file table** - last
+cluster `0x39833cf` in all six Defrag 259 events (15:54-16:01Z): (62,219,007
+- 60,306,383) x 4 KB = 7.3 GB, the number measured. The pagefile rung
+ran (one restart, the SYSTEM resume 38 s after boot), and the re-measure
+was 7.2 GB with the same file named: fork `stop`, hibernation and the
+pagefile put back (the pagefile at the next restart, as the stop says).
+Neither 0.9.0 restore-point path nor the journal rung was reached - the
+file in the way now sits nearer the end than both.
+What this run says, and only this: on this disk, today, the last
+unmovable file is NTFS metadata that nothing on the prologue's ladder
+touches and that no Windows tool this project has evidence for moves;
+the MFT's valid data grew from 1.72 GB (2026-09-22) to 1.98 GB, and its
+bitmap now lies in the tail earlier runs had emptied. Three runs, three
+different files (journal, System Restore's storage, the MFT's bitmap),
+the same disk: a cold layout on a used, fragmented disk moves under
+ordinary use, and each rung buys only the distance to the next file.
+**For this machine the keep-Windows path is refused, correctly** - the
+case the discard offer (R26, designed, not built) exists for. Whether
+the MFT's bitmap can be moved by a documented Windows interface is an
+open question, not an argument this entry makes.
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.
