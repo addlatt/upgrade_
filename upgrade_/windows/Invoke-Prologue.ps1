@@ -97,6 +97,7 @@ param(
     [Parameter(ParameterSetName = 'Start')][string]$JobPath,
     [Parameter(ParameterSetName = 'Start')][string]$ConfirmWord,
     [Parameter(ParameterSetName = 'Start')][string]$AcknowledgeDataLoss,
+    [Parameter(ParameterSetName = 'Start')][string]$EraseConsent,
     [Parameter(ParameterSetName = 'Resume', Mandatory = $true)][switch]$Resume,
     [Parameter(ParameterSetName = 'Abort', Mandatory = $true)][switch]$Abort,
     [Parameter(ParameterSetName = 'SelfTest', Mandatory = $true)][switch]$SelfTest,
@@ -106,7 +107,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.9.1'   # 0.9.1 (2026-09-26): only the no-folders stop message - the job writer now lists the folders
+$PrologueVersion = '0.10.0'   # 0.10.0 (2026-09-26): the erase-and-install path (RISKS R27); 0.9.1: only the no-folders stop message
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -117,6 +118,12 @@ $ConfirmExpected = 'CONVERT'
 # and only the two named refusals are lifted - the disk-health gate and the
 # volume-health stop. Nothing else in this file reads it.
 $RiskStatement = 'I confirm that I understand the risks and could lose data'
+# The one-click erase and install (RISKS R27, decided 2026-09-26): a job that
+# carries erase_consent is started only with this sentence typed for THIS run
+# (-EraseConsent); it stands in for the CONVERT word on that path and lifts
+# nothing. The prologue changes nothing on the drives; the erase is the
+# installer's, after its countdown.
+$EraseStatement = 'I confirm that everything on this computer will be deleted and nothing will be kept'
 $GrubEnvRel = 'EFI\BOOT\grubenv'
 $GrubFiredVar = 'upg_fired'
 $PayloadEfi = '\EFI\BOOT\BOOTX64.EFI'
@@ -313,6 +320,49 @@ function Compare-PrologueJob {
     cmp 'volume_health.repair_queued' ([bool]$Job.storage.volume_health.repair_queued) ([bool]$F.RepairQueued)
     cmp 'physical_disk.health_status' $Job.storage.physical_disk.health_status $F.Health
     $m.ToArray()
+}
+
+function Compare-PrologueEraseDisks {
+    # Pure (self-tested). Every drive an erase job names must still be here,
+    # by unique id and exact size, and the first must be the drive holding C:.
+    param($Job, $F)
+    $m = @()
+    $disks = @($Job.erase_consent.disks)
+    if ($disks.Count -lt 1) { return @('erase_consent names no drives') }
+    if ("$($disks[0].role)" -ne 'system' -or "$($disks[0].unique_id)" -ne "$($F.Disk.UniqueId)" -or [long]$disks[0].size_bytes -ne [long]$F.Disk.Size) { $m += "erase_consent.disks[0] is not the drive holding C: ($($F.Disk.UniqueId), $($F.Disk.Size) bytes)" }
+    foreach ($d in @($disks | Select-Object -Skip 1)) {
+        $hit = @($F.AllDisks | Where-Object { "$($_.UniqueId)" -eq "$($d.unique_id)" })
+        if ($hit.Count -eq 0) { $m += "the $($d.role) drive the job names ($($d.friendly_name), $($d.unique_id)) is not attached" }
+        elseif ([long]$hit[0].Size -ne [long]$d.size_bytes) { $m += "the $($d.role) drive ($($d.friendly_name)) is $($hit[0].Size) bytes; the job says $($d.size_bytes)" }
+    }
+    $m
+}
+
+function Get-PrologueEraseStartRefusal {
+    # Pure (self-tested). Which start is allowed: an erase job only with the
+    # erase sentence typed for this run (it stands in for CONVERT); any other
+    # job only with CONVERT, and never with the erase sentence.
+    param($Job, [string]$ConfirmWord, [string]$EraseConsent)
+    $isErase = [bool]($Job.PSObject.Properties['erase_consent'] -and $Job.erase_consent)
+    if ($isErase) {
+        if ("$($Job.erase_consent.statement)" -cne $EraseStatement) { return 'the job carries an erase consent whose sentence is not the one this prologue knows; refusing' }
+        if ($EraseConsent -cne $EraseStatement) { return 'this job erases every drive, but the erase sentence was not typed for this run (-EraseConsent); nothing was started' }
+        return $null
+    }
+    if ($EraseConsent) { return 'an erase sentence was given but the job is not an erase job; use the normal launcher' }
+    if ($ConfirmWord -cne $ConfirmExpected) { return "the confirmation word was not typed (expected $ConfirmExpected); nothing was started" }
+    $null
+}
+
+function Get-PrologueEraseReturn {
+    # Pure (self-tested). Windows came back on the erase path, so nothing was
+    # erased: say why, from what the installer left on the stick.
+    param($Countdown, $Verify)
+    if ($Countdown -and "$($Countdown.result)" -eq 'cancelled') { return @{ StoppedAt = 'countdown'; Reason = "a key was pressed during the countdown in the installer ($($Countdown.ended_utc)); nothing was erased and Windows is as it was" } }
+    if ($Countdown -and "$($Countdown.result)" -eq 'elapsed') { return @{ StoppedAt = 'install'; Reason = "the countdown ended ($($Countdown.ended_utc)) but Windows started again: the install did not complete - the drives may be partly erased; read upgrade_/report on the stick" } }
+    if ($Verify -and "$($Verify.identity.result)" -eq 'fail') { return @{ StoppedAt = 'identity'; Reason = 'the installer did not find the drives the job names, by identity and exact size; it refused before the countdown and nothing was erased' } }
+    if ($Verify -and "$($Verify.payload.result)" -eq 'fail') { return @{ StoppedAt = 'verify-stick'; Reason = "the desktop image on the stick did not read back correctly ($($Verify.payload.detail)); the installer refused before the countdown and nothing was erased" } }
+    @{ StoppedAt = 'install'; Reason = 'Windows came back before the countdown ended (the installer stopped, or the computer was restarted); nothing was erased - upgrade_/report/verify.log on the stick says where it stopped' }
 }
 
 function Get-PrologueShrinkPlan {
@@ -529,6 +579,7 @@ function New-PrologueStoppedOutcome {
         logs = @('upgrade_/report/prologue.log')
     }
     if ($null -eq $o.risk_acknowledgement) { $o.Remove('risk_acknowledgement') }
+    if ($Job.PSObject.Properties['erase_consent'] -and $Job.erase_consent) { $o.erase_consent = $Job.erase_consent }
     $o
 }
 
@@ -650,6 +701,7 @@ function Get-PrologueFacts {
         $sd = Get-Disk -Number $sp.DiskNumber -ErrorAction Stop
         $f.Stick = [ordered]@{ UniqueId = "$($sd.UniqueId)"; Size = [long]$sd.Size; Bus = "$($sd.BusType)"; VolumeId = "$($sv.UniqueId)"; Free = [long]$sv.SizeRemaining }
     } catch { $f.StickError = "$($_.Exception.Message)" }
+    $f.AllDisks = @(Get-Disk | ForEach-Object { [ordered]@{ Number = [int]$_.Number; UniqueId = "$($_.UniqueId)"; Size = [long]$_.Size; Bus = "$($_.BusType)" } })
     $f.Hiberfil = Test-Path 'C:\hiberfil.sys'
     $f.Pagefile = Test-Path 'C:\pagefile.sys'
     $f
@@ -1487,7 +1539,25 @@ function Invoke-Continue {
         Stop-Prologue $S $State $Root $Job 'confirm' "clean slate needs the live session's two-minute human check before the wipe, and that gate is not built in this version; the prologue will not arm an unattended wipe. $($st.Files) file(s), $([math]::Round($st.Bytes/1GB,2)) GB, are staged on the stick with checksums; Windows is untouched."
     }
 
+    Invoke-Arm $S $State $Root $Job
+}
+
+function Invoke-EraseContinue {
+    # The erase-and-install path (RISKS R27): nothing on the drives changes in
+    # Windows. The installer erases them, after its countdown; until then this
+    # Windows is untouched and boots as before.
+    param($S, [string]$State, [string]$Root, $Job)
+    $S.Shrink.ForkTaken = 'clean-slate'
+    $names = @($Job.erase_consent.disks | ForEach-Object { "$($_.friendly_name) ($($_.role))" }) -join ' and '
+    Write-Log "  2.  erase and install: nothing is changed here. In the installer a 2-minute countdown comes first; when it ends, $names are erased." 'Yellow'
+    Save-State $S $State; Write-Record $S $Root
+    Invoke-Arm $S $State $Root $Job
+}
+
+function Invoke-Arm {
     # 4. suspend BitLocker, arm the handoff, restart into the installer
+    param($S, [string]$State, [string]$Root, $Job)
+    $isErase = [bool]($Job.PSObject.Properties['erase_consent'] -and $Job.erase_consent)
     Invoke-UpdateGate $S $State $Root $Job 'before-arm' $null | Out-Null
     Write-Log '  4.  arming the one-shot boot handoff'
     $blq = Get-BitLockerState; $S.BitLocker.StatusBefore = $blq.State; $S.BitLocker.Source = $blq.Source
@@ -1522,7 +1592,8 @@ function Invoke-Continue {
     try { Register-ResumeTask -State $State } catch { Stop-Prologue $S $State $Root $Job 'arm-handoff' "could not register the return check ($_); the boot entry was removed again" }
     Write-Log "      armed: entry $guid -> $($Root)$($PayloadEfi.TrimStart('\')), marker boot-install" 'Green'
     Write-Log ''; Write-Log '  This computer restarts into the installer in 15 seconds. Leave the stick in.' 'Green'
-    Write-Log '  Windows is still here and still bootable; it stays that way until you reclaim it in Linux.' 'DarkGray'
+    if ($isErase) { Write-Log '  In the installer a 2-minute countdown comes first. Press any key during it to cancel and come back to this Windows, untouched. When it ends, everything is erased and Fedora is installed.' 'Yellow' }
+    else { Write-Log '  Windows is still here and still bootable; it stays that way until you reclaim it in Linux.' 'DarkGray' }
     Restart-Machine 'starting the installer from the USB stick'
     if (-not $Start) { $ctx = Get-LiveResumeContext; if (-not $ctx.Unattended) { Show-Popup -Title 'upgrade_' -Seconds 12 -Text "Restarting into the installer in 15 seconds. Leave the USB stick in." | Out-Null } }
 }
@@ -1563,6 +1634,20 @@ function Invoke-Return {
     Copy-Item (Join-Path $State 'state.json') (Join-Path $State 'state-returned.json') -Force -ErrorAction SilentlyContinue
     Remove-Item (Join-Path $State 'state.json') -Force -ErrorAction SilentlyContinue
     Write-Log "      boot entry removed, task removed; record on the stick" 'Green'
+    # the erase path (R27): Windows is back, so nothing was erased - record why
+    $eraseJob = $null
+    if ($Root) { try { $j = Read-Job (Join-Path $Root 'upgrade_\job.json'); if ($j.PSObject.Properties['erase_consent'] -and $j.erase_consent -and "$($j.job_id)" -eq "$($S.JobId)") { $eraseJob = $j } } catch { } }
+    if ($eraseJob) {
+        $rd = Join-Path $Root 'upgrade_\report'
+        $cd = try { Get-Content (Join-Path $rd 'countdown.json') -Raw -ErrorAction Stop | ConvertFrom-Json } catch { $null }
+        $vf = try { Get-Content (Join-Path $rd 'verify.json') -Raw -ErrorAction Stop | ConvertFrom-Json } catch { $null }
+        $er = Get-PrologueEraseReturn -Countdown $cd -Verify $vf
+        $o = New-PrologueStoppedOutcome -Job $eraseJob -S $S -StoppedAt $er.StoppedAt -Reason $er.Reason -WindowsPartition $null
+        [IO.File]::WriteAllText((Join-Path $Root 'upgrade_\outcome.json'), (ConvertTo-PrologueJson $o), (New-Object Text.UTF8Encoding($false)))
+        Write-Log "  STOPPED at $($er.StoppedAt): $($er.Reason)" 'Yellow'
+        Show-Or-Queue -State $State -Title 'upgrade_ - nothing was erased' -Seconds 300 -Buttons 64 -Text ("Windows is back and nothing was erased.`n`n$($er.Reason).`n`nThe record is on the USB stick (upgrade_\outcome.json).") | Out-Null
+        return
+    }
     Show-Or-Queue -State $State -Title 'upgrade_ - back in Windows' -Seconds 120 -Buttons 64 -Text ("The one-time boot entry has been removed (handoff: $result).`n`nIf the conversion completed, Linux is the first boot choice and Windows is in its menu. The record is on the USB stick.") | Out-Null
 }
 
@@ -1571,13 +1656,15 @@ function Invoke-Return {
 # =============================================================================
 
 function Invoke-StartPhase {
-    if ($ConfirmWord -cne $ConfirmExpected) { throw "the confirmation word was not typed (expected $ConfirmExpected); nothing was started" }
     $state = Resolve-StateDir; New-Item -ItemType Directory -Path $state -Force | Out-Null
     if (Test-Path (Join-Path $state 'state.json')) { throw "a conversion is already in progress (state in $state). Restart to let it resume, or run -Abort." }
     $root = Get-DriveRoot $StickDrive
     if (-not (Test-Path $root)) { throw "stick $root not found" }
     $jobFile = if ($JobPath) { $JobPath } else { Join-Path $root 'upgrade_\job.json' }
     $job = Read-Job $jobFile
+    $startRefusal = Get-PrologueEraseStartRefusal -Job $job -ConfirmWord $ConfirmWord -EraseConsent $EraseConsent
+    if ($startRefusal) { throw $startRefusal }
+    $isErase = [bool]($job.PSObject.Properties['erase_consent'] -and $job.erase_consent)
     $jobAck = if ($job.PSObject.Properties['risk_acknowledgement'] -and $job.risk_acknowledgement) { $job.risk_acknowledgement } else { $null }
     if ($jobAck) {
         if ("$($jobAck.statement)" -cne $RiskStatement) { throw 'the job carries a risk acknowledgement whose statement is not the one this prologue knows; refusing' }
@@ -1603,11 +1690,18 @@ function Invoke-StartPhase {
     Write-Log "  $($F.Vendor) $($F.Model)   $($F.OsCaption) $($F.OsBuild)   Secure Boot $($F.SecureBoot)   BitLocker $($F.BitLocker) (via $($F.BitLockerSource))   disk health $($F.Health)   C: $($F.Dirty)$(if ($F.RepairQueued) { " (repair queued: $($F.RepairQueuedWhy))" })$(if ($F.RepairStale) { " ($($F.RepairStale) - not a queued repair)" })" 'DarkGray'
     Save-State $S $state
     Write-Log '  1.  re-validating job.json against this machine...'
-    $mm = Compare-PrologueJob -Job $job -F $F
+    $mm = @(Compare-PrologueJob -Job $job -F $F)
+    if ($isErase) { $mm += @(Compare-PrologueEraseDisks -Job $job -F $F) }
     $S.Mismatches = @($mm)
     if (@($mm).Count -gt 0) { foreach ($x in $mm) { Write-Log "      ! $x" 'Yellow' }; Save-State $S $state; Stop-Prologue $S $state $root $job 'revalidate' ("job.json no longer matches this machine: " + ($mm -join '; ')) }
     Write-Log '      matches: disk identity, firmware, Secure Boot, stick, BitLocker, volume flag, disk health'
     Save-State $S $state; Write-Record $S $root
+    if ($isErase) {
+        Write-Log "  ERASE AND INSTALL (typed $($job.erase_consent.accepted_utc)): every drive named in the job is erased in the installer, after its countdown." 'Red'
+        if ((Invoke-UpdateGate $S $state $root $job 'before-changes' 'erase') -eq 'restart') { return }
+        Invoke-EraseContinue $S $state $root $job
+        return
+    }
     if ((Invoke-UpdateGate $S $state $root $job 'before-changes' 'volume') -eq 'restart') { return }
     if ((Invoke-VolumeStage $S $state $root $job $F) -eq 'restart') { return }
     Invoke-Continue $S $state $root $job
@@ -1649,6 +1743,7 @@ function Invoke-ResumePhase {
         }
         default { throw "state is at stage '$($S.Stage)', which -Resume does not continue from" }
     }
+    if ("$($S.Update.ResumeTo)" -eq 'erase') { Invoke-EraseContinue $S $state $root $job; return }
     Invoke-Continue $S $state $root $job
 }
 
@@ -1889,6 +1984,39 @@ function Invoke-SelfTest {
         @{ Name = 'fork: a clean-slate job the person chose is clean slate whatever the number'; Run = { Get-PrologueFork -JobPath 'clean-slate' -Fits $true -IfCannotKeep 'stop' -PathReason 'user-chose-clean-slate' }; Expect = 'clean-slate' }
         @{ Name = 'fork (R18, 2026-09-22): a forced clean-slate job under if_cannot_keep=stop stops - the Aspire run 5 job'; Run = { "$(Get-PrologueFork -JobPath 'clean-slate' -Fits $false -IfCannotKeep 'stop' -PathReason 'forced-no-room')/$(Get-PrologueFork -JobPath 'clean-slate' -Fits $false -IfCannotKeep 'ask' -PathReason 'forced-no-room')" }; Expect = 'stop/stop' }
         @{ Name = 'fork: a forced clean-slate job the person allowed (if_cannot_keep=clean-slate) is clean slate'; Run = { Get-PrologueFork -JobPath 'clean-slate' -Fits $false -IfCannotKeep 'clean-slate' -PathReason 'forced-no-room' }; Expect = 'clean-slate' }
+        # --- the erase-and-install path (R27, 2026-09-26) ---------------------------
+        @{ Name = 'erase start: an erase job starts with the erase sentence and no CONVERT word'
+           Run = { $j = [pscustomobject]@{ erase_consent = [pscustomobject]@{ statement = $EraseStatement } }; $null -eq (Get-PrologueEraseStartRefusal -Job $j -ConfirmWord '' -EraseConsent $EraseStatement) }; Expect = $true }
+        @{ Name = 'erase start: CONVERT alone does not start an erase job'
+           Run = { $j = [pscustomobject]@{ erase_consent = [pscustomobject]@{ statement = $EraseStatement } }; [bool]((Get-PrologueEraseStartRefusal -Job $j -ConfirmWord 'CONVERT' -EraseConsent '') -match 'the erase sentence was not typed for this run') }; Expect = $true }
+        @{ Name = 'erase start: a paraphrase does not start it'
+           Run = { $j = [pscustomobject]@{ erase_consent = [pscustomobject]@{ statement = $EraseStatement } }; [bool](Get-PrologueEraseStartRefusal -Job $j -ConfirmWord '' -EraseConsent 'I confirm everything will be deleted') }; Expect = $true }
+        @{ Name = 'erase start: a job whose sentence differs from this prologue''s is refused'
+           Run = { $j = [pscustomobject]@{ erase_consent = [pscustomobject]@{ statement = 'delete it all' } }; [bool]((Get-PrologueEraseStartRefusal -Job $j -ConfirmWord '' -EraseConsent 'delete it all') -match 'not the one this prologue knows') }; Expect = $true }
+        @{ Name = 'erase start: the erase sentence never starts a keep-windows job'
+           Run = { $j = [pscustomobject]@{ job_id = 'x' }; [bool]((Get-PrologueEraseStartRefusal -Job $j -ConfirmWord 'CONVERT' -EraseConsent $EraseStatement) -match 'not an erase job') }; Expect = $true }
+        @{ Name = 'erase start: a keep-windows job still needs CONVERT'
+           Run = { $j = [pscustomobject]@{ job_id = 'x' }; "$($null -eq (Get-PrologueEraseStartRefusal -Job $j -ConfirmWord 'CONVERT' -EraseConsent '')):$([bool](Get-PrologueEraseStartRefusal -Job $j -ConfirmWord 'convert' -EraseConsent ''))" }; Expect = 'True:True' }
+        @{ Name = 'erase disks: both drives present at their sizes is no mismatch'
+           Run = { $j = [pscustomobject]@{ erase_consent = [pscustomobject]@{ disks = @([pscustomobject]@{ role = 'system'; unique_id = 'ssd'; size_bytes = 256; friendly_name = 'SSD' }, [pscustomobject]@{ role = 'home'; unique_id = 'hdd'; size_bytes = 1000; friendly_name = 'HDD' }) } }
+                   $F = @{ Disk = @{ UniqueId = 'ssd'; Size = 256 }; AllDisks = @(@{ UniqueId = 'ssd'; Size = 256 }, @{ UniqueId = 'hdd'; Size = 1000 }) }
+                   @(Compare-PrologueEraseDisks -Job $j -F $F).Count }; Expect = 0 }
+        @{ Name = 'erase disks: a home drive that is gone, or a different size, is a mismatch (never erase a stranger''s drive)'
+           Run = { $j = [pscustomobject]@{ erase_consent = [pscustomobject]@{ disks = @([pscustomobject]@{ role = 'system'; unique_id = 'ssd'; size_bytes = 256; friendly_name = 'SSD' }, [pscustomobject]@{ role = 'home'; unique_id = 'hdd'; size_bytes = 1000; friendly_name = 'HDD' }) } }
+                   $gone = @(Compare-PrologueEraseDisks -Job $j -F @{ Disk = @{ UniqueId = 'ssd'; Size = 256 }; AllDisks = @(@{ UniqueId = 'ssd'; Size = 256 }) })
+                   $size = @(Compare-PrologueEraseDisks -Job $j -F @{ Disk = @{ UniqueId = 'ssd'; Size = 256 }; AllDisks = @(@{ UniqueId = 'ssd'; Size = 256 }, @{ UniqueId = 'hdd'; Size = 999 }) })
+                   "$([bool]($gone -match 'is not attached')):$([bool]($size -match 'is 999 bytes; the job says 1000'))" }; Expect = 'True:True' }
+        @{ Name = 'erase disks: a first drive that is not the C: drive is a mismatch'
+           Run = { $j = [pscustomobject]@{ erase_consent = [pscustomobject]@{ disks = @([pscustomobject]@{ role = 'system'; unique_id = 'other'; size_bytes = 256; friendly_name = 'X' }) } }
+                   [bool](@(Compare-PrologueEraseDisks -Job $j -F @{ Disk = @{ UniqueId = 'ssd'; Size = 256 }; AllDisks = @() }) -match 'is not the drive holding C:') }; Expect = $true }
+        @{ Name = 'erase return: a key in the countdown is stopped_at countdown, nothing erased'
+           Run = { $r = Get-PrologueEraseReturn -Countdown ([pscustomobject]@{ result = 'cancelled'; ended_utc = '2026-09-26T22:00:00Z' }) -Verify $null; "$($r.StoppedAt):$([bool]($r.Reason -match 'nothing was erased'))" }; Expect = 'countdown:True' }
+        @{ Name = 'erase return: the installer refusing on identity is stopped_at identity'
+           Run = { (Get-PrologueEraseReturn -Countdown $null -Verify ([pscustomobject]@{ identity = [pscustomobject]@{ result = 'fail' }; payload = [pscustomobject]@{ result = 'pass' } })).StoppedAt }; Expect = 'identity' }
+        @{ Name = 'erase return: a countdown that elapsed and still came back says the drives may be partly erased - never "nothing"'
+           Run = { $r = Get-PrologueEraseReturn -Countdown ([pscustomobject]@{ result = 'elapsed'; ended_utc = 't' }) -Verify $null; "$($r.StoppedAt):$([bool]($r.Reason -match 'may be partly erased')):$([bool]($r.Reason -match 'nothing was erased'))" }; Expect = 'install:True:False' }
+        @{ Name = 'erase: a stopped outcome carries the erase consent'
+           Run = { $j = [pscustomobject]@{ job_id = 'j'; erase_consent = [pscustomobject]@{ statement = $EraseStatement; accepted_utc = 't'; disks = @() } }; $o = New-PrologueStoppedOutcome -Job $j -S (New-PrologueState -JobId 'j' -StickId 's' -Root 'E:\') -StoppedAt 'countdown' -Reason 'r' -WindowsPartition $null; "$($o.erase_consent.statement -ceq $EraseStatement):$($o.status):$($o.commit_line.crossed)" }; Expect = 'True:stopped:False' }
         @{ Name = 'stage (R18, 2026-09-22): no folders in the job refuses before anything is staged, and says why'; Run = { [bool]((Get-PrologueStageRefusal -Folders 0) -match '^the job lists none of your folders .* refusing to prepare a wipe with no copy of your files$') }; Expect = $true }
         @{ Name = 'stage (R18, 2026-09-22): folders listed but 0 files staged refuses'; Run = { [bool]((Get-PrologueStageRefusal -Folders 3 -StagedFiles 0) -match '^no files were copied to the stick from the 3 folder') }; Expect = $true }
         @{ Name = 'stage: folders listed, before staging, and files staged, after, are not refusals'; Run = { "$($null -eq (Get-PrologueStageRefusal -Folders 3))/$($null -eq (Get-PrologueStageRefusal -Folders 3 -StagedFiles 1204))" }; Expect = 'True/True' }

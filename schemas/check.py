@@ -103,6 +103,7 @@ def main():
     report(job["job_id"] == out["job_id"], "example pair: keep-windows job and outcome share job_id")
     job2 = load(HERE / "examples/job.clean-slate.json")
     job3 = load(HERE / "examples/job.erase-and-install.json")
+    out3 = load(HERE / "examples/outcome.erase-and-install.json")
     out2 = load(HERE / "examples/outcome.clean-slate.json")
     report(job2["job_id"] == out2["job_id"], "example pair: clean-slate job and outcome share job_id")
 
@@ -241,6 +242,15 @@ def main():
          set_path(out, ["prologue", "shrink", "remeasured_by"], "guess")),
         ("outcome", "a staged block without the measured write speed is refused",
          set_path(out2, ["prologue", "staged"], {"files": 1, "bytes": 1, "failed": 0, "manifest": "upgrade_/staging/SHA256SUMS"})),
+        # the one-click erase and install (2026-09-26, R27)
+        ("outcome", "a completed erase with neither a countdown nor restored files is refused",
+         del_path(out3, ["cutover", "countdown"])),
+        ("outcome", "a completed erase whose countdown was cancelled is refused",
+         set_path(out3, ["cutover", "countdown", "result"], "cancelled")),
+        ("outcome", "a cancelled countdown that claims the line was crossed is refused",
+         set_path(set_path(set_path(set_path(out3, ["status"], "stopped"), ["stopped_at"], "countdown"), ["reason"], "a key was pressed"), ["cutover", "countdown", "result"], "cancelled")),
+        ("outcome", "an erase consent with another sentence is refused",
+         set_path(out3, ["erase_consent", "statement"], "delete it all")),
         ("outcome", "an unknown stage name is refused",
          set_path(set_path(set_path(out, ["status"], "failed"), ["stopped_at"], "defrag"), ["reason"], "x")),
     ]

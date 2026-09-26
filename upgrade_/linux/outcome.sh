@@ -16,7 +16,7 @@
 # settle-in to show, and Windows stays reachable from the GRUB menu.
 set -u
 JOB=${1:?job.json}
-OUTCOME_VERSION=0.2.1
+OUTCOME_VERSION=0.3.0
 STICK=/run/install/repo
 SYSROOT=/mnt/sysroot
 REPORT=$STICK/upgrade_/report
@@ -35,6 +35,15 @@ print("" if v is None else (json.dumps(v) if isinstance(v,(dict,list)) else str(
 sha() { sha256sum "$1" 2>/dev/null | cut -c1-64; }
 
 PATH_CHOSEN=$(jq_ intent.path)
+# erase-and-install (R27, 0.3.0): the countdown's end, as verify.sh wrote it,
+# is the commit line; nothing on the stick is needed after the wipe, so the
+# credentials directory goes now
+ERASE=false; [ -n "$(jq_ erase_consent.statement)" ] && ERASE=true
+SCRUBBED=false
+if [ "$ERASE" = true ] && [ -d "$STICK/upgrade_/artifacts/credentials" ]; then
+    rm -rf "$STICK/upgrade_/artifacts/credentials" && SCRUBBED=true
+elif [ "$ERASE" = true ]; then SCRUBBED=true; fi
+echo "== erase-and-install=$ERASE credentials scrubbed=$SCRUBBED"
 ESPMNT=$SYSROOT/boot/efi
 [ -d "$ESPMNT/EFI" ] || { echo "!! $ESPMNT is not the ESP"; }
 
@@ -128,7 +137,7 @@ echo "== prologue record: ${PROLOGUE_REC:-none (placeholders)}"
 UPG_PROLOGUE_REC="$PROLOGUE_REC" UPG_PATH="$PATH_CHOSEN" UPG_VERSION="$OUTCOME_VERSION" UPG_WIN_PRESENT="$WIN_PRESENT" UPG_WIN_RECREATED="$WIN_RECREATED" \
 UPG_LINUX_FIRST="$LINUX_FIRST" UPG_BOOTMGFW_OK="$BOOTMGFW_OK" UPG_GRUB_WIN="$GRUB_WIN" UPG_FALLBACK="$FALLBACK" \
 UPG_KERNEL="$KERNEL" UPG_ROOTDEV="$ROOTDEV" UPG_RELEASE="$RELEASE" UPG_WINPART="$WINPART" UPG_WINGUID="$WINGUID" \
-UPG_WINSIZE="$WINSIZE" UPG_WINNUM="$WINNUM" \
+UPG_WINSIZE="$WINSIZE" UPG_WINNUM="$WINNUM" UPG_ERASE="$ERASE" UPG_SCRUBBED="$SCRUBBED" UPG_COUNTDOWN="$REPORT/countdown.json" \
 python3 - "$JOB" "$REPORT/verify.json" "$STICK/upgrade_/outcome.json" <<'EOF'
 import json, sys, os, datetime
 E = os.environ.get
@@ -182,6 +191,18 @@ if rec:
         print("== prologue block taken from the prologue's record (stage %s)" % pr.get("stage"))
     except Exception as ex:
         print("!! prologue record unusable, placeholders kept:", ex)
+if b("UPG_ERASE"):
+    try: cd = json.load(open(E("UPG_COUNTDOWN")))
+    except Exception: cd = {}
+    if cd.get("result") == "elapsed":
+        o["commit_line"]["crossed_utc"] = cd["ended_utc"]
+        o["cutover"]["countdown"] = {"seconds": int(cd.get("seconds") or 0), "result": "elapsed", "ended_utc": cd["ended_utc"]}
+        o["cutover"]["hardware"]["human_gate"] = "countdown-elapsed"
+    else:
+        print("!! erase job but no elapsed countdown record - the outcome will not validate:", cd)
+    o["erase_consent"] = job["erase_consent"]
+    o["credentials"] = {"scrubbed": b("UPG_SCRUBBED"), "scrub_after": "cutover"}
+    o["logs"].append("upgrade_/report/verify.log")
 if keep and snap.get("result") == "pass":
     o["cutover"]["esp_snapshot"] = {"path": "upgrade_/esp-snapshot", "files": int(snap.get("files") or 1), "boot_entries": "upgrade_/esp-snapshot/boot-entries.txt"}
 json.dump(o, open(sys.argv[3], "w"), indent=2)

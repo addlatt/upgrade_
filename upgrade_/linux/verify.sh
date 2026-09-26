@@ -15,6 +15,12 @@
 #      lists any. Each is pass / fail / skipped; nothing here is a guess.
 #   3. STORAGE - writes /tmp/upgrade_-storage.ks (the %include) with the
 #      resolved Linux device names for the path the job chose.
+#   4. COUNTDOWN (erase-and-install jobs only, RISKS R27, 0.4.0) - after
+#      every check above has passed, two minutes on screen: "press any key
+#      to cancel". A key: the report goes to the stick and the machine
+#      restarts into Windows, untouched. No key: the moment it reaches zero
+#      is the commit line - its time goes to the stick and the installer
+#      erases the listed drives.
 #
 # Everything it learns goes to the stick, under upgrade_/report/, as
 # verify.json plus the raw logs, and it syncs before it returns. With
@@ -24,7 +30,7 @@
 set -u
 JOB=${1:?job.json path}
 LABEL=${2:-UPGV0}
-VERIFY_VERSION=0.3.1
+VERIFY_VERSION=0.4.0
 STICK=/run/install/repo
 REPORT=$STICK/upgrade_/report
 STORAGE_KS=/tmp/upgrade_-storage.ks
@@ -61,24 +67,30 @@ echo "== job $JOB_ID path=$PATH_CHOSEN disk serial='$J_SERIAL' unique_id='$J_UID
 # the Aspire's Windows reports it, 2026-09-12) would otherwise be stripped to
 # meaningless hex fragments - the serial vote handles those disks.
 norm() { echo "$1" | tr 'A-Z' 'a-z' | sed 's/^eui\.//; s/^0x//' | tr -d ' _.-'; }
-uid_hex=$(norm "$J_UID"); echo "$uid_hex" | grep -qE '^[0-9a-f]{8,}$' || uid_hex=""
-serial_norm=$(echo "$J_SERIAL" | tr 'A-Z' 'a-z' | tr -d ' _.-')
-DISK=""; MATCHED_BY=""
-for link in /dev/disk/by-id/*; do
-    [ -e "$link" ] || continue
-    name=$(basename "$link" | tr 'A-Z' 'a-z')
-    case "$name" in *-part[0-9]*) continue;; esac
-    tgt=$(readlink -f "$link"); [ -b "$tgt" ] || continue
-    case "$tgt" in *[0-9]p[0-9]*|/dev/sd[a-z]*[0-9]) continue;; esac
-    if [ -n "$uid_hex" ] && [ ${#uid_hex} -ge 8 ] && echo "$name" | tr -d '_.-' | grep -q "$uid_hex"; then DISK=$tgt; MATCHED_BY="unique_id via $(basename "$link")"; break; fi
-done
-if [ -z "$DISK" ] && [ -n "$serial_norm" ] && [ ${#serial_norm} -ge 6 ]; then
+# resolve_disk <unique_id> <serial>: the whole-disk device carrying that id
+# (sets R_DISK and R_BY; both empty when nothing matches)
+resolve_disk() {
+    local uid_hex serial_norm link name tgt
+    R_DISK=""; R_BY=""
+    uid_hex=$(norm "$1"); echo "$uid_hex" | grep -qE '^[0-9a-f]{8,}$' || uid_hex=""
+    serial_norm=$(echo "$2" | tr 'A-Z' 'a-z' | tr -d ' _.-')
     for link in /dev/disk/by-id/*; do
-        name=$(basename "$link" | tr 'A-Z' 'a-z' | tr -d '_.-')
-        case "$name" in *part[0-9]*) continue;; esac
-        if echo "$name" | grep -q "$serial_norm"; then DISK=$(readlink -f "$link"); MATCHED_BY="serial via $(basename "$link")"; break; fi
+        [ -e "$link" ] || continue
+        name=$(basename "$link" | tr 'A-Z' 'a-z')
+        case "$name" in *-part[0-9]*) continue;; esac
+        tgt=$(readlink -f "$link"); [ -b "$tgt" ] || continue
+        case "$tgt" in *[0-9]p[0-9]*|/dev/sd[a-z]*[0-9]) continue;; esac
+        if [ -n "$uid_hex" ] && [ ${#uid_hex} -ge 8 ] && echo "$name" | tr -d '_.-' | grep -q "$uid_hex"; then R_DISK=$tgt; R_BY="unique_id via $(basename "$link")"; return; fi
     done
-fi
+    if [ -n "$serial_norm" ] && [ ${#serial_norm} -ge 6 ]; then
+        for link in /dev/disk/by-id/*; do
+            name=$(basename "$link" | tr 'A-Z' 'a-z' | tr -d '_.-')
+            case "$name" in *part[0-9]*) continue;; esac
+            if echo "$name" | grep -q "$serial_norm"; then R_DISK=$(readlink -f "$link"); R_BY="serial via $(basename "$link")"; return; fi
+        done
+    fi
+}
+resolve_disk "$J_UID" "$J_SERIAL"; DISK=$R_DISK; MATCHED_BY=$R_BY
 IDENTITY=fail; DISK_SIZE=""
 if [ -n "$DISK" ]; then
     DISK_SIZE=$(blockdev --getsize64 "$DISK" 2>/dev/null || echo "")
@@ -86,6 +98,28 @@ if [ -n "$DISK" ]; then
     if [ "$DISK_SIZE" = "$J_SIZE" ]; then IDENTITY=pass; else echo "!! size mismatch: job says $J_SIZE, disk is $DISK_SIZE"; fi
 else
     echo "!! no attached disk carries the job's unique id or serial"
+fi
+# erase-and-install (R27): every drive the job names must be here, by id and
+# exact size; disks[0] is the system drive above, disks[1] (if any) is home
+ERASE=false; [ -n "$(jq_ erase_consent.statement)" ] && ERASE=true
+HOME_DISK=""; HOME_BY=""; HOME_SIZE=""; NDISKS=0
+if [ "$ERASE" = true ]; then
+    NDISKS=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["erase_consent"]["disks"]))' "$JOB" 2>/dev/null || echo 0)
+    if [ "$(jq_ erase_consent.disks.0.role)" != system ] || [ "$(jq_ erase_consent.disks.0.unique_id)" != "$J_UID" ] || [ "$(jq_ erase_consent.disks.0.size_bytes)" != "$J_SIZE" ]; then
+        echo "!! erase_consent.disks[0] is not the system disk the job identifies"; IDENTITY=fail
+    fi
+    if [ "$NDISKS" -ge 2 ]; then
+        H_UID=$(jq_ erase_consent.disks.1.unique_id); H_SERIAL=$(jq_ erase_consent.disks.1.serial_number); H_SIZE_J=$(jq_ erase_consent.disks.1.size_bytes)
+        resolve_disk "$H_UID" "$H_SERIAL"; HOME_DISK=$R_DISK; HOME_BY=$R_BY
+        if [ -z "$HOME_DISK" ]; then echo "!! the home drive the job names (serial '$H_SERIAL') is not attached"; IDENTITY=fail
+        else
+            HOME_SIZE=$(blockdev --getsize64 "$HOME_DISK" 2>/dev/null || echo "")
+            echo "== home candidate $HOME_DISK ($HOME_BY) size=$HOME_SIZE"
+            [ "$HOME_SIZE" = "$H_SIZE_J" ] || { echo "!! home size mismatch: job says $H_SIZE_J, disk is $HOME_SIZE"; IDENTITY=fail; }
+            [ "$HOME_DISK" != "$DISK" ] || { echo "!! the home drive resolved to the system drive"; IDENTITY=fail; }
+        fi
+    fi
+    echo "== erase-and-install: $NDISKS drive(s); identity=$IDENTITY"
 fi
 lsblk -b -o NAME,SIZE,TYPE,FSTYPE,LABEL,PARTTYPENAME,SERIAL,WWN 2>/dev/null | tee /tmp/upgrade_-lsblk.txt
 ls -l /dev/disk/by-id/ > /tmp/upgrade_-by-id.txt 2>&1
@@ -224,6 +258,21 @@ EOF
         else
             ESP_RESULT=fail; echo "!! keep-windows: no EFI partition holding bootmgfw.efi on $DISK"
         fi
+    elif [ "$ERASE" = true ]; then
+        ESP_RESULT=skipped
+        hdev=""; [ -n "$HOME_DISK" ] && hdev=$(basename "$HOME_DISK")
+        drives=$dev; [ -n "$hdev" ] && drives="$dev,$hdev"
+        {
+            echo "# written by verify.sh: erase-and-install on $drives - the countdown before this is the commit line (R27)"
+            echo "zerombr"
+            echo "ignoredisk --only-use=$drives"
+            echo "clearpart --all --initlabel --drives=$drives"
+            echo "bootloader --location=mbr --boot-drive=$dev"
+            echo "part /boot/efi --fstype=efi --size=600 --ondisk=$dev"
+            echo "part /boot     --fstype=ext4 --size=1024 --ondisk=$dev"
+            echo "part /         --fstype=ext4 --size=4096 --grow --ondisk=$dev"
+            [ -n "$hdev" ] && echo "part /home     --fstype=ext4 --size=1024 --grow --ondisk=$hdev"
+        } > "$STORAGE_KS"
     else
         ESP_RESULT=$([ -n "$ESP" ] && echo pass || echo skipped)
         cat > "$STORAGE_KS" <<EOF
@@ -252,7 +301,8 @@ r = {
   "hardware": {"display": "$DISPLAY_RESULT", "display_detail": "$DISPLAY_DETAIL".strip(),
                "wifi": "$WIFI_RESULT", "wifi_detail": "$WIFI_DETAIL",
                "audio_firmware": "$AUDIO_RESULT", "audio_detail": "$AUDIO_DETAIL".strip()},
-  "storage": {"path": "$PATH_CHOSEN", "esp": "$ESP", "esp_result": "$ESP_RESULT", "include_written": $([ -f "$STORAGE_KS" ] && echo True || echo False)},
+  "storage": {"path": "$PATH_CHOSEN", "esp": "$ESP", "esp_result": "$ESP_RESULT", "include_written": $([ -f "$STORAGE_KS" ] && echo True || echo False),
+              "erase": $([ "$ERASE" = true ] && echo True || echo False), "home_disk": "$HOME_DISK", "home_matched_by": "$HOME_BY", "home_size_bytes": "$HOME_SIZE"},
   "esp_snapshot": {"result": "$SNAP_RESULT", "files": $SNAP_FILES, "path": "upgrade_/esp-snapshot"},
   "payload": {"desktop": "$DESKTOP", "image": "$IMG_REL", "result": "$IMAGE_RESULT", "detail": "$IMAGE_DETAIL", "read_mbps": "$IMAGE_MBPS"},
   "secure_boot": "$(od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c 2>/dev/null | awk '{print $NF}')"
@@ -278,4 +328,54 @@ fi
 [ "$ESP_RESULT" != fail ] || { echo "!! keep-windows needs the Windows ESP - refusing"; exit 22; }
 [ "$IMAGE_RESULT" = pass ] || { echo "!! the desktop image on the stick did not verify - refusing (RISKS R17)"; exit 23; }
 [ "$PATH_CHOSEN" != keep-windows ] || [ "$SNAP_RESULT" = pass ] || { echo "!! the ESP snapshot failed - refusing to touch the ESP without it (RISKS R21)"; exit 24; }
+[ "$PATH_CHOSEN" = keep-windows ] || [ "$ERASE" = true ] || { echo "!! a clean slate with staged files needs the restore, which this version does not have - refusing"; exit 25; }
+
+# --- 4. the countdown: the last exit before the erase (RISKS R27, rule #3) ------
+# Anaconda runs %pre before its own screens; tty6 is free in text mode. The
+# countdown is written there and a key is read from there. If it cannot be
+# shown, nothing is erased: an erase with no visible last exit is a refusal.
+if [ "$ERASE" = true ]; then
+    COUNT_SECS=120; CTTY=/dev/tty6
+    what="THIS COMPUTER'S DRIVE"; [ -n "$HOME_DISK" ] && what="BOTH DRIVES"
+    names="$(lsblk -dno MODEL "$DISK" 2>/dev/null | xargs)"; [ -n "$HOME_DISK" ] && names="$names and $(lsblk -dno MODEL "$HOME_DISK" 2>/dev/null | xargs)"
+    countdown_record() {
+        python3 - "$REPORT/countdown.json" "$1" "$COUNT_SECS" <<'PYEOF'
+import json, sys, datetime
+json.dump({"schema": "countdown/1", "result": sys.argv[2], "seconds": int(sys.argv[3]),
+           "ended_utc": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}, open(sys.argv[1], "w"), indent=2)
+PYEOF
+        cp "$LOG" "$REPORT/verify.log" 2>/dev/null || true; sync; sync
+    }
+    if [ ! -c "$CTTY" ] || ! chvt 6 2>/dev/null; then
+        echo "!! the countdown could not be shown on $CTTY (chvt: $(command -v chvt || echo missing)) - refusing to erase without a visible last exit"
+        cp "$LOG" "$REPORT/verify.log" 2>/dev/null || true; sync
+        exit 26
+    fi
+    echo "== countdown: $COUNT_SECS s on $CTTY, erasing $what ($names)"
+    while read -t 0.2 -n 1 -s _ < "$CTTY"; do :; done   # keys pressed earlier do not count
+    RESULT=elapsed
+    for ((i = COUNT_SECS; i > 0; i--)); do
+        {
+            printf '\033[2J\033[H\n\n'
+            printf '   ERASING %s IN %d:%02d\n\n' "$what" $((i / 60)) $((i % 60))
+            printf '   Windows and everything on this computer will be deleted.\n'
+            printf '   (%s)\n\n' "$names"
+            printf '   Press any key to CANCEL and restart into Windows.\n'
+        } > "$CTTY"
+        if read -t 1 -n 1 -s _ < "$CTTY"; then RESULT=cancelled; break; fi
+    done
+    if [ "$RESULT" = cancelled ]; then
+        printf '\033[2J\033[H\n\n   CANCELLED. Nothing was erased. Restarting into Windows...\n' > "$CTTY"
+        echo "== countdown CANCELLED by a key press - nothing erased; restarting into Windows"
+        countdown_record cancelled
+        sleep 3
+        systemctl reboot 2>/dev/null || reboot -f 2>/dev/null || { echo b > /proc/sysrq-trigger; }
+        sleep 60
+        exit 27
+    fi
+    printf '\033[2J\033[H\n\n   Erasing and installing Fedora. This takes a while; you can walk away.\n' > "$CTTY"
+    echo "== countdown ELAPSED - the commit line: the installer now erases $what"
+    countdown_record elapsed
+    chvt 1 2>/dev/null || true
+fi
 exit 0

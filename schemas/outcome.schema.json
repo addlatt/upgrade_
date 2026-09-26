@@ -5,107 +5,368 @@
   "description": "Written by `upgrade_` (the converter) at the end of the cutover - or at whatever point it stopped - and read by `settle-in`. It is the record of what actually happened, including which side of the commit line the machine is on. Written to the stick only; it leaves the stick only if the person chooses to submit it. A reader that meets a `schema` value it does not know must refuse, not guess.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "job_id", "created_utc", "converter_version", "status", "commit_line", "prologue", "windows", "credentials", "logs"],
+  "required": [
+    "schema",
+    "job_id",
+    "created_utc",
+    "converter_version",
+    "status",
+    "commit_line",
+    "prologue",
+    "windows",
+    "credentials",
+    "logs"
+  ],
   "properties": {
-    "schema": { "const": "outcome/1" },
+    "schema": {
+      "const": "outcome/1"
+    },
     "job_id": {
       "description": "Must equal the job.json this outcome executed. settle-in refuses a pair that does not match.",
       "type": "string",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
     },
-    "created_utc": { "type": "string", "format": "date-time" },
-    "converter_version": { "type": "string" },
+    "created_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "converter_version": {
+      "type": "string"
+    },
     "status": {
       "description": "completed: the cutover finished and the machine is about to reboot into Linux. stopped: a refusal or the person's fork said stop; nothing destructive happened. failed: something broke - `stopped_at` and `reason` say where, `commit_line.crossed` says how bad.",
-      "enum": ["completed", "stopped", "failed"]
+      "enum": [
+        "completed",
+        "stopped",
+        "failed"
+      ]
     },
     "stopped_at": {
       "description": "The stage that stopped or failed. Null when completed.",
-      "enum": ["revalidate", "volume-check", "windows-update", "shrink", "stage-files", "confirm", "arm-handoff", "identity", "verify-stick", "verify-hardware", "esp-snapshot", "partition", "install", "inject", "restore", "boot-chain", null]
+      "enum": [
+        "revalidate",
+        "volume-check",
+        "windows-update",
+        "shrink",
+        "stage-files",
+        "confirm",
+        "arm-handoff",
+        "identity",
+        "verify-stick",
+        "verify-hardware",
+        "esp-snapshot",
+        "partition",
+        "install",
+        "inject",
+        "restore",
+        "boot-chain",
+        "countdown",
+        null
+      ]
     },
-    "reason": { "type": ["string", "null"] },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "path_taken": {
       "description": "The path the fork actually resolved to. Null when the run stopped before the fork.",
-      "enum": ["keep-windows", "clean-slate", null]
+      "enum": [
+        "keep-windows",
+        "clean-slate",
+        null
+      ]
     },
     "commit_line": {
       "description": "Exactly one irreversible moment per conversion. On keep-windows it is the reclaim in settle-in, so a converter-written outcome on that path always says crossed=false. On clean-slate it is the wipe.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["crossed", "crossed_utc", "act"],
+      "required": [
+        "crossed",
+        "crossed_utc",
+        "act"
+      ],
       "properties": {
-        "crossed": { "type": "boolean" },
-        "crossed_utc": { "type": ["string", "null"], "format": "date-time" },
-        "act": { "enum": ["wipe", null] }
+        "crossed": {
+          "type": "boolean"
+        },
+        "crossed_utc": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "act": {
+          "enum": [
+            "wipe",
+            null
+          ]
+        }
       }
     },
     "prologue": {
       "description": "The Windows-side, reversible half. Every step records what it did so a stopped run can be read back.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["revalidated", "volume_check", "shrink", "bitlocker", "handoff"],
+      "required": [
+        "revalidated",
+        "volume_check",
+        "shrink",
+        "bitlocker",
+        "handoff"
+      ],
       "properties": {
-        "revalidated": { "description": "job.json matched the live machine (identity triple, stick identity, BitLocker state, volume flag state).", "type": "boolean" },
-        "mismatches": { "type": "array", "items": { "type": "string" } },
+        "revalidated": {
+          "description": "job.json matched the live machine (identity triple, stick identity, BitLocker state, volume flag state).",
+          "type": "boolean"
+        },
+        "mismatches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "volume_check": {
           "description": "RISKS R18 step 1b. `evaluate` never repairs; this is the only place a disk check runs, with its four guardrails, and its real outcome is recorded here.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["needed", "ran", "disk_health_at_check", "method", "dirty_after", "scan", "restarts"],
+          "required": [
+            "needed",
+            "ran",
+            "disk_health_at_check",
+            "method",
+            "dirty_after",
+            "scan",
+            "restarts"
+          ],
           "properties": {
-            "needed": { "description": "The online scan confirmed the flag before anything ran.", "type": "boolean" },
-            "ran": { "type": "boolean" },
-            "scan": { "description": "What `Repair-Volume -Scan` (read-only) answered, verbatim - the guardrail that chooses spot-fix over the full check. Null when no scan ran.", "type": ["string", "null"] },
-            "restarts": { "description": "Restarts the check took (spot-fix once; a second one only if the flag survived and the rescan logged errors).", "type": "integer", "minimum": 0 },
-            "disk_health_at_check": { "description": "`Get-PhysicalDisk` HealthStatus read immediately before the repair. Anything but Healthy is a refusal (`ran` false, status stopped).", "enum": ["Healthy", "Warning", "Unhealthy", "Unknown", null] },
-            "method": { "description": "spot-fix: Repair-Volume -SpotFix (offline for seconds, fixes only what the scan logged). chkdsk-f: the full check, only when the scan logged real errors.", "enum": ["none", "spot-fix", "chkdsk-f"] },
-            "wininit_1001": { "description": "The text of the Wininit event 1001 the check left behind, verbatim.", "type": ["string", "null"] },
-            "found000_present": { "description": "Whether the check left a found.000 folder - orphaned fragments the person should be told about.", "type": ["boolean", "null"] },
-            "dirty_after": { "enum": ["clean", "dirty", "unknown"] },
-            "trigger": { "description": "Which of Windows' two statements made step 1b run (prologue 0.4.0+, RISKS R18 2026-09-17): the dirty flag, or a repair queued with the flag clean - in which case dirty_after proves nothing and the check must have run (Wininit 1001) with the volume no longer reporting a repair. Null when the step was not needed.", "enum": ["dirty-flag", "repair-queued", null] }
+            "needed": {
+              "description": "The online scan confirmed the flag before anything ran.",
+              "type": "boolean"
+            },
+            "ran": {
+              "type": "boolean"
+            },
+            "scan": {
+              "description": "What `Repair-Volume -Scan` (read-only) answered, verbatim - the guardrail that chooses spot-fix over the full check. Null when no scan ran.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "restarts": {
+              "description": "Restarts the check took (spot-fix once; a second one only if the flag survived and the rescan logged errors).",
+              "type": "integer",
+              "minimum": 0
+            },
+            "disk_health_at_check": {
+              "description": "`Get-PhysicalDisk` HealthStatus read immediately before the repair. Anything but Healthy is a refusal (`ran` false, status stopped).",
+              "enum": [
+                "Healthy",
+                "Warning",
+                "Unhealthy",
+                "Unknown",
+                null
+              ]
+            },
+            "method": {
+              "description": "spot-fix: Repair-Volume -SpotFix (offline for seconds, fixes only what the scan logged). chkdsk-f: the full check, only when the scan logged real errors.",
+              "enum": [
+                "none",
+                "spot-fix",
+                "chkdsk-f"
+              ]
+            },
+            "wininit_1001": {
+              "description": "The text of the Wininit event 1001 the check left behind, verbatim.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "found000_present": {
+              "description": "Whether the check left a found.000 folder - orphaned fragments the person should be told about.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "dirty_after": {
+              "enum": [
+                "clean",
+                "dirty",
+                "unknown"
+              ]
+            },
+            "trigger": {
+              "description": "Which of Windows' two statements made step 1b run (prologue 0.4.0+, RISKS R18 2026-09-17): the dirty flag, or a repair queued with the flag clean - in which case dirty_after proves nothing and the check must have run (Wininit 1001) with the volume no longer reporting a repair. Null when the step was not needed.",
+              "enum": [
+                "dirty-flag",
+                "repair-queued",
+                null
+              ]
+            }
           },
-          "if": { "properties": { "ran": { "const": true } } },
-          "then": { "properties": { "method": { "enum": ["spot-fix", "chkdsk-f"] } } }
+          "if": {
+            "properties": {
+              "ran": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "method": {
+                "enum": [
+                  "spot-fix",
+                  "chkdsk-f"
+                ]
+              }
+            }
+          }
         },
         "shrink": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["remeasured_gb", "remeasured_by", "fork_taken", "freed_bytes"],
+          "required": [
+            "remeasured_gb",
+            "remeasured_by",
+            "fork_taken",
+            "freed_bytes"
+          ],
           "properties": {
-            "remeasured_gb": { "description": "Shrinkable space measured by the prologue at the moment it mattered - the number the fork branched on. Null if never measured.", "type": ["number", "null"], "minimum": 0 },
-            "remeasured_by": { "description": "Which read-only path produced remeasured_gb: the Storage API (Get-PartitionSupportedSize) or diskpart's shrink querymax (VDS). Both are tried; the second number is kept beside it.", "enum": ["storage-api", "diskpart", null] },
-            "remeasured_diskpart_gb": { "description": "diskpart's independent figure, when it answered. Disagreement with the Storage API is a finding (VALIDATION V4).", "type": ["number", "null"], "minimum": 0 },
-            "fork_taken": { "enum": ["keep-windows", "clean-slate", "stop", null] },
-            "requested_bytes": { "type": ["integer", "null"], "minimum": 0 },
-            "freed_bytes": { "description": "What Resize-Partition actually freed. 0 on clean-slate or a stop.", "type": "integer", "minimum": 0 },
-            "pagefile_disabled": { "type": "boolean" },
-            "hibernation_disabled": { "type": "boolean" },
-            "restore_points_deleted": { "description": "How many of Windows' restore points (shadow copies on C:) the prologue deleted because they pinned the shrink and job.fork.restore_points_consented was true. Not undone by a stop - it cannot be. Absent or 0: none touched.", "type": "integer", "minimum": 0 },
-            "usn_journal_deleted": { "description": "RISKS R18, decided 2026-09-22: how many times the prologue deleted NTFS's change journal on C: because Windows named it as the file pinning the shrink and job.fork.usn_journal_consented was true (at most once per boot). The journal is created again with its old sizes after the shrink and at every stop; the record of changes it held is not. Absent or 0: never touched.", "type": "integer", "minimum": 0 }
+            "remeasured_gb": {
+              "description": "Shrinkable space measured by the prologue at the moment it mattered - the number the fork branched on. Null if never measured.",
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "remeasured_by": {
+              "description": "Which read-only path produced remeasured_gb: the Storage API (Get-PartitionSupportedSize) or diskpart's shrink querymax (VDS). Both are tried; the second number is kept beside it.",
+              "enum": [
+                "storage-api",
+                "diskpart",
+                null
+              ]
+            },
+            "remeasured_diskpart_gb": {
+              "description": "diskpart's independent figure, when it answered. Disagreement with the Storage API is a finding (VALIDATION V4).",
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "fork_taken": {
+              "enum": [
+                "keep-windows",
+                "clean-slate",
+                "stop",
+                null
+              ]
+            },
+            "requested_bytes": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "freed_bytes": {
+              "description": "What Resize-Partition actually freed. 0 on clean-slate or a stop.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "pagefile_disabled": {
+              "type": "boolean"
+            },
+            "hibernation_disabled": {
+              "type": "boolean"
+            },
+            "restore_points_deleted": {
+              "description": "How many of Windows' restore points (shadow copies on C:) the prologue deleted because they pinned the shrink and job.fork.restore_points_consented was true. Not undone by a stop - it cannot be. Absent or 0: none touched.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "usn_journal_deleted": {
+              "description": "RISKS R18, decided 2026-09-22: how many times the prologue deleted NTFS's change journal on C: because Windows named it as the file pinning the shrink and job.fork.usn_journal_consented was true (at most once per boot). The journal is created again with its old sizes after the shrink and at every stop; the record of changes it held is not. Absent or 0: never touched.",
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
         "bitlocker": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["status_before", "suspended"],
+          "required": [
+            "status_before",
+            "suspended"
+          ],
           "properties": {
-            "status_before": { "enum": ["on", "off"] },
-            "suspended": { "type": "boolean" },
-            "reboot_count": { "type": ["integer", "null"], "minimum": 0 }
+            "status_before": {
+              "enum": [
+                "on",
+                "off"
+              ]
+            },
+            "suspended": {
+              "type": "boolean"
+            },
+            "reboot_count": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
           }
         },
         "staged": {
           "description": "clean-slate only: the person's files copied to the stick with per-file checksums, at a measured write speed the time estimate was computed from.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["files", "bytes", "failed", "write_mbps", "estimated_seconds", "manifest"],
+          "required": [
+            "files",
+            "bytes",
+            "failed",
+            "write_mbps",
+            "estimated_seconds",
+            "manifest"
+          ],
           "properties": {
-            "files": { "type": "integer", "minimum": 0 },
-            "bytes": { "type": "integer", "minimum": 0 },
-            "failed": { "type": "integer", "minimum": 0 },
-            "write_mbps": { "type": ["number", "null"], "minimum": 0 },
-            "estimated_seconds": { "type": ["integer", "null"], "minimum": 0 },
-            "manifest": { "$ref": "#/definitions/relpath" }
+            "files": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "failed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "write_mbps": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "estimated_seconds": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "manifest": {
+              "$ref": "#/definitions/relpath"
+            }
           }
         },
         "resumes": {
@@ -114,13 +375,40 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["utc", "run_as", "session_id", "unattended", "stick_wait_seconds"],
+            "required": [
+              "utc",
+              "run_as",
+              "session_id",
+              "unattended",
+              "stick_wait_seconds"
+            ],
             "properties": {
-              "utc": { "type": "string", "format": "date-time" },
-              "run_as": { "description": "SYSTEM is the design; user means the task ran in a person's session.", "enum": ["SYSTEM", "user"] },
-              "session_id": { "type": "integer", "minimum": 0 },
-              "unattended": { "description": "No interactive session existed when the resume ran.", "type": "boolean" },
-              "stick_wait_seconds": { "type": ["integer", "null"], "minimum": 0 }
+              "utc": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "run_as": {
+                "description": "SYSTEM is the design; user means the task ran in a person's session.",
+                "enum": [
+                  "SYSTEM",
+                  "user"
+                ]
+              },
+              "session_id": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "unattended": {
+                "description": "No interactive session existed when the resume ran.",
+                "type": "boolean"
+              },
+              "stick_wait_seconds": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              }
             }
           }
         },
@@ -128,23 +416,65 @@
           "description": "RISKS R25 (2026-09-26): the prologue's checks for a Windows update waiting for a restart - before anything changes, before the shrink, before the arm - and the restarts it took to let one finish. Absent: a prologue older than 0.9.0.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["checks", "pending_seen", "restarts"],
+          "required": [
+            "checks",
+            "pending_seen",
+            "restarts"
+          ],
           "properties": {
-            "checks": { "type": "integer", "minimum": 0 },
-            "pending_seen": { "type": "boolean" },
-            "restarts": { "type": "integer", "minimum": 0 }
+            "checks": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pending_seen": {
+              "type": "boolean"
+            },
+            "restarts": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
         "handoff": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["armed"],
+          "required": [
+            "armed"
+          ],
           "properties": {
-            "armed": { "type": "boolean" },
-            "marker": { "description": "The marker file the prologue put beside the kickstart on the stick, which grub.cfg branches on: boot-install for the conversion.", "enum": ["boot-install", null] },
-            "entry_guid": { "type": ["string", "null"] },
-            "armed_utc": { "type": ["string", "null"], "format": "date-time" },
-            "bcd_backup": { "oneOf": [{ "$ref": "#/definitions/relpath" }, { "type": "null" }] }
+            "armed": {
+              "type": "boolean"
+            },
+            "marker": {
+              "description": "The marker file the prologue put beside the kickstart on the stick, which grub.cfg branches on: boot-install for the conversion.",
+              "enum": [
+                "boot-install",
+                null
+              ]
+            },
+            "entry_guid": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "armed_utc": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "bcd_backup": {
+              "oneOf": [
+                {
+                  "$ref": "#/definitions/relpath"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
           }
         }
       }
@@ -153,79 +483,218 @@
       "description": "The live-environment half. Absent when the run stopped in the prologue.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["identity_verified", "stick_verified", "hardware", "install", "boot_chain"],
+      "required": [
+        "identity_verified",
+        "stick_verified",
+        "hardware",
+        "install",
+        "boot_chain"
+      ],
       "properties": {
-        "identity_verified": { "type": "boolean" },
+        "identity_verified": {
+          "type": "boolean"
+        },
         "stick_verified": {
           "description": "Every staged checksum read back from the stick (also the counterfeit-flash test, RISKS R17).",
           "type": "object",
           "additionalProperties": false,
-          "required": ["files", "bytes", "failed"],
+          "required": [
+            "files",
+            "bytes",
+            "failed"
+          ],
           "properties": {
-            "files": { "type": "integer", "minimum": 0 },
-            "bytes": { "type": "integer", "minimum": 0 },
-            "failed": { "type": "array", "items": { "$ref": "#/definitions/relpath" } }
+            "files": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "failed": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/relpath"
+              }
+            }
           }
         },
         "hardware": {
           "description": "Automated checks before anything is destroyed; the human two-minute gate (clean-slate) is recorded as `human_gate`.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["wifi", "display", "audio_firmware"],
+          "required": [
+            "wifi",
+            "display",
+            "audio_firmware"
+          ],
           "properties": {
-            "wifi": { "$ref": "#/definitions/check" },
-            "display": { "$ref": "#/definitions/check" },
-            "audio_firmware": { "$ref": "#/definitions/check" },
-            "human_gate": { "enum": ["passed", "declined", "not-required", null] }
+            "wifi": {
+              "$ref": "#/definitions/check"
+            },
+            "display": {
+              "$ref": "#/definitions/check"
+            },
+            "audio_firmware": {
+              "$ref": "#/definitions/check"
+            },
+            "human_gate": {
+              "enum": [
+                "passed",
+                "declined",
+                "not-required",
+                "countdown-elapsed",
+                null
+              ]
+            }
           }
         },
         "esp_snapshot": {
           "description": "keep-windows: EFI/Boot and EFI/Microsoft (every file, with checksums) and the firmware Boot#### entries, copied to the stick before the ESP is touched. What rollback restores from.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["path", "files", "boot_entries"],
+          "required": [
+            "path",
+            "files",
+            "boot_entries"
+          ],
           "properties": {
-            "path": { "$ref": "#/definitions/relpath" },
-            "files": { "type": "integer", "minimum": 1 },
-            "boot_entries": { "$ref": "#/definitions/relpath" }
+            "path": {
+              "$ref": "#/definitions/relpath"
+            },
+            "files": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "boot_entries": {
+              "$ref": "#/definitions/relpath"
+            }
           }
         },
         "install": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["distro", "release", "kernel", "root_partition", "esp_reused"],
+          "required": [
+            "distro",
+            "release",
+            "kernel",
+            "root_partition",
+            "esp_reused"
+          ],
           "properties": {
-            "distro": { "const": "fedora" },
-            "release": { "type": "string" },
-            "kernel": { "type": "string" },
-            "root_partition": { "type": "string" },
-            "esp_reused": { "description": "keep-windows: /boot/efi is the existing ESP, --noformat.", "type": "boolean" },
-            "artifacts_injected": { "type": "array", "items": { "type": "string" } }
+            "distro": {
+              "const": "fedora"
+            },
+            "release": {
+              "type": "string"
+            },
+            "kernel": {
+              "type": "string"
+            },
+            "root_partition": {
+              "type": "string"
+            },
+            "esp_reused": {
+              "description": "keep-windows: /boot/efi is the existing ESP, --noformat.",
+              "type": "boolean"
+            },
+            "artifacts_injected": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         },
         "boot_chain": {
           "description": "The checklist decided 2026-08-30 (RISKS R21). None of these aborts - a failed item is written down for settle-in to show.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["windows_entry_present", "windows_entry_recreated", "linux_first_in_bootorder", "bootmgfw_matches_snapshot", "grub_lists_windows", "fallback_loader"],
+          "required": [
+            "windows_entry_present",
+            "windows_entry_recreated",
+            "linux_first_in_bootorder",
+            "bootmgfw_matches_snapshot",
+            "grub_lists_windows",
+            "fallback_loader"
+          ],
           "properties": {
-            "windows_entry_present": { "type": "boolean" },
-            "windows_entry_recreated": { "type": "boolean" },
-            "linux_first_in_bootorder": { "type": "boolean" },
-            "bootmgfw_matches_snapshot": { "type": "boolean" },
-            "grub_lists_windows": { "type": "boolean" },
-            "fallback_loader": { "description": "What sits at EFI/Boot/bootx64.efi after the install. shim is kept on purpose while Windows is kept; the snapshot holds Windows' copy.", "enum": ["shim", "windows", "other"] }
+            "windows_entry_present": {
+              "type": "boolean"
+            },
+            "windows_entry_recreated": {
+              "type": "boolean"
+            },
+            "linux_first_in_bootorder": {
+              "type": "boolean"
+            },
+            "bootmgfw_matches_snapshot": {
+              "type": "boolean"
+            },
+            "grub_lists_windows": {
+              "type": "boolean"
+            },
+            "fallback_loader": {
+              "description": "What sits at EFI/Boot/bootx64.efi after the install. shim is kept on purpose while Windows is kept; the snapshot holds Windows' copy.",
+              "enum": [
+                "shim",
+                "windows",
+                "other"
+              ]
+            }
+          }
+        },
+        "countdown": {
+          "description": "The one-click erase and install (RISKS R27): the on-screen countdown in the installer that is the last exit. `elapsed` - nobody pressed a key and its end is the commit line (commit_line.crossed_utc); `cancelled` - a key was pressed and nothing on the internal drives was written.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "seconds",
+            "result",
+            "ended_utc"
+          ],
+          "properties": {
+            "seconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "result": {
+              "enum": [
+                "elapsed",
+                "cancelled"
+              ]
+            },
+            "ended_utc": {
+              "type": "string",
+              "format": "date-time"
+            }
           }
         },
         "restore": {
           "description": "clean-slate: the person's files put back from the stick.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["files", "bytes", "failed"],
+          "required": [
+            "files",
+            "bytes",
+            "failed"
+          ],
           "properties": {
-            "files": { "type": "integer", "minimum": 0 },
-            "bytes": { "type": "integer", "minimum": 0 },
-            "failed": { "type": "array", "items": { "$ref": "#/definitions/relpath" } }
+            "files": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "failed": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/relpath"
+              }
+            }
           }
         }
       }
@@ -234,82 +703,398 @@
       "description": "Where Windows is now. settle-in needs the partition to mount it on the keep-windows path, and the reachability to tell the person how to roll back.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["kept", "partition", "reachable_via"],
+      "required": [
+        "kept",
+        "partition",
+        "reachable_via"
+      ],
       "properties": {
-        "kept": { "type": "boolean" },
+        "kept": {
+          "type": "boolean"
+        },
         "partition": {
-          "type": ["object", "null"],
+          "type": [
+            "object",
+            "null"
+          ],
           "additionalProperties": false,
-          "required": ["guid", "size_bytes"],
+          "required": [
+            "guid",
+            "size_bytes"
+          ],
           "properties": {
-            "number": { "type": "integer", "minimum": 1 },
-            "guid": { "type": "string" },
-            "size_bytes": { "type": "integer", "minimum": 1 }
+            "number": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "guid": {
+              "type": "string"
+            },
+            "size_bytes": {
+              "type": "integer",
+              "minimum": 1
+            }
           }
         },
-        "reachable_via": { "enum": ["grub", "firmware-entry", "both", "none"] }
+        "reachable_via": {
+          "enum": [
+            "grub",
+            "firmware-entry",
+            "both",
+            "none"
+          ]
+        }
       }
     },
     "risk_acknowledgement": {
       "description": "Copied from the job when the person took the acknowledged-data-loss path (RISKS R23, decided 2026-09-13). Its presence is why a repair on a non-Healthy disk or a shrink on a refused drive appears in this record at all.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["statement", "accepted_utc", "overrides"],
+      "required": [
+        "statement",
+        "accepted_utc",
+        "overrides"
+      ],
       "properties": {
-        "statement": { "const": "I confirm that I understand the risks and could lose data" },
-        "accepted_utc": { "type": "string", "format": "date-time" },
-        "overrides": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["disk-health", "volume-health"] } }
+        "statement": {
+          "const": "I confirm that I understand the risks and could lose data"
+        },
+        "accepted_utc": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "overrides": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "disk-health",
+              "volume-health"
+            ]
+          }
+        }
+      }
+    },
+    "erase_consent": {
+      "description": "Carried from job.json on the erase-and-install path (RISKS R27): the sentence the person typed and the drives it named.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "statement",
+        "accepted_utc",
+        "disks"
+      ],
+      "properties": {
+        "statement": {
+          "const": "I confirm that everything on this computer will be deleted and nothing will be kept"
+        },
+        "accepted_utc": {
+          "type": "string"
+        },
+        "disks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "type": "object"
+          }
+        }
       }
     },
     "credentials": {
       "description": "RISKS R13. The recovery key is needed by settle-in's pull, so on keep-windows it is scrubbed after the pull, not here.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["scrubbed", "scrub_after"],
+      "required": [
+        "scrubbed",
+        "scrub_after"
+      ],
       "properties": {
-        "scrubbed": { "type": "boolean" },
-        "scrub_after": { "enum": ["cutover", "settle-in-pull"] }
+        "scrubbed": {
+          "type": "boolean"
+        },
+        "scrub_after": {
+          "enum": [
+            "cutover",
+            "settle-in-pull"
+          ]
+        }
       }
     },
-    "logs": { "type": "array", "items": { "$ref": "#/definitions/relpath" } }
+    "logs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/relpath"
+      }
+    }
   },
   "allOf": [
     {
       "description": "A repair only on a Healthy disk - unless the disk-health refusal was acknowledged (RISKS R23).",
-      "if": { "properties": { "prologue": { "properties": { "volume_check": { "properties": { "ran": { "const": true } } } } } },
-              "not": { "required": ["risk_acknowledgement"], "properties": { "risk_acknowledgement": { "required": ["overrides"], "properties": { "overrides": { "contains": { "const": "disk-health" } } } } } } },
-      "then": { "properties": { "prologue": { "properties": { "volume_check": { "properties": { "disk_health_at_check": { "const": "Healthy" } } } } } } }
+      "if": {
+        "properties": {
+          "prologue": {
+            "properties": {
+              "volume_check": {
+                "properties": {
+                  "ran": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "not": {
+          "required": [
+            "risk_acknowledgement"
+          ],
+          "properties": {
+            "risk_acknowledgement": {
+              "required": [
+                "overrides"
+              ],
+              "properties": {
+                "overrides": {
+                  "contains": {
+                    "const": "disk-health"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "prologue": {
+            "properties": {
+              "volume_check": {
+                "properties": {
+                  "disk_health_at_check": {
+                    "const": "Healthy"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     {
-      "if": { "properties": { "status": { "const": "completed" } } },
-      "then": { "required": ["cutover"], "properties": { "stopped_at": { "const": null }, "path_taken": { "enum": ["keep-windows", "clean-slate"] } } }
+      "if": {
+        "properties": {
+          "status": {
+            "const": "completed"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "cutover"
+        ],
+        "properties": {
+          "stopped_at": {
+            "const": null
+          },
+          "path_taken": {
+            "enum": [
+              "keep-windows",
+              "clean-slate"
+            ]
+          }
+        }
+      }
     },
     {
-      "if": { "properties": { "status": { "enum": ["stopped", "failed"] } } },
-      "then": { "properties": { "stopped_at": { "type": "string" }, "reason": { "type": "string", "minLength": 1 } } }
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "stopped",
+              "failed"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "stopped_at": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     },
     {
       "description": "keep-windows never crosses the commit line in the converter; Windows is kept and the snapshot exists.",
-      "if": { "properties": { "path_taken": { "const": "keep-windows" } } },
-      "then": { "properties": {
-        "commit_line": { "properties": { "crossed": { "const": false }, "act": { "const": null } } },
-        "windows": { "properties": { "kept": { "const": true }, "partition": { "type": "object" } } },
-        "credentials": { "properties": { "scrub_after": { "const": "settle-in-pull" } } }
-      } }
+      "if": {
+        "properties": {
+          "path_taken": {
+            "const": "keep-windows"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "commit_line": {
+            "properties": {
+              "crossed": {
+                "const": false
+              },
+              "act": {
+                "const": null
+              }
+            }
+          },
+          "windows": {
+            "properties": {
+              "kept": {
+                "const": true
+              },
+              "partition": {
+                "type": "object"
+              }
+            }
+          },
+          "credentials": {
+            "properties": {
+              "scrub_after": {
+                "const": "settle-in-pull"
+              }
+            }
+          }
+        }
+      }
     },
     {
-      "description": "clean-slate: a completed run crossed the line at the wipe and Windows is gone.",
-      "if": { "properties": { "path_taken": { "const": "clean-slate" }, "status": { "const": "completed" } } },
-      "then": { "properties": {
-        "commit_line": { "properties": { "crossed": { "const": true }, "act": { "const": "wipe" }, "crossed_utc": { "type": "string" } } },
-        "windows": { "properties": { "kept": { "const": false }, "reachable_via": { "const": "none" } } },
-        "cutover": { "required": ["restore"] }
-      } }
+      "description": "clean-slate: a completed run crossed the line at the wipe and Windows is gone; it either restored the staged files or was an erase-and-install whose countdown elapsed (R27).",
+      "if": {
+        "properties": {
+          "path_taken": {
+            "const": "clean-slate"
+          },
+          "status": {
+            "const": "completed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "commit_line": {
+            "properties": {
+              "crossed": {
+                "const": true
+              },
+              "act": {
+                "const": "wipe"
+              },
+              "crossed_utc": {
+                "type": "string"
+              }
+            }
+          },
+          "windows": {
+            "properties": {
+              "kept": {
+                "const": false
+              },
+              "reachable_via": {
+                "const": "none"
+              }
+            }
+          },
+          "cutover": {
+            "anyOf": [
+              {
+                "required": [
+                  "restore"
+                ]
+              },
+              {
+                "required": [
+                  "countdown"
+                ],
+                "properties": {
+                  "countdown": {
+                    "properties": {
+                      "result": {
+                        "const": "elapsed"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
     },
     {
       "description": "A stopped run never crossed the line.",
-      "if": { "properties": { "status": { "const": "stopped" } } },
-      "then": { "properties": { "commit_line": { "properties": { "crossed": { "const": false } } } } }
+      "if": {
+        "properties": {
+          "status": {
+            "const": "stopped"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "commit_line": {
+            "properties": {
+              "crossed": {
+                "const": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "A countdown that was cancelled never crosses the commit line and never completes (R27).",
+      "if": {
+        "required": [
+          "cutover"
+        ],
+        "properties": {
+          "cutover": {
+            "required": [
+              "countdown"
+            ],
+            "properties": {
+              "countdown": {
+                "properties": {
+                  "result": {
+                    "const": "cancelled"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "stopped"
+          },
+          "stopped_at": {
+            "const": "countdown"
+          },
+          "commit_line": {
+            "properties": {
+              "crossed": {
+                "const": false
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "definitions": {
@@ -317,6 +1102,12 @@
       "type": "string",
       "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))[^\\\\]+$"
     },
-    "check": { "enum": ["pass", "fail", "skipped"] }
+    "check": {
+      "enum": [
+        "pass",
+        "fail",
+        "skipped"
+      ]
+    }
   }
 }
