@@ -448,6 +448,11 @@ consent the same screen asks for - at most once per boot, then one
 re-measure; its sizes are read first and it is created again right after
 the shrink and at every stop. What does not come back is the record of
 changes it held: search and sync programs look through the files again.
+**A Windows update waiting for a restart is let finish first** (0.9.0,
+decided 2026-09-26, RISKS R25): the prologue checks before it changes
+anything and again before the shrink, restarts once itself (at most
+three times) to let the update finish and carries on by itself, and
+refuses to arm the boot to the stick while one waits.
 The prologue's record (`upgrade_/prologue.json`) is what `%post`'s
 `outcome.sh` carries into `outcome.json` as the `prologue` block. Rows:
 `docs/validation-results/r18-prologue.csv`. The cutover (stage 2) is the

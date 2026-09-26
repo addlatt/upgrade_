@@ -106,7 +106,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.8.0'
+$PrologueVersion = '0.9.0'
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -123,6 +123,11 @@ $PayloadEfi = '\EFI\BOOT\BOOTX64.EFI'
 $WindowsKeepFreeBytes = 8GB      # what the kept Windows must still have free after the shrink
 $FilesMargin = 1.2               # headroom over the harvested bytes Linux must hold until reclaim
 $StageProbeBytes = 32MB
+# RISKS R25 (found 2026-09-23 on the Aspire, built 2026-09-26): a Windows update
+# waiting for a restart is let finish before anything changes, and nothing is
+# armed while one waits. At most this many restarts of our own for it:
+$UpdateMaxRestarts = 3
+$UpdateWaitSeconds = 600          # after an update restart, how long Windows gets to finish before we look again
 $script:LogFile = $null
 $script:StickLog = $null
 
@@ -461,6 +466,7 @@ function New-PrologueState {
         Ack = [ordered]@{ Present = $false; DiskHealth = $false; VolumeHealth = $false }
         VolumeCheck = [ordered]@{ Trigger = $null; Needed = $false; Ran = $false; Scan = $null; DiskHealthAtCheck = $null; BadBlocks = 0; Gate = $null; Evidence = $null; Method = 'none'; ArmedUtc = $null; ArmText = $null; Chkntfs = $null; Wininit1001 = $null; Found000 = $null; DirtyAfter = 'unknown'; Restarts = 0 }
         Shrink = [ordered]@{ LastUnmovable = $null; RemeasuredGB = $null; RemeasuredBy = $null; DiskpartGB = $null; ApiError = $null; DiskpartError = $null; PartSize = $null; SizeMin = $null; FreeBytes = $null; Plan = $null; ForkTaken = $null; RequestedBytes = $null; FreedBytes = 0; SizeBefore = $null; PagefileDisabled = $false; HibernationDisabled = $false; Mitigated = $false; Before = $null; Restored = $null; RestorePoints = $null; UsnJournal = $null }
+        Update = [ordered]@{ Checks = @(); Restarts = 0; ResumeTo = $null }
         Staged = $null
         BitLocker = [ordered]@{ StatusBefore = $null; Source = $null; Suspended = $false; RebootCount = $null }
         Handoff = [ordered]@{ Armed = $false; Marker = $null; EntryGuid = $null; ArmedUtc = $null; BcdBackup = $null; Before = $null; GrubEnvReset = $false }
@@ -491,6 +497,10 @@ function New-PrologueBlock {
     }
     if ($S.Contains('Resumes') -and @($S.Resumes).Count -gt 0) {
         $b.resumes = @(foreach ($r in @($S.Resumes)) { ConvertTo-ResumeEvidence $r })
+    }
+    if ($S.Contains('Update') -and $S.Update -and @($S.Update.Checks).Count -gt 0) {
+        # RISKS R25: every pending-restart check and the restarts it took
+        $b.windows_update = [ordered]@{ checks = @($S.Update.Checks).Count; pending_seen = [bool](@($S.Update.Checks | Where-Object { $_.Pending }).Count -gt 0); restarts = [int]$S.Update.Restarts }
     }
     if ($S.Staged) {
         $st = $S.Staged
@@ -768,13 +778,60 @@ function Get-PrologueShadowCopyCount {
           @(Get-CimInstance Win32_ShadowCopy -ErrorAction Stop | Where-Object { $_.VolumeName -eq $dev }).Count } catch { $null }
 }
 
+function Get-PrologueRestorePointVerdict {
+    # Pure (self-tested). What the counts say happened - never what was meant to
+    # happen. On the Aspire (2026-09-23, R18 sixth run) vssadmin left 2 of 2 and
+    # the next pass said "already deleted": the words come from here now.
+    param($Before, $After)
+    if ($null -eq $Before -or $null -eq $After) { return 'unknown' }
+    if ([int]$Before -eq 0) { return 'none-there' }
+    if ([int]$After -eq 0) { return 'deleted-all' }
+    if ([int]$After -lt [int]$Before) { return 'deleted-some' }
+    'deleted-none'
+}
+
 function Invoke-PrologueDeleteRestorePoints {
-    # The one thing the prologue does that no stop can undo. Windows' own tool, C: only.
+    # The one thing the prologue does that no stop can undo. C: only, two of
+    # Windows' own documented ways, and a record of what each answered:
+    # vssadmin (whose /quiet hides every message, so its exit code is kept),
+    # then - only if the count did not drop - each shadow copy's WMI object,
+    # one by one, with the error Windows gives for any it refuses.
     $before = Get-PrologueShadowCopyCount
-    $text = (& vssadmin delete shadows /for=C: /all /quiet 2>&1 | Out-String).Trim()
+    $text = ''; $code = $null
+    try { $text = (& vssadmin delete shadows /for=C: /all /quiet 2>&1 | Out-String).Trim(); $code = $LASTEXITCODE }
+    catch { $text = "vssadmin raised: $($_.Exception.Message)"; $code = $LASTEXITCODE }
+    $afterVss = Get-PrologueShadowCopyCount
+    $wmi = @()
+    if ((Get-PrologueRestorePointVerdict -Before $before -After $afterVss) -in @('deleted-none', 'deleted-some', 'unknown')) {
+        try {
+            $dev = (Get-CimInstance Win32_Volume -Filter "DriveLetter='C:'" -ErrorAction Stop).DeviceID
+            foreach ($sc in @(Get-CimInstance Win32_ShadowCopy -ErrorAction Stop | Where-Object { $_.VolumeName -eq $dev })) {
+                try { $sc | Remove-CimInstance -ErrorAction Stop; $wmi += "$($sc.ID): removed" }
+                catch { $wmi += "$($sc.ID): $($_.Exception.Message)" }
+            }
+        } catch { $wmi += "listing shadow copies failed: $($_.Exception.Message)" }
+    }
     $after = Get-PrologueShadowCopyCount
-    [ordered]@{ Before = $before; After = $after; Deleted = $(if ($null -ne $before -and $null -ne $after) { [math]::Max(0, [int]$before - [int]$after) } else { 0 })
-                Text = $text; Utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
+    [ordered]@{ Before = $before; AfterVssadmin = $afterVss; After = $after
+                Deleted = $(if ($null -ne $before -and $null -ne $after) { [math]::Max(0, [int]$before - [int]$after) } else { 0 })
+                Verdict = (Get-PrologueRestorePointVerdict -Before $before -After $after)
+                VssadminExit = $code; Text = $text; Wmi = @($wmi); Utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
+}
+
+function Format-PrologueRestorePoints {
+    # Pure (self-tested): the log line for a restore-point attempt, from its record.
+    param($R)
+    $what = switch ("$($R.Verdict)") {
+        'deleted-all'  { "deleted all $($R.Before)" }
+        'deleted-some' { "deleted $($R.Deleted) of $($R.Before) - $($R.After) remain" }
+        'deleted-none' { "deleted NONE of $($R.Before)" }
+        'none-there'   { 'there were none to delete' }
+        default        { 'the count could not be read, so it is not known whether any were deleted' }
+    }
+    $how = "vssadmin exit $(if ($null -ne $R.VssadminExit) { $R.VssadminExit } else { 'unknown' })$(if ("$($R.Text)") { ": $((("$($R.Text)" -split "`n") | Select-Object -Last 1).Trim())" })"
+    $w = @(@($R.Wmi) | Where-Object { "$_" })
+    if ($w.Count -gt 0) { $how += "; then one by one: $($w -join '; ')" }
+    "restore points: $what ($how)"
 }
 
 function Test-PrologueUsnJournalFile {
@@ -832,6 +889,67 @@ function Invoke-PrologueRecreateUsnJournal {
     & fsutil usn createjournal "m=$([long]$b.MaxBytes)" "a=$([long]$b.DeltaBytes)" C: 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) { $S.Shrink.UsnJournal.Recreated = $true; return "change journal created again ($([math]::Round([long]$b.MaxBytes/1MB,1)) MB; its record of earlier changes is gone)" }
     "! the change journal could not be created again (fsutil exit $LASTEXITCODE; Windows creates it when a program next needs it)"
+}
+
+function Test-PrologueUpdatePending {
+    # Pure (self-tested). Windows' own markers that an update waits for a
+    # restart. None of them is a documented contract (RISKS R25): every check
+    # records all three as read, and any one of them counts - the cautious reading.
+    param($U)
+    [bool]($U.CbsRebootPending -or $U.CbsRebootInProgress -or $U.WuRebootRequired)
+}
+
+function Get-PrologueUpdateFacts {
+    # Live, read-only.
+    $cbs = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing'
+    [ordered]@{ Utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+                CbsRebootPending = [bool](Test-Path "$cbs\RebootPending"); CbsRebootInProgress = [bool](Test-Path "$cbs\RebootInProgress")
+                WuRebootRequired = [bool](Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') }
+}
+
+function Get-PrologueUpdateStep {
+    # Pure (self-tested): clear | restart | stop. Before anything changes and
+    # before the shrink, a waiting update gets a restart of ours (walk-away);
+    # right before the arm it gets none - a restart there is the one R25 fears.
+    param([bool]$Pending, [int]$Restarts, [string]$Where, [int]$Max = $UpdateMaxRestarts)
+    if (-not $Pending) { return 'clear' }
+    if ($Where -eq 'before-arm') { return 'stop' }
+    if ($Restarts -lt $Max) { return 'restart' }
+    'stop'
+}
+
+function Invoke-UpdateGate {
+    # R25: read, record, and act on the step. Returns 'clear' or 'restart'; a stop does not return.
+    param($S, [string]$State, [string]$Root, $Job, [string]$Where, [string]$ResumeTo)
+    if (-not $S.Update) { $S.Update = [ordered]@{ Checks = @(); Restarts = 0; ResumeTo = $null } }
+    $u = Get-PrologueUpdateFacts; $u.Where = $Where
+    $pending = Test-PrologueUpdatePending $u; $u.Pending = $pending
+    $S.Update.Checks = @($S.Update.Checks) + , $u
+    $step = Get-PrologueUpdateStep -Pending $pending -Restarts ([int]$S.Update.Restarts) -Where $Where
+    Write-Log "      Windows Update ($Where): $(if ($pending) { "an update is waiting for a restart (CBS RebootPending $($u.CbsRebootPending), RebootInProgress $($u.CbsRebootInProgress), WU RebootRequired $($u.WuRebootRequired))" } else { 'nothing is waiting for a restart' })"
+    if ($step -eq 'clear') { Save-State $S $State; return 'clear' }
+    if ($step -eq 'restart') {
+        $S.Update.Restarts = [int]$S.Update.Restarts + 1; $S.Update.ResumeTo = $ResumeTo
+        $S.Restarts = [int]$S.Restarts + 1; $S.Stage = 'update-restart'
+        Save-State $S $State; Write-Record $S $Root
+        try { Register-ResumeTask -State $State } catch { Stop-Prologue $S $State $Root $Job 'windows-update' "could not register the resume task ($_)" }
+        Restart-Machine 'letting Windows finish installing an update before the conversion goes on'
+        return 'restart'
+    }
+    Save-State $S $State
+    $why = if ($Where -eq 'before-arm') { 'Windows began waiting to restart for an update after the shrink; the boot to the USB stick is not set up while it waits (RISKS R25)' }
+           else { "Windows still has an update waiting for a restart after $($S.Update.Restarts) restart(s) to let it finish; the conversion does not interrupt it. Let Windows finish updating, then run the conversion again" }
+    Stop-Prologue $S $State $Root $Job 'windows-update' $why
+}
+
+function Invoke-UpdateReturn {
+    # Back from an update restart. Windows may restart again by itself while it
+    # finishes (the Aspire, 2026-09-23: twice); the task resumes after each boot.
+    param($S, [string]$State, [string]$Root, $Job)
+    Write-Log '  back from the update restart; giving Windows time to finish updating'
+    $deadline = (Get-Date).AddSeconds($UpdateWaitSeconds)
+    while ((Get-Date) -lt $deadline -and (Test-PrologueUpdatePending (Get-PrologueUpdateFacts))) { Start-Sleep -Seconds 20 }
+    Invoke-UpdateGate $S $State $Root $Job 'after-update-restart' "$($S.Update.ResumeTo)"
 }
 
 function Get-PrologueMemoryFilesBefore {
@@ -1302,12 +1420,12 @@ function Invoke-Continue {
             if ($rp -eq 'delete') {
                 Write-Log "      that is System Restore's storage; the job consents - deleting Windows' restore points on C: (this cannot be undone)" 'Yellow'
                 $S.Shrink.RestorePoints = Invoke-PrologueDeleteRestorePoints
-                Write-Log "      restore points: $($S.Shrink.RestorePoints.Before) before, $($S.Shrink.RestorePoints.After) after; vssadmin: $((($S.Shrink.RestorePoints.Text -split "`n") | Select-Object -Last 1).Trim())"
+                Write-Log "      $(Format-PrologueRestorePoints -R $S.Shrink.RestorePoints)"
                 Save-State $S $State; Write-Record $S $Root
                 return (Invoke-Continue $S $State $Root $Job)
             }
             elseif ($rp -eq 'no-consent') { Write-Log "      that is System Restore's storage; the job carries no consent to delete restore points - left alone" }
-            elseif ($rp -eq 'already-done') { Write-Log "      restore points were already deleted and their storage is still named - nothing more to try there" }
+            elseif ($rp -eq 'already-done') { Write-Log "      deleting restore points was already tried in this run ($(Format-PrologueRestorePoints -R $S.Shrink.RestorePoints)) and their storage is still named - nothing more to try there" }
             # the change journal in the way (R18, decided 2026-09-22; the Aspire's fifth run): deleted with the job's consent, once per boot, then one re-measure
             $uj = Get-PrologueUsnJournalStep -Fits $fits -LastUnmovable "$lu" -Consented ([bool]$Job.fork.usn_journal_consented) -DoneThisBoot ([bool]($S.Shrink.UsnJournal -and $null -ne $S.Shrink.UsnJournal.LastRestarts -and [int]$S.Shrink.UsnJournal.LastRestarts -eq [int]$S.Restarts))
             if ($uj -eq 'delete') {
@@ -1337,6 +1455,8 @@ function Invoke-Continue {
     $S.Shrink.ForkTaken = $fork
     Write-Log "      fork: $fork (job path $($Job.intent.path), if_cannot_keep $($Job.fork.if_cannot_keep))"
     if ($fork -eq 'stop') { Save-State $S $State; Stop-Prologue $S $State $Root $Job 'shrink' "re-measured $(if ($null -ne $S.Shrink.RemeasuredGB) { "$($S.Shrink.RemeasuredGB) GB" } else { 'no figure' }) shrinkable; Linux needs $([math]::Round(($(if ($plan) { $plan.TargetBytes } else { $linuxMin * 1GB }))/1GB,1)) GB; you chose to stop rather than give up Windows$(if ($plan) { " ($($plan.Reason))" })" }
+
+    if ((Invoke-UpdateGate $S $State $Root $Job 'before-shrink' 'continue') -eq 'restart') { return }
 
     if ($fork -eq 'keep-windows') {
         Write-Log '  2.  keep Windows: hibernation off, then the shrink'
@@ -1368,6 +1488,7 @@ function Invoke-Continue {
     }
 
     # 4. suspend BitLocker, arm the handoff, restart into the installer
+    Invoke-UpdateGate $S $State $Root $Job 'before-arm' $null | Out-Null
     Write-Log '  4.  arming the one-shot boot handoff'
     $blq = Get-BitLockerState; $S.BitLocker.StatusBefore = $blq.State; $S.BitLocker.Source = $blq.Source
     if ($blq.State -eq 'unknown') { Save-State $S $State; Stop-Prologue $S $State $Root $Job 'arm-handoff' "BitLocker state on C: could not be determined$(if ($blq.Raw) { " (manage-bde said: $($blq.Raw))" }); refusing to arm a boot that might stop at a recovery-key prompt" }
@@ -1487,6 +1608,7 @@ function Invoke-StartPhase {
     if (@($mm).Count -gt 0) { foreach ($x in $mm) { Write-Log "      ! $x" 'Yellow' }; Save-State $S $state; Stop-Prologue $S $state $root $job 'revalidate' ("job.json no longer matches this machine: " + ($mm -join '; ')) }
     Write-Log '      matches: disk identity, firmware, Secure Boot, stick, BitLocker, volume flag, disk health'
     Save-State $S $state; Write-Record $S $root
+    if ((Invoke-UpdateGate $S $state $root $job 'before-changes' 'volume') -eq 'restart') { return }
     if ((Invoke-VolumeStage $S $state $root $job $F) -eq 'restart') { return }
     Invoke-Continue $S $state $root $job
 }
@@ -1521,6 +1643,10 @@ function Invoke-ResumePhase {
     switch ($S.Stage) {
         'check-armed' { if ((Invoke-CheckReturn $S $state $root $job) -eq 'restart') { return } }
         'mitigated' { Write-Log '  back from the pagefile restart' }
+        'update-restart' {
+            if ((Invoke-UpdateReturn $S $state $root $job) -eq 'restart') { return }
+            if ("$($S.Update.ResumeTo)" -eq 'volume') { $F = Get-PrologueFacts -Root $root; if ((Invoke-VolumeStage $S $state $root $job $F) -eq 'restart') { return } }
+        }
         default { throw "state is at stage '$($S.Stage)', which -Resume does not continue from" }
     }
     Invoke-Continue $S $state $root $job
@@ -1629,6 +1755,26 @@ function Invoke-SelfTest {
     $vss = '\System Volume Information\{1d038256-b528-11f1-af8c-00f48d7649b6}{3808876b-c176-4e48-b7ae-04046e6cc752}'
     $usn = '\$Extend\$UsnJrnl:$J:$DATA'
     $cases = @(
+        # a Windows update waiting for a restart (RISKS R25, the Aspire's sixth run: our restart let one finish, and it restarted twice more)
+        @{ Name = 'update pending: any one marker counts; none, or a record with none of them, is clear'
+           Run = { "$(Test-PrologueUpdatePending @{ CbsRebootPending = $true; CbsRebootInProgress = $false; WuRebootRequired = $false })/$(Test-PrologueUpdatePending @{ CbsRebootPending = $false; CbsRebootInProgress = $true; WuRebootRequired = $false })/$(Test-PrologueUpdatePending @{ CbsRebootPending = $false; CbsRebootInProgress = $false; WuRebootRequired = $true })/$(Test-PrologueUpdatePending @{ CbsRebootPending = $false; CbsRebootInProgress = $false; WuRebootRequired = $false })/$(Test-PrologueUpdatePending @{})" }; Expect = 'True/True/True/False/False' }
+        @{ Name = 'update step: nothing pending is clear, wherever it is asked'; Run = { "$(Get-PrologueUpdateStep -Pending $false -Restarts 0 -Where 'before-changes')/$(Get-PrologueUpdateStep -Pending $false -Restarts 5 -Where 'before-arm')" }; Expect = 'clear/clear' }
+        @{ Name = 'update step: pending before anything changes or before the shrink takes a restart of ours, up to the limit, then stops'
+           Run = { "$(Get-PrologueUpdateStep -Pending $true -Restarts 0 -Where 'before-changes')/$(Get-PrologueUpdateStep -Pending $true -Restarts 2 -Where 'before-shrink')/$(Get-PrologueUpdateStep -Pending $true -Restarts 3 -Where 'after-update-restart')" }; Expect = 'restart/restart/stop' }
+        @{ Name = 'update step (R25): pending right before the arm never restarts - it stops, whatever the count'; Run = { Get-PrologueUpdateStep -Pending $true -Restarts 0 -Where 'before-arm' }; Expect = 'stop' }
+        @{ Name = 'update record: the outcome block counts checks, what was seen and the restarts; a state from before 0.9.0 has none'
+           Run = { $st = New-PrologueState -JobId 'j' -StickId 's' -Root 'E:\'; $none = $null -eq (New-PrologueBlock $st).windows_update
+                   $st.Update.Checks = @([ordered]@{ Where = 'before-changes'; Pending = $true }, [ordered]@{ Where = 'after-update-restart'; Pending = $false }); $st.Update.Restarts = 1
+                   $w = (New-PrologueBlock $st).windows_update; "$none/$($w.checks)/$($w.pending_seen)/$($w.restarts)" }; Expect = 'True/2/True/1' }
+        # what a restore-point attempt did, from the counts (R18, the Aspire's sixth run: 2 before, 2 after, then "already deleted")
+        @{ Name = 'restore-point verdict: all, some, none, none there, unreadable'; Run = { "$(Get-PrologueRestorePointVerdict 2 0)/$(Get-PrologueRestorePointVerdict 3 1)/$(Get-PrologueRestorePointVerdict 2 2)/$(Get-PrologueRestorePointVerdict 0 0)/$(Get-PrologueRestorePointVerdict $null 2)/$(Get-PrologueRestorePointVerdict 2 $null)" }; Expect = 'deleted-all/deleted-some/deleted-none/none-there/unknown/unknown' }
+        @{ Name = 'restore-point line: the Aspire run 6 record (0.8.0 kept no exit code) says NONE, never "deleted"'
+           Run = { Format-PrologueRestorePoints -R ([ordered]@{ Before = 2; After = 2; Deleted = 0; Text = ''; Utc = '2026-09-23T20:30:18Z'; Verdict = (Get-PrologueRestorePointVerdict 2 2) }) }; Expect = 'restore points: deleted NONE of 2 (vssadmin exit unknown)' }
+        @{ Name = 'restore-point line: vssadmin exit and each WMI answer are carried'
+           Run = { Format-PrologueRestorePoints -R ([ordered]@{ Before = 2; After = 1; Deleted = 1; Verdict = 'deleted-some'; VssadminExit = 2; Text = "line one`nError: Snapshots were found, but they were outside of your allowed context."; Wmi = @('{A}: removed', '{B}: Access denied') }) }
+           Expect = 'restore points: deleted 1 of 2 - 1 remain (vssadmin exit 2: Error: Snapshots were found, but they were outside of your allowed context.; then one by one: {A}: removed; {B}: Access denied)' }
+        @{ Name = 'restore-point line: all deleted by vssadmin alone'; Run = { Format-PrologueRestorePoints -R ([ordered]@{ Before = 3; After = 0; Deleted = 3; Verdict = 'deleted-all'; VssadminExit = 0; Text = ''; Wmi = @() }) }; Expect = 'restore points: deleted all 3 (vssadmin exit 0)' }
+        @{ Name = 'restore-point line: an unreadable count never claims a deletion'; Run = { [bool]((Format-PrologueRestorePoints -R ([ordered]@{ Before = $null; After = $null; Verdict = 'unknown'; VssadminExit = 0 })) -match 'not known whether any were deleted') }; Expect = $true }
         # the change journal in the way of the shrink (R18, decided 2026-09-22; the Aspire's real Defrag 259 name and queryjournal text)
         @{ Name = 'change journal (R18): the Aspire''s name is recognised; \$Extend\$ObjId, \$MFT, hiberfil and a person''s file named UsnJrnl are not'
            Run = { "$(Test-PrologueUsnJournalFile $usn)/$(Test-PrologueUsnJournalFile '\$Extend\$UsnJrnl')/$(Test-PrologueUsnJournalFile '\$Extend\$ObjId:$O:$INDEX_ALLOCATION')/$(Test-PrologueUsnJournalFile '\$Mft')/$(Test-PrologueUsnJournalFile '\hiberfil.sys')/$(Test-PrologueUsnJournalFile '\Users\a\$UsnJrnl')/$(Test-PrologueUsnJournalFile '')" }; Expect = 'True/True/False/False/False/False/False' }

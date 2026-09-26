@@ -111,7 +111,9 @@ echo   deleting them cannot be undone. The same goes for Windows' change
 echo   journal, its running list of which files changed recently: if it is
 echo   what stops the shrinking, it is deleted and started again empty. Your
 echo   files are not touched, but search and sync programs will look through
-echo   them again afterwards.
+echo   them again afterwards. If Windows has an update waiting to finish,
+echo   the computer restarts first to let it finish, then carries on by
+echo   itself.
 echo.
 set WORD=
 set /p WORD=  Type CONVERT (in capitals) to continue, anything else to stop:

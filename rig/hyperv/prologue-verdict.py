@@ -57,7 +57,11 @@ plan = (state.get("Shrink") or {}).get("Plan") or {}
 if plan: notes.append(f"plan target={plan.get('TargetBytes')} shrinkable={plan.get('ShrinkableBytes')} reason='{plan.get('Reason')}' api_error='{(state.get('Shrink') or {}).get('ApiError')}' diskpart_error='{(state.get('Shrink') or {}).get('DiskpartError')}'")
 _sh = state.get("Shrink") or {}
 if _sh.get("RestorePoints"):   # prologue 0.6.0+: restore points deleted with consent because they pinned the shrink (R18, 2026-09-20)
-    _rp = _sh["RestorePoints"]; notes.append(f"restore points deleted: {_rp.get('Deleted')} ({_rp.get('Before')} -> {_rp.get('After')}) at {_rp.get('Utc')}")
+    _rp = _sh["RestorePoints"]; notes.append(f"restore points deleted: {_rp.get('Deleted')} ({_rp.get('Before')} -> {_rp.get('After')}) at {_rp.get('Utc')}"
+                                             + (f"; verdict {_rp.get('Verdict')}, vssadmin exit {_rp.get('VssadminExit')}, after vssadmin {_rp.get('AfterVssadmin')}, wmi {'; '.join(_rp.get('Wmi') or []) or 'not tried'}" if 'Verdict' in _rp else ""))   # prologue 0.9.0+
+_up = state.get("Update") or {}
+if _up.get("Checks"):   # prologue 0.9.0+: RISKS R25, pending Windows Update restarts
+    notes.append("windows update: " + "; ".join(f"{c.get('Where')} pending={c.get('Pending')} (cbs {c.get('CbsRebootPending')}/{c.get('CbsRebootInProgress')}, wu {c.get('WuRebootRequired')}) at {c.get('Utc')}" for c in _up["Checks"]) + f"; restarts {_up.get('Restarts')}")
 if _sh.get("UsnJournal"):   # prologue 0.8.0+: the change journal deleted with consent because it pinned the shrink (R18, 2026-09-22)
     _uj = _sh["UsnJournal"]; _b = _uj.get("Before") or {}
     notes.append(f"change journal deleted: {_uj.get('Deletions')}x (last exit {_uj.get('ExitCode')} at {_uj.get('Utc')}, was {'%s bytes max' % _b.get('MaxBytes') if _b.get('Active') else 'not active'}); created again: {bool(_uj.get('Recreated'))}")

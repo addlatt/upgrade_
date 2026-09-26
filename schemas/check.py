@@ -127,6 +127,11 @@ def main():
         # R24: the resume evidence names its account; anything but SYSTEM|user is refused
         ("outcome", "a resume run_as outside SYSTEM|user is refused", set_path(out, ["prologue", "resumes", 0, "run_as"], "other")),
         ("outcome", "a resume without unattended is refused", del_path(out, ["prologue", "resumes", 0, "unattended"])),
+        # R25 (2026-09-26): the Windows Update record is exact in shape
+        ("outcome", "a windows_update record with a negative restart count is refused",
+         set_path(out, ["prologue", "windows_update"], {"checks": 1, "pending_seen": True, "restarts": -1})),
+        ("outcome", "a windows_update record with an unknown field is refused",
+         set_path(out, ["prologue", "windows_update"], {"checks": 1, "pending_seen": False, "restarts": 0, "ignored": True})),
         # the reader rule: an unknown version is a refusal
         ("job", "unknown schema version is refused", set_path(job, ["schema"], "job/2")),
         ("outcome", "unknown outcome version is refused", set_path(out, ["schema"], "outcome/2")),

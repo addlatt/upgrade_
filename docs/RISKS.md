@@ -1478,6 +1478,20 @@ Owed before run 7: the restore-point act made to say what happened (exit
 code, the output without `/quiet`'s silence, a count that must drop, and
 no "already deleted" unless it did); R25's refusal.
 
+**Built (2026-09-26), prologue 0.9.0 - item 3.** The restore-point act
+keeps vssadmin's exit code and any error it raises; if the count did not
+drop, it deletes each shadow copy of C: through its WMI object
+(`Win32_ShadowCopy`, `Remove-CimInstance`) one by one and records
+Windows' answer for each; the count is read before, after vssadmin and
+at the end. A pure verdict (`Get-PrologueRestorePointVerdict`:
+deleted-all / deleted-some / deleted-none / none-there / unknown) makes
+every log line, and the second pass now says "deleting restore points
+was already tried in this run (restore points: deleted NONE of 2 ...)"
+where 0.8.0 said "already deleted". Five self-test cases, one of them
+run 6's own record. The WMI path is Windows' documented object, not yet
+run on any machine; why vssadmin deleted nothing on the Aspire is still
+unknown and the next run records it.
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.
@@ -2055,8 +2069,9 @@ been observed, and it is the question this risk exists for. Until it is
 answered it is treated as the worst of those: a broken safety net before
 the commit line; high.
 
-**Proposed (2026-09-26), not yet decided: refuse, by default, before it
-can bite.** The
+**Decided (2026-09-26, the owner's call: "get the update out of the
+way") and built, prologue 0.9.0: refuse, by default, before it can
+bite.** The
 prologue reads Windows' pending-restart state before it changes anything
 and again immediately before it arms the handoff, and does not arm - or
 start - while Windows says an update is waiting for a restart. How it
@@ -2065,6 +2080,22 @@ finish and then re-checks (walk-away) rather than asking the person to,
 is the design step owed; the indicators Windows exposes must be
 confirmed on a real machine before any of them is trusted (rule #2 - the
 registry keys commonly cited are not a documented contract).
+As built: `Invoke-UpdateGate` reads three markers (Component Based
+Servicing `RebootPending` and `RebootInProgress`, Windows Update `Auto
+Update\RebootRequired`), records each check with all three values, and
+counts any one as pending. Before anything changes, and again before the
+shrink, a pending update gets a restart of the prologue's own (stage
+`update-restart`; the SYSTEM resume then gives Windows up to 10 minutes
+to finish, through any restarts of its own, and checks again), at most
+three; after that the run stops at `windows-update` with the reason.
+Right before the arm there is no restart: a pending update there stops
+the run, and the stop grows C: back. Both launchers tell the person the
+computer may restart first to let an update finish. `outcome.json`
+carries `prologue.windows_update` (checks, pending_seen, restarts; schema
+and two negative cases). Five self-test cases on the judge (130 pass).
+Unproven: whether those markers are set when an update is waiting on
+real Windows 11 26200 - the Aspire's next run records them at every
+gate, which is the evidence this entry is waiting for.
 
 **Closes when.** A physical row in which a pending update exists at
 CONVERT and the prologue neither arms nor shrinks until it has cleared -

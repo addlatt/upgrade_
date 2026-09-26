@@ -296,7 +296,11 @@ install with the boot-chain checklist, rollback. Next, in order:
    fired (8.4 -> 9.5 GB), restore-point deletion ran but deleted nothing
    (fix owed), a pending Windows update restarted the machine twice
    mid-run (new RISKS R25), and the stop put everything back (0.5.1
-   proven on real hardware).
+   proven on real hardware). **Built 2026-09-26 (prologue 0.9.0):** the
+   restore-point step records what Windows answered and tries a second
+   documented way; and, decided the same day, a waiting Windows update is
+   let finish before anything changes, and nothing is armed while one
+   waits (R25). Both unfired.
 2. **`settle-in`** — hardware verify on first boot, the file pull from the
    kept Windows partition (BITLK unlock, copy, checksum), the "you had
    these programs" list with Linux equivalents from the software

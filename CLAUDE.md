@@ -172,8 +172,13 @@ method in `docs/VALIDATION.md`; the killers, in order:
   deletion ran and deleted 0 of 2 with no exit code recorded (fix owed);
   the stop restored journal, hibernation and pagefile, read back after
   restarts - **0.5.1 proven**. A pending Windows update restarted the
-  machine twice mid-run: **new RISKS R25** (refuse to arm while Windows
-  waits for a restart - proposed, not decided). Windows is 26200 now. The
+  machine twice mid-run: **new RISKS R25**. **Decided and built
+  (2026-09-26), prologue 0.9.0:** a waiting Windows update is let finish
+  (the prologue's own restart, at most three) before anything changes and
+  before the shrink, and a pending one right before the arm stops the
+  run; the restore-point step records vssadmin's exit code, tries each
+  shadow copy's WMI object if the count did not drop, and words every
+  line from the counts. Unfired. Windows is 26200 now. The
   acknowledged-data-loss path (R23) exists for that machine's owner; rule
   #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path

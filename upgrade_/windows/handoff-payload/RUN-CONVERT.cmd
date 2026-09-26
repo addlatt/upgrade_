@@ -87,7 +87,9 @@ echo   This will change the internal disk of this computer: Windows' disk
 echo   check may run (with a restart), the Windows partition will be shrunk,
 echo   and Linux will be installed beside it. Windows stays bootable from
 echo   the boot menu until you reclaim it later. If the disk check runs it
-echo   may be slow - do not switch the computer off while it runs.
+echo   may be slow - do not switch the computer off while it runs. If
+echo   Windows has an update waiting to finish, the computer restarts first
+echo   to let it finish, then carries on by itself.
 echo.
 echo   If Windows' restore points are what stops the partition shrinking,
 echo   they will be deleted. Restore points are Windows' own undo history

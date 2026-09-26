@@ -509,7 +509,10 @@ storage, and the restore-point deletion ran but deleted nothing - cause
 not recorded, fix owed (R18). This disk's best measured number is 9.5 GB
 of 25. The stop restored everything it touched, read back after
 restarts - 0.5.1 proven. New: a pending Windows update turned the
-prologue's one restart into three (RISKS R25).
+prologue's one restart into three (RISKS R25). Built 2026-09-26 in
+prologue 0.9.0: the update gate (R25) and a restore-point act that
+records what Windows answered and tries its WMI objects if vssadmin
+deletes nothing.
 
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.
