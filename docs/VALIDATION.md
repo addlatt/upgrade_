@@ -547,7 +547,12 @@ RISKS R26).
 
 ## V9 — One-click erase and install (R27)
 
-**Decided (2026-09-26), not built.** The owner's first end-to-end
+**Rig: passed 2026-09-26** (`validation-results/v9-erase.csv`): A refused
+before the countdown, B cancelled with both disks untouched (after a first
+B attempt that froze and was fixed - `verify.sh` 0.4.1), C erased and
+installed with `/home` on the second disk and the chosen password,
+including once over an Ubuntu-style LVM. **The physical row on the Aspire
+is owed.** Design decided 2026-09-26. The owner's first end-to-end
 destructive target: erase every internal drive, install Fedora, keep
 nothing (`architecture.md`, "Erase and install").
 

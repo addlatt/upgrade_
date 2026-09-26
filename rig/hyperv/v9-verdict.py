@@ -3,7 +3,7 @@
 v9-verdict.py - one row of docs/validation-results/v9-erase.csv from a V9
 arm's own evidence (RISKS R27). Never by hand.
 
-    v9-verdict.py <artifacts/v9> <arm A|B|C> <csv> <firmware>
+    v9-verdict.py <artifacts/v9> <arm A|B|C> <csv> <firmware> [note]
 
 Reads <dir>/arm-<X>/ (what `v9.sh pull` / `stick-pull` copied) and the
 offline disk inspections v9-pre.json and v9-after-<X>.json.
@@ -43,7 +43,7 @@ def same(a, b):
     if not a or not b: return "n/a"
     return "y" if all(a["disks"][r] == b["disks"][r] for r in ("system", "home")) else "n"
 
-notes = []
+notes = [sys.argv[5]] if len(sys.argv) > 5 else []
 v = load(D / "verify.json"); cd = load(D / "countdown.json"); o = load(D / "outcome.json"); job = load(D / "job.json") or load(A / "job.json")
 pre = load(A / "v9-pre.json"); after = load(A / ("v9-after-%s.json" % ARM))
 pro = load(D / "prologue.json")

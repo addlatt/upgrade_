@@ -770,3 +770,21 @@ the harvester's JSON; personal file names stay out of the row.
 | `other_profiles` | other accounts' profiles (R5; a clean slate refuses on any) |
 | `stick`, `needed_bytes`, `fits` | the stick volume measured against, what the folders need on it, the answer (`n/a` with no stick) |
 | `notes` | how it was run, and what lies outside the map |
+
+## `v9-erase.csv` — the one-click erase and install on the rig (gate V9, risk R27)
+
+One row per arm, written by `rig/hyperv/v9-verdict.py` from the arm's own
+evidence (`rig/hyperv/v9.sh`; never by hand). The guest is a copy of the
+rig's install-day Windows disk plus a blank 64 GiB second disk.
+
+| Column | Meaning |
+|---|---|
+| `arm` | A refuse (a job naming an absent disk, armed by the V0 harness), B cancel (a key during the countdown), C erase (the countdown left alone) |
+| `prologue_version`, `verify_version` | the code under test (`harness` = armed by Test-Handoff, not the prologue) |
+| `identity` | verify.json: every drive the job names found by id and exact size |
+| `countdown` | countdown.json: `elapsed`, `cancelled`, or `none` (never shown) |
+| `outcome_status`, `stopped_at`, `commit_crossed`, `outcome_valid` | outcome.json, and whether it validates against the schema |
+| `disks_unchanged` | both disks' GPT and first MiB identical before and after (v9-inspect.py, offline) |
+| `system_gpt_after`, `home_gpt_after` | the partition tables afterwards |
+| `fedora_booted`, `password_matches`, `home_on_second_disk` | the first Linux boot's marker line (rig-only bench instrumentation): it booted, the account's stored hash is the job's, `/home` is on the second disk |
+| `result` | `refused-before-countdown` / `cancelled-untouched` / `erased-installed` pass their arm; `fail` is kept, never removed |

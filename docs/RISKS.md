@@ -2173,7 +2173,7 @@ not ask for (R25).
 Fast Startup row, and no Defender detection across them — or a signed
 release (R12), after which the AV half is moot.
 
-## R25 — Windows Update restarts the machine during the prologue · high · open (found 2026-09-23; gate built 0.9.0, detector unproven)
+## R25 — Windows Update restarts the machine during the prologue · high · open (found 2026-09-23; gate built 0.9.0; detector fired on the rig 2026-09-26)
 
 **What.** The prologue restarts Windows before the commit line (the disk
 check, the pagefile rung) and relies on Windows restarting only when it
@@ -2223,6 +2223,14 @@ and two negative cases). Five self-test cases on the judge (130 pass).
 Unproven: whether those markers are set when an update is waiting on
 real Windows 11 26200 - the Aspire's next run records them at every
 gate, which is the evidence this entry is waiting for.
+
+**Fired on the rig (2026-09-26, V9 runs, Windows 10 19045):** the rig's
+install-day disk copy carries a real pending update (CBS
+`RebootPending` = True). Prologue 0.10.0 read it at `before-changes`,
+restarted once, resumed as SYSTEM, read nothing waiting after the
+restart and again before arming, then armed - `prologue.windows_update`
+= 3 checks, pending seen, 1 restart. A real pending state, not an
+injected one, but Windows 10 on the rig; Windows 11 26200 is still owed.
 
 **Closes when.** A physical row in which a pending update exists at
 CONVERT and the prologue neither arms nor shrinks until it has cleared -
@@ -2304,7 +2312,7 @@ refusing before the wipe. Then one physical row, on a machine whose
 owner has chosen to lose Windows. Plus evidence of the folder map's
 coverage on real machines (what fraction of a person's files it finds).
 
-## R27 — The one-click erase and install · critical · open (decided 2026-09-26, not built)
+## R27 — The one-click erase and install · critical · open (decided 2026-09-26; built and all three arms pass on the rig 2026-09-26; physical row owed)
 
 **What.** A launcher that, after one typed sentence and a password,
 erases every internal drive and installs Fedora with nothing kept
@@ -2346,10 +2354,54 @@ countdown where any key cancels and silence proceeds; the sentence
 will be kept", on its own launcher, with R23's sentence also typed on a
 RED machine. Carrying files is stage 2.
 
-**Closes when.** On the rig (a copy of its Windows disk plus a blank
-second disk): the cancel arm returns to an untouched Windows; the
-time-out arm erases both disks, installs, `outcome.json` records the
-commit line, and the account signs in; a job naming a disk that is not
-attached refuses before the countdown. Then one physical row on the
-Aspire.
+**Built (2026-09-26)** - job writer 0.12.0, `Read-Password.ps1` 0.1.0,
+prologue 0.10.0, `verify.sh` 0.4.1, `outcome.sh` 0.3.0, the two
+`RUN-ERASE-AND-INSTALL` launchers, schema `erase_consent` /
+`cutover.countdown` - **and fired on the rig the same day**
+(`docs/validation-results/v9-erase.csv`, `rig/hyperv/v9.sh`):
+- **A refuse** (`refused-before-countdown`): a job naming a home disk
+  that is not attached - the installer found the system disk, named the
+  missing one, wrote no storage plan and stopped; both disks unchanged,
+  Windows came back. (0.4.0; the refusal precedes the countdown, which
+  is all 0.4.1 changed.) Finding: the screen shows Anaconda's raw Python
+  traceback for a `%pre` refusal - a person needs a plain sentence there
+  (owed).
+- **B cancel - first attempt FAILED, and that row stays.** With 0.4.0's
+  bash countdown (`read -t 1 -n 1`), a key pressed near its end left
+  bash 5.2.37 blocked in `read(2)` on tty6 with its timeout dead (kernel
+  `wait_woken`, `FIONREAD` 0) - frozen at 0:02, neither cancelling nor
+  erasing. Nothing was erased; a power-off brought Windows back and the
+  prologue's return recorded "Windows came back before the countdown
+  ended". The same run showed tty6 at 12 columns (text wrapped).
+  **0.4.1** runs the countdown in Python: raw mode once for the whole
+  two minutes, input flushed at the start, `select()` on a non-blocking
+  descriptor against a monotonic deadline, Ctrl-C a key like any other,
+  a console under 40 columns set to 80x25. Pty-tested (no key, a key, an
+  early key, 12 columns, Ctrl-C), then **B passed** (`cancelled-untouched`:
+  cancelled 47 s in, "CANCELLED. Nothing was erased." on screen, back in
+  Windows, the prologue's outcome `stopped_at countdown`, both disks
+  unchanged). A stray-keystroke run later cancelled 0.3 s in - the same
+  behaviour, unrecorded (a test-choreography mistake, kept as a capture).
+- **C erase** (`erased-installed`, twice on 0.4.1 plus once on 0.4.0):
+  the countdown ran its 120 s, its end is `crossed_utc`, both disks were
+  cleared, EFI + `/boot` + `/` on the system disk and `/home` on the
+  second, `outcome.json` schema-valid with credentials scrubbed, Fedora
+  booted in about 5 minutes, and the account's stored hash is the one
+  hashed on Windows. One C run had the home disk carrying the Aspire's
+  1 TB drive's shape - GPT, one partition, LVM PV, VG `ubuntu-vg`, LV
+  `ubuntu-lv`, ext4 (made from the installer's shell during the
+  countdown); the installer found and removed it.
+- Also seen: R25's update gate fired for real on the rig (see R25).
+
+**Unspoofable residue (rule #5), for the Aspire's physical row:** Secure
+Boot on (the rig's is off; the Aspire's shim path is proven for the live
+boot, not for an installed system), a real keyboard on the countdown,
+the Aspire's real drives by their real identities, installing onto a
+drive with bad blocks (under R23 - the install may fail after the commit
+line, and the stick can run it again), and whether a person reads the
+countdown.
+
+**Closes when.** The rig arms above (done 2026-09-26) and one physical
+row on the Aspire: one click, the sentences, nobody at the keyboard,
+Fedora signs in with the chosen password.
 

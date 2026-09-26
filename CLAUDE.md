@@ -96,9 +96,12 @@ V9 / R27, the one-click erase and install** - erase every internal drive,
 install Fedora, keep nothing; its own launcher and typed sentence, a
 2-minute cancellable countdown in the installer as the commit line,
 system on the C: drive and `/home` on a second internal drive. Carrying
-files across is stage 2. Rig first (copy of the rig disk + a blank
-second disk), then the Aspire. Design in `architecture.md`, "Erase and
-install".
+files across is stage 2. **Built and passed on the rig 2026-09-26**
+(`v9-erase.csv`: refuse, cancel, erase - the first cancel froze and was
+fixed in `verify.sh` 0.4.1; one erase over an Ubuntu-style LVM). Next:
+the physical row on the Aspire (`RUN-ERASE-AND-INSTALL-ACCEPTING-DATA-LOSS.cmd`),
+and a plain-words screen for a `%pre` refusal (today Anaconda's
+traceback). Design in `architecture.md`, "Erase and install".
 
 **Tier 1 — no product if these fail:**
 - **V0 / R15 — the boot handoff fires.** Walk-away rests entirely on `bcdedit`

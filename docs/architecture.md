@@ -315,8 +315,9 @@ are built to fit it.
 
 ### Erase and install: the one-click fresh start
 
-**Decided (2026-09-26, the owner's call), not built** — RISKS R27,
-VALIDATION V9. The first destructive path to be proven end to end is the
+**Decided (2026-09-26, the owner's call); built and passed on the rig
+the same day (all three arms, `v9-erase.csv`); physical row owed** —
+RISKS R27, VALIDATION V9. The first destructive path to be proven end to end is the
 simplest one: **erase every internal drive and install Fedora, keeping
 nothing.** The owner's goal is to validate the mechanism - one click, one
 consent, a machine that comes back as Linux - before carrying anything
