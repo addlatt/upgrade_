@@ -1598,7 +1598,28 @@ is reclaimed); with the folders in the job the rule applies for real. On
 the Aspire (16.6 GB of folders) the target becomes about **45 GB**, not
 25 - keep-Windows was already refused there at 9.5 GB, so no verdict
 changes, but every earlier "N of 25 GB" in this entry was measured
-against the smaller target. Not re-measured; a job on 0.10.0 will say.
+against the smaller target.
+
+**Eighth run (2026-09-26, kit 594569f, job writer 0.11.0, prologue
+0.9.1): `stopped-shrink`** (`r18-prologue.csv` row 12; evidence in
+gitignored `rig/hyperv/artifacts/aspire-r23-2026-09-26-run8/`). Planned
+as a stop-before-CONVERT test of the folder map; the owner typed CONVERT,
+so the whole prologue ran. First launch stopped on a mistyped sentence
+(the refusal works). The **first physical job with the folder map**:
+written in a real launcher window, so the desktop-owner check passed
+(elevated `<name>` = signed-in `<name>`); six folders, 15.43 GiB, 0
+online-only, `stick_fit` false (FAT32, one file over 4 GB); job and
+outcome both schema-valid. The prologue confirmed the target: **Linux
+needs 43.5 GB** (25 + 15.43 × 1.2). Cold 7.2 GB behind `$Mft::$BITMAP`;
+after the pagefile restart **2.3 GB** behind the change journal (it
+moved into the freed region's way); the journal rung deleted it and the
+number went back to 7.2 GB, `$Mft::$BITMAP` again; stop, with the
+journal, hibernation and the automatic pagefile put back. The R25 gate
+read nothing waiting (one check). The scanner's count grew: 158
+bad-block events in 30 days, SMART 187 = 748 (725 on 09-20). Owed, a
+third time: reading back that the pagefile returns after a restart (no
+restart happened between runs 7 and 8, so run 8 began with none in use
+and the setting on automatic).
 
 ## R19 — cryptsetup BITLK read is a new trust dependency · medium · open (VM leg fired 2026-09-01)
 

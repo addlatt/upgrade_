@@ -131,7 +131,7 @@ method in `docs/VALIDATION.md`; the killers, in order:
     A waiting Windows update is let finish, and nothing is armed while one
     waits (R25, prologue 0.9.0; markers read false in run 7 - detector
     unproven).
-  - On the Aspire, runs 4-7 all stopped before anything irreversible; best
+  - On the Aspire, runs 4-8 all stopped before anything irreversible; best
     9.5 of 25 GB; three runs named three different last unmovable files (the
     journal, System Restore's storage, `$Mft::$BITMAP`) because cold layouts
     drift with use. Never predict a shrink number - only a re-measure says
