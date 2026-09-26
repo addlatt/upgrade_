@@ -17,8 +17,10 @@
     refuses when the map could be wrong: the folders belong to another
     account than the one signed in, a folder could not be fully read or
     counted (R6), or OneDrive online-only files were found and not made
-    local (R8 - that download happens only with -Materialize, which the
-    launchers do not pass yet). A clean-slate job whose folders do not fit
+    local by -Materialize and then found online-only again, or the download
+    failed (R8). Online-only files that were not downloaded are NOT a
+    refusal (decided 2026-09-26): they are recorded as left-in-cloud, and
+    settle-in reconnects OneDrive instead of copying them. A clean-slate job whose folders do not fit
     the stick, or on a machine with other people's profiles (R5), is
     refused with the gap.
 
@@ -45,8 +47,8 @@
 
 .PARAMETER Materialize
     Download OneDrive online-only files in the folders before the map is
-    written (RISKS R8) - the one step that changes the machine, so only
-    after the person has agreed to it.
+    written (RISKS R8). Not used by any launcher: decided 2026-09-26 that
+    online-only files stay in OneDrive and settle-in reconnects it.
 #>
 [CmdletBinding()]
 param(
@@ -61,7 +63,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.10.0'
+$JobWriterVersion = '0.11.0'
 # the harvester versions whose folder map this writer reads; any other is refused, not guessed
 $KnownHarvestVersions = @('0.3.0')
 $LinuxMinGB = 25
@@ -409,12 +411,15 @@ function Get-JobHarvestRefusals {
     }
     $c = $H.CloudFiles
     if ("$($c.Result)" -eq 'refused' -or [int]$c.Failed -gt 0) { $r += "$($c.Failed) of $($c.PlaceholdersFound) OneDrive online-only file(s) could not be downloaded; copied from Linux they would arrive EMPTY (RISKS R8). Check that OneDrive is running and signed in, then run it again" }
-    elseif ("$($c.Result)" -eq 'not-attempted') { $r += "$($c.PlaceholdersFound) file(s) in your folders are OneDrive online-only files; copied from Linux they would arrive EMPTY (RISKS R8), and this launcher does not download them yet" }
+    # online-only files are not a refusal (decided 2026-09-26, the owner's call,
+    # RISKS R8): their bytes are in OneDrive, not on this disk, and settle-in
+    # reconnects OneDrive instead of copying them - the job records how many
+    # (cloud_files.result = left-in-cloud), and settle-in must never copy one
     elseif ("$($c.Result)" -eq 'materialized') {
         $again = [int](@($H.UserFolders | Where-Object { $_.Exists } | Measure-Object -Property CloudOnlyNow -Sum).Sum)
         if ($again -gt 0) { $r += "after downloading, $again OneDrive file(s) were online-only again - OneDrive freed them while the list was being made (RISKS R8)" }
     }
-    elseif ("$($c.Result)" -ne 'none-found') { $r += "the OneDrive check ended as '$($c.Result)', which this version does not understand" }
+    elseif ("$($c.Result)" -notin @('none-found', 'not-attempted')) { $r += "the OneDrive check ended as '$($c.Result)', which this version does not understand" }
     if (-not $H.StickFit) { $r += "the stick's free space could not be read ($($H.Stick.Error))" }
     $r
 }
@@ -448,7 +453,7 @@ function ConvertTo-JobHarvest {
     $fit = $H.StickFit
     [ordered]@{
         folders = $folders
-        cloud_files = [ordered]@{ placeholders_found = [int]$c.PlaceholdersFound; materialized = [int]$c.Materialized; failed = 0; result = "$($c.Result)" }
+        cloud_files = [ordered]@{ placeholders_found = [int]$c.PlaceholdersFound; materialized = [int]$c.Materialized; failed = 0; result = $(if ("$($c.Result)" -eq 'not-attempted') { 'left-in-cloud' } else { "$($c.Result)" }) }
         stick_fit = [ordered]@{ filesystem = "$($fit.FileSystem)"; cluster_bytes = [long]$fit.ClusterBytes; free_bytes = [long]$fit.FreeBytes; files_bytes = [long]$fit.FilesBytes
                                 needed_bytes = [long]$fit.NeededBytes; files_over_4gib = [int]$fit.FilesOver4GiB; fits = [bool]$fit.Fits; gap_bytes = [long]$fit.GapBytes }
     }
@@ -708,8 +713,8 @@ function Invoke-SelfTest {
            Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -Truncated $true)) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match '^Documents holds more files than this version counts') }; Expect = $true }
         @{ Name = 'folder map (R6): refuse a folder with parts Windows would not list, naming the first'
            Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -Unreadable 2)) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match 'read 2 folder\(s\) inside Documents \(first: C:\\Users\\a\\OneDrive\\Documents\\locked\)') }; Expect = $true }
-        @{ Name = 'folder map (R8): online-only files not downloaded are a refusal, whatever the path'
-           Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -CloudResult 'not-attempted' -Found 12 -Again 12)) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match '^12 file\(s\) in your folders are OneDrive online-only files; copied from Linux they would arrive EMPTY') }; Expect = $true }
+        @{ Name = 'folder map (R8, decided 2026-09-26): online-only files not downloaded are a job recording them as left-in-cloud, not a refusal'
+           Run = { $r = New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -CloudResult 'not-attempted' -Found 12 -Again 12)) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; "$($r.Refusals.Count):$($r.Job.harvest.cloud_files.result):$($r.Job.harvest.cloud_files.placeholders_found):$($r.Job.harvest.cloud_files.materialized):$($r.Job.harvest.folders[0].cloud_only_files)" }; Expect = '0:left-in-cloud:12:0:12' }
         @{ Name = 'folder map (R8): a download that failed is a refusal'
            Run = { [bool]((New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -CloudResult 'refused' -Found 12 -Failed 1)) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match '^1 of 12 OneDrive online-only file\(s\) could not be downloaded') }; Expect = $true }
         @{ Name = 'folder map (R8): files online-only again after the download are a refusal'
@@ -799,6 +804,7 @@ foreach ($fo in @($j.harvest.folders)) {
 }
 $sf = $j.harvest.stick_fit
 Write-Host ("  on the stick they would need {0:N2} GB; it has {1:N2} GB free ({2}) - {3}" -f ($sf.needed_bytes / 1GB), ($sf.free_bytes / 1GB), $sf.filesystem, $(if ($sf.fits) { 'they fit' } else { "they do not fit: $($facts.Harvest.StickFit.Reason)" })) -ForegroundColor DarkGray
+if ($j.harvest.cloud_files.result -eq 'left-in-cloud') { Write-Host "  OneDrive: $($j.harvest.cloud_files.placeholders_found) online-only file(s) stay in OneDrive; they are not copied - after the conversion, sign in to OneDrive to reach them" -ForegroundColor DarkGray }
 if ($j.harvest.cloud_files.result -eq 'materialized') { Write-Host "  OneDrive: $($j.harvest.cloud_files.materialized) online-only file(s) downloaded and kept on this device" -ForegroundColor DarkGray }
 $op = @($facts.Harvest.Owner.OtherProfiles)
 if ($op.Count -gt 0) { Write-Host "  other accounts on this computer: $(@($op | ForEach-Object { $_.Path }) -join ', ') - their files are not in this job (RISKS R5)" -ForegroundColor Yellow }

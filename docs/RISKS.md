@@ -433,6 +433,23 @@ the owner approves. Measured 2026-09-26: 0 online-only files in the six
 folders on the G16 and on the Aspire (whose Desktop, Documents and
 Pictures are redirected into a work-or-school OneDrive).
 
+**Decided (2026-09-26, the owner's call): online-only files are not
+downloaded; `settle-in` reconnects OneDrive.** Their bytes already live
+in OneDrive, so leaving them there loses nothing - the loss this risk
+names was only ever copying the 0-byte stub as if it were the file. Job
+writer 0.11.0 no longer refuses on them: it records
+`cloud_files.result = left-in-cloud` and the per-folder count, and says
+at job time that they stay in OneDrive. The risk moves to `settle-in`,
+with its own unproven residue: **how a placeholder looks through
+ntfs-3g from Linux** (reparse point, empty file, error? - never read;
+settle-in must recognise it or refuse the pull, and match the job's
+count), whether a **work-or-school OneDrive** (the Aspire's is
+a university's) lets a third-party Linux client sign in at all (the web
+always works), and the prologue's clean-slate staging, which copies with
+a plain read - on Windows that downloads a placeholder or fails - and
+should skip them the same way (owed before the discard offer). The
+materializer stays built and proven at plumbing level, unused.
+
 **Closes when.** `Test-Materialize.ps1 -OneDrive` passes against a
 signed-in OneDrive with Files On-Demand — the residue no test provider can
 stand in for (CLAUDE.md rule #5): the client's own dehydrate/hydrate

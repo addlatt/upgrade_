@@ -45,9 +45,13 @@ invalid, and a module that finds an invalid document stops:
   `intent.path` is `keep-windows` must carry
   `storage.physical_disk.health_status = Healthy` and
   `storage.esp.fits_alongside_install = true` (RISKS R21).
-- **No un-materialized cloud file** (RISKS R8 / V8). `harvest.cloud_files`
+- **No silently empty cloud file** (RISKS R8 / V8). `harvest.cloud_files`
   records placeholders found and materialized; `failed` is a constant 0,
-  `result` is `none-found | materialized`. "Refused" is not a writable
+  `result` is `none-found | materialized | left-in-cloud`. `left-in-cloud`
+  (decided 2026-09-26) means online-only files were found and not
+  downloaded: their bytes are in OneDrive, each folder's
+  `cloud_only_files` says how many, and `settle-in` must skip them and
+  reconnect OneDrive, never copy the stubs. "Refused" is not a writable
   result — a refusal at `evaluate` produces no job at all.
 - **A clean slate must fit the stick** (decided 2026-09-26, RISKS R26).
   `harvest.stick_fit` is required on every job: the stick volume's

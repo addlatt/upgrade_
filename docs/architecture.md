@@ -120,11 +120,15 @@ Linux, so `evaluate` captures them while Windows is alive — this is the same
   redirection is followed rather than guessed. settle-in reads this map off
   the stick to know what to pull; a naive Linux-side copy of `\Users\` would
   miss redirected folders entirely.
-- **Materialized cloud files.** OneDrive "free up space" placeholders are
-  0-byte stubs on disk, and Linux has no OneDrive client to fill them — read
-  from the mounted NTFS later, they copy over *empty* (RISKS R8). So
-  `evaluate` forces them local now, while Windows can still download them, or
-  refuses if it cannot. This is materialization, not just detection.
+- **Which files are only in the cloud.** OneDrive "free up space"
+  placeholders are 0-byte stubs on disk, and Linux has no OneDrive client
+  to fill them — read from the mounted NTFS later, they copy over *empty*
+  (RISKS R8). **Decided (2026-09-26, the owner's call):** they are not
+  downloaded. Their bytes already live in OneDrive; `evaluate` counts them
+  per folder and records `cloud_files.result = left-in-cloud`, and
+  `settle-in` skips them and reconnects OneDrive instead. (The harvester's
+  `-Materialize`, which downloads and verifies them, stays built and
+  unused.)
 
 **The software inventory (2026-09-13).** The job writer records every
 installed desktop program (the registry's Apps & features entries, minus
@@ -576,7 +580,12 @@ It looks like a welcome screen. It is a safety gate.
    the rest, plus Wi-Fi and browser profiles, into the new home, verifying
    checksums as it goes. It expects cryptsetup's size-mismatch warning on
    every shrunk volume, and copies only regular files (Windows' empty
-   SYSTEM files surface as FIFOs and would hang a plain open). Because the user is present, a stubborn unlock or a
+   SYSTEM files surface as FIFOs and would hang a plain open). **It never
+   copies a OneDrive placeholder** (decided 2026-09-26, RISKS R8): the
+   job counts them per folder; `settle-in` must recognise each one on the
+   mounted NTFS, skip it, check its count against the job's, refuse the
+   pull if they disagree, and then offer to sign in to OneDrive (a Linux
+   client, or the web) where those files still are. Because the user is present, a stubborn unlock or a
    read error can be *asked about* rather than guessed at on an unattended
    only-copy; and because Windows is intact, a failure here loses nothing —
    the user reboots into Windows and retries. (On the clean-slate path the

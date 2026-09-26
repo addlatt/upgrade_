@@ -507,7 +507,7 @@
           }
         },
         "cloud_files": {
-          "description": "RISKS R8 / V8: OneDrive placeholders copy as empty files from Linux, so evaluate materializes them while Windows is alive, or refuses. A written job carries the outcome; `failed` must be 0.",
+          "description": "RISKS R8 / V8: OneDrive online-only files (placeholders) copy as empty files from Linux. A written job carries what was found: `materialized` (downloaded at evaluate, verified), or `left-in-cloud` (decided 2026-09-26, the owner's call: their bytes are in OneDrive, settle-in reconnects OneDrive and must never copy a placeholder as a file). `failed` must be 0.",
           "type": "object",
           "additionalProperties": false,
           "required": [
@@ -531,7 +531,8 @@
             "result": {
               "enum": [
                 "none-found",
-                "materialized"
+                "materialized",
+                "left-in-cloud"
               ]
             }
           }

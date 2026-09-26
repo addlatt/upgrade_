@@ -158,6 +158,12 @@ method in `docs/VALIDATION.md`; the killers, in order:
   (pin + read-through + three-fact verification, refuse on any failure);
   `Test-Materialize.ps1` is a real Cloud-Files-API provider — `pass-plumbing`
   on the rig and the G16. Residue: `-OneDrive` against a signed-in client.
+  **Decided (2026-09-26, the owner's call): no download.** Online-only
+  files are not copied at all - their bytes are in OneDrive, not on the
+  disk. The job records them (`cloud_files.result = left-in-cloud`, job
+  writer 0.11.0) and `settle-in` reconnects OneDrive instead; the danger
+  that remains, and is `settle-in`'s to refuse, is copying a stub as if it
+  were the file. `-Materialize` stays built, unused by the launchers.
 
 **Tier 4 — kills adoption, not the mechanism:** V5 (VMD detection fires — an
 afternoon, do it early; **2026-09-13:** the AHCI-side real row exists
