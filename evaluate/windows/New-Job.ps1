@@ -45,6 +45,20 @@
 .PARAMETER Desktop
     kde (default) or gnome.
 
+.PARAMETER EraseEverything
+    The one-click erase and install (decided 2026-09-26, RISKS R27): the
+    sentence the person typed on RUN-ERASE-AND-INSTALL.cmd. Verbatim, it
+    makes a clean-slate job (reason user-chose-fresh-start) that names
+    every internal drive to erase in erase_consent.disks: the drive with
+    C: as system, a second internal drive as home. Anything else typed is
+    a refusal. Needs -PasswordHashFile.
+
+.PARAMETER PasswordHashFile
+    A file holding the SHA-512 crypt hash of the account password
+    (Read-Password.ps1 writes it). Required for an erase job: the default
+    hash is the verify-only placeholder, and an installed account needs a
+    password its owner chose.
+
 .PARAMETER Materialize
     Download OneDrive online-only files in the folders before the map is
     written (RISKS R8). Not used by any launcher: decided 2026-09-26 that
@@ -60,10 +74,12 @@ param(
     [ValidateSet('clean-slate', 'stop')][string]$IfCannotKeep = 'stop',
     [string]$AcknowledgeDataLoss,
     [switch]$Materialize,
+    [string]$EraseEverything,
+    [string]$PasswordHashFile,
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.11.0'
+$JobWriterVersion = '0.12.0'
 # the harvester versions whose folder map this writer reads; any other is refused, not guessed
 $KnownHarvestVersions = @('0.3.0')
 $LinuxMinGB = 25
@@ -72,6 +88,11 @@ $LinuxMinGB = 25
 # the two refusals whose failure mode is losing THIS machine's files, and
 # nothing else. Kept in one place so every module compares the same bytes.
 $RiskStatement = 'I confirm that I understand the risks and could lose data'
+# The one-click erase and install (RISKS R27, decided 2026-09-26): the person
+# types this on RUN-ERASE-AND-INSTALL.cmd. Separate from $RiskStatement; neither
+# stands in for the other. Kept in one place so every module compares the same bytes.
+$EraseStatement = 'I confirm that everything on this computer will be deleted and nothing will be kept'
+$VerifyOnlyHash = '$6$upgradeV1$MkYfbaBe.FFp2fzSNrPiJ6RdPagcfI.crkepTcQpGsjGFMe8780OtkedouSyxvXdky5a6WiTWDy/.epwkWUk71'
 $AcknowledgeableChecks = @{ 'Disk health' = 'disk-health'; 'Volume health' = 'volume-health' }
 
 function Test-JobAdmin {
@@ -310,6 +331,11 @@ function Get-JobFacts {
                  Name = "$($disk.FriendlyName)"; Size = [long]$disk.Size; Style = "$($disk.PartitionStyle)" }
     $pd = Get-PhysicalDisk | Where-Object { "$($_.DeviceId)" -eq "$($disk.Number)" } | Select-Object -First 1
     $f.Health = if ($pd) { "$($pd.HealthStatus)" } else { 'Unknown' }
+    # every disk Windows sees, for the erase job's list (R27); the stick is marked below
+    $f.AllDisks = @(Get-Disk | ForEach-Object {
+        $n = $_.Number; $p2 = Get-PhysicalDisk | Where-Object { "$($_.DeviceId)" -eq "$n" } | Select-Object -First 1
+        @{ Number = [int]$n; Serial = ("$($_.SerialNumber)" -replace '\s', ''); UniqueId = "$($_.UniqueId)"; Size = [long]$_.Size; Name = "$($_.FriendlyName)"
+           Bus = "$($_.BusType)"; Health = $(if ($p2) { "$($p2.HealthStatus)" } else { 'Unknown' }) } })
     $f.Operational = if ($pd) { (@($pd.OperationalStatus) -join ',') } else { 'unknown' }
     $f.MediaType = if ($pd) { "$($pd.MediaType)" } else { '' }
 
@@ -392,6 +418,34 @@ function Get-JobAcknowledgement {
     @{ Refusal = $null; Block = [ordered]@{ statement = $RiskStatement; accepted_utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); overrides = @($ov | Sort-Object -Unique) } }
 }
 
+function Get-JobEraseDisks {
+    # Pure (self-tested). The drives an erase job names (RISKS R27): every
+    # internal drive, the one holding C: first as system, at most one more as
+    # home. The stick (by unique id) and removable buses are left alone - the
+    # installer is told to use only the listed drives. A bus this version does
+    # not know, a third internal drive, a home drive that is not Healthy, or a
+    # drive with no unique id is a refusal, never a guess.
+    param($Disks, [int]$SystemNumber, [string]$StickUniqueId)
+    $internalBus = @('SATA', 'NVMe', 'SAS', 'SCSI', 'ATA', 'RAID')
+    $removableBus = @('USB', 'SD', 'MMC')
+    $sys = $null; $others = @(); $refusals = @()
+    foreach ($d in @($Disks)) {
+        if ($StickUniqueId -and "$($d.UniqueId)" -eq $StickUniqueId) { continue }
+        if ($removableBus -contains "$($d.Bus)") { continue }
+        if ($internalBus -notcontains "$($d.Bus)") { $refusals += "drive $($d.Number) ($($d.Name)) is on bus '$($d.Bus)', which this version neither erases nor knows is safe to leave"; continue }
+        if (-not "$($d.UniqueId)") { $refusals += "drive $($d.Number) ($($d.Name)) has no unique id, so the installer could not be sure it is the same drive"; continue }
+        if ([int]$d.Number -eq $SystemNumber) { $sys = $d } else { $others += $d }
+    }
+    if (-not $sys) { $refusals += 'the drive holding C: is not among the internal drives' }
+    if ($others.Count -gt 1) { $refusals += "this computer has $($others.Count + 1) internal drives; this version erases at most two" }
+    foreach ($o in $others) { if ("$($o.Health)" -ne 'Healthy') { $refusals += "the second drive ($($o.Name)) reports '$($o.Health)', and only a Healthy drive takes your home folder" } }
+    if ($refusals.Count -gt 0) { return @{ Refusals = $refusals; Disks = @() } }
+    $list = @([ordered]@{ role = 'system'; serial_number = "$($sys.Serial)"; unique_id = "$($sys.UniqueId)"; size_bytes = [long]$sys.Size; friendly_name = "$($sys.Name)"
+                          health_status = $(if ("$($sys.Health)" -in @('Healthy', 'Warning', 'Unhealthy')) { "$($sys.Health)" } else { 'Unknown' }) })
+    foreach ($o in $others) { $list += [ordered]@{ role = 'home'; serial_number = "$($o.Serial)"; unique_id = "$($o.UniqueId)"; size_bytes = [long]$o.Size; friendly_name = "$($o.Name)"; health_status = 'Healthy' } }
+    @{ Refusals = @(); Disks = $list }
+}
+
 function Get-JobHarvestRefusals {
     # Pure (self-tested). The folder map is what settle-in pulls and what a
     # clean slate stages to the stick; a map that is wrong is silent data
@@ -460,8 +514,17 @@ function ConvertTo-JobHarvest {
 }
 
 function New-JobDocument {
-    param($F, [string]$Desktop, [string]$PasswordHash, [string]$IfCannotKeep, [string]$ReportRel, [string]$AcknowledgeDataLoss)
+    param($F, [string]$Desktop, [string]$PasswordHash, [string]$IfCannotKeep, [string]$ReportRel, [string]$AcknowledgeDataLoss, [string]$EraseEverything)
     $refusals = @()
+    $erase = [bool]$EraseEverything
+    $eraseDisks = @()
+    if ($erase) {
+        if ($EraseEverything -cne $EraseStatement) { $refusals += "the erase sentence was not typed exactly (expected: $EraseStatement)" }
+        if (-not $PasswordHash -or $PasswordHash -eq $VerifyOnlyHash) { $refusals += 'no password was chosen for the new account' }
+        elseif ($PasswordHash -cnotmatch '^\$6\$') { $refusals += 'the password hash is not SHA-512 crypt' }
+        $ed = Get-JobEraseDisks -Disks $F.AllDisks -SystemNumber ([int]$F.Disk.Number) -StickUniqueId "$($F.Stick.UniqueId)"
+        $refusals += @($ed.Refusals); $eraseDisks = @($ed.Disks)
+    }
     $ack = Get-JobAcknowledgement -Verdict "$($F.Verdict)" -FailedChecks @($F.FailedChecks) -WarnChecks @($F.WarnChecks) -Typed $AcknowledgeDataLoss
     if ($ack.Refusal) { $refusals += $ack.Refusal }
     elseif ($F.Verdict -notin @('GREEN', 'YELLOW', 'RED')) { $refusals += "no scanner verdict found (got '$($F.Verdict)') - run the scanner with -Json first" }
@@ -474,7 +537,10 @@ function New-JobDocument {
     if (-not $F.Stick) { $refusals += "the stick's identity could not be read ($($F.StickError))" }
     if ($F.Stick -and $F.Stick.Bus -ne 'USB') { $refusals += "the stick is on bus '$($F.Stick.Bus)', not USB" }
     if (-not $F.Disk.UniqueId) { $refusals += 'the system disk has no unique id' }
-    $refusals += @(Get-JobHarvestRefusals -H $F.Harvest -HarvestError "$($F.HarvestError)")
+    # the folder map decides what is kept; an erase job keeps nothing, so it
+    # only needs the map to exist (it lists what will be deleted)
+    if ($erase) { if (-not $F.Harvest) { $refusals += "the list of your folders could not be read ($($F.HarvestError))" } }
+    else { $refusals += @(Get-JobHarvestRefusals -H $F.Harvest -HarvestError "$($F.HarvestError)") }
     if ($refusals.Count -gt 0) { return @{ Refusals = $refusals; Job = $null } }
 
     $espFits = ($F.EspFree -ge 32MB)
@@ -490,12 +556,13 @@ function New-JobDocument {
         $shrinkGB = $null
     }
     $mitigable = Test-JobShrinkMitigable -LastUnmovable "$($F.LastUnmovable)"
-    $path = Get-JobPath -DiskHealth $F.Health -EspFits $espFits -ShrinkableGB $shrinkGB -Dirty $F.Dirty -DiskHealthAcknowledged $diskAck -RepairQueued ([bool]$F.RepairQueued) -Mitigable $mitigable -IfCannotKeep $IfCannotKeep
+    $path = if ($erase) { @{ Path = 'clean-slate'; Reason = 'user-chose-fresh-start' } }
+            else { Get-JobPath -DiskHealth $F.Health -EspFits $espFits -ShrinkableGB $shrinkGB -Dirty $F.Dirty -DiskHealthAcknowledged $diskAck -RepairQueued ([bool]$F.RepairQueued) -Mitigable $mitigable -IfCannotKeep $IfCannotKeep }
     if (-not $path.Path) {
         $why = if (-not $espFits) { "the EFI system partition has $([math]::Round([long]$F.EspFree/1MB,1)) MB free, too little for Linux's boot files beside Windows'" } else { "the system disk reports '$($F.Health)'" }
         return @{ Refusals = @("Windows cannot be kept on this machine ($why), and you chose to stop rather than wipe it - no job; nothing was changed"); Job = $null }
     }
-    $fitRefusal = Get-JobStickFitRefusal -H $F.Harvest -Path $path.Path
+    $fitRefusal = if ($erase) { $null } else { Get-JobStickFitRefusal -H $F.Harvest -Path $path.Path }
     if ($fitRefusal) { return @{ Refusals = @("$fitRefusal - no job; nothing was changed"); Job = $null } }
     $hv = ConvertTo-JobHarvest -H $F.Harvest
     $health = if ($F.Health -in @('Healthy', 'Warning', 'Unhealthy')) { $F.Health } else { 'Unknown' }
@@ -544,7 +611,8 @@ function New-JobDocument {
                             friendly_name = $F.Stick.Name; label = $(if ($F.Stick.Label) { $F.Stick.Label } else { 'UPGV0' }); manifest = 'SHA256SUMS' }
     }
     if ($ack.Block) { $job.risk_acknowledgement = $ack.Block }
-    if ($path.Path -eq 'clean-slate') { $job.staged = [ordered]@{ files = 0; bytes = 0; manifest = 'staging/SHA256SUMS' } }
+    if ($erase) { $job.erase_consent = [ordered]@{ statement = $EraseStatement; accepted_utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); disks = @($eraseDisks) } }
+    elseif ($path.Path -eq 'clean-slate') { $job.staged = [ordered]@{ files = 0; bytes = 0; manifest = 'staging/SHA256SUMS' } }
     if ($path.Path -eq 'keep-windows' -and $F.Dirty -eq 'dirty') { $job.fork.volume_check_consented = $true }
     @{ Refusals = @(); Job = $job }
 }
@@ -582,9 +650,13 @@ function Invoke-SelfTest {
                Stick = @{ UniqueId = 'USBSTOR\X'; Serial = ''; Size = 8053063680; Name = 'General UDisk'; Label = 'UPGV0'; Bus = 'USB' }
                WindowsTz = 'Eastern Standard Time'; Locale = 'en-US'; InputTip = '0409:00000409'; UserName = 'Addison'; FullName = 'Addison Example'
                FailedChecks = @(); WarnChecks = @(); RepairQueued = $false; RepairQueuedWhy = ''; RepairStale = ''; LastUnmovable = $null
-               Harvest = (New-TestHarvest); HarvestError = $null }
+               Harvest = (New-TestHarvest); HarvestError = $null
+               AllDisks = @(@{ Number = 0; Serial = 'S1'; UniqueId = 'eui.1'; Size = 250059350016; Name = 'SSD'; Bus = 'NVMe'; Health = 'Healthy' },
+                            @{ Number = 2; Serial = ''; UniqueId = 'USBSTOR\X'; Size = 8053063680; Name = 'General UDisk'; Bus = 'USB'; Health = 'Healthy' }) }
     function With { param($h, [string]$k, $v) $c = @{}; foreach ($e in $h.GetEnumerator()) { $c[$e.Key] = $e.Value }; $c[$k] = $v; $c }
     $ph = '$6$upgradeV1$MkYfbaBe.FFp2fzSNrPiJ6RdPagcfI.crkepTcQpGsjGFMe8780OtkedouSyxvXdky5a6WiTWDy/.epwkWUk71'
+    $hp = '$6$abcdefghijklmnop$Z142AM4CbyHnvFikRKauX.vgsnvjYLvt4bZlZZZrlgVhDW0zltnUun6G9I5xvVirZ/Y9MRz96lJh5eoUicidR.'
+    $es = 'I confirm that everything on this computer will be deleted and nothing will be kept'
     $aspire = With (With (With (With $good 'ShrinkGB' 0.0) 'Dirty' 'clean') 'RepairQueued' $true) 'RepairQueuedWhy' "Get-Volume reports 'Full Repair Needed'; NTFS logged on 2026-09-13T15:16:48Z that C: needs a full chkdsk"
     $hiber = With (With (With $good 'ShrinkGB' 0.0) 'Dirty' 'clean') 'LastUnmovable' '\hiberfil.sys'
     $cases = @(
@@ -737,6 +809,46 @@ function Invoke-SelfTest {
            Run = { $j = (New-JobDocument -F (With $good 'ShrinkGB' 3.0) -Desktop kde -PasswordHash $ph -IfCannotKeep clean-slate -ReportRel 'r').Job; "$($j.intent.path):$([bool]$j.staged):$($j.harvest.stick_fit.fits)" }; Expect = 'clean-slate:True:True' }
         @{ Name = 'folder map (R5): another account on a keep-windows machine is not a refusal (their files stay in the kept Windows)'
            Run = { $null -ne (New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -Others @([pscustomobject]@{ Sid = 's'; Path = 'C:\Users\kid' }))) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job }; Expect = $true }
+        # --- the one-click erase and install (R27, 2026-09-26) -------------------
+        @{ Name = 'erase: the sentence verbatim + a chosen password is a clean-slate fresh-start job naming the system drive, nothing staged'
+           Run = { $j = (New-JobDocument -F $good -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Job
+                   "$($j.intent.path):$($j.intent.path_reason):$($j.erase_consent.statement -ceq $es):$(@($j.erase_consent.disks).Count):$($j.erase_consent.disks[0].role):$($j.erase_consent.disks[0].unique_id):$($null -eq $j.staged):$($j.intent.account.password_hash -eq $hp)" }
+           Expect = 'clean-slate:user-chose-fresh-start:True:1:system:eui.1:True:True' }
+        @{ Name = 'erase (Aspire layout): a second Healthy internal drive becomes home; the USB stick is left out'
+           Run = { $j = (New-JobDocument -F (With $good 'AllDisks' ($good.AllDisks + @(@{ Number = 1; Serial = 'WD1'; UniqueId = 'SCSI\DISK&VEN_WDC'; Size = 1000204886016; Name = 'WDC WD10SPZX'; Bus = 'SATA'; Health = 'Healthy' }))) -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Job
+                   (@($j.erase_consent.disks) | ForEach-Object { "$($_.role)=$($_.friendly_name)" }) -join ',' }
+           Expect = 'system=SSD,home=WDC WD10SPZX' }
+        @{ Name = 'erase (rig): a stick on the same bus as the internal drive is left out by its unique id'
+           Run = { $f = With $good 'AllDisks' @(@{ Number = 0; Serial = 'S1'; UniqueId = 'eui.1'; Size = 1; Name = 'Virtual Disk'; Bus = 'SCSI'; Health = 'Healthy' }, @{ Number = 1; Serial = ''; UniqueId = 'USBSTOR\X'; Size = 2; Name = 'Virtual Disk'; Bus = 'SCSI'; Health = 'Healthy' })
+                   (@((New-JobDocument -F $f -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Job.erase_consent.disks) | ForEach-Object { $_.role }) -join ',' }
+           Expect = 'system' }
+        @{ Name = 'erase: a paraphrased sentence is a refusal'
+           Run = { [bool]((New-JobDocument -F $good -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything 'I confirm everything will be deleted').Refusals -match '^the erase sentence was not typed exactly') }; Expect = $true }
+        @{ Name = 'erase: no chosen password (the verify-only placeholder) is a refusal'
+           Run = { [bool]((New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Refusals -match '^no password was chosen') }; Expect = $true }
+        @{ Name = 'erase: a third internal drive is a refusal'
+           Run = { $d = $good.AllDisks + @(@{ Number = 1; Serial = 'A'; UniqueId = 'a'; Size = 1; Name = 'A'; Bus = 'SATA'; Health = 'Healthy' }, @{ Number = 3; Serial = 'B'; UniqueId = 'b'; Size = 1; Name = 'B'; Bus = 'SATA'; Health = 'Healthy' })
+                   [bool]((New-JobDocument -F (With $good 'AllDisks' $d) -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Refusals -match 'has 3 internal drives; this version erases at most two') }; Expect = $true }
+        @{ Name = 'erase: a second drive that is not Healthy never takes the home folder'
+           Run = { $d = $good.AllDisks + @(@{ Number = 1; Serial = 'A'; UniqueId = 'a'; Size = 1; Name = 'Old HDD'; Bus = 'SATA'; Health = 'Warning' })
+                   [bool]((New-JobDocument -F (With $good 'AllDisks' $d) -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Refusals -match "the second drive \(Old HDD\) reports 'Warning'") }; Expect = $true }
+        @{ Name = 'erase: a drive on a bus this version does not know is a refusal, not a guess'
+           Run = { $d = $good.AllDisks + @(@{ Number = 4; Serial = ''; UniqueId = 'v'; Size = 1; Name = 'Msft Virtual Disk'; Bus = 'File Backed Virtual'; Health = 'Healthy' })
+                   [bool]((New-JobDocument -F (With $good 'AllDisks' $d) -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Refusals -match "bus 'File Backed Virtual'") }; Expect = $true }
+        @{ Name = 'erase: an SD card is left alone, not a refusal'
+           Run = { $d = $good.AllDisks + @(@{ Number = 5; Serial = ''; UniqueId = 'sd'; Size = 1; Name = 'SD Card'; Bus = 'SD'; Health = 'Healthy' })
+                   @((New-JobDocument -F (With $good 'AllDisks' $d) -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Job.erase_consent.disks).Count }; Expect = 1 }
+        @{ Name = 'erase: a RED machine still needs the R23 sentence too - the erase sentence does not lift it'
+           Run = { [bool]((New-JobDocument -F (With (With $good 'Verdict' 'RED') 'FailedChecks' @('Disk health')) -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Refusals -match '^the scanner verdict is RED - no job, no override$') }; Expect = $true }
+        @{ Name = 'erase (the Aspire): RED on disk health with both sentences is a job carrying both blocks'
+           Run = { $j = (New-JobDocument -F (With (With $good 'Verdict' 'RED') 'FailedChecks' @('Disk health')) -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -AcknowledgeDataLoss 'I confirm that I understand the risks and could lose data' -EraseEverything $es).Job
+                   "$($j.risk_acknowledgement.overrides -join ','):$([bool]$j.erase_consent):$($j.intent.path)" }; Expect = 'disk-health:True:clean-slate' }
+        @{ Name = 'erase: the folder map''s refusals do not apply (nothing is kept) - another account signed in is still a job'
+           Run = { $null -ne (New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -Owners @('S-1-5-21-9-1002') -CloudResult 'not-attempted' -Found 3 -Fits $false)) -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Job }; Expect = $true }
+        @{ Name = 'erase: with no folder map at all it refuses (it lists what will be deleted)'
+           Run = { [bool]((New-JobDocument -F (With (With $good 'Harvest' $null) 'HarvestError' 'x') -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Refusals -match '^the list of your folders could not be read') }; Expect = $true }
+        @{ Name = 'no erase sentence: nothing changes - a plain job carries no erase consent'
+           Run = { $null -eq (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.erase_consent }; Expect = $true }
         @{ Name = 'locale: en-US + 0409 + Eastern -> en_US.UTF-8 / us / America/New_York'
            Run = { $l = (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.locale; "$($l.lang)/$($l.keymap)/$($l.timezone)" }; Expect = 'en_US.UTF-8/us/America/New_York' }
         @{ Name = 'keymap: German KLID maps to de; unknown maps to null'
@@ -768,9 +880,13 @@ if (-not (Test-JobAdmin)) { throw 'the job writer needs Administrator: the shrin
 
 Write-Host ''; Write-Host "  upgrade_  job writer $JobWriterVersion" -ForegroundColor Cyan
 Write-Host '  reads this machine; writes job.json; changes nothing' -ForegroundColor DarkGray
+if ($PasswordHashFile) {
+    if (-not (Test-Path -LiteralPath $PasswordHashFile)) { throw "no password hash at $PasswordHashFile" }
+    $PasswordHash = (Get-Content -LiteralPath $PasswordHashFile -Raw).Trim()
+}
 $facts = Get-JobFacts -ScanDir $ScanDir -StickDrive $StickDrive -Materialize $Materialize.IsPresent
 $reportRel = if ($facts.Report) { 'reports/' + (Split-Path $facts.Report -Leaf) } else { 'reports/none' }
-$r = New-JobDocument -F $facts -Desktop $Desktop -PasswordHash $PasswordHash -IfCannotKeep $IfCannotKeep -ReportRel $reportRel -AcknowledgeDataLoss $AcknowledgeDataLoss
+$r = New-JobDocument -F $facts -Desktop $Desktop -PasswordHash $PasswordHash -IfCannotKeep $IfCannotKeep -ReportRel $reportRel -AcknowledgeDataLoss $AcknowledgeDataLoss -EraseEverything $EraseEverything
 if ($r.Refusals.Count -gt 0) {
     Write-Host ''; Write-Host '  REFUSED - no job written:' -ForegroundColor Red
     foreach ($x in $r.Refusals) { Write-Host "    - $x" -ForegroundColor Red }
@@ -797,7 +913,13 @@ Write-Host "  stick $($j.stick.friendly_name) $([math]::Round($j.stick.size_byte
 if ($j.risk_acknowledgement) { Write-Host "  DATA LOSS ACCEPTED: the RED verdict was acknowledged; lifted: $($j.risk_acknowledgement.overrides -join ', ')" -ForegroundColor Red }
 Write-Host "  written: $jobPath" -ForegroundColor Cyan
 Write-Host "  software inventory: $($j.harvest.software.desktop.Count) desktop programs, $($j.harvest.software.store.Count) Store apps (names only; stays on the stick)" -ForegroundColor DarkGray
-Write-Host '  your folders (settle-in copies these; a clean slate stages them to the stick):'
+if ($j.erase_consent) {
+    Write-Host ''
+    Write-Host '  ERASE AND INSTALL: everything on these drives will be deleted, nothing is kept' -ForegroundColor Red
+    foreach ($d in @($j.erase_consent.disks)) { Write-Host ("    {0,-7} {1}  {2:N1} GB  serial {3}  ({4})" -f $d.role, $d.friendly_name, ($d.size_bytes / 1e9), $d.serial_number, $(if ($d.role -eq 'system') { 'Fedora system' } else { 'your home folder' })) -ForegroundColor Red }
+    Write-Host '  In the installer a 2-minute countdown comes first: press any key there to cancel and go back to Windows.' -ForegroundColor Yellow
+}
+Write-Host $(if ($j.erase_consent) { '  your folders now (all of these will be DELETED):' } else { '  your folders (settle-in copies these; a clean slate stages them to the stick):' })
 foreach ($fo in @($j.harvest.folders)) {
     if (-not $fo.exists) { Write-Host ("    {0,-10} not found" -f $fo.name) -ForegroundColor DarkGray; continue }
     Write-Host ("    {0,-10} {1,8:N2} GB  {2,7} files{3}  {4}" -f $fo.name, ($fo.bytes / 1GB), $fo.files, $(if ($fo.is_onedrive) { '  (OneDrive)' } else { '' }), $fo.path) -ForegroundColor DarkGray

@@ -102,6 +102,7 @@ def main():
     out = load(HERE / "examples/outcome.keep-windows.json")
     report(job["job_id"] == out["job_id"], "example pair: keep-windows job and outcome share job_id")
     job2 = load(HERE / "examples/job.clean-slate.json")
+    job3 = load(HERE / "examples/job.erase-and-install.json")
     out2 = load(HERE / "examples/outcome.clean-slate.json")
     report(job2["job_id"] == out2["job_id"], "example pair: clean-slate job and outcome share job_id")
 
@@ -168,6 +169,26 @@ def main():
         ("job", "cloud files with failures is refused", set_path(job, ["harvest", "cloud_files", "failed"], 3)),
         ("job", "cloud files 'refused' is not a writable result",
          set_path(job, ["harvest", "cloud_files", "result"], "refused")),
+        # the one-click erase and install (2026-09-26, R27)
+        ("job", "an erase job that also stages files is refused",
+         set_path(job3, ["staged"], {"files": 1, "bytes": 1, "manifest": "staging/SHA256SUMS"})),
+        ("job", "clean-slate with neither staged files nor the erase consent is refused", del_path(job3, ["erase_consent"])),
+        ("job", "an erase consent with a paraphrased sentence is refused",
+         set_path(job3, ["erase_consent", "statement"], "I confirm everything will be deleted")),
+        ("job", "an erase consent on a keep-windows job is refused",
+         set_path(job, ["erase_consent"], job3["erase_consent"])),
+        ("job", "a fresh-start reason without the erase consent is refused",
+         set_path(job2, ["intent", "path_reason"], "user-chose-fresh-start")),
+        ("job", "an erase consent under another reason is refused",
+         set_path(job3, ["intent", "path_reason"], "forced-no-room")),
+        ("job", "a home drive that is not Healthy is refused",
+         set_path(job3, ["erase_consent", "disks", 1, "health_status"], "Warning")),
+        ("job", "a third drive to erase is refused",
+         set_path(job3, ["erase_consent", "disks"], job3["erase_consent"]["disks"] + [job3["erase_consent"]["disks"][1]])),
+        ("job", "a first drive that is not the system drive is refused",
+         set_path(job3, ["erase_consent", "disks", 0, "role"], "home")),
+        ("job", "a drive to erase without a unique id is refused",
+         set_path(job3, ["erase_consent", "disks", 1, "unique_id"], "")),
         # the stick fit (2026-09-26, R26): required, and a clean slate must fit
         ("job", "a job without the stick fit is refused", del_path(job, ["harvest", "stick_fit"])),
         ("job", "clean-slate whose folders do not fit the stick is refused",
