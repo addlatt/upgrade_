@@ -1425,6 +1425,59 @@ it frees the extent Defrag named, how fast Windows recreates it and
 where, and what sits behind it (run 4's shadow storage is one
 candidate).
 
+**Sixth run (2026-09-23, kit 537e093, prologue 0.8.0, job writer 0.9.0):
+`stopped-shrink`** (`r18-prologue.csv` row 10, `0.8.0-physical`; job and
+outcome schema-valid; eleven files copied off the stick and hash-matched
+before anything was read; the machine read over SSH on 2026-09-26, once
+SSH was reinstalled - Windows' feature update had removed OpenSSH Server).
+Between runs 5 and 6 Windows updated itself from build 22631 to 26200
+(25H2); the ESP's free space fell from 44 MB to 37.8 MB with it (the
+job's gate is 32 MB). The first launch stopped at the sentence, not typed
+exactly - the refusal as built. The second ran:
+1. **Job writer 0.8.0's fix held on a real machine:** cold 8.4 GB pinned
+   by `$UsnJrnl`, fork `stop`, and the job was keep-windows (`default`),
+   not a wipe.
+2. **The change-journal rung fired, twice - once per boot, as built.**
+   `fsutil usn deletejournal /n C:` exit 0 both times; the number went
+   8.4 -> 9.5 GB (Defrag 259: the journal's last cluster `0x3938060`, the
+   next file's `0x38f2e57`). The journal was created again with its
+   recorded sizes at the stop, and read back as 32 MB / 8 MB on 09-26.
+   So deleting it frees what Windows named - about 1.1 GB here - and
+   Windows re-created it in the same region across a restart (after the
+   restart Defrag named it again at `0x39356ff`).
+3. **Restore-point deletion ran and deleted nothing.** "2 before, 2
+   after"; no VSS or volsnap event in the window; the shadow copies are
+   client-accessible (the kind Microsoft's documentation says `vssadmin
+   delete shadows` can delete). `/quiet` suppresses every message
+   (Microsoft's page) and 0.6.0 records no exit code, so this run cannot
+   say why. It is not argued here. Worse, the next pass logged "restore
+   points were already deleted and their storage is still named" - a
+   false sentence. What held: nothing else was touched on the strength of
+   it, and the fork stopped.
+4. **The restart let a pending Windows update finish, and Windows
+   restarted twice more on its own.** Restart 1 (`shutdown.exe`,
+   20:31:02Z, "upgrade_:") was followed by TrustedInstaller, "Operating
+   System: Upgrade (Planned)", at 20:33:31Z - 3 s into the resumed
+   re-measure - and again at 20:34:44Z (System 1074; KB5129195, 26200.9457,
+   reported installed at 20:38:06Z). No bugcheck, no unexpected-shutdown
+   event, no bad-block event in the window. The resume as SYSTEM fired
+   again after the extra restarts (20:35:59Z) and carried on from its
+   saved state. Here it cost nothing; after a shrink or with the handoff
+   armed it would not be harmless - a new risk, **R25**.
+5. **Prologue 0.5.1's restore is proven on a real machine.** Before:
+   hibernation on, automatic pagefile (as put back on 09-22). At the stop:
+   journal created again, hibernation back on, pagefile back to automatic.
+   Read back on 2026-09-26 after two restarts: `HibernateEnabled` 1,
+   `hiberfil.sys` 5.1 GB, automatic pagefile, `pagefile.sys` present, the
+   journal 32 MB, no resume task, no boot entry, C: the same size.
+6. **V4's number for this disk: 9.5 GB, pinned by System Restore's
+   storage** (two shadow copies at the time; two new ones since, made by
+   Windows Update on 09-25 and 09-26). 25 GB is needed. What lies behind
+   the shadow storage is unknown until it is gone.
+Owed before run 7: the restore-point act made to say what happened (exit
+code, the output without `/quiet`'s silence, a count that must drop, and
+no "already deleted" unless it did); R25's refusal.
+
 **Closes when.** The safety-copy gate uses the shrinkable number (not free
 space), verified on a fragmented real-world disk *with* the mitigations
 applied, so the gate reflects achievable shrink rather than the cold floor.
@@ -1976,3 +2029,44 @@ half-hour-visit row for every borrowed vendor (VALIDATION V0's matrix).
 **Closes when.** Probe rows from ≥3 more vendors, one BitLocker-on row, one
 Fast Startup row, and no Defender detection across them — or a signed
 release (R12), after which the AV half is moot.
+
+## R25 — Windows Update restarts the machine during the prologue · high · open (found 2026-09-23)
+
+**What.** The prologue restarts Windows before the commit line (the disk
+check, the pagefile rung) and relies on Windows restarting only when it
+asks. On the Aspire's sixth run (R18) the prologue's own restart let a
+pending cumulative update (KB5129195) finish, and Windows' installer
+(TrustedInstaller, "Operating System: Upgrade (Planned)") restarted the
+machine **twice more**, the first time 3 s into the resumed re-measure.
+Windows had also moved from build 22631 to 26200 between runs 5 and 6,
+with no one asking. Updates arrive on their own schedule; a machine
+being converted is an ordinary Windows until the commit line.
+
+**If real** (it is; the open question is only when it bites). Before the
+shrink it costs a re-run of the measurement - the resume carried on from
+its saved state, as built. After the shrink, before the handoff, a
+servicing restart is harmless to the plan but can change what the
+prologue already measured. **With the one-time boot armed, a servicing
+restart could consume it** - the firmware would boot the stick while
+Windows expected to come back and finish servicing. What Windows does
+then (resume servicing at the next Windows boot, roll the update back,
+or be left unbootable - the safety net) is not known; nothing here has
+been observed, and it is the question this risk exists for. Until it is
+answered it is treated as the worst of those: a broken safety net before
+the commit line; high.
+
+**Proposed (2026-09-26), not yet decided: refuse, by default, before it
+can bite.** The
+prologue reads Windows' pending-restart state before it changes anything
+and again immediately before it arms the handoff, and does not arm - or
+start - while Windows says an update is waiting for a restart. How it
+reads that state, and whether it restarts once itself to let the update
+finish and then re-checks (walk-away) rather than asking the person to,
+is the design step owed; the indicators Windows exposes must be
+confirmed on a real machine before any of them is trusted (rule #2 - the
+registry keys commonly cited are not a documented contract).
+
+**Closes when.** A physical row in which a pending update exists at
+CONVERT and the prologue neither arms nor shrinks until it has cleared -
+and a rig row that injects the pending state.
+

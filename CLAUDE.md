@@ -166,8 +166,14 @@ method in `docs/VALIDATION.md`; the killers, in order:
   (2026-09-22):** the change journal that pins the shrink is deleted with
   consent (both launchers say so before CONVERT; `fork.usn_journal_consented`),
   at most once per boot, and created again with its old sizes after the
-  shrink and at every stop (prologue 0.8.0, job writer 0.9.0; unfired).
-  0.5.1 and 0.6.0 still unfired (R18). The
+  shrink and at every stop (prologue 0.8.0, job writer 0.9.0). **Run 6
+  (2026-09-23): `stopped-shrink`** (row 10) - keep-windows under `stop`
+  (0.8.0 held); the journal rung fired twice, 8.4 -> 9.5 GB; restore-point
+  deletion ran and deleted 0 of 2 with no exit code recorded (fix owed);
+  the stop restored journal, hibernation and pagefile, read back after
+  restarts - **0.5.1 proven**. A pending Windows update restarted the
+  machine twice mid-run: **new RISKS R25** (refuse to arm while Windows
+  waits for a restart - proposed, not decided). Windows is 26200 now. The
   acknowledged-data-loss path (R23) exists for that machine's owner; rule
   #1 above says how narrow.
 - **V3 / R19 — the BITLK read in settle-in works.** How the default path

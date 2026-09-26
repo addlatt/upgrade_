@@ -291,7 +291,12 @@ install with the boot-chain checklist, rollback. Next, in order:
    0 files. Both defects fixed the same day (job writer 0.8.0, prologue
    0.7.0; self-tested, unfired) - R18. **Decided (2026-09-22):** the change
    journal in the way of the shrink is deleted with the person's consent and
-   created again afterwards (prologue 0.8.0, job writer 0.9.0; unfired).
+   created again afterwards (prologue 0.8.0, job writer 0.9.0).
+   **2026-09-23, run 6: `stopped-shrink`** (row 10) - the journal rung
+   fired (8.4 -> 9.5 GB), restore-point deletion ran but deleted nothing
+   (fix owed), a pending Windows update restarted the machine twice
+   mid-run (new RISKS R25), and the stop put everything back (0.5.1
+   proven on real hardware).
 2. **`settle-in`** — hardware verify on first boot, the file pull from the
    kept Windows partition (BITLK unlock, copy, checksum), the "you had
    these programs" list with Linux equivalents from the software

@@ -503,6 +503,14 @@ day:** the change journal joins the ladder (deleted with consent, created
 again afterwards; prologue 0.8.0) - what it frees is the next row's
 question.
 
+**2026-09-23, run 6: `stopped-shrink`** (row 10). The journal rung works
+and buys little (8.4 -> 9.5 GB); behind it sits System Restore's
+storage, and the restore-point deletion ran but deleted nothing - cause
+not recorded, fix owed (R18). This disk's best measured number is 9.5 GB
+of 25. The stop restored everything it touched, read back after
+restarts - 0.5.1 proven. New: a pending Windows update turned the
+prologue's one restart into three (RISKS R25).
+
 **Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
 could host Linux + their data in shrinkable space.
 

@@ -540,6 +540,18 @@ entry: two defects (a "stop" turned into a wipe job; "your files are
 staged" after staging none), both fixed the same day in job writer 0.8.0
 and prologue 0.7.0 (self-tested; unfired).
 
+**Row 10 (2026-09-23, the same machine, now Windows 11 26200, prologue
+0.8.0, job writer 0.9.0, kit 537e093) — `stopped-shrink`.** The job was
+keep-windows under `stop` (0.8.0's fix, on a real machine). Cold 8.4 GB
+pinned by the change journal; the journal rung fired twice (once per
+boot) and bought 1.1 GB; restore-point deletion ran and deleted 0 of 2
+(the row's notes say "2 -> 2"); the pagefile rung's restart was followed
+by two Windows Update restarts nobody asked for (the two `resume`
+entries); re-measured 9.5 GB of 25, fork `stop`, and the stop put the
+journal, hibernation and the pagefile back - read back after two
+restarts on 2026-09-26 (`post-run-state.txt` in the run's gitignored
+artifacts). Read with RISKS R18's sixth-run entry and the new R25.
+
 ### What "the prologue passes" requires
 
 - `pass-plumbing` on the rig with the injected flag (the plumbing: scan →
