@@ -70,7 +70,7 @@ A few words used all through this file:
 | V3 BitLocker read | `[###.]` | all three configs byte-identical via ntfs-3g; real disks owed |
 | V4 disks shrink | `[####]` 1 disk | the Aspire's answer is no (best 9.5 of 25 GB); the population count needs ~20 elevated reports |
 | V9 erase and install | rig `[###.]`, real `[FAIL]` | run 9 came up at a text login (fixed); physical re-run owed |
-| V11 way back to Windows | harvest `[##..]`, the rest `[#...]` | designed 2026-09-27; licence harvest built (job writer 0.16.0); the Aspire's hand reinstall is the first activation data point |
+| V11 way back to Windows | harvest `[##..]`, guided stick `[###.]`, walk-away `[#...]` | designed 2026-09-27; licence harvest built (job writer 0.16.0); the Aspire's hand reinstall is the first activation data point |
 | V8 OneDrive placeholders | `[###.]` | cfapi provider `pass-plumbing` on the rig and the G16; signed-in OneDrive owed |
 | V5 VMD detection | plumbing `[###.]`, AHCI row `[####]` | the RST/VMD row on real hardware is owed |
 | V6 code signing | `[....]` | calendar-bound, not started |
@@ -987,6 +987,15 @@ the Linux side offers a new, empty Windows, and says what that costs first
    offline, with an empty 64 GB target. That proves the stick's layout
    and the wimlib split (plumbing); only a real stick in a real machine
    closes the step.
+   **Rig leg fired 2026-09-27** (`v11-way-back.csv`): line 2 `fail` (the
+   writer stopped itself at its last check, on a wimlib option; fixed),
+   line 3 `pass-plumbing`: 905 files and two `install.swm` parts read
+   back, the 11 editions the same as the original, Windows Setup started
+   with Secure Boot on, installed from the split image and restarted into
+   Windows' first screens. Two findings changed the done words: Setup lists
+   the stick (`WINSETUP`) beside the computer's drives, and it asks for an
+   edition, so the words now say never delete `WINSETUP` and name the
+   edition from the harvest.
 4. **Later, the walk-away reinstall:** refuse, cancel and erase arms, as in
    V9.
 

@@ -3054,6 +3054,15 @@ by serial, exact size and a typed model name). Ten logic cases and one
 recording (the Aspire's two internal drives, both refused). Not a row: no
 stick has been written.
 
+**Rig leg of the guided stick (2026-09-27, `v11-way-back.csv` line 3,
+`pass-plumbing`).** The Linux-side writer made a stick (a new image file,
+no disk) from Microsoft's Windows 10 22H2 ISO, `install.wim` split by
+wimlib into two `install.swm` parts, and Windows Setup installed from it
+in a Generation 2 VM with Secure Boot on. So the 4 GB question is answered
+for the split made by wimlib, on Hyper-V's firmware. Still open: a real
+stick in a real machine, Windows 11's ISO, and activation after the
+reinstall (a VM has no licence to test).
+
 **Built (2026-09-27): the harvest** (job writer 0.16.0,
 `harvest.windows_license`; eight self-test cases, including a value shaped
 like a product key that must never reach the job; five new schema

@@ -1185,8 +1185,16 @@ It is built in two stages:
    `downloads`, and `sticks` (every disk with the rules it breaks; the
    Aspire's two internal drives, recorded and replayed in a test, are both
    refused). Read on the Aspire under Fedora: it offers Windows 11 (TPM
-   2.0, UEFI, Secure Boot on, a key in the firmware; i7-8550U). The writer
-   and the window are not built.
+   2.0, UEFI, Secure Boot on, a key in the firmware; i7-8550U).
+   **The writer and the window, built the same day** (`go-back write`, as
+   root through its own password prompt; the window's `--go-back`, in the
+   app menu as "Go back to Windows"). The writer finds the stick again by
+   serial, exact size and the typed model name, writes a DOS table and
+   FAT32, copies, splits `install.wim` with `wimlib-imagex` (static,
+   GPL-3.0, built from a pinned source and carried on the kit), and reads
+   every file back. `[###.]` on the rig (`v11-way-back.csv` line 3):
+   Windows 10 installed from it, Secure Boot on. A real stick in a real
+   machine is still owed, and the window has not been seen on a desktop.
 2. `[#...]` **Later, a walk-away reinstall.** An unattended Windows install
    (an answer file on the stick), with its own typed sentence and a
    countdown as its commit line: the erase path in reverse. It deletes
