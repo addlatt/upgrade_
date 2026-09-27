@@ -2804,6 +2804,34 @@ Anaconda wrote `skipx` itself.
   approved words, counted down, and the rig restarted into an untouched
   Windows; `report/refusal.json` on the stick holds the plain reason.
 
+**Read back over SSH, 2026-09-27, the day after run 9** (read-only, no
+root; capture in the gitignored
+`rig/hyperv/artifacts/aspire-fedora-ssh-2026-09-27/`):
+
+- **The 4-hour clock, confirmed on the installed system.** The journal's
+  first boot is stamped 15:55 EDT for a run that crossed the commit line
+  near 19:48 EDT. The time service then logged "System clock wrong by
+  14400.686744 seconds" (exactly 4 h) and stepped the clock, about 20 hours
+  after that first boot. Why so late is not known from this capture (no
+  network at first is likely: run 9 carried no Wi-Fi). Since then the
+  hardware clock holds UTC ("RTC in local TZ: no"; RTC read 20:43:28 when
+  the G16 read 20:43:31 UTC). So a Windows reinstalled on this machine
+  starts 4 h wrong the other way until it syncs.
+- **The stale entries are gone, and nothing of ours removed them.** Run
+  9's `efibootmgr-after.txt` listed "Windows Boot Manager" (Boot0003) and
+  a firmware-made "Unknown Device" (Boot0000) pointing at the old Ubuntu
+  disk's `\EFI\ubuntu\shimx64.efi`. A day later Boot0003 is gone and
+  Boot0000 points at Fedora's `\EFI\fedora\shim.efi` on the new ESP.
+  Insyde's firmware appears to prune and rebuild its own "Unknown Device"
+  entries (they carry its `RC` marker), but that is a reading of one
+  before-and-after, not a cause shown. Someone at the keyboard could also
+  have changed them. Our own "upgrade_" entry (Boot0002, the stick) is
+  still there, as on the rig: run 9 had no `settle-in` to remove it.
+- **0 disk-error lines** in about 20 hours of the kernel log (64,849
+  lines); `sda`/`sdb` serials match the job. The boot target is now
+  `graphical.target` with SDDM running: changed by hand after run 9, so it
+  does not count toward the one-click row.
+
 **Seen and signed in on the rig (2026-09-27, `v9-erase.csv` lines 12-13).**
 Both desktops reached their sign-in screen, took the password typed on the
 rig's keyboard, and opened the desktop. That is the check the rig had
@@ -3012,7 +3040,11 @@ the first recorded reads.
 **The Aspire is the first data point, and it starts with a gap.** Run 9
 (2026-09-26) erased its Windows 11 Home, and what its licence was (the
 channel, whether the firmware holds a key) was never recorded: run 9's
-reports do not hold it. That gap is why the harvest exists. The owner
+reports do not hold it. That gap is why the harvest exists. **Half of it
+was recovered from Linux (2026-09-27, over SSH, no root):** the firmware
+has an ACPI `MSDM` table (85 bytes), the table that carries a Windows key
+from the maker. Its contents were not read (R13). So the Aspire has a
+firmware key; which edition it is for, only Windows' installer will say. The owner
 reinstalls Windows by hand with Microsoft's installer before the follow-up
 run, and that run's job records whether activation came back. One machine,
 by hand, not the guided tool.
