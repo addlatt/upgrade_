@@ -288,7 +288,10 @@ exercised on every run.
 - `pass` with `provider=onedrive` on a signed-in machine with Files
   On-Demand. `Test-Materialize.ps1 -OneDrive` uploads a few MB to the
   account, asks the client to free up space, then materializes. Run it only
-  on a machine and account you own, never unattended.
+  on a machine and account you own, never unattended. Since 2026-09-26
+  (no download, RISKS R8) the launchers don't use the materializer, so this
+  row proves a built-but-unused tool; the check that matters moved to
+  `settle-in`.
 
 ## `r16-stick-writer.csv`: the stick writer refuses the wrong device (risk R16)
 
@@ -602,7 +605,8 @@ read-only diagnostic that followed (RISKS R18, 2026-09-13) showed 18
 corruption records queued for offline repair for weeks, `Get-Volume` "Full
 Repair Needed", and 30 bad-block events on the SSD holding C:. That is the
 dying-drive branch. The refusal stands. The guardrails that let it get that
-far are being strengthened.
+far were strengthened the same day (scanner 0.2.0 and prologue 0.2.0 read
+the drive's error log, SMART and the volume status; RISKS R18).
 
 **Row 7 (2026-09-20, the same machine, prologue 0.4.0, the
 acknowledged-data-loss path): `stopped-volume-check`, `trigger=repair-queued`.**
@@ -926,11 +930,16 @@ harvester's JSON. Personal file names stay out of the row.
 | `stick`, `needed_bytes`, `fits` | the stick volume measured against, what the folders need on it, the answer (`n/a` with no stick) |
 | `notes` | how it was run, and what lies outside the map |
 
-## `v9-erase.csv`: the one-click erase and install on the rig (gate V9, risk R27)
+## `v9-erase.csv`: the one-click erase and install (gate V9, risk R27)
 
 This is the path that erases every internal drive and installs Fedora,
 keeping nothing. A 2-minute countdown in the installer is the last chance
 to cancel.
+
+Most rows are the rig. Line 11 is the Aspire's physical run 9 (2026-09-26,
+`fail`: it erased and installed unattended but came up at a text login,
+fixed in kickstart generator 0.3.0). Lines 12-13 are the rig's GNOME and
+KDE desktops seen and signed in (2026-09-27).
 
 One row per arm, written by `rig/hyperv/v9-verdict.py` from the arm's own
 evidence (`rig/hyperv/v9.sh`; never by hand). The guest is a copy of the

@@ -120,6 +120,10 @@ If a check is wrong, fix the check. Don't remove it.
 
 ## Scope
 
-Right now this reads. It does not write. Proposals that touch partitions,
-change firmware settings or install anything are out of scope until there's
-a much larger corpus of verified hardware outcomes to justify them.
+The scanner reads. It never writes. The converter does write (it shrinks
+Windows, installs Fedora, and on one launcher erases the disks), and those
+parts are built last, behind real-hardware evidence, and reviewed hardest.
+Contributions that touch partitions, change firmware settings or install
+anything are out of scope until there's a much larger corpus of verified
+hardware outcomes to justify them. The hardware tables in `data/` and
+scanner reports are where help counts most today.

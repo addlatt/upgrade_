@@ -191,7 +191,7 @@ the disk) is kept host-side, detached. The guest's Windows clock reads
 about seven hours ahead of the Linux side in `boots.log`. That is a rig
 clock fact, not a finding.
 
-## Planned run-books (not yet run: nothing below is evidence)
+## Run-books (written before each run; each now carries its result)
 
 - **V0 rows 3, 5, 6. `[###.]` DONE 2026-08-30** (row 4 not meaningful here,
   see RISKS R15). How it ran: stick image → VHDX (`qemu-img convert -O vhdx`),

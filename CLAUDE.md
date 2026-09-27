@@ -273,8 +273,8 @@ Windows, nothing installed.
   same day** (job writer 0.10.0, harvester 0.3.0: `harvest.folders` +
   `harvest.stick_fit`, refusals for the wrong account, unreadable folders,
   online-only files, and a clean slate that does not fit the stick or has
-  other profiles; unfired on a physical job). Still owed: the OneDrive
-  download step in the launchers (consent text first), staging moved to
+  other profiles; unfired on a physical job; since 0.11.0 online-only
+  files are recorded as left in the cloud, not refused). Still owed: staging moved to
   the exFAT partition, Wi-Fi, browsers; a physical keep-Windows install on
   a machine with a healthy drive (not the Aspire); `settle-in`.
 
@@ -308,8 +308,8 @@ is the whole kit.
 data/            hardware + distro knowledge base; community PRs land here
   devices.ps1      Wi-Fi/GPU/audio/storage quirks by PCI ID
   distros.ps1      distro kernel table (goes stale; verify against release notes)
-evaluate/windows/  scanner (upgrade-scan.ps1), harvester, V0 handoff harness
-upgrade_/          the converter: windows/ prologue, rollback, kickstart, launchers; linux/ %pre verify + outcome
+evaluate/windows/  scanner (upgrade-scan.ps1), harvester, job writer, stick writer
+upgrade_/          the converter: windows/ prologue, rollback, kickstart, launchers, V0 handoff harness; linux/ %pre verify + outcome
 settle-in/         first-boot verify + file pull + reclaim (nothing built)
 schemas/           job.json / outcome.json contracts (change rarely, review hard)
 docs/              architecture.md, RISKS.md, VALIDATION.md, validation-results/
@@ -381,7 +381,10 @@ hide in prose.
 This runs on a Windows machine via WSL. **`powershell.exe` (Windows
 PowerShell 5.1) is reachable from the shell.** Use it to parse-check and
 run the scanner and harness against the real target engine
-(`wslpath -w <file>` translates paths). The single end-to-end test machine
-so far is an ASUS ROG Zephyrus G16 (Ryzen AI 9 HX 370, RTX 4060, MediaTek
-MT7925, Cirrus CS35L56). Every `fail` path is otherwise synthetic (R2), so
-treat one green run as one data point, not proof.
+(`wslpath -w <file>` translates paths). There are two real test machines
+so far. The ASUS ROG Zephyrus G16 (Ryzen AI 9 HX 370, RTX 4060, MediaTek
+MT7925, Cirrus CS35L56) is the development machine the scanner was built
+on. The Acer Aspire A515-51G (InsydeH2O, dying SATA SSD) is the one that
+has run the conversion itself: the handoff, the live boot, the prologue's
+stops and the erase and install (run 9). Most `fail` paths are still
+synthetic (R2), so treat one green run as one data point, not proof.

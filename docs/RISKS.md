@@ -1877,7 +1877,8 @@ refusal works).
   automatic pagefile put back.
 - The R25 gate read nothing waiting (one check).
 - The scanner's count grew: 158 bad-block events in 30 days, SMART 187 =
-  748 (725 on 09-20).
+  748 (741 on 09-20, 742 on 09-22, 745 on 09-23, per the scan
+  reports kept with each run; 725 was the 09-13 `DIAG-SMART.cmd` reading).
 
 Owed, a third time: reading back that the pagefile returns after a restart
 (no restart happened between runs 7 and 8, so run 8 began with none in use
@@ -2601,8 +2602,9 @@ files:
 - **Programs and their licences.** Installed programs are not carried (the
   software inventory lists them). Product keys and licences that live only
   in Windows are lost with it.
-- **OneDrive online-only files** copy as empty stubs unless materialized
-  first (R8). The staging must run the materializer's check, or refuse.
+- **OneDrive online-only files** copy as empty stubs if read naively (R8).
+  Decided 2026-09-26: they are not downloaded; they stay in OneDrive. The
+  staging must skip them and never copy a stub as the file, or refuse.
 
 **Decided (2026-09-26).**
 
@@ -2655,7 +2657,7 @@ refusing before the wipe. Then one physical row, on a machine whose owner
 has chosen to lose Windows. Plus evidence of the folder map's coverage on
 real machines (what share of a person's files it finds).
 
-## R27: The one-click erase and install · critical · open (decided 2026-09-26; built and all three arms pass on the rig 2026-09-26; physical row owed)
+## R27: The one-click erase and install · critical · open (decided 2026-09-26; all three arms pass on the rig 2026-09-26; physical run 9 failed on a text login, fixed; re-run owed)
 
 **What.** A launcher that, after one typed sentence and a password, erases
 every internal drive and installs Fedora with nothing kept
@@ -2670,13 +2672,16 @@ destructive path to prove end to end: the mechanism before the migration.
   written. The answer is identity. Every drive to be erased is named in the
   job by serial, unique id and size. The prologue checks them again in
   Windows, and `verify.sh` again in the installer: exact size, or refuse.
-  The installer is told to use only those drives. Unproven for two drives,
-  and never fired as an erase.
+  The installer is told to use only those drives. (Written before the
+  build. Since fired: rig arm C, and the Aspire's run 9 matched both drives
+  by identity. One machine with two drives, not a matrix.)
 - **The countdown does not show, or does not cancel.** `%pre` normally logs
   to a file. The countdown has to reach the screen and read a key from it
-  inside Anaconda's environment. Never run. Must be seen on the rig and on
-  the Aspire, both arms: cancel (Windows comes back untouched) and time out
-  (the erase).
+  inside Anaconda's environment. Must be seen on the rig and on the
+  Aspire, both arms: cancel (Windows comes back untouched) and time out
+  (the erase). (Written before the build. Since seen: both arms on the rig;
+  the time-out on the Aspire, run 9, 120.0 s. Cancel on real hardware is
+  still owed.)
 - **Consent is a sentence people type without reading.** The sentence says
   exactly what happens, the countdown is the second chance, and the
   launcher is separate from every other one. Whether that is enough cannot
@@ -2815,8 +2820,9 @@ password and name the account, before and after.
 
 **Unspoofable residue (rule #5), for the Aspire's physical row:**
 
-- Secure Boot on (the rig's is off; the Aspire's shim path is proven for the
-  live boot, not for an installed system);
+- Secure Boot on (the rig's is off). Run 9 installed with it on
+  (`upg_fired=1`) and Fedora booted from the SSD; the re-run must show it
+  again, ending at the desktop;
 - a real keyboard on the countdown;
 - the Aspire's real drives by their real identities;
 - installing onto a drive with bad blocks (under R23: the install may fail
@@ -2825,4 +2831,6 @@ password and name the account, before and after.
 
 **Closes when.** The rig arms above (done 2026-09-26) and one physical row
 on the Aspire: one click, the sentences, nobody at the keyboard, Fedora
-signs in with the chosen password.
+signs in with the chosen password **at the graphical sign-in screen**. Run 9
+(2026-09-26) did everything but that last part, so it is a `fail` row; the
+re-run is owed.

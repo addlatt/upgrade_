@@ -19,7 +19,8 @@ Gates are grouped into the same **tiers** used in `CLAUDE.md` and
 `RISKS.md`, so the three agree:
 
 - **Tier 1, no product if these fail:** V0, V1, V1b
-- **Tier 2, a core promise breaks (recoverable):** V4, V3, V2
+- **Tier 2, a core promise breaks (recoverable):** V4, V3, V2, and V9
+  (the one-click erase and install, the current front since 2026-09-26)
 - **Tier 3, silent data loss:** V8
 - **Tier 4, kills adoption, not the mechanism:** V5, V6, V7
 
@@ -604,7 +605,7 @@ paths and the shrink are product code now (`Invoke-Prologue.ps1`, RISKS
 R18). The **prologue** is the part of `upgrade_` that runs on Windows
 before the handoff. It has a rig bench that injects the flag
 (`rig/hyperv/prologue.sh`) and one evidence file,
-`docs/validation-results/r18-prologue.csv`. Row 3 was `pass-plumbing` the
+`docs/validation-results/r18-prologue.csv`. Row 4 was `pass-plumbing` the
 same day: flag → full boot-time check → 57.8 GB by both paths → 25 GB freed
 → install. Its `remeasured_gb` / `diskpart_gb` pair is the same two-path
 measurement V4 counts, taken *after* the check, at the moment it matters.
@@ -830,6 +831,13 @@ as **0 bytes**. The person's photos arrive empty, and they find out later.
 `evaluate` must *materialize* them (force the download while Windows is
 still running), not just detect them, because no later stage can.
 
+**Decided (2026-09-26, the owner): no download.** Online-only files stay in
+OneDrive, where their bytes already are. The job records them
+(`cloud_files.result = left-in-cloud`) and `settle-in` reconnects OneDrive.
+The danger left is copying a stub as if it were the file, and that is now
+`settle-in`'s to refuse (RISKS R8). The materializer below stays built,
+unused by the launchers.
+
 **Experiment.** On a machine with OneDrive "free up space" files present:
 confirm `evaluate` detects them, forces them local, and that they carry real
 bytes on the NTFS partition afterwards. Confirm the pinned/unpinned
@@ -1021,7 +1029,7 @@ Real, but they degrade rather than kill, or only touch the fallback path:
 | V2 | the artifact-extraction pipeline's scope (build order step 2) |
 | V3 | the intent-capture UI's path logic; the settle-in file pull |
 | V4 | stick-size guidance; intent UI weighting (ship scanner change now) |
-| V8 | the settle-in file pull's integrity guarantee; `evaluate`'s materialize-or-refuse step |
+| V8 | the settle-in file pull's integrity guarantee; `settle-in` never copying a stub as the file (online-only files stay in OneDrive, decided 2026-09-26) |
 | V5 | nothing: do it this week regardless |
 | V6 | nothing: start the clock now; blocks only the eventual release |
 | V7 | table confidence; multi-distro ambitions |

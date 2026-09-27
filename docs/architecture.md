@@ -97,7 +97,8 @@ evaluate extracts  ->  the USB carries  ->  upgrade_ injects before first boot
 If any decision is missing, the converter has to stop and ask a person, and
 walk-away is dead. So `evaluate` also collects:
 
-- the desktop (KDE or GNOME: two screenshots, one question),
+- what the computer starts at (KDE desktop, GNOME desktop or the text
+  console; the launcher menu since 2026-09-26),
 - the account name,
 - the password (hashed straight away to SHA-512 crypt, a one-way scrambled
   form that Linux can check but nobody can read back).
@@ -246,13 +247,15 @@ scaffolding) exist and are tested.
   - or, on the clean slate, the folders do not fit the stick or other
     people's profiles exist (R5).
 - **Not yet built:** artifact extraction, the intent-capture UI, multi-user
-  migration, Wi-Fi and browsers into the job, and the launcher step that
-  downloads online-only files. (The job writer's `-Materialize` exists; the
-  launchers do not pass it until their consent text says so.)
+  migration, Wi-Fi and browsers into the job.
+- **OneDrive online-only files are not downloaded** (decided 2026-09-26,
+  the owner). Job writer 0.11.0 records them as
+  `cloud_files.result = left-in-cloud`, and `settle-in` reconnects OneDrive.
 - **Materialization of cloud placeholders exists**
   (`Harvest-UpgradeState.ps1 -Materialize`, 2026-09-08). "Materialize"
   means forcing the real file down from the cloud. Its plumbing is proven
-  against Windows' own cloud files filter (RISKS R8).
+  against Windows' own cloud files filter (RISKS R8). Since the
+  no-download decision it stays built and unused by the launchers.
 
 ---
 
@@ -312,8 +315,8 @@ only once the answer is known:
    it opens, not copied from the stop:
    - what the drive could free, and what Linux needs;
    - the folders that would be kept, each with its size, from the folder
-     map (`harvest.folders`, with OneDrive's online-only files counted as
-     materialized; R8);
+     map (`harvest.folders`; OneDrive's online-only files are listed as
+     staying in OneDrive, not kept on the stick; R8);
    - the stick's free space.
 
    It names what is lost, in plain words: every installed program,
@@ -1064,7 +1067,7 @@ there is anything to sign.
 | Firefox profile | yes | Bookmarks, history, extensions **and saved passwords**: the NSS key database works on any platform. |
 | Chrome/Edge bookmarks, history, extensions | yes | The profile directory ports. |
 | Chrome/Edge **saved passwords** | **no** | Encrypted with DPAPI (Windows' own key store); no Linux equivalent. They silently will not appear. Must be said in `evaluate`, not discovered in `settle-in`. |
-| OneDrive cloud-only files | **needs care** | Placeholders copy as empty files, and no Linux-side reader can fill them. `evaluate` materializes them (forces the download) while Windows is alive, or refuses. RISKS R8. |
+| OneDrive cloud-only files | **needs care** | Placeholders copy as empty files, and no Linux-side reader can fill them. Decided 2026-09-26: they are not downloaded. The job records them as left in the cloud, `settle-in` reconnects OneDrive, and nothing may copy a stub as if it were the file. RISKS R8. |
 | Installed applications | no | Out of scope for v1. |
 | Windows settings, Outlook data, licences | no | Say so plainly in the handoff sheet. |
 
