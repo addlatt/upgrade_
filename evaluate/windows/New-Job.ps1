@@ -64,6 +64,17 @@
     hash is the verify-only placeholder, and an installed account needs a
     password its owner chose.
 
+.PARAMETER VerifyOnly
+    The job is for the live-boot check only (RUN-VERIFY.cmd): nothing is
+    installed, so the placeholder password hash is allowed. Any other job
+    needs -PasswordHashFile - an installed account has a password its
+    owner chose (2026-09-26: the keep-Windows launchers asked for none).
+
+.PARAMETER PrintLinuxName
+    Print the Linux sign-in name this job writer derives for the Windows
+    account running it, and exit. The launchers show it before the
+    password is chosen, so the name on the screen is the one in the job.
+
 .PARAMETER Materialize
     Download OneDrive online-only files in the folders before the map is
     written (RISKS R8). Not used by any launcher: decided 2026-09-26 that
@@ -82,10 +93,12 @@ param(
     [switch]$Materialize,
     [string]$EraseEverything,
     [string]$PasswordHashFile,
+    [switch]$VerifyOnly,
+    [switch]$PrintLinuxName,
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.13.0'
+$JobWriterVersion = '0.14.0'
 # the harvester versions whose folder map this writer reads; any other is refused, not guessed
 $KnownHarvestVersions = @('0.3.0')
 $LinuxMinGB = 25
@@ -883,11 +896,13 @@ function Invoke-SelfTest {
 # --- main -----------------------------------------------------------------------------
 
 if ($SelfTest) { Invoke-SelfTest; return }
+if ($PrintLinuxName) { ConvertTo-JobLinuxName $env:USERNAME; return }
 if (-not $OutDir -or -not $StickDrive) { throw 'give -StickDrive X: -OutDir <stick>\upgrade_ -ScanDir <reports dir> (or -SelfTest)' }
 if (-not (Test-JobAdmin)) { throw 'the job writer needs Administrator: the shrink measurement, the volume flag, BitLocker and the ESP are elevated-only reads' }
 
 Write-Host ''; Write-Host "  upgrade_  job writer $JobWriterVersion" -ForegroundColor Cyan
 Write-Host '  reads this machine; writes job.json; changes nothing' -ForegroundColor DarkGray
+if (-not $VerifyOnly -and -not $PasswordHashFile) { Write-Host ''; Write-Host '  REFUSED - no job written: no password was chosen for the new account (a job that installs needs -PasswordHashFile; only a verify-only job may use the placeholder)' -ForegroundColor Red; exit 2 }
 if (-not $StartAt) { Write-Host ''; Write-Host '  REFUSED - no job written: no choice was made of what the computer starts at (-StartAt desktop or console)' -ForegroundColor Red; exit 2 }
 if ($PasswordHashFile) {
     if (-not (Test-Path -LiteralPath $PasswordHashFile)) { throw "no password hash at $PasswordHashFile" }
@@ -921,6 +936,7 @@ Write-Host "  path $($j.intent.path) ($($j.intent.path_reason))   desktop $($j.i
 Write-Host "  stick $($j.stick.friendly_name) $([math]::Round($j.stick.size_bytes/1e9,1)) GB '$($j.stick.label)'"
 if ($j.risk_acknowledgement) { Write-Host "  DATA LOSS ACCEPTED: the RED verdict was acknowledged; lifted: $($j.risk_acknowledgement.overrides -join ', ')" -ForegroundColor Red }
 Write-Host "  written: $jobPath" -ForegroundColor Cyan
+if (-not $VerifyOnly) { Write-Host ''; Write-Host "  Your Fedora sign-in:  user  $($j.intent.account.linux_name)   password  the one you just chose" -ForegroundColor Green }
 Write-Host "  software inventory: $($j.harvest.software.desktop.Count) desktop programs, $($j.harvest.software.store.Count) Store apps (names only; stays on the stick)" -ForegroundColor DarkGray
 if ($j.erase_consent) {
     Write-Host ''

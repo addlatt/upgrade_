@@ -2411,6 +2411,14 @@ rig verdict now requires the display manager running at first boot
 (`graphical_login`, `v9-erase.csv` line 8: y). The physical row waits for
 the stick's records.
 
+**Found the same night (2026-09-26): the keep-Windows launchers never
+asked for a password.** `RUN-CONVERT.cmd` and its data-loss twin passed
+no hash, so the job carried the verify-only placeholder and an install
+would have created an account whose password is `verify-only`, told to
+nobody. Job writer 0.14.0 refuses the placeholder unless `-VerifyOnly`
+(`RUN-VERIFY.cmd`, which installs nothing); all four install launchers
+now ask for the password and name the account, before and after.
+
 **Unspoofable residue (rule #5), for the Aspire's physical row:** Secure
 Boot on (the rig's is off; the Aspire's shim path is proven for the live
 boot, not for an installed system), a real keyboard on the countdown,

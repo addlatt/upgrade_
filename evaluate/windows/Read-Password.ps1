@@ -24,10 +24,11 @@
 [CmdletBinding()]
 param(
     [string]$OutFile,
+    [string]$LinuxName,
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$ReadPasswordVersion = '0.1.0'
+$ReadPasswordVersion = '0.2.0'
 $CryptAlphabet = './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 
 function Get-Sha512 {
@@ -176,10 +177,12 @@ function Invoke-SelfTest {
 
 if ($SelfTest) { Invoke-SelfTest; return }
 if (-not $OutFile) { throw 'give -OutFile <file> (or -SelfTest)' }
+if (-not $LinuxName) { throw 'give -LinuxName <the sign-in name> - the person is told which account this password is for (2026-09-26)' }
 
 Write-Host ''
-Write-Host '  Choose the password for your new Linux account.' -ForegroundColor Cyan
-Write-Host '  You will type it to sign in to Fedora. Nothing shows while you type.' -ForegroundColor DarkGray
+Write-Host "  Your Fedora account:  $LinuxName" -ForegroundColor Cyan
+Write-Host "  You sign in to Fedora as $LinuxName with the password you choose now." -ForegroundColor Cyan
+Write-Host '  Nothing shows while you type. Write it down if you need to - nothing else stores it.' -ForegroundColor DarkGray
 for ($try = 1; $try -le 3; $try++) {
     $a = ConvertFrom-SecurePlain (Read-Host '  Password' -AsSecureString)
     $b = ConvertFrom-SecurePlain (Read-Host '  Type it again' -AsSecureString)
@@ -188,7 +191,7 @@ for ($try = 1; $try -le 3; $try++) {
         $hash = ConvertTo-Sha512Crypt -Password $a -Salt (New-CryptSalt)
         $a = $null; $b = $null
         [IO.File]::WriteAllText($OutFile, "$hash`n", (New-Object Text.UTF8Encoding($false)))
-        Write-Host '  Password set.' -ForegroundColor Green
+        Write-Host "  Password set for $LinuxName." -ForegroundColor Green
         exit 0
     }
     $a = $null; $b = $null

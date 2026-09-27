@@ -37,7 +37,7 @@ cd /d "%~dp0"
 if not exist "%~dp0upgrade_" mkdir "%~dp0upgrade_"
 echo.>> "%~dp0upgrade_\convert.log"
 echo ======== %date% %time%  RUN-CONVERT.cmd on %COMPUTERNAME%  (stick %~d0)>> "%~dp0upgrade_\convert.log"
-for %%f in (Invoke-Logged.ps1 Invoke-Prologue.ps1 upgrade-scan.ps1 New-Job.ps1 Harvest-UpgradeState.ps1 New-Kickstart.ps1 EFI\BOOT\BOOTX64.EFI images\install.img upgrade_\verify.sh upgrade_\outcome.sh upgrade_\LiveOS\kde.squashfs upgrade_\LiveOS\gnome.squashfs SHA256SUMS) do (
+for %%f in (Invoke-Logged.ps1 Invoke-Prologue.ps1 upgrade-scan.ps1 New-Job.ps1 Harvest-UpgradeState.ps1 Read-Password.ps1 New-Kickstart.ps1 EFI\BOOT\BOOTX64.EFI images\install.img upgrade_\verify.sh upgrade_\outcome.sh upgrade_\LiveOS\kde.squashfs upgrade_\LiveOS\gnome.squashfs SHA256SUMS) do (
   if not exist "%~dp0%%f" (
     echo   ERROR: %%f is not on this stick - this is not a complete kit.
     pause
@@ -80,11 +80,32 @@ if not defined STARTAT (
 )
 echo %date% %time%  chose: %DESKTOP%, starts at the %STARTAT%>> "%~dp0upgrade_\convert.log"
 
+for /f "usebackq delims=" %%u in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0New-Job.ps1" -PrintLinuxName`) do set "LINUXNAME=%%u"
+if not defined LINUXNAME (
+  echo   The Linux account name could not be worked out. Nothing was changed.
+  pause
+  exit /b 1
+)
+echo.
+echo   Your Linux account and its password.
+set PWFILE=%TEMP%\upgrade-pw-%RANDOM%%RANDOM%.txt
+REM run directly, never through Invoke-Logged: nothing typed here is logged
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Read-Password.ps1" -OutFile "%PWFILE%" -LinuxName "%LINUXNAME%"
+if %errorlevel% neq 0 (
+  if exist "%PWFILE%" del "%PWFILE%"
+  echo.
+  echo   No password was set. Nothing was changed.
+  echo %date% %time%  no password was set; stopped>> "%~dp0upgrade_\convert.log"
+  pause
+  exit /b 1
+)
 echo.
 echo   Step 3 of 6: writing the job for this machine...
 echo.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Invoke-Logged.ps1" -Log "%~dp0upgrade_\convert.log" -Script "%~dp0New-Job.ps1" -StickDrive %~d0 -OutDir "%~dp0upgrade_" -ScanDir "%~dp0upgrade_\reports" -Desktop %DESKTOP% -StartAt %STARTAT% -IfCannotKeep stop
-if %errorlevel% neq 0 (
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Invoke-Logged.ps1" -Log "%~dp0upgrade_\convert.log" -Script "%~dp0New-Job.ps1" -StickDrive %~d0 -OutDir "%~dp0upgrade_" -ScanDir "%~dp0upgrade_\reports" -Desktop %DESKTOP% -StartAt %STARTAT% -IfCannotKeep stop -PasswordHashFile "%PWFILE%"
+set JOBERR=%errorlevel%
+if exist "%PWFILE%" del "%PWFILE%"
+if %JOBERR% neq 0 (
   echo.
   echo   No job was written - the reasons are above. Nothing was changed.
   pause
@@ -103,6 +124,11 @@ if %errorlevel% neq 0 (
 )
 if exist "%~dp0upgrade_\boot-verify" del "%~dp0upgrade_\boot-verify"
 if exist "%~dp0upgrade_\boot-install" del "%~dp0upgrade_\boot-install"
+echo.
+echo   ============================================================
+echo   Your Fedora sign-in:   user  %LINUXNAME%
+echo                          password  the one you just chose
+echo   ============================================================
 
 echo.
 echo   Step 5 of 6: your decision.

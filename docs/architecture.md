@@ -334,6 +334,11 @@ said, before anything started, that nothing is to be kept.
    *"I confirm that everything on this computer will be deleted and
    nothing will be kept"*. The launcher then asks for the Linux password
    (typed twice, hidden); the job holds only its SHA-512 crypt hash.
+   **The person is told the account's name** (decided 2026-09-26, the
+   owner): the password screen says "Your Fedora account: <name>", and
+   before the restart a box repeats "Your Fedora sign-in: user <name>,
+   password the one you just chose" - the name comes from the job
+   writer, so the screen and the job cannot disagree.
 1b. **The person picks what the computer starts at** (decided
    2026-09-26, after the Aspire's run 9 reached a text console nobody
    chose): a menu on every install launcher - KDE Plasma desktop, GNOME

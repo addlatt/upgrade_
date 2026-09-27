@@ -107,9 +107,15 @@ if not "%ERASE%"=="I confirm that everything on this computer will be deleted an
 
 echo.
 echo   Step 4 of 6: the password for your new Linux account.
+for /f "usebackq delims=" %%u in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0New-Job.ps1" -PrintLinuxName`) do set "LINUXNAME=%%u"
+if not defined LINUXNAME (
+  echo   The Linux account name could not be worked out. Nothing was changed.
+  pause
+  exit /b 1
+)
 set PWFILE=%TEMP%\upgrade-pw-%RANDOM%%RANDOM%.txt
 REM run directly, never through Invoke-Logged: nothing typed here is logged
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Read-Password.ps1" -OutFile "%PWFILE%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Read-Password.ps1" -OutFile "%PWFILE%" -LinuxName "%LINUXNAME%"
 if %errorlevel% neq 0 (
   if exist "%PWFILE%" del "%PWFILE%"
   echo.
@@ -140,6 +146,11 @@ if %errorlevel% neq 0 (
 )
 if exist "%~dp0upgrade_\boot-verify" del "%~dp0upgrade_\boot-verify"
 if exist "%~dp0upgrade_\boot-install" del "%~dp0upgrade_\boot-install"
+echo.
+echo   ============================================================
+echo   Your Fedora sign-in:   user  %LINUXNAME%
+echo                          password  the one you just chose
+echo   ============================================================
 
 echo.
 echo   Step 6 of 6: restarting into the installer.
