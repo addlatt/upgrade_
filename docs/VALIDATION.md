@@ -70,7 +70,7 @@ A few words used all through this file:
 | V3 BitLocker read | `[###.]` | all three configs byte-identical via ntfs-3g; real disks owed |
 | V4 disks shrink | `[####]` 1 disk | the Aspire's answer is no (best 9.5 of 25 GB); the population count needs ~20 elevated reports |
 | V9 erase and install | rig `[###.]`, real `[FAIL]` | run 9 came up at a text login (fixed); physical re-run owed |
-| V11 way back to Windows | `[#...]` | designed 2026-09-27; the licence harvest comes first; the Aspire's hand reinstall is the first activation data point |
+| V11 way back to Windows | harvest `[##..]`, the rest `[#...]` | designed 2026-09-27; licence harvest built (job writer 0.16.0); the Aspire's hand reinstall is the first activation data point |
 | V8 OneDrive placeholders | `[###.]` | cfapi provider `pass-plumbing` on the rig and the G16; signed-in OneDrive owed |
 | V5 VMD detection | plumbing `[###.]`, AHCI row `[####]` | the RST/VMD row on real hardware is owed |
 | V6 code signing | `[....]` | calendar-bound, not started |
@@ -926,6 +926,9 @@ the Linux side offers a new, empty Windows, and says what that costs first
    made-up licence facts (activated or not, each channel, a firmware key
    present or not, a failed read) and proves a key handed to it never
    reaches `job.json`. Then the rig's Windows, then a real one.
+   **Built 2026-09-27** (job writer 0.16.0): the self-test passes; read
+   once by hand on the G16 (Windows 11 Pro, activated, `OEM:DM`, a key in
+   the firmware), not yet a row.
 2. **The Aspire's hand reinstall** (2026-09-27, before its follow-up
    run). Windows put back by the owner with Microsoft's installer; the
    follow-up run's job records whether activation came back. The licence

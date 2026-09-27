@@ -164,7 +164,7 @@ Linux. So `evaluate` captures them while Windows is alive. This is the same
   Windows' installer finds it again. A key the person typed is theirs to
   keep, and the stick is not a credential store (R13). A read that fails
   is recorded with its reason, not refused: its cost is a less informed
-  way back, never lost data.
+  way back, never lost data. Built 2026-09-27 (job writer 0.16.0).
 
 **The software inventory (2026-09-13).** The job writer records every
 installed desktop program (the registry's Apps & features entries, minus

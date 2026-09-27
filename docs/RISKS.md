@@ -2932,7 +2932,7 @@ plain words ("turn on 'Allow Microsoft 3rd Party UEFI CA' in your firmware
 settings"), or a real Secured-core machine shows the handoff works. Every
 contact leaves a capture (rule #5).
 
-## R30: The way back to Windows · high · open (decided 2026-09-27; nothing fired)
+## R30: The way back to Windows · high · open (decided 2026-09-27; the licence harvest built the same day, job writer 0.16.0)
 
 **What.** After an erase, or after a reclaim, there is no Windows to roll
 back to. Decided (2026-09-27, the owner): there is still a way back, a new
@@ -2983,7 +2983,17 @@ was activated (`harvest.windows_license`) while Windows still exists.
   never data, so rule #1 does not demand a stop.
 - The erase launchers say it before the sentence is typed (the words are a
   draft, awaiting the owner's approval; `architecture.md`, "Erase and
-  install").
+  install"). They are in both erase launchers, so the Aspire's next run
+  shows them.
+
+**Built (2026-09-27): the harvest** (job writer 0.16.0,
+`harvest.windows_license`; eight self-test cases, including a value shaped
+like a product key that must never reach the job; five new schema
+refusals). Read once by hand on the G16, unelevated, in 1 s: Windows 11
+Pro (build 26200), activated, `OEM:DM`, a key in the firmware. The same
+read confirmed the registry quirk: ProductName says "Windows 10 Pro" on
+that Windows 11 machine. Not a row: the rig and the Aspire's next job are
+the first recorded reads.
 
 **The Aspire is the first data point, and it starts with a gap.** Run 9
 (2026-09-26) erased its Windows 11 Home, and what its licence was (the
