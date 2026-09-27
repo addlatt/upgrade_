@@ -211,7 +211,7 @@ pub fn screen(before: &Value, pc: &Value, off: &Value) -> Value {
     if w.is_some() {
         let page = if w == Some("10") { PAGE_10 } else { PAGE_11 };
         out.push(json!({ "heading": "Step 1: download Windows from Microsoft", "lines": [
-            "Open Microsoft's download page, choose the edition and your language, and download the file (about 6 to 8 GB).",
+            "Open Microsoft's download page, choose the edition and your language, and download the file (about 6 to 9 GB).",
             format!("Microsoft's page: {}", page),
             "We never hand out Windows ourselves. This program checks the file against the numbers Microsoft publishes on that page before using it.",
         ], "link": page }));
@@ -234,7 +234,7 @@ pub fn wizard(before: &Value, windows: Option<&str>) -> Value {
         "stick": {
             "heading": "Step 3: the USB stick",
             "lines": [
-                "Plug in a USB stick of 8 GB or more. Everything on it will be deleted.",
+                "Plug in a USB stick of 16 GB or more (Windows 11 does not fit on 8 GB). Everything on it will be deleted.",
                 "Only a USB stick can be chosen. This computer's own drives, USB hard drives and the upgrade_ stick are never offered.",
             ],
             "none": "No USB stick that can be used is plugged in.",
