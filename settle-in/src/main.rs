@@ -275,7 +275,29 @@ fn go_back(args: &[String], root: &str) -> i32 {
                 wimlib: opt("--wimlib").unwrap_or_else(|| format!("{}/wimlib-imagex", exe_dir)),
                 root: root.to_string(),
             };
+            let started = now_iso();
             let r = stickwrite::write(&req);
+            // every real write leaves a record (rule #5): what was asked, every disk
+            // as seen afterwards, and the result. Root-only; a record that cannot be
+            // saved is said, never fatal (the stick is already what the result says)
+            // SAFETY: geteuid has no preconditions.
+            if unsafe { libc::geteuid() } == 0 {
+                let dir = format!("{}/var/lib/upgrade_-go-back", root.trim_end_matches('/'));
+                let rec = json!({
+                    "schema": "go-back-write/1", "settle_in_version": VERSION, "started_utc": started, "finished_utc": now_iso(),
+                    "request": { "iso": req.iso, "want": req.want, "serial": req.serial, "size_bytes": req.size_bytes, "typed": req.typed, "image": req.image },
+                    "disks_after": sticks::collect(root), "result": r,
+                });
+                let path = format!("{}/stick-{}.json", dir, started.replace(':', ""));
+                let saved = std::fs::create_dir_all(&dir)
+                    .and_then(|_| std::fs::set_permissions(&dir, std::os::unix::fs::PermissionsExt::from_mode(0o700)))
+                    .map_err(|e| format!("{}: {}", dir, e))
+                    .and_then(|_| save(&path, &rec));
+                match saved {
+                    Ok(()) => eprintln!("{}", json!({ "record": path })),
+                    Err(e) => eprintln!("{}", json!({ "record_not_saved": e })),
+                }
+            }
             println!("{}", r);
             if r["result"] == "written" { 0 } else { 1 }
         }
