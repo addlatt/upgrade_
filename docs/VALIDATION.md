@@ -882,6 +882,13 @@ planted in the job, `v9-job.py --spoof-wifi`; plumbing only):**
   text prompt, the stale entry removed, the next boot at the console as
   chosen, and nothing shown at the second sign-in.
 
+- **Run 7 (line 8) `pass-plumbing`, KDE: the window check is automatic
+  now.** The window writes a line to the system log on its first drawn
+  frame ("settle-in-window: showing the summary") and when the person
+  closes it; the next boot captures the previous boot's sign-ins, and the
+  verdict's `window` column fails a desktop install whose first sign-in
+  did not show it. Here it showed 3.6 s after the sign-in started.
+
 **Residue the rig cannot close.** Hyper-V's hardware clock already holds
 UTC, so on the rig the clock step is correctly "not needed" and the
 correction itself (the Aspire's 4-hour case) is proven only by the tests.
