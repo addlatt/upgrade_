@@ -1,349 +1,368 @@
+<div align="center">
+
 # upgrade_
 
-** Convert your machine to Linux**
+### Move your computer to Linux. One stick, one click, done.
 
-Plug in a USB stick, pick a desktop, click convert. Come back to a working
-Linux machine with your files, Wi-Fi and browsers intact — and, by default,
-your old system shrunk safely aside until you're sure. One stick is the whole
-kit.
+Plug in a USB stick, pick a desktop, hit convert, and walk away. When you
+come back it's a working Linux machine, with your files, Wi-Fi and browsers
+still there. By default Windows doesn't get deleted either. It gets shrunk
+and set to one side until you're sure you don't need it.
 
-> **Status (2026-09-20): the whole conversion exists as code and has run
-> end to end on the rig; one physical machine has run it as far as its
-> failing drive, and then its own record, allowed.** Scan → job → kickstart → the prologue (disk
-> check, shrink, boot handoff) → Fedora installed beside Windows → rollback,
-> each step written by the product's own scripts and each one leaving an
-> evidence row. It is not a release: the physical vendor matrix is one
-> machine wide, `settle-in` (the first boot on Linux) is not built, and the
-> converter is unsigned. The latest physical runs (2026-09-17 to -20, the
-> acknowledged-data-loss path on the Aspire) each stopped honestly and each
-> taught the tool something: a launcher bug, a week-old log entry mistaken
-> for a pending repair, and a "0 GB can be freed" that was only the
-> hibernation file sitting on the last cluster. See [Status](#status).
+[![Licence: GPL-3.0](https://img.shields.io/badge/licence-GPL--3.0-blue)](LICENSE)
+![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)
+![Source: Windows 10/11](https://img.shields.io/badge/source-Windows%2010%20%2F%2011-0078D6)
+![Target: Fedora](https://img.shields.io/badge/target-Fedora-51A2DA)
+![Windows PowerShell 5.1](https://img.shields.io/badge/PowerShell-5.1%20only-5391FE)
+![Secure Boot: on](https://img.shields.io/badge/Secure%20Boot-stays%20on-2ea44f)
+
+[Why](#why) · [How it works](#how-it-works) · [Where it stands](#where-it-stands) ·
+[The scanner](#the-scanner-evaluate) · [First principle](#first-principle) ·
+[Roadmap](#roadmap) · [Contributing](#contributing)
+
+</div>
+
+> [!IMPORTANT]
+> **Status (2026-09-26): not ready for your machine yet.** Every step of
+> the conversion is written and has run start to finish on the test rig. One
+> real laptop has now been erased and reinstalled with nobody touching it.
+> It woke up to a text login instead of a desktop, so that counts as a fail.
+> The cause is fixed and the rig passes again. What's left is doing it for
+> real once more. Other gaps: only one brand of laptop tested so far,
+> `settle-in` (the first boot on Linux) isn't built, and nothing is signed.
+> Every claim below links to the test results, failures included.
 
 ---
 
 ## Why
 
-Your os should not control your hardware.
-Anybody should be able to upgrade their machine without friction.
+Your computer shouldn't stop being useful just because Windows says so.
+
+Windows 10 stopped getting security updates in October 2025. Tons of
+perfectly good machines can't run Windows 11, but they run Linux just fine.
+The machine was never the problem. The problem is knowing how: which
+version of Linux, which BIOS setting, which driver is missing, and how to
+not lose your photos on the way.
+
+**This project knows all that so you don't have to.**
 
 ## How it works
 
-Three modules. 
+There are three parts. They're split by one question: can this step still
+be undone?
 
-| | | |
-|---|---|---
-| **`evaluate`** | Source · reversible | Reads the machine, captures your choices, extracts everything that depends on the source system for its existence, and refuses anything it can't do safely. |
-| **`upgrade_`** | Source → Linux | The converter. By default shrinks the source aside and installs Linux next to it; wipes and stages files to the stick only if you ask, or if the disk is too full to keep both. |
-| **`settle-in`** | Linux | Verifies the hardware works, brings your files home from the kept partition, hands over, stops. |
+```mermaid
+flowchart LR
+    subgraph W["On Windows · can be undone"]
+        E["<b>evaluate</b><br/>scan · harvest · ask you<br/>write the stick · refuse"]
+        P["<b>upgrade_</b> prologue<br/>disk check · shrink<br/>BitLocker · boot handoff"]
+    end
+    subgraph I["Fedora installer on the stick"]
+        V["check it's the right machine<br/>and the hardware works"]
+        C{{"⚠️ the commit line"}}
+        X["install · check it boots<br/>write outcome.json"]
+    end
+    subgraph L["On Linux · first boot"]
+        S["<b>settle-in</b><br/>check again · bring files home<br/>offer to clean up"]
+    end
+    E --> P --> V --> C --> X --> S
+    V -. "anything wrong" .-> R["back to Windows,<br/>nothing changed"]
+```
 
-**Today the source is Windows.** The framing is deliberately source-agnostic —
-the *shape* (read, commit, settle) has nothing Windows-specific about it — but
-every line of the current implementation reads a Windows machine: PowerShell,
-`bcdedit`, BitLocker, `netsh`. Other source systems are a future direction,
-not a v1 promise. Where this README and the design docs say "Windows", they
-mean the one source that works now.
+| Part | Runs on | What it does |
+|---|---|---|
+| **`evaluate`** | Windows, read-only | Looks the machine over and asks what you want. Grabs the stuff only Windows knows (where your folders are, the BitLocker key and so on), writes the stick, and says no to anything it can't do safely. |
+| **`upgrade_`** | Windows → Linux | Does the actual move. Normally it shrinks Windows and puts Linux next to it. It only erases the disk if you ask it to. |
+| **`settle-in`** | Linux | Makes sure the hardware works, copies your files over from the old Windows side, then gets out of your way. |
+
+> [!NOTE]
+> **Right now it only works from Windows.** Nothing about the idea (look,
+> commit, settle in) needs Windows, but all the code today reads a Windows
+> machine: PowerShell, `bcdedit`, BitLocker, `netsh`. Coming from other
+> systems is a maybe-someday, not a promise.
 
 ### The commit line
 
-Exactly one moment in a conversion is irreversible, and the source OS stays
-bootable until it. By default the converter **keeps the old system**: it
-shrinks that partition aside, installs Linux next to it, brings your files
-across on first boot, and only then — after you have confirmed everything works
-— offers to **reclaim** the space. That reclaim is the irreversible moment, and
-it is your explicit choice. Until it, the old system is a full rollback a
-boot-menu away.
+Every conversion has exactly one point of no return. Windows stays bootable
+right up until then.
 
-Only if you ask to wipe the old system outright — or if the disk is too full to
-keep both — does the irreversible moment become a **disk wipe** instead, and
-that path is guarded by a two-minute hardware check with you present, because
-it has no rollback. Everything before either line is additive; a failure
-earlier simply boots the old system again.
+| Path | The point of no return | What protects you |
+|---|---|---|
+| **Keep Windows** (the default) | **Clean-up.** Once Linux is working and your files are confirmed, you choose to delete the old Windows part. Until you do, Windows is one pick away in the boot menu. | You decide, after Linux is already running |
+| **Erase and install** | **The wipe.** The installer shows a **2-minute countdown** you can cancel. Until it hits zero, nothing on your disks has changed. | Its own launcher, a sentence you type out, and hardware checks that have to pass first |
 
-Two rules follow. The interface says *"you can still cancel"* until that exact
-moment and stops the instant it's crossed. And everything capable of refusing
-must refuse **before** the line, because afterwards the only remaining safety
-mechanism is a slow restore from a drive that might itself fail.
+That leads to two rules:
 
-Full design in [docs/architecture.md](docs/architecture.md).
+1. The screen says *"you can still cancel"* right up to that moment, and
+   stops saying it the second it's crossed.
+2. **Anything that might say no has to say it before the line.** After it,
+   the only way back is a slow recovery, from a drive that might be the
+   thing that's failing.
+
+The full design is in [docs/architecture.md](docs/architecture.md).
 
 ---
 
-## What works today
+## Where it stands
 
-**The vertical, on the rig and once on a real machine.** One kit stick
-(`./make-kit.sh`, written by the R16 stick writer) carries everything.
-`RUN-CONVERT.cmd` on it runs the scanner, writes `job.json`, generates the
-kickstart, asks for one typed word, and hands over to the prologue
-(`Invoke-Prologue.ps1`): it re-validates the job against the live machine,
-runs Windows' own disk check with its own restart if the volume is
-flagged (and resumes with nobody signed in), re-measures the room by two read-only paths, takes the fork the
-person chose in advance, shrinks C:, suspends BitLocker for one restart
-and arms the one-time boot handoff. The stick then boots Fedora's
-installer (Secure Boot on, signed shim), which verifies the machine's
-identity, reads the desktop image back byte for byte, snapshots the boot
-files, installs alongside Windows into the freed space, checks the boot
-chain and writes `outcome.json`. `ROLLBACK.cmd` puts Windows first again
-from that snapshot. Every step writes a row under
-[docs/validation-results/](docs/validation-results/), by a harness, never
-by hand — including the runs that failed.
+**Key:** ✅ worked on a real machine · 🟢 works on the test rig (a VM) ·
+🟡 built, not tried yet · 📐 planned, not built · ⬜ not started
 
-**Two guardrails learned from the first physical machine (2026-09-13).**
-Its SSD said `Healthy` while Windows had logged 261 bad blocks on it and
-the drive itself reported 725 uncorrectable reads; the scan cmdlet said
-"no errors" while its own log said "found problems". The scanner now
-reads the disk error log, the SMART counters, the volume's own status and
-Windows' check log, and a drive like that is RED. The prologue refused it
-before any of that was read, for a weaker reason — the refusal path is the
-most-tested part of the tool.
+### Every step
 
-### The scanner: `evaluate`
+| Step | State | Proof |
+|---|---|---|
+| **Scanner**: checks, verdict, which Linux to use | ✅ | real hardware, plus saved machine recordings replayed on every self-test |
+| **Stick writer** (R16) | ✅ | [`r16-stick-writer.csv`](docs/validation-results/r16-stick-writer.csv): real writes, checked afterwards |
+| **OneDrive files** (V8) | 🟢 | [`v8-materialize.csv`](docs/validation-results/v8-materialize.csv): tested with a real cloud-files provider. *Decided 2026-09-26:* files that only live in OneDrive stay there, and `settle-in` signs you back in |
+| **Job writer**: `job.json`, installed programs, folder map, does it fit the stick | ✅ / 🟡 | [`harvest-folder-map.csv`](docs/validation-results/harvest-folder-map.csv). Wi-Fi, browsers, the BitLocker key and the clock are still to do |
+| **Boot handoff**: restart once into the stick (V0) | ✅ | [`v0-handoff.csv`](docs/validation-results/v0-handoff.csv): Acer, Secure Boot on, worked first time, no keypress |
+| **Walk-away restart**: keeps going after a restart with nobody signed in | ✅ | [`walkaway-probe.csv`](docs/validation-results/walkaway-probe.csv): never asks for your password |
+| **Live boot and hardware check** (V1) | ✅ | [`v1-live-boot.csv`](docs/validation-results/v1-live-boot.csv): right machine, screen, Wi-Fi (28 networks found), the whole image read back from the stick |
+| **Prologue**: re-check, disk repair, shrink, BitLocker | 🟢 / ✅ stops | [`r18-prologue.csv`](docs/validation-results/r18-prologue.csv): 7 runs on a real machine, and **every one stopped safely** before anything permanent |
+| **Install next to Windows** and check both boot (V1b) | 🟢 | [`v2-install.csv`](docs/validation-results/v2-install.csv): on the rig, Secure Boot off. The real one needs a laptop with a healthy drive |
+| **Undo, from the Windows side** | 🟢 | [`r21-rollback.csv`](docs/validation-results/r21-rollback.csv) |
+| **Erase and install**, one click, keep nothing (V9) | 🟢 / ❌ → fixed | [`v9-erase.csv`](docs/validation-results/v9-erase.csv): more below |
+| **Reading BitLocker drives from Linux** (V3) | 🟢 | [`v3-bitlk-read.csv`](docs/validation-results/v3-bitlk-read.csv): works using `ntfs-3g` |
+| **Spotting the RST / VMD disk setting** (V5) | 🟡 | [`v5-controller-mode.csv`](docs/validation-results/v5-controller-mode.csv): one side is tested for real, but **VMD itself has never been caught on a real machine** |
+| **`settle-in`**: first boot checks, copy files, clean-up | 📐 | only the BitLocker reading is proven |
+| **Clock, Wi-Fi passwords, the leftover Windows boot entry** | 📐 | planned 2026-09-26: collected on Windows, applied on first boot |
+| **Offer to delete Windows when it can't be kept** (R26) | 📐 | planned 2026-09-26 |
+| **Different laptop brands** | 1 of 4+ | Acer so far. Dell, Lenovo and HP still to go |
+| **Code signing** | ⬜ | until it's signed, Windows Defender treats it like malware |
 
-A read-only scanner. It tells you whether this specific machine can move to
-Linux, what will break, which distribution to use, and what to do first. It
-changes nothing, encrypts nothing, deletes nothing, and sends nothing anywhere.
+### What we're on now: one-click erase and install
 
-The scanner is deliberately two tools in one codebase: run standalone, it is a
-general advisory tool that recommends across distributions; run inside the
-converter, it becomes `evaluate` — the converter's own gates, its capacity
-checks, and (in v1) Fedora-only messaging. Same checks, one flag.
+*Picked 2026-09-26 as the first thing to get fully working end to end
+([R27](docs/RISKS.md), [V9](docs/VALIDATION.md)).* It wipes every drive
+inside the machine, installs Fedora, and keeps nothing. Bringing your files
+along is step two.
 
-The valuable output is not a yes/no. It's **the kernel version your hardware
-needs**, and which popular distributions fail to meet it.
+```mermaid
+flowchart LR
+    A["launcher +<br/>type the sentence"] --> B["pick KDE ·<br/>GNOME · text"] --> C["set a password,<br/>see your sign-in name"]
+    C --> D["restart, installer<br/>checks everything"] --> E{{"2-minute<br/>countdown"}}
+    E -- "cancel" --> F["nothing touched"]
+    E -- "hits zero" --> G["erase · install ·<br/>desktop"]
+```
 
-That distinction matters more than anything else here. A first-time user is
-almost always pointed at Linux Mint or Ubuntu LTS. On a 2024-or-newer laptop
-those ship a kernel too old for the Wi-Fi card, and the user boots into a system
-with no wireless, concludes Linux is broken, and reinstalls Windows. Nothing was
-broken. They picked a release from before their laptop existed.
+| Case | On the rig | On the Acer Aspire |
+|---|---|---|
+| Says no before the countdown | ✅ `refused-before-countdown` | |
+| Cancel during the countdown | ✅ `cancelled-untouched` (froze the first time, fixed in `verify.sh` 0.4.1) | |
+| Erase and install: KDE, GNOME, text-only | ✅ `erased-installed`, even over an old Ubuntu setup | ❌ **run 9:** wiped and installed on its own with Secure Boot on, but came up at a **text login** because the install recipe was missing the desktop login. Fixed in 0.3.0, and the rig now checks for it every time |
 
-| Check | Why it's there |
+**Up next:** run it on the Aspire again and land on the desktop. Run 9 also
+turned up three smaller things to fix: the installer's clock was 4 hours
+off, an old Windows entry got left in the boot menu, and when the installer
+refuses it shows a wall of error text instead of plain words.
+
+<details>
+<summary><b>What the Aspire has taught us so far</b> (the laptop with the dying drive)</summary>
+
+<br/>
+
+The first real test machine is an Acer Aspire A515-51G, and its SSD is on
+its way out: 725 reads it couldn't recover, and hundreds of bad blocks in
+Windows' logs. We're keeping it that way on purpose (decided 2026-09-20).
+It's the worst-case machine, run under the "I accept I could lose data"
+path ([R23](docs/RISKS.md)).
+
+- **"Healthy" wasn't.** Windows called the drive `Healthy` while its own
+  logs listed 261 bad blocks. Its disk check said "no errors" while its log
+  said "found problems". So now the scanner reads all of it: the error log,
+  the drive's own health counters, the volume status and the check log. A
+  drive like this is **RED**.
+- **Disks shift around.** Three attempts to shrink Windows got blocked by
+  three different files that wouldn't move. The best try freed 9.5 of the
+  25 GB needed. **Don't guess how much a disk can shrink. Measure it fresh
+  every time.** Keeping Windows isn't offered on this disk.
+- **Proven for real along the way:** carrying on after a restart with nobody
+  signed in, turning off the page file, putting Windows back exactly as it
+  was after a stop, a "stop" never turning into a wipe, and clearing and
+  rebuilding the change journal (+1.1 GB).
+
+</details>
+
+<details>
+<summary><b>What counts as proof here</b></summary>
+
+<br/>
+
+Something is only proven when a real machine or a primary source shows it.
+Sounding right doesn't count. Every row in
+[docs/validation-results/](docs/validation-results/) is written by a test
+script, never typed in by hand. A pass on the rig only proves the plumbing,
+because a simulated machine is built from our own guess about the hardware,
+and that guess is usually the thing being tested. Each risk says which part
+still needs real hardware.
+
+</details>
+
+---
+
+## The scanner: `evaluate`
+
+The scanner only looks, it never touches. It tells you if your machine can
+switch to Linux, what'll break, which Linux to pick, and what to do first.
+It doesn't change, encrypt, delete or send anything.
+
+The most useful thing it tells you isn't yes or no. It's **the Linux kernel
+version your hardware needs**, and which popular versions of Linux are too
+old for it.
+
+Here's why that matters. Beginners almost always get told to use Mint or
+Ubuntu. On a laptop from 2024 or later, those can come with a kernel that's
+too old for the Wi-Fi card. So you boot up, there's no Wi-Fi, you figure
+Linux is broken, and you go back to Windows. Nothing was broken. You just
+picked a version that's older than your laptop.
+
+| Check | Why |
 |---|---|
-| **Intel RST / VMD** | The SSD is invisible to every Linux installer. Looks like a broken installer, is actually a BIOS setting. The single most common false "Linux won't install". |
-| **Wi-Fi chipset** | Broadcom cards need a driver you can't download without a network connection you don't have yet. Recent MediaTek cards need kernel 6.7+. |
-| **Graphics** | New AMD APUs need a matching recent kernel or you get a black screen. NVIDIA needs a distro that installs the proprietary driver for you. |
-| **Smart audio amps** | Cirrus and TI amps mean headphones work and the internal speakers are silent. Extremely common on 2023+ laptops. |
-| **BitLocker** | Resize an encrypted disk without the recovery key and the data is gone permanently. |
-| **Fast Startup** | Windows hibernates instead of shutting down, leaving the partition unsafe to resize. Shutting down does not clear it. |
-| **Free space & staging size** | Which conversion path fits this machine: files-on-the-stick, or shrink-Windows-aside. (The shipped scanner still uses dual-boot-era wording here — being reworked, see RISKS R4.) |
-| **Installed software** | Adobe, Office, CAD, kernel anti-cheat games. The honest answer is sometimes "don't convert this machine." |
+| **Intel RST / VMD** | With this switched on, Linux can't see your SSD at all. It looks like the installer is broken, but it's really one BIOS setting. It's the most common fake "Linux won't install". |
+| **Drive health** | Reads the drive's health counters, the error log, the volume status and Windows' own check log. A dying drive is RED. |
+| **Wi-Fi card** | Broadcom cards need a driver you'd have to download, with the internet you don't have yet. Newer MediaTek cards need kernel 6.7 or newer. |
+| **Graphics** | New AMD chips need a recent kernel or you get a black screen. NVIDIA needs a Linux that installs its driver for you. |
+| **Speaker amps** | On laptops with Cirrus or TI amps, headphones work but the built-in speakers stay silent. Really common since 2023. |
+| **BitLocker** | Resize an encrypted disk without the recovery key and your data is gone for good. |
+| **Fast Startup** | Windows secretly hibernates instead of shutting down, which makes the disk unsafe to resize. Clicking Shut down doesn't fix it. |
+| **Free space** | Measured two separate ways (run as admin) to see which route fits your machine. |
+| **Your programs** | Adobe, Office, CAD, games with anti-cheat. Sometimes the honest answer is "don't switch this one." |
 
-Unrecognised devices are listed at the end of the report so they can be
-contributed back.
+Anything it doesn't recognise gets listed at the bottom of the report, so
+you can send it in and help the next person.
 
-### Running it
+### Try it
 
-Download `dist/upgrade-scan.ps1`, then in PowerShell:
+Download [`dist/upgrade-scan.ps1`](dist/upgrade-scan.ps1) and run this in
+PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\upgrade-scan.ps1
 ```
 
-The report prints to the screen and saves to your Desktop.
-
-```powershell
--Json          # also write machine-readable JSON
--NoFile        # print only, save nothing
--OutDir <path> # save somewhere other than the Desktop
--SelfTest      # run the built-in logic tests
+```text
+-Json          also save a JSON copy
+-NoFile        just print it, don't save
+-OutDir <path> save it somewhere other than the Desktop
+-SelfTest      run the built-in tests
 ```
 
-**Run it as Administrator if you can.** Without elevation, Windows refuses to
-report BitLocker status, and the scanner cannot tell you whether your disk is
-encrypted — the one unknown that can cost you everything. It still runs fine
-unelevated; it just caps its verdict and says so.
+> [!TIP]
+> **Run it as Administrator if you can.** Otherwise Windows won't say
+> whether your disk is encrypted, and that's the one thing that can cost you
+> everything. It still works without admin, it just won't give you a full
+> green light and tells you why.
 
 ---
 
 ## First principle
 
-**Be honest about machines we can't do safely, and refuse them.**
+> **If we can't do your machine safely, we say so and stop.**
 
-There is no override flag for a RED verdict. One narrow, dated exception
-exists (2026-09-13, [RISKS R23](docs/RISKS.md)): a person who has already
-copied their files off a machine refused for its *drive* may type a fixed
-sentence on a separate launcher; it lifts those two refusals and no other,
-and everything it writes afterwards says DATA LOSS ACCEPTED. Widening it is
-what the rule forbids. The converter runs from a single USB stick and refuses machines it cannot fit
-— files too large for the stick and too little space to shrink Windows aside —
-but the refusal is a **gap report**, not a door slam: exactly how many GB to
-free or what stick size would change the answer. It will refuse machines with
-Intel RST/VMD active, because that setting cannot be changed safely from
-software on every vendor's firmware.
+**There's no way to skip a RED.**
 
-This still turns away real users, and that is the correct trade. A tool like this
-earns trust once and spends it permanently the first time it destroys someone's
-photos. Any component that writes to a disk has to clear a far higher bar than
-the scanner does — which is why they were written last, behind the evidence,
-and why each refusal is tested harder than each success.
+There's one small exception, dated 2026-09-13 ([RISKS R23](docs/RISKS.md)).
+If a machine gets turned down because of its drive, you can type out a
+specific sentence on a separate launcher. That unlocks exactly two
+refusals, drive health and volume health, and nothing else. From then on
+every screen says **DATA LOSS ACCEPTED**. Making that exception any bigger
+is exactly what this rule is here to stop.
 
----
+When it says no, it tells you what would change its mind: how many GB to
+free up, or what size stick you'd need. It'll still turn away machines with
+Intel RST/VMD switched on, because that setting can't be changed safely from
+software on every brand of laptop.
 
-## Status
+Yes, that means turning some people away. That's the right call. A tool
+like this gets trusted once, and loses that trust forever the first time it
+wipes someone's photos. So anything that writes to a disk has to meet a much
+higher bar than the scanner. That's why those parts got built last, only
+after the proof was in, and why every "no" gets tested harder than every
+"yes".
 
-| Component | State |
-|---|---|
-| `evaluate` — scanner (checks, verdict, distro recommendation) | **works**, tested on real hardware |
-| `evaluate` — state harvester (locale, folders, Wi-Fi, browsers, capacity) | **works**, read-only |
-| `evaluate` — OneDrive placeholder materialization (V8) | **works**, plumbing-fired against a real Cloud Files provider |
-| `evaluate` — job writer (`job.json`, the software inventory) | **works**; harvest of folders/Wi-Fi/browsers into the job, the BitLocker key and the intent UI still owed |
-| `evaluate` — stick writer (R16) | **works**, two physical writes verified |
-| `upgrade_` — prologue: re-validate, disk check, shrink, BitLocker, boot handoff | **works** on the rig (`r18-prologue.csv`); six physical rows on the Aspire (2026-09-13..26), every one a stop before anything irreversible: two at the disk check, three at the shrink and one at clean slate's unbuilt confirm gate. On real hardware: the walk-away resume, the pagefile rung, the stop that puts Windows back (0.5.1, proven), "stop" never becoming a wipe (0.8.0, held) and the change-journal rung (fired, +1.1 GB); restore-point deletion ran and deleted nothing (0.9.0 now records why - unfired), and the Windows Update gate (0.9.0) has not yet met a waiting update. Keep-Windows is refused on that disk (best 9.5 of 25 GB, R18). The shrink and the handoff have not yet run from the prologue on real hardware |
-| `upgrade_` — cutover: identity, image read-back, ESP snapshot, install alongside, boot-chain check, `outcome.json` | **works** on the rig (`v2-install.csv`), Secure Boot off there; the physical Secure-Boot-on install is owed |
-| `upgrade_` — rollback (Windows side) | **works** on the rig (`r21-rollback.csv`) |
-| `upgrade_` — clean-slate path (wipe) | stops before the wipe on purpose: its human gate is not built |
-| `settle-in` — hardware verify, file pull, reclaim, software matching | designed; the BITLK read is bench-proven (`v3-bitlk-read.csv`) |
-| Physical vendor matrix | one machine (Acer, InsydeH2O); Dell, Lenovo, HP owed |
-| Code signing | not started; unsigned binaries look like malware to Defender |
-
-Known unknowns are tracked openly in [docs/RISKS.md](docs/RISKS.md) — what is
-unverified, what would happen if each risk is real, and what evidence would
-close it. The ordered plan for closing the load-bearing ones — what must be
-proven before anything else gets built — is
-[docs/VALIDATION.md](docs/VALIDATION.md). Read both before trusting any single
-check. Notably: **VMD detection has
-never fired on real hardware**, and it guards the most consequential case.
-
-Also on the list, and not a code problem: the finished converter will need a
-code-signing certificate. Behaviourally it elevates, reads recovery keys,
-writes raw USB devices, resizes partitions and rewrites boot configuration —
-indistinguishable from malware to Defender. Unsigned, it gets quarantined and
-the people it's built for stop there.
+What we don't know yet is all written down in [docs/RISKS.md](docs/RISKS.md),
+and the plan for finding out is in [docs/VALIDATION.md](docs/VALIDATION.md).
+Give both a read before trusting any single check.
 
 ---
 
-## Development
+## Roadmap
 
+- [x] Restart once into the stick, Secure Boot on, on a real machine
+- [x] Schemas, install recipe generator, stick writer, image read back from the stick
+- [x] Disk check, shrink and handoff; install next to Windows; undo. All on the rig
+- [x] Keep going after a restart with nobody signed in, on a real machine
+- [x] Folder map, and checking your files fit on the stick
+- [ ] **0. One-click erase and install.** Passes on the rig. Still need a real run that ends at the desktop, plus three small fixes
+- [ ] **1. A real keep-Windows install with Secure Boot on.** Needs a laptop with a healthy drive
+- [ ] **2. `settle-in`:** hardware check on first boot, copying your files (unlock BitLocker, copy, double-check), a "you used these programs, here's the Linux version" list, clock and Wi-Fi setup, undo from the Linux side, clean-up
+- [ ] **3. The rest of the collecting:** Wi-Fi, browsers, the BitLocker key, the clock, a screen that asks what you want
+- [ ] **4. A proper window** instead of the black console (WPF inside Windows PowerShell 5.1, decided 2026-09-13. Screens get designed first)
+- [ ] **5. More brands:** Dell, Lenovo and HP, half an hour each, look but don't touch
+- [ ] **6. Code signing.** This one just takes time, not code, so start now
+- [ ] **7. Rescue mode** for machines turned down because of their drive: copy off whatever can still be read, and check every copy
+- [ ] **8. Offer to delete Windows when it can't be kept** (planned 2026-09-26, R26)
+
+<details>
+<summary>Further out</summary>
+
+<br/>
+
+Fill the hardware list from [linux-hardware.org](https://linux-hardware.org)
+instead of by hand, and let people opt in to sharing how their switch went,
+so the list gets smarter with every one.
+
+</details>
+
+---
+
+## Working on it
+
+```text
+data/              what we know about hardware (most contributions go here)
+  devices.ps1        Wi-Fi, graphics, audio and storage quirks, by PCI ID
+  distros.ps1        kernel versions per Linux release (keep it fresh)
+schemas/           job.json / outcome.json formats (change rarely, review hard)
+evaluate/windows/  scanner, harvester, job writer, saved machines (corpus/)
+upgrade_/windows/  prologue, undo, install recipe generator, launchers
+upgrade_/linux/    installer checks, outcome writer
+settle-in/         first boot on Linux (not built yet)
+docs/              architecture.md · RISKS.md · VALIDATION.md · validation-results/
+dist/              the single scanner file people download
 ```
-data/                   knowledge base — most contributions land here
-  devices.ps1             hardware: Wi-Fi, GPU, audio, storage quirks
-  distros.ps1             distribution kernel table (goes stale — refresh it)
-schemas/                contracts between modules (change rarely, review hard)
 
-evaluate/               module 1 — read the machine, capture intent, refuse
-  windows/                scanner + state harvester
-upgrade_/               module 2, "the converter" — does the conversion
-  windows/                prologue: stage to stick or shrink aside, boot handoff
-  linux/                  cutover: install, inject, (clean-slate) restore
-settle-in/              module 3 — verify hardware, pull files home, hand over
-  linux/
+Run the scanner straight from `evaluate/windows/upgrade-scan.ps1` (it loads
+`data/` from disk), or build the single file with `./build.sh`.
 
-build.sh                inlines data/ into dist/upgrade-scan.ps1
-dist/upgrade-scan.ps1   the built single file people download
-docs/architecture.md    how the three modules fit together
-docs/RISKS.md           what is unverified and what would close it
-```
+Everything targets **Windows PowerShell 5.1**, because that's what comes
+with every Windows 10 and 11 machine. So no PowerShell 7 tricks: no
+ternaries, no `??`, no `-Parallel`. If it needs setting up first, it won't
+run on the machines that matter.
 
-Run from source with `evaluate/windows/upgrade-scan.ps1` (it loads `data/` from
-disk), or build the standalone single file:
-
-```bash
-./build.sh
-```
-
-Targets Windows PowerShell 5.1, which ships on every Windows 10 and 11 install.
-No PowerShell 7 syntax — no ternaries, no null-coalescing. If it doesn't run on
-a stock machine, it doesn't run where it matters.
-
-Before opening a PR:
+Before you open a PR, run both self-tests from `evaluate/windows/`:
 
 ```powershell
-.\evaluate\windows\upgrade-scan.ps1 -SelfTest
+.\upgrade-scan.ps1 -SelfTest
+.\Harvest-UpgradeState.ps1 -SelfTest
 ```
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Adding a device is a one-line change to
-a table in `data/`. That's the point — the hardware database is the part that
-only gets good with many people, and it's the part that makes every future
-report better.
+Check out [CONTRIBUTING.md](CONTRIBUTING.md). Adding a device is one line in
+a table in `data/`, with a source ("it should work" isn't a source). That's
+on purpose. The hardware list only gets good when lots of people add to it,
+and it's what makes every future report better.
 
-The most useful thing you can contribute right now is **a report from a machine
-that isn't mine.** Everything here has been verified against a single laptop;
-every refusal path is currently tested only synthetically.
-
-## Roadmap
-
-Done, with rows: the spine spike, the schemas, the kickstart generator,
-the live image on the stick with byte-for-byte read-back, the stick
-writer, the prologue (disk check, shrink, handoff), the alongside
-install with the boot-chain checklist, rollback. Next, in order:
-
-0. **The one-click erase and install** (decided 2026-09-26, the owner's
-   first end-to-end target; RISKS R27, VALIDATION V9) — erase every
-   internal drive and install Fedora, keeping nothing: its own launcher,
-   a typed sentence, a menu of KDE / GNOME / text console, the password
-   with the sign-in name shown, and a 2-minute cancellable countdown in
-   the installer as the commit line. **Rig: every arm passes. Physical:
-   the Aspire's run 9 erased and installed unattended but came up at a
-   text login - a one-click failure, fixed; a physical re-run is owed.**
-   Carrying files across is stage 2.
-1. **A physical keep-Windows install, Secure Boot on** — on a machine with
-   a healthy drive. This is the V1b residue and the row the whole default
-   path waits for. It needs **another machine**: the Aspire keeps its
-   dying drive as the bad-conditions machine (decided 2026-09-20; a plan
-   the same day to swap its M.2 SATA drive was superseded), and
-   keep-Windows is refused on its disk. There, runs 4-7 (2026-09-20..26,
-   acknowledged-data-loss path, R18, R23) all stopped before anything
-   irreversible, best 9.5 of 25 GB, with three different files in the way
-   as the disk changed. What they proved on real hardware: the walk-away
-   resume, the pagefile rung, the stop that puts Windows back (0.5.1),
-   "stop" never becoming a wipe (job writer 0.8.0) and the change-journal
-   rung (0.8.0). Built and not yet fired: restore-point deletion that
-   records Windows' answer, and the Windows Update gate (prologue 0.9.0,
-   R25).
-2. **`settle-in`** — hardware verify on first boot, the file pull from the
-   kept Windows partition (BITLK unlock, copy, checksum), the "you had
-   these programs" list with Linux equivalents from the software
-   inventory, the Linux-side rollback, and reclaim.
-3. **The harvest into `job.json`** — folders, Wi-Fi profiles, browser
-   profiles, the BitLocker key, and the intent-capture screen that asks
-   the person for a desktop, a password and the fork. **The folder map
-   is in (2026-09-26):** the six folders with their sizes, the OneDrive
-   check, whose folders they are, and whether they fit the stick; the
-   job writer refuses when any of those could be wrong. Still owed: the
-   launcher step that downloads OneDrive online-only files (consent text
-   first), Wi-Fi, browsers, the key, the intent screen.
-4. **The front door: one window instead of the console** — a managed
-   experience means the person never sees a black window. **Decided
-   (2026-09-13):** the Windows-side face is a WPF window hosted inside
-   Windows PowerShell 5.1 (no new binary, no new toolchain, same
-   signature, still readable in Notepad); a native .NET Framework app is
-   the later phase once code signing (item 5) has reputation, and a
-   PS2EXE-style wrapper is ruled out for the antivirus flags it draws.
-   The window is a shell over the tested scripts: it renders the
-   scanner's JSON, calls the job writer, the kickstart generator and the
-   prologue in the order the launchers already do, refuses on RED with
-   no forward button, and takes the R23 sentence as typed text. Nothing
-   after the restart is shown live (the resume runs as SYSTEM in
-   session 0); the sign-in notice stays the return path. Screens are
-   designed before they are built, and the build waits for items 1–3.
-   Estimate: about eight focused days to a proof of concept.
-5. **The vendor matrix** — Dell, Lenovo, HP visits: scan, handoff, live
-   boot, hardware verify, half an hour each, read-only.
-6. **Code signing** — a calendar item, not a code item; start now.
-7. A **rescue mode** for machines refused for their drive: the staging
-   step alone, reading what can be read onto the stick with checksums.
-8. **The offer to discard Windows when it cannot be kept** — designed
-   2026-09-26, not built (`architecture.md`, "When Windows cannot be
-   kept"; RISKS R26). At CONVERT the person picks *stop* (default) or
-   *ask me then*; if the shrink cannot fit, the prologue stops as today
-   and, at the next sign-in, shows the real numbers and the folders that
-   would be kept, and deletes Windows only after a typed sentence - never
-   when the files do not fit the stick, and the wipe still waits for the
-   live-session checks. Built after items 1 and 3.
-
-Longer term: hardware data seeded from
-[linux-hardware.org](https://linux-hardware.org) probes rather than hand-curated,
-and opt-in outcome reporting so the database learns from real conversions.
+**The best thing you can do right now: run the scanner on your machine and
+send the report.** Apart from the Aspire, every "no" has only ever been
+tested with made-up machines.
 
 ## Licence
 
-GPL-3.0 — see [LICENSE](LICENSE).
+GPL-3.0, see [LICENSE](LICENSE).
 
-A note on that choice: this project's trust model is "read the source", and
-copyleft guarantees every fork stays readable. The nightmare scenario is a
-closed fork that quietly softens the refusals while wearing this project's
-earned trust; GPL-3.0 is the licence that forbids it. (It was MIT briefly —
-switched while the contributor count was one, exactly when the old README
-said it would be cheap.)
+The whole deal here is "read the code yourself", and GPL makes sure every
+copy of it stays readable. The nightmare is someone making a closed copy
+that quietly softens the safety checks while riding on this project's good
+name. GPL-3.0 rules that out.
