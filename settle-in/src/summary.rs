@@ -117,8 +117,9 @@ pub fn text(sec: &Value) -> String {
         for l in s["lines"].as_array().cloned().unwrap_or_default() {
             t.push_str(&format!("  {}\n", l.as_str().unwrap_or("")));
         }
-        if let Some(b) = s["button"].as_str() {
-            t.push_str(&format!("  [ {} ]\n  {}\n", b, s["button_note"].as_str().unwrap_or("")));
+        // at a console the button is the question that follows (rig run 4: the bracket line was redundant)
+        if s["button"].as_str().is_some() {
+            t.push_str(&format!("  {}\n", s["button_note"].as_str().unwrap_or("")));
         }
     }
     t
@@ -160,7 +161,6 @@ Wi-Fi
 
 The old Windows startup entry
   Windows is gone, but the computer's startup menu still lists \"Windows Boot Manager\". Choosing it would do nothing.
-  [ Remove the old Windows startup entry ]
   You will be asked for your password.
 ";
         assert_eq!(t, want);

@@ -854,6 +854,18 @@ planted in the job, `v9-job.py --spoof-wifi`; plumbing only):**
   files matched the job field by field (hidden, auto-connect, security,
   mode 600). KDE's Welcome Center opens on top of the window (a finding).
 
+- **Run 4 (line 5) `[FAIL]`, the text console (the harness).** The
+  verdict found no capture: the rig's boot marker waited 120 s for a
+  desktop sign-in manager that the console path never starts, and the
+  restarts cut it off before it wrote. The screenshots
+  (`artifacts/v9/C4-settle/console-*.png`, gitignored) show the path
+  working: at the first console sign-in the approved words, the question,
+  "yes", the password at the text prompt, "Removed."; the next boot
+  started Fedora; the second sign-in showed nothing. Fixed: the marker
+  waits for a display manager only when the system starts at the desktop.
+  The console no longer prints the window's button line above the
+  question.
+
 **Residue the rig cannot close.** Hyper-V's hardware clock already holds
 UTC, so on the rig the clock step is correctly "not needed" and the
 correction itself (the Aspire's 4-hour case) is proven only by the tests.

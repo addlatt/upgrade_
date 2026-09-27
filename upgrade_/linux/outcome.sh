@@ -318,7 +318,9 @@ cur=$(efibootmgr 2>/dev/null | awk '/BootCurrent/{print $2}')
 sha=$(sha256sum /boot/efi/EFI/Microsoft/Boot/bootmgfw.efi 2>/dev/null | cut -c1-64)
 # V9 (R27): the account the job created - a fingerprint of its stored hash, never the hash itself - and where /home lives
 u=$(cat /etc/upg-mark.user 2>/dev/null); pw=$(getent shadow "$u" 2>/dev/null | cut -d: -f2 | tr -d '\n' | sha256sum | cut -c1-64)
-tgt=$(systemctl get-default 2>/dev/null); dm=inactive; for i in $(seq 1 60); do dm=$(systemctl is-active display-manager 2>/dev/null); [ "$dm" = active ] && break; sleep 2; done
+# wait for a display manager only when the system starts at the desktop: on the console path none
+# starts, and a 120 s wait let the next restart cut the marker off before it wrote (rig run 4, 2026-09-27)
+tgt=$(systemctl get-default 2>/dev/null); dm=inactive; [ "$tgt" = graphical.target ] && for i in $(seq 1 60); do dm=$(systemctl is-active display-manager 2>/dev/null); [ "$dm" = active ] && break; sleep 2; done
 hsrc=$(findmnt -no SOURCE /home 2>/dev/null); hdisk=$( [ -n "$hsrc" ] && lsblk -no PKNAME "$hsrc" 2>/dev/null | head -1 ); rdisk=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)" 2>/dev/null | head -1)
 # settle-in's first startup (2026-09-27): its report, what NetworkManager itself parsed from the
 # files it wrote, the clocks, and the order the services started - captured once, to the stick
