@@ -66,7 +66,9 @@
       "kernel": "6.14.0-63.fc42.x86_64",
       "root_partition": "/dev/sda3",
       "esp_reused": false,
-      "artifacts_injected": []
+      "artifacts_injected": [],
+      "boot_target": "graphical.target",
+      "display_manager": "sddm.service"
     },
     "boot_chain": {
       "windows_entry_present": false,

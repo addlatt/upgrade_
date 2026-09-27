@@ -16,7 +16,7 @@
 # settle-in to show, and Windows stays reachable from the GRUB menu.
 set -u
 JOB=${1:?job.json}
-OUTCOME_VERSION=0.3.0
+OUTCOME_VERSION=0.3.1
 STICK=/run/install/repo
 SYSROOT=/mnt/sysroot
 REPORT=$STICK/upgrade_/report
@@ -98,6 +98,11 @@ echo "== grub.cfg windows entries: $n"
 
 # --- 4. facts for outcome.json ----------------------------------------------------
 KERNEL=$(ls "$SYSROOT/lib/modules" 2>/dev/null | sort -V | tail -1)
+# what the person sees at first boot: the desktop's sign-in, or a text console
+# (the Aspire's run 9, 2026-09-26, got the console - one click must not)
+BOOT_TARGET=$(basename "$(readlink "$SYSROOT/etc/systemd/system/default.target" 2>/dev/null)" 2>/dev/null)
+DM=$(basename "$(readlink "$SYSROOT/etc/systemd/system/display-manager.service" 2>/dev/null)" 2>/dev/null)
+echo "== installed system boots to: ${BOOT_TARGET:-unknown}, display manager: ${DM:-none}"
 ROOTDEV=$(findmnt -no SOURCE "$SYSROOT" 2>/dev/null)
 RELEASE=$(grep -oE 'VERSION_ID=.*' "$SYSROOT/etc/os-release" 2>/dev/null | cut -d= -f2 | tr -d '"')
 WINPART=""; WINGUID=""; WINSIZE=0; WINNUM=0
@@ -137,7 +142,7 @@ echo "== prologue record: ${PROLOGUE_REC:-none (placeholders)}"
 UPG_PROLOGUE_REC="$PROLOGUE_REC" UPG_PATH="$PATH_CHOSEN" UPG_VERSION="$OUTCOME_VERSION" UPG_WIN_PRESENT="$WIN_PRESENT" UPG_WIN_RECREATED="$WIN_RECREATED" \
 UPG_LINUX_FIRST="$LINUX_FIRST" UPG_BOOTMGFW_OK="$BOOTMGFW_OK" UPG_GRUB_WIN="$GRUB_WIN" UPG_FALLBACK="$FALLBACK" \
 UPG_KERNEL="$KERNEL" UPG_ROOTDEV="$ROOTDEV" UPG_RELEASE="$RELEASE" UPG_WINPART="$WINPART" UPG_WINGUID="$WINGUID" \
-UPG_WINSIZE="$WINSIZE" UPG_WINNUM="$WINNUM" UPG_ERASE="$ERASE" UPG_SCRUBBED="$SCRUBBED" UPG_COUNTDOWN="$REPORT/countdown.json" \
+UPG_WINSIZE="$WINSIZE" UPG_WINNUM="$WINNUM" UPG_ERASE="$ERASE" UPG_SCRUBBED="$SCRUBBED" UPG_COUNTDOWN="$REPORT/countdown.json" UPG_BOOT_TARGET="$BOOT_TARGET" UPG_DM="$DM" \
 python3 - "$JOB" "$REPORT/verify.json" "$STICK/upgrade_/outcome.json" <<'EOF'
 import json, sys, os, datetime
 E = os.environ.get
@@ -167,7 +172,8 @@ o = {
     "identity_verified": v.get("identity", {}).get("result") == "pass",
     "stick_verified": {"files": 1 if pl.get("result") == "pass" else 0, "bytes": 0, "failed": [] if pl.get("result") == "pass" else [pl.get("image", "")]},
     "hardware": {"display": hw.get("display", "skipped"), "wifi": hw.get("wifi", "skipped"), "audio_firmware": hw.get("audio_firmware", "skipped"), "human_gate": "not-required"},
-    "install": {"distro": "fedora", "release": E("UPG_RELEASE") or "42", "kernel": E("UPG_KERNEL", ""), "root_partition": E("UPG_ROOTDEV", ""), "esp_reused": keep, "artifacts_injected": []},
+    "install": {"distro": "fedora", "release": E("UPG_RELEASE") or "42", "kernel": E("UPG_KERNEL", ""), "root_partition": E("UPG_ROOTDEV", ""), "esp_reused": keep, "artifacts_injected": [],
+                "boot_target": E("UPG_BOOT_TARGET") or "unknown", "display_manager": E("UPG_DM") or None},
     "boot_chain": {"windows_entry_present": win_present, "windows_entry_recreated": b("UPG_WIN_RECREATED"), "linux_first_in_bootorder": b("UPG_LINUX_FIRST"),
                    "bootmgfw_matches_snapshot": b("UPG_BOOTMGFW_OK"), "grub_lists_windows": grub_win, "fallback_loader": E("UPG_FALLBACK", "other")}
   },
@@ -225,8 +231,9 @@ cur=$(efibootmgr 2>/dev/null | awk '/BootCurrent/{print $2}')
 sha=$(sha256sum /boot/efi/EFI/Microsoft/Boot/bootmgfw.efi 2>/dev/null | cut -c1-64)
 # V9 (R27): the account the job created - a fingerprint of its stored hash, never the hash itself - and where /home lives
 u=$(cat /etc/upg-mark.user 2>/dev/null); pw=$(getent shadow "$u" 2>/dev/null | cut -d: -f2 | tr -d '\n' | sha256sum | cut -c1-64)
+tgt=$(systemctl get-default 2>/dev/null); dm=inactive; for i in $(seq 1 60); do dm=$(systemctl is-active display-manager 2>/dev/null); [ "$dm" = active ] && break; sleep 2; done
 hsrc=$(findmnt -no SOURCE /home 2>/dev/null); hdisk=$( [ -n "$hsrc" ] && lsblk -no PKNAME "$hsrc" 2>/dev/null | head -1 ); rdisk=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)" 2>/dev/null | head -1)
-printf 'linux-boot,%s,%s,BootCurrent=%s,bootmgfw_sha256=%s,user=%s,pw_sha256=%s,home_dir=%s,home_disk=%s,root_disk=%s\n' "$(date -u +%FT%TZ)" "$(uname -r)" "$cur" "$sha" "$u" "$pw" "$([ -d "/home/$u" ] && echo present || echo missing)" "${hdisk:-none}" "$rdisk" >> /mnt/upgstick/upgrade_/boots.log
+printf 'linux-boot,%s,%s,BootCurrent=%s,bootmgfw_sha256=%s,user=%s,pw_sha256=%s,home_dir=%s,home_disk=%s,root_disk=%s,default_target=%s,display_manager=%s\n' "$(date -u +%FT%TZ)" "$(uname -r)" "$cur" "$sha" "$u" "$pw" "$([ -d "/home/$u" ] && echo present || echo missing)" "${hdisk:-none}" "$rdisk" "$tgt" "$dm" >> /mnt/upgstick/upgrade_/boots.log
 auto=0; [ -e /mnt/upgstick/upgrade_/autoshutdown ] && auto=1
 sync; umount /mnt/upgstick
 [ "$auto" = 1 ] && systemctl poweroff

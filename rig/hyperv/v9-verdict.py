@@ -24,7 +24,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 D = A / ("arm-" + ARM)
 HEADER = ["timestamp", "arm", "firmware", "prologue_version", "verify_version", "identity", "countdown", "outcome_status",
           "stopped_at", "commit_crossed", "outcome_valid", "disks_unchanged", "system_gpt_after", "home_gpt_after",
-          "fedora_booted", "password_matches", "home_on_second_disk", "result", "notes"]
+          "fedora_booted", "password_matches", "home_on_second_disk", "result", "notes", "graphical_login"]
 
 def load(p):
     try: return json.load(open(p, encoding="utf-8-sig"))
@@ -55,7 +55,7 @@ ov = valid(o, "outcome")
 unchanged = same(pre, after)
 sys_after, home_after = gpt_summary(after, "system"), gpt_summary(after, "home")
 
-booted = pw_ok = home_ok = "n/a"
+booted = pw_ok = home_ok = gui_ok = "n/a"
 boots = D / "boots.log"
 if boots.exists():
     lines = [l.strip() for l in open(boots, encoding="utf-8-sig", errors="replace") if l.startswith("linux-boot")]
@@ -65,6 +65,9 @@ if boots.exists():
         want = hashlib.sha256((job or {}).get("intent", {}).get("account", {}).get("password_hash", "").encode()).hexdigest()
         pw_ok = "y" if f.get("pw_sha256") == want else "n"
         home_ok = "y" if f.get("home_dir") == "present" and f.get("home_disk") not in (None, "none", f.get("root_disk")) else "n"
+        # one click ends at the desktop's sign-in (2026-09-26): graphical target AND the display manager running
+        gui_ok = "y" if f.get("default_target") == "graphical.target" and f.get("display_manager") == "active" else ("n" if "default_target" in f else "not-recorded")
+        notes.append("first boot: default_target=%s display_manager=%s" % (f.get("default_target"), f.get("display_manager")))
         notes.append("boot marker: user=%s home_disk=%s root_disk=%s" % (f.get("user"), f.get("home_disk"), f.get("root_disk")))
 
 if ARM == "A":
@@ -78,7 +81,7 @@ else:
     same_time = elapsed_at and (o or {}).get("commit_line", {}).get("crossed_utc") == elapsed_at
     sys_ok = sys_after.startswith("EFI_System") and sys_after.count("Linux") >= 2 and "Microsoft" not in sys_after
     home_gpt_ok = home_after.count("Linux") == 1 and "+" not in home_after
-    ok = countdown == "elapsed" and status == "completed" and ov == "y" and same_time and sys_ok and home_gpt_ok and booted == "y" and pw_ok == "y" and home_ok == "y"
+    ok = countdown == "elapsed" and status == "completed" and ov == "y" and same_time and sys_ok and home_gpt_ok and booted == "y" and pw_ok == "y" and home_ok == "y" and gui_ok == "y"
     if not same_time: notes.append("crossed_utc %s vs countdown end %s" % ((o or {}).get("commit_line", {}).get("crossed_utc"), elapsed_at))
     result = "erased-installed" if ok else "fail"
 if o and o.get("reason"): notes.append("reason: " + o["reason"])
@@ -88,8 +91,14 @@ row = {"timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m
        "verify_version": (v or {}).get("verify_version", "n/a"), "identity": identity, "countdown": countdown,
        "outcome_status": status, "stopped_at": stopped_at, "commit_crossed": crossed, "outcome_valid": ov,
        "disks_unchanged": unchanged, "system_gpt_after": sys_after, "home_gpt_after": home_after,
-       "fedora_booted": booted, "password_matches": pw_ok, "home_on_second_disk": home_ok, "result": result, "notes": " | ".join(notes)}
+       "fedora_booted": booted, "password_matches": pw_ok, "home_on_second_disk": home_ok, "graphical_login": gui_ok, "result": result, "notes": " | ".join(notes)}
 new = not CSV.exists()
+if not new:
+    old = list(csv.DictReader(open(CSV)))
+    if old and list(old[0].keys()) != HEADER:   # a column added later: earlier rows did not record it
+        with open(CSV, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=HEADER, quoting=csv.QUOTE_ALL); w.writeheader()
+            for r in old: w.writerow({k: r.get(k, "not-recorded") for k in HEADER})
 with open(CSV, "a", newline="") as f:
     w = csv.DictWriter(f, fieldnames=HEADER, quoting=csv.QUOTE_ALL)
     if new: w.writeheader()

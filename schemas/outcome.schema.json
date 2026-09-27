@@ -604,6 +604,20 @@
               "items": {
                 "type": "string"
               }
+            },
+            "boot_target": {
+              "description": "What the installed system boots to (2026-09-26, the Aspire's run 9 booted to a text console): a completed conversion ends at the desktop's graphical sign-in.",
+              "enum": [
+                "graphical.target",
+                "multi-user.target",
+                "unknown"
+              ]
+            },
+            "display_manager": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         },
@@ -1090,6 +1104,37 @@
             "properties": {
               "crossed": {
                 "const": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "One click ends at the desktop's sign-in: a completed conversion boots to graphical.target (2026-09-26).",
+      "if": {
+        "properties": {
+          "status": {
+            "const": "completed"
+          }
+        },
+        "required": [
+          "cutover"
+        ]
+      },
+      "then": {
+        "properties": {
+          "cutover": {
+            "properties": {
+              "install": {
+                "required": [
+                  "boot_target"
+                ],
+                "properties": {
+                  "boot_target": {
+                    "const": "graphical.target"
+                  }
+                }
               }
             }
           }

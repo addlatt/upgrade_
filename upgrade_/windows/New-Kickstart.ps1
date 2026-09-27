@@ -41,7 +41,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$KsGenVersion = '0.2.0'
+$KsGenVersion = '0.3.0'
 
 function Test-KsJob {
     # The shape checks a PS 5.1 host can do without a JSON Schema validator:
@@ -101,6 +101,11 @@ function New-Kickstart {
     $L.Add('selinux --enforcing')
     $L.Add('firewall --enabled')
     $L.Add('services --enabled=NetworkManager')
+    # One click ends at the desktop's sign-in, never a text console (2026-09-26,
+    # the Aspire's run 9: without this, an installer run in text mode leaves
+    # the installed system booting to multi-user.target - a "fedora login:"
+    # prompt the person had to type a command past). %post sets it again.
+    $L.Add('xconfig --startxonboot')
     $L.Add('')
     $L.Add('# identity + hardware verification, then the storage %include. With')
     $L.Add('# upg.mode=verify on the command line this reports and reboots - no install.')
@@ -125,6 +130,8 @@ function New-Kickstart {
         $L.Add('grub2-mkconfig -o /boot/grub2/grub.cfg')
         $L.Add("grep -c -i windows /boot/grub2/grub.cfg > /root/upgrade_-grub-windows-entries.txt || true")
     }
+    $L.Add('systemctl set-default graphical.target')
+    $L.Add('systemctl get-default > /root/upgrade_-default-target.txt 2>&1 || true')
     $L.Add('efibootmgr -v > /root/upgrade_-efibootmgr.txt 2>&1 || true')
     $L.Add('%end')
     $L.Add('')
@@ -175,6 +182,8 @@ function Invoke-SelfTest {
         @{ Name = 'a manifest adds --checksum for the chosen desktop image'
            Run = { $m = @('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  ./upgrade_/LiveOS/kde.squashfs', 'ffff  ./upgrade_/LiveOS/gnome.squashfs')
                    (New-Kickstart -Job $keep -Label 'UPGV0' -ManifestLines $m) -match '(?m)^liveimg --url=file:///run/install/repo/upgrade_/LiveOS/kde\.squashfs --checksum=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef$' }; Expect = $true }
+        @{ Name = 'the installed system boots to the graphical sign-in (xconfig, and %post sets the target) - never a text console'
+           Run = { ($ksK -match '(?m)^xconfig --startxonboot$') -and ($ksK -match '(?m)^systemctl set-default graphical\.target$') -and ($ksC -match '(?m)^xconfig --startxonboot$') }; Expect = $true }
         @{ Name = 'a manifest without the image adds no checksum (never a guess)'
            Run = { (New-Kickstart -Job $keep -Label 'UPGV0' -ManifestLines @('ffff  ./other')) -notmatch '--checksum' }; Expect = $true }
     )
