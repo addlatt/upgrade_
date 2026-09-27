@@ -62,7 +62,7 @@ if "--spoof-wifi" in opts:
         {"name": "Rig;Open", "ssid": "Rig;Open", "ssid_hex": "5269673B4F70656E", "hidden": True, "windows_auth": "open/none",
          "key_mgmt": "none", "supported": True, "autoconnect": False, "why_not": None, "secrets_file": None},
         {"name": "RigSpoof Work", "ssid": "RigSpoof Work", "ssid_hex": "52696753706F6F6620576F726B", "hidden": False, "windows_auth": "WPA2/AES",
-         "key_mgmt": "UNSUPPORTED", "supported": False, "autoconnect": True, "why_not": "an enterprise network (a company or school sign-in) - listed, not set up", "secrets_file": None}]}
+         "key_mgmt": "UNSUPPORTED", "supported": False, "autoconnect": True, "why_not": "an enterprise network (a company or school sign-in)", "secrets_file": None}]}
 job["intent"]["desktop"] = opts.get("--desktop", "kde")
 job["intent"]["start_at"] = opts.get("--start-at", "desktop")
 job["intent"]["path"] = "clean-slate"

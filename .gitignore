@@ -32,3 +32,4 @@ dist/kit/
 
 # settle-in: Rust build output (the kit builds its own; make-kit.sh)
 settle-in/target/
+settle-in/window/target/

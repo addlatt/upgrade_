@@ -12,11 +12,22 @@
 //!       to /var/lib/upgrade_/settle-in/report.json (root-only) and a done
 //!       marker. --root runs it against a copy of a system (tests); --rtc
 //!       names the hardware clock device (default /dev/rtc0).
+//!   settle-in summary [--root DIR] [--text]
+//!       The screen, as JSON sections (the window) or as text (a console),
+//!       from the public summary. No root needed; no secret in it.
+//!   settle-in remove-old-boot-entry [--root DIR]
+//!       The button (root, through pkexec): re-checks everything, then removes
+//!       firmware entries that point at Windows on a partition that no longer
+//!       exists. Prints what it did as JSON.
 //!   settle-in --version
 
+mod bootentry;
 mod civil;
 mod clock;
+mod efi;
+mod gpt;
 mod hw;
+mod summary;
 mod wifi;
 mod zone;
 
@@ -40,6 +51,56 @@ fn save(path: &str, v: &Value) -> Result<(), String> {
     let text = serde_json::to_string_pretty(v).map_err(|e| e.to_string())? + "\n";
     f.write_all(text.as_bytes()).and_then(|_| f.sync_all()).map_err(|e| format!("{}: {}", tmp, e))?;
     std::fs::rename(&tmp, path).map_err(|e| format!("{}: {}", path, e))
+}
+
+/// The public summary: readable by the person's window, holds no secret.
+fn save_public(root: &str, v: &Value) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = format!("{}/{}", root.trim_end_matches('/'), summary::PUBLIC_DIR);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {}", dir, e))?;
+    let _ = std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755));
+    let path = format!("{}/summary.json", dir);
+    let tmp = format!("{}.part", path);
+    let _ = std::fs::remove_file(&tmp);
+    let mut f = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o644).open(&tmp).map_err(|e| format!("{}: {}", tmp, e))?;
+    f.write_all((serde_json::to_string_pretty(v).map_err(|e| e.to_string())? + "\n").as_bytes()).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, &path).map_err(|e| format!("{}: {}", path, e))
+}
+
+fn public_summary(root: &str) -> Result<Value, String> {
+    read_json(&format!("{}/{}/summary.json", root.trim_end_matches('/'), summary::PUBLIC_DIR))
+}
+
+fn remove_old_boot_entry(root: &str) -> i32 {
+    // SAFETY: geteuid has no preconditions.
+    if root == "/" && unsafe { libc::geteuid() } != 0 {
+        eprintln!("settle-in: removing a startup entry needs administrator rights (run it through pkexec)");
+        return 1;
+    }
+    let handoff = format!("{}/{}", root.trim_end_matches('/'), HANDOFF);
+    let job = match read_json(&format!("{}/job.json", handoff)) {
+        Ok(j) if j.get("schema") == Some(&json!("job/1")) => j,
+        Ok(_) | Err(_) => {
+            println!("{}", json!({ "result": "refused", "why": "the job is not readable, so whether Windows was kept is not known" }));
+            return 1;
+        }
+    };
+    let out = bootentry::remove(root, &job);
+    let report_path = format!("{}/settle-in/report.json", handoff);
+    if let Ok(mut rep) = read_json(&report_path) {
+        rep["old_boot_entry_removal"] = json!({ "at_utc": now_iso(), "outcome": out.clone() });
+        let _ = save(&report_path, &rep);
+    }
+    if let Ok(mut s) = public_summary(root) {
+        if out["result"] == "removed" || out["result"] == "nothing-to-remove" {
+            s["old_boot_entry"] = json!({ "offered": false, "removed": out.get("removed").cloned().unwrap_or(json!([])) });
+        } else {
+            s["old_boot_entry"]["last_attempt"] = out.clone();
+        }
+        let _ = save_public(root, &s);
+    }
+    println!("{}", out);
+    if out["result"] == "removed" || out["result"] == "nothing-to-remove" { 0 } else { 1 }
 }
 
 fn now_iso() -> String {
@@ -123,6 +184,13 @@ fn first_start(root: &str, rtc: &str) -> i32 {
     report["wifi"] = wifi::run(root, &handoff, &job);
     println!("settle-in: wifi: {} ({} created)", report["wifi"]["result"], report["wifi"].get("created").unwrap_or(&json!(0)));
 
+    // --- the old boot entry: only looked at here; removing is the person's button
+    report["old_boot_entry"] = bootentry::describe(&bootentry::plan(&bootentry::facts(root, &job)));
+    println!("settle-in: old boot entry offered: {} {}", report["old_boot_entry"]["offered"], report["old_boot_entry"]["why_not"]);
+    if let Err(e) = save_public(root, &summary::build(root, &report, &job)) {
+        eprintln!("settle-in: the summary for the window could not be written: {}", e);
+    }
+
     report["finished_utc"] = json!(now_iso());
     if let Err(e) = save(&report_path, &report) {
         eprintln!("settle-in: {}", e);
@@ -144,8 +212,19 @@ fn main() {
     match args.first().map(String::as_str) {
         Some("--version") => println!("settle-in {}", VERSION),
         Some("first-start") => std::process::exit(first_start(&opt("--root", "/"), &opt("--rtc", "/dev/rtc0"))),
+        Some("summary") => match public_summary(&opt("--root", "/")) {
+            Ok(s) => {
+                let sec = summary::sections(&s);
+                if args.iter().any(|a| a == "--text") { print!("{}", summary::text(&sec)) } else { println!("{}", sec) }
+            }
+            Err(e) => {
+                eprintln!("settle-in: no summary yet ({})", e);
+                std::process::exit(1);
+            }
+        },
+        Some("remove-old-boot-entry") => std::process::exit(remove_old_boot_entry(&opt("--root", "/"))),
         _ => {
-            eprintln!("usage: settle-in first-start [--root DIR] [--rtc DEVICE] | --version");
+            eprintln!("usage: settle-in first-start [--root DIR] [--rtc DEVICE] | summary [--root DIR] [--text] | remove-old-boot-entry [--root DIR] | --version");
             std::process::exit(64);
         }
     }

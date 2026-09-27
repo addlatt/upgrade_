@@ -78,14 +78,20 @@ chroot "$SYSROOT" restorecon -R "$HANDOFF_DIR" >/dev/null 2>&1 || true
 # never installs a program), then switched on
 SI_SRC=$STICK/upgrade_/settle-in; SETTLE_IN=false; SETTLE_IN_WHY=""
 si_ok() { local want; want=$(grep -E "[ *]\./upgrade_/settle-in/$1\$" "$STICK/SHA256SUMS" 2>/dev/null | cut -c1-64); [ -n "$want" ] && [ "$want" = "$(sha "$SI_SRC/$1")" ]; }
-if [ ! -f "$SI_SRC/settle-in" ] || [ ! -f "$SI_SRC/upgrade_-settle-in.service" ]; then SETTLE_IN_WHY="settle-in is not on the stick"
-elif ! si_ok settle-in || ! si_ok upgrade_-settle-in.service; then SETTLE_IN_WHY="settle-in on the stick does not match SHA256SUMS"
-elif mkdir -p "$SYSROOT/usr/local/libexec/upgrade_" "$SYSROOT/etc/systemd/system/sysinit.target.wants" \
+SI_FILES="settle-in upgrade_-settle-in.service settle-in-window upgrade_-settle-in.desktop upgrade_-settle-in.sh"
+si_all() { for f in $SI_FILES; do [ -f "$SI_SRC/$f" ] || return 1; done; }
+si_all_ok() { for f in $SI_FILES; do si_ok "$f" || return 1; done; }
+if ! si_all; then SETTLE_IN_WHY="settle-in is not complete on the stick"
+elif ! si_all_ok; then SETTLE_IN_WHY="settle-in on the stick does not match SHA256SUMS"
+elif mkdir -p "$SYSROOT/usr/local/libexec/upgrade_" "$SYSROOT/etc/systemd/system/sysinit.target.wants" "$SYSROOT/etc/xdg/autostart" "$SYSROOT/etc/profile.d" \
     && cp "$SI_SRC/settle-in" "$SYSROOT/usr/local/libexec/upgrade_/settle-in" && chmod 0755 "$SYSROOT/usr/local/libexec/upgrade_/settle-in" \
     && cp "$SI_SRC/upgrade_-settle-in.service" "$SYSROOT/etc/systemd/system/upgrade_-settle-in.service" && chmod 0644 "$SYSROOT/etc/systemd/system/upgrade_-settle-in.service" \
-    && ln -sf ../upgrade_-settle-in.service "$SYSROOT/etc/systemd/system/sysinit.target.wants/upgrade_-settle-in.service"; then
+    && ln -sf ../upgrade_-settle-in.service "$SYSROOT/etc/systemd/system/sysinit.target.wants/upgrade_-settle-in.service" \
+    && cp "$SI_SRC/settle-in-window" "$SYSROOT/usr/local/libexec/upgrade_/settle-in-window" && chmod 0755 "$SYSROOT/usr/local/libexec/upgrade_/settle-in-window" \
+    && cp "$SI_SRC/upgrade_-settle-in.desktop" "$SYSROOT/etc/xdg/autostart/upgrade_-settle-in.desktop" && chmod 0644 "$SYSROOT/etc/xdg/autostart/upgrade_-settle-in.desktop" \
+    && cp "$SI_SRC/upgrade_-settle-in.sh" "$SYSROOT/etc/profile.d/upgrade_-settle-in.sh" && chmod 0644 "$SYSROOT/etc/profile.d/upgrade_-settle-in.sh"; then
     SETTLE_IN=true
-    chroot "$SYSROOT" restorecon -R /usr/local/libexec/upgrade_ /etc/systemd/system/upgrade_-settle-in.service >/dev/null 2>&1 || true
+    chroot "$SYSROOT" restorecon -R /usr/local/libexec/upgrade_ /etc/systemd/system/upgrade_-settle-in.service /etc/xdg/autostart/upgrade_-settle-in.desktop /etc/profile.d/upgrade_-settle-in.sh >/dev/null 2>&1 || true
 else SETTLE_IN_WHY="settle-in could not be copied onto the installed system"; fi
 SETTLE_IN_VERSION=$( [ "$SETTLE_IN" = true ] && "$SYSROOT/usr/local/libexec/upgrade_/settle-in" --version 2>/dev/null | awk '{print $2}')
 echo "== settle-in installed=$SETTLE_IN ${SETTLE_IN_VERSION:+version $SETTLE_IN_VERSION} $SETTLE_IN_WHY"
@@ -319,16 +325,25 @@ hsrc=$(findmnt -no SOURCE /home 2>/dev/null); hdisk=$( [ -n "$hsrc" ] && lsblk -
 if [ ! -e /mnt/upgstick/upgrade_/settle-in-capture/done ] && [ -e /var/lib/upgrade_/settle-in/first-start.done ]; then
     C=/mnt/upgstick/upgrade_/settle-in-capture; mkdir -p "$C"
     cp /var/lib/upgrade_/settle-in/report.json "$C/report.json" 2>/dev/null
-    for u in $(nmcli -t -f UUID connection show 2>/dev/null); do
-        f=$(nmcli -g connection.filename connection show "$u" 2>/dev/null); case "$f" in */upgrade_-*) ;; *) continue;; esac
-        printf '%s|%s|%s|%s|%s|%s\n' "$(basename "$f")" "$(nmcli -g 802-11-wireless.ssid connection show "$u")" "$(nmcli -g 802-11-wireless.hidden connection show "$u")" \
-            "$(nmcli -g connection.autoconnect connection show "$u")" "$(nmcli -g 802-11-wireless-security.key-mgmt connection show "$u")" "$(stat -c %a "$f")" >> "$C/nm-parsed.txt"
+    # cu, not u: u holds the account name the row below records (rig run 1, 2026-09-27, clobbered it)
+    for cu in $(nmcli -t -f UUID connection show 2>/dev/null); do
+        f=$(nmcli -g GENERAL.FILENAME connection show "$cu" 2>/dev/null); case "$f" in */upgrade_-*) ;; *) continue;; esac
+        printf '%s|%s|%s|%s|%s|%s\n' "$(basename "$f")" "$(nmcli -g 802-11-wireless.ssid connection show "$cu")" "$(nmcli -g 802-11-wireless.hidden connection show "$cu")" \
+            "$(nmcli -g connection.autoconnect connection show "$cu")" "$(nmcli -g 802-11-wireless-security.key-mgmt connection show "$cu")" "$(stat -c %a "$f")" >> "$C/nm-parsed.txt"
     done
+    nmcli -t -f NAME,UUID,TYPE,FILENAME connection show > "$C/nm-all.txt" 2>&1
     ls -la /var/lib/upgrade_ /var/lib/upgrade_/artifacts/credentials > "$C/handoff-ls.txt" 2>&1
     { date -u +%s; cat /sys/class/rtc/rtc0/since_epoch; timedatectl show 2>&1; tail -1 /etc/adjtime; } > "$C/clock.txt" 2>&1
     journalctl -b -o short-monotonic -u upgrade_-settle-in -u NetworkManager -u chronyd --no-pager 2>&1 | head -60 > "$C/order.txt"
     journalctl -b -u upgrade_-settle-in --no-pager > "$C/settle-in.log" 2>&1
     date -u +%FT%TZ > "$C/done"
+fi
+# every boot: the firmware's entries and settle-in's latest records (the button's effect shows on the next boot)
+if [ -e /mnt/upgstick/upgrade_/settle-in-capture/done ]; then
+    t=$(date -u +%Y%m%dT%H%M%SZ); C=/mnt/upgstick/upgrade_/settle-in-capture
+    efibootmgr > "$C/efibootmgr-$t.txt" 2>&1
+    cp /var/lib/upgrade_/settle-in/report.json "$C/report-$t.json" 2>/dev/null
+    cp /var/lib/upgrade_-settle-in/summary.json "$C/summary-$t.json" 2>/dev/null
 fi
 printf 'linux-boot,%s,%s,BootCurrent=%s,bootmgfw_sha256=%s,user=%s,pw_sha256=%s,home_dir=%s,home_disk=%s,root_disk=%s,default_target=%s,display_manager=%s\n' "$(date -u +%FT%TZ)" "$(uname -r)" "$cur" "$sha" "$u" "$pw" "$([ -d "/home/$u" ] && echo present || echo missing)" "${hdisk:-none}" "$rdisk" "$tgt" "$dm" >> /mnt/upgstick/upgrade_/boots.log
 auto=0; [ -e /mnt/upgstick/upgrade_/autoshutdown ] && auto=1

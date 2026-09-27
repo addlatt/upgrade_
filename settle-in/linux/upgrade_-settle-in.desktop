@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=settle-in
+Comment=What upgrade_ set up on this computer
+Exec=/usr/local/libexec/upgrade_/settle-in-window
+Icon=preferences-system
+NoDisplay=true
+Terminal=false
+X-GNOME-Autostart-enabled=true

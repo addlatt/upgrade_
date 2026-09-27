@@ -223,7 +223,7 @@
           "key_mgmt": "UNSUPPORTED",
           "supported": false,
           "autoconnect": true,
-          "why_not": "an enterprise network (a company or school sign-in) - listed, not set up",
+          "why_not": "an enterprise network (a company or school sign-in)",
           "secrets_file": null
         }
       ]

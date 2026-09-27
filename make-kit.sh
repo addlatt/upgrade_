@@ -110,7 +110,10 @@ bash -n "$ROOT/upgrade_/linux/outcome.sh" || fail "outcome.sh does not parse"
 (cd "$ROOT/settle-in" && cargo build --locked --release --quiet --target x86_64-unknown-linux-musl) || fail "settle-in does not build"
 SETTLE_IN_BIN="$ROOT/settle-in/target/x86_64-unknown-linux-musl/release/settle-in"
 SETTLE_IN_VERSION=$("$SETTLE_IN_BIN" --version | awk '{print $2}')
-step "settle-in $SETTLE_IN_VERSION: tests pass, static build"
+(cd "$ROOT/settle-in/window" && cargo build --locked --release --quiet) || fail "the settle-in window does not build"
+SETTLE_IN_WINDOW="$ROOT/settle-in/window/target/release/settle-in-window"
+sh -n "$ROOT/settle-in/linux/upgrade_-settle-in.sh" || fail "the settle-in console hook does not parse"
+step "settle-in $SETTLE_IN_VERSION: tests pass, static build; window built"
 grep -q 'boot-install' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the boot-install branch"
 
 # --- 4. parse-check under the PS 5.1 parser ----------------------------------
@@ -218,6 +221,9 @@ sed 's/\r$//' "$ROOT/upgrade_/linux/outcome.sh" > "$D/upgrade_/outcome.sh"
 mkdir -p "$D/upgrade_/settle-in"
 cp "$SETTLE_IN_BIN" "$D/upgrade_/settle-in/settle-in"
 sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-settle-in.service" > "$D/upgrade_/settle-in/upgrade_-settle-in.service"
+cp "$SETTLE_IN_WINDOW" "$D/upgrade_/settle-in/settle-in-window"
+sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-settle-in.desktop" > "$D/upgrade_/settle-in/upgrade_-settle-in.desktop"
+sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-settle-in.sh" > "$D/upgrade_/settle-in/upgrade_-settle-in.sh"
 # the desktops: Fedora's own live squashfs images, unmodified, one per
 # desktop the intent capture offers (rig/vm/fetch-desktops.sh). The
 # kickstart's liveimg line names one of them; verify.sh reads it back

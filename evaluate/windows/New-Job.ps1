@@ -222,7 +222,7 @@ function ConvertFrom-JobWlanProfile {
     $hasKey = [bool]($sec.sharedKey -and "$($sec.sharedKey.protected)" -eq 'false' -and "$($sec.sharedKey.keyMaterial)")
     $km = 'UNSUPPORTED'; $why = $null
     if ("$($p.connectionType)" -ne 'ESS') { $why = 'an ad-hoc (computer-to-computer) network' }
-    elseif ($onex -or $auth -in @('WPA', 'WPA2', 'WPA3', 'WPA3ENT', 'WPA3ENT192')) { $why = 'an enterprise network (a company or school sign-in) - listed, not set up' }
+    elseif ($onex -or $auth -in @('WPA', 'WPA2', 'WPA3', 'WPA3ENT', 'WPA3ENT192')) { $why = 'an enterprise network (a company or school sign-in)' }
     elseif ($auth -eq 'open' -and $enc -eq 'none') { $km = 'none' }
     elseif ($enc -eq 'WEP') { $why = 'WEP, an old and broken kind of Wi-Fi security' }
     elseif ($auth -in @('WPAPSK', 'WPA2PSK') -or ($auth -eq 'WPA3SAE' -and $transition)) { $km = 'wpa-psk' }
@@ -935,7 +935,7 @@ function Invoke-SelfTest {
         @{ Name = 'wifi: an open network needs no password; manual connect and hidden are kept'
            Run = { Row (New-TestWlan -Auth open -Enc none -Key '' -Mode manual -Hidden $true) }; Expect = 'none:True:False:True:' }
         @{ Name = 'wifi: enterprise is listed, not set up'
-           Run = { Row (New-TestWlan -Auth WPA2 -OneX true -Key '') }; Expect = 'UNSUPPORTED:False:True:False:an enterprise network (a company or school sign-in) - listed, not set up' }
+           Run = { Row (New-TestWlan -Auth WPA2 -OneX true -Key '') }; Expect = 'UNSUPPORTED:False:True:False:an enterprise network (a company or school sign-in)' }
         @{ Name = 'wifi: WEP and ad-hoc are listed, not set up'
            Run = { "$(Row (New-TestWlan -Auth open -Enc WEP))|$(Row (New-TestWlan -Type IBSS))" }; Expect = 'UNSUPPORTED:False:True:False:WEP, an old and broken kind of Wi-Fi security|UNSUPPORTED:False:True:False:an ad-hoc (computer-to-computer) network' }
         @{ Name = 'wifi: a password Windows kept encrypted (protected) is not a password - listed, not set up'

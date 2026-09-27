@@ -900,6 +900,16 @@ So `settle-in` is built in three layers:
    window libraries load the display libraries only when they are there.
    The cost is a harder read for newcomers and more third-party packages to
    review, so dependencies are kept to a short, named list.
+   **The window: egui (decided 2026-09-27, the owner).** A fully static
+   program cannot load the system's display libraries while it runs, so
+   the window is a second, small program beside the static core. It opens
+   at the person's first sign-in through the standard autostart folder
+   (`/etc/xdg/autostart`, which GNOME, KDE and the others all read), shows
+   what the first startup did, and ends with the old-boot-entry button,
+   which asks for the person's password through polkit (the standard
+   administrator prompt on every desktop). When the person chose the
+   console, the same content comes as text at their first console
+   sign-in.
 3. **A floor it checks, and refuses below.** On start it checks for UEFI,
    systemd (what starts services at boot), NetworkManager (the Wi-Fi
    manager nearly every desktop distribution uses; its connection files are
