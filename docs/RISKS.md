@@ -3040,6 +3040,19 @@ was activated (`harvest.windows_license`) while Windows still exists.
   install"). They are in both erase launchers, so the Aspire's next run
   shows them.
 
+**Built (2026-09-27): the guided stick's read-only half** (`settle-in
+go-back`; `architecture.md`, "The way back to Windows"). Two facts from
+primary sources that day: Microsoft still offers the Windows 10 22H2 and
+Windows 11 installers to a Linux browser, and prints a SHA-256 for each
+language on the same page; its own stick instructions split `install.wim`
+into `install.swm` for FAT32. The program refuses any file not in that
+table. Its stick list is R16's rules on Linux (USB, calls itself
+removable, not a hard drive, no system mount, swap or holder, not the
+upgrade_ stick, a unique serial, big enough; the writer re-finds the stick
+by serial, exact size and a typed model name). Ten logic cases and one
+recording (the Aspire's two internal drives, both refused). Not a row: no
+stick has been written.
+
 **Built (2026-09-27): the harvest** (job writer 0.16.0,
 `harvest.windows_license`; eight self-test cases, including a value shaped
 like a product key that must never reach the job; five new schema

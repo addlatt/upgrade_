@@ -1,0 +1,72 @@
+[
+  {
+    "bus": "ata",
+    "devnum": "8:0",
+    "model": "WDC WD10SPZX-21Z",
+    "name": "sda",
+    "partitions": [
+      {
+        "fs": "ext4",
+        "holders": [],
+        "label": null,
+        "mounted_at": [
+          "/home"
+        ],
+        "name": "sda1",
+        "swap": false
+      }
+    ],
+    "read_only": false,
+    "removable": false,
+    "rotational": true,
+    "serial": "WD-WXV1A88H0TFV",
+    "size_bytes": 1000204886016,
+    "usb": false,
+    "vendor": "ATA"
+  },
+  {
+    "bus": "ata",
+    "devnum": "8:16",
+    "model": "HFS256G39TND-N21",
+    "name": "sdb",
+    "partitions": [
+      {
+        "fs": "vfat",
+        "holders": [],
+        "label": null,
+        "mounted_at": [
+          "/boot/efi"
+        ],
+        "name": "sdb1",
+        "swap": false
+      },
+      {
+        "fs": "ext4",
+        "holders": [],
+        "label": null,
+        "mounted_at": [
+          "/boot"
+        ],
+        "name": "sdb2",
+        "swap": false
+      },
+      {
+        "fs": "ext4",
+        "holders": [],
+        "label": null,
+        "mounted_at": [
+          "/"
+        ],
+        "name": "sdb3",
+        "swap": false
+      }
+    ],
+    "read_only": false,
+    "removable": false,
+    "rotational": false,
+    "serial": "EI8AN00951150A71I",
+    "size_bytes": 256060514304,
+    "usb": false,
+    "vendor": "ATA"
+  }
+]

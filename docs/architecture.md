@@ -1146,13 +1146,47 @@ getting back. RISKS R30, VALIDATION V11.
 
 It is built in two stages:
 
-1. `[#...]` **A guided stick.** It downloads Microsoft's own installer (we
-   never redistribute it), checks it, writes it to a USB stick the person
-   names, and shows the steps in plain words (restart, the maker's boot
-   key, remove the Linux partitions, install). It writes only to that
-   stick, never to an internal drive, with the stick writer's refusals
-   (R16) on the Linux side. Nothing on the computer changes until the
-   person starts the Windows installer themselves.
+1. `[##..]` **A guided stick.** The person downloads Microsoft's own
+   installer in their own browser, from Microsoft's page (we never
+   redistribute it). The program checks the file, writes it to a USB
+   stick the person names, and shows the steps in plain words (restart,
+   the maker's boot key, remove the Linux partitions, install). It writes
+   only to that stick, never to an internal drive, with the stick writer's
+   refusals (R16) on the Linux side. Nothing on the computer changes until
+   the person starts the Windows installer themselves.
+
+   **Design (2026-09-27), from what Microsoft's pages show.** Read that
+   day with a Linux browser's identity:
+   - Microsoft still offers both: the Windows 10 page (edition "Windows 10
+     (multi-edition ISO)", 22H2) and the Windows 11 page ("multi-edition ISO
+     for x64 devices"). Its download link is made by the page's scripts
+     after the person picks the edition and language, and lasts 24 hours.
+     So the person downloads; the program does not drive Microsoft's page
+     (that would lean on an interface nobody promised to keep).
+   - Both pages print a SHA-256 for every language ("Verify your
+     download"). `settle-in/tools/refresh-windows-media.py` copies those
+     tables into `settle-in/data/windows-media.json` (114 rows). A file not
+     in the table is refused, and so is the 32-bit Windows 10 file and the
+     wrong Windows for this computer.
+   - Which Windows to offer: 11 if Windows 11 ran here before, or if Linux
+     can see TPM 2.0 and UEFI (Microsoft's installer then checks the
+     processor); otherwise 10, with the October 2025 / October 2026 warning.
+   - The 4 GB limit: Microsoft's own instructions for a stick
+     (learn.microsoft.com, "Install Windows from a Flash Drive") say FAT32,
+     copy everything but `sources\install.wim`, and split that into
+     `install.swm` parts ("Windows Setup automatically installs from this
+     file"). On Linux the split is `wimlib-imagex split`. Whether a
+     wimlib-made split installs cleanly, Secure Boot on, is R30's open
+     question.
+
+   **Built (2026-09-27, the read-only half, `settle-in go-back`):**
+   `screen` (the cost first, which Windows it was, which to download;
+   draft words), `check` (the file against Microsoft's table),
+   `downloads`, and `sticks` (every disk with the rules it breaks; the
+   Aspire's two internal drives, recorded and replayed in a test, are both
+   refused). Read on the Aspire under Fedora: it offers Windows 11 (TPM
+   2.0, UEFI, Secure Boot on, a key in the firmware; i7-8550U). The writer
+   and the window are not built.
 2. `[#...]` **Later, a walk-away reinstall.** An unattended Windows install
    (an answer file on the stick), with its own typed sentence and a
    countdown as its commit line: the erase path in reverse. It deletes

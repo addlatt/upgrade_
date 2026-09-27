@@ -1,0 +1,700 @@
+{
+ "about": "SHA-256 of Microsoft's own Windows installer ISOs, as printed on Microsoft's download pages. Refreshed by tools/refresh-windows-media.py.",
+ "read_utc": "2026-09-27T20:55:01Z",
+ "sources": [
+  {
+   "windows": "10",
+   "url": "https://www.microsoft.com/en-us/software-download/windows10ISO"
+  },
+  {
+   "windows": "11",
+   "url": "https://www.microsoft.com/en-us/software-download/windows11"
+  }
+ ],
+ "media": [
+  {
+   "windows": "10",
+   "language": "Arabic",
+   "arch": "x64",
+   "sha256": "237fcbaa234166a836260dfa760f71f1211a6c573130c75d4ccdca9d7d29f69a"
+  },
+  {
+   "windows": "10",
+   "language": "Arabic",
+   "arch": "32-bit",
+   "sha256": "964f2d179fa13670285b8a2db7f0cd72983e8bc5df8554f547550486ad8afeab"
+  },
+  {
+   "windows": "10",
+   "language": "Bulgarian",
+   "arch": "x64",
+   "sha256": "1dfc04f3ec68602b547961a5afd3758164e0c36a6bf420c564b1b44b375e6070"
+  },
+  {
+   "windows": "10",
+   "language": "Bulgarian",
+   "arch": "32-bit",
+   "sha256": "93c43c0f17ab17671ee16f321c0fa5e1506aaadad0bd84a4207ad8692b78554e"
+  },
+  {
+   "windows": "10",
+   "language": "Chinese Simplified",
+   "arch": "x64",
+   "sha256": "d485d370406cbcb68959718817bd12ed87e537a14c885f84962e07136fc4a049"
+  },
+  {
+   "windows": "10",
+   "language": "Chinese Simplified",
+   "arch": "32-bit",
+   "sha256": "c828accb08886622f5e1a127bb83070bae0e9235ef0e31573abc6a8a5cb55286"
+  },
+  {
+   "windows": "10",
+   "language": "Chinese Traditional",
+   "arch": "x64",
+   "sha256": "c9594113b52f96783fb6ca8248ebbc972277e26fb215c302bfcce50df6c21a79"
+  },
+  {
+   "windows": "10",
+   "language": "Chinese Traditional",
+   "arch": "32-bit",
+   "sha256": "62e61916a5bc6f6b7eb75d132583c4131ab81e4a19038de527918324585720ee"
+  },
+  {
+   "windows": "10",
+   "language": "Croatian",
+   "arch": "x64",
+   "sha256": "140462535a28cd006cd97055dabb086f8511f52befeecdf8bcb5adeb64ced3ab"
+  },
+  {
+   "windows": "10",
+   "language": "Croatian",
+   "arch": "32-bit",
+   "sha256": "5451422072bf6a231f2ca8ca865b89077eb2e5084ddfafad6b1f7949732b25b8"
+  },
+  {
+   "windows": "10",
+   "language": "Czech",
+   "arch": "x64",
+   "sha256": "ad5eaad75971d22c84f433854fe9671efc360e9eb501f3b2e94a72e74c78f6fe"
+  },
+  {
+   "windows": "10",
+   "language": "Czech",
+   "arch": "32-bit",
+   "sha256": "af1a11bea0ba0ec789c546ee0ba0740489065cbbc0b329cc4b00b9214c23e42b"
+  },
+  {
+   "windows": "10",
+   "language": "Danish",
+   "arch": "x64",
+   "sha256": "74cf090d3f881f1efcd597e01dc3fa4c6bfc2f5d3cd141cf68c92034e0ba6a57"
+  },
+  {
+   "windows": "10",
+   "language": "Danish",
+   "arch": "32-bit",
+   "sha256": "a2f4c905a75b87372bec9da81edc521eba16fa0832c269fe7f71b5da34fe6eff"
+  },
+  {
+   "windows": "10",
+   "language": "Dutch",
+   "arch": "x64",
+   "sha256": "51b2f525cf7426fefd1ef0813c4c07e7d772c61c712e20c879d8ed568d2abcc9"
+  },
+  {
+   "windows": "10",
+   "language": "Dutch",
+   "arch": "32-bit",
+   "sha256": "ac09a473e97864f6dd4e0af4038becf7a43fef790f9af9802cef5530dfb69bce"
+  },
+  {
+   "windows": "10",
+   "language": "English",
+   "arch": "x64",
+   "sha256": "a6f470ca6d331eb353b815c043e327a347f594f37ff525f17764738fe812852e"
+  },
+  {
+   "windows": "10",
+   "language": "English",
+   "arch": "32-bit",
+   "sha256": "ac0b7045b6c3a72a4d46daab0944e109a55d9ede3a11b775fdb57c2dd3fca2ef"
+  },
+  {
+   "windows": "10",
+   "language": "English International",
+   "arch": "x64",
+   "sha256": "edc53c5c5fe6926dea23fc3e884fbcf78cc2b9e76364be968f806fc6d42b59d2"
+  },
+  {
+   "windows": "10",
+   "language": "English International",
+   "arch": "32-bit",
+   "sha256": "38d093ae08bf80302b900bc91a2ce5205c5086ddeefab29e8d529d5607b6b4db"
+  },
+  {
+   "windows": "10",
+   "language": "Estonian",
+   "arch": "x64",
+   "sha256": "af649ce2920c4aff96ef954c1b598c6dee3e705edc074565dddce3294d29f859"
+  },
+  {
+   "windows": "10",
+   "language": "Estonian",
+   "arch": "32-bit",
+   "sha256": "6b59d1f6c02c5215384e5bd1d16b2591710d9f6c430f8c4c1f554973672458f1"
+  },
+  {
+   "windows": "10",
+   "language": "Finnish",
+   "arch": "x64",
+   "sha256": "c17f3cfa9ec971dcd64b4a1152a7b563ade165fb9deb941f7c791e0f722d2d2f"
+  },
+  {
+   "windows": "10",
+   "language": "Finnish",
+   "arch": "32-bit",
+   "sha256": "64f6427bb981bbadc0731aa686d62f157174a638ee9f2e10df582753085b4e12"
+  },
+  {
+   "windows": "10",
+   "language": "French",
+   "arch": "x64",
+   "sha256": "7b7f99e804b50f5e738ffdfc571803ccdcfe139599392496048fd32c5eaedff9"
+  },
+  {
+   "windows": "10",
+   "language": "French",
+   "arch": "32-bit",
+   "sha256": "f3e3c0ef680b4c0e03a4e7601a4b00f1ea13b8eed501f16b3e0610014e788ab9"
+  },
+  {
+   "windows": "10",
+   "language": "French Canadian",
+   "arch": "x64",
+   "sha256": "b8c09e172dbde8e3db14e110857ae8724d9bdb73f5b4d37d75929ff394b5cc6b"
+  },
+  {
+   "windows": "10",
+   "language": "French Canadian",
+   "arch": "32-bit",
+   "sha256": "e6e6a19346298d95fbc3d472af5784755c6f510233b56fe330ad4c7ac3d2f957"
+  },
+  {
+   "windows": "10",
+   "language": "German",
+   "arch": "x64",
+   "sha256": "d1a41a09e9ae09631a087edf95d7f4eecab622f88b3c824d856cfea47fcc0b4c"
+  },
+  {
+   "windows": "10",
+   "language": "German",
+   "arch": "32-bit",
+   "sha256": "b0bfc1b9b176df0303ed3a91e7332cd1a8b57b07f25752cec9493e1333f88075"
+  },
+  {
+   "windows": "10",
+   "language": "Greek",
+   "arch": "x64",
+   "sha256": "ee069cd752b140efc9af0a413313c637e13cccb69225ed9fedcceb634b905ec7"
+  },
+  {
+   "windows": "10",
+   "language": "Greek",
+   "arch": "32-bit",
+   "sha256": "e7f77d3d5d81d4bf7c1eda65ed2b163df20265d667577c859f10765e750921f2"
+  },
+  {
+   "windows": "10",
+   "language": "Hebrew",
+   "arch": "x64",
+   "sha256": "15cbc5e2cfce6987892a4466c55f079b77a6eaa862a519f701b3f68661299979"
+  },
+  {
+   "windows": "10",
+   "language": "Hebrew",
+   "arch": "32-bit",
+   "sha256": "6e6fbc9a161bbaa41978466000f30ed363d536f86a337259e0b67a7a55539a3c"
+  },
+  {
+   "windows": "10",
+   "language": "Hungarian",
+   "arch": "x64",
+   "sha256": "df28f3e76fa2a8d7b05531d2f1e697b877adefeb1311a4fcb62692d48235830b"
+  },
+  {
+   "windows": "10",
+   "language": "Hungarian",
+   "arch": "32-bit",
+   "sha256": "f9ac230b1f3908f1883d257ef68e450fe47fe87d59fe84b57ae0ebfbef3befb9"
+  },
+  {
+   "windows": "10",
+   "language": "Italian",
+   "arch": "x64",
+   "sha256": "99d0376562919567f0bdddcd43721cca6b2834fc4ef93e0db9f05ed26ab1a3de"
+  },
+  {
+   "windows": "10",
+   "language": "Italian",
+   "arch": "32-bit",
+   "sha256": "dc902370b6c81cf7b48d381e1ce377187668358be821504fdbf8ffac3763dd09"
+  },
+  {
+   "windows": "10",
+   "language": "Japanese",
+   "arch": "x64",
+   "sha256": "4949e32d1b96c66c79bb8f2227624e74b5dbda485ca0d4f8a32852f51e67aea8"
+  },
+  {
+   "windows": "10",
+   "language": "Japanese",
+   "arch": "32-bit",
+   "sha256": "1570135083774bb43db979261312803dae5112ff94515fc6c35cad7274518945"
+  },
+  {
+   "windows": "10",
+   "language": "Korean",
+   "arch": "x64",
+   "sha256": "c1f5310b1df11a1b80b6656dfb9a22a3a2d0d427e87f6bf62933c4e0c9584b4f"
+  },
+  {
+   "windows": "10",
+   "language": "Korean",
+   "arch": "32-bit",
+   "sha256": "2eca27fe084b53e7af674688dccb8ac5fa4d31dd0b97f372bfedb75d16b0ee82"
+  },
+  {
+   "windows": "10",
+   "language": "Latvian",
+   "arch": "x64",
+   "sha256": "6cd568d60ef842c485c38e06d9d2162977ae9a699fa0c09cec0c0733f30e295c"
+  },
+  {
+   "windows": "10",
+   "language": "Latvian",
+   "arch": "32-bit",
+   "sha256": "2ce48ff1506afdd27f6850c91b7abf39833d7c6f69f79690a1d6dd7f919e11b2"
+  },
+  {
+   "windows": "10",
+   "language": "Lithuanian",
+   "arch": "x64",
+   "sha256": "ad62769caa6c13646e0c6529042fd8c0a53a1a2e71f371079749210261166c5f"
+  },
+  {
+   "windows": "10",
+   "language": "Lithuanian",
+   "arch": "32-bit",
+   "sha256": "3d7b3bb75c50a58d8deaab5e057b38df006732ed57e5c680144b95e172313595"
+  },
+  {
+   "windows": "10",
+   "language": "Norwegian",
+   "arch": "x64",
+   "sha256": "3c0865b12e9b81e6d138f8ca46f91bcd810ca3583d75f3458237af65d93d7609"
+  },
+  {
+   "windows": "10",
+   "language": "Norwegian",
+   "arch": "32-bit",
+   "sha256": "b49a74d5202b1b21094ce7101abe505fa9c0f8b15605f85ec517b39b1b6175d8"
+  },
+  {
+   "windows": "10",
+   "language": "Polish",
+   "arch": "x64",
+   "sha256": "96aad9e4b20b6e3f5fea40b981263e854f6c879472369d5ce8324aae1f6b7556"
+  },
+  {
+   "windows": "10",
+   "language": "Polish",
+   "arch": "32-bit",
+   "sha256": "78e404ed9ec4beafe1161addbec70899547483e592de609cb6fc64dea5a004f7"
+  },
+  {
+   "windows": "10",
+   "language": "Brazilian Portuguese",
+   "arch": "x64",
+   "sha256": "0ca714572fcb5b8ce480acc3c93eaf2f34cc6507df5f693cff021bf4a32fac68"
+  },
+  {
+   "windows": "10",
+   "language": "Brazilian Portuguese",
+   "arch": "32-bit",
+   "sha256": "69e4b7ed9e5d7cea72c075e63a493c867275608b8f9e9d1fe7d711459b32d1be"
+  },
+  {
+   "windows": "10",
+   "language": "Portuguese",
+   "arch": "x64",
+   "sha256": "83f83b5a9101f5fa21de4e925abc7693478d84cd5fbf02cb019393048b5bdbbb"
+  },
+  {
+   "windows": "10",
+   "language": "Portuguese",
+   "arch": "32-bit",
+   "sha256": "f889bce09e2117f32679d41dbd4f4ce7178a5acc96057928a2836bbb6d7c4fb6"
+  },
+  {
+   "windows": "10",
+   "language": "Romanian",
+   "arch": "x64",
+   "sha256": "e7d3c523d17468e83d100e5d40c9334acb49469db6c2685267f03ae72e2d2544"
+  },
+  {
+   "windows": "10",
+   "language": "Romanian",
+   "arch": "32-bit",
+   "sha256": "e3ebb528afdd8c946fc5aa4d19b5aaa0cae6aecb5c6f53a45334a3999e5550fa"
+  },
+  {
+   "windows": "10",
+   "language": "Russian",
+   "arch": "x64",
+   "sha256": "2a7c440c984eb018f513901e8ed96405213d237938c410c5089c0fac7ba01898"
+  },
+  {
+   "windows": "10",
+   "language": "Russian",
+   "arch": "32-bit",
+   "sha256": "7b339135c62cb06c8eb8748922659fc36fbe1db08c2749b036c00676455a5d00"
+  },
+  {
+   "windows": "10",
+   "language": "Serbian Latin",
+   "arch": "x64",
+   "sha256": "2a23be419ab5b2d52e2a69cc3ae39973c565363e81cad875dd23d8a81e4ac35a"
+  },
+  {
+   "windows": "10",
+   "language": "Serbian Latin",
+   "arch": "32-bit",
+   "sha256": "55b5cb316402ba4a2ee77f3e9fcc5a256f809c79b6bebf0310014365c3c60df9"
+  },
+  {
+   "windows": "10",
+   "language": "Slovak",
+   "arch": "x64",
+   "sha256": "68cbe54d09fb3bc3c5c3bf93ab912f3225ff036d2fd2f9e0513d418955521329"
+  },
+  {
+   "windows": "10",
+   "language": "Slovak",
+   "arch": "32-bit",
+   "sha256": "8950648926476b04367a08f53233664ac325ca6632beb8ded727ba8638818d52"
+  },
+  {
+   "windows": "10",
+   "language": "Slovenian",
+   "arch": "x64",
+   "sha256": "5b44e6ec11915abef9ec63756001ceed815216a2e8d0e2a8f8f24c54fb819b20"
+  },
+  {
+   "windows": "10",
+   "language": "Slovenian",
+   "arch": "32-bit",
+   "sha256": "634b23b37068119a974f6e6155ec663974048a51d0a440b2e6fb8f84e4eee8e5"
+  },
+  {
+   "windows": "10",
+   "language": "Spanish",
+   "arch": "x64",
+   "sha256": "0d48c6f236ca9f966eccd84d9be01b038516567aabf1c46dcbee785556b19813"
+  },
+  {
+   "windows": "10",
+   "language": "Spanish",
+   "arch": "32-bit",
+   "sha256": "db414636d7ec65b1aefcc1242d323e839823db21fd25a2a9c5dcecc3c16c3309"
+  },
+  {
+   "windows": "10",
+   "language": "Spanish (Mexico)",
+   "arch": "x64",
+   "sha256": "bf02c401644a4a9249ee206faa9fd1691f4ec18bb37a9ea4ffe5c010dc147492"
+  },
+  {
+   "windows": "10",
+   "language": "Spanish (Mexico)",
+   "arch": "32-bit",
+   "sha256": "c91f1c1ee9ccd88215ce9ad3ef4303997c78715c5a84c8a4d8c9f67d307a3633"
+  },
+  {
+   "windows": "10",
+   "language": "Swedish",
+   "arch": "x64",
+   "sha256": "72a5eb42d5824fee11b1708aed2526b2c3a73a6ec5e0d9c7cdd9552cb3c25bca"
+  },
+  {
+   "windows": "10",
+   "language": "Swedish",
+   "arch": "32-bit",
+   "sha256": "9b1788454a42e1ca2196e2633dcd7c0bd3f94a9f8d29c60eb064cfa8a966ebd3"
+  },
+  {
+   "windows": "10",
+   "language": "Thai",
+   "arch": "x64",
+   "sha256": "d823aa445c4b575775918301948a44b7666fc1044cc9bb53b2ee981e9a01fd15"
+  },
+  {
+   "windows": "10",
+   "language": "Thai",
+   "arch": "32-bit",
+   "sha256": "84d93e48ea10ab2d766f17da242379146f8395bdca7f860755b27af7dbd0f6c3"
+  },
+  {
+   "windows": "10",
+   "language": "Turkish",
+   "arch": "x64",
+   "sha256": "f66ad547fb42f9d37dc8e86214e1e326e515aa20843f734c7f8f947e967bee53"
+  },
+  {
+   "windows": "10",
+   "language": "Turkish",
+   "arch": "32-bit",
+   "sha256": "57b51f3f9f36dd2a1586745751218d16abacd8703a60ff9368c32cca3cf0c5e9"
+  },
+  {
+   "windows": "10",
+   "language": "Ukrainian",
+   "arch": "x64",
+   "sha256": "2ae3b2dccf609dc3c149ff344ab73b4e8e0b12bf7c97489b64dfc7a162a7c7d9"
+  },
+  {
+   "windows": "10",
+   "language": "Ukrainian",
+   "arch": "32-bit",
+   "sha256": "cef1aaa637ac8f0e563244dea7efbdcf6c85288b131943dabd108182d9b0656c"
+  },
+  {
+   "windows": "11",
+   "language": "Arabic",
+   "arch": "x64",
+   "sha256": "10bf2f86f148d6cf06bdffe3010c413187c72516a49eb61b3643977effc52d14"
+  },
+  {
+   "windows": "11",
+   "language": "Bulgarian",
+   "arch": "x64",
+   "sha256": "0c2059a4f848929ed29db0cede0d3a24773fe25190758596db5f34034d5a747b"
+  },
+  {
+   "windows": "11",
+   "language": "Chinese Simplified",
+   "arch": "x64",
+   "sha256": "7408581e67bc455ebaafb9230e531abf45b1c8864a22114a1b03893f897102e4"
+  },
+  {
+   "windows": "11",
+   "language": "Chinese Traditional",
+   "arch": "x64",
+   "sha256": "649d95e77ef37e975bf9dee98900282a93c0921748cc5d5ae00b09c29cb7d529"
+  },
+  {
+   "windows": "11",
+   "language": "Czech",
+   "arch": "x64",
+   "sha256": "bc5c5379f076a0cdee08adede96361e72cb91f2ffe240a49188852c9d47fe84d"
+  },
+  {
+   "windows": "11",
+   "language": "Danish",
+   "arch": "x64",
+   "sha256": "11ae2c8be4c5d90aafb789cfd71759d34d762c1094dc3536738426c70594dfb2"
+  },
+  {
+   "windows": "11",
+   "language": "German",
+   "arch": "x64",
+   "sha256": "4fa6fe9500ce7166b22f8aa1705df89f7e69aa9065bda6535eefe711eed718d1"
+  },
+  {
+   "windows": "11",
+   "language": "Greek",
+   "arch": "x64",
+   "sha256": "ee8ad312c152c69e79576d2104396d08cfd441de6456598b76f88ff47d6f6e39"
+  },
+  {
+   "windows": "11",
+   "language": "English International",
+   "arch": "x64",
+   "sha256": "66b7b4b71763ed6f9b2ce29326ed9284544da6f5283d00329921540c01aaaeea"
+  },
+  {
+   "windows": "11",
+   "language": "English",
+   "arch": "x64",
+   "sha256": "768984706b909479417b2368438909440f2967ff05c6a9195ed2667254e465e3"
+  },
+  {
+   "windows": "11",
+   "language": "Spanish",
+   "arch": "x64",
+   "sha256": "f5495dfcea4294c7924420ad860f409623575436f85a8d0a66a6bd9a1c3433d6"
+  },
+  {
+   "windows": "11",
+   "language": "Spanish (Mexico)",
+   "arch": "x64",
+   "sha256": "40deaa9575396c64794b6a9b470f96ad68bb9fd5aac4298a3de7a665ba0b1ae7"
+  },
+  {
+   "windows": "11",
+   "language": "Estonian",
+   "arch": "x64",
+   "sha256": "b5bfd0cc7bda9156cb0f700ae4fa064af838446b2476152b6a63e68a0570d411"
+  },
+  {
+   "windows": "11",
+   "language": "Finnish",
+   "arch": "x64",
+   "sha256": "e41933b5137c016260e1b16b508eb786d9271bd4c6eaba566045490b7a8fce7e"
+  },
+  {
+   "windows": "11",
+   "language": "French Canadian",
+   "arch": "x64",
+   "sha256": "ec1089a9d710e0f1c69cd1490b577bc27b41da16c7af2eef79de6ec519c95fea"
+  },
+  {
+   "windows": "11",
+   "language": "French",
+   "arch": "x64",
+   "sha256": "a02693beb8eb166afdfdb7db49176a2b547f81e61030a695fe172277db6a1977"
+  },
+  {
+   "windows": "11",
+   "language": "Hebrew",
+   "arch": "x64",
+   "sha256": "db303313555e289c90df5246a527153808e5ade64d78a33727ed3fcb999dc1a1"
+  },
+  {
+   "windows": "11",
+   "language": "Croatian",
+   "arch": "x64",
+   "sha256": "70d9b2678fd4cf23ca8cda12cce280b006db82ae9bf2083f6c18e3eb84612e69"
+  },
+  {
+   "windows": "11",
+   "language": "Hungarian",
+   "arch": "x64",
+   "sha256": "8e625ed2eafd531838a027d3ff3e298aa13a9ac70e0803774fe51a4efcf85c88"
+  },
+  {
+   "windows": "11",
+   "language": "Italian",
+   "arch": "x64",
+   "sha256": "e72cba0335c8e67ac523f3f997f6d38e441eb06414ce42fd38b08a639abd0d87"
+  },
+  {
+   "windows": "11",
+   "language": "Japanese",
+   "arch": "x64",
+   "sha256": "19d94439dcacb282d99cc7d3dec5ca2943a6d1dfb1df79610e5528696bcd3bac"
+  },
+  {
+   "windows": "11",
+   "language": "Korean",
+   "arch": "x64",
+   "sha256": "9f39a222ad4a96bd5bbb18afe7b5eed583dd18622b225dbab478c363c4019642"
+  },
+  {
+   "windows": "11",
+   "language": "Lithuanian",
+   "arch": "x64",
+   "sha256": "b8088a3739f8e688d04cc89b34e5145eba6533347531be8c866d8a6c48a5b385"
+  },
+  {
+   "windows": "11",
+   "language": "Latvian",
+   "arch": "x64",
+   "sha256": "15f6f348769fb99df93da6901d81973a044506b135abeedeb18071a65a0be35b"
+  },
+  {
+   "windows": "11",
+   "language": "Norwegian",
+   "arch": "x64",
+   "sha256": "37703db01cfdd943bf55c1a0187401a88bf95e5b729246e80927a7c815f1b511"
+  },
+  {
+   "windows": "11",
+   "language": "Dutch",
+   "arch": "x64",
+   "sha256": "8962b45dc64adc51a772d10badeec91b72faa6726e0b4aed6c8c52da9ce526df"
+  },
+  {
+   "windows": "11",
+   "language": "Polish",
+   "arch": "x64",
+   "sha256": "9453d410298e50c36ce31153326857848256e0980ff8fda501b4d3817540beb9"
+  },
+  {
+   "windows": "11",
+   "language": "Brazilian Portuguese",
+   "arch": "x64",
+   "sha256": "50fe4703cf0df0072e093d1f5d58ed450e4c49d8ca960433bbe6278d5ef10107"
+  },
+  {
+   "windows": "11",
+   "language": "Portuguese",
+   "arch": "x64",
+   "sha256": "c74c96aa06e2548f14c76b5fd6600514c0d4f6eb05a731e4272ab005e8f48ce3"
+  },
+  {
+   "windows": "11",
+   "language": "Romanian",
+   "arch": "x64",
+   "sha256": "87fcb81ab442f306ad2b208e13559c6be62ab8e4e43da58eecba9e6ca99fb594"
+  },
+  {
+   "windows": "11",
+   "language": "Russian",
+   "arch": "x64",
+   "sha256": "f809748051460f28c53360a6864fb4c8e5c4d2e11b1c5da0c7702dd4080796d7"
+  },
+  {
+   "windows": "11",
+   "language": "Slovak",
+   "arch": "x64",
+   "sha256": "98a85385474c5f37f210aaba9424f94e1c3ab5c78cf8e4d46cab3120a309b31e"
+  },
+  {
+   "windows": "11",
+   "language": "Slovenian",
+   "arch": "x64",
+   "sha256": "5f8522d6c0018d4a243de1c8ad74a963f269500314a8093c3ed1d5a5f4307625"
+  },
+  {
+   "windows": "11",
+   "language": "Serbian Latin",
+   "arch": "x64",
+   "sha256": "136c2af587fff4ee2d088679bc682fec35d240a68f7a1737949fd69bc979c000"
+  },
+  {
+   "windows": "11",
+   "language": "Swedish",
+   "arch": "x64",
+   "sha256": "f2271c3a7cf191061fa4a72d88319cb1b23eae73d1041038bcd8d719422bc501"
+  },
+  {
+   "windows": "11",
+   "language": "Thai",
+   "arch": "x64",
+   "sha256": "95fea28f15fc7618ba0a9396bcf60412bb3a6c40d4c25d104b32e45559deebe2"
+  },
+  {
+   "windows": "11",
+   "language": "Turkish",
+   "arch": "x64",
+   "sha256": "0e3c966c742d86a08ac3a96cc84928739a3eac09556b60e71c9e6ca419928113"
+  },
+  {
+   "windows": "11",
+   "language": "Ukrainian",
+   "arch": "x64",
+   "sha256": "e7f23d476992c09b212a40db0cae43ff5006ce2632d3f12467da603562c54732"
+  }
+ ]
+}

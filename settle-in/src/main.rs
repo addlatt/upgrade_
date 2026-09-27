@@ -19,14 +19,29 @@
 //!       The button (root, through pkexec): re-checks everything, then removes
 //!       firmware entries that point at Windows on a partition that no longer
 //!       exists. Prints what it did as JSON.
+//!   settle-in go-back screen [--root DIR] [--text]
+//!       "Go back to Windows": the first screen (the cost, which Windows it
+//!       was, which one to download), as JSON sections or text. No root.
+//!   settle-in go-back downloads [--home DIR]
+//!       ISO files in the person's Downloads folder, newest first.
+//!   settle-in go-back check FILE [--want 10|11]
+//!       Checks a downloaded installer against Microsoft's published SHA-256
+//!       table. Progress on stderr, the verdict as JSON. Refuses anything
+//!       not in the table.
+//!   settle-in go-back sticks [--root DIR] [--min-bytes N] [--facts]
+//!       Every disk, and the rules it breaks (R16 on Linux); only a disk
+//!       that breaks none is offered. --facts prints the raw facts instead
+//!       (a recording, replayable in tests). Read-only, no root.
 //!   settle-in --version
 
 mod bootentry;
 mod civil;
 mod clock;
 mod efi;
+mod goback;
 mod gpt;
 mod hw;
+mod sticks;
 mod summary;
 mod wifi;
 mod zone;
@@ -209,6 +224,54 @@ fn first_start(root: &str, rtc: &str) -> i32 {
     0
 }
 
+fn go_back(args: &[String], root: &str) -> i32 {
+    let opt = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
+    match args.first().map(String::as_str) {
+        Some("screen") => {
+            let before = goback::windows_before(public_summary(root).ok().as_ref());
+            let pc = goback::this_computer(root);
+            let off = goback::offer(&before, &pc);
+            let mut s = goback::screen(&before, &pc, &off);
+            if args.iter().any(|a| a == "--text") {
+                print!("{}", summary::text(&s));
+            } else {
+                s["facts"] = json!({ "before": before, "this_computer": pc, "offer": off });
+                println!("{}", s);
+            }
+            0
+        }
+        Some("downloads") => {
+            let home = opt("--home").or_else(|| std::env::var("HOME").ok()).unwrap_or_default();
+            println!("{}", Value::Array(goback::find_downloads(&home)));
+            0
+        }
+        Some("check") => {
+            let Some(file) = args.get(1).filter(|f| !f.starts_with("--")) else {
+                eprintln!("usage: settle-in go-back check FILE [--want 10|11]");
+                return 64;
+            };
+            let want = opt("--want");
+            let j = goback::check_report(file, want.as_deref(), &goback::media());
+            println!("{}", j);
+            if j["result"] == "verified" { 0 } else { 1 }
+        }
+        Some("sticks") => {
+            let facts = sticks::collect(root);
+            if args.iter().any(|a| a == "--facts") {
+                println!("{}", serde_json::to_string_pretty(&facts).unwrap_or_default());
+            } else {
+                let min = opt("--min-bytes").and_then(|m| m.parse().ok()).unwrap_or(8_000_000_000u64);
+                println!("{}", sticks::judge(&facts, min));
+            }
+            0
+        }
+        _ => {
+            eprintln!("usage: settle-in go-back screen [--root DIR] [--text] | downloads [--home DIR] | check FILE [--want 10|11] | sticks [--root DIR] [--min-bytes N] [--facts]");
+            64
+        }
+    }
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let opt = |name: &str, default: &str| {
@@ -227,6 +290,7 @@ fn main() {
                 std::process::exit(1);
             }
         },
+        Some("go-back") => std::process::exit(go_back(&args[1..], &opt("--root", "/"))),
         Some("remove-old-boot-entry") => std::process::exit(remove_old_boot_entry(&opt("--root", "/"))),
         _ => {
             eprintln!("usage: settle-in first-start [--root DIR] [--rtc DEVICE] | summary [--root DIR] [--text] | remove-old-boot-entry [--root DIR] | --version");
