@@ -153,6 +153,7 @@ fn first_start(root: &str, rtc: &str) -> i32 {
             "uefi": exists(&format!("{}/sys/firmware/efi", r)),
             "systemd": exists(&format!("{}/run/systemd/system", r)),
             "networkmanager": wifi::has_networkmanager(root),
+            "virtual_machine": clock::is_virtual(root),
             "zone_rules": match &zone { Ok(_) => json!(iana), Err(e) => json!(format!("missing: {}", e)) },
         },
     });
@@ -163,7 +164,7 @@ fn first_start(root: &str, rtc: &str) -> i32 {
         // a crash or power cut in the middle: never correct twice
         json!({ "result": "left-alone", "why": "an earlier attempt was interrupted; the clock is not corrected twice" })
     } else {
-        match clock::evidence(&job, &outcome) {
+        match clock::evidence(&job, &outcome, clock::is_virtual(root)) {
             Err(why) => json!({ "result": "left-alone", "why": why }),
             Ok(ev) => {
                 report["clock"] = json!({ "result": "attempting" });

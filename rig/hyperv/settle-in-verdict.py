@@ -14,7 +14,10 @@ stick-credentials-dir.txt. Checks, each named in the row:
   handoff     credentials.wifi: moved == expected, removed_from_stick; the stick
               lists no wifi folder under artifacts/credentials
   clock       settle-in's clock result and why, as it said it (any result is
-              recorded; "failed" fails the row)
+              recorded; "failed" fails the row). When it says "corrected" and the
+              capture's clock was set by a synchronized time service (clock.txt), the
+              corrected time must agree with that true time within 15 minutes of the
+              capture: a correction that moved a right clock fails the row (rig run 10)
   wifi        with --spoofed-wifi (v9-job.py's three made-up networks):
               NetworkManager's own parse of the files settle-in wrote -
               "RigSpoof Home" wpa-psk autoconnect, "Rig;Open" hidden, not
@@ -75,6 +78,13 @@ c = rep.get("clock", {})
 clock_result = c.get("result", "no report"); clock_why = c.get("why", "")
 installer_err = c.get("install_records", {}).get("installer_clock_error", "")
 if clock_result in ("failed", "attempting", "no report"): fails.append("clock " + clock_result)
+ct = text(S / "clock.txt").splitlines()
+if clock_result == "corrected" and ct and "NTPSynchronized=yes" in ct and ct[0].strip().isdigit():
+    after = __import__("calendar").timegm(__import__("time").strptime(c.get("system_clock_after_utc", "1970-01-01T00:00:00Z"), "%Y-%m-%dT%H:%M:%SZ"))
+    truth = int(ct[0])   # the capture, seconds to minutes after first start, on a synchronized clock
+    if not (0 <= truth - after <= 900):
+        clock_why = "the correction disagrees with the true time by %+.1f h (set %s; a synchronized clock read %s at the capture)" % ((after - truth) / 3600.0, c.get("system_clock_after_utc"), __import__("time").strftime("%Y-%m-%dT%H:%M:%SZ", __import__("time").gmtime(truth)))
+        fails.append("the clock correction moved a right clock")
 
 wr = rep.get("wifi", {})
 wifi_result = "%s (%s created)" % (wr.get("result", "none"), wr.get("created", 0))
@@ -122,7 +132,7 @@ else: before = "y"
 # --- desktop sessions: each "Starting Wayland user session" must reach a window manager
 jl = [l for f in sorted(S.glob("sessions-before-*.txt")) for l in text(f).splitlines()] or text(S / "sessions.txt").splitlines() or [l for f in sorted(D.glob("journal-*.txt")) if "user" not in f.name for l in text(f).splitlines()]
 # a sign-in starts a session: SDDM logs "Starting Wayland user session", GDM a PAM session for gdm-password
-start_re = r"Starting Wayland user session|gdm-password\]: pam_unix\(gdm-password:session\): session opened"
+start_re = r"Starting Wayland user session|pam_unix\(gdm-password:session\): session opened"   # GDM writes gdm-password][PID]
 starts, hung = 0, 0
 for i, l in enumerate(jl):
     if re.search(start_re, l):
