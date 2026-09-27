@@ -103,6 +103,13 @@ impl eframe::App for App {
             ui.add_space(12.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
                 if ui.button(self.screen["close"].as_str().unwrap_or("Close")).clicked() {
+                    // marked shown only now, when the person closes it: a session that
+                    // never drew the window must not lose it (rig run 2, 2026-09-27)
+                    let m = marker();
+                    if let Some(d) = m.parent() {
+                        let _ = std::fs::create_dir_all(d);
+                    }
+                    let _ = std::fs::write(&m, "shown\n");
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 }
             });
@@ -117,10 +124,6 @@ fn main() {
         return;
     }
     let Some(screen) = sections() else { return }; // nothing to show (not an upgrade_ install, or settle-in has not run)
-    if let Some(d) = m.parent() {
-        let _ = std::fs::create_dir_all(d);
-    }
-    let _ = std::fs::write(&m, "shown\n");
     let title = screen["title"].as_str().unwrap_or("settle-in").to_string();
     let opts = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_title(&title).with_inner_size([560.0, 620.0]),

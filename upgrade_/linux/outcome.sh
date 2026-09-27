@@ -326,11 +326,14 @@ if [ ! -e /mnt/upgstick/upgrade_/settle-in-capture/done ] && [ -e /var/lib/upgra
     C=/mnt/upgstick/upgrade_/settle-in-capture; mkdir -p "$C"
     cp /var/lib/upgrade_/settle-in/report.json "$C/report.json" 2>/dev/null
     # cu, not u: u holds the account name the row below records (rig run 1, 2026-09-27, clobbered it)
-    for cu in $(nmcli -t -f UUID connection show 2>/dev/null); do
-        f=$(nmcli -g GENERAL.FILENAME connection show "$cu" 2>/dev/null); case "$f" in */upgrade_-*) ;; *) continue;; esac
+    # GENERAL.* exists only for active connections (rig run 2): map uuid -> file from the list instead
+    nmcli -t -f UUID,FILENAME connection show 2>/dev/null | while IFS=: read -r cu f; do
+        case "$f" in */upgrade_-*) ;; *) continue;; esac
         printf '%s|%s|%s|%s|%s|%s\n' "$(basename "$f")" "$(nmcli -g 802-11-wireless.ssid connection show "$cu")" "$(nmcli -g 802-11-wireless.hidden connection show "$cu")" \
             "$(nmcli -g connection.autoconnect connection show "$cu")" "$(nmcli -g 802-11-wireless-security.key-mgmt connection show "$cu")" "$(stat -c %a "$f")" >> "$C/nm-parsed.txt"
     done
+    # the desktop session: did a user session reach the window manager? (rig run 2's black screen)
+    journalctl -b -o short-monotonic --no-pager | grep -E 'Starting Wayland user session|Started plasma-kwin_wayland|Started gnome-shell|org.gnome.Shell|sddm-helper exited' > "$C/sessions.txt" 2>&1
     nmcli -t -f NAME,UUID,TYPE,FILENAME connection show > "$C/nm-all.txt" 2>&1
     ls -la /var/lib/upgrade_ /var/lib/upgrade_/artifacts/credentials > "$C/handoff-ls.txt" 2>&1
     { date -u +%s; cat /sys/class/rtc/rtc0/since_epoch; timedatectl show 2>&1; tail -1 /etc/adjtime; } > "$C/clock.txt" 2>&1

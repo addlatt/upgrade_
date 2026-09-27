@@ -20,8 +20,16 @@ stick-credentials-dir.txt. Checks, each named in the row:
               "RigSpoof Home" wpa-psk autoconnect, "Rig;Open" hidden, not
               autoconnect, open; "RigSpoof Work" (enterprise) not set up;
               every file mode 600
+              (without nm-parsed.txt, nm-all.txt - NetworkManager's connection list -
+              shows the files loaded and the names read, which is only "partial")
   deleted     report.wifi.passwords_deleted, and no wifi folder in the handoff
   order       settle-in finished before NetworkManager and chronyd started
+  sessions    every desktop sign-in reached its window manager (sessions.txt, or a
+              journal-*.txt copied off the machine): a session that starts and never
+              gets one is a black screen - a one-click failure (rig run 2)
+  button      when efi-*before*.txt and efi-*after-button*.txt exist: exactly the
+              stale entries left the boot order, the running entry stayed first, and
+              the next boot (boots.log) started from it into the graphical sign-in
 
 A spoofed pass is pass-plumbing: it closes plumbing, never a real-hardware
 clause (rule #5).
@@ -33,7 +41,8 @@ spoofed = "--spoofed-wifi" in sys.argv[4:]
 notes = [a for a in sys.argv[4:] if not a.startswith("--")]
 S = D / "settle-in"
 HEADER = ["timestamp", "machine", "settle_in_version", "installed", "handoff", "clock_result", "clock_why",
-          "installer_clock_error", "wifi_result", "wifi_nm_parse", "passwords_deleted", "ran_before_network", "result", "notes"]
+          "installer_clock_error", "wifi_result", "wifi_nm_parse", "passwords_deleted", "ran_before_network", "result", "notes",
+          "sessions", "button"]
 
 def load(p):
     try: return json.load(open(p, encoding="utf-8-sig"))
@@ -75,7 +84,15 @@ if spoofed:
     if "RigSpoof Work" in nm_by_ssid: bad.append("enterprise network was set up")
     work = [n for n in wr.get("networks", []) if n.get("ssid") == "RigSpoof Work"]
     if not work or work[0].get("result") != "not-set-up": bad.append("enterprise network not listed")
-    wifi_nm = "y (%d)" % len(nm) if not bad else "n: " + "; ".join(bad)
+    partial = False
+    if not nm and (S / "nm-all.txt").exists():
+        rows = [l.split(":") for l in text(S / "nm-all.txt").splitlines() if l.strip()]
+        loaded = {r[0]: r for r in rows if len(r) >= 4 and "/upgrade_-" in r[3]}
+        bad = [n + " not loaded" for n in want if n not in loaded or loaded[n][2] != "802-11-wireless"]
+        if "RigSpoof Work" in loaded: bad.append("enterprise network was set up")
+        partial = not bad
+    wifi_nm = ("partial: loaded %d, names exact; hidden/autoconnect/security not captured" % len(want) if partial
+               else "y (%d)" % len(nm) if not bad else "n: " + "; ".join(bad))
     if bad: fails.append("wifi")
 else:
     wifi_nm = "n/a (%d parsed)" % len(nm)
@@ -95,10 +112,41 @@ if si_done is None: before = "n: settle-in not in the journal"; fails.append("or
 elif (nm_start is not None and nm_start < si_done) or (ch_start is not None and ch_start < si_done): before = "n"; fails.append("order")
 else: before = "y"
 
+# --- desktop sessions: each "Starting Wayland user session" must reach a window manager
+jl = text(S / "sessions.txt").splitlines() or [l for f in sorted(D.glob("journal-*.txt")) if "user" not in f.name for l in text(f).splitlines()]
+starts, hung = 0, 0
+for i, l in enumerate(jl):
+    if "Starting Wayland user session" in l:
+        starts += 1
+        nxt = jl[i + 1:]
+        end = next((k for k, x in enumerate(nxt) if "Starting Wayland user session" in x), len(nxt))
+        if not any(re.search(r"Started plasma-kwin_wayland|Started gnome-shell|org\.gnome\.Shell", x) for x in nxt[:end]): hung += 1
+sessions = "n/a (no session log)" if not jl else ("%d of %d reached the desktop" % (starts - hung, starts))
+if hung: fails.append("a desktop sign-in never reached the desktop (black screen)")
+
+# --- the button: before/after firmware, and the next boot
+def efi(pat):
+    f = sorted(D.glob(pat)); t = text(f[0]) if f else ""
+    order = re.search(r"BootOrder: (\S+)", t); cur = re.search(r"BootCurrent: (\S+)", t)
+    return (order.group(1).split(",") if order else None, cur.group(1) if cur else None, t)
+b_order, b_cur, b_txt = efi("efi-*before*.txt"); a_order, a_cur, a_txt = efi("efi-*after-button*.txt")
+if b_order is None or a_order is None:
+    button = "n/a"
+else:
+    gone = [e for e in b_order if e not in a_order]
+    stale_ok = all(re.search(r"Boot%s\*? Windows Boot Manager" % g, b_txt) for g in gone) and gone
+    kept = [e for e in b_order if e not in gone] == a_order and a_order[0] == b_cur
+    later = [l for l in text(D / "boots.log").splitlines() if l.startswith("linux-boot")]
+    rebooted = len(later) >= 2 and ("BootCurrent=%s" % b_cur) in later[-1] and "default_target=graphical.target" in later[-1] and "display_manager=active" in later[-1]
+    button = "removed %s; order otherwise unchanged: %s; next boot from %s, graphical: %s" % (",".join(gone) or "nothing", "y" if kept else "n", b_cur, "y" if rebooted else "n")
+    if not (stale_ok and kept and rebooted): fails.append("button")
+
 result = ("pass-plumbing" if spoofed else "pass") if not fails else "fail"
+if result != "fail" and spoofed and "partial" in wifi_nm: result = "partial"
 if fails: notes.append("failed: " + ", ".join(fails))
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), MACHINE, rep.get("settle_in_version", si.get("version", "")),
-       installed, handoff, clock_result, clock_why, installer_err, wifi_result, wifi_nm, deleted, before, result, "; ".join(notes)]
+       installed, handoff, clock_result, clock_why, installer_err, wifi_result, wifi_nm, deleted, before, result, "; ".join(notes),
+       sessions, button]
 new = not CSV.exists()
 with open(CSV, "a", newline="") as f:
     wr_ = csv.writer(f)
