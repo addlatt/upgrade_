@@ -32,6 +32,13 @@
 //!       Every disk, and the rules it breaks (R16 on Linux); only a disk
 //!       that breaks none is offered. --facts prints the raw facts instead
 //!       (a recording, replayable in tests). Read-only, no root.
+//!   settle-in go-back write --iso FILE [--want 10|11] --serial S --size N --typed MODEL
+//!                            [--wimlib PATH] [--root DIR]
+//!   settle-in go-back write --iso FILE [--want 10|11] --image NEWFILE --size N
+//!       The one writer (root, through pkexec): re-checks the file and the
+//!       stick, then writes the installer and reads it all back. --image
+//!       writes a new file instead of a stick (tests and the rig). Progress
+//!       on stderr; the result as JSON.
 //!   settle-in --version
 
 mod bootentry;
@@ -42,6 +49,7 @@ mod goback;
 mod gpt;
 mod hw;
 mod sticks;
+mod stickwrite;
 mod summary;
 mod wifi;
 mod zone;
@@ -254,6 +262,22 @@ fn go_back(args: &[String], root: &str) -> i32 {
             let j = goback::check_report(file, want.as_deref(), &goback::media());
             println!("{}", j);
             if j["result"] == "verified" { 0 } else { 1 }
+        }
+        Some("write") => {
+            let exe_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_string_lossy().to_string())).unwrap_or_default();
+            let req = stickwrite::Request {
+                iso: opt("--iso").unwrap_or_default(),
+                want: opt("--want"),
+                serial: opt("--serial").unwrap_or_default(),
+                size_bytes: opt("--size").and_then(|v| v.parse().ok()).unwrap_or(0),
+                typed: opt("--typed").unwrap_or_default(),
+                image: opt("--image"),
+                wimlib: opt("--wimlib").unwrap_or_else(|| format!("{}/wimlib-imagex", exe_dir)),
+                root: root.to_string(),
+            };
+            let r = stickwrite::write(&req);
+            println!("{}", r);
+            if r["result"] == "written" { 0 } else { 1 }
         }
         Some("sticks") => {
             let facts = sticks::collect(root);
