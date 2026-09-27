@@ -116,11 +116,13 @@ else: before = "y"
 jl = [l for f in sorted(S.glob("sessions-before-*.txt")) for l in text(f).splitlines()] or text(S / "sessions.txt").splitlines() or [l for f in sorted(D.glob("journal-*.txt")) if "user" not in f.name for l in text(f).splitlines()]
 starts, hung = 0, 0
 for i, l in enumerate(jl):
-    if "Starting Wayland user session" in l:
+    # a sign-in starts a session: SDDM logs "Starting Wayland user session", GDM a PAM session for gdm-password
+    start = r"Starting Wayland user session|gdm-password\]: pam_unix\(gdm-password:session\): session opened"
+    if re.search(start, l):
         starts += 1
         nxt = jl[i + 1:]
-        end = next((k for k, x in enumerate(nxt) if "Starting Wayland user session" in x), len(nxt))
-        if not any(re.search(r"Started plasma-kwin_wayland|Started gnome-shell|org\.gnome\.Shell", x) for x in nxt[:end]): hung += 1
+        end = next((k for k, x in enumerate(nxt) if re.search(start, x)), len(nxt))
+        if not any(re.search(r"Started plasma-kwin_wayland|Started org\.gnome\.Shell@wayland", x) for x in nxt[:end]): hung += 1
 sessions = "n/a (no session log)" if not jl else ("%d of %d reached the desktop" % (starts - hung, starts))
 if hung: fails.append("a desktop sign-in never reached the desktop (black screen)")
 

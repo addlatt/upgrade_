@@ -866,11 +866,22 @@ planted in the job, `v9-job.py --spoof-wifi`; plumbing only):**
   The console no longer prints the window's button line above the
   question.
 
+- **Run 5 (line 6) `pass-plumbing`, GNOME.** The first sign-in reached
+  the desktop and the window opened by itself, under GNOME's welcome tour
+  in the overview. Clicked, the button removed the stale entry through
+  GNOME's password prompt; the next boot started Fedora; the second
+  sign-in showed no window. NetworkManager's reading matched field by
+  field. The row's "0 of 0" sessions is the verdict not knowing GDM's log
+  lines yet (the log shows GNOME Shell started after the sign-in); both
+  the capture and the verdict read GDM's lines now. GNOME gives the window
+  only minimal controls and a generic icon.
+
 **Residue the rig cannot close.** Hyper-V's hardware clock already holds
 UTC, so on the rig the clock step is correctly "not needed" and the
 correction itself (the Aspire's 4-hour case) is proven only by the tests.
-Real Wi-Fi, a real firmware's boot entries, GNOME, the console path and a
-non-Fedora distribution are still owed.
+Real Wi-Fi, a real firmware's boot entries and a non-Fedora distribution
+are still owed, and so is an automated row for the console path (run 4's
+evidence is screenshots).
 
 **Method.** Build the program once. On the rig, install Fedora KDE and
 Fedora GNOME through the converter, and at least one non-Fedora
