@@ -46,9 +46,20 @@ pub struct Evidence {
     pub installer_utc: i64,
     pub rtc_at_install: Option<i64>,
     pub ntp_synchronized: Option<bool>,
+    /// The CPU says it runs under a hypervisor. There the host can set the
+    /// installer's clock (Hyper-V's time sync did, rig run 10, 2026-09-27),
+    /// so agreeing clocks no longer prove the installer copied the hardware clock.
+    pub virtual_machine: bool,
 }
 
-pub fn evidence(job: &Value, outcome: &Value) -> Result<Evidence, String> {
+/// The CPU's own "hypervisor" flag (/proc/cpuinfo), the same on every distribution.
+pub fn is_virtual(root: &str) -> bool {
+    std::fs::read_to_string(format!("{}/proc/cpuinfo", root.trim_end_matches('/')))
+        .map(|t| t.lines().any(|l| l.starts_with("flags") && l.split_whitespace().any(|f| f == "hypervisor")))
+        .unwrap_or(false)
+}
+
+pub fn evidence(job: &Value, outcome: &Value, virtual_machine: bool) -> Result<Evidence, String> {
     let h = job.pointer("/harvest/clock").ok_or("the job has no clock facts (job writer before 0.15.0)")?;
     let c = outcome.pointer("/cutover/clock").ok_or("the install record has no clock readings (outcome.sh before 0.4.0)")?;
     let b = |v: &Value, k: &str| v.get(k).and_then(Value::as_bool).ok_or(format!("clock fact '{}' is missing", k));
@@ -62,6 +73,7 @@ pub fn evidence(job: &Value, outcome: &Value) -> Result<Evidence, String> {
         installer_utc: i(c, "installer_utc_epoch")?,
         rtc_at_install: c.get("rtc_epoch").and_then(Value::as_i64),
         ntp_synchronized: c.get("ntp_synchronized").and_then(Value::as_bool),
+        virtual_machine,
     })
 }
 
@@ -107,6 +119,14 @@ pub fn decide(e: &Evidence, zone: Option<&Zone>) -> Decision {
             Some(true) => {
                 return Decision::NotNeeded(
                     "the installer's time service had already set the hardware clock to UTC".into(),
+                )
+            }
+            // in a virtual machine the host may have set the installer's clock, and a
+            // hardware clock that holds UTC then agrees with it too: not provable, so
+            // left alone (rig run 10 moved a right clock 7 h forward this way)
+            Some(false) if e.virtual_machine => {
+                return Decision::Refuse(
+                    "this is a virtual machine: the hardware clock and the installer's clock agreed, but the host may have set the installer's clock, so the hardware clock may hold either local time or UTC".into(),
                 )
             }
             // the installer took its clock from the hardware clock: both held local time
@@ -221,7 +241,7 @@ mod tests {
 
     const H: i64 = -4 * 3600; // New York in September
     fn ev(rtc: Option<i64>, inst: i64, ntp: Option<bool>) -> Evidence {
-        Evidence { rtc_is_local: true, dst_auto_adjust: true, harvest_offset: H, observed_utc: 1790510400, installer_utc: inst, rtc_at_install: rtc, ntp_synchronized: ntp }
+        Evidence { rtc_is_local: true, dst_auto_adjust: true, harvest_offset: H, observed_utc: 1790510400, installer_utc: inst, rtc_at_install: rtc, ntp_synchronized: ntp, virtual_machine: false }
     }
     fn ny() -> Zone {
         Zone::load("", "America/New_York").unwrap()
@@ -235,6 +255,30 @@ mod tests {
         assert_eq!(decide(&ev(Some(local_as_utc + 2), local_as_utc, Some(false)), Some(&ny())), Decision::Fix { baked: H, installer_error: H });
         // agreeing clocks with no word on the time service could be either: left alone
         assert!(matches!(decide(&ev(Some(local_as_utc), local_as_utc, None), Some(&ny())), Decision::Refuse(_)));
+    }
+
+    #[test]
+    fn rig_run_10_a_virtual_machine_with_agreeing_clocks_is_left_alone() {
+        // Hyper-V set the installer's clock (true UTC) and its hardware clock held UTC too;
+        // Windows said local, -7 h. On bare metal this is the Aspire case; in a VM it is not provable.
+        let mut e = ev(Some(TRUE_INSTALL), TRUE_INSTALL, Some(false));
+        e.virtual_machine = true;
+        assert!(matches!(decide(&e, Some(&ny())), Decision::Refuse(_)));
+        // a VM whose installer clock is right and hardware clock local is still corrected
+        let mut e = ev(Some(TRUE_INSTALL + H), TRUE_INSTALL, Some(false));
+        e.virtual_machine = true;
+        assert_eq!(decide(&e, Some(&ny())), Decision::Fix { baked: H, installer_error: 0 });
+    }
+
+    #[test]
+    fn reads_the_hypervisor_flag() {
+        let t = std::env::temp_dir().join(format!("settle-in-cpu-{}", std::process::id()));
+        std::fs::create_dir_all(t.join("proc")).unwrap();
+        std::fs::write(t.join("proc/cpuinfo"), "processor\t: 0\nflags\t\t: fpu vme hypervisor lahf_lm\n").unwrap();
+        assert!(is_virtual(t.to_str().unwrap()));
+        std::fs::write(t.join("proc/cpuinfo"), "processor\t: 0\nflags\t\t: fpu vme lahf_lm\n").unwrap();
+        assert!(!is_virtual(t.to_str().unwrap()));
+        std::fs::remove_dir_all(&t).unwrap();
     }
 
     #[test]

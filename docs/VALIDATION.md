@@ -893,6 +893,29 @@ planted in the job, `v9-job.py --spoof-wifi`; plumbing only):**
   verdict's `window` column fails a desktop install whose first sign-in
   did not show it. Here it showed 3.6 s after the sign-in started.
 
+- **Run 9 (line 9) `pass-plumbing`, KDE, with the owner's answers of
+  2026-09-27:** the window opened 5 s after sign-in in front of KDE's
+  Welcome Center, and KDE gave it focus (logged); the password prompt
+  showed the owner's words; `settle-in` removed the conversion's own
+  "upgrade_" entry at first start by its recorded id; the button removed
+  the stale Windows Boot Manager.
+- **Run 10 (line 10) `[FAIL]`, GNOME: settle-in moved a right clock 7 h
+  forward.** At the end of the install the installer's clock and the
+  hardware clock agreed and no time service had synchronized. On bare
+  metal that means the installer copied the local-time hardware clock
+  (the Aspire's case). On Hyper-V the host's time sync set the installer's
+  clock, and the virtual hardware clock holds UTC (the same quirk that
+  runs this rig's Windows 7 h fast), so the -7 h correction was wrong. The
+  network time service put it back within seconds; runs 1-9 had escaped
+  only because it synchronized during the install. **Fixed the same day:**
+  in a virtual machine (the CPU's hypervisor flag) that case is left
+  alone, and the verdict now fails any correction that disagrees with a
+  synchronized clock (it caught this run). Also in run 10: GNOME did not
+  give the window focus (its welcome tour stays on top; logged), the
+  password prompt showed the owner's words on GNOME too, and the own-entry
+  removal and the button passed. The verdict missed GDM's sign-in line
+  (its format carries a process number); fixed.
+
 **Residue the rig cannot close.** Hyper-V's hardware clock already holds
 UTC, so on the rig the clock step is correctly "not needed" and the
 correction itself (the Aspire's 4-hour case) is proven only by the tests.

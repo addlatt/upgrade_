@@ -2889,6 +2889,20 @@ fixed handoff folder.
   polkit policy file with the owner's words, for that command only; the
   rig must show it on KDE, GNOME and the console.
 
+- **Agreeing clocks do not prove local time in a virtual machine** (rig
+  run 10, 2026-09-27: a right clock moved 7 h forward for seconds, until
+  the network time service corrected it). The evidence rule assumed the
+  installer's clock can only come from the hardware clock when no time
+  service synchronized; a hypervisor can set it too. Fixed: in a virtual
+  machine that case is left alone. On bare metal the rule stands, and the
+  Aspire's physical run is its first real test. Residue: a Windows whose
+  own clock is wrong gives `settle-in` a wrong offset and a wrong base; the
+  correction then reproduces Windows' time, and the network corrects it.
+- **GNOME does not give the window focus** (rig run 10; logged "not given
+  focus by the desktop"). Its welcome tour stays on top; the window waits
+  in the overview. KDE gives focus (run 9). Whether to do more on GNOME is
+  the owner's call.
+
 **Found on the rig (2026-09-27, run 1).** After the erase, the firmware
 still lists the old "Windows Boot Manager" (pointing at the erased
 partition) and also the prologue's own one-time entry, "upgrade_",
