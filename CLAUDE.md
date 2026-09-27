@@ -98,8 +98,12 @@ install Fedora, keep nothing; its own launcher and typed sentence, a
 system on the C: drive and `/home` on a second internal drive. Carrying
 files across is stage 2. **Built and passed on the rig 2026-09-26**
 (`v9-erase.csv`: refuse, cancel, erase - the first cancel froze and was
-fixed in `verify.sh` 0.4.1; one erase over an Ubuntu-style LVM). Next:
-the physical row on the Aspire (`RUN-ERASE-AND-INSTALL-ACCEPTING-DATA-LOSS.cmd`),
+fixed in `verify.sh` 0.4.1; one erase over an Ubuntu-style LVM). **The
+Aspire's run 9 (same night) erased and installed with nobody at the
+keyboard, but booted to a TEXT login - a one-click failure** (kickstart
+lacked a graphical login; fixed in 0.3.0, rig re-proven with the new
+`graphical_login` check). Next: the Aspire's physical row recorded,
+then a re-run that ends at the desktop,
 and a plain-words screen for a `%pre` refusal (today Anaconda's
 traceback). Design in `architecture.md`, "Erase and install".
 

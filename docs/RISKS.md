@@ -2393,6 +2393,24 @@ prologue 0.10.0, `verify.sh` 0.4.1, `outcome.sh` 0.3.0, the two
   countdown); the installer found and removed it.
 - Also seen: R25's update gate fired for real on the rig (see R25).
 
+**First physical run - the Aspire, 2026-09-26 (run 9): a FAILURE of the
+one-click promise.** The launcher, both sentences, the password, the
+countdown, the erase and the install all ran with nobody at the keyboard,
+Fedora booted from the SSD, and the password chosen on Windows signed in
+- but the machine came up at a **text** "fedora login:" prompt, and the
+owner had to be told a command to reach the desktop. The owner's ruling:
+"it's gotta be one click" - a person must never meet a console. Cause:
+the kickstart never asked for a graphical login, and an installer run in
+text mode leaves the installed system at `multi-user.target`. The rig
+could not see it: its first-boot marker powered the guest off before a
+person would have looked. Fixed the same night: kickstart generator
+0.3.0 (`xconfig --startxonboot`, and `%post` sets `graphical.target`),
+`outcome.sh` 0.3.1 records `install.boot_target`, the outcome schema
+refuses a completed conversion that is not `graphical.target`, and the
+rig verdict now requires the display manager running at first boot
+(`graphical_login`, `v9-erase.csv` line 8: y). The physical row waits for
+the stick's records.
+
 **Unspoofable residue (rule #5), for the Aspire's physical row:** Secure
 Boot on (the rig's is off; the Aspire's shim path is proven for the live
 boot, not for an installed system), a real keyboard on the countdown,
