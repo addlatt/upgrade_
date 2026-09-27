@@ -2864,6 +2864,18 @@ fixed handoff folder.
   source. The build must be reproducible and checked like the rest of the
   kit (`SHA256SUMS`).
 
+- **The window needs a new enough C library.** Built on this project's
+  build machine, the window program needs glibc 2.39 or newer (Fedora 42
+  has 2.41). Older distributions (Debian 12 has 2.36) would not open it.
+  Owed: build it against an older baseline. The core is fully static and
+  has no such limit.
+
+**Found on the rig (2026-09-27, run 1).** After the erase, the firmware
+still lists the old "Windows Boot Manager" (pointing at the erased
+partition) and also the prologue's own one-time entry, "upgrade_",
+pointing at the stick. The button removes the first; nothing yet removes
+our own. Owed.
+
 **Closes when** the same `settle-in` file, unchanged, runs its first
 startup on Fedora KDE, Fedora GNOME and at least one non-Fedora
 distribution, on the rig and then on a real machine, each leaving a capture

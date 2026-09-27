@@ -910,6 +910,39 @@ So `settle-in` is built in three layers:
    administrator prompt on every desktop). When the person chose the
    console, the same content comes as text at their first console
    sign-in.
+
+   **The window's words (approved 2026-09-27, the owner), verbatim.** They
+   live in one place, `settle-in summary`, which both the window and the
+   console print:
+
+   ```text
+   <the system's own name> is ready
+   The clock
+     Set. Windows kept the computer's clock in local time; it now keeps
+     the standard time Linux uses. Nothing to do.
+     (or) Not changed: <reason>. It will set itself once you are online.
+   Wi-Fi
+     These networks connect by themselves:
+       <names>
+     Not set up (join it from the network menu if you need it):
+       <name> - <reason>
+     Their passwords are no longer on the USB stick or in this setup
+     program.
+     (or) Windows had no saved Wi-Fi networks.
+   The old Windows startup entry
+     Windows is gone, but the computer's startup menu still lists
+     "Windows Boot Manager". Choosing it would do nothing.
+     [ Remove the old Windows startup entry ]
+     You will be asked for your password.
+   [ Close ]
+   ```
+
+   Drafts awaiting the owner's approval (built, marked in the code): a
+   network Windows did not connect to by itself ("These networks are set
+   up; connect to them from the network menu:"), no NetworkManager ("Not
+   set up: <reason>."), after the button ("Removed." / "Not removed:
+   <reason>"), and the console's question ("Remove the old Windows startup
+   entry now? Type yes and press Enter (anything else skips):").
 3. **A floor it checks, and refuses below.** On start it checks for UEFI,
    systemd (what starts services at boot), NetworkManager (the Wi-Fi
    manager nearly every desktop distribution uses; its connection files are
