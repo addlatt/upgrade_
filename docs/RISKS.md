@@ -2441,6 +2441,11 @@ catching this run. `anaconda-ks.cfg` confirms the cause: Anaconda wrote
 - **A `%pre` refusal shows Anaconda's raw traceback** (rig arm A) - it
   needs a plain sentence.
 
+**Seen and signed in on the rig (2026-09-27, `v9-erase.csv` lines
+12-13):** both desktops reached their sign-in screen, took the password
+typed on the rig's keyboard, and opened the desktop - the check the rig
+had skipped before run 9 (its marker powered the guest off first).
+
 Also added the same night, by the owner: the launcher **menu of what the
 computer starts at** (KDE desktop, GNOME desktop, text console; rig lines
 9-10 held), and **the sign-in named on screen** (the password screen and

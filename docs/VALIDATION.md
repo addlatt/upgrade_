@@ -552,7 +552,12 @@ before the countdown, B cancelled with both disks untouched (after a first
 B attempt that froze and was fixed - `verify.sh` 0.4.1), C erased and
 installed with `/home` on the second disk and the chosen password,
 including once over an Ubuntu-style LVM, and each of the person's three
-start choices held (KDE, GNOME, console). **Physical: the Aspire's run 9
+start choices held (KDE, GNOME, console). **Seen and signed in
+(2026-09-27, lines 12-13):** with the rig's power-off marker removed,
+the GDM and SDDM sign-in screens appeared, the account's password was
+typed on the rig's keyboard, and the GNOME desktop and the KDE Plasma
+desktop (Welcome Center, taskbar) came up - screenshots in the gitignored
+`rig/hyperv/artifacts/v9/{gnome,kde}-seen/`. **Physical: the Aspire's run 9
 (line 11) FAILED the one-click promise** - everything ran unattended and
 the password signed in, but it came up at a text login (fixed; RISKS R27).
 A physical re-run that ends at the chosen screen is owed. Design decided 2026-09-26. The owner's first end-to-end

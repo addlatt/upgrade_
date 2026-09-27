@@ -59,7 +59,7 @@ flowchart LR
     end
     subgraph I["Fedora installer on the stick"]
         V["check it's the right machine<br/>and the hardware works"]
-        C{{"⚠️ the commit line"}}
+        C{{"THE COMMIT LINE"}}
         X["install · check it boots<br/>write outcome.json"]
     end
     subgraph L["On Linux · first boot"]
@@ -105,31 +105,39 @@ The full design is in [docs/architecture.md](docs/architecture.md).
 
 ## Where it stands
 
-**Key:** ✅ worked on a real machine · 🟢 works on the test rig (a VM) ·
-🟡 built, not tried yet · 📐 planned, not built · ⬜ not started
+Think of each bar as how far along the road a step has got:
+
+```text
+[####]  worked on a real machine
+[###.]  works on the test rig (a virtual machine)
+[##..]  built, not tried yet
+[#...]  planned, not built
+[....]  not started
+[FAIL]  failed on a real machine (the result is kept, never deleted)
+```
 
 ### Every step
 
 | Step | State | Proof |
 |---|---|---|
-| **Scanner**: checks, verdict, which Linux to use | ✅ | real hardware, plus saved machine recordings replayed on every self-test |
-| **Stick writer** (R16) | ✅ | [`r16-stick-writer.csv`](docs/validation-results/r16-stick-writer.csv): real writes, checked afterwards |
-| **OneDrive files** (V8) | 🟢 | [`v8-materialize.csv`](docs/validation-results/v8-materialize.csv): tested with a real cloud-files provider. *Decided 2026-09-26:* files that only live in OneDrive stay there, and `settle-in` signs you back in |
-| **Job writer**: `job.json`, installed programs, folder map, does it fit the stick | ✅ / 🟡 | [`harvest-folder-map.csv`](docs/validation-results/harvest-folder-map.csv). Wi-Fi, browsers, the BitLocker key and the clock are still to do |
-| **Boot handoff**: restart once into the stick (V0) | ✅ | [`v0-handoff.csv`](docs/validation-results/v0-handoff.csv): Acer, Secure Boot on, worked first time, no keypress |
-| **Walk-away restart**: keeps going after a restart with nobody signed in | ✅ | [`walkaway-probe.csv`](docs/validation-results/walkaway-probe.csv): never asks for your password |
-| **Live boot and hardware check** (V1) | ✅ | [`v1-live-boot.csv`](docs/validation-results/v1-live-boot.csv): right machine, screen, Wi-Fi (28 networks found), the whole image read back from the stick |
-| **Prologue**: re-check, disk repair, shrink, BitLocker | 🟢 / ✅ stops | [`r18-prologue.csv`](docs/validation-results/r18-prologue.csv): 7 runs on a real machine, and **every one stopped safely** before anything permanent |
-| **Install next to Windows** and check both boot (V1b) | 🟢 | [`v2-install.csv`](docs/validation-results/v2-install.csv): on the rig, Secure Boot off. The real one needs a laptop with a healthy drive |
-| **Undo, from the Windows side** | 🟢 | [`r21-rollback.csv`](docs/validation-results/r21-rollback.csv) |
-| **Erase and install**, one click, keep nothing (V9) | 🟢 / ❌ → fixed | [`v9-erase.csv`](docs/validation-results/v9-erase.csv): more below |
-| **Reading BitLocker drives from Linux** (V3) | 🟢 | [`v3-bitlk-read.csv`](docs/validation-results/v3-bitlk-read.csv): works using `ntfs-3g` |
-| **Spotting the RST / VMD disk setting** (V5) | 🟡 | [`v5-controller-mode.csv`](docs/validation-results/v5-controller-mode.csv): one side is tested for real, but **VMD itself has never been caught on a real machine** |
-| **`settle-in`**: first boot checks, copy files, clean-up | 📐 | only the BitLocker reading is proven |
-| **Clock, Wi-Fi passwords, the leftover Windows boot entry** | 📐 | planned 2026-09-26: collected on Windows, applied on first boot |
-| **Offer to delete Windows when it can't be kept** (R26) | 📐 | planned 2026-09-26 |
-| **Different laptop brands** | 1 of 4+ | Acer so far. Dell, Lenovo and HP still to go |
-| **Code signing** | ⬜ | until it's signed, Windows Defender treats it like malware |
+| **Scanner**: checks, verdict, which Linux to use | `[####]` | real hardware, plus saved machine recordings replayed on every self-test |
+| **Stick writer** (R16) | `[####]` | [`r16-stick-writer.csv`](docs/validation-results/r16-stick-writer.csv): real writes, checked afterwards |
+| **OneDrive files** (V8) | `[###.]` | [`v8-materialize.csv`](docs/validation-results/v8-materialize.csv): tested with a real cloud-files provider. *Decided 2026-09-26:* files that only live in OneDrive stay there, and `settle-in` signs you back in |
+| **Job writer**: `job.json`, installed programs, folder map, does it fit the stick | `[####]` / `[##..]` | [`harvest-folder-map.csv`](docs/validation-results/harvest-folder-map.csv). Wi-Fi, browsers, the BitLocker key and the clock are still to do |
+| **Boot handoff**: restart once into the stick (V0) | `[####]` | [`v0-handoff.csv`](docs/validation-results/v0-handoff.csv): Acer, Secure Boot on, worked first time, no keypress |
+| **Walk-away restart**: keeps going after a restart with nobody signed in | `[####]` | [`walkaway-probe.csv`](docs/validation-results/walkaway-probe.csv): never asks for your password |
+| **Live boot and hardware check** (V1) | `[####]` | [`v1-live-boot.csv`](docs/validation-results/v1-live-boot.csv): right machine, screen, Wi-Fi (28 networks found), the whole image read back from the stick |
+| **Prologue**: re-check, disk repair, shrink, BitLocker | `[###.]`, real machine stops safely `[####]` | [`r18-prologue.csv`](docs/validation-results/r18-prologue.csv): 7 runs on a real machine, and **every one stopped safely** before anything permanent |
+| **Install next to Windows** and check both boot (V1b) | `[###.]` | [`v2-install.csv`](docs/validation-results/v2-install.csv): on the rig, Secure Boot off. The real one needs a laptop with a healthy drive |
+| **Undo, from the Windows side** | `[###.]` | [`r21-rollback.csv`](docs/validation-results/r21-rollback.csv) |
+| **Erase and install**, one click, keep nothing (V9) | `[###.]`, real machine `[FAIL]`, fixed | [`v9-erase.csv`](docs/validation-results/v9-erase.csv): more below |
+| **Reading BitLocker drives from Linux** (V3) | `[###.]` | [`v3-bitlk-read.csv`](docs/validation-results/v3-bitlk-read.csv): works using `ntfs-3g` |
+| **Spotting the RST / VMD disk setting** (V5) | `[##..]` | [`v5-controller-mode.csv`](docs/validation-results/v5-controller-mode.csv): one side is tested for real, but **VMD itself has never been caught on a real machine** |
+| **`settle-in`**: first boot checks, copy files, clean-up | `[#...]` | only the BitLocker reading is proven |
+| **Clock, Wi-Fi passwords, the leftover Windows boot entry** | `[#...]` | planned 2026-09-26: collected on Windows, applied on first boot |
+| **Offer to delete Windows when it can't be kept** (R26) | `[#...]` | planned 2026-09-26 |
+| **Different laptop brands** | `[#...]` 1 of 4+ | Acer so far. Dell, Lenovo and HP still to go |
+| **Code signing** | `[....]` | until it's signed, Windows Defender treats it like malware |
 
 ### What we're on now: one-click erase and install
 
@@ -148,9 +156,9 @@ flowchart LR
 
 | Case | On the rig | On the Acer Aspire |
 |---|---|---|
-| Says no before the countdown | ✅ `refused-before-countdown` | |
-| Cancel during the countdown | ✅ `cancelled-untouched` (froze the first time, fixed in `verify.sh` 0.4.1) | |
-| Erase and install: KDE, GNOME, text-only | ✅ `erased-installed`, even over an old Ubuntu setup | ❌ **run 9:** wiped and installed on its own with Secure Boot on, but came up at a **text login** because the install recipe was missing the desktop login. Fixed in 0.3.0, and the rig now checks for it every time |
+| Says no before the countdown | `[####]` `refused-before-countdown` | |
+| Cancel during the countdown | `[####]` `cancelled-untouched` (froze the first time, fixed in `verify.sh` 0.4.1) | |
+| Erase and install: KDE, GNOME, text-only | `[####]` `erased-installed`, even over an old Ubuntu setup | `[FAIL]` **run 9:** wiped and installed on its own with Secure Boot on, but came up at a **text login** because the install recipe was missing the desktop login. Fixed in 0.3.0, and the rig now checks for it every time |
 
 **Up next:** run it on the Aspire again and land on the desktop. Run 9 also
 turned up three smaller things to fix: the installer's clock was 4 hours

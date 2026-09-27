@@ -321,6 +321,29 @@ dist/              built single-file scanner (rebuild with ./build.sh)
 - **Licence is GPL-3.0.** The trust model is "read the source"; copyleft keeps
   forks readable. Don't reintroduce permissively-licensed files without a reason.
 
+## How we write (decided 2026-09-26, the owner)
+
+Every doc in this repo speaks with one voice: **straightforward, simple and
+built on facts.** Write it the way you'd explain it to a smart friend who
+has never opened a terminal.
+
+- **Short sentences, plain words.** "Can this step still be undone?" beats
+  "split on commitment". If a term of art is needed (ESP, kickstart,
+  `bcdedit`), use it, and say what it is the first time.
+- **No em dashes.** Use a full stop, a comma, a colon or brackets instead.
+- **Facts first.** Dates, versions, file names, row numbers and results stay
+  exact. Simplifying the words never softens a claim, a refusal or a gap.
+  "Decided (YYYY-MM-DD): ..." lines keep their date.
+- **Metaphors where they help, not as decoration.** One good picture (the
+  commit line, a safety net, a one-way door) is worth a paragraph. Don't
+  stack them.
+- **No emoji.** For status, use the ASCII bars:
+  `[####]` real machine · `[###.]` rig · `[##..]` built, untried ·
+  `[#...]` planned · `[....]` not started · `[FAIL]` failed for real.
+  Diagrams are mermaid or plain ASCII in a `text` block.
+- **Honest about failures.** A fail stays in the record, in plain words,
+  next to what fixed it.
+
 ## When the design changes
 
 Keep the three docs in agreement — `architecture.md` (how it works), `RISKS.md`

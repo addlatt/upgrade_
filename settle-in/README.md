@@ -1,18 +1,29 @@
 # settle-in
 
-Runs on Linux at first boot, once.
+Runs once, on the first boot into Linux.
 
-It looks like a welcome screen. It is a safety gate: it verifies the hardware
-actually works — speakers, *not headphones* — confirms the data arrived, and
-hands over.
+It looks like a welcome screen, but it's really a safety check. It makes sure
+the hardware actually works (the speakers, *not just the headphones*),
+confirms your files arrived, and then hands the machine over.
 
-On the safety-copy path it also holds the commit line: the offer to **reclaim**
-the Windows partition, made exactly once after verification passes, never
-nagged; declining leaves a `reclaim` command behind for later. On the
-clean-slate path it tells the user to keep the stick — it is their only backup
-until they no longer want one.
+What it will do:
 
-It does not teach Linux, install applications, run a tour, or check in later.
-The verification is the reason it exists.
+- **Check the hardware** on the real machine, not just in the installer.
+- **Bring your files home.** On the keep-Windows path it opens the old
+  Windows partition (unlocking BitLocker with the saved key) and copies your
+  folders across, checking each copy.
+- **Set up what Windows knew:** the clock, your Wi-Fi networks and passwords,
+  and your OneDrive sign-in (files that only live in OneDrive stay there).
+- **Offer the clean-up once.** On the keep-Windows path this is the commit
+  line: after everything checks out, it offers to delete the old Windows
+  partition. It asks one time and never nags. Say no and a `reclaim` command
+  is left behind for later.
+- On the erase path, it tells you to keep the stick. It's your only backup
+  until you decide you don't need one.
 
-Nothing built yet. See `docs/architecture.md`.
+What it won't do: teach you Linux, install apps, run a tour or check in
+later. The checking is the whole reason it exists.
+
+State: `[#...]` planned, not built. The one proven piece is reading a
+BitLocker drive from Linux (`[###.]` on the rig, `v3-bitlk-read.csv`). See
+`docs/architecture.md`.
