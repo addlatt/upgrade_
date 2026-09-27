@@ -36,7 +36,7 @@ and set to one side until you're sure you don't need it.
 
 ## Why
 
-Your computer shouldn't stop being useful just because Windows says so.
+Your hardware should be yours to customize.
 
 Windows 10 stopped getting security updates in October 2025. Tons of
 perfectly good machines can't run Windows 11, but they run Linux just fine.
