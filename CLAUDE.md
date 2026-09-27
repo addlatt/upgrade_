@@ -107,7 +107,11 @@ GNOME or the text console on the launcher (all three held on the rig),
 and is told the sign-in name on screen. Physical row written
 (`v9-erase.csv` line 11, fail); findings owed: the installer's clock 4 h
 off (RTC in local time), a stale Windows firmware entry, a raw traceback
-on a `%pre` refusal.
+on a `%pre` refusal. **Decided (2026-09-26, the owner):** the clock and
+Wi-Fi passwords are harvested on Windows and applied by `settle-in` on
+first startup; the old firmware entry is a button at the end of
+`settle-in` (`architecture.md`, "The clock, Wi-Fi and the old boot
+entry"). Not built.
 Next: the Aspire's physical row recorded,
 then a re-run that ends at the desktop,
 and a plain-words screen for a `%pre` refusal (today Anaconda's

@@ -686,6 +686,49 @@ screen says so in plain words: "If Windows ever starts on its own after an
 update, hold [the boot-menu key we detected] and pick Fedora once; it will
 stay put after that." Reclaim removes the unit along with Windows.
 
+### The clock, Wi-Fi and the old boot entry (decided 2026-09-26, the owner)
+
+Found on the Aspire's run 9: the installer's clock was 4 hours behind,
+and a stale "Windows Boot Manager" entry was left in the firmware after
+the erase. The owner's decisions, one philosophy - **what only Windows
+knows is harvested on the Windows side; `settle-in` applies it on first
+startup without asking; anything the person might want to keep is a
+button, never automatic**:
+
+- **The clock.** `evaluate` harvests Windows' clock facts into
+  `harvest.clock`: the Windows time zone and its IANA name, whether the
+  hardware clock holds local time (Windows' default -
+  `RealTimeIsUniversal` absent or 0), and the UTC offset at harvest. On
+  first startup `settle-in` reads the hardware clock as the local time
+  it is, converts it to UTC with the time zone's own rules (daylight
+  saving included), sets the system clock, and stores the hardware clock
+  as UTC from then on - before anything time-sensitive runs, and before
+  the network (whose time service corrects the rest). The records the
+  installer wrote in the shifted clock are corrected with the same
+  offset in `settle-in`'s report, never silently rewritten.
+- **Wi-Fi.** `evaluate` exports the saved Wi-Fi profiles with their
+  passwords (`netsh wlan export key=clear`, elevated) into
+  `artifacts/credentials/` on the stick; `job.json` lists the networks
+  (`harvest.wifi.profiles`) and only the file's path (RISKS R13 -
+  secrets are files, not fields). The launcher says plainly, before
+  anything is written, that the Wi-Fi passwords are copied onto the
+  stick. At the end of the install the nochroot `%post` moves them to a
+  root-only directory on the installed system and deletes them from the
+  stick; on first startup `settle-in` creates the NetworkManager
+  connections (the ones Linux can join - WPA/WPA2/WPA3 personal and
+  open; enterprise networks are listed, not guessed) and deletes its
+  copy. The machine that ends up holding them is the one that already
+  knew them; the stick stops carrying them within minutes.
+- **The old boot entry.** At the end of `settle-in`, on the erase and
+  clean-slate paths only, a button: "Remove the old Windows startup
+  entry". It removes firmware entries that point at a Windows boot
+  loader on a disk that no longer has one - never while a Windows ESP
+  still exists (keep-Windows keeps its entry by design, R21/R22).
+
+Not built. Build order: the harvest of clock and Wi-Fi into the job
+(Windows side; testable now), then `settle-in`'s first-startup service
+(clock, Wi-Fi) on the rig, then the button with `settle-in`'s window.
+
 ### Scope boundary
 
 `settle-in` does not teach Linux, install applications, run a tour, or check in

@@ -536,6 +536,15 @@ credential region) can only be scrubbed **after** `settle-in` finishes bringing
 the files over. The wipe moves from end-of-cutover to end-of-settle-in-pull.
 See `architecture.md`, Contracts.
 
+**Decided (2026-09-26, the owner): Wi-Fi passwords are harvested and
+applied by `settle-in` on first startup** (`architecture.md`, "The clock,
+Wi-Fi and the old boot entry"). To shorten the stick's exposure, the
+installer's last step moves them from the stick into a root-only
+directory on the installed system and deletes them from the stick;
+`settle-in` applies them and deletes that copy. Credentials on the stick
+then live from the harvest to the end of the install - minutes, with the
+stick in the machine - rather than until someone remembers to wipe it.
+
 **Mitigations planned.** Restricted ACLs on write, credential wipe at the
 correct (later) moment, and telling the user plainly at intent capture.
 **Closes when** those are implemented and verified, not merely designed.
