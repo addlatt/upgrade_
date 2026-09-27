@@ -119,6 +119,14 @@ firmware entry is a button at the end of `settle-in` (`architecture.md`,
 Next: the Aspire's physical row recorded, then a re-run that ends at the
 desktop, and a plain-words screen for a `%pre` refusal (today it's
 Anaconda's traceback). Design in `architecture.md`, "Erase and install".
+**Decided (2026-09-27, the owner): there is always a way back to
+Windows,** a new and empty one, and it says its cost first (most of these
+machines can only go back to Windows 10). Its own "Go back to Windows"
+program on the Linux side: a guided stick first, a walk-away reinstall
+later (an erase, so rule #4). `evaluate` harvests the edition and how
+Windows was activated, never a key (R30, V11; `architecture.md`, "The way
+back to Windows"). The Aspire's follow-up run starts from a Windows the
+owner reinstalls by hand: the first activation data point.
 
 **Tier 1: no product if these fail.**
 - **V0 / R15: the boot handoff fires.** Walk-away rests entirely on

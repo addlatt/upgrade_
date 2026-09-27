@@ -152,6 +152,19 @@ Linux. So `evaluate` captures them while Windows is alive. This is the same
   `cloud_files.result = left-in-cloud`, and `settle-in` skips them and
   reconnects OneDrive instead. (The harvester's `-Materialize`, which
   downloads and verifies them, stays built and unused.)
+- **Which Windows this was, and how it was activated** (decided
+  2026-09-27, the owner; RISKS R30). The way back to Windows (`settle-in`,
+  "The way back to Windows") needs to know this, and only Windows can say.
+  `harvest.windows_license` records the edition (Home or Pro), whether it
+  was Windows 10 or 11 (from the build number: Windows 11 still calls
+  itself "Windows 10" in the registry), whether it was activated, the
+  licence channel (for example `OEM:DM`, a key the maker put in the
+  firmware, or `Retail`), and whether the firmware holds a product key.
+  **Never a key itself.** A firmware key stays in the firmware, where
+  Windows' installer finds it again. A key the person typed is theirs to
+  keep, and the stick is not a credential store (R13). A read that fails
+  is recorded with its reason, not refused: its cost is a less informed
+  way back, never lost data.
 
 **The software inventory (2026-09-13).** The job writer records every
 installed desktop program (the registry's Apps & features entries, minus
@@ -482,7 +495,18 @@ said, before anything started, that nothing is to be kept.
 
 What it does not do: carry files, Wi-Fi, browsers or programs (stage 2),
 or keep Windows as a fallback (there is none after the commit line; the
-countdown is the last exit). The existing clean-slate path with staged
+countdown is the last exit). Going back later means a new, empty Windows
+(`settle-in`, "The way back to Windows"), and the launcher says so before
+the sentence is typed (draft words, awaiting the owner's approval):
+
+```text
+  If you change your mind later, you can put Windows back, but it will be
+  a new, empty Windows: nothing on this computer today comes back. On many
+  older computers that means Windows 10, which no longer gets free
+  security updates.
+```
+
+The existing clean-slate path with staged
 files still stops before arming, as before, because its restore is not
 built.
 
@@ -1090,6 +1114,50 @@ launchers. `[##..]` built, not yet fired on the rig. Still to build: the
 installer adapter's hand-over (`%post`), then `settle-in`'s first-startup
 service (clock, Wi-Fi) on the rig, then the button with `settle-in`'s
 window.
+
+### The way back to Windows (decided 2026-09-27, the owner)
+
+On the keep-Windows path the way back already exists: step 5 above offers
+"keep, or roll back" until the person says yes to the reclaim. On the
+erase path, and after a reclaim, there is no Windows left to roll back to.
+**Decided: there is still a way back, and it is honest about what it
+costs.** "You can always go back" is what gets a nervous person to try
+Linux at all, and someone who could not make a Windows stick is exactly who
+this project is for. If Linux does not suit them, they need the same help
+getting back. RISKS R30, VALIDATION V11.
+
+- **It is its own program, "Go back to Windows", in the app menu,** for as
+  long as the person wants it. It is not in the first-start window: the
+  first start is about settling in, and a way out on the first day sends
+  the wrong message. It ships with `settle-in` (the same package, any
+  Linux).
+- **It says the cost first.** Going back means a new, empty Windows.
+  Nothing on the Linux side comes along unless the person copies it off
+  first. **The catch:** most of these computers cannot run Windows 11.
+  That is why this project exists. For them, going back means Windows 10,
+  whose free security updates ended in October 2025 (the paid extension
+  for home users ends in October 2026). It is their computer and their
+  choice; the screen says it plainly.
+- **It shows what Windows told us before it was erased**
+  (`harvest.windows_license`, kept in the installed system's root-only copy
+  of `job.json`): the edition, 10 or 11, whether it was activated and how.
+  What that means for activation after a reinstall is said only where a
+  primary source says it (R30 names the unknowns).
+
+It is built in two stages:
+
+1. `[#...]` **A guided stick.** It downloads Microsoft's own installer (we
+   never redistribute it), checks it, writes it to a USB stick the person
+   names, and shows the steps in plain words (restart, the maker's boot
+   key, remove the Linux partitions, install). It writes only to that
+   stick, never to an internal drive, with the stick writer's refusals
+   (R16) on the Linux side. Nothing on the computer changes until the
+   person starts the Windows installer themselves.
+2. `[#...]` **Later, a walk-away reinstall.** An unattended Windows install
+   (an answer file on the stick), with its own typed sentence and a
+   countdown as its commit line: the erase path in reverse. It deletes
+   Linux and `/home`, so under rule #4 it is built last and reviewed
+   hardest. It does not jump ahead of the current work.
 
 ### Scope boundary
 

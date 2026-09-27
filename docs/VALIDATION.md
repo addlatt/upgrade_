@@ -70,6 +70,7 @@ A few words used all through this file:
 | V3 BitLocker read | `[###.]` | all three configs byte-identical via ntfs-3g; real disks owed |
 | V4 disks shrink | `[####]` 1 disk | the Aspire's answer is no (best 9.5 of 25 GB); the population count needs ~20 elevated reports |
 | V9 erase and install | rig `[###.]`, real `[FAIL]` | run 9 came up at a text login (fixed); physical re-run owed |
+| V11 way back to Windows | `[#...]` | designed 2026-09-27; the licence harvest comes first; the Aspire's hand reinstall is the first activation data point |
 | V8 OneDrive placeholders | `[###.]` | cfapi provider `pass-plumbing` on the rig and the G16; signed-in OneDrive owed |
 | V5 VMD detection | plumbing `[###.]`, AHCI row `[####]` | the RST/VMD row on real hardware is owed |
 | V6 code signing | `[....]` | calendar-bound, not started |
@@ -913,6 +914,35 @@ Then the same on a real machine.
 
 **Pass.** The same file, byte for byte, passes 1-4 on all three.
 
+## V11: The way back to Windows (R30)
+
+Decided 2026-09-27 (the owner): after an erase or a reclaim, a program on
+the Linux side offers a new, empty Windows, and says what that costs first
+(`architecture.md`, "The way back to Windows"). `[#...]` planned.
+
+**Method.** In order, each step on the rig before a real machine:
+
+1. **The harvest** (`harvest.windows_license`). The self-test feeds it
+   made-up licence facts (activated or not, each channel, a firmware key
+   present or not, a failed read) and proves a key handed to it never
+   reaches `job.json`. Then the rig's Windows, then a real one.
+2. **The Aspire's hand reinstall** (2026-09-27, before its follow-up
+   run). Windows put back by the owner with Microsoft's installer; the
+   follow-up run's job records whether activation came back. The licence
+   before the erase was never recorded (R30), so this row has only an
+   "after".
+3. **The guided stick.** From an installed Linux: download Microsoft's
+   installer, check it, write it to the named stick (refusing every other
+   drive), start from it with Secure Boot on, install, and read the
+   activation state on the new Windows.
+4. **Later, the walk-away reinstall:** refuse, cancel and erase arms, as in
+   V9.
+
+**Pass.** Step 3 puts back an activated Windows on at least two real
+machines with different licence kinds (a firmware key; a digital licence
+without one), each with its harvest from before and after, and a machine
+that cannot run Windows 11 is shown the Windows 10 path and its warning.
+
 # Tier 3: silent data loss (the trust-ending class)
 
 ## V8: OneDrive placeholders are materialized at evaluate · kills: file integrity on the default path · RISKS R8
@@ -1124,6 +1154,7 @@ Real, but they degrade rather than kill, or only touch the fallback path:
 | V3 | the intent-capture UI's path logic; the settle-in file pull |
 | V4 | stick-size guidance; intent UI weighting (ship scanner change now) |
 | V8 | the settle-in file pull's integrity guarantee; `settle-in` never copying a stub as the file (online-only files stay in OneDrive, decided 2026-09-26) |
+| V11 | the guided "Go back to Windows" program; until it passes, the launchers' line promises only what a person can do by hand |
 | V5 | nothing: do it this week regardless |
 | V6 | nothing: start the clock now; blocks only the eventual release |
 | V7 | table confidence; multi-distro ambitions |

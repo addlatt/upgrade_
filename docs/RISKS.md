@@ -2931,3 +2931,72 @@ and the scanner either reads the firmware's trust setting and refuses with
 plain words ("turn on 'Allow Microsoft 3rd Party UEFI CA' in your firmware
 settings"), or a real Secured-core machine shows the handoff works. Every
 contact leaves a capture (rule #5).
+
+## R30: The way back to Windows · high · open (decided 2026-09-27; nothing fired)
+
+**What.** After an erase, or after a reclaim, there is no Windows to roll
+back to. Decided (2026-09-27, the owner): there is still a way back, a new
+and empty Windows, offered by its own program on the Linux side
+(`architecture.md`, "The way back to Windows"). First a guided stick, later
+a walk-away reinstall. `evaluate` harvests which Windows it was and how it
+was activated (`harvest.windows_license`) while Windows still exists.
+
+**If real.** What can go wrong:
+
+- **Activation does not come back.** Unactivated Windows works, but it
+  nags and locks the personal settings, and the person may believe we broke
+  their licence. Why it might not come back is so far only argument:
+  a digital licence is tied to the hardware and to the edition (a Pro
+  install on a Home licence does not activate); some licences are linked to
+  a Microsoft account; a changed part (the Aspire gets a new drive) might
+  count as new hardware. Only real reinstalls answer this.
+- **Windows 11 refuses the hardware.** Most computers this project is for
+  cannot run Windows 11. For them the way back is Windows 10, whose free
+  security updates ended in October 2025 (the paid extension for home
+  users ends in October 2026). Not a failure of ours, but the screen must
+  say it, never hide it.
+- **Microsoft stops offering Windows 10.** Then the way back for those
+  computers closes, and the screen must say that too.
+- **The installer's largest file is over 4 GB.** Firmware starts from
+  FAT32 sticks, and FAT32 holds no file over 4 GB. Windows 11's
+  `install.wim` is larger. Splitting it (for example with `wimlib`) is the
+  known route; whether it installs cleanly, Secure Boot on, is unproven.
+- **The stick writer runs on Linux.** Writing a Windows stick is a disk
+  write. It carries R16's bar: the one USB stick the person named, never
+  an internal drive, never the kit stick.
+- **A licence key on our stick or in our files.** Never harvested: a
+  firmware key stays in the firmware (Windows' installer reads it there),
+  and a typed key is the person's to keep (R13). The self-test proves a key
+  handed to the harvest never reaches `job.json`.
+- **The walk-away reinstall, when built, is an erase.** It deletes Linux
+  and `/home`, so its severity is critical: its own typed sentence, a
+  countdown as the commit line, and rule #4. Not built.
+
+**Decided (2026-09-27, the owner).**
+
+- The way back exists on every path, and says its cost first.
+- Its own program in the app menu, not the first-start window.
+- Guided stick first; the walk-away reinstall later, after the current
+  spine work.
+- The harvest records facts, never keys. A failed read is recorded with its
+  reason and is not a refusal: the failure costs a less informed way back,
+  never data, so rule #1 does not demand a stop.
+- The erase launchers say it before the sentence is typed (the words are a
+  draft, awaiting the owner's approval; `architecture.md`, "Erase and
+  install").
+
+**The Aspire is the first data point, and it starts with a gap.** Run 9
+(2026-09-26) erased its Windows 11 Home, and what its licence was (the
+channel, whether the firmware holds a key) was never recorded: run 9's
+reports do not hold it. That gap is why the harvest exists. The owner
+reinstalls Windows by hand with Microsoft's installer before the follow-up
+run, and that run's job records whether activation came back. One machine,
+by hand, not the guided tool.
+
+**Closes when** the guided stick has put back an activated Windows on
+real machines of at least two licence kinds (a firmware key, and a digital
+licence without one), each run leaving its harvest from before and after
+(rule #5), and a machine that cannot run Windows 11 has been shown the
+Windows 10 path with its warning. The walk-away reinstall closes
+separately, on the rig and then on a real machine, like V9. VALIDATION
+V11.
