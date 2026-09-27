@@ -103,7 +103,11 @@ Aspire's run 9 (same night) erased and installed with nobody at the
 keyboard, but booted to a TEXT login - a one-click failure** (kickstart
 lacked a graphical login; fixed in 0.3.0, rig re-proven with the new
 `graphical_login` check). The person now picks KDE,
-GNOME or the text console on the launcher (all three held on the rig).
+GNOME or the text console on the launcher (all three held on the rig),
+and is told the sign-in name on screen. Physical row written
+(`v9-erase.csv` line 11, fail); findings owed: the installer's clock 4 h
+off (RTC in local time), a stale Windows firmware entry, a raw traceback
+on a `%pre` refusal.
 Next: the Aspire's physical row recorded,
 then a re-run that ends at the desktop,
 and a plain-words screen for a `%pre` refusal (today Anaconda's

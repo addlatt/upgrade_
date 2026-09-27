@@ -2408,8 +2408,35 @@ person would have looked. Fixed the same night: kickstart generator
 `outcome.sh` 0.3.1 records `install.boot_target`, the outcome schema
 refuses a completed conversion that is not `graphical.target`, and the
 rig verdict now requires the display manager running at first boot
-(`graphical_login`, `v9-erase.csv` line 8: y). The physical row waits for
-the stick's records.
+(`graphical_login`, `v9-erase.csv` line 8: y). **Physical row written**
+(`v9-erase.csv` line 11, `fail`; evidence in gitignored
+`rig/hyperv/artifacts/aspire-r27-2026-09-26-run9/`, 42 files hash-checked
+against the stick): both drives matched by identity (SSD by serial,
+1 TB by unique id), the KDE image read back at 25.0 MB/s, Wi-Fi and
+display passed, the countdown ran 120.0 s on a 240x67 console, the
+storage plan put EFI + `/boot` + `/` on the SSD and `/home` on the 1 TB
+drive, the install took about 7 minutes, `grubenv` read `upg_fired=1`
+(the handoff fired, Secure Boot on), 0 disk I/O errors in `dmesg` at
+`%pre`, and the owner's password signed in. The outcome record fails
+today's schema - it names no `boot_target` - which is the new rule
+catching this run. `anaconda-ks.cfg` confirms the cause: Anaconda wrote
+`skipx` itself. **Three more findings, owed:**
+- **The installer's clock was 4 hours behind** (Windows keeps the
+  hardware clock in local time; the installer read it as UTC): every
+  Linux-side time in the run is shifted, so `crossed_utc` "19:48:11Z" was
+  really about 23:48Z, and the installed Fedora's clock is wrong until it
+  reaches the network. The records must carry a correct time.
+- **A stale "Windows Boot Manager" firmware entry** is left pointing at
+  an erased disk (`efibootmgr-after.txt`); Fedora is first, so it is
+  harmless, but an erase should remove it.
+- **A `%pre` refusal shows Anaconda's raw traceback** (rig arm A) - it
+  needs a plain sentence.
+
+Also added the same night, by the owner: the launcher **menu of what the
+computer starts at** (KDE desktop, GNOME desktop, text console; rig lines
+9-10 held), and **the sign-in named on screen** (the password screen and
+a box before the restart say "user <name>"). Re-run owed: the Aspire from
+the stick with the owner's choice, ending at that screen.
 
 **Found the same night (2026-09-26): the keep-Windows launchers never
 asked for a password.** `RUN-CONVERT.cmd` and its data-loss twin passed

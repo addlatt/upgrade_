@@ -551,8 +551,11 @@ RISKS R26).
 before the countdown, B cancelled with both disks untouched (after a first
 B attempt that froze and was fixed - `verify.sh` 0.4.1), C erased and
 installed with `/home` on the second disk and the chosen password,
-including once over an Ubuntu-style LVM. **The physical row on the Aspire
-is owed.** Design decided 2026-09-26. The owner's first end-to-end
+including once over an Ubuntu-style LVM, and each of the person's three
+start choices held (KDE, GNOME, console). **Physical: the Aspire's run 9
+(line 11) FAILED the one-click promise** - everything ran unattended and
+the password signed in, but it came up at a text login (fixed; RISKS R27).
+A physical re-run that ends at the chosen screen is owed. Design decided 2026-09-26. The owner's first end-to-end
 destructive target: erase every internal drive, install Fedora, keep
 nothing (`architecture.md`, "Erase and install").
 
