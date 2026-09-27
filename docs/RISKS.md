@@ -2834,3 +2834,37 @@ on the Aspire: one click, the sentences, nobody at the keyboard, Fedora
 signs in with the chosen password **at the graphical sign-in screen**. Run 9
 (2026-09-26) did everything but that last part, so it is a `fail` row; the
 re-run is owed.
+
+## R28: settle-in runs on any Linux · high · open (decided 2026-09-27, not built)
+
+**What.** `settle-in` must work on whatever Linux the person picks, not
+only Fedora (`architecture.md`, "It runs on any Linux"). It is one
+self-contained program that draws its own window and works through kernel
+interfaces, fed by a small installer adapter per distribution through one
+fixed handoff folder.
+
+**If real.** What can go wrong:
+
+- **The window does not appear.** A self-drawn window needs the display
+  (Wayland or X11) and Mesa. On a machine with an unusual graphics setup it
+  may fail to draw. Then the person meets no welcome screen, and on the
+  keep-Windows path the file pull never starts. The program must fall back
+  to a text screen it can always show, and say why.
+- **The floor is wrong.** The claim that desktop distributions share
+  systemd, NetworkManager and the kernel interfaces is an argument until
+  each one is installed and checked. A distribution below the floor must be
+  refused in plain words, never half set up.
+- **Kernel interfaces instead of tools.** Writing the hardware clock and
+  the firmware's boot entries directly is exactly what `hwclock` and
+  `efibootmgr` do, done by us. A mistake in a firmware variable write can
+  leave a machine that does not start. This is a writer (rule #4) and is
+  reviewed and tested as one.
+- **A new language.** The repo is PowerShell, bash and Python. A compiled
+  program adds a build step, and a binary on the stick must match its
+  source. The build must be reproducible and checked like the rest of the
+  kit (`SHA256SUMS`).
+
+**Closes when** the same `settle-in` file, unchanged, runs its first
+startup on Fedora KDE, Fedora GNOME and at least one non-Fedora
+distribution, on the rig and then on a real machine, each leaving a capture
+behind. VALIDATION V10.

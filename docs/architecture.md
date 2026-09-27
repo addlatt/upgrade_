@@ -855,6 +855,59 @@ words: "If Windows ever starts on its own after an update, hold [the
 boot-menu key we detected] and pick Fedora once; it will stay put after
 that." Reclaim removes the unit along with Windows.
 
+### It runs on any Linux (decided 2026-09-27, the owner)
+
+Fedora is only the first Linux this project installs. The person should be
+able to pick any Linux later, so nothing in `settle-in` may assume Fedora.
+The owner's words: this is the platform on which any device and any
+distribution is supported in an organized way. RISKS R28, VALIDATION V10.
+
+The problem: no window toolkit is on every distribution. GTK is not
+guaranteed (Kubuntu's Firefox is a snap that brings its own copy), Qt is
+not on GNOME distributions, and some minimal installs have no Python. And
+the new system is offline at first startup: it cannot download what is
+missing. What every desktop Linux does share is the kernel and a few
+standard pieces.
+
+So `settle-in` is built in three layers:
+
+```text
+ per distribution (small)        the same everywhere (one program we ship)
+ ------------------------        ------------------------------------------
+ installer adapter               settle-in
+   Fedora: kickstart %post  -->    reads one fixed folder (job, secrets)
+   later: Ubuntu, Debian ...       works through kernel interfaces
+   (the only part that knows       draws its own window, or asks in text
+    the distribution's installer)  when the person chose the console
+```
+
+1. **One handoff folder, the same on every distribution.** Each
+   distribution's installer adapter does two things only: put the job and
+   the secrets in one fixed place on the installed system (root-only), and
+   switch on `settle-in`'s start-at-boot service. Fedora's adapter is the
+   kickstart the converter already writes. `settle-in` reads that folder
+   and never asks which distribution it is on.
+2. **One self-contained program.** `settle-in` is a single compiled file,
+   carried on the stick and copied over by the adapter. It needs nothing
+   the distribution may or may not have: it draws its own window (needing
+   only the display and Mesa, the graphics library every desktop has), and
+   the same file asks its questions as text when the person chose the
+   console. It does its work through the kernel's own interfaces where it
+   can: the hardware clock through `/dev/rtc0` (no `hwclock`), firmware
+   boot entries through `/sys/firmware/efi/efivars` (no `efibootmgr`).
+   Language: Go is proposed (readable, one static file; the trust model is
+   "read the source"). It is confirmed before the first line is written.
+3. **A floor it checks, and refuses below.** On start it checks for UEFI,
+   systemd (what starts services at boot), NetworkManager (the Wi-Fi
+   manager nearly every desktop distribution uses; its connection files are
+   the same format everywhere) and a display. Anything missing gets a plain
+   sentence, never a guess: a distribution that uses another Wi-Fi manager
+   has its networks listed, not set up. Each supported distribution becomes
+   a row in `data/distros.ps1`, with evidence from a real install.
+
+What stays Fedora-specific, on purpose: the installer adapter (kickstart,
+`%pre`, `%post`), which lives in `upgrade_`, not here.
+
 ### The clock, Wi-Fi and the old boot entry (decided 2026-09-26, the owner)
 
 Found on the Aspire's run 9: the installer's clock was 4 hours behind, and

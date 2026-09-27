@@ -819,6 +819,27 @@ drive).
 **Pass.** All three rig arms, then the physical row: one click, the two
 typed answers, nobody at the keyboard afterwards, Fedora signs in.
 
+## V10: settle-in runs on any Linux (R28)
+
+Decided 2026-09-27 (the owner): `settle-in` is one self-contained program,
+fed by a per-distribution installer adapter through one handoff folder.
+Not built. `[#...]`
+
+**Method.** Build the program once. On the rig, install Fedora KDE and
+Fedora GNOME through the converter, and at least one non-Fedora
+distribution by hand with a hand-placed handoff folder. On each, check:
+
+1. the program starts at first boot, before the network;
+2. its window appears (or its text screen, when the console was chosen);
+3. the clock, Wi-Fi and boot-entry steps give the same results as on
+   Fedora;
+4. a distribution missing a floor piece (for example without
+   NetworkManager) gets a plain refusal, not a half setup.
+
+Then the same on a real machine.
+
+**Pass.** The same file, byte for byte, passes 1-4 on all three.
+
 # Tier 3: silent data loss (the trust-ending class)
 
 ## V8: OneDrive placeholders are materialized at evaluate · kills: file integrity on the default path · RISKS R8
