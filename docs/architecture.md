@@ -447,6 +447,31 @@ said, before anything started, that nothing is to be kept.
    writes the time to the stick and the installer erases and installs.
    (Rule #3: "you can still cancel" is on screen until that exact moment,
    and nothing on the internal drives has been written before it.)
+   **Every refusal before the countdown is a plain screen** (decided
+   2026-09-27, the owner; `verify.sh` 0.5.0). Before, Anaconda showed its
+   raw Python traceback. Now, for 60 s (any key: now), then the computer
+   restarts unchanged, with `report/refusal.json` on the stick:
+
+   ```text
+   NOTHING WAS CHANGED ON THIS COMPUTER.
+
+   The installer stopped before touching anything, because <reason>.
+
+   It restarts in 60 seconds, exactly as it was before.
+   Press any key to restart now.
+
+   The details are saved on the USB stick, in upgrade_\report.
+   ```
+
+   The eight reasons, approved verbatim: this USB stick was prepared for a
+   different computer, or one of its drives has changed since · the
+   installer could not work out where to put Linux · Windows' startup
+   files were not where the preparation found them · the copy of Linux on
+   this USB stick is damaged · a safety copy of Windows' startup files
+   could not be made · this version cannot yet put your files back on an
+   erased computer · the last-chance countdown could not be shown, and
+   nothing is erased without it · this USB stick was prepared by a
+   different version of this tool.
 5. **After it:** Anaconda (Fedora's installer) clears both drives and
    installs Fedora (EFI, `/boot` and `/` on the system drive, `/home` on
    the home drive). `%post` (the script that runs after the install)
@@ -937,12 +962,30 @@ So `settle-in` is built in three layers:
    [ Close ]
    ```
 
-   Drafts awaiting the owner's approval (built, marked in the code): a
-   network Windows did not connect to by itself ("These networks are set
-   up; connect to them from the network menu:"), no NetworkManager ("Not
-   set up: <reason>."), after the button ("Removed." / "Not removed:
-   <reason>"), and the console's question ("Remove the old Windows startup
-   entry now? Type yes and press Enter (anything else skips):").
+   Also approved (2026-09-27, the owner), verbatim: a network Windows did
+   not connect to by itself ("These networks are set up; connect to them
+   from the network menu:"); no NetworkManager ("Not set up: <reason>.");
+   after the button ("Removed." / "Not removed: <reason>"); the console's
+   question ("Remove the old Windows startup entry now? Type yes and press
+   Enter (anything else skips):"); and the password prompt, through a
+   polkit policy file that applies only to the button's command
+   (`org.upgrade.settle-in.policy`): "Removing the old Windows startup
+   entry changes this computer's startup settings. Type your password to
+   allow it."
+
+   **The window asks to come first** (decided 2026-09-27, the owner). KDE's
+   Welcome Center and GNOME's tour open at the same sign-in. The window now
+   opens 5 s after sign-in, asks the desktop for focus, and asks for
+   attention as the fallback. A desktop may refuse, so the window logs what
+   it got ("in front" or "not given focus"), and the rig records it.
+
+   **Our own firmware entry goes at first start** (decided 2026-09-27, the
+   owner). The one-time "upgrade_" entry the prologue made to reach the
+   stick is left behind by an erase. `settle-in` removes it automatically,
+   because nobody would want it. It is found only by the exact BCD id the
+   prologue recorded (`outcome.prologue.handoff.entry_guid`, which the
+   entry carries as "BCDOBJECT={id}"), with the button's order-first
+   writer.
 3. **A floor it checks, and refuses below.** On start it checks for UEFI,
    systemd (what starts services at boot), NetworkManager (the Wi-Fi
    manager nearly every desktop distribution uses; its connection files are

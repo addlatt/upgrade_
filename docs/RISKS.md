@@ -2797,7 +2797,12 @@ Anaconda wrote `skipx` itself.
   erased disk (`efibootmgr-after.txt`). Fedora is first, so it is harmless,
   but an erase should remove it.
 - **A `%pre` refusal shows Anaconda's raw traceback** (rig arm A). It needs
-  a plain sentence.
+  a plain sentence. **Built 2026-09-27** (`verify.sh` 0.5.0, the owner's
+  words): one plain screen, 60 s, then an unchanged restart. **Fired on
+  the rig the same day** (`v9-erase.csv` line 14, arm A,
+  `refused-before-countdown`, both disks unchanged): the screen showed the
+  approved words, counted down, and the rig restarted into an untouched
+  Windows; `report/refusal.json` on the stick holds the plain reason.
 
 **Seen and signed in on the rig (2026-09-27, `v9-erase.csv` lines 12-13).**
 Both desktops reached their sign-in screen, took the password typed on the
@@ -2880,15 +2885,20 @@ fixed handoff folder.
 - **The password prompt's words are technical.** Pressing the button
   shows the desktop's standard prompt, which names the command it will
   run ("…to run `/usr/local/libexec/upgrade_/settle-in
-  remove-old-boot-entry` as the super user"). A small polkit policy file
-  can give it plain words instead. Owed, with words for the owner to
-  approve.
+  remove-old-boot-entry` as the super user"). **Built 2026-09-27:** a
+  polkit policy file with the owner's words, for that command only; the
+  rig must show it on KDE, GNOME and the console.
 
 **Found on the rig (2026-09-27, run 1).** After the erase, the firmware
 still lists the old "Windows Boot Manager" (pointing at the erased
 partition) and also the prologue's own one-time entry, "upgrade_",
-pointing at the stick. The button removes the first; nothing yet removes
-our own. Owed.
+pointing at the stick. The button removes the first. **Built 2026-09-27
+(the owner's call):** `settle-in` removes our own automatically at first
+start, matched only by the BCD id the prologue recorded; rig next.
+- **The welcome apps cover the window** (KDE's Welcome Center, GNOME's
+  tour; rig runs 3 and 5). **Built 2026-09-27:** the window opens 5 s
+  later and asks for focus. Whether each desktop honours it is logged and
+  captured; a desktop that refuses leaves the window in the taskbar.
 
 **Closes when** the same `settle-in` file, unchanged, runs its first
 startup on Fedora KDE, Fedora GNOME and at least one non-Fedora

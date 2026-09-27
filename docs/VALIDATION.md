@@ -790,6 +790,9 @@ install"). Design decided 2026-09-26.
 - **C** erased and installed, with `/home` on the second disk and the
   chosen password, including once over an Ubuntu-style LVM.
 - Each of the person's three start choices held (KDE, GNOME, console).
+- **A again, 2026-09-27 (line 14), with `verify.sh` 0.5.0:** the refusal is
+  now one plain screen in the owner's words instead of Anaconda's
+  traceback; 60 s later the rig restarted into an untouched Windows.
 
 **Seen and signed in (2026-09-27, lines 12-13):** with the rig's power-off
 marker removed, the GDM and SDDM sign-in screens appeared. The account's
