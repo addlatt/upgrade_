@@ -824,7 +824,7 @@ typed answers, nobody at the keyboard afterwards, Fedora signs in.
 Decided 2026-09-27 (the owner): `settle-in` is one self-contained program,
 fed by a per-distribution installer adapter through one handoff folder.
 Built the same day (Rust core 0.1.0, egui window). `[###.]` rig, Fedora
-KDE only so far. Rows in `validation-results/settle-in-first-start.csv`,
+KDE, GNOME and the text console. Rows in `validation-results/settle-in-first-start.csv`,
 written by `rig/hyperv/settle-in-verdict.py`, never by hand.
 
 **Rig, 2026-09-27 (the erase arm of V9, with three made-up Wi-Fi networks
@@ -876,12 +876,17 @@ planted in the job, `v9-job.py --spoof-wifi`; plumbing only):**
   the capture and the verdict read GDM's lines now. GNOME gives the window
   only minimal controls and a generic icon.
 
+- **Run 6 (line 7) `pass-plumbing`, the text console.** With the boot
+  marker fixed, every column came from the evidence: the approved words at
+  the first console sign-in (no button line), "yes", the password at the
+  text prompt, the stale entry removed, the next boot at the console as
+  chosen, and nothing shown at the second sign-in.
+
 **Residue the rig cannot close.** Hyper-V's hardware clock already holds
 UTC, so on the rig the clock step is correctly "not needed" and the
 correction itself (the Aspire's 4-hour case) is proven only by the tests.
 Real Wi-Fi, a real firmware's boot entries and a non-Fedora distribution
-are still owed, and so is an automated row for the console path (run 4's
-evidence is screenshots).
+are still owed.
 
 **Method.** Build the program once. On the rig, install Fedora KDE and
 Fedora GNOME through the converter, and at least one non-Fedora

@@ -146,8 +146,11 @@ else:
     stale_ok = all(re.search(r"Boot%s\*? Windows Boot Manager" % g, b_txt) for g in gone) and gone
     kept = [e for e in b_order if e not in gone] == a_order and a_order[0] == b_cur
     later = [l for l in text(D / "boots.log").splitlines() if l.startswith("linux-boot")]
-    rebooted = len(later) >= 2 and ("BootCurrent=%s" % b_cur) in later[-1] and "default_target=graphical.target" in later[-1] and "display_manager=active" in later[-1]
-    button = "removed %s; order otherwise unchanged: %s; next boot from %s, graphical: %s" % (",".join(gone) or "nothing", "y" if kept else "n", b_cur, "y" if rebooted else "n")
+    # the next boot starts where the person chose: the desktop's sign-in, or the text console (run 6)
+    want_tgt = o.get("cutover", {}).get("install", {}).get("boot_target", "graphical.target")
+    rebooted = len(later) >= 2 and ("BootCurrent=%s" % b_cur) in later[-1] and ("default_target=%s" % want_tgt) in later[-1] \
+        and (want_tgt != "graphical.target" or "display_manager=active" in later[-1])
+    button = "removed %s; order otherwise unchanged: %s; next boot from %s, to %s: %s" % (",".join(gone) or "nothing", "y" if kept else "n", b_cur, want_tgt, "y" if rebooted else "n")
     if not (stale_ok and kept and rebooted): fails.append("button")
 
 result = ("pass-plumbing" if spoofed else "pass") if not fails else "fail"

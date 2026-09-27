@@ -2835,7 +2835,7 @@ signs in with the chosen password **at the graphical sign-in screen**. Run 9
 (2026-09-26) did everything but that last part, so it is a `fail` row; the
 re-run is owed.
 
-## R28: settle-in runs on any Linux · high · open (decided 2026-09-27; built and on the rig the same day, KDE only)
+## R28: settle-in runs on any Linux · high · open (decided 2026-09-27; built and passed on the rig the same day: Fedora KDE, GNOME, console)
 
 **What.** `settle-in` must work on whatever Linux the person picks, not
 only Fedora (`architecture.md`, "It runs on any Linux"). It is one
