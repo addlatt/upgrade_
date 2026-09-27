@@ -332,6 +332,8 @@ blocked    every smart TV checked, branded streaming sticks, iPads
 ```
 
 The TV story that works today: convert an old laptop and plug it into the TV.
+How each feasible device could be supported, step by step:
+[docs/research/future-paths.md](docs/research/future-paths.md).
 
 </details>
 

@@ -1249,7 +1249,9 @@ using only doors the maker opens on purpose. It is research, not evidence
 (rule #2). Headlines as of 2026-09-27: Intel Macs without T2 look like the
 best next source; every smart TV checked is blocked (app developer modes
 only), so the TV story today is a converted laptop plugged into the TV.
-Nothing here changes v1's scope.
+The step-by-step path for each feasible family (old Surfaces, x86
+handhelds, Intel Macs, Snapdragon X, T2 Macs, and the TV choice) is in
+`docs/research/future-paths.md`. Nothing here changes v1's scope.
 
 ## Platform scope: Apple hardware
 

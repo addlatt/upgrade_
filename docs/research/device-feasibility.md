@@ -199,6 +199,9 @@ upgrade_'s model.
 
 ## What this changes in upgrade_ (proposals, not decided)
 
+The step-by-step path for each feasible family is in
+[future-paths.md](future-paths.md).
+
 1. **Long-term plan:** list "future sources" in order: Intel Macs without T2,
    x86 handhelds, then Snapdragon X; TVs recorded as blocked today, with the
    HDMI-laptop path as the TV story.
