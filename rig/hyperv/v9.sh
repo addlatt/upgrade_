@@ -22,7 +22,7 @@
 #                          attach both (main disk out), Windows Boot Manager first
 #   v9.sh stick            MODE=prologue v1.sh stick (bench + autoshutdown, no boot-install)
 #   v9.sh windows          power on, wait for PS Direct
-#   v9.sh job [--bogus-home]   v1.sh job (base job, real facts) -> the guest's disks ->
+#   v9.sh job [--bogus-home] [--spoof-wifi=DIR]   v1.sh job (base job, real facts) -> the guest's disks ->
 #                          v9-job.py -> New-Kickstart.ps1 -> both onto the stick
 #   v9.sh arm-harness      boot-install marker + v1.sh arm (Test-Handoff -Arm -Auto)
 #   v9.sh convert          the product prologue: -Start -StickDrive X: -EraseConsent <sentence>
@@ -90,6 +90,8 @@ job)
     L=$(stick_letter); [ -n "$L" ] || { echo "v9: no UPGV0 volume in the guest" >&2; exit 1; }
     PS copy "$(wslpath -w "$A/job.json")" "${L}:\\upgrade_\\job.json" | tr -d '\r'
     PS copy "$(wslpath -w "$A/ks.cfg")" "${L}:\\upgrade_\\ks.cfg" | tr -d '\r'
+    # --spoof-wifi=DIR: the made-up networks' password file goes where the product's export puts one
+    for a in "${@:2}"; do case "$a" in --spoof-wifi=*) PS copy "$(wslpath -w "${a#--spoof-wifi=}/01.xml")" "${L}:\\upgrade_\\artifacts\\credentials\\wifi\\01.xml" | tr -d '\r';; esac; done
     guest "Remove-Item ${L}:\\upgrade_\\report -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item ${L}:\\upgrade_\\outcome.json,${L}:\\upgrade_\\prologue.json,${L}:\\upgrade_\\prologue-return.json -Force -ErrorAction SilentlyContinue; Get-ChildItem ${L}:\\upgrade_ | Select-Object Name,Length | Format-Table -AutoSize"
     ;;
 arm-harness)
@@ -131,6 +133,9 @@ stick-pull)
     qemu-img convert -f vhdx -O raw "$STICK_VHDX" "$A/stick.raw"
     for f in outcome.json prologue.json boots.log job.json; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/$f" "$A/$tag/$f" 2>/dev/null || true; done
     for f in verify.json verify.log countdown.json storage.ks outcome.log anaconda.log storage.log efibootmgr-after.txt; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/report/$f" "$A/$tag/$f" 2>/dev/null || true; done
+    # settle-in's first startup, captured by the bench marker (2026-09-27)
+    mkdir -p "$A/$tag/settle-in"; mcopy -s -o -i "$A/stick.raw@@1M" "::/upgrade_/settle-in-capture/*" "$A/$tag/settle-in/" 2>/dev/null || true
+    mdir -i "$A/stick.raw@@1M" "::/upgrade_/artifacts/credentials" > "$A/$tag/stick-credentials-dir.txt" 2>&1 || true
     rm -f "$A/stick.raw"; ls -la "$A/$tag"
     ;;
 verdict) python3 v9-verdict.py "$A" "${2:?arm}" "$CSV" "$FIRMWARE" ;;

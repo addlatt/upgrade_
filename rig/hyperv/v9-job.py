@@ -11,7 +11,15 @@ typed sentence, and every internal disk by the identity the guest reported
 (disks.json: Get-Disk rows) - the system disk first, the other non-stick
 disk as home. Validated against schemas/job.schema.json before it is written.
 
-    v9-job.py base-job.json disks.json out.json [--bogus-home] [--desktop=kde|gnome] [--start-at=desktop|console]
+    v9-job.py base-job.json disks.json out.json [--bogus-home] [--desktop=kde|gnome] [--start-at=desktop|console] [--spoof-wifi=DIR]
+
+--spoof-wifi=DIR (2026-09-27, settle-in's Wi-Fi on the rig): the rig's
+Windows has no Wi-Fi, so its real harvest says no-wireless. This replaces
+harvest.wifi with three MADE-UP networks - a WPA3-transition network with
+a password, a hidden open one with an SSID that needs byte form, an
+enterprise one - and writes the password file, in the shape Windows'
+Native Wifi API returns, to DIR/01.xml for the stick. A spoof closes
+plumbing only (rule #5): real Wi-Fi stays a physical row.
 
 --bogus-home names a home disk that is not attached (arm A: the installer
 must refuse before any countdown). Nothing here is product code.
@@ -45,6 +53,16 @@ elif others:
     if h["health_status"] != "Healthy": sys.exit("v9-job: the home disk is %s, not Healthy" % h["health_status"])
     listed.append(h)
 
+if "--spoof-wifi" in opts:
+    d = pathlib.Path(opts["--spoof-wifi"]); d.mkdir(parents=True, exist_ok=True)
+    (d / "01.xml").write_text('<?xml version="1.0"?><WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1"><name>RigSpoof Home</name><SSIDConfig><SSID><hex>52696753706F6F6620486F6D65</hex><name>RigSpoof Home</name></SSID></SSIDConfig><connectionType>ESS</connectionType><connectionMode>auto</connectionMode><MSM><security><authEncryption><authentication>WPA3SAE</authentication><encryption>AES</encryption><useOneX>false</useOneX><transitionMode xmlns="http://www.microsoft.com/networking/WLAN/profile/v4">true</transitionMode></authEncryption><sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial>rig spoof pass 1</keyMaterial></sharedKey></security></MSM></WLANProfile>')
+    job["harvest"]["wifi"] = {"result": "exported", "secrets_dir": "artifacts/credentials/wifi", "profiles": [
+        {"name": "RigSpoof Home", "ssid": "RigSpoof Home", "ssid_hex": "52696753706F6F6620486F6D65", "hidden": False, "windows_auth": "WPA3SAE/AES",
+         "key_mgmt": "wpa-psk", "supported": True, "autoconnect": True, "why_not": None, "secrets_file": "artifacts/credentials/wifi/01.xml"},
+        {"name": "Rig;Open", "ssid": "Rig;Open", "ssid_hex": "5269673B4F70656E", "hidden": True, "windows_auth": "open/none",
+         "key_mgmt": "none", "supported": True, "autoconnect": False, "why_not": None, "secrets_file": None},
+        {"name": "RigSpoof Work", "ssid": "RigSpoof Work", "ssid_hex": "52696753706F6F6620576F726B", "hidden": False, "windows_auth": "WPA2/AES",
+         "key_mgmt": "UNSUPPORTED", "supported": False, "autoconnect": True, "why_not": "an enterprise network (a company or school sign-in) - listed, not set up", "secrets_file": None}]}
 job["intent"]["desktop"] = opts.get("--desktop", "kde")
 job["intent"]["start_at"] = opts.get("--start-at", "desktop")
 job["intent"]["path"] = "clean-slate"
