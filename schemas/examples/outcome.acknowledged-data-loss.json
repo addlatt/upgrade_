@@ -91,6 +91,11 @@
       "rtc_epoch": 1790481600,
       "ntp_synchronized": true,
       "detail": "Reference ID    : C0A80101 (192.168.1.1);Leap status     : Normal;"
+    },
+    "settle_in": {
+      "installed": true,
+      "version": "0.1.0",
+      "why_not": null
     }
   },
   "windows": {

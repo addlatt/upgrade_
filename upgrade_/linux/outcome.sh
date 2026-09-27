@@ -73,6 +73,22 @@ elif [ "$WIFI_EXPECTED" -gt 0 ]; then WIFI_ERR="the job names $WIFI_EXPECTED Wi-
 [ "$WIFI_ON_STICK" -ne "$WIFI_EXPECTED" ] && [ -z "$WIFI_ERR" ] && WIFI_ERR="the job names $WIFI_EXPECTED Wi-Fi password file(s), the stick had $WIFI_ON_STICK"
 # files made from outside the installed system carry no SELinux label until told
 chroot "$SYSROOT" restorecon -R "$HANDOFF_DIR" >/dev/null 2>&1 || true
+# settle-in itself: the binary and its first-startup service, installed only
+# if both match the kit's SHA256SUMS (a stick changed since it was built
+# never installs a program), then switched on
+SI_SRC=$STICK/upgrade_/settle-in; SETTLE_IN=false; SETTLE_IN_WHY=""
+si_ok() { local want; want=$(grep -E "[ *]\./upgrade_/settle-in/$1\$" "$STICK/SHA256SUMS" 2>/dev/null | cut -c1-64); [ -n "$want" ] && [ "$want" = "$(sha "$SI_SRC/$1")" ]; }
+if [ ! -f "$SI_SRC/settle-in" ] || [ ! -f "$SI_SRC/upgrade_-settle-in.service" ]; then SETTLE_IN_WHY="settle-in is not on the stick"
+elif ! si_ok settle-in || ! si_ok upgrade_-settle-in.service; then SETTLE_IN_WHY="settle-in on the stick does not match SHA256SUMS"
+elif mkdir -p "$SYSROOT/usr/local/libexec/upgrade_" "$SYSROOT/etc/systemd/system/sysinit.target.wants" \
+    && cp "$SI_SRC/settle-in" "$SYSROOT/usr/local/libexec/upgrade_/settle-in" && chmod 0755 "$SYSROOT/usr/local/libexec/upgrade_/settle-in" \
+    && cp "$SI_SRC/upgrade_-settle-in.service" "$SYSROOT/etc/systemd/system/upgrade_-settle-in.service" && chmod 0644 "$SYSROOT/etc/systemd/system/upgrade_-settle-in.service" \
+    && ln -sf ../upgrade_-settle-in.service "$SYSROOT/etc/systemd/system/sysinit.target.wants/upgrade_-settle-in.service"; then
+    SETTLE_IN=true
+    chroot "$SYSROOT" restorecon -R /usr/local/libexec/upgrade_ /etc/systemd/system/upgrade_-settle-in.service >/dev/null 2>&1 || true
+else SETTLE_IN_WHY="settle-in could not be copied onto the installed system"; fi
+SETTLE_IN_VERSION=$( [ "$SETTLE_IN" = true ] && "$SYSROOT/usr/local/libexec/upgrade_/settle-in" --version 2>/dev/null | awk '{print $2}')
+echo "== settle-in installed=$SETTLE_IN ${SETTLE_IN_VERSION:+version $SETTLE_IN_VERSION} $SETTLE_IN_WHY"
 echo "== handoff folder $HANDOFF_DIR ok=$HANDOFF_OK; wifi expected=$WIFI_EXPECTED on_stick=$WIFI_ON_STICK moved=$WIFI_MOVED removed_from_stick=$WIFI_REMOVED ${WIFI_ERR:+error: $WIFI_ERR}"
 # erase-and-install (R27, 0.3.0): the countdown's end, as verify.sh wrote it,
 # is the commit line; nothing on the stick is needed after the wipe, so the
@@ -193,7 +209,7 @@ UPG_LINUX_FIRST="$LINUX_FIRST" UPG_BOOTMGFW_OK="$BOOTMGFW_OK" UPG_GRUB_WIN="$GRU
 UPG_KERNEL="$KERNEL" UPG_ROOTDEV="$ROOTDEV" UPG_RELEASE="$RELEASE" UPG_WINPART="$WINPART" UPG_WINGUID="$WINGUID" \
 UPG_WINSIZE="$WINSIZE" UPG_WINNUM="$WINNUM" UPG_ERASE="$ERASE" UPG_SCRUBBED="$SCRUBBED" \
 UPG_WIFI_EXPECTED="$WIFI_EXPECTED" UPG_WIFI_ON_STICK="$WIFI_ON_STICK" UPG_WIFI_MOVED="$WIFI_MOVED" UPG_WIFI_REMOVED="$WIFI_REMOVED" UPG_WIFI_ERR="$WIFI_ERR" UPG_HANDOFF_OK="$HANDOFF_OK" UPG_HANDOFF_DIR="$HANDOFF_DIR" \
-UPG_CLK_SYS="$CLK_SYS" UPG_CLK_RTC="$CLK_RTC" UPG_CLK_NTP="$CLK_NTP" UPG_CLK_DETAIL="$CLK_DETAIL" UPG_COUNTDOWN="$REPORT/countdown.json" UPG_BOOT_TARGET="$BOOT_TARGET" UPG_DM="$DM" \
+UPG_CLK_SYS="$CLK_SYS" UPG_CLK_RTC="$CLK_RTC" UPG_CLK_NTP="$CLK_NTP" UPG_CLK_DETAIL="$CLK_DETAIL" UPG_SETTLE_IN="$SETTLE_IN" UPG_SETTLE_IN_VERSION="$SETTLE_IN_VERSION" UPG_SETTLE_IN_WHY="$SETTLE_IN_WHY" UPG_COUNTDOWN="$REPORT/countdown.json" UPG_BOOT_TARGET="$BOOT_TARGET" UPG_DM="$DM" \
 python3 - "$JOB" "$REPORT/verify.json" "$STICK/upgrade_/outcome.json" <<'EOF'
 import json, sys, os, datetime
 E = os.environ.get
@@ -265,6 +281,7 @@ if b("UPG_ERASE"):
 o["credentials"]["wifi"] = {"expected": int(E("UPG_WIFI_EXPECTED") or 0), "on_stick": int(E("UPG_WIFI_ON_STICK") or 0),
     "moved": int(E("UPG_WIFI_MOVED") or 0), "removed_from_stick": b("UPG_WIFI_REMOVED"),
     "handoff_dir": E("UPG_HANDOFF_DIR") if b("UPG_HANDOFF_OK") else None, "error": (E("UPG_WIFI_ERR") or "").strip() or None}
+o["cutover"]["settle_in"] = {"installed": b("UPG_SETTLE_IN"), "version": E("UPG_SETTLE_IN_VERSION") or None, "why_not": E("UPG_SETTLE_IN_WHY") or None}
 ntp = E("UPG_CLK_NTP", "")
 o["cutover"]["clock"] = {"installer_utc_epoch": int(E("UPG_CLK_SYS") or 0),
     "rtc_epoch": int(E("UPG_CLK_RTC")) if (E("UPG_CLK_RTC") or "").isdigit() else None,

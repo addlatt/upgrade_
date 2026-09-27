@@ -753,6 +753,28 @@
               ]
             }
           }
+        },
+        "settle_in": {
+          "description": "settle-in, the first-startup program, as the installer adapter installed it (outcome.sh 0.4.0, 2026-09-27): only if the binary and its service match the kit's SHA256SUMS. A completed conversion must have it: without it nothing sets the clock or the Wi-Fi.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "installed",
+            "version",
+            "why_not"
+          ],
+          "properties": {
+            "installed": {
+              "const": true
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "why_not": {
+              "type": "null"
+            }
+          }
         }
       }
     },
@@ -1009,7 +1031,8 @@
           },
           "cutover": {
             "required": [
-              "clock"
+              "clock",
+              "settle_in"
             ]
           },
           "credentials": {

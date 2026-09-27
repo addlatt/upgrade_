@@ -29,3 +29,6 @@ __pycache__/
 
 # live-test USB kit assembled by make-kit.sh (carries the gitignored EFI binaries)
 dist/kit/
+
+# settle-in: Rust build output (the kit builds its own; make-kit.sh)
+settle-in/target/

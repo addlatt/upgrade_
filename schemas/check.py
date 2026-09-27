@@ -265,6 +265,8 @@ def main():
          set_path(out3, ["credentials", "wifi", "removed_from_stick"], False)),
         ("outcome", "a completed conversion without the end-of-install clock record is refused",
          del_path(out3, ["cutover", "clock"])),
+        ("outcome", "a completed conversion without settle-in installed is refused (2026-09-27)",
+         set_path(out3, ["cutover", "settle_in"], {"installed": False, "version": None, "why_not": "settle-in is not on the stick"})),
         ("outcome", "a handoff folder other than the one settle-in reads is refused",
          set_path(out3, ["credentials", "wifi", "handoff_dir"], "/root/wifi")),
         ("job", "a job without the clock facts is refused (2026-09-27)",

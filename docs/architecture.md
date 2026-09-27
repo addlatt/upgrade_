@@ -895,8 +895,11 @@ So `settle-in` is built in three layers:
    console. It does its work through the kernel's own interfaces where it
    can: the hardware clock through `/dev/rtc0` (no `hwclock`), firmware
    boot entries through `/sys/firmware/efi/efivars` (no `efibootmgr`).
-   Language: Go is proposed (readable, one static file; the trust model is
-   "read the source"). It is confirmed before the first line is written.
+   **Language: Rust (decided 2026-09-27, the owner).** The compiler
+   refuses whole classes of mistakes before the program ever runs, and its
+   window libraries load the display libraries only when they are there.
+   The cost is a harder read for newcomers and more third-party packages to
+   review, so dependencies are kept to a short, named list.
 3. **A floor it checks, and refuses below.** On start it checks for UEFI,
    systemd (what starts services at boot), NetworkManager (the Wi-Fi
    manager nearly every desktop distribution uses; its connection files are
@@ -928,9 +931,26 @@ automatic.**
   - the UTC offset at harvest.
 
   On first startup `settle-in` reads the hardware clock as the local time
-  it is, converts it to UTC with the time zone's own rules (daylight
-  saving included), sets the system clock, and stores the hardware clock
-  as UTC from then on. This happens before anything time-sensitive runs,
+  it is, converts it to UTC, sets the system clock, and stores the
+  hardware clock as UTC from then on.
+  **Corrected (2026-09-27, found while building it):** the conversion uses
+  the offset Windows was using when it last ran (harvested), not the zone's
+  rules at first startup. The hardware clock holds whatever offset Windows
+  last wrote, and nothing moves it after Windows has gone. With the zone's
+  rules, a first startup after a daylight-saving change would be off by an
+  hour. The zone's rules (from the installed system's own tzdata) are a
+  cross-check: if they disagree with Windows, or daylight saving changed
+  between Windows' last run and the install, the clock is left alone.
+  **It decides from evidence, never assumes.** The installer adapter
+  records, at the end of the install, the installer's clock, the hardware
+  clock, and whether a time service had synchronized (`cutover.clock`). A
+  synchronized installer may already have rewritten the hardware clock as
+  UTC; correcting it again would move a right clock by hours. Readings
+  that match neither story, or an unknown sync state, leave the clock
+  alone, and so does a time service that already ran this startup. Once
+  online, the time service corrects a clock left alone. It marks the
+  attempt before touching anything, so an interrupted run never corrects
+  twice. This happens before anything time-sensitive runs,
   and before the network (whose time service corrects the rest). The
   records the installer wrote with the shifted clock are corrected by the
   same offset in `settle-in`'s report, never silently rewritten.

@@ -104,6 +104,13 @@ selftest "prologue" "$ROOT/upgrade_/windows/Invoke-Prologue.ps1"
 selftest "rollback" "$ROOT/upgrade_/windows/Invoke-Rollback.ps1"
 bash -n "$ROOT/upgrade_/linux/verify.sh" || fail "verify.sh does not parse"
 bash -n "$ROOT/upgrade_/linux/outcome.sh" || fail "outcome.sh does not parse"
+# settle-in: the first-startup program, one self-contained file (Rust, static,
+# decided 2026-09-27); its tests run before it is built into the kit
+(cd "$ROOT/settle-in" && cargo test --locked --quiet >/dev/null 2>&1) || fail "settle-in tests fail (cd settle-in && cargo test)"
+(cd "$ROOT/settle-in" && cargo build --locked --release --quiet --target x86_64-unknown-linux-musl) || fail "settle-in does not build"
+SETTLE_IN_BIN="$ROOT/settle-in/target/x86_64-unknown-linux-musl/release/settle-in"
+SETTLE_IN_VERSION=$("$SETTLE_IN_BIN" --version | awk '{print $2}')
+step "settle-in $SETTLE_IN_VERSION: tests pass, static build"
 grep -q 'boot-install' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the boot-install branch"
 
 # --- 4. parse-check under the PS 5.1 parser ----------------------------------
@@ -207,6 +214,10 @@ cp "$BITS/images/pxeboot/initrd.img" "$D/images/pxeboot/initrd.img"
 cp "$BITS/images/install.img"        "$D/images/install.img"
 sed 's/\r$//' "$ROOT/upgrade_/linux/verify.sh"  > "$D/upgrade_/verify.sh"
 sed 's/\r$//' "$ROOT/upgrade_/linux/outcome.sh" > "$D/upgrade_/outcome.sh"
+# settle-in and its service; outcome.sh installs them only if their checksums match SHA256SUMS
+mkdir -p "$D/upgrade_/settle-in"
+cp "$SETTLE_IN_BIN" "$D/upgrade_/settle-in/settle-in"
+sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-settle-in.service" > "$D/upgrade_/settle-in/upgrade_-settle-in.service"
 # the desktops: Fedora's own live squashfs images, unmodified, one per
 # desktop the intent capture offers (rig/vm/fetch-desktops.sh). The
 # kickstart's liveimg line names one of them; verify.sh reads it back
@@ -225,6 +236,7 @@ upgrade_ live-test kit  -  V0 boot-handoff stick (both payloads)
 built:            $(date -u +%Y-%m-%dT%H:%M:%SZ)
 commit:           $GIT_REV ($GIT_STATE)
 harness:          Test-Handoff.ps1 $HARNESS_VERSION
+settle-in:        $SETTLE_IN_VERSION  $(sha256sum "$SETTLE_IN_BIN" | cut -c1-64)   -> upgrade_/settle-in/settle-in
 scanner:          upgrade-scan.ps1 $SCANNER_VERSION (single-file build of evaluate/windows + data/)
 payload bits:     rig/vm/artifacts/payload-bits (gitignored inputs; fetch-payload-bits.sh)
   Shell.efi       $(sha256sum "$BITS/Shell.efi" | cut -c1-64)   -> EFI/SHELL/SHELLX64.EFI

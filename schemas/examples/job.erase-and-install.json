@@ -79,13 +79,13 @@
   },
   "harvest": {
     "clock": {
-      "windows_zone": "Eastern Standard Time",
+      "windows_zone": "GMT Standard Time",
       "iana": "Europe/London",
       "rtc_is_local": true,
       "real_time_is_universal": null,
       "dst_auto_adjust": true,
-      "utc_offset_minutes": -240,
-      "base_utc_offset_minutes": -300,
+      "utc_offset_minutes": 60,
+      "base_utc_offset_minutes": 0,
       "dst_active": true,
       "observed_utc": "2026-09-08T21:00:00Z"
     },
