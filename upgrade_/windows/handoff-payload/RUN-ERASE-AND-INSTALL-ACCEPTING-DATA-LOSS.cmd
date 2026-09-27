@@ -72,9 +72,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Invoke-Logged.ps1" -Lo
 echo.
 echo   Step 2 of 7: what this computer shows when it starts.
 echo.
-echo     1  KDE Plasma desktop - looks and works most like Windows
-echo     2  GNOME desktop - simpler, one clean workspace
-echo     3  Text console only - for people who know Linux commands
+echo     1  KDE Plasma desktop
+echo          Looks and works most like Windows: a taskbar along the
+echo          bottom, a start menu in the corner, windows you drag, snap
+echo          and minimise. The easiest choice if you are used to Windows.
+echo.
+echo     2  GNOME desktop
+echo          Simpler and calmer: one bar along the top, and a single
+echo          button that shows all your open windows and apps at once.
+echo          Fewer settings to think about, but it works a little
+echo          differently from Windows, so expect a short getting-used-to.
+echo.
+echo     3  Text console only
+echo          No desktop: a black screen where you type commands. Only for
+echo          people who already use Linux. The KDE desktop is still
+echo          installed and can be switched on later.
+echo.
+echo   Not sure? Choose 1.
 echo.
 set PICK=
 set /p PICK=  Type 1, 2 or 3 and press Enter:
