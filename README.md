@@ -311,6 +311,33 @@ Give both a read before trusting any single check.
 - [ ] **7. Rescue mode** for machines turned down because of their drive: copy off whatever can still be read, and check every copy
 - [ ] **8. Offer to delete Windows when it can't be kept** (planned 2026-09-26, R26)
 
+### After v1: more kinds of devices
+
+*Decided 2026-09-27.* Once the Windows path ships, upgrade_ grows to other
+devices, TVs included. The research checked every device family against
+five doors (a Linux build, firmware that starts other software, a way in,
+drivers, a way back), using only doors the maker opens on purpose:
+[device-feasibility.md](docs/research/device-feasibility.md). The step-by-step
+path for each one: [future-paths.md](docs/research/future-paths.md).
+
+```text
+plausible  old Surfaces, x86 handhelds, Intel Macs without T2, Snapdragon X
+hard       Intel Macs with T2, x86 Chromebooks, Nvidia Shield, most TV boxes
+blocked    every smart TV checked, branded streaming sticks, iPads
+```
+
+In the suggested order (reuse first, then how many people are stranded):
+
+- [ ] **9. Old Surfaces** (Path B). Eleven models can't get Windows 11. Same Windows path; the scanner names what won't work on Linux, per model
+- [ ] **10. x86 handhelds** (Path A). ROG Ally, Legion Go, MSI Claw. Same Windows path; typing and cancelling without a keyboard
+- [ ] **11. Intel Macs from before 2018** (Path C). The biggest stranded group after Windows. A new front half on macOS; Wi-Fi without internet and reading macOS's disk are the hard parts
+- [ ] **12. The TV choice.** Smart TVs themselves are blocked, so the TV path is a converted laptop on HDMI: a "TV" option in the launcher menu, and settle-in checks picture and sound on the TV
+- [ ] **13. Snapdragon X laptops** (Path D). An ARM version of Fedora; waits until people are stranded on them
+- [ ] **14. Intel Macs with T2** (Path E). Needs one step done by hand in Recovery, and a decision on a non-standard kernel
+
+Each one gets its own risks and tests the day it's picked, and starts the
+same way: one real device, scanned read-only, its capture kept forever.
+
 <details>
 <summary>Further out</summary>
 
@@ -319,21 +346,6 @@ Give both a read before trusting any single check.
 Fill the hardware list from [linux-hardware.org](https://linux-hardware.org)
 instead of by hand, and let people opt in to sharing how their switch went,
 so the list gets smarter with every one.
-
-**More kinds of devices, TVs included** (decided 2026-09-27). The research
-is in [docs/research/device-feasibility.md](docs/research/device-feasibility.md):
-every device family checked against five doors, using only doors the maker
-opens on purpose. Where it stands today:
-
-```text
-plausible  Intel Macs without T2, x86 handhelds, old Surfaces, Snapdragon X
-hard       Intel Macs with T2, x86 Chromebooks, Nvidia Shield, most TV boxes
-blocked    every smart TV checked, branded streaming sticks, iPads
-```
-
-The TV story that works today: convert an old laptop and plug it into the TV.
-How each feasible device could be supported, step by step:
-[docs/research/future-paths.md](docs/research/future-paths.md).
 
 </details>
 
