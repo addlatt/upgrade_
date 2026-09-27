@@ -348,7 +348,7 @@ if [ -e /mnt/upgstick/upgrade_/settle-in-capture/done ]; then
     t=$(date -u +%Y%m%dT%H%M%SZ); C=/mnt/upgstick/upgrade_/settle-in-capture
     efibootmgr > "$C/efibootmgr-$t.txt" 2>&1
     # the previous boot's desktop sign-ins (the first boot's capture runs before anyone signs in)
-    journalctl -b -1 -o short-monotonic --no-pager 2>/dev/null | grep -E 'Starting Wayland user session|Started plasma-kwin_wayland|gdm-password\]: pam_unix\(gdm-password:session\): session opened|Started org.gnome.Shell@wayland|sddm-helper exited' > "$C/sessions-before-$t.txt" 2>&1
+    journalctl -b -1 -o short-monotonic --no-pager 2>/dev/null | grep -E 'Starting Wayland user session|Started plasma-kwin_wayland|gdm-password\]: pam_unix\(gdm-password:session\): session opened|Started org.gnome.Shell@wayland|sddm-helper exited|settle-in-window: ' > "$C/sessions-before-$t.txt" 2>&1
     cp /var/lib/upgrade_/settle-in/report.json "$C/report-$t.json" 2>/dev/null
     cp /var/lib/upgrade_-settle-in/summary.json "$C/summary-$t.json" 2>/dev/null
 fi

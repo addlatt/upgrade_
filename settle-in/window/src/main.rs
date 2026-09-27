@@ -37,6 +37,7 @@ fn sections() -> Option<Value> {
 
 struct App {
     screen: Value,
+    drawn: bool,
     running: Option<mpsc::Receiver<Value>>,
     last: Option<String>,
 }
@@ -62,6 +63,12 @@ impl App {
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        // the evidence that the window reached the screen (not just that it was started):
+        // one line in the journal on the first frame drawn (the rig's verdict reads it)
+        if !self.drawn {
+            self.drawn = true;
+            eprintln!("settle-in-window: showing the summary");
+        }
         if let Some(rx) = &self.running
             && let Ok(v) = rx.try_recv() {
                 self.running = None;
@@ -110,6 +117,7 @@ impl eframe::App for App {
                         let _ = std::fs::create_dir_all(d);
                     }
                     let _ = std::fs::write(&m, "shown\n");
+                    eprintln!("settle-in-window: closed by the person");
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 }
             });
@@ -121,13 +129,20 @@ fn main() {
     // once per person: after it has been shown, a later sign-in does not open it again
     let m = marker();
     if m.exists() {
+        eprintln!("settle-in-window: already shown to this person; not opening");
         return;
     }
-    let Some(screen) = sections() else { return }; // nothing to show (not an upgrade_ install, or settle-in has not run)
+    let Some(screen) = sections() else {
+        eprintln!("settle-in-window: no summary to show (not an upgrade_ install, or settle-in has not run)");
+        return;
+    };
     let title = screen["title"].as_str().unwrap_or("settle-in").to_string();
     let opts = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_title(&title).with_inner_size([560.0, 620.0]),
         ..Default::default()
     };
-    let _ = eframe::run_native(&title, opts, Box::new(|_cc| Ok(Box::new(App { screen, running: None, last: None }))));
+    if let Err(e) = eframe::run_native(&title, opts, Box::new(|_cc| Ok(Box::new(App { screen, drawn: false, running: None, last: None })))) {
+        eprintln!("settle-in-window: could not open the window: {}", e);
+        std::process::exit(1);
+    }
 }

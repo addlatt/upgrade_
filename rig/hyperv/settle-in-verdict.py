@@ -27,6 +27,9 @@ stick-credentials-dir.txt. Checks, each named in the row:
   sessions    every desktop sign-in reached its window manager (sessions.txt, or a
               journal-*.txt copied off the machine): a session that starts and never
               gets one is a black screen - a one-click failure (rig run 2)
+  window      a desktop install: the FIRST sign-in contains the window's own line
+              "settle-in-window: showing the summary", written on its first drawn frame
+              (so it reached the screen, not just started); console: n/a
   button      when efi-*before*.txt and efi-*after-button*.txt exist: exactly the
               stale entries left the boot order, the running entry stayed first, and
               the next boot (boots.log) started from it into the graphical sign-in
@@ -42,7 +45,7 @@ notes = [a for a in sys.argv[4:] if not a.startswith("--")]
 S = D / "settle-in"
 HEADER = ["timestamp", "machine", "settle_in_version", "installed", "handoff", "clock_result", "clock_why",
           "installer_clock_error", "wifi_result", "wifi_nm_parse", "passwords_deleted", "ran_before_network", "result", "notes",
-          "sessions", "button"]
+          "sessions", "button", "window"]
 
 def load(p):
     try: return json.load(open(p, encoding="utf-8-sig"))
@@ -114,15 +117,29 @@ else: before = "y"
 
 # --- desktop sessions: each "Starting Wayland user session" must reach a window manager
 jl = [l for f in sorted(S.glob("sessions-before-*.txt")) for l in text(f).splitlines()] or text(S / "sessions.txt").splitlines() or [l for f in sorted(D.glob("journal-*.txt")) if "user" not in f.name for l in text(f).splitlines()]
+# a sign-in starts a session: SDDM logs "Starting Wayland user session", GDM a PAM session for gdm-password
+start_re = r"Starting Wayland user session|gdm-password\]: pam_unix\(gdm-password:session\): session opened"
 starts, hung = 0, 0
 for i, l in enumerate(jl):
-    # a sign-in starts a session: SDDM logs "Starting Wayland user session", GDM a PAM session for gdm-password
-    start = r"Starting Wayland user session|gdm-password\]: pam_unix\(gdm-password:session\): session opened"
-    if re.search(start, l):
+    if re.search(start_re, l):
         starts += 1
         nxt = jl[i + 1:]
-        end = next((k for k, x in enumerate(nxt) if re.search(start, x)), len(nxt))
+        end = next((k for k, x in enumerate(nxt) if re.search(start_re, x)), len(nxt))
         if not any(re.search(r"Started plasma-kwin_wayland|Started org\.gnome\.Shell@wayland", x) for x in nxt[:end]): hung += 1
+# --- the window: shown in the first desktop sign-in?
+chose = o.get("cutover", {}).get("install", {}).get("start_at") or (load(D / "job.json") or {}).get("intent", {}).get("start_at")
+first = next((i for i, l in enumerate(jl) if re.search(start_re, l)), None)
+if chose == "console":
+    window = "n/a (text console chosen)"
+elif first is None:
+    window = "n/a (no sign-in in the captured log)"
+else:
+    nxt = jl[first + 1:]
+    end = next((k for k, x in enumerate(nxt) if re.search(start_re, x)), len(nxt))
+    lines = [x for x in nxt[:end] if "settle-in-window:" in x]
+    shown = any("showing the summary" in x for x in lines)
+    window = "shown in the first sign-in" if shown else "NOT shown in the first sign-in" + (": " + lines[-1].split("settle-in-window:", 1)[1].strip() if lines else " (no line from it)")
+    if not shown: fails.append("the window did not show at the first sign-in")
 sessions = "n/a (no session log)" if not jl else ("%d of %d reached the desktop" % (starts - hung, starts))
 if hung: fails.append("a desktop sign-in never reached the desktop (black screen)")
 
@@ -158,7 +175,7 @@ if result != "fail" and spoofed and "partial" in wifi_nm: result = "partial"
 if fails: notes.append("failed: " + ", ".join(fails))
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), MACHINE, rep.get("settle_in_version", si.get("version", "")),
        installed, handoff, clock_result, clock_why, installer_err, wifi_result, wifi_nm, deleted, before, result, "; ".join(notes),
-       sessions, button]
+       sessions, button, window]
 new = not CSV.exists()
 with open(CSV, "a", newline="") as f:
     wr_ = csv.writer(f)
