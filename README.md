@@ -320,6 +320,19 @@ Fill the hardware list from [linux-hardware.org](https://linux-hardware.org)
 instead of by hand, and let people opt in to sharing how their switch went,
 so the list gets smarter with every one.
 
+**More kinds of devices, TVs included** (decided 2026-09-27). The research
+is in [docs/research/device-feasibility.md](docs/research/device-feasibility.md):
+every device family checked against five doors, using only doors the maker
+opens on purpose. Where it stands today:
+
+```text
+plausible  Intel Macs without T2, x86 handhelds, old Surfaces, Snapdragon X
+hard       Intel Macs with T2, x86 Chromebooks, Nvidia Shield, most TV boxes
+blocked    every smart TV checked, branded streaming sticks, iPads
+```
+
+The TV story that works today: convert an old laptop and plug it into the TV.
+
 </details>
 
 ---

@@ -1239,6 +1239,18 @@ there is anything to sign.
 
 ---
 
+## Platform scope: beyond Windows PCs (decided 2026-09-27, the owner)
+
+Smart TVs, and devices beyond Windows PCs in general, are on the long-term
+plan. The research that starts it is `docs/research/device-feasibility.md`:
+every device family scored on five doors (a Linux build, firmware that
+boots something else, a way in from the old system, drivers, a way back),
+using only doors the maker opens on purpose. It is research, not evidence
+(rule #2). Headlines as of 2026-09-27: Intel Macs without T2 look like the
+best next source; every smart TV checked is blocked (app developer modes
+only), so the TV story today is a converted laptop plugged into the TV.
+Nothing here changes v1's scope.
+
 ## Platform scope: Apple hardware
 
 There are three different cases with three different answers, and the

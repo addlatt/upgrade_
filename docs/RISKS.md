@@ -2894,3 +2894,30 @@ our own. Owed.
 startup on Fedora KDE, Fedora GNOME and at least one non-Fedora
 distribution, on the rig and then on a real machine, each leaving a capture
 behind. VALIDATION V10.
+
+## R29: The Microsoft third-party UEFI CA is off on Secured-core PCs · high · open (raised 2026-09-27 by research, unverified)
+
+**What.** Our handoff boots Fedora's shim, which is signed by Microsoft's
+*third-party* UEFI certificate (the "Microsoft UEFI CA"), not the one
+Windows itself uses. Lenovo's guide for Secured-core PCs (including
+Copilot+ PCs) says that certificate is **turned off by default** on those
+machines. If so, the firmware refuses shim, and the one-time boot into the
+stick never happens (`docs/research/device-feasibility.md`, source C33).
+
+**If real.** On those machines the handoff fails. If the firmware falls back
+to Windows, that is fail-safe but a dead end for the person, with no
+explanation. If it stops at a firmware error screen, it breaks walk-away.
+Newer Windows 11 laptops are the ones most likely to be Secured-core; the
+stranded Windows 10 machines this project targets mostly predate it, so
+the stakes are "a class of machines silently can't convert", not data
+loss.
+
+**Unverified.** Only Lenovo's document was read. Microsoft's own
+Secured-core documentation, other vendors, and whether the setting can be
+read from Windows before the handoff are all open.
+
+**Closes when** a primary source (Microsoft) confirms or denies the default,
+and the scanner either reads the firmware's trust setting and refuses with
+plain words ("turn on 'Allow Microsoft 3rd Party UEFI CA' in your firmware
+settings"), or a real Secured-core machine shows the handoff works. Every
+contact leaves a capture (rule #5).
