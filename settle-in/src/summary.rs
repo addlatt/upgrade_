@@ -58,7 +58,7 @@ pub fn sections(s: &Value) -> Value {
         )],
     };
     out.push(json!({ "heading": "The clock", "lines": clock }));
-    // --- Wi-Fi (approved 2026-09-27; the manual-connect and no-NetworkManager lines are drafts awaiting approval)
+    // --- Wi-Fi (approved 2026-09-27, all lines)
     let w = &s["wifi"];
     let mut wl = Vec::new();
     let auto = join(&w["automatic"]);
@@ -103,7 +103,7 @@ pub fn sections(s: &Value) -> Value {
             "button_note": "You will be asked for your password.",
         }));
     } else if b.get("removed").is_some() {
-        // a draft awaiting approval: what the section says after the button worked
+        // after the button worked (approved 2026-09-27)
         out.push(json!({ "heading": "The old Windows startup entry", "lines": ["Removed."] }));
     }
     json!({ "title": format!("{} is ready", s["name"].as_str().unwrap_or("Linux")), "sections": out, "close": "Close" })

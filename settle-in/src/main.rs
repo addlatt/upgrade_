@@ -184,6 +184,10 @@ fn first_start(root: &str, rtc: &str) -> i32 {
     report["wifi"] = wifi::run(root, &handoff, &job);
     println!("settle-in: wifi: {} ({} created)", report["wifi"]["result"], report["wifi"].get("created").unwrap_or(&json!(0)));
 
+    // --- our own one-time entry: removed automatically (the owner, 2026-09-27)
+    report["own_boot_entry"] = bootentry::remove_ours(root, &outcome);
+    println!("settle-in: own boot entry: {}", report["own_boot_entry"]["result"]);
+
     // --- the old boot entry: only looked at here; removing is the person's button
     report["old_boot_entry"] = bootentry::describe(&bootentry::plan(&bootentry::facts(root, &job)));
     println!("settle-in: old boot entry offered: {} {}", report["old_boot_entry"]["offered"], report["old_boot_entry"]["why_not"]);

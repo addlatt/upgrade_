@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- upgrade_ settle-in: plain words for the password prompt the old-boot-entry
+     button raises (approved 2026-09-27, the owner). Without this file the
+     desktop shows the program's path. Installed in /usr/share/polkit-1/actions/
+     by the installer adapter; it applies only to `settle-in remove-old-boot-entry`. -->
+<policyconfig>
+  <vendor>upgrade_</vendor>
+  <action id="org.upgrade.settle-in.remove-old-boot-entry">
+    <description>Remove the old Windows startup entry</description>
+    <message>Removing the old Windows startup entry changes this computer's startup settings. Type your password to allow it.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/libexec/upgrade_/settle-in</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">remove-old-boot-entry</annotate>
+  </action>
+</policyconfig>

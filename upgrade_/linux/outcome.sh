@@ -78,20 +78,21 @@ chroot "$SYSROOT" restorecon -R "$HANDOFF_DIR" >/dev/null 2>&1 || true
 # never installs a program), then switched on
 SI_SRC=$STICK/upgrade_/settle-in; SETTLE_IN=false; SETTLE_IN_WHY=""
 si_ok() { local want; want=$(grep -E "[ *]\./upgrade_/settle-in/$1\$" "$STICK/SHA256SUMS" 2>/dev/null | cut -c1-64); [ -n "$want" ] && [ "$want" = "$(sha "$SI_SRC/$1")" ]; }
-SI_FILES="settle-in upgrade_-settle-in.service settle-in-window upgrade_-settle-in.desktop upgrade_-settle-in.sh"
+SI_FILES="settle-in upgrade_-settle-in.service settle-in-window upgrade_-settle-in.desktop upgrade_-settle-in.sh org.upgrade.settle-in.policy"
 si_all() { for f in $SI_FILES; do [ -f "$SI_SRC/$f" ] || return 1; done; }
 si_all_ok() { for f in $SI_FILES; do si_ok "$f" || return 1; done; }
 if ! si_all; then SETTLE_IN_WHY="settle-in is not complete on the stick"
 elif ! si_all_ok; then SETTLE_IN_WHY="settle-in on the stick does not match SHA256SUMS"
-elif mkdir -p "$SYSROOT/usr/local/libexec/upgrade_" "$SYSROOT/etc/systemd/system/sysinit.target.wants" "$SYSROOT/etc/xdg/autostart" "$SYSROOT/etc/profile.d" \
+elif mkdir -p "$SYSROOT/usr/local/libexec/upgrade_" "$SYSROOT/etc/systemd/system/sysinit.target.wants" "$SYSROOT/etc/xdg/autostart" "$SYSROOT/etc/profile.d" "$SYSROOT/usr/share/polkit-1/actions" \
     && cp "$SI_SRC/settle-in" "$SYSROOT/usr/local/libexec/upgrade_/settle-in" && chmod 0755 "$SYSROOT/usr/local/libexec/upgrade_/settle-in" \
     && cp "$SI_SRC/upgrade_-settle-in.service" "$SYSROOT/etc/systemd/system/upgrade_-settle-in.service" && chmod 0644 "$SYSROOT/etc/systemd/system/upgrade_-settle-in.service" \
     && ln -sf ../upgrade_-settle-in.service "$SYSROOT/etc/systemd/system/sysinit.target.wants/upgrade_-settle-in.service" \
     && cp "$SI_SRC/settle-in-window" "$SYSROOT/usr/local/libexec/upgrade_/settle-in-window" && chmod 0755 "$SYSROOT/usr/local/libexec/upgrade_/settle-in-window" \
     && cp "$SI_SRC/upgrade_-settle-in.desktop" "$SYSROOT/etc/xdg/autostart/upgrade_-settle-in.desktop" && chmod 0644 "$SYSROOT/etc/xdg/autostart/upgrade_-settle-in.desktop" \
-    && cp "$SI_SRC/upgrade_-settle-in.sh" "$SYSROOT/etc/profile.d/upgrade_-settle-in.sh" && chmod 0644 "$SYSROOT/etc/profile.d/upgrade_-settle-in.sh"; then
+    && cp "$SI_SRC/upgrade_-settle-in.sh" "$SYSROOT/etc/profile.d/upgrade_-settle-in.sh" && chmod 0644 "$SYSROOT/etc/profile.d/upgrade_-settle-in.sh" \
+    && cp "$SI_SRC/org.upgrade.settle-in.policy" "$SYSROOT/usr/share/polkit-1/actions/org.upgrade.settle-in.policy" && chmod 0644 "$SYSROOT/usr/share/polkit-1/actions/org.upgrade.settle-in.policy"; then
     SETTLE_IN=true
-    chroot "$SYSROOT" restorecon -R /usr/local/libexec/upgrade_ /etc/systemd/system/upgrade_-settle-in.service /etc/xdg/autostart/upgrade_-settle-in.desktop /etc/profile.d/upgrade_-settle-in.sh >/dev/null 2>&1 || true
+    chroot "$SYSROOT" restorecon -R /usr/local/libexec/upgrade_ /etc/systemd/system/upgrade_-settle-in.service /etc/xdg/autostart/upgrade_-settle-in.desktop /etc/profile.d/upgrade_-settle-in.sh /usr/share/polkit-1/actions/org.upgrade.settle-in.policy >/dev/null 2>&1 || true
 else SETTLE_IN_WHY="settle-in could not be copied onto the installed system"; fi
 SETTLE_IN_VERSION=$( [ "$SETTLE_IN" = true ] && "$SYSROOT/usr/local/libexec/upgrade_/settle-in" --version 2>/dev/null | awk '{print $2}')
 echo "== settle-in installed=$SETTLE_IN ${SETTLE_IN_VERSION:+version $SETTLE_IN_VERSION} $SETTLE_IN_WHY"

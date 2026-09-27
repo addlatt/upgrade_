@@ -30,7 +30,7 @@
 set -u
 JOB=${1:?job.json path}
 LABEL=${2:-UPGV0}
-VERIFY_VERSION=0.4.1
+VERIFY_VERSION=0.5.0
 STICK=/run/install/repo
 REPORT=$STICK/upgrade_/report
 STORAGE_KS=/tmp/upgrade_-storage.ks
@@ -48,9 +48,69 @@ for k in sys.argv[2].split("."):
     if v is None: break
 print("" if v is None else (json.dumps(v) if isinstance(v,(dict,list)) else str(v)))' "$JOB" "$1"; }
 
+# --- a refusal the person can read (0.5.0, 2026-09-27; the owner approved the words) ----
+# Before, a refusal was only an exit code, and Anaconda put its raw Python
+# traceback on the screen (rig arm A, the Aspire's run 9). Now every refusal
+# shows one plain screen on tty6 for 60 s (any key: now), writes
+# report/refusal.json, and restarts the computer unchanged - nothing on the
+# internal drives has been written at any refusal point. The exit code
+# stays as the backstop if the restart itself fails (%pre is --erroronfail).
+refuse() {
+    local code=$1 plain=$2 detail=$3
+    echo "!! $detail"
+    echo "== REFUSED (exit $code): $plain"
+    mount -o remount,rw "$STICK" 2>/dev/null; mkdir -p "$REPORT" 2>/dev/null
+    python3 -c 'import json,sys,datetime; json.dump({"schema":"refusal/1","exit_code":int(sys.argv[2]),"reason":sys.argv[3],"detail":sys.argv[4],"created_utc":datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}, open(sys.argv[1],"w"), indent=2)' \
+        "$REPORT/refusal.json" "$code" "$plain" "$detail" 2>/dev/null
+    cp "$LOG" "$REPORT/verify.log" 2>/dev/null; sync; sync
+    if [ -c /dev/tty6 ] && chvt 6 2>/dev/null; then
+        python3 - /dev/tty6 "$plain" <<'PYEOF2'
+import os, select, sys, termios, textwrap, time
+path, reason = sys.argv[1], sys.argv[2]
+fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+old = termios.tcgetattr(fd); raw = termios.tcgetattr(fd)
+raw[3] &= ~(termios.ICANON | termios.ECHO | termios.ISIG); raw[6][termios.VMIN] = 0; raw[6][termios.VTIME] = 0
+termios.tcsetattr(fd, termios.TCSANOW, raw); termios.tcflush(fd, termios.TCIFLUSH)
+def put(t):
+    d = t.encode()
+    while d:
+        try: n = os.write(fd, d); d = d[n:]
+        except BlockingIOError: time.sleep(0.01)
+def screen(left):
+    body = ["NOTHING WAS CHANGED ON THIS COMPUTER.", "",
+            "The installer stopped before touching anything, because %s." % reason, "",
+            "It restarts in %d seconds, exactly as it was before." % left,
+            "Press any key to restart now.", "",
+            "The details are saved on the USB stick, in upgrade_\\report."]
+    lines = []
+    for b in body: lines += (textwrap.wrap(b, 60) or [""])
+    put("\033[2J\033[H\n\n" + "".join("   %s\n" % l for l in lines))
+end = time.monotonic() + 60
+try:
+    while True:
+        left = end - time.monotonic()
+        if left <= 0: break
+        screen(int(left) + (1 if left % 1 else 0))
+        r, _, _ = select.select([fd], [], [], min(1.0, left))
+        if r:
+            try:
+                if os.read(fd, 64): break
+            except BlockingIOError: pass
+finally:
+    termios.tcsetattr(fd, termios.TCSANOW, old)
+PYEOF2
+    else
+        echo "!! the refusal screen could not be shown on tty6; restarting in 60 s"
+        sleep 60
+    fi
+    systemctl reboot 2>/dev/null || reboot -f 2>/dev/null || { echo b > /proc/sysrq-trigger; }
+    sleep 60
+    exit "$code"
+}
+
 # --- 0. the job ---------------------------------------------------------------
 SCHEMA=$(jq_ schema)
-if [ "$SCHEMA" != "job/1" ]; then echo "!! job schema '$SCHEMA' is not job/1 - refusing"; exit 10; fi
+if [ "$SCHEMA" != "job/1" ]; then refuse 10 "this USB stick was prepared by a different version of this tool" "job schema '$SCHEMA' is not job/1"; fi
 JOB_ID=$(jq_ job_id); PATH_CHOSEN=$(jq_ intent.path)
 J_SERIAL=$(jq_ identity.system_disk.serial_number)
 J_UID=$(jq_ identity.system_disk.unique_id)
@@ -323,12 +383,12 @@ if [ "$MODE" = verify ]; then
     exit 0
 fi
 # install mode: the refusal is the exit code - %pre is --erroronfail
-[ "$IDENTITY" = pass ] || { echo "!! IDENTITY MISMATCH - refusing to install on this machine"; exit 20; }
-[ -f "$STORAGE_KS" ] || { echo "!! no storage include written - refusing"; exit 21; }
-[ "$ESP_RESULT" != fail ] || { echo "!! keep-windows needs the Windows ESP - refusing"; exit 22; }
-[ "$IMAGE_RESULT" = pass ] || { echo "!! the desktop image on the stick did not verify - refusing (RISKS R17)"; exit 23; }
-[ "$PATH_CHOSEN" != keep-windows ] || [ "$SNAP_RESULT" = pass ] || { echo "!! the ESP snapshot failed - refusing to touch the ESP without it (RISKS R21)"; exit 24; }
-[ "$PATH_CHOSEN" = keep-windows ] || [ "$ERASE" = true ] || { echo "!! a clean slate with staged files needs the restore, which this version does not have - refusing"; exit 25; }
+[ "$IDENTITY" = pass ] || refuse 20 "this USB stick was prepared for a different computer, or one of its drives has changed since" "IDENTITY MISMATCH - refusing to install on this machine"
+[ -f "$STORAGE_KS" ] || refuse 21 "the installer could not work out where to put Linux" "no storage include written"
+[ "$ESP_RESULT" != fail ] || refuse 22 "Windows' startup files were not where the preparation found them" "keep-windows needs the Windows ESP"
+[ "$IMAGE_RESULT" = pass ] || refuse 23 "the copy of Linux on this USB stick is damaged" "the desktop image on the stick did not verify (RISKS R17)"
+[ "$PATH_CHOSEN" != keep-windows ] || [ "$SNAP_RESULT" = pass ] || refuse 24 "a safety copy of Windows' startup files could not be made" "the ESP snapshot failed - the ESP is not touched without it (RISKS R21)"
+[ "$PATH_CHOSEN" = keep-windows ] || [ "$ERASE" = true ] || refuse 25 "this version cannot yet put your files back on an erased computer" "a clean slate with staged files needs the restore, which this version does not have"
 
 # --- 4. the countdown: the last exit before the erase (RISKS R27, rule #3) ------
 # Anaconda runs %pre before its own screens; tty6 is free in text mode. The
@@ -347,9 +407,7 @@ PYEOF
         cp "$LOG" "$REPORT/verify.log" 2>/dev/null || true; sync; sync
     }
     if [ ! -c "$CTTY" ] || ! chvt 6 2>/dev/null; then
-        echo "!! the countdown could not be shown on $CTTY (chvt: $(command -v chvt || echo missing)) - refusing to erase without a visible last exit"
-        cp "$LOG" "$REPORT/verify.log" 2>/dev/null || true; sync
-        exit 26
+        refuse 26 "the last-chance countdown could not be shown, and nothing is erased without it" "the countdown could not be shown on $CTTY (chvt: $(command -v chvt || echo missing)) - no erase without a visible last exit"
     fi
     echo "== countdown: $COUNT_SECS s on $CTTY, erasing $what ($names)"
     # Python, not bash `read -t -n`: on the rig (2026-09-26, V9 arm B) a key
@@ -415,10 +473,7 @@ PYEOF
     rc=$?
     RESULT=elapsed; [ "$rc" = 1 ] && RESULT=cancelled
     if [ "$rc" != 0 ] && [ "$rc" != 1 ]; then
-        echo "!! the countdown could not run (python exit $rc) - refusing to erase without a visible last exit"
-        cp "$LOG" "$REPORT/verify.log" 2>/dev/null || true; sync
-        chvt 1 2>/dev/null || true
-        exit 26
+        refuse 26 "the last-chance countdown could not be shown, and nothing is erased without it" "the countdown could not run (python exit $rc) - no erase without a visible last exit"
     fi
     if [ "$RESULT" = cancelled ]; then
         printf '\033[2J\033[H\n\n   CANCELLED. Nothing was erased. Restarting into Windows...\n' > "$CTTY"
