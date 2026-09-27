@@ -2,7 +2,8 @@
 
 **Decided (2026-09-27, the owner):** document the feasible path for every
 device family the research rated `plausible` or `hard`, so the long-term
-plan says *how*, not only *whether*. The ratings and sources are in
+plan says *how*, not only *whether*. **Amended the same day:** every Mac,
+eventually, including Apple Silicon by wrapping Asahi (Path F). The ratings and sources are in
 [device-feasibility.md](device-feasibility.md).
 
 **This is a plan on paper, not a promise and not evidence.** Nothing here is
@@ -258,6 +259,95 @@ is.
 
 ---
 
+## Path F: Apple Silicon Macs (M1 and later), by wrapping Asahi
+
+**Rating:** plausible via Asahi. **Source OS:** macOS. **Reuse:** the macOS
+front half from Path C, steps 6-7, and every rule. **Not reused:** our
+installer. Asahi's does that part.
+
+**Amended decision (2026-09-27, the owner): every Mac, eventually.**
+`architecture.md` ruled Apple Silicon out because Asahi already does it
+better than we would. That reason still stands, so this path never builds a
+rival installer. It wraps Asahi's:
+
+```text
+upgrade_ (macOS side)        Asahi's installer               upgrade_ (Linux side)
+---------------------        -----------------------------   ---------------------
+scan + refuse          -->   shrink macOS, add the 2.5 GB    settle-in on first
+harvest -> job.json          stub, install Fedora Asahi      start: check hardware,
+stage the files              Remix                           bring files home
+                             PERSON: hold power, type the
+                             admin password (1TR)
+```
+
+What upgrade_ adds around Asahi:
+
+1. **The refusal.** Asahi supports M1 and M2, and M3 since 2026-09-06 except
+   the M3 Ultra (device-feasibility C2). M4, M5 and the A18 Pro MacBook are
+   not installer-ready (C6). The scanner refuses everything outside Asahi's
+   own supported list, by name, and names the gaps on supported ones (M3:
+   no sleep, HDMI off, weak graphics, C2).
+2. **The harvest and the files.** Asahi installs Linux; it doesn't bring
+   your files, Wi-Fi or clock across. That's exactly upgrade_'s job. The
+   same staging question as Path C applies: Linux can't read APFS or
+   FileVault disks well, so files are staged while macOS is running.
+3. **settle-in.** Fedora Asahi Remix is Fedora, and settle-in runs on any
+   Linux (R28). Its checks need Mac rows: speakers work only with specific
+   audio plugin versions on M1 (C3).
+
+What stays true, and is said up front:
+
+- **Never walk-away.** Changing the boot policy needs 1TR (One True
+  Recovery): holding the power button and typing an admin password (C8,
+  C9). No software can do that, and the launcher says so before it starts.
+- **macOS stays.** Apple's 2.5 GB stub is required on the disk, and full
+  macOS is recommended while firmware updates need it (C7). So this path is
+  keep-macOS only; no erase path.
+
+Open questions:
+
+- **Offline.** Asahi's installer is started from the internet (`curl
+  https://alx.sh | sh`, C2) and downloads its images. upgrade_'s design rule
+  is "works offline" from the stick. Can Asahi's installer take an image
+  from the stick? *(to source)* If not, this path needs a network, and the
+  scanner must check for one first.
+- **Working with Asahi, not around them.** Wrapping their installer should
+  be done with the Asahi project's knowledge and in their supported way,
+  never by patching it.
+
+**Who's stranded:** nobody yet. macOS 27 still supports M1 and later (C11).
+This becomes urgent the year Apple drops M1, which is the same trigger that
+started this project.
+
+**Prove first:** one M1 or M2 Mac, scanned read-only from macOS; Asahi's
+installer run by hand with upgrade_'s harvest before and settle-in after;
+whether the installer can run from local images.
+
+---
+
+## Every Mac, by era
+
+"All Macs" means one honest answer per era. The research so far:
+
+```text
+  era                                path     rating
+  ---------------------------------  -------  --------------------------------------
+  PowerPC Macs (1994-2006)           none     blocked: no current Fedora for them (to source)
+  Intel Core Solo / Duo (2006)       none     blocked: 32-bit CPU, no Fedora i686 (C39)
+  early 64-bit Intel, 32-bit EFI     none yet to research: 32-bit firmware on a
+    (roughly 2006-2008)                         64-bit CPU needs special boot handling
+  Intel Macs, 2008-2017 (no T2)      Path C   plausible: the best next source
+  Intel Macs with T2 (2018-2020)     Path E   hard: one manual Recovery step
+  Apple Silicon M1, M2, M3           Path F   plausible via Asahi (M3 Ultra excluded)
+  M3 Ultra, M4, M5, A18 Pro          Path F   waits for Asahi's support
+```
+
+So every Mac made since 2008 has a path on paper. The newest ones wait on
+Asahi, and the oldest ones are blocked because no current Fedora runs on
+them.
+
+---
+
 ## TVs: the path that works today
 
 **Rating for the TVs themselves:** blocked (every smart TV checked). But
@@ -297,6 +387,7 @@ point people at the project that already does it well.
 4  TVs     the TV choice     a menu item and a settle-in check
 5  Path D  Snapdragon X      waits until people are stranded on it
 6  Path E  T2 Macs           waits for a decision on non-stock kernels
+7  Path F  Apple Silicon     wraps Asahi; urgent the year Apple drops M1
 ```
 
 The order follows reuse first, then how many people are stranded. It's a

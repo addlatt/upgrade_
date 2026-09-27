@@ -321,7 +321,8 @@ drivers, a way back), using only doors the maker opens on purpose:
 path for each one: [future-paths.md](docs/research/future-paths.md).
 
 ```text
-plausible  old Surfaces, x86 handhelds, Intel Macs without T2, Snapdragon X
+plausible  old Surfaces, x86 handhelds, Intel Macs without T2, Snapdragon X,
+           Apple Silicon (by wrapping Asahi)
 hard       Intel Macs with T2, x86 Chromebooks, Nvidia Shield, most TV boxes
 blocked    every smart TV checked, branded streaming sticks, iPads
 ```
@@ -334,6 +335,9 @@ In the suggested order (reuse first, then how many people are stranded):
 - [ ] **12. The TV choice.** Smart TVs themselves are blocked, so the TV path is a converted laptop on HDMI: a "TV" option in the launcher menu, and settle-in checks picture and sound on the TV
 - [ ] **13. Snapdragon X laptops** (Path D). An ARM version of Fedora; waits until people are stranded on them
 - [ ] **14. Intel Macs with T2** (Path E). Needs one step done by hand in Recovery, and a decision on a non-standard kernel
+- [ ] **15. Apple Silicon Macs** (Path F). Wrap [Asahi Linux](https://asahilinux.org)'s installer rather than rebuild it: upgrade_ scans, collects and settles in; Asahi installs. M1, M2 and M3 today; newer chips as Asahi adds them
+
+Together, 11, 14 and 15 cover every Mac made since 2008 ([the map](docs/research/future-paths.md#every-mac-by-era)).
 
 Each one gets its own risks and tests the day it's picked, and starts the
 same way: one real device, scanned read-only, its capture kept forever.

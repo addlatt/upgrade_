@@ -1260,7 +1260,7 @@ deciding reason is not the one people expect.
 
 | Mac | Answer |
 |---|---|
-| Apple Silicon (M1 onward) | Never in scope. Refer people to Asahi. |
+| Apple Silicon (M1 onward) | Long term: in scope by wrapping Asahi's installer, never replacing it (amended 2026-09-27). |
 | Intel with T2 (2018-2020) | Out of scope for v1. |
 | Intel without T2 (pre-2018) | Not v1; revisit after the Windows path ships. |
 
@@ -1303,6 +1303,17 @@ of something that already exists and is actively maintained.
 
 **Decision: never in scope. Refer people to Asahi.** That is the outcome
 that serves the user, and the scanner should say so by name.
+
+**Amended (2026-09-27, the owner): every Mac, eventually.** The reason
+above still stands, so upgrade_ will not build its own Apple Silicon
+installer. Instead, long term, it **wraps Asahi**: upgrade_'s scan and
+refusals, the harvest into `job.json`, and `settle-in` on first start, with
+Asahi's own installer doing the partitioning, boot policy and stub in the
+middle. Fedora Asahi Remix is Fedora, and `settle-in` runs on any Linux
+(R28), so the back half carries over. What stays true: the 1TR step is done
+by a person, so this path is never walk-away, and it says so up front. The
+path, and a map of every Mac era, is in `docs/research/future-paths.md`
+(Path F). Not v1.
 
 ### Intel Macs with T2 (2018-2020): a hard maybe
 

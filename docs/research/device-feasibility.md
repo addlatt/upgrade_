@@ -66,7 +66,7 @@ BLOCKED TODAY
   blocked    branded sticks (Fire TV, Roku, Chromecast, Apple TV)
   blocked    iPads, Amazon Fire tablets, Samsung on One UI 8, 32-bit-only PCs
 
-ALREADY SOMEONE ELSE'S JOB
+ALREADY SOMEONE ELSE'S JOB (upgrade_ would wrap it, 2026-09-27)
   ready      Apple Silicon M1/M2 (and M3 since 2026-09-06): Fedora Asahi Remix
 ```
 
