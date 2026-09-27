@@ -43,7 +43,12 @@
     Where job.json and artifacts/ go - the stick's upgrade_\ directory.
 
 .PARAMETER Desktop
-    kde (default) or gnome.
+    kde (default) or gnome - the edition installed.
+
+.PARAMETER StartAt
+    desktop or console: what the installed computer shows when it starts,
+    as the person chose it on the launcher (2026-09-26). Required - a job is
+    never written with a choice nobody made.
 
 .PARAMETER EraseEverything
     The one-click erase and install (decided 2026-09-26, RISKS R27): the
@@ -70,6 +75,7 @@ param(
     [string]$StickDrive,
     [string]$OutDir,
     [ValidateSet('kde', 'gnome')][string]$Desktop = 'kde',
+    [ValidateSet('desktop', 'console')][string]$StartAt,
     [string]$PasswordHash = '$6$upgradeV1$MkYfbaBe.FFp2fzSNrPiJ6RdPagcfI.crkepTcQpGsjGFMe8780OtkedouSyxvXdky5a6WiTWDy/.epwkWUk71',
     [ValidateSet('clean-slate', 'stop')][string]$IfCannotKeep = 'stop',
     [string]$AcknowledgeDataLoss,
@@ -79,7 +85,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.12.0'
+$JobWriterVersion = '0.13.0'
 # the harvester versions whose folder map this writer reads; any other is refused, not guessed
 $KnownHarvestVersions = @('0.3.0')
 $LinuxMinGB = 25
@@ -514,7 +520,7 @@ function ConvertTo-JobHarvest {
 }
 
 function New-JobDocument {
-    param($F, [string]$Desktop, [string]$PasswordHash, [string]$IfCannotKeep, [string]$ReportRel, [string]$AcknowledgeDataLoss, [string]$EraseEverything)
+    param($F, [string]$Desktop, [string]$PasswordHash, [string]$IfCannotKeep, [string]$ReportRel, [string]$AcknowledgeDataLoss, [string]$EraseEverything, [string]$StartAt = 'desktop')
     $refusals = @()
     $erase = [bool]$EraseEverything
     $eraseDisks = @()
@@ -580,7 +586,7 @@ function New-JobDocument {
         }
         scan = [ordered]@{ verdict = $F.Verdict; required_kernel = $(if ($F.RequiredKernel) { "$($F.RequiredKernel)" } else { $null }); report = $ReportRel }
         intent = [ordered]@{
-            path = $path.Path; path_reason = $path.Reason; desktop = $Desktop
+            path = $path.Path; path_reason = $path.Reason; desktop = $Desktop; start_at = $StartAt
             distro = [ordered]@{ name = 'fedora'; release = '42' }
             account = [ordered]@{ windows_name = $F.UserName; full_name = $(if ($F.FullName) { "$($F.FullName)" } else { $null })
                                   linux_name = (ConvertTo-JobLinuxName $F.UserName); password_hash = $PasswordHash }
@@ -847,6 +853,8 @@ function Invoke-SelfTest {
            Run = { $null -ne (New-JobDocument -F (With $good 'Harvest' (New-TestHarvest -Owners @('S-1-5-21-9-1002') -CloudResult 'not-attempted' -Found 3 -Fits $false)) -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Job }; Expect = $true }
         @{ Name = 'erase: with no folder map at all it refuses (it lists what will be deleted)'
            Run = { [bool]((New-JobDocument -F (With (With $good 'Harvest' $null) 'HarvestError' 'x') -Desktop kde -PasswordHash $hp -IfCannotKeep stop -ReportRel 'r' -EraseEverything $es).Refusals -match '^the list of your folders could not be read') }; Expect = $true }
+        @{ Name = 'start_at: the person''s choice is carried into the job (desktop / console)'
+           Run = { "$((New-JobDocument -F $good -Desktop gnome -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r' -StartAt desktop).Job.intent.start_at)/$((New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r' -StartAt console).Job.intent.start_at)/$((New-JobDocument -F $good -Desktop gnome -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r' -StartAt desktop).Job.intent.desktop)" }; Expect = 'desktop/console/gnome' }
         @{ Name = 'no erase sentence: nothing changes - a plain job carries no erase consent'
            Run = { $null -eq (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.erase_consent }; Expect = $true }
         @{ Name = 'locale: en-US + 0409 + Eastern -> en_US.UTF-8 / us / America/New_York'
@@ -880,13 +888,14 @@ if (-not (Test-JobAdmin)) { throw 'the job writer needs Administrator: the shrin
 
 Write-Host ''; Write-Host "  upgrade_  job writer $JobWriterVersion" -ForegroundColor Cyan
 Write-Host '  reads this machine; writes job.json; changes nothing' -ForegroundColor DarkGray
+if (-not $StartAt) { Write-Host ''; Write-Host '  REFUSED - no job written: no choice was made of what the computer starts at (-StartAt desktop or console)' -ForegroundColor Red; exit 2 }
 if ($PasswordHashFile) {
     if (-not (Test-Path -LiteralPath $PasswordHashFile)) { throw "no password hash at $PasswordHashFile" }
     $PasswordHash = (Get-Content -LiteralPath $PasswordHashFile -Raw).Trim()
 }
 $facts = Get-JobFacts -ScanDir $ScanDir -StickDrive $StickDrive -Materialize $Materialize.IsPresent
 $reportRel = if ($facts.Report) { 'reports/' + (Split-Path $facts.Report -Leaf) } else { 'reports/none' }
-$r = New-JobDocument -F $facts -Desktop $Desktop -PasswordHash $PasswordHash -IfCannotKeep $IfCannotKeep -ReportRel $reportRel -AcknowledgeDataLoss $AcknowledgeDataLoss -EraseEverything $EraseEverything
+$r = New-JobDocument -F $facts -Desktop $Desktop -PasswordHash $PasswordHash -IfCannotKeep $IfCannotKeep -ReportRel $reportRel -AcknowledgeDataLoss $AcknowledgeDataLoss -EraseEverything $EraseEverything -StartAt $StartAt
 if ($r.Refusals.Count -gt 0) {
     Write-Host ''; Write-Host '  REFUSED - no job written:' -ForegroundColor Red
     foreach ($x in $r.Refusals) { Write-Host "    - $x" -ForegroundColor Red }
@@ -908,7 +917,7 @@ Write-Host "  verdict $($j.scan.verdict)   disk health $($j.storage.physical_dis
 if ($j.storage.last_unmovable_file) { Write-Host "  Windows names the last unmovable file: $($j.storage.last_unmovable_file)$(if (Test-JobShrinkMitigable -LastUnmovable $j.storage.last_unmovable_file) { ' - the prologue turns it off and measures again' })" -ForegroundColor DarkGray }
 if ($facts.RepairStale) { Write-Host "  $($facts.RepairStale) - not a queued repair" -ForegroundColor DarkGray }
 if ($j.intent.path -eq 'keep-windows' -and ($null -eq $j.storage.shrinkable_gb -or $j.storage.shrinkable_gb -lt $LinuxMinGB)) { Write-Host "  not enough room measured yet: the prologue measures again before it changes anything, and if Linux still does not fit it $(if ($j.fork.if_cannot_keep -eq 'stop') { 'stops, as you chose' } else { 'takes the clean slate you chose' })" -ForegroundColor DarkGray }
-Write-Host "  path $($j.intent.path) ($($j.intent.path_reason))   desktop $($j.intent.desktop)   locale $($j.intent.locale.lang) $($j.intent.locale.keymap) $($j.intent.locale.timezone)"
+Write-Host "  path $($j.intent.path) ($($j.intent.path_reason))   desktop $($j.intent.desktop), starts at the $($j.intent.start_at)   locale $($j.intent.locale.lang) $($j.intent.locale.keymap) $($j.intent.locale.timezone)"
 Write-Host "  stick $($j.stick.friendly_name) $([math]::Round($j.stick.size_bytes/1e9,1)) GB '$($j.stick.label)'"
 if ($j.risk_acknowledgement) { Write-Host "  DATA LOSS ACCEPTED: the RED verdict was acknowledged; lifted: $($j.risk_acknowledgement.overrides -join ', ')" -ForegroundColor Red }
 Write-Host "  written: $jobPath" -ForegroundColor Cyan

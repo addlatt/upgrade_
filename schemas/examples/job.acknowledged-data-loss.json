@@ -36,6 +36,7 @@
     "path": "keep-windows",
     "path_reason": "default",
     "desktop": "kde",
+    "start_at": "desktop",
     "distro": {
       "name": "fedora",
       "release": "42"

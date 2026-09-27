@@ -36,6 +36,7 @@
     "path": "clean-slate",
     "path_reason": "user-chose-fresh-start",
     "desktop": "gnome",
+    "start_at": "desktop",
     "distro": {
       "name": "fedora",
       "release": "42"

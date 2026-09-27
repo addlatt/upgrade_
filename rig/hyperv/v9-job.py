@@ -11,7 +11,7 @@ typed sentence, and every internal disk by the identity the guest reported
 (disks.json: Get-Disk rows) - the system disk first, the other non-stick
 disk as home. Validated against schemas/job.schema.json before it is written.
 
-    v9-job.py base-job.json disks.json out.json [--bogus-home]
+    v9-job.py base-job.json disks.json out.json [--bogus-home] [--desktop=kde|gnome] [--start-at=desktop|console]
 
 --bogus-home names a home disk that is not attached (arm A: the installer
 must refuse before any countdown). Nothing here is product code.
@@ -25,6 +25,7 @@ disks = json.load(open(sys.argv[2], encoding="utf-8-sig"))
 if isinstance(disks, dict): disks = [disks]
 out = sys.argv[3]
 bogus = "--bogus-home" in sys.argv[4:]
+opts = dict(a.split("=", 1) for a in sys.argv[4:] if a.startswith("--") and "=" in a)
 
 STATEMENT = "I confirm that everything on this computer will be deleted and nothing will be kept"
 sysd = job["identity"]["system_disk"]
@@ -44,6 +45,8 @@ elif others:
     if h["health_status"] != "Healthy": sys.exit("v9-job: the home disk is %s, not Healthy" % h["health_status"])
     listed.append(h)
 
+job["intent"]["desktop"] = opts.get("--desktop", "kde")
+job["intent"]["start_at"] = opts.get("--start-at", "desktop")
 job["intent"]["path"] = "clean-slate"
 job["intent"]["path_reason"] = "user-chose-fresh-start"
 job.pop("staged", None)

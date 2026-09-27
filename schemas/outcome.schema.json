@@ -618,6 +618,13 @@
                 "string",
                 "null"
               ]
+            },
+            "start_at": {
+              "description": "What the person chose on the launcher (job intent.start_at).",
+              "enum": [
+                "desktop",
+                "console"
+              ]
             }
           }
         },
@@ -1111,7 +1118,7 @@
       }
     },
     {
-      "description": "One click ends at the desktop's sign-in: a completed conversion boots to graphical.target (2026-09-26).",
+      "description": "What the computer starts at is what the person chose (2026-09-26): a completed conversion boots to graphical.target, unless the person chose the text console, then multi-user.target - never a console nobody picked.",
       "if": {
         "properties": {
           "status": {
@@ -1128,13 +1135,31 @@
             "properties": {
               "install": {
                 "required": [
-                  "boot_target"
+                  "boot_target",
+                  "start_at"
                 ],
-                "properties": {
-                  "boot_target": {
-                    "const": "graphical.target"
+                "anyOf": [
+                  {
+                    "properties": {
+                      "start_at": {
+                        "const": "desktop"
+                      },
+                      "boot_target": {
+                        "const": "graphical.target"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "start_at": {
+                        "const": "console"
+                      },
+                      "boot_target": {
+                        "const": "multi-user.target"
+                      }
+                    }
                   }
-                }
+                ]
               }
             }
           }

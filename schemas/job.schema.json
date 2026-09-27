@@ -181,6 +181,7 @@
         "path",
         "path_reason",
         "desktop",
+        "start_at",
         "distro",
         "account",
         "locale"
@@ -205,6 +206,14 @@
           "enum": [
             "kde",
             "gnome"
+          ],
+          "description": "The Fedora edition installed (both images travel on the stick): KDE Plasma or GNOME. The person picks it on the launcher."
+        },
+        "start_at": {
+          "description": "What the installed computer shows when it starts, chosen explicitly by the person on the launcher (decided 2026-09-26, after the Aspire's run 9 reached a text console nobody chose): `desktop` = the graphical sign-in of the chosen edition; `console` = a text console (for people who know Linux commands; the edition is installed and can be started later). Never a default nobody picked.",
+          "enum": [
+            "desktop",
+            "console"
           ]
         },
         "distro": {

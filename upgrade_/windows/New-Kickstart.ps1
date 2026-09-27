@@ -41,7 +41,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$KsGenVersion = '0.3.0'
+$KsGenVersion = '0.4.0'
 
 function Test-KsJob {
     # The shape checks a PS 5.1 host can do without a JSON Schema validator:
@@ -55,6 +55,7 @@ function Test-KsJob {
     }
     if ($Job.intent.path -notin @('keep-windows', 'clean-slate')) { throw "intent.path '$($Job.intent.path)' is not a path" }
     if ($Job.intent.desktop -notin @('kde', 'gnome')) { throw "intent.desktop '$($Job.intent.desktop)' is not kde or gnome" }
+    if ("$($Job.intent.start_at)" -notin @('desktop', 'console')) { throw "intent.start_at '$($Job.intent.start_at)' is not desktop or console - what the computer starts at is the person's choice, never a default" }
     if ($Job.intent.account.password_hash -notmatch '^\$6\$') { throw 'account.password_hash is not SHA-512 crypt; refusing' }
     if ($Job.intent.account.linux_name -notmatch '^[a-z_][a-z0-9_-]{0,31}$') { throw "linux_name '$($Job.intent.account.linux_name)' is not a login name" }
     if (-not $Job.intent.locale.lang -or -not $Job.intent.locale.timezone -or -not $Job.intent.locale.keymap) { throw 'locale is incomplete' }
@@ -101,11 +102,12 @@ function New-Kickstart {
     $L.Add('selinux --enforcing')
     $L.Add('firewall --enabled')
     $L.Add('services --enabled=NetworkManager')
-    # One click ends at the desktop's sign-in, never a text console (2026-09-26,
-    # the Aspire's run 9: without this, an installer run in text mode leaves
-    # the installed system booting to multi-user.target - a "fedora login:"
-    # prompt the person had to type a command past). %post sets it again.
-    $L.Add('xconfig --startxonboot')
+    # What the computer starts at is the person's choice (intent.start_at,
+    # 2026-09-26). The Aspire's run 9 had no such line: an installer run in
+    # text mode left the installed system at a "fedora login:" console nobody
+    # chose. desktop = graphical sign-in; console = text. %post sets it again.
+    $target = if ($i.start_at -eq 'console') { 'multi-user.target' } else { 'graphical.target' }
+    if ($i.start_at -ne 'console') { $L.Add('xconfig --startxonboot') }
     $L.Add('')
     $L.Add('# identity + hardware verification, then the storage %include. With')
     $L.Add('# upg.mode=verify on the command line this reports and reboots - no install.')
@@ -130,7 +132,7 @@ function New-Kickstart {
         $L.Add('grub2-mkconfig -o /boot/grub2/grub.cfg')
         $L.Add("grep -c -i windows /boot/grub2/grub.cfg > /root/upgrade_-grub-windows-entries.txt || true")
     }
-    $L.Add('systemctl set-default graphical.target')
+    $L.Add("systemctl set-default $target")
     $L.Add('systemctl get-default > /root/upgrade_-default-target.txt 2>&1 || true')
     $L.Add('efibootmgr -v > /root/upgrade_-efibootmgr.txt 2>&1 || true')
     $L.Add('%end')
@@ -184,6 +186,10 @@ function Invoke-SelfTest {
                    (New-Kickstart -Job $keep -Label 'UPGV0' -ManifestLines $m) -match '(?m)^liveimg --url=file:///run/install/repo/upgrade_/LiveOS/kde\.squashfs --checksum=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef$' }; Expect = $true }
         @{ Name = 'the installed system boots to the graphical sign-in (xconfig, and %post sets the target) - never a text console'
            Run = { ($ksK -match '(?m)^xconfig --startxonboot$') -and ($ksK -match '(?m)^systemctl set-default graphical\.target$') -and ($ksC -match '(?m)^xconfig --startxonboot$') }; Expect = $true }
+        @{ Name = 'console chosen: no graphical login, the text console is the default target'
+           Run = { $j = $keep | ConvertTo-Json -Depth 10 | ConvertFrom-Json; $j.intent.start_at = 'console'; $k = New-Kickstart -Job $j -Label 'UPGV0'; ($k -notmatch 'xconfig') -and ($k -match '(?m)^systemctl set-default multi-user\.target$') }; Expect = $true }
+        @{ Name = 'refuse: a job with no choice of what the computer starts at'
+           Run = { $j = $keep | ConvertTo-Json -Depth 10 | ConvertFrom-Json; $j.intent.PSObject.Properties.Remove('start_at'); try { New-Kickstart -Job $j -Label 'X' | Out-Null; 'accepted' } catch { 'refused' } }; Expect = 'refused' }
         @{ Name = 'a manifest without the image adds no checksum (never a guess)'
            Run = { (New-Kickstart -Job $keep -Label 'UPGV0' -ManifestLines @('ffff  ./other')) -notmatch '--checksum' }; Expect = $true }
     )

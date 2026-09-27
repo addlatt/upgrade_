@@ -84,7 +84,8 @@
       "esp_reused": true,
       "artifacts_injected": [],
       "boot_target": "graphical.target",
-      "display_manager": "sddm.service"
+      "display_manager": "sddm.service",
+      "start_at": "desktop"
     },
     "boot_chain": {
       "windows_entry_present": true,

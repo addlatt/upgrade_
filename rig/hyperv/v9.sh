@@ -85,7 +85,7 @@ job)
     ./v1.sh job > "$A/v1-job.log"
     guest 'Get-Disk | ForEach-Object { $n = $_.Number; $p = Get-PhysicalDisk | Where-Object { "$($_.DeviceId)" -eq "$n" } | Select-Object -First 1
   [pscustomobject]@{ number = $n; unique_id = "$($_.UniqueId)"; serial = ("$($_.SerialNumber)" -replace "\s",""); size = [long]$_.Size; name = "$($_.FriendlyName)"; bus = "$($_.BusType)"; health = "$($p.HealthStatus)" } } | ConvertTo-Json -Depth 3' > "$A/disks.json"
-    python3 v9-job.py artifacts/v1/job.json "$A/disks.json" "$A/job.json" ${2:-}
+    python3 v9-job.py artifacts/v1/job.json "$A/disks.json" "$A/job.json" "${@:2}"
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(wslpath -w ../../upgrade_/windows/New-Kickstart.ps1)" -JobPath "$(wslpath -w "$A/job.json")" -OutFile "$(wslpath -w "$A/ks.cfg")" -StickLabel UPGV0 -Manifest "$(wslpath -w ../../dist/kit/stick/SHA256SUMS)" < /dev/null | tr -d '\r'
     L=$(stick_letter); [ -n "$L" ] || { echo "v9: no UPGV0 volume in the guest" >&2; exit 1; }
     PS copy "$(wslpath -w "$A/job.json")" "${L}:\\upgrade_\\job.json" | tr -d '\r'

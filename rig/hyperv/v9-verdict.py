@@ -66,7 +66,12 @@ if boots.exists():
         pw_ok = "y" if f.get("pw_sha256") == want else "n"
         home_ok = "y" if f.get("home_dir") == "present" and f.get("home_disk") not in (None, "none", f.get("root_disk")) else "n"
         # one click ends at the desktop's sign-in (2026-09-26): graphical target AND the display manager running
-        gui_ok = "y" if f.get("default_target") == "graphical.target" and f.get("display_manager") == "active" else ("n" if "default_target" in f else "not-recorded")
+        # what the person chose (intent.start_at, 2026-09-26): desktop = graphical + the display manager
+        # running; console = multi-user and no display manager - the column says whether the choice held
+        want_console = (job or {}).get("intent", {}).get("start_at") == "console"
+        if "default_target" not in f: gui_ok = "not-recorded"
+        elif want_console: gui_ok = "y" if f.get("default_target") == "multi-user.target" and f.get("display_manager") != "active" else "n"
+        else: gui_ok = "y" if f.get("default_target") == "graphical.target" and f.get("display_manager") == "active" else "n"
         notes.append("first boot: default_target=%s display_manager=%s" % (f.get("default_target"), f.get("display_manager")))
         notes.append("boot marker: user=%s home_disk=%s root_disk=%s" % (f.get("user"), f.get("home_disk"), f.get("root_disk")))
 
