@@ -113,7 +113,7 @@ elif (nm_start is not None and nm_start < si_done) or (ch_start is not None and 
 else: before = "y"
 
 # --- desktop sessions: each "Starting Wayland user session" must reach a window manager
-jl = text(S / "sessions.txt").splitlines() or [l for f in sorted(D.glob("journal-*.txt")) if "user" not in f.name for l in text(f).splitlines()]
+jl = [l for f in sorted(S.glob("sessions-before-*.txt")) for l in text(f).splitlines()] or text(S / "sessions.txt").splitlines() or [l for f in sorted(D.glob("journal-*.txt")) if "user" not in f.name for l in text(f).splitlines()]
 starts, hung = 0, 0
 for i, l in enumerate(jl):
     if "Starting Wayland user session" in l:
@@ -130,6 +130,13 @@ def efi(pat):
     order = re.search(r"BootOrder: (\S+)", t); cur = re.search(r"BootCurrent: (\S+)", t)
     return (order.group(1).split(",") if order else None, cur.group(1) if cur else None, t)
 b_order, b_cur, b_txt = efi("efi-*before*.txt"); a_order, a_cur, a_txt = efi("efi-*after-button*.txt")
+if b_order is None and len(sorted(S.glob("efibootmgr-*.txt"))) >= 2:
+    # the bench marker's per-boot captures: the first boot (before the button) and the last
+    snaps = sorted(S.glob("efibootmgr-*.txt"))
+    def efi_file(f):
+        t = text(f); order = re.search(r"BootOrder: (\S+)", t); cur = re.search(r"BootCurrent: (\S+)", t)
+        return (order.group(1).split(",") if order else None, cur.group(1) if cur else None, t)
+    b_order, b_cur, b_txt = efi_file(snaps[0]); a_order, a_cur, a_txt = efi_file(snaps[-1])
 if b_order is None or a_order is None:
     button = "n/a"
 else:

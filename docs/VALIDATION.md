@@ -823,7 +823,42 @@ typed answers, nobody at the keyboard afterwards, Fedora signs in.
 
 Decided 2026-09-27 (the owner): `settle-in` is one self-contained program,
 fed by a per-distribution installer adapter through one handoff folder.
-Not built. `[#...]`
+Built the same day (Rust core 0.1.0, egui window). `[###.]` rig, Fedora
+KDE only so far. Rows in `validation-results/settle-in-first-start.csv`,
+written by `rig/hyperv/settle-in-verdict.py`, never by hand.
+
+**Rig, 2026-09-27 (the erase arm of V9, with three made-up Wi-Fi networks
+planted in the job, `v9-job.py --spoof-wifi`; plumbing only):**
+
+- **Run 1 (line 2) `[FAIL]` (the harness).** settle-in itself did its
+  job: it ran before the time service and NetworkManager, left the clock
+  alone for the right reason (Hyper-V's hardware clock holds UTC), set up
+  2 of 3 networks, listed the enterprise one, and deleted its copy of the
+  passwords; the stick was clear. The capture was broken (a wrong `nmcli`
+  field, and a loop variable that overwrote the boot marker's user).
+- **Run 2 (line 3) `[FAIL]`, a one-click failure.** The first KDE sign-in
+  stayed black: the console hook in `/etc/profile.d` ran inside SDDM's
+  session start and waited for an answer nobody could type. Fixed (the
+  hook runs only on a real text console; the window marks itself shown
+  only when closed). In the second session, by hand: the window drew the
+  approved words, and the button removed exactly the stale "Windows Boot
+  Manager" (Boot0004) through the password prompt. The next boot started
+  Fedora (Boot0005) into the graphical sign-in. NetworkManager loaded
+  both networks with their names exact, including one written as raw
+  bytes.
+- **Run 3 (line 4) `pass-plumbing`, KDE.** The fix held: the first
+  sign-in reached the desktop and the window opened by itself. The button,
+  clicked with the mouse, removed the stale entry (Boot0008 on this
+  install) and the next boot started Fedora. After Close and a restart,
+  the second sign-in showed no window. NetworkManager's own reading of the
+  files matched the job field by field (hidden, auto-connect, security,
+  mode 600). KDE's Welcome Center opens on top of the window (a finding).
+
+**Residue the rig cannot close.** Hyper-V's hardware clock already holds
+UTC, so on the rig the clock step is correctly "not needed" and the
+correction itself (the Aspire's 4-hour case) is proven only by the tests.
+Real Wi-Fi, a real firmware's boot entries, GNOME, the console path and a
+non-Fedora distribution are still owed.
 
 **Method.** Build the program once. On the rig, install Fedora KDE and
 Fedora GNOME through the converter, and at least one non-Fedora

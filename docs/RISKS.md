@@ -2835,7 +2835,7 @@ signs in with the chosen password **at the graphical sign-in screen**. Run 9
 (2026-09-26) did everything but that last part, so it is a `fail` row; the
 re-run is owed.
 
-## R28: settle-in runs on any Linux · high · open (decided 2026-09-27, not built)
+## R28: settle-in runs on any Linux · high · open (decided 2026-09-27; built and on the rig the same day, KDE only)
 
 **What.** `settle-in` must work on whatever Linux the person picks, not
 only Fedora (`architecture.md`, "It runs on any Linux"). It is one
@@ -2869,6 +2869,20 @@ fixed handoff folder.
   has 2.41). Older distributions (Debian 12 has 2.36) would not open it.
   Owed: build it against an older baseline. The core is fully static and
   has no such limit.
+
+- **Anything that runs at sign-in can block the desktop.** Found on the
+  rig (run 2): a display manager starts the desktop through a login shell
+  that reads `/etc/profile.d`, with a terminal on standard input and no
+  display yet. A console hook that asked a question there froze the
+  sign-in on a black screen. The hook now runs only when logind says the
+  session is a text console. Every sign-in hook must be checked for this
+  on each distribution and display manager (V10).
+- **The password prompt's words are technical.** Pressing the button
+  shows the desktop's standard prompt, which names the command it will
+  run ("…to run `/usr/local/libexec/upgrade_/settle-in
+  remove-old-boot-entry` as the super user"). A small polkit policy file
+  can give it plain words instead. Owed, with words for the owner to
+  approve.
 
 **Found on the rig (2026-09-27, run 1).** After the erase, the firmware
 still lists the old "Windows Boot Manager" (pointing at the erased
