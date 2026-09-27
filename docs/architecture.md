@@ -712,7 +712,11 @@ button, never automatic**:
   (`harvest.wifi.profiles`) and only the file's path (RISKS R13 -
   secrets are files, not fields). The launcher says plainly, before
   anything is written, that the Wi-Fi passwords are copied onto the
-  stick. At the end of the install the nochroot `%post` moves them to a
+  stick - in the owner's approved words (2026-09-27), shown verbatim on
+  every install launcher before the harvest runs: *"Your saved Wi-Fi
+  networks and their passwords are copied onto this stick, so Fedora can
+  connect to them on its own. They are removed from the stick at the end
+  of the install and from Fedora once it has set them up."* At the end of the install the nochroot `%post` moves them to a
   root-only directory on the installed system and deletes them from the
   stick; on first startup `settle-in` creates the NetworkManager
   connections (the ones Linux can join - WPA/WPA2/WPA3 personal and
