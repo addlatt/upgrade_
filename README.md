@@ -269,6 +269,15 @@ the live image on the stick with byte-for-byte read-back, the stick
 writer, the prologue (disk check, shrink, handoff), the alongside
 install with the boot-chain checklist, rollback. Next, in order:
 
+0. **The one-click erase and install** (decided 2026-09-26, the owner's
+   first end-to-end target; RISKS R27, VALIDATION V9) — erase every
+   internal drive and install Fedora, keeping nothing: its own launcher,
+   a typed sentence, a menu of KDE / GNOME / text console, the password
+   with the sign-in name shown, and a 2-minute cancellable countdown in
+   the installer as the commit line. **Rig: every arm passes. Physical:
+   the Aspire's run 9 erased and installed unattended but came up at a
+   text login - a one-click failure, fixed; a physical re-run is owed.**
+   Carrying files across is stage 2.
 1. **A physical keep-Windows install, Secure Boot on** — on a machine with
    a healthy drive. This is the V1b residue and the row the whole default
    path waits for. It needs **another machine**: the Aspire keeps its

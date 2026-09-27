@@ -83,6 +83,17 @@ invalid, and a module that finds an invalid document stops:
 - **A repair only on a Healthy disk.** `prologue.volume_check.disk_health_at_check`
   must be `Healthy` for `ran = true`.
 
+- **An erase keeps nothing, and says so** (decided 2026-09-26, RISKS
+  R27). `erase_consent` carries the typed sentence verbatim and every
+  drive to erase by identity (system first, an optional Healthy home);
+  a clean-slate job carries `staged` or `erase_consent`, never both or
+  neither. The outcome records `cutover.countdown` - its end is the
+  commit line - and a cancelled countdown is `stopped_at countdown`.
+- **What the computer starts at is the person's choice**
+  (2026-09-26). `intent.start_at` (`desktop` / `console`) is required;
+  a completed outcome's `install.boot_target` must match it - the
+  Aspire's run 9 reached a text console nobody chose.
+
 ## Identity, and who re-checks it
 
 `identity.system_disk` carries the serial, unique id and size of the disk
