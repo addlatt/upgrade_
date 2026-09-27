@@ -924,6 +924,16 @@ planted in the job, `v9-job.py --spoof-wifi`; plumbing only):**
   15 px down and the rig's click landed on the text above it, so nothing
   was pressed. The button passed on GNOME in run 10.
 
+- **Run 12 (line 12) `pass-plumbing`, GNOME, the re-run of run 11:** the
+  button, clicked where it was, removed the stale Windows Boot Manager
+  through GNOME's prompt in the owner's words; the next boot started
+  Fedora; our own entry was removed at first start; the window was shown
+  at the first sign-in (GNOME again did not give it focus); NetworkManager
+  read both networks field by field. The installer's time service
+  synchronized this time, so the clock was "not needed" (run 11 showed the
+  virtual-machine case). Built in a clean worktree at `0725967`, because
+  another session had uncommitted settle-in changes in the main tree.
+
 **Residue the rig cannot close.** Hyper-V's hardware clock already holds
 UTC, so on the rig the clock step is correctly "not needed" and the
 correction itself (the Aspire's 4-hour case) is proven only by the tests.
