@@ -1008,6 +1008,7 @@ The modules talk to each other only through files on the stick:
 |---|---|---|
 | `job.json` + `artifacts/` | evaluate | upgrade_, **settle-in** |
 | `outcome.json` + logs | upgrade_ | settle-in |
+| `/var/lib/upgrade_/` on the installed system | the installer adapter (Fedora: `outcome.sh`) | settle-in |
 
 `settle-in` reads `job.json` too, not just `outcome.json`. On the
 keep-Windows path it needs the harvested folder map (and the BitLocker
@@ -1016,6 +1017,19 @@ The stick is still there at first boot, so this needs no new carrier. But
 it does mean `job.json` outlives cutover, and the timing of the credential
 wipe has to allow for that: the recovery key can only be scrubbed **after**
 `settle-in` has finished the pull, not at the end of cutover.
+
+**The handoff folder (built 2026-09-27, `outcome.sh` 0.4.0).** At the
+end of the install the adapter copies `job.json` and `outcome.json` into
+`/var/lib/upgrade_/` on the installed system, root-only (folders 0700,
+files 0600), laid out like the stick's `upgrade_/` so the job's relative
+paths resolve the same. The Wi-Fi password files go to
+`artifacts/credentials/wifi/` there, each checked by SHA-256, and are then
+removed from the stick. `outcome.json` records what moved
+(`credentials.wifi`) and the clocks at the end of the install
+(`cutover.clock`). This is the one place `settle-in` reads, on every
+distribution, so the stick can already be gone at first boot. Tested
+against a fake stick and system (both the normal case and a job naming a
+file the stick lacks); not yet fired on the rig.
 
 Both schemas are versioned. A USB written by one release will one day be
 read by another. A module that meets a version it does not understand must

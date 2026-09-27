@@ -85,6 +85,12 @@
       "bootmgfw_matches_snapshot": true,
       "grub_lists_windows": true,
       "fallback_loader": "shim"
+    },
+    "clock": {
+      "installer_utc_epoch": 1790496000,
+      "rtc_epoch": 1790481600,
+      "ntp_synchronized": true,
+      "detail": "Reference ID    : C0A80101 (192.168.1.1);Leap status     : Normal;"
     }
   },
   "windows": {
@@ -98,7 +104,15 @@
   },
   "credentials": {
     "scrubbed": false,
-    "scrub_after": "settle-in-pull"
+    "scrub_after": "settle-in-pull",
+    "wifi": {
+      "expected": 1,
+      "on_stick": 1,
+      "moved": 1,
+      "removed_from_stick": true,
+      "handoff_dir": "/var/lib/upgrade_",
+      "error": null
+    }
   },
   "logs": [
     "logs/prologue.log",

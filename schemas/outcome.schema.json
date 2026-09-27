@@ -717,6 +717,42 @@
               }
             }
           }
+        },
+        "clock": {
+          "description": "The clocks at the end of the install, read, never set (outcome.sh 0.4.0, 2026-09-27). rtc_epoch is the hardware clock as the kernel reads it (as if it held UTC). If the installer's time service had synchronized, it may have rewritten the hardware clock as UTC; settle-in decides from this record, never from an assumption, whether the hardware clock still holds local time.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "installer_utc_epoch",
+            "rtc_epoch",
+            "ntp_synchronized",
+            "detail"
+          ],
+          "properties": {
+            "installer_utc_epoch": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "rtc_epoch": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "ntp_synchronized": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "detail": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
         }
       }
     },
@@ -840,6 +876,52 @@
             "cutover",
             "settle-in-pull"
           ]
+        },
+        "wifi": {
+          "description": "The Wi-Fi hand-over (outcome.sh 0.4.0, 2026-09-27). The installer adapter copies each password file the job names into the handoff folder on the installed system (root-only), checks it by SHA-256, and then removes the folder from the stick whether or not the copy held (the owner's sentence promises it). settle-in sets up the networks from the handoff folder and deletes its copy.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "expected",
+            "on_stick",
+            "moved",
+            "removed_from_stick",
+            "handoff_dir",
+            "error"
+          ],
+          "properties": {
+            "expected": {
+              "description": "Password files the job names.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "on_stick": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "moved": {
+              "description": "Copied and checked by SHA-256.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "removed_from_stick": {
+              "description": "The stick holds no Wi-Fi password folder now.",
+              "const": true
+            },
+            "handoff_dir": {
+              "description": "The one handoff folder settle-in reads on every distribution (architecture.md, 'It runs on any Linux'), or null when it could not be made.",
+              "enum": [
+                "/var/lib/upgrade_",
+                null
+              ]
+            },
+            "error": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
         }
       }
     },
@@ -923,6 +1005,16 @@
             "enum": [
               "keep-windows",
               "clean-slate"
+            ]
+          },
+          "cutover": {
+            "required": [
+              "clock"
+            ]
+          },
+          "credentials": {
+            "required": [
+              "wifi"
             ]
           }
         }

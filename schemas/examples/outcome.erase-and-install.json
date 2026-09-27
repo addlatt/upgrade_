@@ -83,6 +83,12 @@
       "seconds": 120,
       "result": "elapsed",
       "ended_utc": "2026-09-26T21:12:00Z"
+    },
+    "clock": {
+      "installer_utc_epoch": 1790496000,
+      "rtc_epoch": 1790481600,
+      "ntp_synchronized": true,
+      "detail": "Reference ID    : C0A80101 (192.168.1.1);Leap status     : Normal;"
     }
   },
   "windows": {
@@ -92,7 +98,15 @@
   },
   "credentials": {
     "scrubbed": true,
-    "scrub_after": "cutover"
+    "scrub_after": "cutover",
+    "wifi": {
+      "expected": 1,
+      "on_stick": 1,
+      "moved": 1,
+      "removed_from_stick": true,
+      "handoff_dir": "/var/lib/upgrade_",
+      "error": null
+    }
   },
   "logs": [
     "upgrade_/report/prologue.log",

@@ -14,11 +14,23 @@
 # is named - shim is kept there on purpose while Windows is kept. Nothing
 # here aborts: a check that cannot be satisfied is written down for
 # settle-in to show, and Windows stays reachable from the GRUB menu.
+#
+# 0.4.0 (2026-09-27): it is also Fedora's INSTALLER ADAPTER for settle-in
+# (architecture.md, "It runs on any Linux"). It fills the one handoff
+# folder settle-in reads on every distribution, /var/lib/upgrade_/ on the
+# installed system, root-only, laid out like the stick's upgrade_/ so the
+# job's relative paths resolve the same: job.json, outcome.json, and the
+# Wi-Fi password files (artifacts/credentials/wifi/). The passwords then
+# leave the stick, whether or not the copy held (the owner's sentence
+# promises it), and outcome.json records what moved. It also records the
+# hardware clock and the installer's clock at the end of the install
+# (cutover.clock): the installer's time service may have rewritten the
+# hardware clock as UTC, and settle-in must know before it "corrects" it.
 set -u
 JOB=${1:?job.json}
-OUTCOME_VERSION=0.3.2
-STICK=/run/install/repo
-SYSROOT=/mnt/sysroot
+OUTCOME_VERSION=0.4.0
+STICK=${UPG_TEST_STICK:-/run/install/repo}   # overridable only for the local spoof test (rule #5, logic level)
+SYSROOT=${UPG_TEST_SYSROOT:-/mnt/sysroot}
 REPORT=$STICK/upgrade_/report
 SNAP=$STICK/upgrade_/esp-snapshot
 LOG=/tmp/upgrade_-outcome.log
@@ -35,6 +47,33 @@ print("" if v is None else (json.dumps(v) if isinstance(v,(dict,list)) else str(
 sha() { sha256sum "$1" 2>/dev/null | cut -c1-64; }
 
 PATH_CHOSEN=$(jq_ intent.path)
+
+# --- 0. the handoff folder settle-in reads (before any scrub) -----------------------
+HANDOFF_DIR=/var/lib/upgrade_
+HANDOFF=$SYSROOT$HANDOFF_DIR
+WIFI_REL=$(jq_ harvest.wifi.secrets_dir)
+WIFI_EXPECTED=$(python3 -c 'import json,sys; j=json.load(open(sys.argv[1])); print(sum(1 for p in j["harvest"]["wifi"].get("profiles",[]) if p.get("secrets_file")))' "$JOB" 2>/dev/null || echo 0)
+WIFI_ON_STICK=0; WIFI_MOVED=0; WIFI_REMOVED=false; WIFI_ERR=""
+HANDOFF_OK=false
+if mkdir -p "$HANDOFF" && chmod 0700 "$HANDOFF" && cp "$JOB" "$HANDOFF/job.json" && chmod 0600 "$HANDOFF/job.json"; then HANDOFF_OK=true; fi
+if [ -n "$WIFI_REL" ] && [ -d "$STICK/upgrade_/$WIFI_REL" ]; then
+    src="$STICK/upgrade_/$WIFI_REL"; dst="$HANDOFF/$WIFI_REL"
+    mkdir -p "$dst" && chmod 0700 "$dst" "$HANDOFF/artifacts" "$HANDOFF/artifacts/credentials" 2>/dev/null
+    for f in "$src"/*.xml; do
+        [ -f "$f" ] || continue
+        WIFI_ON_STICK=$((WIFI_ON_STICK + 1))
+        if cp "$f" "$dst/" && chmod 0600 "$dst/$(basename "$f")" && [ "$(sha "$f")" = "$(sha "$dst/$(basename "$f")")" ]; then WIFI_MOVED=$((WIFI_MOVED + 1))
+        else WIFI_ERR="$WIFI_ERR could not copy $(basename "$f");"; fi
+    done
+    # the stick never keeps them past the install (the owner's sentence, 2026-09-27)
+    rm -rf "$src"
+elif [ "$WIFI_EXPECTED" -gt 0 ]; then WIFI_ERR="the job names $WIFI_EXPECTED Wi-Fi password file(s) but the stick has none"; fi
+# removed_from_stick means one fact: the stick holds no Wi-Fi password folder now
+[ -n "$WIFI_REL" ] && [ -e "$STICK/upgrade_/$WIFI_REL" ] || WIFI_REMOVED=true
+[ "$WIFI_ON_STICK" -ne "$WIFI_EXPECTED" ] && [ -z "$WIFI_ERR" ] && WIFI_ERR="the job names $WIFI_EXPECTED Wi-Fi password file(s), the stick had $WIFI_ON_STICK"
+# files made from outside the installed system carry no SELinux label until told
+chroot "$SYSROOT" restorecon -R "$HANDOFF_DIR" >/dev/null 2>&1 || true
+echo "== handoff folder $HANDOFF_DIR ok=$HANDOFF_OK; wifi expected=$WIFI_EXPECTED on_stick=$WIFI_ON_STICK moved=$WIFI_MOVED removed_from_stick=$WIFI_REMOVED ${WIFI_ERR:+error: $WIFI_ERR}"
 # erase-and-install (R27, 0.3.0): the countdown's end, as verify.sh wrote it,
 # is the commit line; nothing on the stick is needed after the wipe, so the
 # credentials directory goes now
@@ -137,12 +176,24 @@ cp "$LOG" "$REPORT/outcome.log" 2>/dev/null || true
 PROLOGUE_REC=""; [ -f "$STICK/upgrade_/prologue.json" ] && PROLOGUE_REC="$STICK/upgrade_/prologue.json"
 echo "== prologue record: ${PROLOGUE_REC:-none (placeholders)}"
 
+# The clock at the end of the install (cutover.clock): the installer's clock,
+# the hardware clock read by the kernel as if it held UTC, and whether the
+# installer's time service had synchronized (then it may have rewritten the
+# hardware clock as UTC). Read, never set.
+CLK_SYS=$(date -u +%s)
+CLK_RTC=$(cat /sys/class/rtc/rtc0/since_epoch 2>/dev/null || echo "")
+CLK_NTP=$(timedatectl show -p NTPSynchronized --value 2>/dev/null || echo "")
+CLK_DETAIL="$( (chronyc -n tracking 2>/dev/null | grep -E '^(Reference ID|Leap status)' | tr '\n' ';') || true)"
+echo "== clock at the end of the install: installer=$CLK_SYS rtc=${CLK_RTC:-unreadable} ntp_synchronized=${CLK_NTP:-unknown} $CLK_DETAIL"
+
 # Every fact goes to Python through the environment - never interpolated
 # into source (a shell "true" is not a Python literal; that bit twice).
 UPG_PROLOGUE_REC="$PROLOGUE_REC" UPG_PATH="$PATH_CHOSEN" UPG_VERSION="$OUTCOME_VERSION" UPG_WIN_PRESENT="$WIN_PRESENT" UPG_WIN_RECREATED="$WIN_RECREATED" \
 UPG_LINUX_FIRST="$LINUX_FIRST" UPG_BOOTMGFW_OK="$BOOTMGFW_OK" UPG_GRUB_WIN="$GRUB_WIN" UPG_FALLBACK="$FALLBACK" \
 UPG_KERNEL="$KERNEL" UPG_ROOTDEV="$ROOTDEV" UPG_RELEASE="$RELEASE" UPG_WINPART="$WINPART" UPG_WINGUID="$WINGUID" \
-UPG_WINSIZE="$WINSIZE" UPG_WINNUM="$WINNUM" UPG_ERASE="$ERASE" UPG_SCRUBBED="$SCRUBBED" UPG_COUNTDOWN="$REPORT/countdown.json" UPG_BOOT_TARGET="$BOOT_TARGET" UPG_DM="$DM" \
+UPG_WINSIZE="$WINSIZE" UPG_WINNUM="$WINNUM" UPG_ERASE="$ERASE" UPG_SCRUBBED="$SCRUBBED" \
+UPG_WIFI_EXPECTED="$WIFI_EXPECTED" UPG_WIFI_ON_STICK="$WIFI_ON_STICK" UPG_WIFI_MOVED="$WIFI_MOVED" UPG_WIFI_REMOVED="$WIFI_REMOVED" UPG_WIFI_ERR="$WIFI_ERR" UPG_HANDOFF_OK="$HANDOFF_OK" UPG_HANDOFF_DIR="$HANDOFF_DIR" \
+UPG_CLK_SYS="$CLK_SYS" UPG_CLK_RTC="$CLK_RTC" UPG_CLK_NTP="$CLK_NTP" UPG_CLK_DETAIL="$CLK_DETAIL" UPG_COUNTDOWN="$REPORT/countdown.json" UPG_BOOT_TARGET="$BOOT_TARGET" UPG_DM="$DM" \
 python3 - "$JOB" "$REPORT/verify.json" "$STICK/upgrade_/outcome.json" <<'EOF'
 import json, sys, os, datetime
 E = os.environ.get
@@ -210,11 +261,23 @@ if b("UPG_ERASE"):
     o["erase_consent"] = job["erase_consent"]
     o["credentials"] = {"scrubbed": b("UPG_SCRUBBED"), "scrub_after": "cutover"}
     o["logs"].append("upgrade_/report/verify.log")
+# the Wi-Fi hand-over and the handoff folder (0.4.0): what moved, and that the stick no longer has them
+o["credentials"]["wifi"] = {"expected": int(E("UPG_WIFI_EXPECTED") or 0), "on_stick": int(E("UPG_WIFI_ON_STICK") or 0),
+    "moved": int(E("UPG_WIFI_MOVED") or 0), "removed_from_stick": b("UPG_WIFI_REMOVED"),
+    "handoff_dir": E("UPG_HANDOFF_DIR") if b("UPG_HANDOFF_OK") else None, "error": (E("UPG_WIFI_ERR") or "").strip() or None}
+ntp = E("UPG_CLK_NTP", "")
+o["cutover"]["clock"] = {"installer_utc_epoch": int(E("UPG_CLK_SYS") or 0),
+    "rtc_epoch": int(E("UPG_CLK_RTC")) if (E("UPG_CLK_RTC") or "").isdigit() else None,
+    "ntp_synchronized": True if ntp == "yes" else False if ntp == "no" else None,
+    "detail": (E("UPG_CLK_DETAIL") or "").strip() or None}
 if keep and snap.get("result") == "pass":
     o["cutover"]["esp_snapshot"] = {"path": "upgrade_/esp-snapshot", "files": int(snap.get("files") or 1), "boot_entries": "upgrade_/esp-snapshot/boot-entries.txt"}
 json.dump(o, open(sys.argv[3], "w"), indent=2)
 print("== outcome.json written:", sys.argv[3])
 EOF
+# settle-in reads the record from the installed system (the stick may be gone by then)
+[ "$HANDOFF_OK" = true ] && cp "$STICK/upgrade_/outcome.json" "$HANDOFF/outcome.json" 2>/dev/null && chmod 0600 "$HANDOFF/outcome.json" \
+    && chroot "$SYSROOT" restorecon "$HANDOFF_DIR/outcome.json" >/dev/null 2>&1
 
 # --- 5. bench instrumentation, only when the stick says so ------------------------
 # A boot marker in the installed system: one row per Linux boot on the stick,
