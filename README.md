@@ -78,8 +78,7 @@ flowchart LR
 > [!NOTE]
 > **Right now it only works from Windows.** Nothing about the idea (look,
 > commit, settle in) needs Windows, but all the code today reads a Windows
-> machine: PowerShell, `bcdedit`, BitLocker, `netsh`. Coming from other
-> systems is a maybe-someday, not a promise.
+> machine: PowerShell, `bcdedit`, BitLocker, `netsh`. Other systems may be supported in the future.
 
 ### The commit line
 
