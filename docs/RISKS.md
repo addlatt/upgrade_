@@ -2940,8 +2940,9 @@ fixed handoff folder.
   correction then reproduces Windows' time, and the network corrects it.
 - **GNOME does not give the window focus** (rig run 10; logged "not given
   focus by the desktop"). Its welcome tour stays on top; the window waits
-  in the overview. KDE gives focus (run 9). Whether to do more on GNOME is
-  the owner's call.
+  in the overview. KDE gives focus (run 9). **Decided (2026-09-27, the
+  owner):** leave GNOME as it is, since it cannot be controlled: after the
+  tour, the window is the next thing the person sees (runs 10-12).
 
 **Found on the rig (2026-09-27, run 1).** After the erase, the firmware
 still lists the old "Windows Boot Manager" (pointing at the erased
