@@ -334,6 +334,14 @@ said, before anything started, that nothing is to be kept.
    *"I confirm that everything on this computer will be deleted and
    nothing will be kept"*. The launcher then asks for the Linux password
    (typed twice, hidden); the job holds only its SHA-512 crypt hash.
+1b. **The person picks what the computer starts at** (decided
+   2026-09-26, after the Aspire's run 9 reached a text console nobody
+   chose): a menu on every install launcher - KDE Plasma desktop, GNOME
+   desktop, or text console (for people who know Linux commands; the KDE
+   edition is installed and starts at the console). It travels as
+   `intent.desktop` + `intent.start_at`; the kickstart follows it and the
+   outcome schema refuses a completed conversion that starts anywhere
+   else. Rig: all three held (`v9-erase.csv` lines 9-10 plus line 8).
 2. **The job names every drive it will erase.** The job writer lists the
    machine's internal drives (not USB) by serial, unique id and size in
    `erase_consent.disks`, each with a role: the drive holding C: is

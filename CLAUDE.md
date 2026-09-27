@@ -102,7 +102,9 @@ fixed in `verify.sh` 0.4.1; one erase over an Ubuntu-style LVM). **The
 Aspire's run 9 (same night) erased and installed with nobody at the
 keyboard, but booted to a TEXT login - a one-click failure** (kickstart
 lacked a graphical login; fixed in 0.3.0, rig re-proven with the new
-`graphical_login` check). Next: the Aspire's physical row recorded,
+`graphical_login` check). The person now picks KDE,
+GNOME or the text console on the launcher (all three held on the rig).
+Next: the Aspire's physical row recorded,
 then a re-run that ends at the desktop,
 and a plain-words screen for a `%pre` refusal (today Anaconda's
 traceback). Design in `architecture.md`, "Erase and install".

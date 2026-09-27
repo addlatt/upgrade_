@@ -787,4 +787,5 @@ rig's install-day Windows disk plus a blank 64 GiB second disk.
 | `disks_unchanged` | both disks' GPT and first MiB identical before and after (v9-inspect.py, offline) |
 | `system_gpt_after`, `home_gpt_after` | the partition tables afterwards |
 | `fedora_booted`, `password_matches`, `home_on_second_disk` | the first Linux boot's marker line (rig-only bench instrumentation): it booted, the account's stored hash is the job's, `/home` is on the second disk |
+| `graphical_login` | (from 2026-09-26) the person's choice held at first boot: `desktop` = graphical.target with the display manager running, `console` = multi-user.target with none; `not-recorded` on rows from before the check |
 | `result` | `refused-before-countdown` / `cancelled-untouched` / `erased-installed` pass their arm; `fail` is kept, never removed |
