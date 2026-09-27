@@ -4,7 +4,9 @@
 <!-- upgrade_ settle-in: plain words for the password prompt the old-boot-entry
      button raises (approved 2026-09-27, the owner). Without this file the
      desktop shows the program's path. Installed in /usr/share/polkit-1/actions/
-     by the installer adapter; it applies only to `settle-in remove-old-boot-entry`. -->
+     by the installer adapter. Two actions, told apart by the first argument:
+     `settle-in remove-old-boot-entry` and `settle-in go-back` (whose only
+     root step is `write`; the go-back words are a DRAFT, 2026-09-27). -->
 <policyconfig>
   <vendor>upgrade_</vendor>
   <action id="org.upgrade.settle-in.remove-old-boot-entry">
@@ -17,5 +19,16 @@
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/local/libexec/upgrade_/settle-in</annotate>
     <annotate key="org.freedesktop.policykit.exec.argv1">remove-old-boot-entry</annotate>
+  </action>
+  <action id="org.upgrade.settle-in.go-back-write">
+    <description>Make a Windows installer stick</description>
+    <message>Making a Windows installer stick deletes everything on the USB stick you chose. Nothing else on this computer changes. Type your password to allow it.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/libexec/upgrade_/settle-in</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">go-back</annotate>
   </action>
 </policyconfig>

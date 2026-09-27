@@ -379,16 +379,27 @@ pub fn write(req: &Request) -> Value {
         if let Err(e) = run(&req.wimlib, &["verify", &swm, &refs]) {
             return log.stop("read-back", format!("the split Windows image did not verify ({})", e), true);
         }
-        // the same images, in the same order, as the original
-        let names = |p: &str, extra: Option<&str>| -> Result<Vec<String>, String> {
-            let mut a = vec!["info", p];
-            if let Some(x) = extra { a.push(x) }
-            Ok(run(&req.wimlib, &a)?.lines().filter_map(|l| l.strip_prefix("Name:").map(|v| v.trim().to_string())).collect())
+        // the same editions, in the same order, as the original. `info` reads a
+        // split image's list from its first part (it takes no --ref; the
+        // first run, 2026-09-27, stopped here on that)
+        let names = |p: &str| -> Result<(Vec<String>, Option<String>), String> {
+            let t = run(&req.wimlib, &["info", p])?;
+            let parts = t.lines().find_map(|l| l.strip_prefix("Part Number:")).map(|v| v.trim().to_string());
+            Ok((t.lines().filter_map(|l| l.strip_prefix("Name:").map(|v| v.trim().to_string())).collect(), parts))
         };
-        let (a, b) = (names(&format!("{}/sources/install.wim", isodir), None), names(&swm, Some(&refs)));
-        match (a, b) {
-            (Ok(a), Ok(b)) if a == b && !a.is_empty() => detail["editions"] = json!(a),
-            (Ok(a), Ok(b)) => return log.stop("read-back", format!("the split image lists different editions ({:?} vs {:?})", a, b), true),
+        let written = walk(&format!("{}/sources", stickdir)).unwrap_or_default().iter()
+            .filter(|(n, _)| n.to_ascii_lowercase().starts_with("install") && n.to_ascii_lowercase().ends_with(".swm")).count();
+        match (names(&format!("{}/sources/install.wim", isodir)), names(&swm)) {
+            (Ok((a, _)), Ok((b, parts))) if a == b && !a.is_empty() => {
+                // "1/N": every one of the N parts must be on the stick
+                let total = parts.as_deref().and_then(|p| p.split('/').nth(1)).and_then(|n| n.parse::<usize>().ok());
+                if total != Some(written) {
+                    return log.stop("read-back", format!("the split image has {:?} parts but {} are on the stick", total, written), true);
+                }
+                detail["editions"] = json!(a);
+                detail["parts"] = json!(written);
+            }
+            (Ok((a, _)), Ok((b, _))) => return log.stop("read-back", format!("the split image lists different editions ({:?} vs {:?})", a, b), true),
             (Err(e), _) | (_, Err(e)) => return log.stop("read-back", e, true),
         }
     }

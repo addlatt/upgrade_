@@ -149,6 +149,13 @@ pub fn find_downloads(home: &str) -> Vec<Value> {
     v.into_iter().map(|(_, j)| j).collect()
 }
 
+/// "Windows 10 Home" from the harvest, if it said. Pure.
+pub fn edition_name(before: &Value, windows: Option<&str>) -> Option<String> {
+    let e = before.get("edition_id").and_then(Value::as_str)?;
+    let e = match e { "Core" => "Home", "CoreN" => "Home N", "CoreSingleLanguage" => "Home Single Language", "Professional" => "Pro", "ProfessionalN" => "Pro N", "Education" => "Education", other => other };
+    Some(format!("Windows {} {}", windows.or(before.get("windows_version").and_then(Value::as_str)).unwrap_or(""), e).replace("  ", " "))
+}
+
 fn gb(b: u64) -> String {
     format!("{:.1} GB", b as f64 / 1e9)
 }
@@ -165,7 +172,7 @@ pub fn screen(before: &Value, pc: &Value, off: &Value) -> Value {
     let mut wl = Vec::new();
     if before["result"] == "read" {
         let name = match (before["windows_version"].as_str(), before["edition_id"].as_str()) {
-            (Some(v), Some(e)) => format!("Windows {} {}", v, match e { "Core" => "Home", "Professional" => "Pro", other => other }),
+            (Some(v), Some(_)) => edition_name(before, Some(v)).unwrap_or_else(|| format!("Windows {}", v)),
             (Some(v), None) => format!("Windows {}", v),
             _ => before["product_name"].as_str().unwrap_or("Windows").to_string(),
         };
@@ -209,7 +216,53 @@ pub fn screen(before: &Value, pc: &Value, off: &Value) -> Value {
             "We never hand out Windows ourselves. This program checks the file against the numbers Microsoft publishes on that page before using it.",
         ], "link": page }));
     }
-    json!({ "title": "Go back to Windows", "sections": out, "close": "Close" })
+    json!({ "title": "Go back to Windows", "sections": out, "close": "Close", "next": "I have downloaded it", "wizard": wizard(before, off["windows"].as_str()) })
+}
+
+/// The words for the later screens (the window draws them; it has none of
+/// its own). DRAFT, awaiting the owner's approval.
+pub fn wizard(before: &Value, windows: Option<&str>) -> Value {
+    let edition = edition_name(before, windows);
+    json!({
+        "file": {
+            "heading": "Step 2: check the file",
+            "lines": ["Choose the file you downloaded. This program checks it against Microsoft's numbers; that takes a minute or two."],
+            "none": "No Windows file found in your Downloads folder yet. When the download has finished, press Look again.",
+            "look_again": "Look again",
+            "check": "Check this file",
+        },
+        "stick": {
+            "heading": "Step 3: the USB stick",
+            "lines": [
+                "Plug in a USB stick of 8 GB or more. Everything on it will be deleted.",
+                "Only a USB stick can be chosen. This computer's own drives, USB hard drives and the upgrade_ stick are never offered.",
+            ],
+            "none": "No USB stick that can be used is plugged in.",
+            "refused_heading": "Not offered:",
+            "type_prompt": "To confirm, type the stick's name exactly as shown:",
+            "write": "Delete everything on this stick and make the Windows installer",
+            "note": "You will be asked for your password. It takes 10 to 30 minutes; the stick is checked at the end.",
+        },
+        "done": {
+            "heading": "The Windows installer stick is ready",
+            "lines": [
+                "Nothing on this computer has changed yet. When you are ready:",
+                "1. Copy everything you want to keep off this computer. Going back deletes it.",
+                "2. Leave the stick in and restart. As the computer starts, press the key for its startup menu (often F12, F9, Esc or F2; the maker's logo screen usually says which) and choose the USB stick.",
+                "3. Windows Setup starts. If it asks for a product key, choose \"I don't have a product key\" (Setup's own advice when reinstalling).",
+                match &edition {
+                    Some(e) => format!("4. When it asks which edition, choose {}: the one this computer had.", e),
+                    None => "4. When it asks which edition, choose the one this computer had (most home computers had Home).".to_string(),
+                },
+                "5. Choose \"Custom: Install Windows only\". Delete every partition on this computer's drives: this is the step that deletes Linux and your files. Never delete the one called WINSETUP: that is this stick. Then choose the empty space and click Next.",
+                "6. When Windows has started, you are done. The stick can go back to ordinary use.",
+                "Until step 5, you can stop: take the stick out and restart, and Linux starts as before.",
+            ],
+        },
+        "failed": "The stick was not made: ",
+        "failed_changed": "What was on the stick has been deleted, but it does not hold a working installer. Nothing on this computer changed.",
+        "failed_unchanged": "Nothing was written: the stick and this computer are as they were.",
+    })
 }
 
 pub fn check_report(path: &str, want: Option<&str>, table: &[Value]) -> Value {
@@ -345,6 +398,18 @@ mod tests {
         let which = secs[2]["lines"].to_string();
         assert!(which.contains("October 2025") && which.contains("October 2026"));
         assert_eq!(secs[3]["link"], PAGE_10);
+    }
+
+    #[test]
+    fn the_done_steps_name_the_edition_and_spare_the_stick() {
+        let before = json!({ "result": "read", "windows_version": "11", "edition_id": "Core" });
+        let w = wizard(&before, Some("11")).to_string();
+        assert!(w.contains("choose Windows 11 Home: the one this computer had"));
+        assert!(w.contains("Never delete the one called WINSETUP"));
+        // an edition from Windows 10 on a machine now offered 11 names 11
+        let before = json!({ "result": "read", "windows_version": "10", "edition_id": "Professional" });
+        assert_eq!(edition_name(&before, Some("11")).unwrap(), "Windows 11 Pro");
+        assert!(wizard(&json!({ "result": "unreadable" }), Some("11")).to_string().contains("most home computers had Home"));
     }
 
     #[test]

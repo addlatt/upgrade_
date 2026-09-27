@@ -15,6 +15,8 @@
 # here aborts: a check that cannot be satisfied is written down for
 # settle-in to show, and Windows stays reachable from the GRUB menu.
 #
+# 0.5.0 (2026-09-27): also installs "Go back to Windows" (its menu entry and
+# wimlib-imagex), optional: without them settle-in still installs.
 # 0.4.0 (2026-09-27): it is also Fedora's INSTALLER ADAPTER for settle-in
 # (architecture.md, "It runs on any Linux"). It fills the one handoff
 # folder settle-in reads on every distribution, /var/lib/upgrade_/ on the
@@ -28,7 +30,7 @@
 # hardware clock as UTC, and settle-in must know before it "corrects" it.
 set -u
 JOB=${1:?job.json}
-OUTCOME_VERSION=0.4.0
+OUTCOME_VERSION=0.5.0
 STICK=${UPG_TEST_STICK:-/run/install/repo}   # overridable only for the local spoof test (rule #5, logic level)
 SYSROOT=${UPG_TEST_SYSROOT:-/mnt/sysroot}
 REPORT=$STICK/upgrade_/report
@@ -94,6 +96,21 @@ elif mkdir -p "$SYSROOT/usr/local/libexec/upgrade_" "$SYSROOT/etc/systemd/system
     SETTLE_IN=true
     chroot "$SYSROOT" restorecon -R /usr/local/libexec/upgrade_ /etc/systemd/system/upgrade_-settle-in.service /etc/xdg/autostart/upgrade_-settle-in.desktop /etc/profile.d/upgrade_-settle-in.sh /usr/share/polkit-1/actions/org.upgrade.settle-in.policy >/dev/null 2>&1 || true
 else SETTLE_IN_WHY="settle-in could not be copied onto the installed system"; fi
+# "Go back to Windows" (R30, 2026-09-27): its app-menu entry and the one
+# outside tool it carries (wimlib-imagex, static). Separate from the files
+# above on purpose: if these are missing or do not match, settle-in still
+# installs, and only the way back is left out (said on the log line below).
+GB_FILES="wimlib-imagex upgrade_-go-back-to-windows.desktop"; GO_BACK=false
+if [ "$SETTLE_IN" = true ]; then
+    gb_ok=true; for f in $GB_FILES; do { [ -f "$SI_SRC/$f" ] && si_ok "$f"; } || gb_ok=false; done
+    if [ "$gb_ok" = true ] && mkdir -p "$SYSROOT/usr/share/applications" \
+        && cp "$SI_SRC/wimlib-imagex" "$SYSROOT/usr/local/libexec/upgrade_/wimlib-imagex" && chmod 0755 "$SYSROOT/usr/local/libexec/upgrade_/wimlib-imagex" \
+        && cp "$SI_SRC/upgrade_-go-back-to-windows.desktop" "$SYSROOT/usr/share/applications/upgrade_-go-back-to-windows.desktop" && chmod 0644 "$SYSROOT/usr/share/applications/upgrade_-go-back-to-windows.desktop"; then
+        GO_BACK=true
+        chroot "$SYSROOT" restorecon -R /usr/local/libexec/upgrade_ /usr/share/applications/upgrade_-go-back-to-windows.desktop >/dev/null 2>&1 || true
+    fi
+fi
+echo "== go-back-to-windows installed=$GO_BACK"
 SETTLE_IN_VERSION=$( [ "$SETTLE_IN" = true ] && "$SYSROOT/usr/local/libexec/upgrade_/settle-in" --version 2>/dev/null | awk '{print $2}')
 echo "== settle-in installed=$SETTLE_IN ${SETTLE_IN_VERSION:+version $SETTLE_IN_VERSION} $SETTLE_IN_WHY"
 echo "== handoff folder $HANDOFF_DIR ok=$HANDOFF_OK; wifi expected=$WIFI_EXPECTED on_stick=$WIFI_ON_STICK moved=$WIFI_MOVED removed_from_stick=$WIFI_REMOVED ${WIFI_ERR:+error: $WIFI_ERR}"

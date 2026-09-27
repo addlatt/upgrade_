@@ -979,6 +979,14 @@ the Linux side offers a new, empty Windows, and says what that costs first
    installer, check it, write it to the named stick (refusing every other
    drive), start from it with Secure Boot on, install, and read the
    activation state on the new Windows.
+   **Built 2026-09-27** (`settle-in go-back`; the window's `--go-back`).
+   The rig leg first: `settle-in go-back write --image` writes a new file
+   (never a disk) from the rig's own Windows 10 ISO (Microsoft's English
+   x64 hash), and `rig/hyperv/v11-stick.ps1` boots that file as a disk in
+   a new Generation 2 VM, Secure Boot on (Microsoft's Windows template),
+   offline, with an empty 64 GB target. That proves the stick's layout
+   and the wimlib split (plumbing); only a real stick in a real machine
+   closes the step.
 4. **Later, the walk-away reinstall:** refuse, cancel and erase arms, as in
    V9.
 
