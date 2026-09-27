@@ -1,56 +1,65 @@
-# Hyper-V Gen 2 rig — the Secure-Boot-and-TPM leg
+# Hyper-V Gen 2 rig: the Secure-Boot-and-TPM leg
 
-The QEMU rig (`rig/vm/`) cannot enforce Secure Boot or present a TPM: both
-live in the SMM-requiring OVMF build, and SMM crashes KVM on this AMD/WSL2
+The QEMU rig (`rig/vm/`) cannot enforce Secure Boot or present a TPM (the
+security chip BitLocker locks its key to). Both need the OVMF firmware build
+that uses SMM, a special processor mode, and SMM crashes KVM on this AMD/WSL2
 host (RISKS R15, R21). Hyper-V Generation 2 on the same Windows host has both
-natively — real Secure Boot with a chosen certificate db, and a vTPM — so this
-is where the rows the QEMU rig had to leave blocked get their VM leg:
+built in: real Secure Boot with a chosen certificate db (the list of signers
+the firmware trusts), and a vTPM (a virtual TPM). So the rows the QEMU rig had
+to leave blocked get their VM leg here:
 
 | Gate | What this rig can fire | What it still cannot |
 |---|---|---|
-| **V0 / R15** rows 3–4 (Secure Boot refusal of an unsigned payload; signed shim accepted) and rows 5–6 (BitLocker suspended / `NoSuspend` → recovery prompt) | SB enforcement is real; vTPM lets BitLocker seal to PCRs | **The USB clause.** Gen 2 has no USB device emulation: the "stick" is a VHDX on the SCSI bus. Whether firmware honours a one-shot `bootsequence` for a *removable USB* entry stays with the physical matrix. |
-| **V1b / R21** the Secure-Boot-on chainload (shim → GRUB → `bootmgfw.efi`), and the **~100 MiB ESP row** (this guest's `autounattend.xml` asks for Windows Setup's default 100 MB, not the QEMU guest's 260) | both | vendor firmware behaviour (entry deletion, order pinning) — Hyper-V's UEFI is one more firmware, not the population |
+| **V0 / R15** rows 3-4 (Secure Boot refusal of an unsigned payload; signed shim accepted) and rows 5-6 (BitLocker suspended / `NoSuspend` → recovery prompt) | SB enforcement is real; vTPM lets BitLocker seal to PCRs | **The USB clause.** Gen 2 has no USB device emulation: the "stick" is a VHDX on the SCSI bus. Whether firmware honours a one-shot `bootsequence` for a *removable USB* entry stays with the physical matrix. |
+| **V1b / R21** the Secure-Boot-on chainload (shim → GRUB → `bootmgfw.efi`), and the **~100 MiB ESP row** (this guest's `autounattend.xml` asks for Windows Setup's default 100 MB, not the QEMU guest's 260) | both | vendor firmware behaviour (entry deletion, order pinning). Hyper-V's UEFI is one more firmware, not the population |
 | **V1** unattended install to a login screen, Secure Boot on | yes | same |
 | **V3 / R19** BITLK reads against TPM-sealed BitLocker volumes | vTPM makes the default protector shape testable | real-disk variants (used-space-only on a fragmented disk etc.) |
 
+Terms used above: *PCRs* are the TPM's records of what booted; BitLocker
+"seals" its key to them, so a changed boot path asks for the recovery key.
+The *ESP* is the small FAT partition that holds every system's boot loader.
+*BITLK* is BitLocker's on-disk format as Linux reads it.
+
 **Two standing rules carry over unchanged.** A green run here closes plumbing,
-never a real-hardware clause (CLAUDE.md rule #5); and the evidence rows are
+never a real-hardware clause (CLAUDE.md rule #5). And the evidence rows are
 written by the harnesses, never by hand.
 
-**The Secure Boot templates are mutually exclusive — measured 2026-08-30.**
+**The Secure Boot templates are mutually exclusive. Measured 2026-08-30.**
 Hyper-V offers two dbs, `MicrosoftWindows` and
-`MicrosoftUEFICertificateAuthority`, and there is no third and no custom
+`MicrosoftUEFICertificateAuthority`. There is no third and no custom
 mechanism (`Set-VMFirmware` accepts only those two names; no template key in
-the registry). A/B on a throwaway diskless Gen 2 VM, Secure Boot on, one ISO
-in the DVD, boot-first DVD, screenshots over the first 8 s:
+the registry). The test was an A/B on a throwaway diskless Gen 2 VM, Secure
+Boot on, one ISO in the DVD, DVD first in the boot order, screenshots over the
+first 8 s:
 
 | template | Windows 10 install ISO | Fedora 42 netinst ISO |
 |---|---|---|
 | `MicrosoftUEFICertificateAuthority` | **refused** (no "Press any key", straight to PXE) | boots (GRUB menu) |
 | `MicrosoftWindows` | boots ("Press any key" → Setup) | **refused** (straight to PXE) |
 
-Neither db trusts both CAs. Real machines ship both, so **a Secure-Boot-on
-dual boot as it exists on real hardware cannot be reproduced on Hyper-V with
-the built-in templates**: under the UEFI-CA template the firmware will not
-start `bootmgfw.efi` from its own Windows entry, and GRUB's `chainloader`
-goes through shim's verification, which consults the same db — plus
-**MokList**. That leaves one honest route for the V1b SB-on *chainload*
-clause: enrol the Microsoft Windows Production PCA (extracted from
-`bootmgfw.efi`'s signature) into MokList, so shim → GRUB → `bootmgfw.efi`
-verifies under Secure Boot. That exercises the chainload verification path;
-it does **not** exercise a firmware db holding both CAs, and it leaves Windows
-unbootable from its own firmware entry — both to be stated in the row's
-`notes`. The db-composition clause stays with real hardware.
+Neither db trusts both CAs (certificate authorities). Real machines ship
+both, so **a Secure-Boot-on dual boot as it exists on real hardware cannot be
+reproduced on Hyper-V with the built-in templates**. Under the UEFI-CA
+template the firmware will not start `bootmgfw.efi` from its own Windows
+entry. GRUB's `chainloader` goes through shim's verification, which consults
+the same db, plus **MokList** (shim's own extra list of trusted keys). That
+leaves one honest route for the V1b SB-on *chainload* clause: enrol the
+Microsoft Windows Production PCA (extracted from `bootmgfw.efi`'s signature)
+into MokList, so shim → GRUB → `bootmgfw.efi` verifies under Secure Boot.
+That exercises the chainload verification path. It does **not** exercise a
+firmware db holding both CAs, and it leaves Windows unbootable from its own
+firmware entry. Both must be stated in the row's `notes`. The db-composition
+clause stays with real hardware.
 
 Two more Hyper-V facts learned the same day:
 
-- **The template locks once the vTPM is initialised** — `Set-VMFirmware
+- **The template locks once the vTPM is initialised.** `Set-VMFirmware
   -SecureBootTemplate` fails with *"Cannot modify the secure boot template ID
   property after the virtual TPM is initialized"*, and `Disable-VMTPM` does
   not unlock it. Choose the template at `new-vm.ps1` time; changing it means
   a new VM.
 - `GetVirtualSystemThumbnailImage` returns RGB565 rows of exactly `width*2`
-  bytes; copy row by row into the bitmap's padded stride (a whole-buffer
+  bytes. Copy row by row into the bitmap's padded stride (a whole-buffer
   `Marshal.Copy` was an AccessViolation).
 
 ## Layout
@@ -61,18 +70,19 @@ Two more Hyper-V facts learned the same day:
 | `autounattend.xml` | the QEMU rig's unattend with a **100 MB ESP** and ComputerName `UPGRIGHV` |
 | `make-unattend.sh` | wraps it into `C:\upgrade-rig\hv\iso\unattend-hv.iso` |
 | `new-vm.ps1` | creates the Gen 2 guest: Secure Boot on (template selectable), vTPM, two DVDs, DVD-first |
-| `vm.ps1` | the QMP stand-in: start/stop, WMI keyboard (`type`, `key`, `press-any-key`), thumbnail `shot`, `fw`, `sb`, `dvd`, `disk`, `boot-first`, PowerShell Direct `ps`, `copy` |
+| `vm.ps1` | the stand-in for QEMU's control socket (QMP): start/stop, WMI keyboard (`type`, `key`, `press-any-key`), thumbnail `shot`, `fw`, `sb`, `dvd`, `disk`, `boot-first`, PowerShell Direct `ps`, `copy` |
 | `v1b.sh` | the V1b alongside-install bench (run-book below) |
 | `prologue.sh`, `prologue-verdict.py`, `rollback-verdict.py` | the prologue bench (and its `rollback` step, `r21-rollback.csv`): the product's one-click conversion flow with the dirty flag injected, then the install; writes `r18-prologue.csv` (and `v2-install.csv` via `v2-verdict.py`) |
 | `v3.sh`, `v3-verdict.py` | the V3 BITLK-read bench: builds the OEMDRV-v3 transport, drives the Windows plant and the Fedora read, writes the evidence rows |
-| `guest/oemdrv-run.sh`, `guest/v3-bootstrap.sh` | the Fedora-side **run hook**: a unit that runs `OEMDRV:/run.sh` as root on every boot and leaves `run.log` on the volume — installed once from the console by the bootstrap |
-| `guest/v3-plant.ps1`, `guest/v3-read.sh`, `guest/v3-encrypt.ps1` | V3 guest halves: Windows plants + hashes the corpus and `C:\Users` and does a full shutdown; Fedora unlocks, mounts read-only and re-hashes; the encrypt script builds the other configs in the product's order (encrypt, then shrink) |
+| `guest/oemdrv-run.sh`, `guest/v3-bootstrap.sh` | the Fedora-side **run hook**: a unit that runs `OEMDRV:/run.sh` as root on every boot and leaves `run.log` on the volume. The bootstrap installs it once from the console |
+| `guest/v3-plant.ps1`, `guest/v3-read.sh`, `guest/v3-encrypt.ps1` | V3 guest halves: Windows plants and hashes the corpus and `C:\Users`, then does a full shutdown; Fedora unlocks, mounts read-only and re-hashes; the encrypt script builds the other configs in the product's order (encrypt, then shrink) |
 
-Hyper-V cannot open files under `\\wsl.localhost`, so ISOs, VHDXs and
-screenshots live on the Windows side in `C:\upgrade-rig\hv\` (gitignored by
-location — nothing there is in the repo). The Windows and Fedora ISOs are the
-same files the QEMU rig fetched (`rig/vm/fetch-iso.sh`,
-`fetch-payload-bits.sh`), copied over; the netinst sha256 is in
+Hyper-V cannot open files under `\\wsl.localhost`, so ISOs, VHDXs (Hyper-V's
+virtual disk files) and screenshots live on the Windows side in
+`C:\upgrade-rig\hv\`. They are kept out of git by location: nothing there is
+in the repo. The Windows and Fedora ISOs are the same files the QEMU rig
+fetched (`rig/vm/fetch-iso.sh`, `fetch-payload-bits.sh`), copied over. The
+netinst sha256 is in
 `rig/vm/artifacts/payload-bits/fedora-netinst.source.txt`.
 
 ## First-time sequence
@@ -92,10 +102,11 @@ powershell.exe -ExecutionPolicy Bypass -File rig/hyperv/vm.ps1 press-any-key
 powershell.exe -ExecutionPolicy Bypass -File rig/hyperv/vm.ps1 shot       # ~20-30 min hands-off to the desktop
 ```
 
-Guest account `rig` / `rig`, autologon, ComputerName `UPGRIGHV`. Guest control
-is PowerShell Direct (`vm.ps1 ps "<command>"`) plus `Copy-VMFile`; there is no
-SMB share, so harness results come back with `vm.ps1 ps` and `Copy-VMFile`
-(guest→host is not supported by `Copy-VMFile`; read files back through `ps`).
+Guest account `rig` / `rig`, autologon, ComputerName `UPGRIGHV`. You control
+the guest through PowerShell Direct (`vm.ps1 ps "<command>"`, Hyper-V's way to
+run commands inside a VM without a network) plus `Copy-VMFile`. There is no
+SMB share, so harness results come back with `vm.ps1 ps` and `Copy-VMFile`.
+`Copy-VMFile` does not support guest→host, so read files back through `ps`.
 
 ## State (2026-08-30)
 
@@ -103,30 +114,32 @@ SMB share, so harness results come back with `vm.ps1 ps` and `Copy-VMFile`
 under the `MicrosoftWindows` template (`Confirm-SecureBootUEFI` → True), vTPM
 present (`Get-Tpm` → TpmPresent True), **ESP 100 MiB exactly**, C: 85.8 GB
 with 65 GB free, `rig`/`rig` autologon, PowerShell Direct answering. Nothing
-had been tested on it as of install day; the V0 rows below fired the same
-day (rows 3, 5, 6 — see `docs/validation-results/v0-handoff.csv` and RISKS
+had been tested on it as of install day. The V0 rows below fired the same
+day (rows 3, 5, 6; see `docs/validation-results/v0-handoff.csv` and RISKS
 R15). BitLocker is now ON (TPM + RecoveryPassword protectors; recovery key in
 `C:\upgrade-rig\hv\UPGRIGHV-bitlocker-recovery.txt`, host side only) and
-Secure Boot is currently OFF (the BitLocker rows' run-book state); the
-pristine pre-BitLocker disk is `UPGRIGHV.fresh.vhdx`. First guest prep step is the same as the QEMU rig's: fetch the repo zip
-into `C:\upgrade_` (or `vm.ps1 copy` the pieces).
+Secure Boot is currently OFF (the BitLocker rows' run-book state). The
+pristine pre-BitLocker disk is `UPGRIGHV.fresh.vhdx`. The first guest prep
+step is the same as the QEMU rig's: fetch the repo zip into `C:\upgrade_`
+(or `vm.ps1 copy` the pieces).
 
-**State after the V1b run (2026-08-31):** the guest dual-boots — C: shrunk by
-32 GiB, Fedora 42 installed alongside reusing the 100 MiB ESP, firmware boots
-Fedora's shim first with Windows chainloadable from the GRUB menu (two
-Downs), BitLocker protection back On and re-sealed to the GRUB path. The V0
-stick VHDX is detached. Backups host-side in `C:\upgrade-rig\hv\vm\`:
-`UPGRIGHV.pre-install.vhdx` (post-shrink, pre-install, BitLocker suspended —
-verified against the guest's own hashes) and `UPGRIGHV.fresh.vhdx`
-(install-day, pre-BitLocker). The original `UPGRIGHV.pre-v1b.vhdx` was
-deleted: the 9p stale-cache hazard had poisoned it.
+**State after the V1b run (2026-08-31):** the guest dual-boots. C: is shrunk
+by 32 GiB, Fedora 42 is installed alongside reusing the 100 MiB ESP, and the
+firmware boots Fedora's shim first with Windows chainloadable from the GRUB
+menu (two Downs). BitLocker protection is back On and re-sealed to the GRUB
+path. The V0 stick VHDX is detached. Backups are host-side in
+`C:\upgrade-rig\hv\vm\`: `UPGRIGHV.pre-install.vhdx` (post-shrink,
+pre-install, BitLocker suspended, verified against the guest's own hashes)
+and `UPGRIGHV.fresh.vhdx` (install-day, pre-BitLocker). The original
+`UPGRIGHV.pre-v1b.vhdx` was deleted: the 9p stale-cache hazard had poisoned
+it.
 
 **State after the V3 run (2026-09-01):** `UPGRIGHV`'s Fedora was
 `dnf`-upgraded (kernel 6.19.14-108 is now the GRUB default; the install
 kernel 6.14.0-63 is the second entry, still there for the ntfs3 rows), the
 OEMDRV run hook is installed, and the guest carries `C:\v3corpus` (~1.5 GB).
 A third guest `UPGRIGV3` (SB off, vTPM, no disk of its own) exists to build
-configs; the config disks `UPGRIGHV.xts256.vhdx` (XtsAes256, used-space) and
+configs. The config disks `UPGRIGHV.xts256.vhdx` (XtsAes256, used-space) and
 `UPGRIGHV.full.vhdx` (XtsAes128, "full"), both planted, sit host-side with
 their recovery keys in `C:\upgrade-rig\hv\UPGRIGV3.<disk>-bitlocker-recovery.txt`.
 OEMDRV volumes: `oemdrv-v3.vhdx` (config 1, attached to UPGRIGHV),
@@ -134,14 +147,14 @@ OEMDRV volumes: `oemdrv-v3.vhdx` (config 1, attached to UPGRIGHV),
 
 **WSL's page cache starves Hyper-V (seen 2026-09-09):** after building a
 5.7 GB stick image in WSL, Windows had 0.8 GB free and `Start-VM` failed
-with "Not enough memory in the system". WSL does not return cached pages
-to the host on its own; `posix_fadvise(DONTNEED)` on the big files (the
+with "Not enough memory in the system". WSL does not hand cached pages back
+to the host on its own. `posix_fadvise(DONTNEED)` on the big files (the
 same `evict` helper the 9p trap uses) gave 9.4 GB back at once. `v1.sh
 stick` evicts what it wrote. `UPGRIGHV` runs at **4 GB** startup memory
 now (was 8), enough for Windows 10 and Anaconda's stage2 in text mode.
 
 **State after the install runs (2026-09-10):** `v2.sh restore` put the
-main `UPGRIGHV.vhdx` back at SCSI 0:0; `UPGRIGHV.install.vhdx` (the
+main `UPGRIGHV.vhdx` back at SCSI 0:0. `UPGRIGHV.install.vhdx` (the
 converted copy of the pre-install disk: Fedora 42 KDE alongside Windows,
 Fedora first in BootOrder, boot marker unit installed) is kept host-side
 for inspection and is not attached. `v2.sh run` re-copies nothing: copy
@@ -149,19 +162,19 @@ for inspection and is not attached. `v2.sh run` re-copies nothing: copy
 needs `WIN_DOWNS=2` (Windows is the third GRUB entry of a fresh install).
 
 **State after the V1 run (2026-09-08):** firmware boot order is **Windows
-Boot Manager first** (`v1.sh stick` sets it; the pre-conversion shape),
+Boot Manager first** (`v1.sh stick` sets it; the pre-conversion shape).
 BitLocker on C: is On and **re-sealed to that direct path** (suspend →
-reorder → boot → enable), the V1 stick `v1-stick.vhdx` (2.2 GB FAT32 `UPGV0`:
+reorder → boot → enable). The V1 stick `v1-stick.vhdx` (2.2 GB FAT32 `UPGV0`:
 the kit + installer boot files + `upgrade_/`) is attached on SCSI, Secure
 Boot off. To boot Fedora again, pick its entry in the firmware order.
 `v1.sh run` rebuilds the stick and reruns the whole leg.
 
 **The prologue bench (2026-09-12):** `prologue.sh` runs the product's
 one-click `RUN-CONVERT.cmd` (with `CONVERT` on stdin) against
-`UPGRIGHV.prologue.vhdx`, a Windows-side copy of `UPGRIGHV.fresh.vhdx` —
-the **unshrunk** install-day disk, because the prologue's job is the
+`UPGRIGHV.prologue.vhdx`, a Windows-side copy of `UPGRIGHV.fresh.vhdx`.
+That is the **unshrunk** install-day disk, because the prologue's job is the
 shrink and `pre-install.vhdx` already carries the V1b bench's 32 GiB gap.
-`prologue.sh dirty` injects the flag (`fsutil dirty set C:`); the guest
+`prologue.sh dirty` injects the flag (`fsutil dirty set C:`). The guest
 then restarts itself twice (disk check, then the installer) and the bench
 waits for the autoshutdown after the first Linux boot. `v1.sh stick`
 gained `MODE=prologue` (bench + autoshutdown markers only; the prologue
@@ -171,28 +184,28 @@ now reads the prologue's `prologue-return.json` as the handoff source
 when no harness row exists).
 
 **State after the prologue runs (2026-09-12):** `prologue.sh restore` put
-the main `UPGRIGHV.vhdx` back; `UPGRIGHV.prologue.vhdx` (fresh.vhdx
+the main `UPGRIGHV.vhdx` back. `UPGRIGHV.prologue.vhdx` (fresh.vhdx
 converted by the prologue: C: 54.9 GB, Fedora KDE alongside, then rolled
-back — Windows first, Windows' fallback loader restored, Fedora still on
+back: Windows first, Windows' fallback loader restored, Fedora still on
 the disk) is kept host-side, detached. The guest's Windows clock reads
-about seven hours ahead of the Linux side in `boots.log` — a rig clock
-fact, not a finding.
+about seven hours ahead of the Linux side in `boots.log`. That is a rig
+clock fact, not a finding.
 
-## Planned run-books (not yet run — nothing below is evidence)
+## Planned run-books (not yet run: nothing below is evidence)
 
-- **V0 rows 3, 5, 6 — DONE 2026-08-30** (row 4 not meaningful here, see
-  RISKS R15). Ran as: stick image → VHDX (`qemu-img convert -O vhdx`),
+- **V0 rows 3, 5, 6. `[###.]` DONE 2026-08-30** (row 4 not meaningful here,
+  see RISKS R15). How it ran: stick image → VHDX (`qemu-img convert -O vhdx`),
   `vm.ps1 disk add`, delete the stale `fired.txt` the image carried, then
-  `Test-Handoff.ps1 -Arm … / -Check -ResultsCsv <guest path>` per row, the
-  row transported verbatim into `docs/validation-results/v0-handoff.csv`
-  with the three Read-Host observer fields filled from screenshots (a PS
-  Direct session cannot answer Read-Host — run `-Check` with stdin closed,
-  `< /dev/null`, or the pipeline can hang at the prompt; one run's CSV
-  append was lost that way and the row re-run). BitLocker prep: eject BOTH
+  `Test-Handoff.ps1 -Arm … / -Check -ResultsCsv <guest path>` per row. Each
+  row was carried verbatim into `docs/validation-results/v0-handoff.csv`,
+  with the three Read-Host observer fields filled from screenshots. A PS
+  Direct session cannot answer Read-Host, so run `-Check` with stdin closed
+  (`< /dev/null`), or the pipeline can hang at the prompt. One run's CSV
+  append was lost that way and the row re-run. BitLocker prep: eject BOTH
   install DVDs first (`Enable-BitLocker` refuses while bootable media is
-  attached), and note `Enable-BitLocker` re-runs can drop an existing
-  RecoveryPassword protector — verify protectors and re-save the key after.
-- **V1b, 100 MiB ESP, SB off — DONE 2026-08-31** (row 2 of
+  attached). Note that `Enable-BitLocker` re-runs can drop an existing
+  RecoveryPassword protector: verify protectors and re-save the key after.
+- **V1b, 100 MiB ESP, SB off. `[###.]` DONE 2026-08-31** (row 2 of
   `docs/validation-results/v1b-alongside.csv`, result
   `fallback-loader-replaced`; findings in RISKS R21). Ran via `v1b.sh`
   (this directory): fresh OEMDRV built and attached, offline inspections
@@ -200,130 +213,138 @@ fact, not a finding.
   (`guest/v1b-shrink-hv.ps1` + `rig/vm/guest/v1b-mark.ps1`, both
   `Copy-VMFile`d in), netinst DVD `boot-first dvd` with the ISO menu driven
   by WMI keys, cycles driven by `v1b.sh cycle` (GRUB: two Downs = Windows).
-  BitLocker: suspended `-RebootCount 1` before the installer boot; the first
-  chainloaded Windows boot auto-resumed and re-sealed, the second unsealed
-  silently — no recovery prompt. Hyper-V's UEFI **kept** the Windows
-  `Boot####` entry across the install (unlike OVMF's `bootindex` path).
-  The disk backup taken before the run had to be re-taken after the 9p
-  stale-cache hazard (below) was caught poisoning it.
-- **V1b, SB on — the MOK chainload experiment — DONE 2026-08-31** (record:
-  `docs/validation-results/v1b-mok-chainload-2026-08-31.md`). Second guest
-  `UPGRIGMOK` on the `MicrosoftUEFICertificateAuthority` template (disk copied
-  from `UPGRIGHV.pre-install.vhdx`), Fedora alongside-installed under SB
-  enforcing via `v1b.sh` with `VMNAME=UPGRIGMOK LEG=mok SB=on
-  KS=v1b-mok-ks.cfg OEM_EXTRA=artifacts/v1b-mok/win-pca.der`. The Windows
-  Production PCA 2011 (extracted from `bootmgfw.efi`'s Authenticode signature,
-  `rig/hyperv/artifacts/v1b-mok/win-pca.der`) was enrolled into shim's
-  MokList. Negative (PCA not enrolled): GRUB → `bad shim signature`, Windows
-  refused. Positive (enrolled): Windows boots to the desktop, SB enforcing
-  confirmed both sides. Proves the chainload verification only — NOT a both-CA
-  db (Hyper-V can't express one), NOT the vendor matrix.
+  BitLocker: suspended `-RebootCount 1` before the installer boot. The first
+  chainloaded Windows boot auto-resumed and re-sealed, and the second
+  unsealed silently, with no recovery prompt. Hyper-V's UEFI **kept** the
+  Windows `Boot####` entry across the install (unlike OVMF's `bootindex`
+  path). The disk backup taken before the run had to be re-taken after the
+  9p stale-cache hazard (below) was caught poisoning it.
+- **V1b, SB on: the MOK chainload experiment. `[###.]` DONE 2026-08-31**
+  (record: `docs/validation-results/v1b-mok-chainload-2026-08-31.md`). A
+  second guest, `UPGRIGMOK`, on the `MicrosoftUEFICertificateAuthority`
+  template (disk copied from `UPGRIGHV.pre-install.vhdx`). Fedora was
+  alongside-installed under SB enforcing via `v1b.sh` with `VMNAME=UPGRIGMOK
+  LEG=mok SB=on KS=v1b-mok-ks.cfg OEM_EXTRA=artifacts/v1b-mok/win-pca.der`.
+  The Windows Production PCA 2011 (extracted from `bootmgfw.efi`'s
+  Authenticode signature, `rig/hyperv/artifacts/v1b-mok/win-pca.der`) was
+  enrolled into shim's MokList. Negative (PCA not enrolled): GRUB → `bad shim
+  signature`, Windows refused. Positive (enrolled): Windows boots to the
+  desktop, SB enforcing confirmed on both sides. This proves the chainload
+  verification only. It is NOT a both-CA db (Hyper-V can't express one), and
+  NOT the vendor matrix.
 
-**Driving MokManager and the console — learned 2026-08-31 (obey):**
-- **`vm.ps1 type` / WMI `TypeText` is unreliable here** — it drops or garbles
+**Driving MokManager and the console. Learned 2026-08-31 (obey):**
+MokManager is shim's blue-screen tool that asks you to confirm a new key.
+- **`vm.ps1 type` / WMI `TypeText` is unreliable here.** It drops or garbles
   characters. Drive ALL text as per-character Windows virtual-key codes via
   `vm.ps1 key` (letters `A`..`Z` = VK 65..90 → lowercase in a Linux console;
   digits = 48..57; space=32, `/`=191, `-`=189, `.`=190). A `str2vk` helper is
-  the reliable path; `|` etc. need Shift and are best avoided (use
+  the reliable path. `|` and similar need Shift and are best avoided (use
   `mokutil --test-key` instead of `... | grep`).
-- **GRUB `$root` is polluted by a failed chainload** — after a
+- **GRUB `$root` is polluted by a failed chainload.** After a
   `bad shim signature`, the Fedora BLS entry fails with `vmlinuz not found`.
   Boot Fedora from a **fresh** GRUB (hard power-cycle) and select Windows
   **deterministically** with `sudo grub2-reboot 2; sudo reboot`, never by
   racing the menu countdown.
 - **MokManager's "press any key" window is short and jittery on Hyper-V.**
   Set `sudo mokutil --timeout -1` from Fedora first so MokManager waits
-  indefinitely, then drive it calmly (Down/Enter for Enroll MOK → Continue →
+  forever, then drive it calmly (Down/Enter for Enroll MOK → Continue →
   Yes → password → Reboot). A MokManager prompt that times out **deletes** the
-  pending `MokNew` without enrolling — re-`mokutil --import` if that happens.
+  pending `MokNew` without enrolling. Re-`mokutil --import` if that happens.
 
 - **GRUB entry order changed with the kernel upgrade (seen 2026-09-08):** the
   menu is now 6.19 kernel / 6.14 kernel / rescue / **Windows Boot Manager** /
   UEFI settings, so Windows is **three** Downs, not two. `v3.sh windows`
-  presses three now; take a screenshot before Enter when in doubt.
+  presses three now. Take a screenshot before Enter when in doubt.
 - **BitLocker is sealed to the GRUB boot path (seen 2026-09-08):** since the
   V1b install the guest re-sealed to shim → GRUB → `bootmgfw.efi`. Putting the
   firmware's *Windows Boot Manager* entry first (what `v1.sh stick` does, to
-  model a machine that has not been converted) changes the measured chain and
-  Windows stops at the **BitLocker recovery prompt** — and a wrong or absent
-  key there makes the boot manager **power the VM off after ~40 s** ("shut
-  down by the guest operating system" in the Hyper-V-Worker log), which
-  looks like a guest that never comes up. The clean route needs no key:
-  boot Windows on the path the TPM is sealed to (GRUB → Windows),
+  model a machine that has not been converted) changes the measured chain, and
+  Windows stops at the **BitLocker recovery prompt**. A wrong or absent key
+  there makes the boot manager **power the VM off after ~40 s** ("shut down by
+  the guest operating system" in the Hyper-V-Worker log), which looks like a
+  guest that never comes up. The clean route needs no key: boot Windows on
+  the path the TPM is sealed to (GRUB → Windows),
   `manage-bde -protectors -disable C:`, shut down, reorder, boot (suspended,
-  no prompt), `manage-bde -protectors -enable C:` — that re-seals to the
+  no prompt), `manage-bde -protectors -enable C:`. That re-seals to the
   direct path. If a key must be typed, the host file's **`CURRENT` line** is
-  the live one (the last line is the dropped, stale key — `tail -1` typed
-  that on 2026-09-08), as VK codes over the WMI keyboard, never echoed.
-  And a PS Direct "is Windows up" probe must match the hostname exactly:
-  a failed `Invoke-Command`'s error text contains the VM name too.
-- **V3 / R19, config XTS-AES-128 used-space-only — DONE 2026-09-01**
+  the live one. The last line is the dropped, stale key (`tail -1` typed
+  that on 2026-09-08). Type it as VK codes over the WMI keyboard, never
+  echoed. And a PS Direct "is Windows up" probe must match the hostname
+  exactly: a failed `Invoke-Command`'s error text contains the VM name too.
+- **V3 / R19, config XTS-AES-128 used-space-only. `[###.]` DONE 2026-09-01**
   (rows in `docs/validation-results/v3-bitlk-read.csv`, findings in RISKS
-  R19). The bench is `v3.sh`; per config: `v3.sh oemdrv guest/v3-read.sh`
-  (fresh OEMDRV-v3 carrying the reader, the hook, and the CURRENT recovery
-  password from the host-side key file — the guest deletes it first thing),
-  `v3.sh windows` (GRUB two Downs, waits for PS Direct), `v3.sh plant
-  <config>` (`guest/v3-plant.ps1`: corpus + `C:\Users` hashed onto OEMDRV,
-  OneDrive & co. stopped first, then `shutdown /s` — a FULL shutdown, never
-  hybrid), `v3.sh read` (Fedora boots, the run hook executes the reader:
-  ntfs-3g pass, ntfs3 pass, ntfs3 with readahead 0; one manifest per
-  corpus subtree with a `sync` after each so a kernel crash leaves the last
-  stage on the volume; the previous boot's kernel journal is saved first),
-  `v3.sh verdict` (rows). `v3.sh run <config>` chains them. `v3.sh rearm`
-  puts the reader + key back without wiping the Windows manifests; `v3.sh
-  read old` boots the second GRUB entry (the previous kernel after a
-  `rearm-upgrade` run, which `dnf`-upgrades the kernel and reboots into the
-  reader). Other configs: `VMNAME=UPGRIGV3 v3.sh mkvm <disk>` wraps a copy
-  of `UPGRIGHV.fresh.vhdx` in a throwaway SB-off/vTPM guest, `v3.sh encrypt
-  <disk> XtsAes256 usedspace|full 32` runs `guest/v3-encrypt.ps1` (encrypt
-  THEN shrink — the product's order) and captures the new recovery password
-  to `C:\upgrade-rig\hv\UPGRIGV3.<disk>-bitlocker-recovery.txt` (host side
-  only, redacted from every kept output); then the disk goes on UPGRIGHV as a
-  data disk (`DEV=/dev/sdb3` when building that OEMDRV) for the read.
+  R19). The bench is `v3.sh`. Per config, the steps are:
+  - `v3.sh oemdrv guest/v3-read.sh`: a fresh OEMDRV-v3 carrying the reader,
+    the hook, and the CURRENT recovery password from the host-side key file
+    (the guest deletes it first thing).
+  - `v3.sh windows` (GRUB two Downs, waits for PS Direct).
+  - `v3.sh plant <config>` (`guest/v3-plant.ps1`: corpus + `C:\Users` hashed
+    onto OEMDRV, OneDrive & co. stopped first, then `shutdown /s`, a FULL
+    shutdown, never hybrid).
+  - `v3.sh read`: Fedora boots, and the run hook executes the reader:
+    ntfs-3g pass, ntfs3 pass, ntfs3 with readahead 0. It writes one manifest
+    per corpus subtree with a `sync` after each, so a kernel crash leaves the
+    last stage on the volume. The previous boot's kernel journal is saved
+    first.
+  - `v3.sh verdict` (rows).
 
-**Learned running V3 — obey:**
+  `v3.sh run <config>` chains them. `v3.sh rearm` puts the reader + key back
+  without wiping the Windows manifests. `v3.sh read old` boots the second
+  GRUB entry (the previous kernel after a `rearm-upgrade` run, which
+  `dnf`-upgrades the kernel and reboots into the reader). Other configs:
+  `VMNAME=UPGRIGV3 v3.sh mkvm <disk>` wraps a copy of `UPGRIGHV.fresh.vhdx` in
+  a throwaway SB-off/vTPM guest. `v3.sh encrypt <disk> XtsAes256
+  usedspace|full 32` runs `guest/v3-encrypt.ps1` (encrypt THEN shrink, the
+  product's order) and captures the new recovery password to
+  `C:\upgrade-rig\hv\UPGRIGV3.<disk>-bitlocker-recovery.txt` (host side only,
+  redacted from every kept output). Then the disk goes on UPGRIGHV as a data
+  disk (`DEV=/dev/sdb3` when building that OEMDRV) for the read.
+
+**Learned running V3. Obey:**
 - **The Fedora-side run hook** (`guest/oemdrv-run.sh`, installed once by
   `v3.sh login-bootstrap` → `guest/v3-bootstrap.sh`) is the general
-  transport now: put a script at `OEMDRV:/run.sh`, boot, read
-  `OEMDRV:/run.log`; the script writes `poweroff` / `reboot` /
+  transport now. Think of it as a mailbox: put a script at `OEMDRV:/run.sh`,
+  boot, read `OEMDRV:/run.log`. The script writes `poweroff` / `reboot` /
   `reboot-windows` to `OEMDRV:/next`. Scripts that must run once remove
   `run.sh` themselves.
 - **`vm.ps1 key` now types with Shift** (`s<vk>` tokens) and `v3.sh type`
-  maps upper-case and most punctuation — the WMI `TypeText` garble stands,
-  and `str2vk` is still the reliable path.
+  maps upper-case and most punctuation. The WMI `TypeText` garble still
+  stands, and `str2vk` is still the reliable path.
 - **A `sudo` timestamp expires mid-session and swallows the next typed
   lines as password attempts** (three tries locks you out for a while). Type
   `rig` again before the next `sudo` after a few minutes' gap.
-- **ntfs-3g presents Windows' 0-byte SYSTEM files as FIFOs**; any reader
-  that `open()`s without `lstat` hangs forever, in S state (load average 0,
-  so it looks idle). `find … -not -type f -not -type d -not -type l` lists
-  them.
+- **ntfs-3g presents Windows' 0-byte SYSTEM files as FIFOs** (named pipes).
+  Any reader that `open()`s without `lstat` hangs forever, in S state (load
+  average 0, so it looks idle). `find … -not -type f -not -type d -not -type l`
+  lists them.
 - **The F42 install kernel's `ntfs3` oopses on this volume** and may wedge
-  the guest silently (console still shows a login prompt, no poweroff):
-  `wait-off` timing out after the ntfs3 stage is that. Kill, pull, look at
+  the guest silently (the console still shows a login prompt, no poweroff).
+  `wait-off` timing out after the ntfs3 stage is that. Kill, pull, and look at
   `facts-linux.txt`'s last `stage=` and `trace-*.txt`.
 - **`Enable-BitLocker` prints the numeric recovery password in its own
-  text**, not only where a script echoes it — capture raw output to a
-  gitignored file, extract once, redact the pattern before anything is kept
-  or shown.
-- A hard `kill` of the guest loses whatever the reader had not `sync`ed:
-  every fact write and every manifest part syncs for that reason.
+  text**, not only where a script echoes it. Capture raw output to a
+  gitignored file, extract once, and redact the pattern before anything is
+  kept or shown.
+- A hard `kill` of the guest loses whatever the reader had not `sync`ed.
+  That is why every fact write and every manifest part syncs.
 
 ## Known limits of this leg
 
-- No USB emulation (above). No QMP: keyboard is WMI `Msvm_Keyboard`,
-  screenshots are `GetVirtualSystemThumbnailImage` (RGB565, 1024×768 here).
-- Hyper-V's UEFI has no setup menu to press Esc into; boot order is set with
-  `Set-VMFirmware` and inspected with `vm.ps1 fw`. Whether *its* BDS rewrites
-  OS-created `Boot####` entries the way OVMF's `bootindex` path did is a data
-  point to record, not assume.
+- No USB emulation (above). No QMP: the keyboard is WMI `Msvm_Keyboard`,
+  and screenshots are `GetVirtualSystemThumbnailImage` (RGB565, 1024×768 here).
+- Hyper-V's UEFI has no setup menu to press Esc into. Boot order is set with
+  `Set-VMFirmware` and inspected with `vm.ps1 fw`. Whether *its* BDS (the
+  firmware's boot manager) rewrites OS-created `Boot####` entries the way
+  OVMF's `bootindex` path did is a data point to record, not assume.
 - `Copy-VMFile` is host→guest only.
-- **WSL's /mnt/c 9p page cache serves stale pages of files Windows rewrites**
-  (proven 2026-08-30: an offline inspection read a pre-servicing
-  `bootmgfw.efi` out of `UPGRIGHV.vhdx` hours after Windows had updated it,
-  and a `cp` baked the stale pages into a backup — two independent readers
-  agreed on the wrong bytes because both read the same poisoned cache).
-  Evict before EVERY WSL read of a Windows-written file
-  (`posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED)`); `v1b-inspect.py` and
-  `v1b.sh` (`evict`/`oem_pull`) now do it themselves. Verify any doubtful
+- **WSL's /mnt/c 9p page cache serves stale pages of files Windows rewrites.**
+  WSL reads Windows files through a 9p file share and keeps a cached copy
+  that can go out of date. Proven 2026-08-30: an offline inspection read a
+  pre-servicing `bootmgfw.efi` out of `UPGRIGHV.vhdx` hours after Windows
+  had updated it, and a `cp` baked the stale pages into a backup. Two
+  independent readers agreed on the wrong bytes, because both read the same
+  poisoned cache. Evict before EVERY WSL read of a Windows-written file
+  (`posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED)`). `v1b-inspect.py` and
+  `v1b.sh` (`evict`/`oem_pull`) now do it themselves. Check any doubtful
   read against the guest's own view of the same bytes.

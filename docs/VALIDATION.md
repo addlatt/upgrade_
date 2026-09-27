@@ -1,723 +1,998 @@
 # Validation gates
 
-What must be proven before building further. RISKS.md tracks what might be
-wrong; this file is the ordered plan for finding out. Same rule applies:
-nothing here closes by argument, only by evidence.
+This is the plan for proving things before we build more on top of them.
+`RISKS.md` lists what might be wrong. This file is the ordered plan for
+finding out. The same rule applies to both: nothing here closes because the
+argument sounds good. Only evidence closes it.
 
-Ordering is by what dies if the answer is no, weighted by how little evidence
-exists today. Each gate states the experiment, the pass criterion, and the
-fallback design if it fails — because "we'll deal with it" is not a plan.
+A **gate** is one question that has to be answered "yes" before the work
+that depends on it goes ahead. Gates are ordered by what dies if the answer
+is no, weighted by how little evidence exists today. Each gate states three
+things:
 
-Gates are grouped into the same **tiers** used in `CLAUDE.md` and `RISKS.md`,
-so the three agree:
+- **the experiment** (what we run),
+- **the pass criterion** (what counts as yes),
+- **the fallback** (what we build instead if it fails), because "we'll deal
+  with it" is not a plan.
 
-- **Tier 1 — no product if these fail:** V0, V1, V1b
-- **Tier 2 — a core promise breaks (recoverable):** V4, V3, V2
-- **Tier 3 — silent data loss:** V8
-- **Tier 4 — kills adoption, not the mechanism:** V5, V6, V7
+Gates are grouped into the same **tiers** used in `CLAUDE.md` and
+`RISKS.md`, so the three agree:
 
-The V-numbers are stable identifiers, not a priority order — read the tier, not
-the number. **The meta-rule: no component gets built on top of an unvalidated
-gate it depends on.** The dependency map is at the bottom.
+- **Tier 1, no product if these fail:** V0, V1, V1b
+- **Tier 2, a core promise breaks (recoverable):** V4, V3, V2
+- **Tier 3, silent data loss:** V8
+- **Tier 4, kills adoption, not the mechanism:** V5, V6, V7
+
+The V-numbers are fixed names, not a priority order. Read the tier, not the
+number. **The meta-rule: nothing gets built on top of a gate it depends on
+until that gate is proven.** The dependency map is at the bottom.
 
 **Method note (2026-08-22): spoof everything spoofable.** Each gate splits
-into a part testable without the real thing — detection logic against
-fabricated objects, replays of captured real-machine enumerations
-(`-DumpMachine` → `evaluate/windows/corpus/`), spoofed devices in VMs — and
-an unspoofable residue that only a real machine or primary source can close.
-The spoofable part gets automated tests that run on every `-SelfTest`; the
-residue is what the gate's **Pass** line means. A green simulation narrows a
-gate; it never closes one, because the simulation is built from the very
-model of the hardware the gate exists to question. CLAUDE.md rule #5 carries
-the full statement.
+in two:
+
+1. **The part we can test without the real thing.** Detection logic fed
+   made-up objects, replays of recorded real machines (`-DumpMachine` →
+   `evaluate/windows/corpus/`), and fake devices inside virtual machines.
+   This part gets automated tests that run on every `-SelfTest`.
+2. **The residue.** What only a real machine or a primary source can
+   settle. The residue is what a gate's **Pass** line means.
+
+A green simulation narrows a gate. It never closes one, because the
+simulation is built from our own model of the hardware, and that model is
+exactly what the gate is there to question. CLAUDE.md rule #5 has the full
+statement.
+
+A few words used all through this file:
+
+- **The rig** is our test bench of virtual machines: QEMU with OVMF (a free
+  UEFI firmware) under `rig/vm/`, and Hyper-V under `rig/hyperv/`.
+- **`pass-plumbing`** means the pipes all connect on the rig. It is not a
+  pass on real hardware.
+- **Row N** of a CSV in `docs/validation-results/` is one recorded run. Rows
+  are written by scripts, never by hand.
+- **SB** is Secure Boot, the firmware feature that only starts signed boot
+  code.
+
+### Where each gate stands
+
+```text
+[####]  real machine   [###.]  rig   [##..]  built, untried
+[#...]  planned        [....]  not started   [FAIL]  failed for real
+```
+
+| Gate | State | In one line |
+|---|---|---|
+| V0 boot handoff | `[####]` 1 vendor | Acer fired once, SB on. Dell, Lenovo, HP and the real-firmware fail-safe rows owed |
+| V1 unattended install | live boot `[####]`, install `[###.]` | physical live boot SB on (row 4); the physical install is owed |
+| V1b alongside install | `[###.]` | rig passes, SB off; physical SB-on install needs a machine other than the Aspire |
+| V2 amp firmware | `[....]` | experiment on the G16 not run |
+| V3 BitLocker read | `[###.]` | all three configs byte-identical via ntfs-3g; real disks owed |
+| V4 disks shrink | `[####]` 1 disk | the Aspire's answer is no (best 9.5 of 25 GB); the population count needs ~20 elevated reports |
+| V9 erase and install | rig `[###.]`, real `[FAIL]` | run 9 came up at a text login (fixed); physical re-run owed |
+| V8 OneDrive placeholders | `[###.]` | cfapi provider `pass-plumbing` on the rig and the G16; signed-in OneDrive owed |
+| V5 VMD detection | plumbing `[###.]`, AHCI row `[####]` | the RST/VMD row on real hardware is owed |
+| V6 code signing | `[....]` | calendar-bound, not started |
+| V7 scanner generalizes | `[....]` | needs the public release and reports |
 
 ---
 
-# Tier 1 — no product if these fail
+# Tier 1: no product if these fail
 
-## V0 — The boot handoff fires · kills: walk-away itself · RISKS R15
+## V0: The boot handoff fires · kills: walk-away itself · RISKS R15
 
-**VM leg fired (2026-08-23).** On the QEMU+OVMF rig (`rig/vm/`) the baseline
-SB-off run records `fired-once`: one-time boot, payload ran, Windows returned
-no-keypress, one-shot self-cleared. Two bugs fixed en route (payload `fs0:`
-marker misdirection; harness counting its own test entry as a reorder) — both
-would have hit the physical test too; see RISKS R15.
+**What this gate is about.** The whole walk-away promise rests on one
+command: `bcdedit /set {fwbootmgr} bootsequence`. `bcdedit` is Windows' tool
+for editing its boot settings. That command asks the firmware to boot the
+USB stick exactly once, on the next restart only. It has to work on firmware
+from vendors who have never heard of us. Evidence before 2026-09-08: zero
+machines.
 
-**Hyper-V Gen 2 leg fired (2026-08-30).** On `rig/hyperv/` (real Secure Boot,
-vTPM, stick as SCSI VHDX): row 3 — Secure Boot refused the unsigned payload,
-`ignored`, fail-safe held; row 5 — BitLocker on, suspension armed,
-`fired-once`, no recovery prompt; row 6 — `NoSuspend`, `fired-once` with **no
-recovery prompt**, the pre-registered finding recorded verbatim (the one-shot
-resets before Windows boots, so the PCRs at unseal time are unchanged; see
-R15). Row 4 is not meaningful on Hyper-V (its Windows-only Secure Boot db
-refuses shim at the firmware). Remaining: the physical vendor matrix — the
-removable-USB clause no VM has, and whether any vendor firmware measures the
-one-shot into a sealed PCR. A VM pass narrows V0, it does not close it.
+**VM leg fired (2026-08-23).** On the QEMU+OVMF rig (`rig/vm/`), the
+baseline SB-off run records `fired-once`: one-time boot, the payload ran,
+Windows came back with no keypress, and the one-shot entry cleared itself.
+Two bugs were fixed on the way, and both would have hit the physical test
+too (see RISKS R15):
 
-**PHYSICAL LEG OPENED — the first real machine fired (2026-09-08).** Acer
+- the payload's `fs0:` marker went to the wrong place;
+- the harness counted its own test entry as a reorder.
+
+**Hyper-V Gen 2 leg fired (2026-08-30).** On `rig/hyperv/` (real Secure
+Boot, a virtual TPM, the stick as a SCSI VHDX):
+
+- **Row 3:** Secure Boot refused the unsigned payload. Result `ignored`,
+  and the fail-safe held.
+- **Row 5:** BitLocker on, suspension armed, `fired-once`, no recovery
+  prompt.
+- **Row 6:** `NoSuspend`, `fired-once` with **no recovery prompt**. The
+  finding we registered in advance is recorded word for word: the one-shot
+  resets before Windows boots, so the PCRs (the TPM's boot measurements
+  that BitLocker's key is sealed against) are unchanged at unseal time. See
+  R15.
+- **Row 4** means nothing on Hyper-V. Its Windows-only Secure Boot database
+  refuses shim (the small signed loader Linux uses to boot under Secure
+  Boot) at the firmware.
+
+Remaining after that: the physical vendor matrix. That covers the
+removable-USB clause no VM has, and whether any vendor's firmware measures
+the one-shot into a sealed PCR. A VM pass narrows V0. It does not close it.
+
+**PHYSICAL LEG OPENED: the first real machine fired (2026-09-08).** Acer
 Aspire A515-51G, firmware V1.21, **Secure Boot on**, BitLocker off, Windows
-11 Home 22631: the signed shim payload one-time-booted, recorded itself into
-`grubenv`, the one-shot self-cleared, the boot order was intact and Windows
-returned **with no keypress** — `fired-once`, `keypress_free=y`. It ran
-through the one-click `-Auto` flow end to end (`RUN-TEST.cmd`: one
-double-click, one UAC consent, then the machine did the rest, including the
-return check that classified and cleaned up after the reboot). Row in
-`v0-handoff.csv`, `mode=auto`. This is the project's **first evidence from
-physical hardware** on any gate, and it is the removable-USB clause no VM
-could reach. It does not close V0: one vendor is not a matrix, and the
-fail-safe rows (`NoFile`, `SecureBootUnsigned`) have still never run on real
-firmware.
+11 Home 22631.
 
-The entire walk-away promise rests on `bcdedit /set {fwbootmgr} bootsequence`
-booting a USB stick exactly once, on firmware from vendors who have never
-heard of us. Evidence before 2026-09-08: zero machines.
+- The signed shim payload booted once and recorded itself into `grubenv`.
+- The one-shot cleared itself and the boot order was intact.
+- Windows came back **with no keypress**: `fired-once`, `keypress_free=y`.
+- It ran through the one-click `-Auto` flow end to end. `RUN-TEST.cmd`
+  needed one double-click and one UAC consent, then the machine did the
+  rest, including the return check that classified the result and cleaned
+  up after the reboot.
 
-**Experiment.** Week one in a VM: OVMF UEFI, Windows guest, attach a stick
-image as USB, run the four bcdedit commands, reboot. Then the physical
-matrix: the ASUS G16 plus borrowed machines from at least three other vendors
-(Dell, Lenovo, HP are the population). For each: does the stick boot exactly
-once; after a deliberate live-environment failure, does the machine boot
-Windows normally with no user action? **And, from 2026-09-13, the
-walk-away resume** (RISKS R24): does the SYSTEM startup task fire with
-nobody signed in and see the stick — `RUN-PROBE.cmd`, read-only, one
-restart, one `walkaway-probe.csv` row per vendor, the same half-hour visit.
-**And, from 2026-09-13, the storage-mode visit** (V5): `RUN-STORAGE-MODE.cmd`
-on any Intel machine whose setup has a SATA Mode option — one click, the
-setup screen twice, a Safe Mode sign-in twice — fills that vendor's
-`v5-controller-mode.csv` rows in the same visit.
+The row is in `v0-handoff.csv`, `mode=auto`. This is the project's **first
+evidence from physical hardware** on any gate, and it reaches the
+removable-USB clause no VM could. It does not close V0. One vendor is not a
+matrix, and the fail-safe rows (`NoFile`, `SecureBootUnsigned`) have still
+never run on real firmware.
 
-**Pass.** Fires on all tested firmware, or fails *safe* (Windows boots) on
-the ones where it doesn't — with the failure detectable so the tool can say
-so instead of silently doing nothing.
+**Experiment.** Week one in a VM: OVMF UEFI, a Windows guest, a stick image
+attached as USB, the four bcdedit commands, reboot. Then the physical
+matrix: the ASUS G16 plus borrowed machines from at least three other
+vendors (Dell, Lenovo and HP are the population). For each machine:
 
-**If it fails.** Fallback is one manual step: "when it restarts, press the
-key we show you." Walk-away degrades from perfect to press-one-key. Survivable
-but the interface, docs and marketing all change — which is why this is V0.
+- Does the stick boot exactly once?
+- After a deliberate failure in the live environment, does the machine boot
+  Windows normally with no user action?
+- **From 2026-09-13, the walk-away resume** (RISKS R24): does the SYSTEM
+  startup task fire with nobody signed in, and see the stick?
+  `RUN-PROBE.cmd` does this read-only with one restart, and writes one
+  `walkaway-probe.csv` row per vendor, in the same half-hour visit.
+- **From 2026-09-13, the storage-mode visit** (V5): `RUN-STORAGE-MODE.cmd`
+  on any Intel machine whose setup has a SATA Mode option. One click, the
+  setup screen twice, a Safe Mode sign-in twice, and it fills that vendor's
+  `v5-controller-mode.csv` rows in the same visit.
 
-**How to run.** The harness is `upgrade_/windows/Test-Handoff.ps1` (arm /
-reboot / check, with `-FailMode` for the deliberate-failure paths); build the
-stick per `upgrade_/windows/handoff-payload/README.md`; evidence lands in
+**Pass.** It fires on all tested firmware, or fails *safe* (Windows boots)
+on the ones where it doesn't. The failure must be detectable, so the tool
+can say so instead of silently doing nothing.
+
+**If it fails.** The fallback is one manual step: "when it restarts, press
+the key we show you." Walk-away drops from perfect to press-one-key. We
+survive that, but the interface, the docs and the marketing all change.
+That is why this is V0.
+
+**How to run.** The harness is `upgrade_/windows/Test-Handoff.ps1` (arm,
+reboot, check, with `-FailMode` for the deliberate-failure paths). Build the
+stick per `upgrade_/windows/handoff-payload/README.md`. Evidence lands in
 `docs/validation-results/v0-handoff.csv`.
 
-**Physical leg — readiness decided (2026-09-07).** V0 is the one gate ready
-for a live run on a real machine: the mechanism is reversible (one BCD entry,
-exported first, removed by `-Check` regardless of outcome), no disk is
-written, and the harness has fired on two VM firmwares (six rows, including
-the fail-safe and BitLocker rows). What goes on the stick is built and
-verified by `./make-kit.sh` (`dist/kit/stick-shell`, `dist/kit/stick-shim`;
-run-book in `README-STICK.txt` on the stick). Harness 0.2.0 owed three things
-before a physical machine and has them: it reads BitLocker state through
-`manage-bde` when the PowerShell module is absent (Home editions), refuses to
-arm on an unknown state or on BitLocker-on-without-suspension, and the shim
-payload self-records through `grubenv` so the Secure-Boot-on row is
-harness-classified, not observed. Harness **0.3.0 adds the one-click
-(fully managed) flow** — `RUN-TEST.cmd`: one double-click, one UAC "Yes",
-then `-Arm -Auto` registers an elevated logon task that runs the return
-check itself after the reboot, classifies, cleans up, asks one popup
-question (times out to `unknown`) and writes the row to the stick. The
-0.2.0 baseline, the self-recording shim payload, and the 0.3.0 auto flow
-all fired on the QEMU rig (three `fired-once` rows, SB off, plumbing only). A physical row is transported
-verbatim from the stick's CSV, and every physical run leaves a
-`-DumpMachine` capture for `evaluate/windows/corpus/`. First target: the
-Acer Aspire A515-51G.
+**Physical leg: readiness decided (2026-09-07).** V0 is the one gate ready
+for a live run on a real machine:
 
-## V1 — Unattended install completes, Secure Boot on · kills: the conversion
+- The mechanism can be undone: one BCD entry (BCD is Windows' boot
+  configuration store), exported first, and removed by `-Check` whatever
+  the outcome.
+- No disk is written.
+- The harness has fired on two VM firmwares (six rows, including the
+  fail-safe and BitLocker rows).
 
-The second half of the spine, and the shared base both paths need: a
-custom-composed live stick (Fedora's signed shim/GRUB/kernel, untouched) boots
-with Secure Boot enabled and kickstart drives Anaconda to a login screen with
-zero human input.
+What goes on the stick is built and checked by `./make-kit.sh`
+(`dist/kit/stick-shell`, `dist/kit/stick-shim`; the run-book is
+`README-STICK.txt` on the stick).
 
-**Experiment.** Same spike as V0 — they are one build-order item. VM with
-Secure Boot enforcing, then the physical matrix. This gate covers the base
-install to a login screen; the alongside-specific concerns are V1b.
+Harness 0.2.0 owed three things before a physical machine, and has them:
+
+1. It reads BitLocker state through `manage-bde` when the PowerShell module
+   is missing (Home editions).
+2. It refuses to arm on an unknown state, or on BitLocker on without
+   suspension.
+3. The shim payload records itself through `grubenv`, so the
+   Secure-Boot-on row is classified by the harness, not by someone watching.
+
+Harness **0.3.0 adds the one-click (fully managed) flow**, `RUN-TEST.cmd`:
+one double-click, one UAC "Yes", then `-Arm -Auto` registers an elevated
+logon task. After the reboot that task runs the return check itself,
+classifies, cleans up, asks one popup question (it times out to `unknown`)
+and writes the row to the stick. The 0.2.0 baseline, the self-recording
+shim payload and the 0.3.0 auto flow all fired on the QEMU rig (three
+`fired-once` rows, SB off, plumbing only).
+
+A physical row is copied word for word from the stick's CSV, and every
+physical run leaves a `-DumpMachine` capture for `evaluate/windows/corpus/`.
+First target: the Acer Aspire A515-51G.
+
+## V1: Unattended install completes, Secure Boot on · kills: the conversion
+
+The second half of the spine, and the base both paths share. A
+custom-composed live stick (Fedora's signed shim, GRUB and kernel,
+untouched) boots with Secure Boot on. Then a **kickstart** (Fedora's
+answer file, which tells the installer what to do) drives **Anaconda**
+(Fedora's installer) to a login screen with zero human input.
+
+**Experiment.** The same spike as V0: they are one build-order item. A VM
+with Secure Boot enforcing, then the physical matrix. This gate covers the
+base install to a login screen. The concerns specific to installing next to
+Windows are V1b.
 
 **Reversible half fired on the rig (2026-09-08).** The vertical's first
 live boot: `rig/hyperv/v1.sh run`, row 2 of
-`docs/validation-results/v1-live-boot.csv`, `pass-plumbing`. The V0 harness
-armed the one-shot exactly as `RUN-TEST.cmd` does; the stick (the kit plus
-`upgrade_/{job.json,ks.cfg,boot-verify}`) booted shim → GRUB, which
-recorded the marker and started the **unmodified** Fedora 42 installer
-kernel and stage2 from the stick with `inst.ks=` and `upg.mode=verify`;
-`%pre` ran `upgrade_/linux/verify.sh`, which matched the job's disk by
-unique id (`scsi-3600224802f9d…` → `/dev/sda`) and exact size, saw the
-display driving 1024×768, found the Windows ESP on `sda1`, wrote the
-keep-windows storage `%include`, put `verify.json` on the stick and
-rebooted; Windows came back on its own and the return check wrote its
-row. Nothing installed, internal disk untouched. Row 1 is the same run's
-first attempt, `verify-incomplete` (a bug in the report writer, fixed).
-Secure Boot was **off** (Hyper-V's template refuses shim — the usual rig
-clause); the chain is the simpler shape named below, not a composed image,
-so the "custom-composed live stick" half of this gate is now the *desktop
-squashfs* the kickstart's `liveimg` points at — **on the stick since
-2026-09-09** (row 3, `pass-plumbing`): Fedora's own Workstation and KDE
-live `squashfs.img`, unmodified, verified against Fedora's published ISO
-hashes at fetch (`rig/vm/fetch-desktops.sh`), shipped by `make-kit.sh`
-(the kit is 5.3 GB), named with `--checksum=` in the kickstart, and read
-back byte-for-byte against the stick's manifest by `%pre` in the live
-session before anything is decided. What this gate still lacks is the
-install itself — the destructive half — and Secure Boot on.
+`docs/validation-results/v1-live-boot.csv`, `pass-plumbing`. Step by step:
+
+1. The V0 harness armed the one-shot exactly as `RUN-TEST.cmd` does.
+2. The stick (the kit plus `upgrade_/{job.json,ks.cfg,boot-verify}`) booted
+   shim → GRUB. GRUB recorded the marker and started the **unmodified**
+   Fedora 42 installer kernel and stage2 from the stick, with `inst.ks=`
+   and `upg.mode=verify`.
+3. `%pre` (the kickstart's script that runs before anything is installed)
+   ran `upgrade_/linux/verify.sh`. It matched the job's disk by unique id
+   (`scsi-3600224802f9d…` → `/dev/sda`) and exact size, saw the display
+   driving 1024×768, and found the Windows ESP on `sda1`. (The **ESP** is
+   the small EFI System Partition that holds every OS's boot files.)
+4. It wrote the keep-windows storage `%include`, put `verify.json` on the
+   stick and rebooted.
+5. Windows came back on its own, and the return check wrote its row.
+
+Nothing was installed and the internal disk was untouched. Row 1 is the same
+run's first attempt, `verify-incomplete` (a bug in the report writer,
+fixed).
+
+Secure Boot was **off** (Hyper-V's template refuses shim, the usual rig
+clause). The chain is the simpler shape named under "If it fails" below,
+not a composed image. So the "custom-composed live stick" half of this gate
+is now the *desktop squashfs* (a compressed read-only disk image of the
+desktop) that the kickstart's `liveimg` points at. It has been **on the
+stick since 2026-09-09** (row 3, `pass-plumbing`):
+
+- Fedora's own Workstation and KDE live `squashfs.img`, unmodified;
+- checked against Fedora's published ISO hashes when fetched
+  (`rig/vm/fetch-desktops.sh`);
+- shipped by `make-kit.sh` (the kit is 5.3 GB);
+- named with `--checksum=` in the kickstart;
+- read back byte for byte against the stick's manifest by `%pre` in the
+  live session, before anything is decided.
+
+What this gate still lacks is the install itself (the destructive half),
+and Secure Boot on.
 
 **First physical row, Secure Boot ON (2026-09-12).** Acer Aspire A515-51G
-(InsydeH2O V1.21, now Windows 11 Home 22631), the one-click
-`RUN-VERIFY.cmd` from the stick: scanner → job writer (`New-Job.ps1`) →
-kickstart → handoff. Row 4 of `v1-live-boot.csv`, `pass-plumbing` with
-`secureboot=on`: `fired-once`, no keypress; the unmodified Fedora installer
-booted through shim with the firmware's Secure Boot variable reading 1
-inside the live session; identity matched **by serial** (Windows reports
-an ATA disk's unique id as padded model+serial text, not hex — the
-verifier's hex match correctly found nothing and the serial vote found
-`ata-HFS256G39TND-N210A_…`) with the size exact, on a machine that also
-carries a second 1 TB disk with an Ubuntu install the check had to not
-pick; display 1920×1080 on HDMI; **Wi-Fi checked for the first time**
-(`wlp3s0` scanned 28 networks); the 2.6 GB KDE image read back
-byte-identical at **22.6 MB/s** — the honest number for that stick's
-time estimate; Windows returned by itself. The job writer forced
-**clean-slate**: this C: still carries the NTFS dirty flag (RISKS R18 —
-unchanged since 2026-09-08), so shrink is unmeasurable and keep-Windows
-cannot be offered; the ESP (100 MiB, 46 MB free) and disk health would
-have allowed it. Nothing installed.
+(InsydeH2O V1.21, now Windows 11 Home 22631), the one-click `RUN-VERIFY.cmd`
+from the stick: scanner → job writer (`New-Job.ps1`) → kickstart →
+handoff. Row 4 of `v1-live-boot.csv`, `pass-plumbing` with
+`secureboot=on`:
 
-**Pass.** Hands-off from power-on to login, Secure Boot still enabled.
+- `fired-once`, no keypress.
+- The unmodified Fedora installer booted through shim, with the firmware's
+  Secure Boot variable reading 1 inside the live session.
+- Identity matched **by serial**. Windows reports an ATA disk's unique id
+  as padded model+serial text, not hex. The verifier's hex match correctly
+  found nothing, and the serial vote found `ata-HFS256G39TND-N210A_…`, with
+  the size exact. This machine also has a second 1 TB disk with an Ubuntu
+  install, which the check had to not pick.
+- Display 1920×1080 on HDMI.
+- **Wi-Fi checked for the first time:** `wlp3s0` scanned 28 networks.
+- The 2.6 GB KDE image read back byte-identical at **22.6 MB/s**. That is
+  the honest number for this stick's time estimate.
+- Windows came back by itself.
+
+The job writer forced **clean-slate**. This C: still carries the NTFS dirty
+flag (RISKS R18, unchanged since 2026-09-08), so shrink cannot be measured
+and keep-Windows cannot be offered. The ESP (100 MiB, 46 MB free) and disk
+health would have allowed it. Nothing installed.
+
+**Pass.** Hands-off from power-on to login, Secure Boot still on.
 
 **If it fails.** A known simpler shape exists: ship the *unmodified* Fedora
-ISO on one partition and the kickstart on a second volume labeled `OEMDRV`,
-which Anaconda picks up automatically. Less control, much less image
-engineering, same signed chain. If custom composition fights us, fall back to
-that rather than fighting. (2026-09-08: this is the shape the vertical
-uses, with `inst.ks=` on the stick itself instead of an OEMDRV volume.)
+ISO on one partition, and the kickstart on a second volume labelled
+`OEMDRV`, which Anaconda picks up by itself. Less control, much less image
+work, the same signed chain. If custom composition fights us, fall back to
+that rather than fighting. (2026-09-08: this is the shape the vertical uses,
+with `inst.ks=` on the stick itself instead of an OEMDRV volume.)
 
-## V1b — Installing alongside a shrunk Windows leaves Windows bootable · kills: the default path's safety net · RISKS R21
+## V1b: Installing alongside a shrunk Windows leaves Windows bootable · kills: the default path's safety net · RISKS R21
+
+**Why it has its own gate.** The default keep-Windows path installs Linux
+into space freed from Windows, and **must leave the shrunk Windows fully
+bootable**. Windows is both the way back and the source of the person's
+files. This is harder than the wipe install, and since the redesign it is
+the common case, not a "variant" of V1. It earns its own Tier 1 gate.
 
 **The converter's own install ran it (2026-09-10).** Not a bench kickstart
-this time but the product's: `New-Kickstart.ps1` from a schema-valid job,
-`%pre` `verify.sh` (identity, image read-back, ESP snapshot to the stick,
-storage include), `liveimg` from the stick's KDE squashfs into the space
-behind the shrunk C: reusing the 100 MiB Windows ESP unformatted, `%post`
-`outcome.sh` (the R21 checklist, `outcome.json`). Row 3 of
-`docs/validation-results/v2-install.csv`, `pass-plumbing`: install in
-about four minutes; `bootmgfw.efi` byte-identical before, after and across
-four boot cycles; no Microsoft boot file changed; ESP +17 files / 19 MB;
-Windows Boot Manager entry kept by the firmware, Fedora first in BootOrder,
-GRUB listing Windows; **shim in the fallback slot with Windows' copy in the
-144-file snapshot on the stick** — the decided design, so this is the
-`pass-plumbing` the V1b vocabulary reserves for "once the converter's own
-install step is what runs"; Windows booted through GRUB twice and Fedora
-twice, markers on the stick. Rows 1–2 are the same run failing at the
-outcome writer (a shell boolean in Python; then the kept partition looked
-up by filesystem name — a BitLocker volume says `BitLocker`, not `ntfs`)
-and the schema refusing the result, which is what the schema is for.
-Secure Boot off (Hyper-V template clause); the physical SB-on install
-remains the residue - and it needs a machine other than the Aspire, where
-keep-Windows is refused (runs 5-7, RISKS R18) and which keeps its dying
-drive by decision (2026-09-20). **2026-09-12:** the same install ran once more as
-the tail of the prologue's own run (`v2-install.csv` row 4, `pass-plumbing`;
-`r18-prologue.csv` row 4), i.e. the conversion end to end from the one
-typed word: disk check → shrink → handoff → install → cycles; and the
-restore half of the snapshot fired (`r21-rollback.csv` row 1).
+this time, but the product's own:
 
-**VM leg fired (2026-08-27).** On the QEMU+OVMF rig (`rig/vm/v1b.sh`, SB off —
-the only mode this host can run): C: shrunk 32 GiB, Fedora 42 kickstarted into
-the gap reusing the Windows ESP unformatted, and all five checks held — ESP
-had room (+6.2 MB, 260 MiB ESP), `bootmgfw.efi` byte-identical throughout,
-Windows reached through the GRUB menu three times (its own `BootCurrent`
-named Fedora's entry), Linux booted five times, every cycle a fresh QEMU.
-Recorded as `fallback-loader-replaced`, not a bare pass: the install
-overwrote Windows' `EFI/Boot/bootx64.efi` with shim, and the run also caught
-Windows re-taking the boot order after a servicing pass and the firmware
-dropping OS boot entries — five design inputs, detailed in RISKS R21. Row:
-`docs/validation-results/v1b-alongside.csv`. Remaining: the Secure-Boot-on
-chainload (the MOK experiment on a UEFI-CA-template Hyper-V guest), and the
-physical vendor matrix — a VM pass narrows V1b, it does not close it.
+- `New-Kickstart.ps1` from a schema-valid job;
+- `%pre` `verify.sh`: identity, image read-back, a snapshot of the ESP to
+  the stick, the storage include;
+- `liveimg` from the stick's KDE squashfs into the space behind the shrunk
+  C:, reusing the 100 MiB Windows ESP without reformatting it;
+- `%post` (the kickstart's script after the install) `outcome.sh`: the R21
+  checklist and `outcome.json`.
 
-**Hyper-V leg fired — the ~100 MiB ESP row (2026-08-31).** On `rig/hyperv/`
-(Hyper-V UEFI v4.1, SB off — the guest's Windows-only Secure Boot template
-refuses shim), Windows Setup's default 100 MiB ESP took the same 6.2 MB
-install with 63 MiB still free, all five checks held, and the result is
-`fallback-loader-replaced` again (shim replaced `EFI/Boot/bootx64.efi` on a
-second firmware). New evidence: BitLocker (TPM-sealed, XtsAes128) survived
-the whole flow — suspend once before the installer, protection auto-resumes
-and re-seals against the GRUB path, the next chainloaded boot unseals
-silently, no recovery prompt anywhere; and Hyper-V's UEFI *kept* the Windows
-`Boot####` entry where OVMF had deleted them all. Findings 1, 4 and 5
-reproduced; RISKS R21 has the detail. Row 2 in `v1b-alongside.csv`.
+Row 3 of `docs/validation-results/v2-install.csv`, `pass-plumbing`:
 
-**Hyper-V leg — the Secure-Boot-on chainload fired (2026-08-31).** Second
-guest on the UEFI-CA template, Fedora alongside-installed under SB enforcing,
-the Windows Production PCA (from `bootmgfw.efi`'s own signature) enrolled into
-shim's MokList. Negative: PCA not enrolled → GRUB chainload refused
-(`bad shim signature`). Positive: PCA enrolled → Windows boots to the desktop,
-SB enforcing confirmed from Fedora and Windows. Proves the chainload
-*verification* only — not a both-CA db (Hyper-V can't express one) nor the
-vendor matrix. Record: `validation-results/v1b-mok-chainload-2026-08-31.md`;
-RISKS R21.
+- the install took about four minutes;
+- `bootmgfw.efi` (Windows' boot loader) was byte-identical before, after
+  and across four boot cycles;
+- no Microsoft boot file changed; the ESP gained 17 files / 19 MB;
+- the firmware kept the Windows Boot Manager entry, Fedora was first in
+  BootOrder, and GRUB listed Windows;
+- **shim sits in the fallback slot, with Windows' copy in the 144-file
+  snapshot on the stick.** That is the decided design, so this is the
+  `pass-plumbing` the V1b vocabulary reserves for "once the converter's own
+  install step is what runs";
+- Windows booted through GRUB twice and Fedora twice, with markers on the
+  stick.
 
-**Decided (2026-08-30)** from those findings (RISKS R21 has the list): shim
-keeps the fallback slot and rollback restores Windows' copy from a snapshot
-the prologue takes; post-install boot-chain verification is a cutover step
-with results in `outcome.json`; os-prober set explicitly; `evaluate` gates on
-≥ 32 MiB free on the ESP; the boot-order takeover is its own risk (R22) with
-a settle-in re-assert unit. **Owed code, landed 2026-08-30:** the scanner's
-ESP check — "Boot partition (ESP)": free space ≥ 32 MiB and the Windows Boot
-Manager entry points at the mounted ESP, elevated only like the shrink query,
-collect/judge seam, six self-test cases (see RISKS R21 item 4). The bench row
-turns `pass-plumbing` only once the converter's own install step runs on it.
+Rows 1-2 are the same run failing at the outcome writer, then the schema
+refusing the result, which is what the schema is for. The two bugs: a shell
+boolean passed into Python, and the kept partition looked up by filesystem
+name (a BitLocker volume says `BitLocker`, not `ntfs`).
 
-The default keep-Windows path installs Linux into freed space and **must leave
-the shrunk Windows fully bootable**, because Windows is both the rollback and
-the file source. This is harder than the wipe install and, since the redesign,
-it is the common case — not a "variant" of V1. It earns its own Tier-1 gate.
+Secure Boot was off (the Hyper-V template clause). The physical SB-on
+install remains the residue, and it needs a machine other than the Aspire.
+Keep-Windows is refused there (runs 5-7, RISKS R18), and the Aspire keeps
+its dying drive by decision (2026-09-20).
 
-**Experiment.** Alongside install on real machines from several vendors,
-Secure Boot on: `--onpart` into the freed space, **reuse the existing Windows
-ESP without reformatting it**, add shim + GRUB, run `os-prober`. Check each of:
-the ~100 MB Windows-made ESP had room for the added entries; `bootmgfw.efi` is
-untouched; Windows still boots from the GRUB menu; Linux boots; both survive a
-few power cycles.
+**2026-09-12:** the same install ran once more as the tail of the
+prologue's own run (`v2-install.csv` row 4, `pass-plumbing`;
+`r18-prologue.csv` row 4). That is the conversion end to end from the one
+typed word: disk check → shrink → handoff → install → cycles. The restore
+half of the snapshot also fired (`r21-rollback.csv` row 1).
+
+**VM leg fired (2026-08-27).** On the QEMU+OVMF rig (`rig/vm/v1b.sh`, SB
+off, the only mode this host can run): C: shrunk by 32 GiB, Fedora 42
+kickstarted into the gap reusing the Windows ESP unformatted. All five
+checks held:
+
+- the ESP had room (+6.2 MB, on a 260 MiB ESP);
+- `bootmgfw.efi` stayed byte-identical throughout;
+- Windows was reached through the GRUB menu three times (its own
+  `BootCurrent` named Fedora's entry);
+- Linux booted five times;
+- every cycle was a fresh QEMU.
+
+It is recorded as `fallback-loader-replaced`, not a bare pass. The install
+overwrote Windows' `EFI/Boot/bootx64.efi` with shim. The run also caught
+Windows taking the boot order back after a servicing pass, and the firmware
+dropping OS boot entries. Five design inputs in all, detailed in RISKS R21.
+Row: `docs/validation-results/v1b-alongside.csv`. Remaining: the
+Secure-Boot-on chainload (the MOK experiment on a UEFI-CA-template Hyper-V
+guest), and the physical vendor matrix. A VM pass narrows V1b. It does not
+close it.
+
+**Hyper-V leg fired: the ~100 MiB ESP row (2026-08-31).** On `rig/hyperv/`
+(Hyper-V UEFI v4.1, SB off, because the guest's Windows-only Secure Boot
+template refuses shim). Windows Setup's default 100 MiB ESP took the same
+6.2 MB install with 63 MiB still free. All five checks held, and the result
+is `fallback-loader-replaced` again (shim replaced `EFI/Boot/bootx64.efi` on
+a second firmware). New evidence:
+
+- BitLocker (TPM-sealed, XtsAes128) survived the whole flow. Suspend once
+  before the installer; protection resumes by itself and re-seals against
+  the GRUB path; the next chainloaded boot unseals silently. No recovery
+  prompt anywhere.
+- Hyper-V's UEFI *kept* the Windows `Boot####` entry, where OVMF had
+  deleted them all.
+
+Findings 1, 4 and 5 reproduced; RISKS R21 has the detail. Row 2 in
+`v1b-alongside.csv`.
+
+**Hyper-V leg: the Secure-Boot-on chainload fired (2026-08-31).**
+"Chainload" means GRUB handing over to Windows' own boot loader. A second
+guest on the UEFI-CA template, Fedora installed alongside under SB
+enforcing. The Windows Production PCA (taken from `bootmgfw.efi`'s own
+signature) was enrolled into shim's MokList (MOK is shim's own list of
+extra trusted keys).
+
+- **Negative:** PCA not enrolled → GRUB's chainload refused
+  (`bad shim signature`).
+- **Positive:** PCA enrolled → Windows boots to the desktop, SB enforcing
+  confirmed from both Fedora and Windows.
+
+This proves the chainload *verification* only. It does not prove a both-CA
+database (Hyper-V can't express one), nor the vendor matrix. Record:
+`validation-results/v1b-mok-chainload-2026-08-31.md`; RISKS R21.
+
+**Decided (2026-08-30)** from those findings (RISKS R21 has the list):
+
+- shim keeps the fallback slot, and rollback restores Windows' copy from a
+  snapshot the prologue takes;
+- checking the boot chain after the install is a cutover step, with results
+  in `outcome.json`;
+- os-prober (the tool that finds other OSes for GRUB's menu) is set
+  explicitly;
+- `evaluate` gates on ≥ 32 MiB free on the ESP;
+- the boot-order takeover is its own risk (R22), with a settle-in unit that
+  re-asserts the order.
+
+**Owed code, landed 2026-08-30:** the scanner's ESP check, "Boot partition
+(ESP)". It needs free space ≥ 32 MiB and the Windows Boot Manager entry
+pointing at the mounted ESP. Elevated only, like the shrink query, behind a
+collect/judge seam, with six self-test cases (see RISKS R21 item 4). The
+bench row turns `pass-plumbing` only once the converter's own install step
+runs on it.
+
+**Experiment.** Install alongside on real machines from several vendors,
+Secure Boot on: `--onpart` into the freed space, **reuse the existing
+Windows ESP without reformatting it**, add shim + GRUB, run `os-prober`.
+Check each of these:
+
+- the ~100 MB Windows-made ESP had room for the added entries;
+- `bootmgfw.efi` is untouched;
+- Windows still boots from the GRUB menu;
+- Linux boots;
+- both survive a few power cycles.
 
 **Pass.** After the install, *both* systems boot from the menu, Secure Boot
-still enabled, on every machine in the matrix.
+still on, on every machine in the matrix.
 
 **If it fails.** Machines whose firmware or ESP can't take the alongside
-install are steered to **clean slate** (which never shares an ESP — it wipes
-and lays down a fresh layout), and `evaluate` says so before committing. The
-default simply doesn't apply to those machines; the product still converts
-them, without the safety net.
+install are steered to **clean slate**, and `evaluate` says so before
+anything is committed. Clean slate never shares an ESP: it wipes and lays
+down a fresh layout. The default simply doesn't apply to those machines.
+The product still converts them, without the safety net.
 
-**How to run.** The bench is `rig/vm/v1b.sh` (run-book in `rig/vm/README.md`):
-offline disk inspections before/after (`v1b-inspect.py`), the guest-side
-shrink (`rig/vm/guest/v1b-shrink.ps1`), the kickstart (`rig/vm/v1b-ks.cfg`)
-auto-loaded from an OEMDRV volume, boot markers written by each OS, and
-`v1b.sh verdict` turning all of it into the CSV row. On a physical machine the
-same pieces apply with the machine's own disk in place of the qcow2 — the
-inspector needs a block-device reader instead of `qemu-img dd`.
+**How to run.** The bench is `rig/vm/v1b.sh` (run-book in
+`rig/vm/README.md`):
 
-# Tier 2 — a core promise breaks (recoverable, but the default is broken)
+- offline disk inspections before and after (`v1b-inspect.py`);
+- the shrink inside the guest (`rig/vm/guest/v1b-shrink.ps1`);
+- the kickstart (`rig/vm/v1b-ks.cfg`), loaded automatically from an OEMDRV
+  volume;
+- boot markers written by each OS;
+- `v1b.sh verdict`, which turns all of it into the CSV row.
 
-Three gates here, all recoverable failures that nonetheless break a core
-promise: **V4** (do disks shrink enough — gates whether the default path even
-applies), **V3** (the BITLK read that delivers files on the default path), and
-**V2** (firmware that makes speakers work). Kept in V-number order below.
+On a physical machine the same pieces apply, with the machine's own disk in
+place of the qcow2. The inspector then needs a block-device reader instead
+of `qemu-img dd`.
 
-## V2 — Extracted amp firmware makes speakers work · kills: the artifact pipeline
+# Tier 2: a core promise breaks (recoverable, but the default is broken)
 
-The docs' claim that `evaluate` must extract vendor firmware *now* because it
-"cannot be added later" assumes extraction works at all: that the right blobs
-can be pulled from the Windows driver store automatically and that the kernel
-accepts them. Evidence today: the community does this by hand; nobody has
-shown it end-to-end automated.
+Three gates here. All are failures we can recover from, but each breaks a
+core promise:
 
-**Experiment.** On the test G16 itself — it has the exact CS35L56 hardware
-the pipeline was designed for. Extract from its driver store, install Fedora
-manually, place the firmware, play a sound through the *speakers*. This
-validates extract → carry → inject on the hardware class that motivated it.
+- **V4:** do disks shrink enough? This decides whether the default path even
+  applies.
+- **V3:** the BITLK read that delivers files on the default path.
+- **V2:** firmware that makes the speakers work.
 
-**Pass.** Audible speakers using only firmware harvested from that machine's
-own Windows.
+They are kept in V-number order below.
 
-**If it fails.** The promise narrows: rely on linux-firmware upstream
-coverage, and the scanner tells 2023+ laptop owners the truth about their
-speakers instead of promising them. The "first impression is working
-hardware" claim gets a hardware-generation asterisk.
+## V2: Extracted amp firmware makes speakers work · kills: the artifact pipeline
 
-## V3 — cryptsetup BITLK reads · kills: the default path's file delivery · RISKS R19
+The docs say `evaluate` must extract vendor firmware *now* because it
+"cannot be added later". That assumes extraction works at all: that the
+right files ("blobs") can be pulled from the Windows driver store
+automatically, and that the Linux kernel accepts them. Evidence today: the
+community does this by hand. Nobody has shown it automated end to end.
 
-BitLocker is on by default on most machines the project targets. The
-keep-Windows path — now the default — delivers the user's files by reading the
-kept Windows partition through cryptsetup's BITLK support, in `settle-in`. The
-redesign made this *recoverable* (user present, Linux verified, Windows intact
-as backup — see R19), but if it's flaky the default experience is broken for
-everyone on modern BitLocker machines.
+**Experiment.** On the test G16 itself, which has the exact CS35L56 amp the
+pipeline was designed for. Extract from its driver store, install Fedora by
+hand, put the firmware in place, and play a sound through the *speakers*.
+This checks extract → carry → inject on the hardware class that motivated
+it.
 
-**Experiment.** Bench, all in VMs: Windows 11 with BitLocker defaults
-(XTS-AES-128, used-space-only), hash every file from inside Windows, attach
-the disk to Linux, unlock with the recovery key, re-hash, compare. Repeat for
-XTS-AES-256 and full-disk encryption. Thousands of files, byte-identical or
-it fails. Test from an *installed* Fedora (where `settle-in` runs), not only
-the live environment.
+**Pass.** Speakers you can hear, using only firmware taken from that
+machine's own Windows.
+
+**If it fails.** The promise narrows. We rely on what upstream
+`linux-firmware` covers, and the scanner tells owners of 2023+ laptops the
+truth about their speakers instead of promising them. The "first
+impression is working hardware" claim gets a hardware-generation asterisk.
+
+## V3: cryptsetup BITLK reads · kills: the default path's file delivery · RISKS R19
+
+BitLocker is on by default on most machines this project targets. The
+keep-Windows path (now the default) delivers the person's files by reading
+the kept Windows partition in `settle-in`, through cryptsetup's BITLK
+support. (cryptsetup is Linux's disk-encryption tool; BITLK is its BitLocker
+reader.) The redesign made a failure here *recoverable*: the person is
+present, Linux is verified, and Windows is intact as a backup (see R19). But
+if it's flaky, the default experience is broken for everyone on modern
+BitLocker machines.
+
+**Experiment.** On the bench, all in VMs:
+
+1. Windows 11 with BitLocker defaults (XTS-AES-128, used-space-only).
+2. Hash every file from inside Windows.
+3. Attach the disk to Linux, unlock it with the recovery key, hash again,
+   compare.
+4. Repeat for XTS-AES-256 and full-disk encryption.
+
+Thousands of files, byte-identical or it fails. Test from an *installed*
+Fedora (where `settle-in` runs), not only the live environment.
 
 **Pass.** Identical hashes across all three configurations.
 
-**If it fails.** Either decrypt-in-Windows-first (`manage-bde -off`; adds
-hours, works) or BitLocker machines get clean-slate only. Both survivable,
-both worse — and either changes the intent-capture UI, so we need the answer
-before that UI exists.
+**If it fails.** Either decrypt in Windows first (`manage-bde -off`: adds
+hours, works), or BitLocker machines get clean-slate only. Both are
+survivable, both are worse, and either one changes the intent-capture UI
+(the screens that ask what the person wants). So we need the answer before
+that UI exists.
 
 **VM leg fired (2026-09-01).** On the Hyper-V rig (`rig/hyperv/v3.sh`,
-run-book in `rig/hyperv/README.md`), from the V1b guest's *installed* Fedora
-42 against its own encrypted-then-shrunk Windows 10 C:: the recovery-password
-unlock works with every key-entry form cryptsetup offers, and a 2,850-file
-planted corpus plus everything under `C:\Users` read back **byte-identical
-through ntfs-3g**. The kernel `ntfs3` driver on the F42 install kernel
-(6.14.0-63) **oopsed in five runs out of five** and wedged the guest twice;
-on the current F42 kernel (6.19.14-108) it reads cleanly. Decided
-(2026-09-01): `settle-in` uses ntfs-3g — see RISKS R19 for the full list of
-findings (the size-mismatch warning every shrunk volume produces, the FIFO
-trap, app-exec aliases, the live-app churn that fakes mismatches). Rows:
-`docs/validation-results/v3-bitlk-read.csv` (one per driver per kernel per
-config). All three configs fired: XTS-AES-128 used-space-only on the guest's own
-C:; XTS-AES-256 used-space-only and XTS-AES-128 "full" built in the
-product's order (encrypt, then shrink) on copies of the pristine disk and
-read from the same installed Fedora as data disks — corpus 2,850/2,850
-byte-identical under every driver on the current kernel for all three, and
-every `Users` file identical except what Windows itself rewrote after the
-hash (the XTS-256 run's first rows say `mismatch` for one 330-byte crypt32
-URL-cache metadata entry that both Linux drivers read identically; the
-classifier learned that cache and the later rows for the same run supersede
-them — both stay in the CSV). Remaining, and no VM row closes it: real
-disks, Windows 11's BitLocker, physical machines — and "full-disk" as a real
-disk experiences it (the rig's thin VHDX never had its free space
-rewritten).
+run-book in `rig/hyperv/README.md`). Read from the V1b guest's *installed*
+Fedora 42, against its own encrypted-then-shrunk Windows 10 C:.
 
-**How to run.** `rig/hyperv/v3.sh run <config>` on a guest with the
+- The recovery-password unlock works with every key-entry form cryptsetup
+  offers.
+- A planted set of 2,850 files, plus everything under `C:\Users`, read back
+  **byte-identical through ntfs-3g** (the long-standing user-space NTFS
+  driver).
+- The kernel's `ntfs3` driver on the F42 install kernel (6.14.0-63)
+  **crashed (oopsed) in five runs out of five** and wedged the guest twice.
+  On the current F42 kernel (6.19.14-108) it reads cleanly.
+
+Decided (2026-09-01): `settle-in` uses ntfs-3g. See RISKS R19 for the full
+list of findings: the size-mismatch warning every shrunk volume produces,
+the FIFO trap, app-exec aliases, and the churn from running apps that fakes
+mismatches. Rows: `docs/validation-results/v3-bitlk-read.csv` (one per
+driver, per kernel, per config).
+
+All three configs fired:
+
+- XTS-AES-128 used-space-only, on the guest's own C:;
+- XTS-AES-256 used-space-only, and XTS-AES-128 "full", both built in the
+  product's order (encrypt, then shrink) on copies of the pristine disk, and
+  read from the same installed Fedora as data disks.
+
+For all three, on the current kernel, the planted files were 2,850/2,850
+byte-identical under every driver. Every `Users` file was identical except
+what Windows itself rewrote after the hash. (The XTS-256 run's first rows
+say `mismatch` for one 330-byte crypt32 URL-cache metadata entry that both
+Linux drivers read identically. The classifier learned that cache, and the
+later rows for the same run supersede them. Both stay in the CSV.)
+
+Remaining, and no VM row closes it: real disks, Windows 11's BitLocker,
+physical machines, and "full-disk" as a real disk experiences it (the rig's
+thin VHDX never had its free space rewritten).
+
+**How to run.** `rig/hyperv/v3.sh run <config>`, on a guest with the
 Fedora-side run hook installed (`guest/v3-bootstrap.sh`, once, from the
-console): builds the OEMDRV transport carrying the reader and the recovery
-password, boots Windows through GRUB, plants and hashes (`guest/v3-plant.ps1`)
-with a full shutdown, boots Fedora, unlocks/mounts/re-hashes
-(`guest/v3-read.sh`, three driver passes), and `v3-verdict.py` writes the
-rows. Other configs are built with `guest/v3-encrypt.ps1` on a copy of the
+console). It:
+
+1. builds the OEMDRV transport carrying the reader and the recovery
+   password;
+2. boots Windows through GRUB, plants and hashes (`guest/v3-plant.ps1`),
+   with a full shutdown;
+3. boots Fedora, unlocks, mounts and hashes again (`guest/v3-read.sh`,
+   three driver passes);
+4. `v3-verdict.py` writes the rows.
+
+Other configs are built with `guest/v3-encrypt.ps1` on a copy of the
 pristine disk in a throwaway VM (`v3.sh mkvm`), then read as a data disk.
 
-## V4 — Real disks can actually shrink · kills: whether the default even applies · RISKS R18
+## V4: Real disks can actually shrink · kills: whether the default even applies · RISKS R18
 
-Keep-Windows is the **default** and needs shrinkable space ≥ ~20 GB + user
-data. Immovable files (MFT, VSS store) routinely cap shrink far below free
-space. If most real machines can't shrink enough, the default rarely applies
-and the design leans almost entirely on clean slate + big sticks — which
-changes what stick size we tell people to buy and how often anyone gets the
-safety net at all.
+Keep-Windows is the **default**, and it needs shrinkable space of at least
+~20 GB plus the person's data. Files that can't be moved (the MFT, the VSS
+store) often cap a shrink far below the free space. (The MFT is NTFS's
+master file table. VSS is Windows' shadow-copy service, which System
+Restore uses.) If most real machines can't shrink enough, the default
+rarely applies. The design would then lean almost entirely on clean slate
+and big sticks. That changes what stick size we tell people to buy, and how
+often anyone gets the safety net at all.
 
-**Experiment.** Add the shrinkable-space query (the same one Disk Management
-uses) to the scanner and ship it. Every scanner report then measures the
-population for free. Pass judgment after ~20 real reports.
+**Experiment.** Add the shrinkable-space query (the same one Disk
+Management uses) to the scanner and ship it. Every scanner report then
+measures the population for free. Judge after ~20 real reports.
 
-*Done (2026-08-22):* the query is in `Test-UpgDisk` as `Room to keep Windows`.
-Caveat found on real hardware: `Get-PartitionSupportedSize` needs
-Administrator (RISKS R18) — so only elevated runs carry a number. Filter the
-JSON corpus on `RanAsAdmin=true` before judging, and note the sample will skew
-toward users willing to elevate.
+*Done (2026-08-22):* the query is in `Test-UpgDisk` as `Room to keep
+Windows`. A caveat found on real hardware: `Get-PartitionSupportedSize`
+needs Administrator (RISKS R18), so only elevated runs carry a number.
+Filter the JSON corpus on `RanAsAdmin=true` before judging, and note that
+the sample will lean toward people willing to elevate.
 
 *Measurement hardened (2026-09-08):* the first physical machine (Acer
-Aspire A515-51G) returned "could not measure" on two elevated scans, and
-the scanner had been discarding the reason and printing a guessed cause
-(Fast Startup) that the rig contradicts — see RISKS R18. The scanner now
-keeps Windows' own error text, refuses to name a cause, and tries a second
-read-only path (`diskpart shrink querymax`, VDS) when the Storage API path
-refuses, labelling the source in the report. V4's population count therefore
-needs the `ShrinkSource` field read alongside the number: `storage-api` and
-`diskpart` measure the same thing by different services and should agree,
-and any machine where they disagree is a finding in its own right. A
-machine whose C: carries the dirty flag reports no number at all until the
-prologue's disk-check step (decided 2026-09-08, R18) has run — count it
-separately, not as "cannot shrink".
+Aspire A515-51G) returned "could not measure" on two elevated scans. The
+scanner had been throwing away the reason and printing a guessed cause
+(Fast Startup) that the rig contradicts (see RISKS R18). Now the scanner:
+
+- keeps Windows' own error text;
+- refuses to name a cause;
+- tries a second read-only path (`diskpart shrink querymax`, through VDS)
+  when the Storage API path refuses;
+- labels the source in the report.
+
+So V4's population count needs the `ShrinkSource` field read next to the
+number. `storage-api` and `diskpart` measure the same thing through
+different services and should agree. Any machine where they disagree is a
+finding in its own right. A machine whose C: carries the dirty flag reports
+no number at all until the prologue's disk-check step (decided 2026-09-08,
+R18) has run. Count it separately, not as "cannot shrink".
 
 *The prologue's step (2026-09-12):* the disk check, the re-measure by both
 paths and the shrink are product code now (`Invoke-Prologue.ps1`, RISKS
-R18), with a rig bench that injects the flag (`rig/hyperv/prologue.sh`)
-and one evidence file, `docs/validation-results/r18-prologue.csv` (row 3
-`pass-plumbing` the same day: flag → full boot-time check → 57.8 GB by
-both paths → 25 GB freed → install), whose
-`remeasured_gb` / `diskpart_gb` pair is the same two-path measurement V4
-counts — taken *after* the check, at the moment it matters. *The Acer
-Aspire's real flag answered (2026-09-13, row 5, `stopped-volume-check`):*
-it is not a shrink-headroom case at all but a failing SSD (RISKS R18 has
-the diagnosis), so the first physical measurement after a real check
-still waits for a machine with a healthy drive. What that row did prove
-is the refusal path on real hardware, and that `HealthStatus` and the
-scan cmdlet's return string are not evidence — the guardrails were
-rebuilt on the event log, SMART and the volume's own status the same day. *The walk-away
-resume (2026-09-13):* rows 1–5 all had someone signed in when the resume
-fired (the rig auto-logs on; the Aspire's person signed in), so prologue
-0.3.0 resumes as SYSTEM at startup and the bench now switches the guest's
-autologon **off** before the flow (`prologue.sh autologon off`); a row
-counts as walk-away only when `state.Resumes` shows SYSTEM, session 0, no
-explorer, and the verdict script writes `resume-attended` otherwise. Row 6
-(2026-09-13, `pass-plumbing`) is the first such row: both resumes SYSTEM
-in session 0 with autologon off, 472 s from the check restart to the first
-Linux boot, nobody signed in. Its physical residue — a real USB stick at
-real firmware's boot, a real sign-in screen — has its own read-only probe:
-`RUN-PROBE.cmd` on the kit (`Invoke-Prologue.ps1 -Probe`) registers the
-same SYSTEM startup task, restarts once, and the task writes the row to
-`upgrade_/walkaway-probe.csv` on the stick (transported verbatim into
-`docs/validation-results/walkaway-probe.csv`; rig rows via `prologue.sh
-probe`). It is what a borrowed machine can run in a half-hour visit; the
-Aspire's dying drive stops the conversion at the disk gate, so the probe
-is the row it can still give. Rig row 1 (2026-09-13): `resumed-unattended`
-— SYSTEM, session 0, 12 s after boot, stick after 4 s, notice queued, task
-removed, no user session. **Row 2, the first physical row (2026-09-13,
-Acer Aspire A515-51G, InsydeH2O V1.21, Windows 11 Home 22631, Secure Boot
-on, a real USB stick): `resumed-unattended`** — SYSTEM, session 0, no
-explorer, 38 s after boot, the stick seen 5 s later, notice queued, task
-removed, transported verbatim from the stick's CSV. The rest of the
-matrix is V0's (above); the stakes and residue are R24's.
+R18). The **prologue** is the part of `upgrade_` that runs on Windows
+before the handoff. It has a rig bench that injects the flag
+(`rig/hyperv/prologue.sh`) and one evidence file,
+`docs/validation-results/r18-prologue.csv`. Row 3 was `pass-plumbing` the
+same day: flag → full boot-time check → 57.8 GB by both paths → 25 GB freed
+→ install. Its `remeasured_gb` / `diskpart_gb` pair is the same two-path
+measurement V4 counts, taken *after* the check, at the moment it matters.
 
-**2026-09-17, the Aspire again (R18):** with its dirty bit now clear and
-the repair still queued, the Storage API answered 0 GB shrinkable, no
-error, 33.6 GB free, and the job writer forced clean slate on it. Decided
-the same day: a queued repair makes the number "unmeasured" in the job and
-is a second trigger for the prologue's check; the launchers log every step
-to the stick. The physical keep-Windows row is still owed.
+*The Acer Aspire's real flag answered (2026-09-13, row 5,
+`stopped-volume-check`):* it is not a shrink-headroom case at all. It is a
+failing SSD (RISKS R18 has the diagnosis). So the first physical
+measurement after a real check still waits for a machine with a healthy
+drive. What that row did prove: the refusal path works on real hardware,
+and `HealthStatus` and the scan cmdlet's return string are not evidence.
+The guardrails were rebuilt the same day on the event log, SMART (the
+drive's own health counters) and the volume's own status.
 
-**2026-09-20 (R18), three runs and a read-only diagnostic:** the launcher
-had been exiting after every job (an unescaped `)` in cmd); fixed, it ran
-all five steps and gave the first physical row of the acknowledged path,
-`stopped-volume-check` (`r18-prologue.csv` row 7) - the scheduled check
-left no proof it ran, and the prologue refused to measure. The diagnostic
-(over SSH, Windows' own records) showed it should never have been asked:
-the full check had already run on 09-15, and the 0 GB was `hiberfil.sys`
-on the last cluster (Defrag event 259), about 42 GB once it is off. Built
-the same day: an event 98 counts only if no completed check postdates it,
-and a small cold number pinned by hibernation/page/swap is keep-windows
-pending the prologue's own re-measure. For V4 this is the first real
-measurement of *why* a cold number is small - and the cause was the
-mitigable kind. Owed: the rerun, which would be the first time the
-prologue's mitigation, shrink and handoff run on real hardware.
+*The walk-away resume (2026-09-13):* rows 1-5 all had someone signed in
+when the resume fired (the rig signs in automatically; on the Aspire the
+person signed in). So prologue 0.3.0 resumes as SYSTEM at startup, and the
+bench now switches the guest's autologon **off** before the flow
+(`prologue.sh autologon off`). A row counts as walk-away only when
+`state.Resumes` shows SYSTEM, session 0 and no explorer. Otherwise the
+verdict script writes `resume-attended`.
+
+- **Row 6** (2026-09-13, `pass-plumbing`) is the first such row: both
+  resumes SYSTEM in session 0 with autologon off, 472 s from the check
+  restart to the first Linux boot, nobody signed in.
+- **Its physical residue** (a real USB stick at a real firmware's boot, a
+  real sign-in screen) has its own read-only probe. `RUN-PROBE.cmd` on the
+  kit (`Invoke-Prologue.ps1 -Probe`) registers the same SYSTEM startup
+  task and restarts once. The task writes the row to
+  `upgrade_/walkaway-probe.csv` on the stick, which is copied word for word
+  into `docs/validation-results/walkaway-probe.csv` (rig rows come from
+  `prologue.sh probe`). It is what a borrowed machine can run in a
+  half-hour visit. The Aspire's dying drive stops the conversion at the
+  disk gate, so the probe is the row it can still give.
+- **Rig row 1 (2026-09-13):** `resumed-unattended`. SYSTEM, session 0,
+  12 s after boot, stick after 4 s, notice queued, task removed, no user
+  session.
+- **Row 2, the first physical row (2026-09-13, Acer Aspire A515-51G,
+  InsydeH2O V1.21, Windows 11 Home 22631, Secure Boot on, a real USB
+  stick): `resumed-unattended`.** SYSTEM, session 0, no explorer, 38 s
+  after boot, the stick seen 5 s later, notice queued, task removed, copied
+  word for word from the stick's CSV.
+
+The rest of the matrix is V0's (above). The stakes and the residue are
+R24's.
+
+### The Aspire, run by run
+
+The Aspire's drive is dying, so every run below is on one bad disk. It is
+one data point, not a rate.
+
+**2026-09-17, the Aspire again (R18):** its dirty bit was now clear but the
+repair was still queued. The Storage API answered 0 GB shrinkable, no
+error, 33.6 GB free, and the job writer forced clean slate. Decided the
+same day: a queued repair makes the number "unmeasured" in the job, and is
+a second trigger for the prologue's check. The launchers log every step to
+the stick. The physical keep-Windows row is still owed.
+
+**2026-09-20 (R18), three runs and a read-only diagnostic:**
+
+- The launcher had been exiting after every job (an unescaped `)` in cmd).
+  Fixed, it ran all five steps and gave the first physical row of the
+  acknowledged path, `stopped-volume-check` (`r18-prologue.csv` row 7). The
+  scheduled check left no proof it ran, and the prologue refused to
+  measure.
+- The diagnostic (over SSH, reading Windows' own records) showed the check
+  should never have been asked for. The full check had already run on
+  09-15, and the 0 GB was `hiberfil.sys` on the last cluster (Defrag event
+  259), about 42 GB once it is off.
+- Built the same day: an event 98 counts only if no completed check comes
+  after it. And a small cold number pinned by hibernation, page or swap
+  files is keep-windows, pending the prologue's own re-measure.
+
+For V4 this was the first real measurement of *why* a cold number is small,
+and the cause was the mitigable kind. Owed: the rerun, which would be the
+first time the prologue's mitigation, shrink and handoff run on real
+hardware.
 
 **2026-09-20 evening, the rerun: `stopped-shrink`** (`r18-prologue.csv`
-row 8). The mitigation ran on real hardware for the first time and the
-answer is V4's first mitigated number from a physical disk: **48.5 GB
-free, 7.2 GB shrinkable** - behind `hiberfil.sys` sat System Restore's
-shadow-copy storage, which nothing on the ladder moves. **Corrected:**
-the "about 42 GB" above was read from Defrag 259's shrink *target*, which
-does not say what removing the named file frees; only re-measuring does.
-"The cause was the mitigable kind" was half true: the first cause was,
-the second was not. One dying machine is a data point, not the fraction
-this section asks for - but it is a no, and shadow storage is now a named
-candidate for why real disks fall short. Also exposed (R18): a stop after
-the mitigation leaves hibernation and the pagefile off (bug; fixed in
-0.5.1, proven in run 6),
-and a sign-in during the re-measure lowered the second path's number. The
-shrink and the handoff have still not run on real hardware.
+row 8). The mitigation ran on real hardware for the first time. The answer
+is V4's first mitigated number from a physical disk: **48.5 GB free, 7.2 GB
+shrinkable.** Behind `hiberfil.sys` sat System Restore's shadow-copy
+storage, which nothing on the ladder moves. (The **ladder** is the
+prologue's list of steps that free space, tried in order.)
+
+- **Corrected:** the "about 42 GB" above was read from Defrag 259's shrink
+  *target*. That target does not say what removing the named file frees.
+  Only re-measuring does.
+- "The cause was the mitigable kind" was half true: the first cause was,
+  the second was not.
+- One dying machine is a data point, not the fraction this section asks
+  for. But it is a no, and shadow storage is now a named candidate for why
+  real disks fall short.
+- Also exposed (R18): a stop after the mitigation left hibernation and the
+  pagefile off (a bug; fixed in 0.5.1, proven in run 6). And a sign-in
+  during the re-measure lowered the second path's number.
+
+The shrink and the handoff have still not run on real hardware.
 
 **2026-09-22, run 5: `stopped-confirm`** (`r18-prologue.csv` row 9). The
-same disk, two days on, measured cold at 3.2 GB, pinned this time by
-NTFS's change journal (`$UsnJrnl`), allocated since run 4 in the tail
-run 4's mitigation had emptied. For V4 that is a second lesson about
-cold numbers: they are not stable between runs, and the first unmovable
-file on a real disk changes with ordinary use - which is why the
-decision belongs to the prologue's re-measure right before the shrink,
-not to the job writer's reading at scan time. The run also exposed that
-the job writer turns a person's `stop` into a clean-slate job when the
-cold number is not mitigable (RISKS R18, fifth run; fixed the same day in job writer 0.8.0 - under
-`stop` a small cold number is now keep-windows for the prologue to
-re-measure - it held on the real machine in runs 6 and 7). No new
-mitigated number: the mitigation never ran. **Decided and built the same
-day:** the change journal joins the ladder (deleted with consent, created
-again afterwards; prologue 0.8.0) - what it frees is the next row's
-question.
+same disk, two days later, measured cold at 3.2 GB. This time it was pinned
+by NTFS's change journal (`$UsnJrnl`), which had been allocated since run 4
+in the tail that run 4's mitigation had emptied.
 
-**2026-09-23, run 6: `stopped-shrink`** (row 10). The journal rung works
-and buys little (8.4 -> 9.5 GB); behind it sits System Restore's
-storage, and the restore-point deletion ran but deleted nothing - cause
-not recorded (R18; the reporting is fixed in 0.9.0, unfired). This disk's best measured number is 9.5 GB
-of 25. The stop restored everything it touched, read back after
-restarts - 0.5.1 proven. New: a pending Windows update turned the
-prologue's one restart into three (RISKS R25). Built 2026-09-26 in
-prologue 0.9.0: the update gate (R25) and a restore-point act that
-records what Windows answered and tries its WMI objects if vssadmin
-deletes nothing.
+- For V4, a second lesson about cold numbers: they are not stable between
+  runs, and the first unmovable file on a real disk changes with ordinary
+  use. That is why the decision belongs to the prologue's re-measure right
+  before the shrink, not to the job writer's reading at scan time.
+- The run also exposed that the job writer turned a person's `stop` into a
+  clean-slate job when the cold number was not mitigable (RISKS R18, fifth
+  run). Fixed the same day in job writer 0.8.0: under `stop`, a small cold
+  number is now keep-windows for the prologue to re-measure. It held on the
+  real machine in runs 6 and 7.
+- No new mitigated number: the mitigation never ran.
+
+**Decided and built the same day:** the change journal joins the ladder
+(deleted with consent, created again afterwards; prologue 0.8.0). What it
+frees is the next row's question.
+
+**2026-09-23, run 6: `stopped-shrink`** (row 10).
+
+- The journal rung works and buys little (8.4 -> 9.5 GB).
+- Behind it sits System Restore's storage. The restore-point deletion ran
+  but deleted nothing, cause not recorded (R18; the reporting is fixed in
+  0.9.0, unfired).
+- This disk's best measured number is 9.5 GB of 25.
+- The stop restored everything it touched, read back after restarts. 0.5.1
+  proven.
+- New: a pending Windows update turned the prologue's one restart into
+  three (RISKS R25).
+
+Built 2026-09-26 in prologue 0.9.0: the update gate (R25), and a
+restore-point step that records what Windows answered and tries its WMI
+objects if vssadmin deletes nothing.
 
 **2026-09-26, run 7: `stopped-shrink`** (row 11) at 7.2 GB, pinned by
-NTFS's own `$Mft::$BITMAP`, which nothing on the ladder moves. Runs 5-7
-on one disk named three different last files (the journal, System
-Restore's storage, the MFT's bitmap), each moving with ordinary use; the
-ladder bought at most 1.1 GB. This disk's answer for V4 is no - one used,
-failing disk, a data point, not a rate - and it is the case the discard
-offer (R26) is designed for.
+NTFS's own `$Mft::$BITMAP`, which nothing on the ladder moves. Runs 5-7 on
+one disk named three different last files (the journal, System Restore's
+storage, the MFT's bitmap), each one moving with ordinary use. The ladder
+bought at most 1.1 GB. This disk's answer for V4 is no: one used, failing
+disk, a data point, not a rate. It is the case the discard offer (R26) is
+designed for.
 
-**Pass.** A meaningful fraction (say, a third) of *elevated* scanned machines
-could host Linux + their data in shrinkable space.
+**Pass.** A meaningful fraction (say, a third) of *elevated* scanned
+machines could fit Linux plus their data in shrinkable space.
 
-**If it fails.** Keep-Windows becomes the lucky path rather than the default;
-messaging, stick-size guidance and the intent UI reweight toward clean slate.
-**Designed (2026-09-26), not built:** the concrete form of that reweighting
-is the offer to discard Windows after a failed shrink (`architecture.md`,
-"When Windows cannot be kept"; RISKS R26) - asked only of a person who
-chose *ask me then*, with the real numbers, no offer when the files do
-not fit the stick, a typed sentence, and the wipe still behind the
-live-session checks. Its validation: rig rows for the yes path (staged,
-read back, wiped, every file restored with matching checksums) and for
-each refusal (files too big, a stick that drops, 0 folders), then one
-physical row on a machine whose owner chose to lose Windows. Built after
-the harvest and a first physical install row. **The harvest half landed
-2026-09-26** (folder map + stick fit in the job); first measurement,
-the Aspire: 16.6 GB in the six folders, one file over 4 GB - no offer on
-today's 8 GB FAT32 stick (`validation-results/harvest-folder-map.csv`,
-RISKS R26).
+**If it fails.** Keep-Windows becomes the lucky path rather than the
+default. Messaging, stick-size advice and the intent UI shift their weight
+toward clean slate.
 
-## V9 — One-click erase and install (R27)
+**Designed (2026-09-26), not built:** the concrete form of that shift is
+the offer to discard Windows after a failed shrink (`architecture.md`,
+"When Windows cannot be kept"; RISKS R26). It is:
 
-**Rig: passed 2026-09-26** (`validation-results/v9-erase.csv`): A refused
-before the countdown, B cancelled with both disks untouched (after a first
-B attempt that froze and was fixed - `verify.sh` 0.4.1), C erased and
-installed with `/home` on the second disk and the chosen password,
-including once over an Ubuntu-style LVM, and each of the person's three
-start choices held (KDE, GNOME, console). **Seen and signed in
-(2026-09-27, lines 12-13):** with the rig's power-off marker removed,
-the GDM and SDDM sign-in screens appeared, the account's password was
-typed on the rig's keyboard, and the GNOME desktop and the KDE Plasma
-desktop (Welcome Center, taskbar) came up - screenshots in the gitignored
-`rig/hyperv/artifacts/v9/{gnome,kde}-seen/`. **Physical: the Aspire's run 9
-(line 11) FAILED the one-click promise** - everything ran unattended and
-the password signed in, but it came up at a text login (fixed; RISKS R27).
-A physical re-run that ends at the chosen screen is owed. Design decided 2026-09-26. The owner's first end-to-end
-destructive target: erase every internal drive, install Fedora, keep
-nothing (`architecture.md`, "Erase and install").
+- asked only of a person who chose *ask me then*;
+- shown with the real numbers;
+- not offered when the files do not fit the stick;
+- confirmed by a typed sentence;
+- with the wipe still behind the live-session checks.
+
+Its validation: rig rows for the yes path (staged, read back, wiped, every
+file restored with matching checksums) and for each refusal (files too big,
+a stick that drops, 0 folders). Then one physical row on a machine whose
+owner chose to lose Windows. It gets built after the harvest and a first
+physical install row.
+
+**The harvest half landed 2026-09-26** (folder map + stick fit in the job).
+First measurement, the Aspire: 16.6 GB in the six folders, one file over
+4 GB. So no offer on today's 8 GB FAT32 stick
+(`validation-results/harvest-folder-map.csv`, RISKS R26).
+
+## V9: One-click erase and install (R27)
+
+The owner's first end-to-end destructive target: erase every internal
+drive, install Fedora, keep nothing (`architecture.md`, "Erase and
+install"). Design decided 2026-09-26.
+
+**Rig: passed 2026-09-26** (`validation-results/v9-erase.csv`):
+
+- **A** refused before the countdown.
+- **B** cancelled with both disks untouched. A first B attempt froze, and
+  was fixed in `verify.sh` 0.4.1.
+- **C** erased and installed, with `/home` on the second disk and the
+  chosen password, including once over an Ubuntu-style LVM.
+- Each of the person's three start choices held (KDE, GNOME, console).
+
+**Seen and signed in (2026-09-27, lines 12-13):** with the rig's power-off
+marker removed, the GDM and SDDM sign-in screens appeared. The account's
+password was typed on the rig's keyboard, and the GNOME desktop and the KDE
+Plasma desktop (Welcome Center, taskbar) came up. Screenshots are in the
+gitignored `rig/hyperv/artifacts/v9/{gnome,kde}-seen/`.
+
+**Physical: the Aspire's run 9 (line 11) FAILED the one-click promise.**
+Everything ran unattended and the password signed in, but it came up at a
+text login (fixed; RISKS R27). A physical re-run that ends at the chosen
+screen is owed.
 
 **Method.** Rig first, on a copy of the rig's Windows disk plus a blank
-second disk: (1) a job naming a disk that is not attached - `%pre`
-refuses before any countdown; (2) the countdown with a key pressed -
-Windows comes back, both disks byte-unchanged at the partition table;
-(3) the countdown left alone - both disks cleared, Fedora on the first,
-`/home` on the second, `outcome.json` with the commit line crossed at
-the countdown's end, and the account's password signs in. Then the
-Aspire (system on the failing SSD under R23, `/home` on the 1 TB drive).
+second disk:
+
+1. A job naming a disk that is not attached: `%pre` refuses before any
+   countdown.
+2. The countdown with a key pressed: Windows comes back, both disks
+   byte-unchanged at the partition table.
+3. The countdown left alone: both disks cleared, Fedora on the first,
+   `/home` on the second, `outcome.json` with the commit line crossed at the
+   countdown's end, and the account's password signs in.
+
+Then the Aspire (system on the failing SSD under R23, `/home` on the 1 TB
+drive).
 
 **Pass.** All three rig arms, then the physical row: one click, the two
 typed answers, nobody at the keyboard afterwards, Fedora signs in.
 
-# Tier 3 — silent data loss (the trust-ending class)
+# Tier 3: silent data loss (the trust-ending class)
 
-## V8 — OneDrive placeholders are materialized at evaluate · kills: file integrity on the default path · RISKS R8
+## V8: OneDrive placeholders are materialized at evaluate · kills: file integrity on the default path · RISKS R8
 
-On the default path files are pulled from the mounted Windows partition *by
-Linux*, which has no OneDrive client. A "free up space" placeholder not forced
-local beforehand copies over as **0 bytes** — the user's photos arrive empty,
-discovered later. `evaluate` must *materialize* them (force the download while
-Windows is alive), not merely detect them, because no later stage can.
+On the default path, files are pulled from the mounted Windows partition
+*by Linux*, which has no OneDrive client. OneDrive's "free up space" leaves
+a **placeholder** on disk: a stub that looks like the file, with the real
+bytes in the cloud. A placeholder not forced local beforehand copies over
+as **0 bytes**. The person's photos arrive empty, and they find out later.
+`evaluate` must *materialize* them (force the download while Windows is
+still running), not just detect them, because no later stage can.
 
 **Experiment.** On a machine with OneDrive "free up space" files present:
 confirm `evaluate` detects them, forces them local, and that they carry real
-bytes on the NTFS partition afterward. Confirm the pinned/unpinned attribute
-bits (`0x00080000` / `0x00100000`) don't need to be part of the detection.
+bytes on the NTFS partition afterwards. Confirm the pinned/unpinned
+attribute bits (`0x00080000` / `0x00100000`) don't need to be part of the
+detection.
 
-**cfapi leg fired (2026-09-08).** `evaluate/windows/Test-Materialize.ps1`
-is a sync provider on Windows' Cloud Files API: it creates real dehydrated
-placeholders with known bytes, refuses to serve one, runs the harvester's
-`-Materialize` seam in a separate process, and hashes the NTFS bytes
-afterwards. `pass-plumbing` on the rig (Win10 19045) and the G16 (Win11
-26200) — rows in `docs/validation-results/v8-materialize.csv`. The
-pinned/unpinned bits are confirmed not to be part of detection. Remaining:
-`-OneDrive` against a signed-in client (the residue).
+**cfapi leg fired (2026-09-08).** `evaluate/windows/Test-Materialize.ps1` is
+a sync provider on Windows' Cloud Files API (cfapi, the interface OneDrive
+itself uses). It:
 
-**Pass.** No cloud-only stub survives into the pulled data as a 0-byte file.
+1. creates real dehydrated placeholders with known bytes;
+2. refuses to serve one;
+3. runs the harvester's `-Materialize` seam in a separate process;
+4. hashes the NTFS bytes afterwards.
 
-**If it fails.** `evaluate` refuses machines with un-materializable
-placeholders rather than silently copying empties — refuse-by-default applies:
-better to turn someone away than to lose their photos.
+`pass-plumbing` on the rig (Win10 19045) and the G16 (Win11 26200). Rows in
+`docs/validation-results/v8-materialize.csv`. The pinned/unpinned bits are
+confirmed not to be part of detection. Remaining: `-OneDrive` against a
+signed-in client (the residue).
 
-# Tier 4 — kills adoption, not the mechanism
+**Pass.** No cloud-only stub survives into the pulled data as a 0-byte
+file.
 
-## V5 — VMD detection fires on real RST hardware · kills: scanner trust · RISKS R1
+**If it fails.** `evaluate` refuses machines with placeholders it cannot
+materialize, rather than silently copying empties. Refuse-by-default
+applies: better to turn someone away than to lose their photos.
 
-The flagship check has never matched anything. The project's only asset is
-that its report is trustworthy, and this is the report's highest-stakes line.
+# Tier 4: kills adoption, not the mechanism
 
-**Experiment.** An afternoon: diff the ID list against the kernel's
+## V5: VMD detection fires on real RST hardware · kills: scanner trust · RISKS R1
+
+**Intel RST / VMD** is a storage setting on many Intel laptops. With it on,
+the Linux installer can't see the SSD at all. The scanner's check for it is
+the flagship check, and it has never matched anything on a real machine.
+The project's only asset is that its report can be trusted, and this is the
+report's highest-stakes line.
+
+**Experiment.** An afternoon: compare the ID list with the kernel's
 `drivers/pci/controller/vmd.c` table and linux-hardware.org probes. Then one
-machine: any 11th-gen+ Intel Dell or Lenovo laptop with RST enabled (they
-ship that way) — scanner must say FAIL; flip it to AHCI — scanner must say
-OK.
+machine: any 11th-gen or newer Intel Dell or Lenovo laptop with RST on
+(they ship that way). The scanner must say FAIL. Switch it to AHCI (the
+standard mode) and the scanner must say OK.
 
-**Desk half done (2026-08-22).** ID list reconciled against `vmd.c` (mainline
-master) and pci.ids: three bogus IDs removed (`7ec0` was a USB controller — a
-false-RED landmine on Core Ultra 200 machines; `2010`/`e0b0` aren't Intel
-devices), five kernel IDs added (`28c0, 4c3d, b60b, b06f, b07f`), `09ab` kept
-with an Intel citation (article 000088762). The `^iaStorV` service regex was
-replaced — it missed the whole pre-VMD RST family (iaStorA/iaStorAC/iaStorAVC,
-the Skylake–Comet Lake remap generation) — with three signals: kernel ID list,
-`iaStorVD` service, and PCI RAID class code `CC_0104` from CompatibleID
-(format verified live on the G16). Six detection-level self-test cases feed
-fabricated PnP entries through the real check; all pass. Full evidence trail
-in RISKS R1.
+**Desk half done (2026-08-22).** The ID list was reconciled against
+`vmd.c` (mainline master) and pci.ids:
+
+- Three bogus IDs removed. `7ec0` was a USB controller, a false-RED
+  landmine on Core Ultra 200 machines. `2010` and `e0b0` aren't Intel
+  devices.
+- Five kernel IDs added (`28c0, 4c3d, b60b, b06f, b07f`).
+- `09ab` kept, with an Intel citation (article 000088762).
+- The `^iaStorV` service regex was replaced. It missed the whole pre-VMD
+  RST family (iaStorA/iaStorAC/iaStorAVC, the Skylake-Comet Lake remap
+  generation). It is now three signals: the kernel ID list, the `iaStorVD`
+  service, and PCI RAID class code `CC_0104` from CompatibleID (format
+  checked live on the G16).
+- Six detection-level self-test cases feed made-up PnP entries through the
+  real check. All pass.
+
+Full evidence trail in RISKS R1.
 
 **Level-3 spoof done (2026-08-26).** The full Windows PnP → WMI → scanner
 pipeline now fires on simulated hardware. A patched QEMU `pci-testdev`
-(`rig/vm/`) presents PCI `8086:9a0b` class `0104`; Windows enumerates it as an
-unknown RAID Controller (CompatibleIDs `PCI\CC_010400` / `PCI\CC_0104`), and
-both the source scanner and the built `dist/` return `[FAIL] Storage
-controller mode — Intel RST / VMD active`, verdict RED. Captured hardware-only
-and curated as the synthetic corpus regression
-`evaluate/windows/corpus/vm-qemu-q35-vmd-spoof-9a0b.json`. This closes the
-**plumbing** — enumeration, parsing and verdict all work end-to-end — but it
-is built from our own model of the IDs, so per CLAUDE.md rule #5 it narrows V5
-without closing it. See RISKS R1 for the full trail.
+(`rig/vm/`) presents PCI `8086:9a0b`, class `0104`. Windows lists it as an
+unknown RAID Controller (CompatibleIDs `PCI\CC_010400` / `PCI\CC_0104`).
+Both the source scanner and the built `dist/` return the check
+`[FAIL] Storage controller mode` with the detail `Intel RST / VMD active`,
+verdict RED. The capture was taken hardware-only and kept
+as the synthetic corpus regression
+`evaluate/windows/corpus/vm-qemu-q35-vmd-spoof-9a0b.json`.
+
+This closes the **plumbing**: listing, parsing and verdict all work end to
+end. But it is built from our own model of the IDs, so per CLAUDE.md rule #5
+it narrows V5 without closing it. See RISKS R1 for the full trail.
 
 **The evidence file and the one-click visit (2026-09-13).** Rows live in
-`validation-results/v5-controller-mode.csv`, written by `rig/v5-verdict.py`
-from a run's JSON report and capture — never by hand — with `result`
-cross-checking the mode asked for against the PCI class code the controller
-declared (vocabulary in the results README). Row 1 is real: the Acer Aspire
-A515-51G in AHCI mode, `8086:9d03`, class `0106`, **iaStorAC bound** →
-`warn-rst-on-ahci` — the R7 guard on real silicon, not `[OK]`; that machine's
-negative direction is `warn` by design. The positive direction is one click:
-`RUN-STORAGE-MODE.cmd` (`evaluate/windows/Test-StorageMode.ps1`) scans, arms
-a Safe Mode boot through a copied boot entry booted once, restarts straight
-into the firmware setup for the person to change SATA Mode, scans again as
-SYSTEM with nobody signed in, asks for the mode back, scans a third time and
-cleans up; the person's part is the vendor's setup screen twice and a Safe
-Mode sign-in twice. Fired on the Hyper-V rig (`rig/hyperv/prologue.sh
-storage-mode`): the copy boots Safe Mode exactly once, the RunOnce restarts
-it at sign-in, the SYSTEM resume scans 7 s after the normal boot, the
-cleanup reads back clean — rows 2–3, `no-intel-controller` /
-`flow_result=mode-unchanged`, plumbing only (RISKS R1 has the run-by-run
-findings, including that Task Scheduler will not run the task in Safe Mode
-and that `bcdedit /copy` puts the copy on the boot menu).
+`validation-results/v5-controller-mode.csv`, written by
+`rig/v5-verdict.py` from a run's JSON report and capture, never by hand.
+The `result` column cross-checks the mode asked for against the PCI class
+code the controller declared (vocabulary in the results README).
 
-**Physical runs (2026-09-15, the Aspire, rows 6–9).** The one-click flow
-fired twice on real firmware — Safe Mode through the copied entry, the
-sign-in marker, the SYSTEM resume 21–27 s after boot, cleanup — and both
-runs ended `mode-unchanged` because the setup screen was never reached:
-the InsydeH2O V1.21 firmware ignores the boot-to-setup indication (refused
-it once with error 203, accepted-and-ignored it once), and F2 was not
-caught in time. The RAID row is still owed; RISKS R1 has the run-by-run
-record and the 2026-09-15 decision to stop unless a one-minute F2 look
+- **Row 1 is real:** the Acer Aspire A515-51G in AHCI mode, `8086:9d03`,
+  class `0106`, **iaStorAC bound** → `warn-rst-on-ahci`. That is the R7
+  guard on real silicon, not `[OK]`. On that machine the negative direction
+  is `warn` by design.
+- **The positive direction is one click:** `RUN-STORAGE-MODE.cmd`
+  (`evaluate/windows/Test-StorageMode.ps1`). It scans, arms a Safe Mode
+  boot through a copied boot entry booted once, and restarts straight into
+  the firmware setup for the person to change SATA Mode. It scans again as
+  SYSTEM with nobody signed in, asks for the mode back, scans a third time
+  and cleans up. The person's part is the vendor's setup screen twice and a
+  Safe Mode sign-in twice.
+- **Fired on the Hyper-V rig** (`rig/hyperv/prologue.sh storage-mode`): the
+  copy boots Safe Mode exactly once, the RunOnce restarts it at sign-in, the
+  SYSTEM resume scans 7 s after the normal boot, and the cleanup reads back
+  clean. Rows 2-3, `no-intel-controller` / `flow_result=mode-unchanged`,
+  plumbing only. RISKS R1 has the run-by-run findings, including that Task
+  Scheduler will not run the task in Safe Mode, and that `bcdedit /copy`
+  puts the copy on the boot menu.
+
+**Physical runs (2026-09-15, the Aspire, rows 6-9).** The one-click flow
+fired twice on real firmware: Safe Mode through the copied entry, the
+sign-in marker, the SYSTEM resume 21-27 s after boot, cleanup. Both runs
+ended `mode-unchanged`, because the setup screen was never reached. The
+InsydeH2O V1.21 firmware ignores the boot-to-setup request (it refused it
+once with error 203, and accepted-and-ignored it once), and F2 was not
+caught in time. The RAID row is still owed. RISKS R1 has the run-by-run
+record and the 2026-09-15 decision to stop, unless a one-minute F2 look
 finds SATA Mode on this machine.
 
-**Pass.** Both directions on at least one physical machine, list reconciled
-with the kernel's. The reconciliation and the level-3 plumbing are done; **what
-remains is the physical machine**. The Aspire can give the **pre-VMD RST
-clause** (signal 3, class `0104`, `8086:282a`) if its setup exposes SATA
-Mode; **VMD proper** (signals 1–2) still takes an 11th-gen-or-newer Intel
-laptop with RST on — its first scan is the FAIL row as shipped, then OK (or
-`warn-rst-on-ahci`) after switching to AHCI, the same half-hour visit as
-V0's. The G16 (AMD, standard
-NVMe) cannot exercise the positive path, and neither can the spoof or the
-rig: the synthetic capture is the residue's regression test, not a
-substitute for it.
+**Pass.** Both directions on at least one physical machine, with the list
+reconciled against the kernel's. The reconciliation and the level-3
+plumbing are done. **What remains is the physical machine.**
 
-**If it fails.** Fix the list and re-run; this one has no fallback because it
-has no excuse — it's cheap.
+- The Aspire can give the **pre-VMD RST clause** (signal 3, class `0104`,
+  `8086:282a`), if its setup exposes SATA Mode.
+- **VMD proper** (signals 1-2) still takes an 11th-gen or newer Intel
+  laptop with RST on. Its first scan is the FAIL row as shipped, then OK
+  (or `warn-rst-on-ahci`) after switching to AHCI. The same half-hour visit
+  as V0's.
+- The G16 (AMD, standard NVMe) cannot exercise the positive path, and
+  neither can the spoof or the rig. The synthetic capture is the residue's
+  regression test, not a substitute for it.
 
-## V6 — A signed binary can earn Defender's tolerance · kills: distribution · RISKS R12
+**If it fails.** Fix the list and run it again. This one has no fallback
+because it has no excuse: it's cheap.
 
-Not a code question, a calendar question: reputation accrues with elapsed
-time, so this validation *is* the mitigation.
+## V6: A signed binary can earn Defender's tolerance · kills: distribution · RISKS R12
 
-**Experiment.** Start now: legal entity, OV certificate, sign something
-trivial (the scanner wrapped in an exe is perfect), submit to Microsoft's
-malware-analysis portal, distribute modestly, and measure SmartScreen
-behavior monthly. By the time the converter exists, we know whether signed +
-submitted + aged is sufficient — or whether EV/store distribution is needed.
+Not a code question, a calendar question. Microsoft's SmartScreen (the
+"Windows protected your PC" screen) builds its trust in a signed program
+over elapsed time. So this validation *is* the fix.
+
+**Experiment.** Start now:
+
+1. a legal entity and an OV (organization-validated) certificate;
+2. sign something trivial (the scanner wrapped in an exe is perfect);
+3. submit it to Microsoft's malware-analysis portal;
+4. distribute it modestly, and measure SmartScreen's behaviour monthly.
+
+By the time the converter exists, we'll know whether signed + submitted +
+aged is enough, or whether an EV certificate or store distribution is
+needed.
 
 **Pass.** The signed test binary downloads and runs on a stock machine
-without SmartScreen interception.
+without SmartScreen stepping in.
 
-**If it fails.** EV certificate, Microsoft Store packaging, or distribution
-through repair-event channels with humans who can click past warnings. All
-slower, all viable, all better known a year early.
+**If it fails.** An EV (extended validation) certificate, Microsoft Store
+packaging, or distribution through repair-event channels, with humans who
+can click past warnings. All slower, all workable, all better known a year
+early.
 
-## V7 — The scanner generalizes beyond one laptop · kills: the knowledge-base model · RISKS R2
+## V7: The scanner generalizes beyond one laptop · kills: the knowledge-base model · RISKS R2
 
 Every check was verified on one ASUS G16. The community-table model only
-works if reports from strange machines mostly confirm the tables.
+works if reports from unfamiliar machines mostly confirm the tables.
 
-**Experiment.** Ship the scanner publicly (it's ready modulo the R4 wording
-rework), ask for reports: at least one Intel laptop, one Broadcom machine,
-one pre-2015 machine, one BitLocker-on machine, one Surface. This also feeds
-V4 for free.
+**Experiment.** Ship the scanner publicly (it's ready apart from the R4
+wording rework) and ask for reports: at least one Intel laptop, one
+Broadcom machine, one pre-2015 machine, one BitLocker-on machine, one
+Surface. This also feeds V4 for free.
 
-**Pass.** Reports arrive and the verdicts survive contact — or the failures
+**Pass.** Reports arrive and the verdicts survive contact, or the failures
 are table gaps (one-line fixes) rather than logic failures.
 
 ---
@@ -726,18 +1001,18 @@ are table gaps (one-line fixes) rather than logic failures.
 
 Real, but they degrade rather than kill, or only touch the fallback path:
 
-- **Counterfeit stick is caught** (R17): buy a known-fake stick, confirm the
-  read-back verification fails it before the commit line. *Fallback path only
-  now — data rides the stick only on clean slate.*
+- **Counterfeit stick is caught** (R17): buy a known-fake stick, and confirm
+  the read-back check fails it before the commit line. *Fallback path only
+  now: data rides the stick only on clean slate.*
 - **Browser profile transplant matrix** (R20): real Windows→Linux moves per
-  browser/version before `evaluate` promises anything.
-- **Both desktops fit the stick**: compose the dual-squashfs image, weigh it,
-  set the minimum stick size from the number, not a guess.
-- **Windows reinstall fallback is real**: verify the digital-licence
+  browser and version, before `evaluate` promises anything.
+- **Both desktops fit the stick:** build the dual-squashfs image, weigh it,
+  and set the minimum stick size from the number, not a guess.
+- **Windows reinstall fallback is real:** check the digital-licence
   reactivation claim once, on the G16, so the clean-slate consent screen
   tells the truth.
 
-# Dependency map — what is blocked on what
+# Dependency map: what is blocked on what
 
 | Waiting on | Blocked work |
 |---|---|
@@ -747,19 +1022,21 @@ Real, but they degrade rather than kill, or only touch the fallback path:
 | V3 | the intent-capture UI's path logic; the settle-in file pull |
 | V4 | stick-size guidance; intent UI weighting (ship scanner change now) |
 | V8 | the settle-in file pull's integrity guarantee; `evaluate`'s materialize-or-refuse step |
-| V5 | nothing — do it this week regardless |
-| V6 | nothing — start the clock now; blocks only the eventual release |
+| V5 | nothing: do it this week regardless |
+| V6 | nothing: start the clock now; blocks only the eventual release |
 | V7 | table confidence; multi-distro ambitions |
 
-**Decided (2026-09-08):** the dependency map is now executed as a single
-front-to-back, one-click **vertical** — reversible half first (schemas → V8
-materialization → stick writer → live image → hardware verify → back to
-Windows), destructive half second — built on the Hyper-V rig, then an owned
-physical machine, never a borrowed one; borrowed vendors are half-hour
-read-only visits that fill a whole column of the matrix. The reasoning and
-the split live in `architecture.md`, "Build order".
+**Decided (2026-09-08):** the dependency map is now carried out as a single
+front-to-back, one-click **vertical**. The reversible half comes first
+(schemas → V8 materialization → stick writer → live image → hardware check →
+back to Windows), the destructive half second. It is built on the Hyper-V
+rig, then on a physical machine we own, never a borrowed one. Borrowed
+vendors get half-hour read-only visits that fill a whole column of the
+matrix. The reasoning and the split live in `architecture.md`, "Build
+order".
 
-V5 and V6 start immediately because they cost an afternoon and a calendar
-respectively. V0 + V1 + V1b are the spine spike — one VM build-order item,
-now including the alongside install that keeps Windows bootable. V3 and V8 are
-bench tests, parallelizable. V4 and V7 ride the scanner's public release.
+V5 and V6 start immediately, because they cost an afternoon and a calendar
+respectively. V0 + V1 + V1b are the spine spike: one VM build-order item,
+now including the alongside install that keeps Windows bootable. V3 and V8
+are bench tests that can run in parallel. V4 and V7 ride the scanner's
+public release.
