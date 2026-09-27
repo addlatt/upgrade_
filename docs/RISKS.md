@@ -2827,6 +2827,18 @@ root; capture in the gitignored
   before-and-after, not a cause shown. Someone at the keyboard could also
   have changed them. Our own "upgrade_" entry (Boot0002, the stick) is
   still there, as on the rig: run 9 had no `settle-in` to remove it.
+- **SMART, read with the owner's permission (`sudo smartctl -a`):** the
+  SSD's 187 Reported_Uncorrect is **748, the same as run 8's scan on
+  2026-09-26**. The erase, the install and a day of use added none. The
+  rest is unchanged from 2026-09-13 as well: 5 Retired_Block_Count 7, 196
+  Reallocated_Event_Count 7, 184 End-to-End_Error 639, 199 UDMA_CRC 0, 195
+  Hardware_ECC_Recovered 59.5 million. New in this reading: the drive's
+  own error log counts 10,055 ATA errors, 250 Read_Retry_Count is 252.7
+  million, and it has 8,858 power-on hours. Its overall self-assessment
+  still says PASSED, the vendor's thresholds being as lax as R18 records.
+  The 1 TB HDD is clean: 0 reallocated, 0 pending, no errors logged,
+  5,190 hours. One reading, not a trend: the flash is still failing (R18),
+  it just failed no further this week.
 - **0 disk-error lines** in about 20 hours of the kernel log (64,849
   lines); `sda`/`sdb` serials match the job. The boot target is now
   `graphical.target` with SDDM running: changed by hand after run 9, so it
