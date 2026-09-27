@@ -17,6 +17,9 @@ pub struct LoadOption {
     pub partition: Option<[u8; 16]>,
     /// The file path node, e.g. \EFI\Microsoft\Boot\bootmgfw.efi
     pub path: Option<String>,
+    /// What follows the device paths. Entries Windows' bcdedit makes carry
+    /// "BCDOBJECT={guid}" here, which names them exactly.
+    pub optional: Vec<u8>,
 }
 
 fn utf16z(b: &[u8]) -> (String, usize) {
@@ -43,6 +46,7 @@ pub fn parse_load_option(d: &[u8]) -> Option<LoadOption> {
     let (description, used) = utf16z(&d[6..]);
     let start = 6 + used;
     let paths = d.get(start..start + fpl)?;
+    let optional = d.get(start + fpl..).unwrap_or(&[]).to_vec();
     let mut partition = None;
     let mut path = None;
     let mut i = 0;
@@ -66,7 +70,7 @@ pub fn parse_load_option(d: &[u8]) -> Option<LoadOption> {
         }
         i += len;
     }
-    Some(LoadOption { description, partition, path })
+    Some(LoadOption { description, partition, path, optional })
 }
 
 pub fn var_path(root: &str, name: &str) -> String {
@@ -123,6 +127,19 @@ fn clear_immutable(path: &str) {
     }
 }
 
+/// Does the entry's optional data carry "BCDOBJECT={guid}" (UTF-16, any case)?
+pub fn names_bcd_object(lo: &LoadOption, guid: &str) -> bool {
+    let want = format!("bcdobject={}", guid.trim().to_ascii_lowercase());
+    if guid.trim().is_empty() {
+        return false;
+    }
+    (0..2).any(|shift| {
+        let b = lo.optional.get(shift..).unwrap_or(&[]);
+        let u: Vec<u16> = b.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
+        String::from_utf16_lossy(&u).to_ascii_lowercase().contains(&want)
+    })
+}
+
 /// Replace a variable's data, keeping the usual attributes (non-volatile,
 /// boot and runtime access). One write, as efivarfs requires; opened the
 /// way libefivar opens it (no truncation - efivarfs replaces the whole
@@ -164,6 +181,10 @@ pub mod tests {
 
     /// A load option like the one Windows' installer writes.
     pub fn load_option(desc: &str, part: [u8; 16], path: &str) -> Vec<u8> {
+        load_option_with(desc, part, path, &[])
+    }
+
+    pub fn load_option_with(desc: &str, part: [u8; 16], path: &str, optional: &[u8]) -> Vec<u8> {
         let mut dp = Vec::new();
         let mut hd = vec![0x04, 0x01, 42, 0];
         hd.extend_from_slice(&1u32.to_le_bytes());
@@ -181,7 +202,25 @@ pub mod tests {
         d.extend_from_slice(&(dp.len() as u16).to_le_bytes());
         d.extend(desc.encode_utf16().chain([0]).flat_map(|c| c.to_le_bytes()));
         d.extend(dp);
+        d.extend_from_slice(optional);
         d
+    }
+
+    /// The optional data bcdedit writes: "WINDOWS\0", a header, then UTF-16 "BCDOBJECT={guid}".
+    pub fn bcd_optional(guid: &str) -> Vec<u8> {
+        let mut o = b"WINDOWS\0".to_vec();
+        o.extend_from_slice(&[1, 0, 0, 0, 0x88, 0, 0, 0, 0x78, 0, 0, 0]);
+        o.extend(format!("BCDOBJECT={}", guid).encode_utf16().chain([0]).flat_map(|c| c.to_le_bytes()));
+        o
+    }
+
+    #[test]
+    fn finds_the_bcd_object() {
+        let g = crate::gpt::guid_bytes("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+        let lo = parse_load_option(&load_option_with("upgrade_", g, "\\EFI\\BOOT\\BOOTX64.EFI", &bcd_optional("{6a9834d7-a4c4-11f1-81d8-00155d003c01}"))).unwrap();
+        assert!(names_bcd_object(&lo, "{6A9834D7-A4C4-11F1-81D8-00155D003C01}"));
+        assert!(!names_bcd_object(&lo, "{6a9834d7-a4c4-11f1-81d8-00155d003c02}"));
+        assert!(!names_bcd_object(&lo, ""));
     }
 
     #[test]

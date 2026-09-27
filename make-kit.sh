@@ -224,6 +224,7 @@ sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-settle-in.service" > "$D/upgrade_/
 cp "$SETTLE_IN_WINDOW" "$D/upgrade_/settle-in/settle-in-window"
 sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-settle-in.desktop" > "$D/upgrade_/settle-in/upgrade_-settle-in.desktop"
 sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-settle-in.sh" > "$D/upgrade_/settle-in/upgrade_-settle-in.sh"
+sed 's/\r$//' "$ROOT/settle-in/linux/org.upgrade.settle-in.policy" > "$D/upgrade_/settle-in/org.upgrade.settle-in.policy"
 # the desktops: Fedora's own live squashfs images, unmodified, one per
 # desktop the intent capture offers (rig/vm/fetch-desktops.sh). The
 # kickstart's liveimg line names one of them; verify.sh reads it back

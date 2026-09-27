@@ -19,7 +19,7 @@ if [ "${XDG_SESSION_TYPE:-}" = tty ] && [ -n "$_upg_tty" ] && [ -t 0 ] && [ -t 1
         /usr/local/libexec/upgrade_/settle-in summary --text
         if /usr/local/libexec/upgrade_/settle-in summary | grep -q '"button"'; then
             echo
-            # a draft awaiting approval: the console form of the button
+            # the console form of the button (approved 2026-09-27)
             printf '  Remove the old Windows startup entry now? Type yes and press Enter (anything else skips): '
             read -r _upg_answer
             if [ "$_upg_answer" = yes ]; then

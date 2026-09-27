@@ -30,6 +30,10 @@ stick-credentials-dir.txt. Checks, each named in the row:
   window      a desktop install: the FIRST sign-in contains the window's own line
               "settle-in-window: showing the summary", written on its first drawn frame
               (so it reached the screen, not just started); console: n/a
+              (+ what the desktop did with its focus request: in front / not given focus)
+  own_entry   settle-in removed the conversion's own one-time "upgrade_" firmware
+              entry at first start (report.own_boot_entry), and no "upgrade_" entry
+              is left in the first boot's firmware capture
   button      when efi-*before*.txt and efi-*after-button*.txt exist: exactly the
               stale entries left the boot order, the running entry stayed first, and
               the next boot (boots.log) started from it into the graphical sign-in
@@ -45,7 +49,7 @@ notes = [a for a in sys.argv[4:] if not a.startswith("--")]
 S = D / "settle-in"
 HEADER = ["timestamp", "machine", "settle_in_version", "installed", "handoff", "clock_result", "clock_why",
           "installer_clock_error", "wifi_result", "wifi_nm_parse", "passwords_deleted", "ran_before_network", "result", "notes",
-          "sessions", "button", "window"]
+          "sessions", "button", "window", "own_entry"]
 
 def load(p):
     try: return json.load(open(p, encoding="utf-8-sig"))
@@ -138,7 +142,8 @@ else:
     end = next((k for k, x in enumerate(nxt) if re.search(start_re, x)), len(nxt))
     lines = [x for x in nxt[:end] if "settle-in-window:" in x]
     shown = any("showing the summary" in x for x in lines)
-    window = "shown in the first sign-in" if shown else "NOT shown in the first sign-in" + (": " + lines[-1].split("settle-in-window:", 1)[1].strip() if lines else " (no line from it)")
+    focus = [x.split("settle-in-window:", 1)[1].strip() for x in lines if "focus" in x or "in front" in x]
+    window = ("shown in the first sign-in" + ("; " + focus[0] if focus else "")) if shown else "NOT shown in the first sign-in" + (": " + lines[-1].split("settle-in-window:", 1)[1].strip() if lines else " (no line from it)")
     if not shown: fails.append("the window did not show at the first sign-in")
 sessions = "n/a (no session log)" if not jl else ("%d of %d reached the desktop" % (starts - hung, starts))
 if hung: fails.append("a desktop sign-in never reached the desktop (black screen)")
@@ -170,12 +175,22 @@ else:
     button = "removed %s; order otherwise unchanged: %s; next boot from %s, to %s: %s" % (",".join(gone) or "nothing", "y" if kept else "n", b_cur, want_tgt, "y" if rebooted else "n")
     if not (stale_ok and kept and rebooted): fails.append("button")
 
+# --- our own one-time entry, removed at first start (the owner, 2026-09-27)
+own = rep.get("own_boot_entry")
+snaps = sorted(S.glob("efibootmgr-*.txt"))
+if own is None:
+    own_entry = "n/a (settle-in before the own-entry removal)"
+else:
+    left = bool(snaps) and bool(re.search(r"Boot[0-9A-F]{4}\*? upgrade_\b", text(snaps[0])))
+    own_entry = "%s%s" % (own.get("result"), "; still in the firmware" if left else ("; gone from the firmware" if snaps else ""))
+    if own.get("result") not in ("removed", "already-gone") or left: fails.append("own entry")
+
 result = ("pass-plumbing" if spoofed else "pass") if not fails else "fail"
 if result != "fail" and spoofed and "partial" in wifi_nm: result = "partial"
 if fails: notes.append("failed: " + ", ".join(fails))
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), MACHINE, rep.get("settle_in_version", si.get("version", "")),
        installed, handoff, clock_result, clock_why, installer_err, wifi_result, wifi_nm, deleted, before, result, "; ".join(notes),
-       sessions, button, window]
+       sessions, button, window, own_entry]
 new = not CSV.exists()
 with open(CSV, "a", newline="") as f:
     wr_ = csv.writer(f)

@@ -38,6 +38,8 @@ fn sections() -> Option<Value> {
 struct App {
     screen: Value,
     drawn: bool,
+    shown_at: Option<std::time::Instant>,
+    focus_logged: bool,
     running: Option<mpsc::Receiver<Value>>,
     last: Option<String>,
 }
@@ -67,12 +69,26 @@ impl eframe::App for App {
         // one line in the journal on the first frame drawn (the rig's verdict reads it)
         if !self.drawn {
             self.drawn = true;
+            self.shown_at = Some(std::time::Instant::now());
             eprintln!("settle-in-window: showing the summary");
+            // ask to come first (the owner, 2026-09-27): the welcome apps open at the same
+            // sign-in; a desktop may refuse, so the attention request is the fallback
+            ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+            ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(egui::UserAttentionType::Informational));
+        }
+        // whether the desktop honoured it, as evidence (the rig's capture reads it)
+        if !self.focus_logged && self.shown_at.map(|t| t.elapsed().as_secs() >= 3).unwrap_or(false) {
+            self.focus_logged = true;
+            let focused = ctx.input(|i| i.viewport().focused).unwrap_or(false);
+            eprintln!("settle-in-window: {}", if focused { "in front (the desktop gave it focus)" } else { "not given focus by the desktop" });
+        }
+        if !self.focus_logged {
+            ctx.request_repaint_after(std::time::Duration::from_millis(500));
         }
         if let Some(rx) = &self.running
             && let Ok(v) = rx.try_recv() {
                 self.running = None;
-                // a draft awaiting approval: the line shown when the button did not work
+                // the line shown when the button did not work (approved 2026-09-27)
                 self.last = match v["result"].as_str() {
                     Some("removed") | Some("nothing-to-remove") => None,
                     _ => Some(format!("Not removed: {}", v["why"].as_str().unwrap_or("it did not work"))),
@@ -136,12 +152,15 @@ fn main() {
         eprintln!("settle-in-window: no summary to show (not an upgrade_ install, or settle-in has not run)");
         return;
     };
+    // a few seconds after the sign-in, so the desktop's own welcome app opens first
+    // and this window, opening after it, is the newest (the owner, 2026-09-27)
+    std::thread::sleep(std::time::Duration::from_secs(5));
     let title = screen["title"].as_str().unwrap_or("settle-in").to_string();
     let opts = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_title(&title).with_inner_size([560.0, 620.0]),
+        viewport: egui::ViewportBuilder::default().with_title(&title).with_inner_size([560.0, 620.0]).with_active(true),
         ..Default::default()
     };
-    if let Err(e) = eframe::run_native(&title, opts, Box::new(|_cc| Ok(Box::new(App { screen, drawn: false, running: None, last: None })))) {
+    if let Err(e) = eframe::run_native(&title, opts, Box::new(|_cc| Ok(Box::new(App { screen, drawn: false, shown_at: None, focus_logged: false, running: None, last: None })))) {
         eprintln!("settle-in-window: could not open the window: {}", e);
         std::process::exit(1);
     }

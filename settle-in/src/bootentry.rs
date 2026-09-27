@@ -170,8 +170,42 @@ pub fn remove(root: &str, job: &Value) -> Value {
     if p.stale.is_empty() {
         return json!({ "result": "nothing-to-remove" });
     }
+    delete_entries(root, &f, &p.stale)
+}
+
+/// The conversion's own one-time entry, "upgrade_" (decided 2026-09-27, the
+/// owner: removed at first start, automatically - we made it, and nobody
+/// would want it). It is found ONLY by the exact BCD id the prologue
+/// recorded when it made the entry (outcome.prologue.handoff.entry_guid);
+/// more than one match, or the entry this computer started from, is a
+/// refusal. The same order-first writer as the button.
+pub fn remove_ours(root: &str, outcome: &Value) -> Value {
+    let guid = outcome.pointer("/prologue/handoff/entry_guid").and_then(Value::as_str).unwrap_or("").to_string();
+    if guid.trim().is_empty() {
+        return json!({ "result": "not-recorded", "why": "the conversion recorded no entry of its own" });
+    }
+    let entries = efi::boot_entries(root);
+    let ours: Vec<(u16, LoadOption)> = entries.iter().filter(|(_, lo)| efi::names_bcd_object(lo, &guid)).cloned().collect();
+    if ours.is_empty() {
+        return json!({ "result": "already-gone", "entry_guid": guid });
+    }
+    if ours.len() > 1 {
+        return json!({ "result": "refused", "why": format!("{} entries carry the id {}; which one is ours is not certain", ours.len(), guid) });
+    }
+    let cur = efi::read_var(root, "BootCurrent").filter(|d| d.len() >= 2).map(|d| u16::from_le_bytes([d[0], d[1]]));
+    if cur.is_none() || cur == Some(ours[0].0) {
+        return json!({ "result": "refused", "why": "this computer started from that entry, or which entry it started from is not known" });
+    }
+    let f = Facts { clean_slate: true, partitions: Ok(Vec::new()), windows_esp: Ok(false), entries, boot_current: cur,
+                    boot_order: efi::read_var(root, "BootOrder").map(|d| efi::u16_list(&d)) };
+    let mut r = delete_entries(root, &f, &ours);
+    r["entry_guid"] = json!(guid);
+    r
+}
+
+fn delete_entries(root: &str, f: &Facts, stale: &[(u16, LoadOption)]) -> Value {
     let order = f.boot_order.clone().unwrap_or_default();
-    let gone: Vec<u16> = p.stale.iter().map(|(n, _)| *n).collect();
+    let gone: Vec<u16> = stale.iter().map(|(n, _)| *n).collect();
     let new: Vec<u16> = order.iter().copied().filter(|n| !gone.contains(n)).collect();
     if new != order {
         let bytes: Vec<u8> = new.iter().flat_map(|n| n.to_le_bytes()).collect();
@@ -186,7 +220,7 @@ pub fn remove(root: &str, job: &Value) -> Value {
         let _ = efi::delete_var(root, "BootNext");
     }
     let mut removed = Vec::new();
-    for (n, lo) in &p.stale {
+    for (n, lo) in stale {
         let name = format!("Boot{:04X}", n);
         match efi::delete_var(root, &name) {
             Ok(()) if efi::read_var(root, &name).is_none() => removed.push(json!({ "entry": name, "description": lo.description })),
@@ -295,6 +329,27 @@ mod tests {
         assert!(efi::read_var(&r, "Boot0003").is_some());
         assert!(efi::read_var(&r, "BootNext").is_none());
         assert_eq!(remove(&r, &job)["result"], "nothing-to-remove");
+        std::fs::remove_dir_all(&r).unwrap();
+    }
+
+    #[test]
+    fn removes_our_own_entry_by_its_recorded_id_only() {
+        let r = machine("ours", false);
+        let ev = format!("{}/sys/firmware/efi/efivars", r);
+        let mut b = 7u32.to_le_bytes().to_vec();
+        b.extend(crate::efi::tests::load_option_with("upgrade_", guid_bytes(NEW), "\\EFI\\BOOT\\BOOTX64.EFI", &crate::efi::tests::bcd_optional("{6a9834d7-a4c4-11f1-81d8-00155d003c01}")));
+        std::fs::write(format!("{}/Boot0009-{}", ev, efi::GLOBAL), b).unwrap();
+        let mut o = 7u32.to_le_bytes().to_vec();
+        o.extend_from_slice(&[3, 0, 0, 0, 9, 0]);
+        std::fs::write(format!("{}/BootOrder-{}", ev, efi::GLOBAL), o).unwrap();
+        // a different id matches nothing
+        assert_eq!(remove_ours(&r, &json!({ "prologue": { "handoff": { "entry_guid": "{00000000-a4c4-11f1-81d8-00155d003c01}" } } }))["result"], "already-gone");
+        let out = remove_ours(&r, &json!({ "prologue": { "handoff": { "entry_guid": "{6a9834d7-a4c4-11f1-81d8-00155d003c01}" } } }));
+        assert_eq!(out["result"], "removed", "{}", out);
+        assert!(efi::read_var(&r, "Boot0009").is_none());
+        assert!(efi::read_var(&r, "Boot0000").is_some()); // the Windows entry is the button's, not this
+        assert_eq!(efi::read_var(&r, "BootOrder").map(|d| efi::u16_list(&d)), Some(vec![3, 0]));
+        assert_eq!(remove_ours(&r, &json!({}))["result"], "not-recorded");
         std::fs::remove_dir_all(&r).unwrap();
     }
 
