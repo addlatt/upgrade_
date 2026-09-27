@@ -107,7 +107,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.10.0'   # 0.10.0 (2026-09-26): the erase-and-install path (RISKS R27); 0.9.1: only the no-folders stop message
+$PrologueVersion = '0.11.0'   # 0.11.0 (2026-09-27): every stop and every return to Windows removes the stick's Wi-Fi passwords (the owner); 0.10.0 (2026-09-26): the erase-and-install path (RISKS R27); 0.9.1: only the no-folders stop message
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -1308,6 +1308,22 @@ function Get-PrologueStopSentence {
     'Windows is as it was.'
 }
 
+function Remove-PrologueWifiSecrets {
+    # The Wi-Fi passwords the job writer exported (artifacts\credentials\wifi)
+    # leave the stick at every stop and every return to Windows, not only at
+    # the end of an install (decided 2026-09-27, the owner): the stick never
+    # carries them longer than one attempt. A re-run exports them again.
+    # Returns how many files went.
+    param([string]$Root)
+    if (-not $Root) { return 0 }
+    $dir = Join-Path $Root 'upgrade_\artifacts\credentials\wifi'
+    if (-not (Test-Path -LiteralPath $dir)) { return 0 }
+    $n = 0
+    foreach ($f in @(Get-ChildItem -LiteralPath $dir -File -Recurse -Force)) { [IO.File]::WriteAllText($f.FullName, 'SCRUBBED by the prologue'); Remove-Item -LiteralPath $f.FullName -Force; $n++ }
+    Remove-Item -LiteralPath $dir -Recurse -Force
+    $n
+}
+
 function Stop-Prologue {
     # A refusal: undo what this run did, record everything, write the stopped
     # outcome to the stick, scrub the stick's credentials, and exit 2.
@@ -1334,8 +1350,9 @@ function Stop-Prologue {
         $o = New-PrologueStoppedOutcome -Job $Job -S $S -StoppedAt $StoppedAt -Reason $Reason -WindowsPartition $wp
         [IO.File]::WriteAllText((Join-Path $Root 'upgrade_\outcome.json'), (ConvertTo-PrologueJson $o), (New-Object Text.UTF8Encoding($false)))
         $cred = Join-Path $Root 'upgrade_\artifacts\credentials'
+        $wifiGone = Remove-PrologueWifiSecrets -Root $Root
         if (Test-Path $cred) { Get-ChildItem $cred -File -Force | ForEach-Object { [IO.File]::WriteAllText($_.FullName, 'SCRUBBED by the prologue at a stop'); Remove-Item $_.FullName -Force } }
-        Write-Log "  outcome.json (stopped) written to the stick; credentials scrubbed"
+        Write-Log "  outcome.json (stopped) written to the stick; credentials scrubbed ($wifiGone Wi-Fi password file(s) removed)"
     }
     Write-Record -S $S -Root $Root
     Copy-Item (Join-Path $State 'state.json') (Join-Path $State 'state-stopped.json') -Force -ErrorAction SilentlyContinue
@@ -1602,6 +1619,7 @@ function Invoke-Return {
     # Windows is back after the handoff. Classify, clean up, record, leave.
     param($S, [string]$State, [string]$Root)
     Write-Log '  return: Windows is back after the handoff'
+    if ($Root) { Write-Log "  $(Remove-PrologueWifiSecrets -Root $Root) Wi-Fi password file(s) removed from the stick" }
     $fired = $false; $via = @()
     if ($Root) {
         $ge = Join-Path $Root $GrubEnvRel
@@ -1817,7 +1835,7 @@ function Invoke-AbortPhase {
     if ($S.BitLocker.Suspended) { & manage-bde -protectors -enable C: 2>&1 | Out-Null; Write-Host '  BitLocker protection re-enabled' }
     foreach ($r in @(Invoke-PrologueRestoreMemoryFiles -S $S)) { Write-Host "  $r" }
     $root = Find-Stick $S
-    if ($root) { Remove-Item (Join-Path $root 'upgrade_\boot-install') -Force -ErrorAction SilentlyContinue }
+    if ($root) { Remove-Item (Join-Path $root 'upgrade_\boot-install') -Force -ErrorAction SilentlyContinue; Write-Host "  $(Remove-PrologueWifiSecrets -Root $root) Wi-Fi password file(s) removed from the stick" }
     Move-Item (Join-Path $state 'state.json') (Join-Path $state 'state-aborted.json') -Force
     Write-Host "  aborted at stage '$($S.Stage)'; state kept as state-aborted.json. A shrink already made is not undone here (Disk Management can extend C:)."
 }
@@ -2067,6 +2085,11 @@ function Invoke-SelfTest {
         @{ Name = 'probe: no stick names that first, whatever else'; Run = { Get-ProbeResult -Unattended $false -StickFound $false -TaskRemoved $false }; Expect = 'stick-not-found' }
         @{ Name = 'probe: a task left behind is task-not-removed'; Run = { Get-ProbeResult -Unattended $true -StickFound $true -TaskRemoved $false }; Expect = 'task-not-removed' }
         @{ Name = 'probe csv: fields quoted, quotes doubled, newlines flattened, header has 18 columns'; Run = { "$(ConvertTo-ProbeCsvLine @('a', 'say ""hi""', "x`r`ny", 3, $true))/$(@($ProbeCsvHeader).Count)" }; Expect = '"a","say ""hi""","x y","3","True"/18' }
+        @{ Name = 'wifi secrets: every file in the stick''s Wi-Fi folder goes, and the folder; none is 0; no root is 0'
+           Run = { $t = Join-Path ([IO.Path]::GetTempPath()) ("upg-st-" + [guid]::NewGuid()); $w = Join-Path $t 'upgrade_\artifacts\credentials\wifi'; New-Item -ItemType Directory -Path $w -Force | Out-Null
+                   '<k>secret</k>' | Set-Content (Join-Path $w '01.xml'); '<k>secret</k>' | Set-Content (Join-Path $w '02.xml'); Set-Content (Join-Path $t 'upgrade_\artifacts\credentials\bitlocker-C.txt') 'k'
+                   $a = Remove-PrologueWifiSecrets -Root $t; $gone = -not (Test-Path $w); $kept = Test-Path (Join-Path $t 'upgrade_\artifacts\credentials\bitlocker-C.txt'); $b = Remove-PrologueWifiSecrets -Root $t; $c = Remove-PrologueWifiSecrets -Root ''
+                   Remove-Item $t -Recurse -Force; "$($a):$($gone):$($kept):$($b):$($c)" }; Expect = '2:True:True:0:0' }
         @{ Name = 'drive: e normalizes to E:\, a path is refused'; Run = { "$(Get-DriveRoot 'e')/$(try { Get-DriveRoot 'E:\x'; 'accepted' } catch { 'refused' })" }; Expect = 'E:\/refused' }
     )
     $failed = 0
@@ -2091,5 +2114,9 @@ if (-not (Test-Elevated)) { throw 'the prologue needs Administrator: it reads an
 if (-not (Test-UefiBoot)) { throw 'this machine is not UEFI-booted; the boot handoff does not apply' }
 if ($Abort) { Invoke-AbortPhase; return }
 if ($Probe) { Invoke-ProbeStart; return }
-if ($Start) { Invoke-StartPhase; return }
+if ($Start) {
+    # a refusal before any state exists is a stop too: the Wi-Fi passwords leave the stick (2026-09-27)
+    try { Invoke-StartPhase } catch { if ($StickDrive) { try { Remove-PrologueWifiSecrets -Root (Get-DriveRoot $StickDrive) | Out-Null } catch { } }; throw }
+    return
+}
 Invoke-ResumePhase

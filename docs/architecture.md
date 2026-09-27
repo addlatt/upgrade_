@@ -935,10 +935,23 @@ automatic.**
   records the installer wrote with the shifted clock are corrected by the
   same offset in `settle-in`'s report, never silently rewritten.
 - **Wi-Fi.** `evaluate` exports the saved Wi-Fi profiles with their
-  passwords (`netsh wlan export key=clear`, elevated) into
-  `artifacts/credentials/` on the stick. `job.json` lists the networks
-  (`harvest.wifi.profiles`) and only the file's path (RISKS R13: secrets
-  are files, not fields). The launcher says plainly, before anything is
+  passwords into `artifacts/credentials/wifi/` on the stick, one file per
+  network that has a password. `job.json` lists the networks
+  (`harvest.wifi.profiles`) and, for each, only its file's path (RISKS
+  R13: secrets are files, not fields).
+  **Not with `netsh` (found 2026-09-27 on the G16).** `netsh wlan export`
+  writes all profiles at once and shortens file names to fit the folder
+  path. Two names that start alike get the same file, and the second
+  silently overwrites the first: 14 networks became 13 files. So the job
+  writer reads each network by name from Windows' Native Wifi API (the
+  interface `netsh` itself uses) and counts them against the profile files
+  Windows stores on disk. If the two counts differ, it refuses. On the G16
+  both said 14, and 10 had a password. (The G16 also returned the
+  passwords in clear without elevation; the job writer runs elevated
+  anyway.) WPA3 in "transition mode" (the router also accepts WPA2; 9 of
+  the G16's 10 WPA3 networks) is set up as WPA2-personal, which such a
+  router accepts. The export runs only after every other check passed, so
+  a refused job never leaves passwords on the stick. The launcher says plainly, before anything is
   written, that the Wi-Fi passwords are copied onto the stick. It uses the
   owner's approved words (2026-09-27), shown verbatim on every install
   launcher before the harvest runs: *"Your saved Wi-Fi networks and their
@@ -952,6 +965,11 @@ automatic.**
   (WPA/WPA2/WPA3 personal and open); enterprise networks are listed, not
   guessed. The machine that ends up holding the passwords is the one that
   already knew them, and the stick stops carrying them within minutes.
+  **Every stop removes them from the stick too** (decided 2026-09-27, the
+  owner): a prologue stop, a cancelled countdown, a return to Windows, an
+  abort, or a launcher that fails after the job was written. A re-run
+  exports them again. The sentence is shown in READ THIS FIRST (on
+  `RUN-CONVERT.cmd`, which has no such block, in the same place).
 - **The old boot entry.** At the end of `settle-in`, on the erase and
   clean-slate paths only, there is a button: "Remove the old Windows
   startup entry". It removes firmware entries that point at a Windows boot
@@ -959,9 +977,13 @@ automatic.**
   Windows ESP still exists (keep-Windows keeps its entry by design,
   R21/R22).
 
-Not built. Build order: the harvest of clock and Wi-Fi into the job
-(Windows side; testable now), then `settle-in`'s first-startup service
-(clock, Wi-Fi) on the rig, then the button with `settle-in`'s window.
+**Built (2026-09-27): the Windows side.** Job writer 0.15.0
+(`harvest.clock`, `harvest.wifi`, 21 self-test cases, a live read on the
+G16), prologue 0.11.0 (the stop rule), the sentence on the four install
+launchers. `[##..]` built, not yet fired on the rig. Still to build: the
+installer adapter's hand-over (`%post`), then `settle-in`'s first-startup
+service (clock, Wi-Fi) on the rig, then the button with `settle-in`'s
+window.
 
 ### Scope boundary
 

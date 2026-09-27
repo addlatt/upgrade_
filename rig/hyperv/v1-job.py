@@ -8,7 +8,12 @@ Nothing here is product code: the point is a job that is TRUE for the rig
 guest - its real disk identity, ESP, BitLocker state - so the verifier on
 the stick has something real to match against.
 
-    v1-job.py facts.json password_hash out.json [stick_unique_id stick_size]
+    v1-job.py facts.json password_hash out.json stick_unique_id stick_size settings.json
+
+settings.json is what the PRODUCT job writer's clock and Wi-Fi harvest
+wrote in the guest (New-Job.ps1 -HarvestSettingsOut, 2026-09-27):
+harvest.clock and harvest.wifi are taken from it as they are, and the
+locale's time zone is its IANA name - never made up here.
 """
 import json, sys, uuid, datetime, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "schemas"))
@@ -21,6 +26,8 @@ pw_hash = sys.argv[2]
 out = sys.argv[3]
 stick_uid = sys.argv[4] if len(sys.argv) > 4 else "UNKNOWN-STICK"
 stick_size = int(sys.argv[5]) if len(sys.argv) > 5 else 2306867200
+if len(sys.argv) < 7: sys.exit("v1-job: give the guest's settings.json (New-Job.ps1 -HarvestSettingsOut) - the clock and Wi-Fi are never made up")
+settings = json.load(open(sys.argv[6], encoding="utf-8-sig"))
 
 job = json.load(open(root / "schemas/examples/job.keep-windows.json"))
 job["job_id"] = str(uuid.uuid4())
@@ -36,7 +43,7 @@ job["identity"] = {
 }
 job["scan"]["verdict"] = "YELLOW"
 job["intent"]["account"] = {"windows_name": "rig", "full_name": None, "linux_name": "rig", "password_hash": pw_hash}
-job["intent"]["locale"] = {"lang": "en_US.UTF-8", "timezone": "UTC", "keymap": "us"}
+job["intent"]["locale"] = {"lang": "en_US.UTF-8", "timezone": settings["clock"]["iana"], "keymap": "us"}
 job["intent"]["desktop"] = "kde"
 job["fork"] = {"if_cannot_keep": "stop", "volume_check_consented": True}
 job["storage"]["shrinkable_gb"] = float(facts.get("shrink_gb") or 0) or None
@@ -51,7 +58,8 @@ job["harvest"]["folders"] = [f for f in job["harvest"]["folders"] if f["name"] =
 job["harvest"]["folders"][0].update({"path": "C:\\Users\\rig\\Documents", "is_onedrive": False, "files": 0, "bytes": 0, "cloud_only_files": 0})
 job["harvest"]["cloud_files"] = {"placeholders_found": 0, "materialized": 0, "failed": 0, "result": "none-found"}
 job["harvest"]["browsers"] = []
-job["harvest"]["wifi"] = {"profiles": [], "secrets_file": None}
+job["harvest"]["clock"] = settings["clock"]
+job["harvest"]["wifi"] = settings["wifi"]
 bl = facts.get("bitlocker", "off")
 job["harvest"]["bitlocker"] = {"status": bl, "recovery_key_file": "artifacts/credentials/bitlocker-C.txt" if bl == "on" else None}
 job["harvest"]["firmware_artifacts"] = []

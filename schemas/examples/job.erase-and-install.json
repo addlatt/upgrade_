@@ -78,6 +78,17 @@
     }
   },
   "harvest": {
+    "clock": {
+      "windows_zone": "Eastern Standard Time",
+      "iana": "Europe/London",
+      "rtc_is_local": true,
+      "real_time_is_universal": null,
+      "dst_auto_adjust": true,
+      "utc_offset_minutes": -240,
+      "base_utc_offset_minutes": -300,
+      "dst_active": true,
+      "observed_utc": "2026-09-08T21:00:00Z"
+    },
     "folders": [
       {
         "name": "Documents",
@@ -108,8 +119,46 @@
     },
     "browsers": [],
     "wifi": {
-      "profiles": [],
-      "secrets_file": null
+      "result": "exported",
+      "secrets_dir": "artifacts/credentials/wifi",
+      "profiles": [
+        {
+          "name": "Home Net",
+          "ssid": "Home Net",
+          "ssid_hex": "486F6D65204E6574",
+          "hidden": false,
+          "windows_auth": "WPA3SAE/AES",
+          "key_mgmt": "wpa-psk",
+          "supported": true,
+          "autoconnect": true,
+          "why_not": null,
+          "secrets_file": "artifacts/credentials/wifi/01.xml"
+        },
+        {
+          "name": "Cafe Guest",
+          "ssid": "Cafe Guest",
+          "ssid_hex": "43616665204775657374",
+          "hidden": false,
+          "windows_auth": "open/none",
+          "key_mgmt": "none",
+          "supported": true,
+          "autoconnect": false,
+          "why_not": null,
+          "secrets_file": null
+        },
+        {
+          "name": "Work",
+          "ssid": "Work",
+          "ssid_hex": "576F726B",
+          "hidden": false,
+          "windows_auth": "WPA2/AES",
+          "key_mgmt": "UNSUPPORTED",
+          "supported": false,
+          "autoconnect": true,
+          "why_not": "an enterprise network (a company or school sign-in) - listed, not set up",
+          "secrets_file": null
+        }
+      ]
     },
     "bitlocker": {
       "status": "off",

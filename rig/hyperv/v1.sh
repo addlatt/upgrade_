@@ -134,7 +134,13 @@ $dirty="unknown"; $dq=(fsutil dirty query C: 2>&1) -join " "; if ($dq -match "is
     HASH=$(openssl passwd -6 rig)
     SUID=$(python3 -c 'import json,sys; f=json.load(open(sys.argv[1])); print(f["stick"]["unique_id"])' "$A/facts.json")
     SSIZE=$(python3 -c 'import json,sys; f=json.load(open(sys.argv[1])); print(f["stick"]["size"])' "$A/facts.json")
-    python3 v1-job.py "$A/facts.json" "$HASH" "$A/job.json" "$SUID" "$SSIZE"
+    # the clock and Wi-Fi come from the PRODUCT harvest, run in the guest from the stick (job writer 0.15.0);
+    # its Wi-Fi password files land on the stick where the product puts them
+    L=$(stick_letter); [ -n "$L" ] || { echo "v1: no UPGV0 volume in the guest" >&2; exit 1; }
+    guest "New-Item -ItemType Directory -Force -Path C:\\upgrade_\\v1 | Out-Null; powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\New-Job.ps1 -HarvestSettingsOut C:\\upgrade_\\v1\\settings.json -OutDir ${L}:\\upgrade_" | tee "$A/settings-harvest.log"
+    guest 'Get-Content C:\upgrade_\v1\settings.json -Raw' > "$A/settings.json"
+    python3 -c 'import json,sys; json.load(open(sys.argv[1], encoding="utf-8-sig"))' "$A/settings.json" || { echo "v1: the guest's clock + Wi-Fi harvest gave no JSON - read $A/settings-harvest.log" >&2; exit 1; }
+    python3 v1-job.py "$A/facts.json" "$HASH" "$A/job.json" "$SUID" "$SSIZE" "$A/settings.json"
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(wslpath -w ../../upgrade_/windows/New-Kickstart.ps1)" -JobPath "$(wslpath -w "$A/job.json")" -OutFile "$(wslpath -w "$A/ks.cfg")" -StickLabel UPGV0 -Manifest "$(wslpath -w "$KIT/SHA256SUMS")" < /dev/null | tr -d '\r'
     L=$(stick_letter); [ -n "$L" ] || { echo "v1: no UPGV0 volume in the guest" >&2; exit 1; }
     PS copy "$(wslpath -w "$A/job.json")" "${L}:\\upgrade_\\job.json" | tr -d '\r'

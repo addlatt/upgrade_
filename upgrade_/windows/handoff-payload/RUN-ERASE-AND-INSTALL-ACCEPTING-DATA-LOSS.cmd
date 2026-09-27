@@ -62,6 +62,11 @@ echo   installer, and a 2-minute countdown appears on the screen. Press any
 echo   key during the countdown to cancel - Windows comes back untouched.
 echo   When the countdown ends, the drives are erased. You can walk away.
 echo.
+echo   Your saved Wi-Fi networks and their passwords are copied onto this
+echo   stick, so Fedora can connect to them on its own. They are removed
+echo   from the stick at the end of the install and from Fedora once it
+echo   has set them up.
+echo.
 echo   Step 1 of 7: scanning this computer (nothing is changed)...
 echo.
 if not exist "%~dp0upgrade_\reports" mkdir "%~dp0upgrade_\reports"
@@ -180,6 +185,8 @@ if %JOBERR% neq 0 (
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Invoke-Logged.ps1" -Log "%~dp0upgrade_\convert.log" -Script "%~dp0New-Kickstart.ps1" -JobPath "%~dp0upgrade_\job.json" -OutFile "%~dp0upgrade_\ks.cfg" -StickLabel UPGV0 -Manifest "%~dp0SHA256SUMS"
 if %errorlevel% neq 0 (
   echo.
+  REM the Wi-Fi passwords leave the stick at every stop (2026-09-27)
+  if exist "%~dp0upgrade_\artifacts\credentials\wifi" rmdir /s /q "%~dp0upgrade_\artifacts\credentials\wifi"
   echo   The installer's instructions could not be generated. Nothing was changed.
   pause
   exit /b 1

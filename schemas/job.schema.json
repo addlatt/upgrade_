@@ -447,6 +447,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "clock",
         "folders",
         "cloud_files",
         "stick_fit",
@@ -457,6 +458,67 @@
         "software"
       ],
       "properties": {
+        "clock": {
+          "description": "Windows' clock facts, harvested for settle-in (decided 2026-09-26: the Aspire's installer clock was 4 h behind because Windows keeps the hardware clock in local time). settle-in reads the hardware clock as the local time it is, converts it to UTC with the zone's rules (or the fixed base offset when Windows does not adjust for daylight saving), sets the system clock and stores the hardware clock as UTC from then on.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "windows_zone",
+            "iana",
+            "rtc_is_local",
+            "real_time_is_universal",
+            "dst_auto_adjust",
+            "utc_offset_minutes",
+            "base_utc_offset_minutes",
+            "dst_active",
+            "observed_utc"
+          ],
+          "properties": {
+            "windows_zone": {
+              "type": "string",
+              "minLength": 1
+            },
+            "iana": {
+              "description": "The standard zone name Linux uses; the same as intent.locale.timezone.",
+              "type": "string",
+              "minLength": 1
+            },
+            "rtc_is_local": {
+              "description": "true when RealTimeIsUniversal is absent or 0 (Windows' default). Any other value than 0 or 1 is a refusal at evaluate, never a guess.",
+              "type": "boolean"
+            },
+            "real_time_is_universal": {
+              "description": "The registry value as read, or null when absent.",
+              "enum": [
+                0,
+                1,
+                null
+              ]
+            },
+            "dst_auto_adjust": {
+              "description": "false when 'Adjust for daylight saving time automatically' is off (DynamicDaylightTimeDisabled = 1): Windows then keeps the base offset all year.",
+              "type": "boolean"
+            },
+            "utc_offset_minutes": {
+              "description": "Local time minus UTC at observed_utc.",
+              "type": "integer",
+              "minimum": -840,
+              "maximum": 840
+            },
+            "base_utc_offset_minutes": {
+              "type": "integer",
+              "minimum": -840,
+              "maximum": 840
+            },
+            "dst_active": {
+              "type": "boolean"
+            },
+            "observed_utc": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
         "folders": {
           "description": "The folder map: where the person's files actually live, resolved through the known-folder APIs so OneDrive redirection is followed. settle-in pulls exactly these.",
           "type": "array",
@@ -631,29 +693,73 @@
           }
         },
         "wifi": {
+          "description": "The saved Wi-Fi networks (decided 2026-09-26). Read one by one from Windows' Native Wifi API and counted against the profiles Windows stores on disk; a mismatch is a refusal at evaluate (netsh's all-at-once export lost one of 14 on the G16, 2026-09-27). Passwords are never fields: each network that has one names its file under artifacts/credentials/wifi/ (RISKS R13). The installer adapter moves those files root-only onto the installed system and deletes them from the stick; settle-in creates the connections and deletes its copy. Every stop before an install deletes them from the stick (the owner, 2026-09-27).",
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "profiles",
-            "secrets_file"
+            "result",
+            "secrets_dir",
+            "profiles"
           ],
           "properties": {
+            "result": {
+              "description": "exported: profiles read (and passwords written where there are any). none-saved: a Wi-Fi adapter with no saved networks. no-wireless: no Wi-Fi service. not-harvested: a verify-only job, which installs nothing.",
+              "enum": [
+                "exported",
+                "none-saved",
+                "no-wireless",
+                "not-harvested"
+              ]
+            },
+            "secrets_dir": {
+              "oneOf": [
+                {
+                  "$ref": "#/definitions/relpath"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "profiles": {
               "type": "array",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
+                  "name",
                   "ssid",
+                  "ssid_hex",
+                  "hidden",
+                  "windows_auth",
                   "key_mgmt",
                   "supported",
-                  "autoconnect"
+                  "autoconnect",
+                  "why_not",
+                  "secrets_file"
                 ],
                 "properties": {
+                  "name": {
+                    "description": "Windows' profile name.",
+                    "type": "string"
+                  },
                   "ssid": {
                     "type": "string"
                   },
+                  "ssid_hex": {
+                    "description": "The network name's exact bytes, uppercase hex.",
+                    "type": "string",
+                    "pattern": "^([0-9A-F]{2}){1,32}$"
+                  },
+                  "hidden": {
+                    "type": "boolean"
+                  },
+                  "windows_auth": {
+                    "description": "Windows' authentication/encryption, as recorded, e.g. WPA2PSK/AES.",
+                    "type": "string"
+                  },
                   "key_mgmt": {
+                    "description": "How Linux joins it. WPA3 in transition mode is joined as wpa-psk.",
                     "enum": [
                       "none",
                       "wpa-psk",
@@ -666,20 +772,98 @@
                   },
                   "autoconnect": {
                     "type": "boolean"
+                  },
+                  "why_not": {
+                    "description": "Plain words for why an unsupported network is listed and not set up.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "secrets_file": {
+                    "oneOf": [
+                      {
+                        "$ref": "#/definitions/relpath"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
-                }
-              }
-            },
-            "secrets_file": {
-              "description": "Relative path of the exported profiles with keys, under artifacts/credentials/, or null when none were exported.",
-              "oneOf": [
-                {
-                  "$ref": "#/definitions/relpath"
                 },
-                {
-                  "type": "null"
-                }
-              ]
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "key_mgmt": {
+                          "enum": [
+                            "wpa-psk",
+                            "sae"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "supported": {
+                          "const": true
+                        },
+                        "secrets_file": {
+                          "$ref": "#/definitions/relpath"
+                        },
+                        "why_not": {
+                          "type": "null"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "key_mgmt": {
+                          "const": "none"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "supported": {
+                          "const": true
+                        },
+                        "secrets_file": {
+                          "type": "null"
+                        },
+                        "why_not": {
+                          "type": "null"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "key_mgmt": {
+                          "const": "UNSUPPORTED"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "supported": {
+                          "const": false
+                        },
+                        "secrets_file": {
+                          "type": "null"
+                        },
+                        "why_not": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
             }
           }
         },

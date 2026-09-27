@@ -24,8 +24,17 @@
     the stick, or on a machine with other people's profiles (R5), is
     refused with the gap.
 
+    The clock and Wi-Fi (0.15.0, 2026-09-27): harvest.clock records the
+    time zone and whether the hardware clock holds local time; harvest.wifi
+    lists the saved networks, and their passwords go to files under
+    artifacts/credentials/wifi/ (secrets are files, never fields; RISKS
+    R13). They are read one by one from the Native Wifi API and counted
+    against the profiles Windows stores on disk; a mismatch is a refusal.
+    The export runs only after every other check passed, and never for a
+    verify-only job.
+
     What it does NOT yet do (said plainly so the job is read as what it is):
-    it does not harvest browsers or Wi-Fi (those blocks are empty),
+    it does not harvest browsers (that block is empty),
     does not extract the BitLocker key
     (a placeholder file is written where the key would go), and takes the
     account password hash as a parameter - the intent-capture UI that asks
@@ -75,6 +84,13 @@
     account running it, and exit. The launchers show it before the
     password is chosen, so the name on the screen is the one in the job.
 
+.PARAMETER HarvestSettingsOut
+    Run only the clock and Wi-Fi harvest (the same functions a job uses),
+    write { clock, wifi } as JSON to this file, and the Wi-Fi password
+    files under -OutDir, then exit. For the rig, whose job is built by a
+    stand-in (rig/hyperv/v1-job.py) because Hyper-V has no USB stick; it
+    keeps the product code the thing under test. Refusals exit 2.
+
 .PARAMETER Materialize
     Download OneDrive online-only files in the folders before the map is
     written (RISKS R8). Not used by any launcher: decided 2026-09-26 that
@@ -95,10 +111,11 @@ param(
     [string]$PasswordHashFile,
     [switch]$VerifyOnly,
     [switch]$PrintLinuxName,
+    [string]$HarvestSettingsOut,
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.14.0'
+$JobWriterVersion = '0.15.0'
 # the harvester versions whose folder map this writer reads; any other is refused, not guessed
 $KnownHarvestVersions = @('0.3.0')
 $LinuxMinGB = 25
@@ -157,6 +174,206 @@ function ConvertTo-JobLinuxName {
     $n = ($WindowsName.ToLower() -replace '[^a-z0-9_-]', '')
     if ($n -eq '' -or $n -match '^[0-9]') { $n = 'user' }
     $n.Substring(0, [Math]::Min(32, $n.Length))
+}
+
+function ConvertTo-JobClock {
+    # Pure (self-tested): Windows' clock facts -> harvest.clock (decided
+    # 2026-09-26: the Aspire's installer clock was 4 h behind because Windows
+    # keeps the hardware clock in local time). settle-in reads the hardware
+    # clock as the local time it is and converts it with these facts.
+    # RealTimeIsUniversal: absent or 0 = local time (Windows' default), 1 =
+    # UTC; any other value is not guessed at.
+    param([string]$WindowsZone, [string]$Iana, $RealTimeIsUniversal, $DynamicDstDisabled,
+          [int]$OffsetMinutes, [int]$BaseOffsetMinutes, [bool]$DstActive, [string]$NowUtc)
+    $rtu = $null; $local = $null
+    if ($null -eq $RealTimeIsUniversal) { $local = $true }
+    elseif ("$RealTimeIsUniversal" -match '^[01]$') { $rtu = [int]"$RealTimeIsUniversal"; $local = ($rtu -eq 0) }
+    if ($null -eq $local) { return @{ Refusal = "Windows' RealTimeIsUniversal setting is '$RealTimeIsUniversal', neither 0 nor 1 - whether the hardware clock holds local time or UTC is not known, and it is not guessed"; Clock = $null } }
+    $dstAuto = -not ("$DynamicDstDisabled" -eq '1')
+    @{ Refusal = $null; Clock = [ordered]@{
+        windows_zone = $WindowsZone; iana = $Iana
+        rtc_is_local = $local; real_time_is_universal = $rtu
+        dst_auto_adjust = $dstAuto
+        utc_offset_minutes = $OffsetMinutes; base_utc_offset_minutes = $BaseOffsetMinutes; dst_active = $DstActive
+        observed_utc = $NowUtc } }
+}
+
+function ConvertFrom-JobWlanProfile {
+    # Pure (self-tested): one Windows Wi-Fi profile (the XML the Native Wifi
+    # API returns) -> a harvest.wifi.profiles row. The row never carries the
+    # password: only whether there is one. What Linux can join is WPA/WPA2/
+    # WPA3 personal and open networks (decided 2026-09-26); the rest is
+    # listed with the reason, never guessed. WPA3 in transition mode (the
+    # router also takes WPA2; 9 of 9 WPA3 profiles on the G16, 2026-09-27)
+    # is joined as WPA2-personal, which such a router accepts.
+    param([string]$Xml)
+    try { [xml]$x = $Xml } catch { return $null }
+    $p = $x.WLANProfile
+    if (-not $p -or -not $p.SSIDConfig) { return $null }
+    $ssidNode = @($p.SSIDConfig.SSID)[0]
+    $ssid = "$($ssidNode.name)"
+    $hex = "$($ssidNode.hex)".ToUpper()
+    if (-not $hex) { $hex = (@([Text.Encoding]::UTF8.GetBytes($ssid) | ForEach-Object { $_.ToString('X2') }) -join '') }
+    $sec = $p.MSM.security
+    $auth = "$($sec.authEncryption.authentication)"; $enc = "$($sec.authEncryption.encryption)"
+    $onex = "$($sec.authEncryption.useOneX)" -eq 'true'
+    $transition = $false
+    foreach ($n in @($sec.authEncryption.ChildNodes)) { if ($n.LocalName -eq 'transitionMode' -and "$($n.InnerText)" -eq 'true') { $transition = $true } }
+    $hasKey = [bool]($sec.sharedKey -and "$($sec.sharedKey.protected)" -eq 'false' -and "$($sec.sharedKey.keyMaterial)")
+    $km = 'UNSUPPORTED'; $why = $null
+    if ("$($p.connectionType)" -ne 'ESS') { $why = 'an ad-hoc (computer-to-computer) network' }
+    elseif ($onex -or $auth -in @('WPA', 'WPA2', 'WPA3', 'WPA3ENT', 'WPA3ENT192')) { $why = 'an enterprise network (a company or school sign-in) - listed, not set up' }
+    elseif ($auth -eq 'open' -and $enc -eq 'none') { $km = 'none' }
+    elseif ($enc -eq 'WEP') { $why = 'WEP, an old and broken kind of Wi-Fi security' }
+    elseif ($auth -in @('WPAPSK', 'WPA2PSK') -or ($auth -eq 'WPA3SAE' -and $transition)) { $km = 'wpa-psk' }
+    elseif ($auth -eq 'WPA3SAE') { $km = 'sae' }
+    else { $why = "a kind of Wi-Fi security this version does not set up ($auth/$enc)" }
+    if ($km -in @('wpa-psk', 'sae') -and -not $hasKey) { $why = 'its password could not be read from Windows'; $km = 'UNSUPPORTED' }
+    [ordered]@{
+        name = "$($p.name)"; ssid = $ssid; ssid_hex = $hex
+        hidden = ("$($p.SSIDConfig.nonBroadcast)" -eq 'true')
+        windows_auth = "$auth/$enc"; key_mgmt = $km; supported = ($km -ne 'UNSUPPORTED')
+        autoconnect = ("$($p.connectionMode)" -eq 'auto'); why_not = $why; secrets_file = $null
+        HasKey = $hasKey }
+}
+
+function ConvertTo-JobWifi {
+    # Pure (self-tested): what the Native Wifi API returned + how many profiles
+    # Windows has stored on disk -> harvest.wifi, the files to write, or a
+    # refusal. The two counts are independent; if they disagree, a network
+    # would be silently missing, so it refuses (netsh's all-at-once export
+    # lost one of 14 on the G16, 2026-09-27: it shortens file names to fit
+    # the folder and two collided).
+    param($Api, [int]$StoredCount, [string]$Dir = 'artifacts/credentials/wifi')
+    if ($Api.Error) { return @{ Refusal = "the saved Wi-Fi networks could not be read ($($Api.Error))" } }
+    if (-not $Api.Present) {
+        if ($StoredCount -gt 0) { return @{ Refusal = "Windows has $StoredCount saved Wi-Fi network(s), but its Wi-Fi service is not running, so they cannot be read" } }
+        return @{ Refusal = $null; Wifi = [ordered]@{ result = 'no-wireless'; secrets_dir = $null; profiles = @() }; Files = @() }
+    }
+    $rows = @(); $files = @(); $seen = @{}
+    foreach ($pr in @($Api.Profiles)) {
+        $r = ConvertFrom-JobWlanProfile -Xml $pr.Xml
+        if (-not $r) { continue }
+        $rows += , @{ Row = $r; Xml = $pr.Xml }
+    }
+    if ($rows.Count -ne $StoredCount) { return @{ Refusal = "Windows has $StoredCount saved Wi-Fi network(s) on disk but $($rows.Count) could be read - one would be missing after the move" } }
+    $out = @(); $n = 0
+    foreach ($e in $rows) {
+        $r = $e.Row; $k = "$($r.name)|$($r.ssid_hex)"
+        if ($seen.ContainsKey($k)) { continue }   # the same network saved on two Wi-Fi adapters
+        $seen[$k] = $true
+        if ($r.supported -and $r.HasKey) { $n++; $r.secrets_file = ('{0}/{1:D2}.xml' -f $Dir, $n); $files += , @{ Rel = $r.secrets_file; Xml = $e.Xml } }
+        $r.Remove('HasKey'); $out += , $r
+    }
+    $res = if ($out.Count -eq 0) { 'none-saved' } else { 'exported' }
+    @{ Refusal = $null; Wifi = [ordered]@{ result = $res; secrets_dir = $(if ($files.Count -gt 0) { $Dir } else { $null }); profiles = $out }; Files = $files }
+}
+
+function Get-JobClockFacts {
+    # Live half of harvest.clock: the registry and .NET's view of the zone.
+    $k = 'HKLM:\SYSTEM\CurrentControlSet\Control\TimeZoneInformation'
+    $ti = Get-ItemProperty -Path $k -ErrorAction SilentlyContinue
+    $tz = [TimeZoneInfo]::Local; $now = [DateTime]::UtcNow
+    @{ WindowsZone = $tz.Id
+       RealTimeIsUniversal = $(if ($ti -and $null -ne $ti.PSObject.Properties['RealTimeIsUniversal']) { $ti.RealTimeIsUniversal } else { $null })
+       DynamicDstDisabled = $(if ($ti -and $null -ne $ti.PSObject.Properties['DynamicDaylightTimeDisabled']) { $ti.DynamicDaylightTimeDisabled } else { $null })
+       OffsetMinutes = [int]$tz.GetUtcOffset($now).TotalMinutes; BaseOffsetMinutes = [int]$tz.BaseUtcOffset.TotalMinutes
+       DstActive = $tz.IsDaylightSavingTime($now); NowUtc = $now.ToString('yyyy-MM-ddTHH:mm:ssZ') }
+}
+
+function Get-JobWlanProfiles {
+    # Live half of harvest.wifi: every saved profile, with its password in
+    # clear (WLAN_PROFILE_GET_PLAINTEXT_KEY; elevated), straight from the
+    # Native Wifi API - the interface netsh itself uses - one profile at a
+    # time by name, so nothing is lost to file naming. Read-only.
+    if (-not ('Upg.Wlan' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+namespace Upg {
+    public class WlanProfile { public Guid Interface; public string Name; public string Xml; }
+    public static class Wlan {
+        [DllImport("wlanapi.dll")] static extern uint WlanOpenHandle(uint ver, IntPtr res, out uint negotiated, out IntPtr handle);
+        [DllImport("wlanapi.dll")] static extern uint WlanCloseHandle(IntPtr handle, IntPtr res);
+        [DllImport("wlanapi.dll")] static extern uint WlanEnumInterfaces(IntPtr handle, IntPtr res, out IntPtr list);
+        [DllImport("wlanapi.dll")] static extern uint WlanGetProfileList(IntPtr handle, ref Guid iface, IntPtr res, out IntPtr list);
+        [DllImport("wlanapi.dll", CharSet = CharSet.Unicode)]
+        static extern uint WlanGetProfile(IntPtr handle, ref Guid iface, string name, IntPtr res, out IntPtr xml, ref uint flags, out uint access);
+        [DllImport("wlanapi.dll")] static extern void WlanFreeMemory(IntPtr p);
+        const uint PlaintextKey = 4;          // WLAN_PROFILE_GET_PLAINTEXT_KEY
+        const int InterfaceInfoSize = 532;    // GUID + WCHAR[256] + DWORD
+        const int ProfileInfoSize = 516;      // WCHAR[256] + DWORD
+        // 1062 = ERROR_SERVICE_NOT_ACTIVE: no Wi-Fi service, so no Wi-Fi.
+        public static uint Read(List<WlanProfile> into) {
+            uint neg; IntPtr h; uint rc = WlanOpenHandle(2, IntPtr.Zero, out neg, out h);
+            if (rc != 0) return rc;
+            try {
+                IntPtr il; rc = WlanEnumInterfaces(h, IntPtr.Zero, out il); if (rc != 0) return rc;
+                try {
+                    int ni = Marshal.ReadInt32(il);
+                    for (int i = 0; i < ni; i++) {
+                        IntPtr item = new IntPtr(il.ToInt64() + 8 + (long)i * InterfaceInfoSize);
+                        Guid g = (Guid)Marshal.PtrToStructure(item, typeof(Guid));
+                        IntPtr pl; rc = WlanGetProfileList(h, ref g, IntPtr.Zero, out pl); if (rc != 0) return rc;
+                        try {
+                            int np = Marshal.ReadInt32(pl);
+                            for (int j = 0; j < np; j++) {
+                                string name = Marshal.PtrToStringUni(new IntPtr(pl.ToInt64() + 8 + (long)j * ProfileInfoSize));
+                                uint flags = PlaintextKey, access; IntPtr x;
+                                rc = WlanGetProfile(h, ref g, name, IntPtr.Zero, out x, ref flags, out access); if (rc != 0) return rc;
+                                try { into.Add(new WlanProfile { Interface = g, Name = name, Xml = Marshal.PtrToStringUni(x) }); }
+                                finally { WlanFreeMemory(x); }
+                            }
+                        } finally { WlanFreeMemory(pl); }
+                    }
+                } finally { WlanFreeMemory(il); }
+            } finally { WlanCloseHandle(h, IntPtr.Zero); }
+            return 0;
+        }
+    }
+}
+'@
+    }
+    $list = New-Object 'System.Collections.Generic.List[Upg.WlanProfile]'
+    try { $rc = [Upg.Wlan]::Read($list) }
+    catch [DllNotFoundException] { return @{ Present = $false; Profiles = @(); Error = $null } }
+    if ($rc -eq 1062) { return @{ Present = $false; Profiles = @(); Error = $null } }
+    if ($rc -ne 0) { return @{ Present = $true; Profiles = @(); Error = "Windows' Wi-Fi interface answered error $rc" } }
+    @{ Present = $true; Profiles = @($list); Error = $null }
+}
+
+function Get-JobWlanStoredCount {
+    # The second, independent count: the profile files Windows keeps on disk.
+    # Only real network profiles count (a WLANProfile with an SSID); the G16
+    # has one more file there that is not one (2026-09-27).
+    $n = 0
+    foreach ($f in @(Get-ChildItem -Path "$env:ProgramData\Microsoft\Wlansvc\Profiles\Interfaces" -Recurse -Filter *.xml -ErrorAction SilentlyContinue)) {
+        try { [xml]$x = Get-Content -LiteralPath $f.FullName -Raw -ErrorAction Stop; if ($x.WLANProfile -and $x.WLANProfile.SSIDConfig) { $n++ } } catch { }
+    }
+    $n
+}
+
+function Export-JobWifi {
+    # Live: read, judge, write the password files under <OutDir>. Returns
+    # @{ Refusal; Wifi }. On any refusal or write failure nothing is left
+    # behind: the directory is removed.
+    param([string]$OutDir)
+    $w = ConvertTo-JobWifi -Api (Get-JobWlanProfiles) -StoredCount (Get-JobWlanStoredCount)
+    $dir = Join-Path $OutDir 'artifacts\credentials\wifi'
+    if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force }
+    if ($w.Refusal) { return $w }
+    try {
+        foreach ($f in @($w.Files)) {
+            $p = Join-Path $OutDir ($f.Rel -replace '/', '\')
+            New-Item -ItemType Directory -Path (Split-Path $p) -Force | Out-Null
+            [IO.File]::WriteAllText($p, $f.Xml, (New-Object Text.UTF8Encoding($false)))
+        }
+    } catch {
+        Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
+        return @{ Refusal = "the Wi-Fi passwords could not be written to the stick ($($_.Exception.Message))" }
+    }
+    $w
 }
 
 function Get-JobPath {
@@ -408,6 +625,7 @@ function Get-JobFacts {
 
     $tz = Get-TimeZone; $loc = Get-WinSystemLocale
     $f.WindowsTz = $tz.Id; $f.Locale = $loc.Name
+    $f.Clock = Get-JobClockFacts
     $f.InputTip = try { (Get-WinUserLanguageList)[0].InputMethodTips[0] } catch { '' }
     $f.Software = Get-JobSoftware
     $fm = Get-JobFolderMap -StickDrive $StickDrive -Materialize $Materialize; $f.Harvest = $fm.Map; $f.HarvestError = $fm.Error
@@ -551,6 +769,9 @@ function New-JobDocument {
     if ($F.BitLocker -notin @('on', 'off')) { $refusals += 'BitLocker state on C: could not be determined' }
     $iana = ConvertTo-JobIanaTimeZone -WindowsId $F.WindowsTz
     if (-not $iana) { $refusals += "Windows time zone '$($F.WindowsTz)' has no IANA mapping in this version" }
+    $c = $F.Clock
+    $clock = ConvertTo-JobClock -WindowsZone "$($F.WindowsTz)" -Iana "$iana" -RealTimeIsUniversal $c.RealTimeIsUniversal -DynamicDstDisabled $c.DynamicDstDisabled -OffsetMinutes ([int]$c.OffsetMinutes) -BaseOffsetMinutes ([int]$c.BaseOffsetMinutes) -DstActive ([bool]$c.DstActive) -NowUtc "$($c.NowUtc)"
+    if ($clock.Refusal) { $refusals += $clock.Refusal }
     $keymap = ConvertTo-JobKeymap -InputMethodTip $F.InputTip
     if (-not $keymap) { $refusals += "keyboard layout '$($F.InputTip)' has no mapping in this version" }
     if (-not $F.Stick) { $refusals += "the stick's identity could not be read ($($F.StickError))" }
@@ -617,11 +838,14 @@ function New-JobDocument {
             esp = [ordered]@{ size_bytes = [long]$F.EspSize; free_bytes = [long]$F.EspFree; fits_alongside_install = $espFits }
         }
         harvest = [ordered]@{
+            clock = $clock.Clock
             folders = $hv.folders
             cloud_files = $hv.cloud_files
             stick_fit = $hv.stick_fit
             browsers = @()
-            wifi = [ordered]@{ profiles = @(); secrets_file = $null }
+            # the Wi-Fi export runs in main, after every refusal above has had its say
+            # (a refused job never leaves passwords on the stick); a verify-only job installs nothing and exports nothing
+            wifi = [ordered]@{ result = 'not-harvested'; secrets_dir = $null; profiles = @() }
             bitlocker = [ordered]@{ status = $bl; recovery_key_file = $(if ($bl -eq 'on') { 'artifacts/credentials/bitlocker-C.txt' } else { $null }) }
             firmware_artifacts = @()
             software = $(if ($F.Software) { $F.Software } else { [ordered]@{ desktop = @(); store = @(); truncated = $false } })
@@ -670,6 +894,7 @@ function Invoke-SelfTest {
                WindowsTz = 'Eastern Standard Time'; Locale = 'en-US'; InputTip = '0409:00000409'; UserName = 'Addison'; FullName = 'Addison Example'
                FailedChecks = @(); WarnChecks = @(); RepairQueued = $false; RepairQueuedWhy = ''; RepairStale = ''; LastUnmovable = $null
                Harvest = (New-TestHarvest); HarvestError = $null
+               Clock = @{ WindowsZone = 'Eastern Standard Time'; RealTimeIsUniversal = $null; DynamicDstDisabled = $null; OffsetMinutes = -240; BaseOffsetMinutes = -300; DstActive = $true; NowUtc = '2026-09-27T12:00:00Z' }
                AllDisks = @(@{ Number = 0; Serial = 'S1'; UniqueId = 'eui.1'; Size = 250059350016; Name = 'SSD'; Bus = 'NVMe'; Health = 'Healthy' },
                             @{ Number = 2; Serial = ''; UniqueId = 'USBSTOR\X'; Size = 8053063680; Name = 'General UDisk'; Bus = 'USB'; Health = 'Healthy' }) }
     function With { param($h, [string]$k, $v) $c = @{}; foreach ($e in $h.GetEnumerator()) { $c[$e.Key] = $e.Value }; $c[$k] = $v; $c }
@@ -678,7 +903,62 @@ function Invoke-SelfTest {
     $es = 'I confirm that everything on this computer will be deleted and nothing will be kept'
     $aspire = With (With (With (With $good 'ShrinkGB' 0.0) 'Dirty' 'clean') 'RepairQueued' $true) 'RepairQueuedWhy' "Get-Volume reports 'Full Repair Needed'; NTFS logged on 2026-09-13T15:16:48Z that C: needs a full chkdsk"
     $hiber = With (With (With $good 'ShrinkGB' 0.0) 'Dirty' 'clean') 'LastUnmovable' '\hiberfil.sys'
+    # a Windows Wi-Fi profile as the Native Wifi API returns it (the G16's shape, 2026-09-27; names made up)
+    function New-TestWlan {
+        param([string]$Name = 'Home Net', [string]$Auth = 'WPA2PSK', [string]$Enc = 'AES', [string]$Key = 'correct horse', [string]$Protected = 'false',
+              [string]$Mode = 'auto', [string]$OneX = 'false', [bool]$Transition = $false, [bool]$Hidden = $false, [bool]$NoHex = $false, [string]$Type = 'ESS')
+        $hex = -join ([Text.Encoding]::UTF8.GetBytes($Name) | ForEach-Object { $_.ToString('X2') })
+        $sk = if ($Key) { "<sharedKey><keyType>passPhrase</keyType><protected>$Protected</protected><keyMaterial>$Key</keyMaterial></sharedKey>" } else { '' }
+        $tm = if ($Transition) { '<transitionMode xmlns="http://www.microsoft.com/networking/WLAN/profile/v4">true</transitionMode>' } else { '' }
+        '<?xml version="1.0"?><WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1"><name>' + $Name + '</name><SSIDConfig><SSID>' + $(if (-not $NoHex) { "<hex>$hex</hex>" }) + '<name>' + $Name + '</name></SSID>' + $(if ($Hidden) { '<nonBroadcast>true</nonBroadcast>' }) + '</SSIDConfig>' +
+        "<connectionType>$Type</connectionType><connectionMode>$Mode</connectionMode><MSM><security><authEncryption><authentication>$Auth</authentication><encryption>$Enc</encryption><useOneX>$OneX</useOneX>$tm</authEncryption>$sk</security></MSM></WLANProfile>"
+    }
+    function Api { param($Xmls, [bool]$Present = $true, [string]$Err = $null) @{ Present = $Present; Error = $Err; Profiles = @($Xmls | ForEach-Object { [pscustomobject]@{ Xml = $_ } }) } }
+    function Row { param([string]$Xml) $r = ConvertFrom-JobWlanProfile -Xml $Xml; "$($r.key_mgmt):$($r.supported):$($r.autoconnect):$($r.hidden):$($r.why_not)" }
     $cases = @(
+        @{ Name = 'clock: RealTimeIsUniversal absent = the hardware clock holds local time (Windows default)'
+           Run = { $c = (ConvertTo-JobClock -WindowsZone 'Eastern Standard Time' -Iana 'America/New_York' -RealTimeIsUniversal $null -DynamicDstDisabled $null -OffsetMinutes -240 -BaseOffsetMinutes -300 -DstActive $true -NowUtc 'x').Clock; "$($c.rtc_is_local):$($null -eq $c.real_time_is_universal):$($c.dst_auto_adjust):$($c.utc_offset_minutes)" }; Expect = 'True:True:True:-240' }
+        @{ Name = 'clock: RealTimeIsUniversal 1 = UTC, 0 = local'
+           Run = { $a = (ConvertTo-JobClock -RealTimeIsUniversal 1 -OffsetMinutes 0 -BaseOffsetMinutes 0 -DstActive $false).Clock; $b = (ConvertTo-JobClock -RealTimeIsUniversal 0 -OffsetMinutes 0 -BaseOffsetMinutes 0 -DstActive $false).Clock; "$($a.rtc_is_local):$($a.real_time_is_universal):$($b.rtc_is_local):$($b.real_time_is_universal)" }; Expect = 'False:1:True:0' }
+        @{ Name = 'clock: refuse a RealTimeIsUniversal value that is neither 0 nor 1 (not guessed)'
+           Run = { [bool]((ConvertTo-JobClock -RealTimeIsUniversal 7 -OffsetMinutes 0 -BaseOffsetMinutes 0 -DstActive $false).Refusal -match "'7'") }; Expect = $true }
+        @{ Name = 'clock: "adjust for daylight saving automatically" turned off is recorded'
+           Run = { (ConvertTo-JobClock -RealTimeIsUniversal $null -DynamicDstDisabled 1 -OffsetMinutes -300 -BaseOffsetMinutes -300 -DstActive $false).Clock.dst_auto_adjust }; Expect = $false }
+        @{ Name = 'clock: the job carries harvest.clock with the IANA name'
+           Run = { $c = (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.harvest.clock; "$($c.windows_zone):$($c.iana):$($c.rtc_is_local):$($c.base_utc_offset_minutes):$($c.dst_active)" }; Expect = 'Eastern Standard Time:America/New_York:True:-300:True' }
+        @{ Name = 'clock: a bad RealTimeIsUniversal refuses the job'
+           Run = { $c = $good.Clock.Clone(); $c.RealTimeIsUniversal = 9; [bool]((New-JobDocument -F (With $good 'Clock' $c) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match 'RealTimeIsUniversal') }; Expect = $true }
+        @{ Name = 'wifi: WPA2-personal with its password -> wpa-psk, joined automatically'
+           Run = { Row (New-TestWlan) }; Expect = 'wpa-psk:True:True:False:' }
+        @{ Name = 'wifi: WPA3 in transition mode -> wpa-psk (the router also takes WPA2); WPA3 only -> sae'
+           Run = { "$(Row (New-TestWlan -Auth WPA3SAE -Transition $true))|$(Row (New-TestWlan -Auth WPA3SAE))" }; Expect = 'wpa-psk:True:True:False:|sae:True:True:False:' }
+        @{ Name = 'wifi: an open network needs no password; manual connect and hidden are kept'
+           Run = { Row (New-TestWlan -Auth open -Enc none -Key '' -Mode manual -Hidden $true) }; Expect = 'none:True:False:True:' }
+        @{ Name = 'wifi: enterprise is listed, not set up'
+           Run = { Row (New-TestWlan -Auth WPA2 -OneX true -Key '') }; Expect = 'UNSUPPORTED:False:True:False:an enterprise network (a company or school sign-in) - listed, not set up' }
+        @{ Name = 'wifi: WEP and ad-hoc are listed, not set up'
+           Run = { "$(Row (New-TestWlan -Auth open -Enc WEP))|$(Row (New-TestWlan -Type IBSS))" }; Expect = 'UNSUPPORTED:False:True:False:WEP, an old and broken kind of Wi-Fi security|UNSUPPORTED:False:True:False:an ad-hoc (computer-to-computer) network' }
+        @{ Name = 'wifi: a password Windows kept encrypted (protected) is not a password - listed, not set up'
+           Run = { Row (New-TestWlan -Protected true) }; Expect = 'UNSUPPORTED:False:True:False:its password could not be read from Windows' }
+        @{ Name = 'wifi: an XML that is not a network profile is skipped'
+           Run = { $null -eq (ConvertFrom-JobWlanProfile -Xml '<?xml version="1.0"?><Other/>') }; Expect = $true }
+        @{ Name = 'wifi: the SSID bytes are computed when Windows gives no hex'
+           Run = { (ConvertFrom-JobWlanProfile -Xml (New-TestWlan -Name 'Caf&#233;' -NoHex $true)).ssid_hex }; Expect = '436166C3A9' }
+        @{ Name = 'wifi: the row carries no password, only the file it is in'
+           Run = { $w = ConvertTo-JobWifi -Api (Api @((New-TestWlan))) -StoredCount 1; $j = $w.Wifi | ConvertTo-Json -Depth 5; "$($j -match 'correct horse'):$($j -match 'HasKey'):$($w.Wifi.profiles[0].secrets_file):$($w.Files[0].Xml -match 'correct horse')" }; Expect = 'False:False:artifacts/credentials/wifi/01.xml:True' }
+        @{ Name = 'wifi: only networks with a password get a file; the result is exported'
+           Run = { $w = ConvertTo-JobWifi -Api (Api @((New-TestWlan -Name A), (New-TestWlan -Name B -Auth open -Enc none -Key ''), (New-TestWlan -Name C -Auth WPA2 -OneX true -Key ''), (New-TestWlan -Name D -Auth WPA3SAE))) -StoredCount 4
+                   "$($w.Wifi.result):$($w.Wifi.secrets_dir):$($w.Files.Count):$(@($w.Wifi.profiles | ForEach-Object { if ($_.secrets_file) { Split-Path $_.secrets_file -Leaf } else { '-' } }) -join ',')" }; Expect = 'exported:artifacts/credentials/wifi:2:01.xml,-,-,02.xml' }
+        @{ Name = 'wifi: refuse when Windows stores more networks than could be read (one would go missing)'
+           Run = { [bool]((ConvertTo-JobWifi -Api (Api @((New-TestWlan))) -StoredCount 2).Refusal -match '2 saved Wi-Fi network\(s\) on disk but 1') }; Expect = $true }
+        @{ Name = 'wifi: the same network saved on two adapters is set up once'
+           Run = { $w = ConvertTo-JobWifi -Api (Api @((New-TestWlan), (New-TestWlan))) -StoredCount 2; "$($w.Wifi.profiles.Count):$($w.Files.Count)" }; Expect = '1:1' }
+        @{ Name = 'wifi: no Wi-Fi service and nothing stored = no-wireless; stored but unreadable = refusal; an API error = refusal'
+           Run = { $a = (ConvertTo-JobWifi -Api (Api @() -Present $false) -StoredCount 0).Wifi.result; $b = [bool](ConvertTo-JobWifi -Api (Api @() -Present $false) -StoredCount 3).Refusal; $c = [bool](ConvertTo-JobWifi -Api (Api @() -Err 'error 5') -StoredCount 0).Refusal; "$($a):$($b):$($c)" }; Expect = 'no-wireless:True:True' }
+        @{ Name = 'wifi: a Wi-Fi adapter with nothing saved = none-saved, no directory'
+           Run = { $w = (ConvertTo-JobWifi -Api (Api @()) -StoredCount 0).Wifi; "$($w.result):$($null -eq $w.secrets_dir)" }; Expect = 'none-saved:True' }
+        @{ Name = 'wifi: the job writes not-harvested until main exports (a verify-only job never exports)'
+           Run = { (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.harvest.wifi.result }; Expect = 'not-harvested' }
         # R18, 2026-09-20: what the read-only diagnostic found on the Aspire
         @{ Name = 'mitigable (R18): 0 GB with hiberfil.sys named as the last unmovable file is a keep-windows job, the cold number kept as measured'
            Run = { $j = (New-JobDocument -F $hiber -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job; "$($j.intent.path):$($j.intent.path_reason):$($j.storage.shrinkable_gb):$($j.storage.shrink_source):$($j.storage.last_unmovable_file):$($j.storage.volume_health.repair_queued)" }; Expect = 'keep-windows:default:0:storage-api:\hiberfil.sys:False' }
@@ -897,6 +1177,17 @@ function Invoke-SelfTest {
 
 if ($SelfTest) { Invoke-SelfTest; return }
 if ($PrintLinuxName) { ConvertTo-JobLinuxName $env:USERNAME; return }
+if ($HarvestSettingsOut) {
+    if (-not $OutDir) { throw 'give -OutDir <stick>\upgrade_ with -HarvestSettingsOut' }
+    $c = Get-JobClockFacts; $iana = ConvertTo-JobIanaTimeZone -WindowsId $c.WindowsZone
+    $ck = ConvertTo-JobClock -WindowsZone "$($c.WindowsZone)" -Iana "$iana" -RealTimeIsUniversal $c.RealTimeIsUniversal -DynamicDstDisabled $c.DynamicDstDisabled -OffsetMinutes ([int]$c.OffsetMinutes) -BaseOffsetMinutes ([int]$c.BaseOffsetMinutes) -DstActive ([bool]$c.DstActive) -NowUtc "$($c.NowUtc)"
+    $why = @(); if (-not $iana) { $why += "Windows time zone '$($c.WindowsZone)' has no IANA mapping in this version" }; if ($ck.Refusal) { $why += $ck.Refusal }
+    if ($why.Count -eq 0) { $wx = Export-JobWifi -OutDir $OutDir; if ($wx.Refusal) { $why += $wx.Refusal } }
+    if ($why.Count -gt 0) { foreach ($x in $why) { Write-Host "  REFUSED: $x" -ForegroundColor Red }; exit 2 }
+    [IO.File]::WriteAllText($HarvestSettingsOut, (ConvertTo-JobJson ([ordered]@{ job_writer = $JobWriterVersion; clock = $ck.Clock; wifi = $wx.Wifi })), (New-Object Text.UTF8Encoding($false)))
+    Write-Host "  clock + Wi-Fi harvest written: $HarvestSettingsOut (Wi-Fi: $($wx.Wifi.result), $(@($wx.Wifi.profiles).Count) network(s))"
+    return
+}
 if (-not $OutDir -or -not $StickDrive) { throw 'give -StickDrive X: -OutDir <stick>\upgrade_ -ScanDir <reports dir> (or -SelfTest)' }
 if (-not (Test-JobAdmin)) { throw 'the job writer needs Administrator: the shrink measurement, the volume flag, BitLocker and the ESP are elevated-only reads' }
 
@@ -917,6 +1208,15 @@ if ($r.Refusals.Count -gt 0) {
     Write-Host ''; exit 2
 }
 New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
+if (-not $VerifyOnly) {
+    # The launcher showed the owner's approved Wi-Fi sentence before anything was typed (2026-09-27)
+    $wx = Export-JobWifi -OutDir $OutDir
+    if ($wx.Refusal) {
+        Write-Host ''; Write-Host '  REFUSED - no job written:' -ForegroundColor Red
+        Write-Host "    - $($wx.Refusal)" -ForegroundColor Red; Write-Host ''; exit 2
+    }
+    $r.Job.harvest.wifi = $wx.Wifi
+}
 $jobPath = Join-Path $OutDir 'job.json'
 [IO.File]::WriteAllText($jobPath, (ConvertTo-JobJson $r.Job), (New-Object Text.UTF8Encoding($false)))
 if ($r.Job.harvest.bitlocker.status -eq 'on') {
@@ -955,5 +1255,14 @@ if ($j.harvest.cloud_files.result -eq 'left-in-cloud') { Write-Host "  OneDrive:
 if ($j.harvest.cloud_files.result -eq 'materialized') { Write-Host "  OneDrive: $($j.harvest.cloud_files.materialized) online-only file(s) downloaded and kept on this device" -ForegroundColor DarkGray }
 $op = @($facts.Harvest.Owner.OtherProfiles)
 if ($op.Count -gt 0) { Write-Host "  other accounts on this computer: $(@($op | ForEach-Object { $_.Path }) -join ', ') - their files are not in this job (RISKS R5)" -ForegroundColor Yellow }
-Write-Host '  not in this job: browsers, Wi-Fi, the BitLocker key, a chosen password' -ForegroundColor DarkGray
+$wf = $j.harvest.wifi
+if ($wf.result -eq 'exported') {
+    $ok = @($wf.profiles | Where-Object { $_.supported }); $no = @($wf.profiles | Where-Object { -not $_.supported })
+    Write-Host "  Wi-Fi: $($ok.Count) saved network(s) Fedora will join by itself; their passwords are on the stick until the install ends" -ForegroundColor DarkGray
+    foreach ($x in $no) { Write-Host "    not set up: $($x.ssid) - $($x.why_not)" -ForegroundColor Yellow }
+} elseif ($wf.result -eq 'no-wireless') { Write-Host '  Wi-Fi: this computer has no Wi-Fi' -ForegroundColor DarkGray }
+elseif ($wf.result -eq 'none-saved') { Write-Host '  Wi-Fi: no saved networks' -ForegroundColor DarkGray }
+$ck = $j.harvest.clock
+Write-Host "  clock: $($ck.iana), hardware clock in $(if ($ck.rtc_is_local) { 'local time (settle-in turns it to UTC on first startup)' } else { 'UTC' })" -ForegroundColor DarkGray
+Write-Host '  not in this job: browsers, the BitLocker key' -ForegroundColor DarkGray
 Write-Host ''
