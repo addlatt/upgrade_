@@ -916,6 +916,14 @@ planted in the job, `v9-job.py --spoof-wifi`; plumbing only):**
   removal and the button passed. The verdict missed GDM's sign-in line
   (its format carries a process number); fixed.
 
+- **Run 11 (line 11) `[FAIL]` on the button only, GNOME, after the fix:**
+  the clock was left alone for the new reason ("this is a virtual
+  machine…"), the window column read GDM's sign-in ("shown in the first
+  sign-in; not given focus by the desktop"), and our own entry was
+  removed. The fail is the harness: the longer clock line moved the button
+  15 px down and the rig's click landed on the text above it, so nothing
+  was pressed. The button passed on GNOME in run 10.
+
 **Residue the rig cannot close.** Hyper-V's hardware clock already holds
 UTC, so on the rig the clock step is correctly "not needed" and the
 correction itself (the Aspire's 4-hour case) is proven only by the tests.
