@@ -957,3 +957,12 @@ rig's install-day Windows disk plus a blank 64 GiB second disk.
 | `fedora_booted`, `password_matches`, `home_on_second_disk` | the first Linux boot's marker line (rig-only bench instrumentation): it booted, the account's stored hash is the job's, `/home` is on the second disk |
 | `graphical_login` | (from 2026-09-26) the person's choice held at first boot: `desktop` = graphical.target with the display manager running, `console` = multi-user.target with none; `not-recorded` on rows from before the check |
 | `result` | `refused-before-countdown` / `cancelled-untouched` / `erased-installed` pass their arm; `fail` is kept, never removed |
+
+## `port-parity.csv`: the parity ledger for the Rust port (gate V13, risk R32)
+
+Unlike the other files here, this one is a list of what is **owed**, not
+only what happened. Before a PowerShell piece is ported, every piece of
+evidence it earned gets a line here with `result` = `owed`. The line turns
+`pass` only when a Rust test or a re-run row matches it. The columns are
+described in [../VALIDATION.md](../VALIDATION.md), V13. Header only on
+2026-09-27: nothing ported yet.

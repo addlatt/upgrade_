@@ -2946,3 +2946,58 @@ and the scanner either reads the firmware's trust setting and refuses with
 plain words ("turn on 'Allow Microsoft 3rd Party UEFI CA' in your firmware
 settings"), or a real Secured-core machine shows the handoff works. Every
 contact leaves a capture (rule #5).
+
+---
+
+## R32: The port from PowerShell to Rust · critical · open (decided 2026-09-27; nothing ported yet)
+
+**What.** The Windows side (about 10,600 lines of PowerShell: the scanner,
+harvester, job writer, stick writer, kickstart generator, prologue,
+handoff and rollback) is rewritten in Rust, one piece at a time, so that
+one language runs the conversion from the window to the disk
+(`architecture.md`, "Stack"). Every row in `docs/validation-results/` that
+the Windows side earned was earned by the PowerShell that ran. A rewrite
+is new code, and those rows do not prove it (rule #2).
+
+**If real.** What can go wrong:
+
+- **A port decides differently and nobody sees it.** A verdict one step
+  softer, a guardrail read one way in PowerShell and another in Rust, a
+  refusal that no longer fires. In the scanner this is a confidently wrong
+  answer; in the prologue it can destroy data. That is why this is
+  critical.
+- **Windows' own tools still speak text.** Most of the work is calling
+  `chkdsk`, `bcdedit`, `manage-bde`, `fsutil` and `vssadmin` and reading
+  what they print. Rust reads the same text, so every parser is ported
+  with the same traps (language, build, version). The storage and
+  BitLocker cmdlets become WMI calls from Rust (`MSFT_Partition`,
+  `Win32_EncryptableVolume`): the same classes underneath, but new code
+  on the path that shrinks a disk.
+- **Old proof cannot all be replayed.** The physical runs kept their
+  scripts' output (`Invoke-Logged.ps1`) and their `outcome.json`, not
+  every tool's raw output. A decision replay can only be built from what
+  was captured, so most past physical rows need a real re-run.
+- **The window grows past its word lists.** Once the window and the
+  writers are one program, R31's first risk (the window saying something
+  the scripts did not) moves inside the program. The words still come
+  only from the decisions, never the other way round.
+- **The `.exe` is not the source.** Open source proves little if the
+  bytes on the stick cannot be matched to it. R14 applies in full.
+
+**Decided (2026-09-27, the owner).** Port in five steps, safest first:
+the schema library, the scanner's judging half, the read-only collectors,
+the job and stick writers with the kickstart generator, and the prologue,
+handoff and rollback last. Steps 3 and later wait for V0's three more
+vendors and V9's physical re-run. Each PowerShell piece stays in use until
+the parity ledger (V13) has a Rust pass beside every line it earned, and
+the `.cmd` launchers stay on the stick until then. Builds are made
+reproducible. From now on every physical run keeps the raw output of the
+Windows tools it calls, so later decisions can be replayed (rule #5).
+
+**Closes when.** Per piece: its lines in
+`docs/validation-results/port-parity.csv` all read `pass` (self-tests and
+corpus replays as `cargo test`, rig rows re-run by the same
+`rig/hyperv/*.sh` harness, physical rows re-run on the machine), and a
+release is rebuilt byte for byte from the source by someone else. A replay
+of recorded tool output closes the decision, never the firmware's
+behaviour: that part of a physical row takes the machine again.
