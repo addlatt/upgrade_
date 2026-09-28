@@ -354,6 +354,31 @@ dist/              built single-file scanner (rebuild with ./build.sh)
   keeps forks readable. Don't reintroduce permissively-licensed files
   without a reason.
 
+## Working alongside other sessions (decided 2026-09-28, the owner)
+
+Several Claude sessions often work in this repo at once. On 2026-09-27
+that went wrong twice: an accidental reset of the shared folder lost
+`rig/hyperv/v12.sh` and a window fix before they were committed, and
+sessions pushing only their own commits left the local `main` and
+GitHub's `main` 20 and 9 commits apart. Three rules keep it from
+happening again:
+
+- **Every session works in its own worktree** (a second checkout of the
+  repo on its own branch), under `.claude/worktrees/<name>`. The shared
+  folder stays on a clean `main` that nobody edits directly. Git ignores
+  `.claude/worktrees/` through `.git/info/exclude`.
+- **Work reaches `main` only through a pull request.** GitHub enforces
+  it: `main` refuses direct pushes, force pushes and deletion. Push the
+  branch, open the pull request, and the owner merges it. After a merge,
+  bring the shared folder forward with `git merge --ff-only origin/main`,
+  never a reset.
+- **Remove a worktree only after its work is merged and its session is
+  closed.** Removing it under a live session pulls the folder out from
+  under that session.
+
+Never push the local branch `backup-before-scrub`. It holds the history
+from before personal details were removed (2026-09-26).
+
 ## How we write (decided 2026-09-26, the owner)
 
 Every doc in this repo speaks with one voice: **straightforward, simple and
