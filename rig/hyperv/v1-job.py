@@ -10,9 +10,10 @@ the stick has something real to match against.
 
     v1-job.py facts.json password_hash out.json stick_unique_id stick_size settings.json
 
-settings.json is what the PRODUCT job writer's clock and Wi-Fi harvest
-wrote in the guest (New-Job.ps1 -HarvestSettingsOut, 2026-09-27):
-harvest.clock and harvest.wifi are taken from it as they are, and the
+settings.json is what the PRODUCT job writer's clock, Wi-Fi and licence
+harvest wrote in the guest (New-Job.ps1 -HarvestSettingsOut, 2026-09-27):
+harvest.clock, harvest.wifi and harvest.windows_license are taken from it
+as they are, and the
 locale's time zone is its IANA name - never made up here.
 """
 import json, sys, uuid, datetime, pathlib
@@ -60,6 +61,7 @@ job["harvest"]["cloud_files"] = {"placeholders_found": 0, "materialized": 0, "fa
 job["harvest"]["browsers"] = []
 job["harvest"]["clock"] = settings["clock"]
 job["harvest"]["wifi"] = settings["wifi"]
+job["harvest"]["windows_license"] = settings["windows_license"]
 bl = facts.get("bitlocker", "off")
 job["harvest"]["bitlocker"] = {"status": bl, "recovery_key_file": "artifacts/credentials/bitlocker-C.txt" if bl == "on" else None}
 job["harvest"]["firmware_artifacts"] = []

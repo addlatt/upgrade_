@@ -305,7 +305,7 @@ Give both a read before trusting any single check.
 - [ ] **1. A real keep-Windows install with Secure Boot on.** Needs a laptop with a healthy drive
 - [ ] **2. `settle-in`:** hardware check on first boot, copying your files (unlock BitLocker, copy, double-check), a "you used these programs, here's the Linux version" list, clock and Wi-Fi setup, undo from the Linux side, clean-up
 - [ ] **3. The rest of the collecting:** Wi-Fi, browsers, the BitLocker key, the clock, a screen that asks what you want
-- [ ] **4. A proper window** instead of the black console (WPF inside Windows PowerShell 5.1, decided 2026-09-13. Screens get designed first)
+- [ ] **4. A proper window** instead of the black console: `UPGRADE.exe`, a Rust window that runs the scripts on the stick (decided 2026-09-27, replacing the 2026-09-13 WPF plan). The test-only flow is built; convert and erase come next
 - [ ] **5. More brands:** Dell, Lenovo and HP, half an hour each, look but don't touch
 - [ ] **6. Code signing.** This one just takes time, not code, so start now
 - [ ] **7. Rescue mode** for machines turned down because of their drive: copy off whatever can still be read, and check every copy

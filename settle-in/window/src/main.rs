@@ -10,12 +10,14 @@
 //! program cannot load the system's display libraries; it links them the
 //! ordinary way (architecture.md, "It runs on any Linux").
 
+mod goback;
+
 use eframe::egui;
 use serde_json::Value;
 use std::process::Command;
 use std::sync::mpsc;
 
-fn core() -> String {
+pub fn core() -> String {
     std::env::var("SETTLE_IN_BIN").unwrap_or_else(|_| "/usr/local/libexec/upgrade_/settle-in".to_string())
 }
 
@@ -141,7 +143,43 @@ impl eframe::App for App {
     }
 }
 
+/// "Go back to Windows", from the app menu: its own window, any number of times.
+struct GoBackApp(goback::GoBack);
+
+impl eframe::App for GoBackApp {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+        egui::CentralPanel::default().show(ui, |ui| {
+            if self.0.ui(&ctx, ui) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+        });
+    }
+}
+
+fn go_back() {
+    let screen = match Command::new(core()).args(["go-back", "screen"]).output() {
+        Ok(o) if o.status.success() => serde_json::from_slice::<Value>(&o.stdout).ok(),
+        _ => None,
+    };
+    let Some(screen) = screen else {
+        eprintln!("settle-in-window: the go-back screen could not be read from {}", core());
+        std::process::exit(1);
+    };
+    let opts = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_title("Go back to Windows").with_inner_size([620.0, 680.0]),
+        ..Default::default()
+    };
+    if let Err(e) = eframe::run_native("Go back to Windows", opts, Box::new(|_cc| Ok(Box::new(GoBackApp(goback::GoBack::new(screen)))))) {
+        eprintln!("settle-in-window: could not open the window: {}", e);
+        std::process::exit(1);
+    }
+}
+
 fn main() {
+    if std::env::args().any(|a| a == "--go-back") {
+        return go_back();
+    }
     // once per person: after it has been shown, a later sign-in does not open it again
     let m = marker();
     if m.exists() {

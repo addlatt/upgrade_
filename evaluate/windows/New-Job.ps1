@@ -33,6 +33,14 @@
     The export runs only after every other check passed, and never for a
     verify-only job.
 
+    Which Windows, and how it was activated (0.16.0, 2026-09-27, RISKS
+    R30): harvest.windows_license records the edition, 10 or 11 (from the
+    build: Windows 11's registry still says "Windows 10"), whether it is
+    activated, the licence channel, and whether the firmware holds a key -
+    for the way back to Windows. Never a key: the firmware key's presence is
+    tested and the key dropped at once, and any value shaped like a key is
+    left out. A failed read is recorded with its reason, not refused.
+
     What it does NOT yet do (said plainly so the job is read as what it is):
     it does not harvest browsers (that block is empty),
     does not extract the BitLocker key
@@ -85,8 +93,8 @@
     password is chosen, so the name on the screen is the one in the job.
 
 .PARAMETER HarvestSettingsOut
-    Run only the clock and Wi-Fi harvest (the same functions a job uses),
-    write { clock, wifi } as JSON to this file, and the Wi-Fi password
+    Run only the clock, Wi-Fi and licence harvest (the same functions a job
+    uses), write { clock, wifi, windows_license } as JSON to this file, and the Wi-Fi password
     files under -OutDir, then exit. For the rig, whose job is built by a
     stand-in (rig/hyperv/v1-job.py) because Hyper-V has no USB stick; it
     keeps the product code the thing under test. Refusals exit 2.
@@ -115,7 +123,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.15.0'
+$JobWriterVersion = '0.16.0'
 # the harvester versions whose folder map this writer reads; any other is refused, not guessed
 $KnownHarvestVersions = @('0.3.0')
 $LinuxMinGB = 25
@@ -196,6 +204,43 @@ function ConvertTo-JobClock {
         dst_auto_adjust = $dstAuto
         utc_offset_minutes = $OffsetMinutes; base_utc_offset_minutes = $BaseOffsetMinutes; dst_active = $DstActive
         observed_utc = $NowUtc } }
+}
+
+function ConvertTo-JobLicense {
+    # Pure (self-tested): Windows' licence facts -> harvest.windows_license
+    # (decided 2026-09-27, RISKS R30), for the way back to Windows. Facts,
+    # never a key: the live half passes only whether the firmware holds one,
+    # and any value shaped like a product key is left out here as well.
+    # A failed read is 'unreadable' with its reason - it costs a less
+    # informed way back, never data, so it is not a refusal.
+    param($Os, $Products, $Firmware, [string]$ReadError, [string]$NowUtc)
+    $keyShape = '[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}'
+    function clean($v) { if ($null -eq $v -or "$v" -eq '') { return $null }; if ("$v" -match $keyShape) { $script:licDropped = $true; return $null }; "$v" }
+    $script:licDropped = $false
+    $build = $null; if ("$($Os.Build)" -match '^\d+$') { $build = [int]"$($Os.Build)" }
+    $ver = $null; if ($build) { $ver = $(if ($build -ge 22000) { '11' } else { '10' }) }
+    $lic = [ordered]@{
+        result = 'read'; reason = $null; windows_version = $ver
+        edition_id = (clean $Os.EditionId); product_name = (clean $Os.ProductName); display_version = (clean $Os.DisplayVersion); build = $build
+        activated = $null; license_status = $null; channel = $null
+        firmware_key_present = $null; firmware_key_description = $null
+        observed_utc = $NowUtc }
+    if ($ReadError) {
+        $lic.result = 'unreadable'; $lic.reason = (clean "Windows' licensing service could not be read ($ReadError)")
+        if (-not $lic.reason) { $lic.reason = "Windows' licensing service could not be read" }
+    } else {
+        # the Windows licence itself, not an add-on (the Windows 10 extended updates are one); a licensed one first
+        $main = @($Products | Where-Object { -not $_.Addon })
+        $p = @($main | Where-Object { [int]$_.LicenseStatus -eq 1 }) + @($main | Where-Object { [int]$_.LicenseStatus -ne 1 }) | Select-Object -First 1
+        if ($p) {
+            $st = [int]$p.LicenseStatus
+            if ($st -ge 0 -and $st -le 6) { $lic.license_status = $st }
+            $lic.activated = ($st -eq 1); $lic.channel = (clean $p.Channel)
+        } else { $lic.result = 'unreadable'; $lic.reason = 'Windows reported no installed Windows licence' }
+        if ($null -ne $Firmware) { $lic.firmware_key_present = [bool]$Firmware.Present; $lic.firmware_key_description = (clean $Firmware.Description) }
+    }
+    if ($script:licDropped) { $lic.reason = $(if ($lic.reason) { "$($lic.reason); " } else { '' }) + 'a value shaped like a product key was left out' }
+    $lic
 }
 
 function ConvertFrom-JobWlanProfile {
@@ -279,6 +324,30 @@ function Get-JobClockFacts {
        DynamicDstDisabled = $(if ($ti -and $null -ne $ti.PSObject.Properties['DynamicDaylightTimeDisabled']) { $ti.DynamicDaylightTimeDisabled } else { $null })
        OffsetMinutes = [int]$tz.GetUtcOffset($now).TotalMinutes; BaseOffsetMinutes = [int]$tz.BaseUtcOffset.TotalMinutes
        DstActive = $tz.IsDaylightSavingTime($now); NowUtc = $now.ToString('yyyy-MM-ddTHH:mm:ssZ') }
+}
+
+function Get-JobLicenseFacts {
+    # Live half of harvest.windows_license: the registry and Windows'
+    # licensing service (read-only). The firmware key is tested for being
+    # there and dropped on the spot; it never leaves this function.
+    $k = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction SilentlyContinue
+    $os = @{ ProductName = "$($k.ProductName)"; EditionId = "$($k.EditionID)"; DisplayVersion = "$($k.DisplayVersion)"; Build = "$($k.CurrentBuild)" }
+    $r = @{ Os = $os; Products = @(); Firmware = $null; Error = $null; NowUtc = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ') }
+    try {
+        $r.Products = @(Get-CimInstance -ClassName SoftwareLicensingProduct -Filter "ApplicationID='55c92734-d682-4d71-983e-d6ec3f16059f' AND PartialProductKey IS NOT NULL" -ErrorAction Stop | ForEach-Object {
+            $ch = "$($_.ProductKeyChannel)"
+            if (-not $ch -and "$($_.Description)" -match ',\s*(\S+)\s+channel') { $ch = $matches[1] }
+            @{ LicenseStatus = [int]$_.LicenseStatus; Channel = $ch; Addon = [bool]$_.LicenseIsAddon } })
+        $svc = Get-CimInstance -ClassName SoftwareLicensingService -ErrorAction Stop
+        $r.Firmware = @{ Present = [bool]("$($svc.OA3xOriginalProductKey)".Trim()); Description = "$($svc.OA3xOriginalProductKeyDescription)" }
+        $svc = $null
+    } catch { $r.Error = "$($_.Exception.Message)" }
+    $r
+}
+
+function ConvertTo-JobLicenseFromFacts {
+    param($L)
+    ConvertTo-JobLicense -Os $L.Os -Products $L.Products -Firmware $L.Firmware -ReadError $L.Error -NowUtc $L.NowUtc
 }
 
 function Get-JobWlanProfiles {
@@ -626,6 +695,7 @@ function Get-JobFacts {
     $tz = Get-TimeZone; $loc = Get-WinSystemLocale
     $f.WindowsTz = $tz.Id; $f.Locale = $loc.Name
     $f.Clock = Get-JobClockFacts
+    $f.License = Get-JobLicenseFacts
     $f.InputTip = try { (Get-WinUserLanguageList)[0].InputMethodTips[0] } catch { '' }
     $f.Software = Get-JobSoftware
     $fm = Get-JobFolderMap -StickDrive $StickDrive -Materialize $Materialize; $f.Harvest = $fm.Map; $f.HarvestError = $fm.Error
@@ -839,6 +909,7 @@ function New-JobDocument {
         }
         harvest = [ordered]@{
             clock = $clock.Clock
+            windows_license = $(if ($F.License) { ConvertTo-JobLicenseFromFacts $F.License } else { ConvertTo-JobLicense -ReadError 'not read' -NowUtc (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') })
             folders = $hv.folders
             cloud_files = $hv.cloud_files
             stick_fit = $hv.stick_fit
@@ -895,6 +966,8 @@ function Invoke-SelfTest {
                FailedChecks = @(); WarnChecks = @(); RepairQueued = $false; RepairQueuedWhy = ''; RepairStale = ''; LastUnmovable = $null
                Harvest = (New-TestHarvest); HarvestError = $null
                Clock = @{ WindowsZone = 'Eastern Standard Time'; RealTimeIsUniversal = $null; DynamicDstDisabled = $null; OffsetMinutes = -240; BaseOffsetMinutes = -300; DstActive = $true; NowUtc = '2026-09-27T12:00:00Z' }
+               License = @{ Os = @{ ProductName = 'Windows 10 Home'; EditionId = 'Core'; DisplayVersion = '24H2'; Build = '26100' }
+                            Products = @(@{ LicenseStatus = 1; Channel = 'OEM:DM'; Addon = $false }); Firmware = @{ Present = $true; Description = '[4.0] Core OEM:DM' }; Error = $null; NowUtc = '2026-09-27T12:00:00Z' }
                AllDisks = @(@{ Number = 0; Serial = 'S1'; UniqueId = 'eui.1'; Size = 250059350016; Name = 'SSD'; Bus = 'NVMe'; Health = 'Healthy' },
                             @{ Number = 2; Serial = ''; UniqueId = 'USBSTOR\X'; Size = 8053063680; Name = 'General UDisk'; Bus = 'USB'; Health = 'Healthy' }) }
     function With { param($h, [string]$k, $v) $c = @{}; foreach ($e in $h.GetEnumerator()) { $c[$e.Key] = $e.Value }; $c[$k] = $v; $c }
@@ -1152,6 +1225,22 @@ function Invoke-SelfTest {
            Run = { $null -eq (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.erase_consent }; Expect = $true }
         @{ Name = 'locale: en-US + 0409 + Eastern -> en_US.UTF-8 / us / America/New_York'
            Run = { $l = (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.locale; "$($l.lang)/$($l.keymap)/$($l.timezone)" }; Expect = 'en_US.UTF-8/us/America/New_York' }
+        @{ Name = 'licence (R30): Windows 11 from the build although the registry says Windows 10; activated OEM:DM with a firmware key'
+           Run = { $l = ConvertTo-JobLicenseFromFacts $good.License; "$($l.result):$($l.windows_version):$($l.edition_id):$($l.activated):$($l.license_status):$($l.channel):$($l.firmware_key_present):$($l.firmware_key_description)" }; Expect = 'read:11:Core:True:1:OEM:DM:True:[4.0] Core OEM:DM' }
+        @{ Name = 'licence: build 19045 is Windows 10; not activated is recorded, not refused'
+           Run = { $l = ConvertTo-JobLicense -Os @{ Build = '19045'; EditionId = 'Professional' } -Products @(@{ LicenseStatus = 5; Channel = 'Retail'; Addon = $false }) -Firmware @{ Present = $false; Description = '' } -NowUtc 'x'; "$($l.windows_version):$($l.activated):$($l.license_status):$($l.firmware_key_present):$($null -eq $l.firmware_key_description)" }; Expect = '10:False:5:False:True' }
+        @{ Name = 'licence: an add-on licence (Windows 10 extended updates) is not taken for Windows itself'
+           Run = { $l = ConvertTo-JobLicense -Os @{ Build = '19045' } -Products @(@{ LicenseStatus = 1; Channel = 'Retail'; Addon = $true }, @{ LicenseStatus = 0; Channel = 'OEM:DM'; Addon = $false }) -Firmware $null -NowUtc 'x'; "$($l.activated):$($l.channel)" }; Expect = 'False:OEM:DM' }
+        @{ Name = 'licence: the licensed product is chosen when there are several'
+           Run = { (ConvertTo-JobLicense -Os @{ Build = '26100' } -Products @(@{ LicenseStatus = 0; Channel = 'Volume:GVLK'; Addon = $false }, @{ LicenseStatus = 1; Channel = 'Retail'; Addon = $false }) -NowUtc 'x').channel }; Expect = 'Retail' }
+        @{ Name = 'licence: a failed read is unreadable with its reason, and the job is still written'
+           Run = { $r = New-JobDocument -F (With $good 'License' @{ Os = @{ Build = '26100' }; Products = @(); Firmware = $null; Error = 'Access denied'; NowUtc = '2026-09-27T12:00:00Z' }) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; $l = $r.Job.harvest.windows_license; "$($r.Refusals.Count):$($l.result):$([bool]($l.reason -match 'Access denied')):$($l.windows_version)" }; Expect = '0:unreadable:True:11' }
+        @{ Name = 'licence: no Windows licence reported is unreadable, not a guess'
+           Run = { $l = ConvertTo-JobLicense -Os @{ Build = '26100' } -Products @() -NowUtc 'x'; "$($l.result):$($null -eq $l.activated)" }; Expect = 'unreadable:True' }
+        @{ Name = 'licence (R13): a value shaped like a product key never reaches the job'
+           Run = { $l = ConvertTo-JobLicense -Os @{ Build = '26100'; ProductName = 'ABCDE-FGHIJ-KLMNO-PQRST-UVWXY' } -Products @(@{ LicenseStatus = 1; Channel = 'Retail'; Addon = $false }) -Firmware @{ Present = $true; Description = '[4.0] Core OEM:DM ABCDE-12345-FGHIJ-67890-KLMNO' } -ReadError $null -NowUtc 'x'; $j = ConvertTo-JobJson $l; "$([bool]($j -match '[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}')):$($null -eq $l.product_name):$($null -eq $l.firmware_key_description):$([bool]($l.reason -match 'left out'))" }; Expect = 'False:True:True:True' }
+        @{ Name = 'licence: the job carries harvest.windows_license'
+           Run = { $l = (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.harvest.windows_license; "$($l.result):$($l.windows_version):$($l.edition_id):$($l.activated)" }; Expect = 'read:11:Core:True' }
         @{ Name = 'keymap: German KLID maps to de; unknown maps to null'
            Run = { "$(ConvertTo-JobKeymap '0407:00000407')/$($null -eq (ConvertTo-JobKeymap '0000:0000FFFF'))" }; Expect = 'de/True' }
         @{ Name = 'linux name: spaces stripped, lowercased, 32 max'
@@ -1184,7 +1273,7 @@ if ($HarvestSettingsOut) {
     $why = @(); if (-not $iana) { $why += "Windows time zone '$($c.WindowsZone)' has no IANA mapping in this version" }; if ($ck.Refusal) { $why += $ck.Refusal }
     if ($why.Count -eq 0) { $wx = Export-JobWifi -OutDir $OutDir; if ($wx.Refusal) { $why += $wx.Refusal } }
     if ($why.Count -gt 0) { foreach ($x in $why) { Write-Host "  REFUSED: $x" -ForegroundColor Red }; exit 2 }
-    [IO.File]::WriteAllText($HarvestSettingsOut, (ConvertTo-JobJson ([ordered]@{ job_writer = $JobWriterVersion; clock = $ck.Clock; wifi = $wx.Wifi })), (New-Object Text.UTF8Encoding($false)))
+    [IO.File]::WriteAllText($HarvestSettingsOut, (ConvertTo-JobJson ([ordered]@{ job_writer = $JobWriterVersion; clock = $ck.Clock; wifi = $wx.Wifi; windows_license = (ConvertTo-JobLicenseFromFacts (Get-JobLicenseFacts)) })), (New-Object Text.UTF8Encoding($false)))
     Write-Host "  clock + Wi-Fi harvest written: $HarvestSettingsOut (Wi-Fi: $($wx.Wifi.result), $(@($wx.Wifi.profiles).Count) network(s))"
     return
 }
@@ -1264,5 +1353,8 @@ if ($wf.result -eq 'exported') {
 elseif ($wf.result -eq 'none-saved') { Write-Host '  Wi-Fi: no saved networks' -ForegroundColor DarkGray }
 $ck = $j.harvest.clock
 Write-Host "  clock: $($ck.iana), hardware clock in $(if ($ck.rtc_is_local) { 'local time (settle-in turns it to UTC on first startup)' } else { 'UTC' })" -ForegroundColor DarkGray
+$wl = $j.harvest.windows_license
+if ($wl.result -eq 'read') { Write-Host "  Windows: $(if ($wl.windows_version) { "Windows $($wl.windows_version)" } else { 'version unknown' }) $($wl.edition_id), $(if ($wl.activated) { 'activated' } else { "NOT activated (status $($wl.license_status))" }), channel $($wl.channel), $(if ($wl.firmware_key_present) { "a key in the firmware ($($wl.firmware_key_description))" } else { 'no key in the firmware' }) - kept for the way back to Windows; no key is copied" -ForegroundColor DarkGray }
+else { Write-Host "  Windows licence: not read ($($wl.reason)) - the way back to Windows will know less" -ForegroundColor Yellow }
 Write-Host '  not in this job: browsers, the BitLocker key' -ForegroundColor DarkGray
 Write-Host ''

@@ -455,7 +455,8 @@
         "wifi",
         "bitlocker",
         "firmware_artifacts",
-        "software"
+        "software",
+        "windows_license"
       ],
       "properties": {
         "clock": {
@@ -512,6 +513,176 @@
             },
             "dst_active": {
               "type": "boolean"
+            },
+            "observed_utc": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "windows_license": {
+          "description": "Which Windows this was and how it was activated, for the way back to Windows (decided 2026-09-27, the owner; RISKS R30). Facts only, never a product key: a firmware key stays in the firmware, where Windows' installer reads it again, and a typed key is the person's to keep (R13). No string here may have the shape of a product key. A read that fails is result 'unreadable' with its reason, not a refusal: it costs a less informed way back, never data.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "result",
+            "reason",
+            "windows_version",
+            "edition_id",
+            "product_name",
+            "display_version",
+            "build",
+            "activated",
+            "license_status",
+            "channel",
+            "firmware_key_present",
+            "firmware_key_description",
+            "observed_utc"
+          ],
+          "properties": {
+            "result": {
+              "description": "read: the licensing service answered. unreadable: it did not; reason says why.",
+              "enum": [
+                "read",
+                "unreadable"
+              ]
+            },
+            "reason": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "not": {
+                    "pattern": "[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "windows_version": {
+              "description": "From the build number (22000 and up = 11). The registry's ProductName still says 'Windows 10' on Windows 11, so it is not used for this.",
+              "enum": [
+                "10",
+                "11",
+                null
+              ]
+            },
+            "edition_id": {
+              "description": "The registry's EditionID: Core = Home, Professional = Pro, and so on. A reinstall activates only with the same edition.",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "not": {
+                    "pattern": "[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "product_name": {
+              "description": "The registry's ProductName, as written (may say Windows 10 on Windows 11).",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "not": {
+                    "pattern": "[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "display_version": {
+              "description": "For example 22H2 or 24H2.",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "not": {
+                    "pattern": "[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "build": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "activated": {
+              "description": "The Windows licence's LicenseStatus is 1 (Licensed).",
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "license_status": {
+              "description": "SoftwareLicensingProduct.LicenseStatus: 0 unlicensed, 1 licensed, 2-4 grace periods, 5 notification, 6 extended grace.",
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 6
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "channel": {
+              "description": "SoftwareLicensingProduct.ProductKeyChannel as reported, for example Retail, OEM:DM, OEM:NONSLP, Volume:GVLK, Volume:MAK.",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "not": {
+                    "pattern": "[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "firmware_key_present": {
+              "description": "The firmware holds a Windows product key (OA3xOriginalProductKey is not empty). The key itself is never read into the job.",
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "firmware_key_description": {
+              "description": "OA3xOriginalProductKeyDescription, for example '[4.0] Core OEM:DM': which edition the firmware key is for.",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "not": {
+                    "pattern": "[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "observed_utc": {
               "type": "string",

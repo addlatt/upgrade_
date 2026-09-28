@@ -113,8 +113,22 @@ SETTLE_IN_VERSION=$("$SETTLE_IN_BIN" --version | awk '{print $2}')
 (cd "$ROOT/settle-in/window" && cargo build --locked --release --quiet) || fail "the settle-in window does not build"
 SETTLE_IN_WINDOW="$ROOT/settle-in/window/target/release/settle-in-window"
 sh -n "$ROOT/settle-in/linux/upgrade_-settle-in.sh" || fail "the settle-in console hook does not parse"
+# "Go back to Windows" carries wimlib-imagex (static, pinned source; built once into settle-in/target/wimlib/)
+WIMLIB="$ROOT/settle-in/target/wimlib/wimlib-imagex"
+[ -x "$WIMLIB" ] || "$ROOT/settle-in/tools/build-wimlib.sh" "$ROOT/settle-in/target/wimlib" >/dev/null || fail "wimlib-imagex does not build (settle-in/tools/build-wimlib.sh)"
 step "settle-in $SETTLE_IN_VERSION: tests pass, static build; window built"
 grep -q 'boot-install' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the boot-install branch"
+# UPGRADE.exe: the window in front of the scripts (Rust, decided 2026-09-27);
+# its tests run before it is built for Windows (upgrade_/windows/window/build.sh)
+UPGRADE_EXE=$("$ROOT/upgrade_/windows/window/build.sh") || fail "the window (UPGRADE.exe) does not build or its tests fail"
+# run a copy from Windows' temp folder: started from \\wsl.localhost it hung here
+# and never ran (first kit build, 2026-09-27; likely Windows' prompt for a
+# program on a network path), while copies in temp started every time
+WINTMP=$(powershell.exe -NoProfile -Command '[IO.Path]::GetTempPath()' | tr -d '\r')
+cp "$UPGRADE_EXE" "$(wslpath "$WINTMP")upgrade-window-probe.exe" || fail "could not copy UPGRADE.exe to Windows' temp folder"
+timeout 60 powershell.exe -NoProfile -Command "\$p = Start-Process -FilePath '${WINTMP}upgrade-window-probe.exe' -ArgumentList '--version' -Wait -PassThru -WindowStyle Hidden; exit \$p.ExitCode" >/dev/null 2>&1 || fail "UPGRADE.exe does not start on Windows (--version)"
+rm -f "$(wslpath "$WINTMP")upgrade-window-probe.exe"
+step "UPGRADE.exe built, tests pass, starts on Windows"
 
 # --- 4. parse-check under the PS 5.1 parser ----------------------------------
 parsecheck() {
@@ -177,6 +191,7 @@ crlf "$PAYLOAD/ARM-HANDOFF.cmd"     "$D/ARM-HANDOFF.cmd"
 crlf "$PAYLOAD/CHECK-HANDOFF.cmd"   "$D/CHECK-HANDOFF.cmd"
 crlf "$PAYLOAD/README-STICK.txt"    "$D/README-STICK.txt"
 crlf "$PAYLOAD/RUN-VERIFY.cmd"      "$D/RUN-VERIFY.cmd"
+cp "$UPGRADE_EXE"                   "$D/UPGRADE.exe"
 crlf "$PAYLOAD/RUN-CONVERT.cmd"     "$D/RUN-CONVERT.cmd"
 crlf "$PAYLOAD/RUN-PROBE.cmd"       "$D/RUN-PROBE.cmd"
 crlf "$PAYLOAD/RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd" "$D/RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd"
@@ -225,6 +240,8 @@ cp "$SETTLE_IN_WINDOW" "$D/upgrade_/settle-in/settle-in-window"
 sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-settle-in.desktop" > "$D/upgrade_/settle-in/upgrade_-settle-in.desktop"
 sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-settle-in.sh" > "$D/upgrade_/settle-in/upgrade_-settle-in.sh"
 sed 's/\r$//' "$ROOT/settle-in/linux/org.upgrade.settle-in.policy" > "$D/upgrade_/settle-in/org.upgrade.settle-in.policy"
+cp "$WIMLIB" "$D/upgrade_/settle-in/wimlib-imagex"
+sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-go-back-to-windows.desktop" > "$D/upgrade_/settle-in/upgrade_-go-back-to-windows.desktop"
 # the desktops: Fedora's own live squashfs images, unmodified, one per
 # desktop the intent capture offers (rig/vm/fetch-desktops.sh). The
 # kickstart's liveimg line names one of them; verify.sh reads it back
@@ -243,6 +260,7 @@ upgrade_ live-test kit  -  V0 boot-handoff stick (both payloads)
 built:            $(date -u +%Y-%m-%dT%H:%M:%SZ)
 commit:           $GIT_REV ($GIT_STATE)
 harness:          Test-Handoff.ps1 $HARNESS_VERSION
+window:           UPGRADE.exe $(grep -m1 '^version' "$ROOT/upgrade_/windows/window/Cargo.toml" | cut -d'"' -f2)  $(sha256sum "$UPGRADE_EXE" | cut -c1-64)   (verify flow; RUN-VERIFY.cmd stays as the fallback)
 settle-in:        $SETTLE_IN_VERSION  $(sha256sum "$SETTLE_IN_BIN" | cut -c1-64)   -> upgrade_/settle-in/settle-in
 scanner:          upgrade-scan.ps1 $SCANNER_VERSION (single-file build of evaluate/windows + data/)
 payload bits:     rig/vm/artifacts/payload-bits (gitignored inputs; fetch-payload-bits.sh)

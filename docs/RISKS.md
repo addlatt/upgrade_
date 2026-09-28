@@ -2804,6 +2804,46 @@ Anaconda wrote `skipx` itself.
   approved words, counted down, and the rig restarted into an untouched
   Windows; `report/refusal.json` on the stick holds the plain reason.
 
+**Read back over SSH, 2026-09-27, the day after run 9** (read-only, no
+root; capture in the gitignored
+`rig/hyperv/artifacts/aspire-fedora-ssh-2026-09-27/`):
+
+- **The 4-hour clock, confirmed on the installed system.** The journal's
+  first boot is stamped 15:55 EDT for a run that crossed the commit line
+  near 19:48 EDT. The time service then logged "System clock wrong by
+  14400.686744 seconds" (exactly 4 h) and stepped the clock, about 20 hours
+  after that first boot. Why so late is not known from this capture (no
+  network at first is likely: run 9 carried no Wi-Fi). Since then the
+  hardware clock holds UTC ("RTC in local TZ: no"; RTC read 20:43:28 when
+  the G16 read 20:43:31 UTC). So a Windows reinstalled on this machine
+  starts 4 h wrong the other way until it syncs.
+- **The stale entries are gone, and nothing of ours removed them.** Run
+  9's `efibootmgr-after.txt` listed "Windows Boot Manager" (Boot0003) and
+  a firmware-made "Unknown Device" (Boot0000) pointing at the old Ubuntu
+  disk's `\EFI\ubuntu\shimx64.efi`. A day later Boot0003 is gone and
+  Boot0000 points at Fedora's `\EFI\fedora\shim.efi` on the new ESP.
+  Insyde's firmware appears to prune and rebuild its own "Unknown Device"
+  entries (they carry its `RC` marker), but that is a reading of one
+  before-and-after, not a cause shown. Someone at the keyboard could also
+  have changed them. Our own "upgrade_" entry (Boot0002, the stick) is
+  still there, as on the rig: run 9 had no `settle-in` to remove it.
+- **SMART, read with the owner's permission (`sudo smartctl -a`):** the
+  SSD's 187 Reported_Uncorrect is **748, the same as run 8's scan on
+  2026-09-26**. The erase, the install and a day of use added none. The
+  rest is unchanged from 2026-09-13 as well: 5 Retired_Block_Count 7, 196
+  Reallocated_Event_Count 7, 184 End-to-End_Error 639, 199 UDMA_CRC 0, 195
+  Hardware_ECC_Recovered 59.5 million. New in this reading: the drive's
+  own error log counts 10,055 ATA errors, 250 Read_Retry_Count is 252.7
+  million, and it has 8,858 power-on hours. Its overall self-assessment
+  still says PASSED, the vendor's thresholds being as lax as R18 records.
+  The 1 TB HDD is clean: 0 reallocated, 0 pending, no errors logged,
+  5,190 hours. One reading, not a trend: the flash is still failing (R18),
+  it just failed no further this week.
+- **0 disk-error lines** in about 20 hours of the kernel log (64,849
+  lines); `sda`/`sdb` serials match the job. The boot target is now
+  `graphical.target` with SDDM running: changed by hand after run 9, so it
+  does not count toward the one-click row.
+
 **Seen and signed in on the rig (2026-09-27, `v9-erase.csv` lines 12-13).**
 Both desktops reached their sign-in screen, took the password typed on the
 rig's keyboard, and opened the desktop. That is the check the rig had
@@ -2946,6 +2986,155 @@ and the scanner either reads the firmware's trust setting and refuses with
 plain words ("turn on 'Allow Microsoft 3rd Party UEFI CA' in your firmware
 settings"), or a real Secured-core machine shows the handoff works. Every
 contact leaves a capture (rule #5).
+
+## R30: The way back to Windows · high · open (decided 2026-09-27; the licence harvest built the same day, job writer 0.16.0)
+
+**What.** After an erase, or after a reclaim, there is no Windows to roll
+back to. Decided (2026-09-27, the owner): there is still a way back, a new
+and empty Windows, offered by its own program on the Linux side
+(`architecture.md`, "The way back to Windows"). First a guided stick, later
+a walk-away reinstall. `evaluate` harvests which Windows it was and how it
+was activated (`harvest.windows_license`) while Windows still exists.
+
+**If real.** What can go wrong:
+
+- **Activation does not come back.** Unactivated Windows works, but it
+  nags and locks the personal settings, and the person may believe we broke
+  their licence. Why it might not come back is so far only argument:
+  a digital licence is tied to the hardware and to the edition (a Pro
+  install on a Home licence does not activate); some licences are linked to
+  a Microsoft account; a changed part (the Aspire gets a new drive) might
+  count as new hardware. Only real reinstalls answer this.
+- **Windows 11 refuses the hardware.** Most computers this project is for
+  cannot run Windows 11. For them the way back is Windows 10, whose free
+  security updates ended in October 2025 (the paid extension for home
+  users ends in October 2026). Not a failure of ours, but the screen must
+  say it, never hide it.
+- **Microsoft stops offering Windows 10.** Then the way back for those
+  computers closes, and the screen must say that too.
+- **The installer's largest file is over 4 GB.** Firmware starts from
+  FAT32 sticks, and FAT32 holds no file over 4 GB. Windows 11's
+  `install.wim` is larger. Splitting it (for example with `wimlib`) is the
+  known route; whether it installs cleanly, Secure Boot on, is unproven.
+- **The stick writer runs on Linux.** Writing a Windows stick is a disk
+  write. It carries R16's bar: the one USB stick the person named, never
+  an internal drive, never the kit stick.
+- **A licence key on our stick or in our files.** Never harvested: a
+  firmware key stays in the firmware (Windows' installer reads it there),
+  and a typed key is the person's to keep (R13). The self-test proves a key
+  handed to the harvest never reaches `job.json`.
+- **The walk-away reinstall, when built, is an erase.** It deletes Linux
+  and `/home`, so its severity is critical: its own typed sentence, a
+  countdown as the commit line, and rule #4. Not built.
+
+**Decided (2026-09-27, the owner).**
+
+- The way back exists on every path, and says its cost first.
+- Its own program in the app menu, not the first-start window.
+- Guided stick first; the walk-away reinstall later, after the current
+  spine work.
+- The harvest records facts, never keys. A failed read is recorded with its
+  reason and is not a refusal: the failure costs a less informed way back,
+  never data, so rule #1 does not demand a stop.
+- The erase launchers say it before the sentence is typed (the words are a
+  draft, awaiting the owner's approval; `architecture.md`, "Erase and
+  install"). They are in both erase launchers, so the Aspire's next run
+  shows them.
+
+**Built (2026-09-27): the guided stick's read-only half** (`settle-in
+go-back`; `architecture.md`, "The way back to Windows"). Two facts from
+primary sources that day: Microsoft still offers the Windows 10 22H2 and
+Windows 11 installers to a Linux browser, and prints a SHA-256 for each
+language on the same page; its own stick instructions split `install.wim`
+into `install.swm` for FAT32. The program refuses any file not in that
+table. Its stick list is R16's rules on Linux (USB, calls itself
+removable, not a hard drive, no system mount, swap or holder, not the
+upgrade_ stick, a unique serial, big enough; the writer re-finds the stick
+by serial, exact size and a typed model name). Ten logic cases and one
+recording (the Aspire's two internal drives, both refused). Not a row: no
+stick has been written.
+
+**Rig leg of the guided stick (2026-09-27, `v11-way-back.csv` line 3,
+`pass-plumbing`).** The Linux-side writer made a stick (a new image file,
+no disk) from Microsoft's Windows 10 22H2 ISO, `install.wim` split by
+wimlib into two `install.swm` parts, and Windows Setup installed from it
+in a Generation 2 VM with Secure Boot on. So the 4 GB question is answered
+for the split made by wimlib, on Hyper-V's firmware. Still open: a real
+stick in a real machine, Windows 11's ISO, and activation after the
+reinstall (a VM has no licence to test).
+
+**Built (2026-09-27): the harvest** (job writer 0.16.0,
+`harvest.windows_license`; eight self-test cases, including a value shaped
+like a product key that must never reach the job; five new schema
+refusals). Read once by hand on the G16, unelevated, in 1 s: Windows 11
+Pro (build 26200), activated, `OEM:DM`, a key in the firmware. The same
+read confirmed the registry quirk: ProductName says "Windows 10 Pro" on
+that Windows 11 machine. Not a row: the rig and the Aspire's next job are
+the first recorded reads.
+
+**The Aspire is the first data point, and it starts with a gap.** Run 9
+(2026-09-26) erased its Windows 11 Home, and what its licence was (the
+channel, whether the firmware holds a key) was never recorded: run 9's
+reports do not hold it. That gap is why the harvest exists. **Half of it
+was recovered from Linux (2026-09-27, over SSH, no root):** the firmware
+has an ACPI `MSDM` table (85 bytes), the table that carries a Windows key
+from the maker. Its contents were not read (R13). So the Aspire has a
+firmware key; which edition it is for, only Windows' installer will say. The owner
+reinstalls Windows by hand with Microsoft's installer before the follow-up
+run, and that run's job records whether activation came back. One machine,
+by hand, not the guided tool.
+
+**Closes when** the guided stick has put back an activated Windows on
+real machines of at least two licence kinds (a firmware key, and a digital
+licence without one), each run leaving its harvest from before and after
+(rule #5), and a machine that cannot run Windows 11 has been shown the
+Windows 10 path with its warning. The walk-away reinstall closes
+separately, on the rig and then on a real machine, like V9. VALIDATION
+V11.
+
+## R31: The window in front of the scripts · medium · open (decided 2026-09-27; the verify flow built the same day, untried)
+
+**What.** `UPGRADE.exe` (`upgrade_/windows/window/`) replaces the black
+console with a window. It runs the kit's scripts with the `.cmd`
+launchers' arguments and shows their progress; before the restart it
+registers a one-shot sign-in task that opens it again to show the result
+(`architecture.md`, "Stack"). First slice: the verify flow only.
+
+**If real.** What can go wrong:
+
+- **The window says something the scripts did not.** A softer word, a
+  forward button after a refusal, a "you can still cancel" at the wrong
+  moment. This is rule #1 and rule #3 in a new place. The window decides
+  nothing the scripts decide; its argument lists are tested against the
+  `.cmd` lines, and its one decision of its own (stop on RED before the
+  job writer) is stricter, never looser.
+- **It cannot draw.** egui draws with OpenGL; a machine on Microsoft's
+  basic display driver may not give it a context. Then a plain message box
+  says so and points to `RUN-VERIFY.cmd`. Unproven on such a machine.
+- **It does not come back after the restart.** The sign-in task has the
+  shape of `Test-Handoff.ps1`'s return-check task (fired on the Aspire),
+  but the window's own task has never fired. If it does not, the result is
+  still on the stick and in `Test-Handoff`'s own popups, and opening
+  `UPGRADE.exe` again does not show it yet (a gap in this slice).
+  Registration is checked before anything is armed: if it fails, nothing
+  is armed.
+- **Closing it mid-run.** Before the arm, closing stops the child script
+  and nothing more starts; during the arm, the window refuses to close.
+  Untried on a real machine.
+- **Antivirus.** An unsigned `.exe` that elevates, runs PowerShell with
+  `-ExecutionPolicy Bypass` and registers a sign-in task is the pattern
+  R12 and R24 describe. Only signing answers it.
+- **When it fronts convert and erase,** its words sit on the commit line
+  and this risk rises to critical. Not built.
+
+**Decided (2026-09-27, the owner).** A Rust window calling the scripts
+from the stick, the verify flow first; it must reopen after the restart.
+The `.cmd` launchers stay on the stick as the fallback until the window
+has its rows.
+
+**Closes when.** V12's rows: the rig, then the Aspire, then a machine on
+the basic display driver.
+
 
 ---
 

@@ -138,6 +138,21 @@
       ],
       "store": [],
       "truncated": false
+    },
+    "windows_license": {
+      "result": "read",
+      "reason": null,
+      "windows_version": "11",
+      "edition_id": "Core",
+      "product_name": "Windows 10 Home",
+      "display_version": "24H2",
+      "build": 26100,
+      "activated": true,
+      "license_status": 1,
+      "channel": "OEM:DM",
+      "firmware_key_present": true,
+      "firmware_key_description": "[4.0] Core OEM:DM",
+      "observed_utc": "2026-09-27T12:00:00Z"
     }
   },
   "stick": {

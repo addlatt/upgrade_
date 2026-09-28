@@ -43,7 +43,8 @@ before the network (`linux/upgrade_-settle-in.service`):
 
 Third-party code, kept short on purpose: `serde_json` (reads the job),
 `roxmltree` (reads Windows' Wi-Fi profiles), `tz-rs` (reads the system's
-own time-zone files), `libc` (the kernel calls for the clocks), and what
+own time-zone files), `libc` (the kernel calls for the clocks), `sha2` (checks a Windows
+installer against Microsoft's published SHA-256), and what
 they pull in (`serde`, `itoa`, `memchr`, `zmij`, and build-time macro
 packages). `Cargo.lock` pins every version.
 

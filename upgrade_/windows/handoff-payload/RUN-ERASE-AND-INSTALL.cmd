@@ -57,6 +57,11 @@ echo   installer, and a 2-minute countdown appears on the screen. Press any
 echo   key during the countdown to cancel - Windows comes back untouched.
 echo   When the countdown ends, the drives are erased. You can walk away.
 echo.
+echo   If you change your mind later, you can put Windows back, but it will be
+echo   a new, empty Windows: nothing on this computer today comes back. On many
+echo   older computers that means Windows 10, which no longer gets free
+echo   security updates.
+echo.
 echo   Your saved Wi-Fi networks and their passwords are copied onto this
 echo   stick, so Fedora can connect to them on its own. They are removed
 echo   from the stick at the end of the install and from Fedora once it
