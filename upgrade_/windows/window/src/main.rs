@@ -535,9 +535,18 @@ fn preview(name: &str) -> Screen {
     }
 }
 
+/// Glow (OpenGL) first; a machine whose display driver offers no usable
+/// OpenGL (the rig's basic display adapter has only 1.1: V12, 2026-09-27)
+/// gets wgpu, which draws through Direct3D and falls back to Windows' own
+/// software renderer. winit allows one event loop per process, so the second
+/// try is this program started again with --wgpu. Every failure goes into the
+/// stick's log before anything else happens (rule #5).
 fn open(app: App) {
+    let wgpu = std::env::args().any(|a| a == "--wgpu");
+    let root = PathBuf::from(format!("{}\\", app.stick));
     let opts = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_title(words::TITLE).with_inner_size([640.0, 620.0]).with_active(true),
+        renderer: if wgpu { eframe::Renderer::Wgpu } else { eframe::Renderer::Glow },
         ..Default::default()
     };
     let r = eframe::run_native(
@@ -548,10 +557,20 @@ fn open(app: App) {
             Ok(Box::new(app))
         }),
     );
-    if let Err(e) = r {
-        win::message_box(words::TITLE, &format!("{}\n\n({})", words::NO_WINDOW, e));
-        std::process::exit(1);
+    let Err(e) = r else { return };
+    if !wgpu {
+        log_line(&root, &format!("the window could not open with OpenGL ({}); trying wgpu", e));
+        if let Ok(me) = std::env::current_exe() {
+            let mut args: Vec<String> = std::env::args().skip(1).collect();
+            args.push("--wgpu".into());
+            if Command::new(me).args(&args).spawn().is_ok() {
+                return;
+            }
+        }
     }
+    log_line(&root, &format!("the window could not open ({}); pointed the person to RUN-VERIFY.cmd", e));
+    win::message_box(words::TITLE, &format!("{}\n\n({})", words::NO_WINDOW, e));
+    std::process::exit(1);
 }
 
 fn main() {
