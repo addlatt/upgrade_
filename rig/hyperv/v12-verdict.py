@@ -33,6 +33,10 @@ start = max((i for i, l in enumerate(lines) if "window " in l and "the verify fl
 if start is not None:
     # the Start line comes just before the header
     start = max((i for i, l in enumerate(lines[:start]) if "pressed Start the test" in l), default=start)
+if start is not None:
+    # the window's own lines just before Start belong to this launch (the renderer fallback, 2026-09-27)
+    while start > 0 and re.search(r"\bwindow \d+\.\d+\.\d+:", lines[start - 1]) and "after the restart:" not in lines[start - 1]:
+        start -= 1
 run = lines[start:] if start is not None else []
 wl = [l for l in run if re.search(r"\bwindow \d+\.\d+\.\d+:", l)]
 

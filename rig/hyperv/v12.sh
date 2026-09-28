@@ -73,6 +73,9 @@ start)
     # the signed-in session, not PS Direct's: a one-shot interactive task, removed at once
     guest "schtasks /Create /TN '$LAUNCH_TASK' /TR '${L}:\\UPGRADE.exe' /SC ONCE /ST 23:59 /RU rig /IT /RL HIGHEST /F | Out-Null; schtasks /Run /TN '$LAUNCH_TASK' | Out-Null; Start-Sleep 2; schtasks /Delete /TN '$LAUNCH_TASK' /F | Out-Null; 'launched'"
     sleep 12; shot 1-welcome
+    # a window started by a task does not get the keyboard focus (run 1, 2026-09-27: Tab + Enter
+    # went nowhere); AppActivate from inside the same session brings it to the front
+    guest "schtasks /Create /TN 'upgrade_ v12 focus' /TR 'powershell.exe -NoProfile -WindowStyle Hidden -Command (New-Object -ComObject WScript.Shell).AppActivate(''upgrade_'')' /SC ONCE /ST 23:59 /RU rig /IT /F | Out-Null; schtasks /Run /TN 'upgrade_ v12 focus' | Out-Null; Start-Sleep 4; schtasks /Delete /TN 'upgrade_ v12 focus' /F | Out-Null; 'focused'"
     PS key 9; sleep 1; shot 2-focused
     PS key 13; sleep 8; shot 3-running
     ;;
@@ -84,7 +87,8 @@ wait)
         if [ -n "$L" ] && guest "Select-String -Path ${L}:\\upgrade_\\convert.log -Pattern 'after the restart:' -SimpleMatch -Quiet" 2>/dev/null | grep -q True; then
             echo "v12: the window logged its result after $(( $(date +%s) - t0 )) s"; sleep 5; shot 5-result; break
         fi
-        if [ -n "$L" ] && guest "Select-String -Path ${L}:\\upgrade_\\convert.log -Pattern 'stopped' -SimpleMatch -Quiet" 2>/dev/null | grep -q True \
+        # only the window's own lines: the scripts print "stopped" too (run 1, 2026-09-27)
+        if [ -n "$L" ] && guest "Select-String -Path ${L}:\\upgrade_\\convert.log -Pattern 'window \\d+\\.\\d+\\.\\d+: stopped' -Quiet" 2>/dev/null | grep -q True \
            && ! guest "Select-String -Path ${L}:\\upgrade_\\convert.log -Pattern 'armed;' -SimpleMatch -Quiet" 2>/dev/null | grep -q True; then
             echo "v12: the window stopped before arming"; shot 4-stopped; break
         fi
