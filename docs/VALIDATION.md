@@ -75,7 +75,7 @@ A few words used all through this file:
 | V5 VMD detection | plumbing `[###.]`, AHCI row `[####]` | the RST/VMD row on real hardware is owed |
 | V6 code signing | `[....]` | calendar-bound, not started |
 | V7 scanner generalizes | `[....]` | needs the public release and reports |
-| V12 the window | verify flow `[##..]` | `UPGRADE.exe` built 2026-09-27; tests pass, it opens on the G16 (preview only); rig and Aspire rows owed |
+| V12 the window | verify flow: stop path `[###.]`, restart and reopen `[##..]` | rig line 2: draws via wgpu, shows the job writer's refusal, leaves nothing; the rig has no USB, so the reopen after the restart needs the Aspire |
 | V13 the Rust port | `[#...]` | decided 2026-09-27; nothing ported; the parity ledger has its header only |
 
 ---
@@ -1205,6 +1205,23 @@ scripts' words, and the result screen reads `verify.json`,
 Windows' task scheduler accepts its sign-in task (registered once without
 administrator rights under a test name, then deleted). None of that is
 the flow on a machine.
+
+**Rig run 1 (2026-09-27, window 0.1.1; `v12-window.csv` line 2,
+`stopped-before-arm`).** On the Hyper-V guest (basic display adapter,
+OpenGL 1.1 only) the window could not open with OpenGL, logged that to the
+stick, started again with wgpu and drew. Start was pressed from the guest's
+keyboard. The scan ran, then the job writer refused: "the stick is on bus
+'SAS', not USB". The window showed that sentence, said nothing was
+changed, armed nothing and left nothing behind (no task, no state, no
+`bootsequence`). That refusal is right (R16: the stick must be USB), and it
+means **the rig cannot take the window past the job writer**: Hyper-V has
+no USB, which is why `v1.sh` has always written the rig's job on the host.
+The restart, the reopen at sign-in and the result screen need the Aspire
+(step 2). Found and fixed in the bench on the way: a window started by a
+task does not get the keyboard focus (`v12.sh` now brings it to the
+front), and the bench must read only the window's own log lines.
+Before this, 0.1.0 on the same guest could not draw at all and wrote
+nothing to the stick (screenshots only, no row); 0.1.1 fixed both.
 
 **Method.** In order:
 
