@@ -317,7 +317,7 @@ data/            hardware + distro knowledge base; community PRs land here
   devices.ps1      Wi-Fi/GPU/audio/storage quirks by PCI ID
   distros.ps1      distro kernel table (goes stale; verify against release notes)
 evaluate/windows/  scanner (upgrade-scan.ps1), harvester, job writer, stick writer
-upgrade_/          the converter: windows/ prologue, rollback, kickstart, launchers, V0 handoff harness; linux/ %pre verify + outcome
+upgrade_/          the converter: windows/ prologue, rollback, kickstart, launchers, the window (UPGRADE.exe, Rust), V0 handoff harness; linux/ %pre verify + outcome
 settle-in/         first-boot verify + file pull + reclaim (nothing built)
 schemas/           job.json / outcome.json contracts (change rarely, review hard)
 docs/              architecture.md, RISKS.md, VALIDATION.md, validation-results/

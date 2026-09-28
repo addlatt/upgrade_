@@ -3091,3 +3091,47 @@ licence without one), each run leaving its harvest from before and after
 Windows 10 path with its warning. The walk-away reinstall closes
 separately, on the rig and then on a real machine, like V9. VALIDATION
 V11.
+
+## R31: The window in front of the scripts · medium · open (decided 2026-09-27; the verify flow built the same day, untried)
+
+**What.** `UPGRADE.exe` (`upgrade_/windows/window/`) replaces the black
+console with a window. It runs the kit's scripts with the `.cmd`
+launchers' arguments and shows their progress; before the restart it
+registers a one-shot sign-in task that opens it again to show the result
+(`architecture.md`, "Stack"). First slice: the verify flow only.
+
+**If real.** What can go wrong:
+
+- **The window says something the scripts did not.** A softer word, a
+  forward button after a refusal, a "you can still cancel" at the wrong
+  moment. This is rule #1 and rule #3 in a new place. The window decides
+  nothing the scripts decide; its argument lists are tested against the
+  `.cmd` lines, and its one decision of its own (stop on RED before the
+  job writer) is stricter, never looser.
+- **It cannot draw.** egui draws with OpenGL; a machine on Microsoft's
+  basic display driver may not give it a context. Then a plain message box
+  says so and points to `RUN-VERIFY.cmd`. Unproven on such a machine.
+- **It does not come back after the restart.** The sign-in task has the
+  shape of `Test-Handoff.ps1`'s return-check task (fired on the Aspire),
+  but the window's own task has never fired. If it does not, the result is
+  still on the stick and in `Test-Handoff`'s own popups, and opening
+  `UPGRADE.exe` again does not show it yet (a gap in this slice).
+  Registration is checked before anything is armed: if it fails, nothing
+  is armed.
+- **Closing it mid-run.** Before the arm, closing stops the child script
+  and nothing more starts; during the arm, the window refuses to close.
+  Untried on a real machine.
+- **Antivirus.** An unsigned `.exe` that elevates, runs PowerShell with
+  `-ExecutionPolicy Bypass` and registers a sign-in task is the pattern
+  R12 and R24 describe. Only signing answers it.
+- **When it fronts convert and erase,** its words sit on the commit line
+  and this risk rises to critical. Not built.
+
+**Decided (2026-09-27, the owner).** A Rust window calling the scripts
+from the stick, the verify flow first; it must reopen after the restart.
+The `.cmd` launchers stay on the stick as the fallback until the window
+has its rows.
+
+**Closes when.** V12's rows: the rig, then the Aspire, then a machine on
+the basic display driver.
+

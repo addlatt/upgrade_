@@ -1334,18 +1334,40 @@ and only on that branch; see "When Windows cannot be kept" above.)
 
 ### Stack
 
-**C# WPF targeting .NET Framework 4.8**, as a single `.exe`.
+**Decided (2026-09-27, the owner): a Rust window, `UPGRADE.exe`, in front
+of the scripts on the stick.** It replaces the 2026-09-13 plan (WPF hosted
+in Windows PowerShell 5.1 now, C# WPF on .NET Framework 4.8 later).
 
-- 4.8 comes preinstalled on every Windows 10 1903+ and Windows 11 machine
-  (checked: Release 533509 on the test system). Nothing to install.
-- The manifest gives single-prompt elevation.
-- It **double-clicks**. A `.ps1` opens in Notepad, which fails at step one
-  for exactly this audience.
+- It is one `.exe` at the stick's root. It **double-clicks**, asks for
+  administrator access once, and needs nothing installed.
+- It draws with egui, the same library as `settle-in`'s window, so the
+  person sees one kind of window before and after the switch.
+- **It directs the work; it does not redo it.** It runs the kit's scripts
+  as child `powershell.exe` processes with the same arguments the `.cmd`
+  launchers use, shows their progress in plain words, and stops where they
+  stop. The scripts stay the thing under test, and `data/*.ps1` stays the
+  community's edit surface.
+- It adds exactly two things of its own. It stops on a RED scan before the
+  job writer runs (more cautious than before, never less). And before the
+  restart it registers a one-shot sign-in task that opens it again, so the
+  person sees the result without looking for it. That task has the shape of
+  `Test-Handoff.ps1`'s return-check task, which fired on the Aspire. A
+  restart the window cannot follow is not started.
+- **What it cannot do:** show anything before a sign-in. The walk-away
+  resume runs as SYSTEM with no screen (above); the window reopens at the
+  next sign-in and shows where things stand.
+- If its graphics cannot draw on a machine, it says so in a plain Windows
+  message box and points to the `.cmd`, which stays on the stick.
+- Built from WSL for `x86_64-pc-windows-gnu`, linked by zig through
+  `cargo-zigbuild` (`upgrade_/windows/window/build.sh`); its logic is
+  tested on Linux, and `make-kit.sh` checks it starts on Windows.
 
-The exe directs the work rather than redoing it. It hosts a PowerShell
-runspace in its own process and calls the existing scripts, getting
-structured objects back. That keeps `data/*.ps1` editable by the community,
-which is what makes the hardware database get better.
+**First slice (2026-09-27): the verify flow only** (`RUN-VERIFY.cmd`:
+nothing installed, nothing on the internal drive changed). The convert and
+erase flows, with their typed words, come after it has earned its rows
+(RISKS R31, VALIDATION V12). Its words are drafts until the owner approves
+them. Rust does not change code signing (R12): the `.exe` still needs a
+certificate and time.
 
 Not WebView2: it is present on Windows 11, but not guaranteed on
 Windows 10.

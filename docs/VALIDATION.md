@@ -75,6 +75,7 @@ A few words used all through this file:
 | V5 VMD detection | plumbing `[###.]`, AHCI row `[####]` | the RST/VMD row on real hardware is owed |
 | V6 code signing | `[....]` | calendar-bound, not started |
 | V7 scanner generalizes | `[....]` | needs the public release and reports |
+| V12 the window | verify flow `[##..]` | `UPGRADE.exe` built 2026-09-27; tests pass, it opens on the G16 (preview only); rig and Aspire rows owed |
 
 ---
 
@@ -1187,6 +1188,37 @@ Surface. This also feeds V4 for free.
 
 **Pass.** Reports arrive and the verdicts survive contact, or the failures
 are table gaps (one-line fixes) rather than logic failures.
+
+## V12: The window in front of the scripts · kills: the non-technical front door · RISKS R31
+
+Decided 2026-09-27 (the owner): `UPGRADE.exe`, a Rust window that runs the
+kit's scripts from the stick and opens again after the restart.
+`[##..]` built, untried.
+
+**Built 2026-09-27 (window 0.1.0, verify flow only).** The flow logic has
+19 tests on Linux: every call matches `RUN-VERIFY.cmd` argument for
+argument, RED and a missing verdict stop, refusals are read in the
+scripts' words, and the result screen reads `verify.json`,
+`refusal.json` and the return check's row. On the G16 it starts
+(`--version`) and draws its screens (`--preview`, which runs nothing), and
+Windows' task scheduler accepts its sign-in task (registered once without
+administrator rights under a test name, then deleted). None of that is
+the flow on a machine.
+
+**Method.** In order:
+
+1. **The rig.** The verify flow from the window on the Hyper-V guest,
+   Secure Boot on: scan, job, kickstart, arm, the live boot, the return,
+   the window opening at the next sign-in and showing the result. Plus the
+   stops: a kit with a file missing, a RED scan (a recorded RED machine or
+   an injected one), closing the window before the arm.
+2. **The Aspire.** The same flow on real firmware, as a physical row.
+3. **A machine on the basic display driver** (or a VM without 3D): the
+   window cannot draw, and the message box points to the `.cmd`.
+
+**Pass.** Steps 1 and 2 end with the window showing the same result the
+return check recorded, with nothing armed or registered left behind; step
+3 shows the fallback, not a blank screen or silence.
 
 ---
 
