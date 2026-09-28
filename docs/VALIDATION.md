@@ -76,6 +76,7 @@ A few words used all through this file:
 | V6 code signing | `[....]` | calendar-bound, not started |
 | V7 scanner generalizes | `[....]` | needs the public release and reports |
 | V12 the window | verify flow `[##..]` | `UPGRADE.exe` built 2026-09-27; tests pass, it opens on the G16 (preview only); rig and Aspire rows owed |
+| V13 the Rust port | `[#...]` | decided 2026-09-27; nothing ported; the parity ledger has its header only |
 
 ---
 
@@ -1222,6 +1223,47 @@ return check recorded, with nothing armed or registered left behind; step
 
 ---
 
+## V13: The port from PowerShell to Rust · kills: trust in every row the Windows side earned · RISKS R32
+
+Decided 2026-09-27 (the owner): Rust becomes the conversion's one
+language, piece by piece (`architecture.md`, "Stack"). `[#...]` planned.
+
+**The parity ledger.** `docs/validation-results/port-parity.csv` lists
+every piece of evidence a PowerShell piece has earned, one line each, and
+the Rust test that must replace it:
+
+| Column | Meaning |
+|---|---|
+| `piece` | the PowerShell file being ported, e.g. `upgrade-scan.ps1` |
+| `evidence` | what it passed: a self-test case name, a corpus file, or a results file and line (`r18-prologue.csv:6`) |
+| `kind` | `selftest`, `corpus`, `rig` or `physical` |
+| `rust_test` | the `cargo test` name, or the harness and row that re-earned it |
+| `result` | `owed`, `pass` or `fail` |
+| `date` | when `result` last changed |
+
+A piece's lines are written in full **before** its port starts, so the
+ledger says what must be matched, not what happened to be tested. A
+PowerShell piece is retired only when all its lines read `pass`.
+
+**Method, by kind:**
+
+1. **`selftest` and `corpus`:** port the case as a `cargo test`, fed the
+   same made-up object or the same recording. Same verdict, same fields.
+2. **Differential:** while both exist, run PowerShell and Rust on the same
+   input (the corpus, a rig guest, a captured tool output) and require the
+   same result, word for word where it is a refusal.
+3. **`rig`:** re-run the same `rig/hyperv/*.sh` harness with the Rust build;
+   it appends its row as today.
+4. **`physical`:** where the run kept the raw output of the tools it called,
+   a replay test closes the decision; the effect on the firmware or the
+   disk still takes one re-run on the machine. One Aspire run can close
+   many lines.
+
+**Pass.** Per piece: every ledger line `pass`, and the release rebuilt
+byte for byte by a second person from the tagged source (R14).
+
+---
+
 # Lesser gates (validate when their component is built)
 
 Real, but they degrade rather than kill, or only touch the fallback path:
@@ -1248,6 +1290,7 @@ Real, but they degrade rather than kill, or only touch the fallback path:
 | V4 | stick-size guidance; intent UI weighting (ship scanner change now) |
 | V8 | the settle-in file pull's integrity guarantee; `settle-in` never copying a stub as the file (online-only files stay in OneDrive, decided 2026-09-26) |
 | V11 | the guided "Go back to Windows" program; until it passes, the launchers' line promises only what a person can do by hand |
+| V13 | retiring each PowerShell piece; the ported writers (steps 3 to 5 also wait on V0's vendors and V9's re-run) |
 | V5 | nothing: do it this week regardless |
 | V6 | nothing: start the clock now; blocks only the eventual release |
 | V7 | table confidence; multi-distro ambitions |

@@ -1372,6 +1372,26 @@ certificate and time.
 Not WebView2: it is present on Windows 11, but not guaranteed on
 Windows 10.
 
+**Decided (2026-09-27, the owner): Rust becomes the conversion's one
+language,** from the window down to the code that touches the disk. The
+PowerShell side is ported piece by piece, safest first (RISKS R32,
+VALIDATION V13):
+
+1. the `job.json` / `outcome.json` types, as one library shared with
+   `settle-in`;
+2. the scanner's judging half, fed the same corpus recordings;
+3. the read-only collectors (the scanner's reads, the harvester);
+4. the job writer, the stick writer and the kickstart generator;
+5. the prologue, the handoff and the rollback, last.
+
+Steps 3 to 5 wait for V0's three more vendors and V9's physical re-run.
+Until then, and for each piece until its lines in
+`docs/validation-results/port-parity.csv` all read `pass`, the window
+keeps calling that piece's script as described above, and the `.cmd`
+launchers stay on the stick. So today the scripts are still the thing
+under test. Builds are made reproducible, so the `.exe` on the stick can
+be matched to the open source (R14).
+
 ### Code signing is the gating item
 
 See RISKS R12. The finished tool elevates, reads BitLocker keys, exports

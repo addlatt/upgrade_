@@ -329,6 +329,10 @@ dist/              built single-file scanner (rebuild with ./build.sh)
 - **Windows PowerShell 5.1 only.** It's what ships on stock Windows 10/11.
   No PS7 syntax: no ternaries, no `??`, no `-Parallel`. If it needs a
   setup step, it doesn't run where it matters.
+  **Decided (2026-09-27, the owner):** the Windows side is being ported
+  to Rust, one piece at a time (RISKS R32, VALIDATION V13). A script
+  keeps these rules, and stays in use, until every line of its evidence
+  in `docs/validation-results/port-parity.csv` reads `pass` in Rust.
 - **`data/*.ps1` is the contribution surface.** Adding a device is a
   one-line PR with a cited source ("it should work" is not a source). Keep
   it editable.
