@@ -90,6 +90,9 @@ stick)
         # the bench only asks for the GRUB timeout, the boot marker and the shutdown
         printf 'prologue\n' > "$A/marker"
         mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench; mcopy -o -i "$P" "$A/marker" ::/upgrade_/autoshutdown
+    elif [ "${MODE:-verify}" = window ]; then
+        # V12 (v12.sh): UPGRADE.exe writes boot-verify itself before it arms, as RUN-VERIFY.cmd does
+        :
     else
         printf 'v1\n' > "$A/boot-verify"; mcopy -o -i "$P" "$A/boot-verify" ::/upgrade_/boot-verify
     fi
