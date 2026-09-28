@@ -70,10 +70,12 @@ A few words used all through this file:
 | V3 BitLocker read | `[###.]` | all three configs byte-identical via ntfs-3g; real disks owed |
 | V4 disks shrink | `[####]` 1 disk | the Aspire's answer is no (best 9.5 of 25 GB); the population count needs ~20 elevated reports |
 | V9 erase and install | rig `[###.]`, real `[FAIL]` | run 9 came up at a text login (fixed); physical re-run owed |
+| V11 way back to Windows | harvest `[##..]`, guided stick `[###.]`, walk-away `[#...]` | designed 2026-09-27; licence harvest built (job writer 0.16.0); the Aspire's hand reinstall is the first activation data point |
 | V8 OneDrive placeholders | `[###.]` | cfapi provider `pass-plumbing` on the rig and the G16; signed-in OneDrive owed |
 | V5 VMD detection | plumbing `[###.]`, AHCI row `[####]` | the RST/VMD row on real hardware is owed |
 | V6 code signing | `[....]` | calendar-bound, not started |
 | V7 scanner generalizes | `[....]` | needs the public release and reports |
+| V12 the window | verify flow: stop path `[###.]`, restart and reopen `[##..]` | rig line 2: draws via wgpu, shows the job writer's refusal, leaves nothing; the rig has no USB, so the reopen after the restart needs the Aspire |
 | V13 the Rust port | `[#...]` | decided 2026-09-27; nothing ported; the parity ledger has its header only |
 
 ---
@@ -955,6 +957,55 @@ Then the same on a real machine.
 
 **Pass.** The same file, byte for byte, passes 1-4 on all three.
 
+## V11: The way back to Windows (R30)
+
+Decided 2026-09-27 (the owner): after an erase or a reclaim, a program on
+the Linux side offers a new, empty Windows, and says what that costs first
+(`architecture.md`, "The way back to Windows"). `[#...]` planned.
+
+**Method.** In order, each step on the rig before a real machine:
+
+1. **The harvest** (`harvest.windows_license`). The self-test feeds it
+   made-up licence facts (activated or not, each channel, a firmware key
+   present or not, a failed read) and proves a key handed to it never
+   reaches `job.json`. Then the rig's Windows, then a real one.
+   **Built 2026-09-27** (job writer 0.16.0): the self-test passes; read
+   once by hand on the G16 (Windows 11 Pro, activated, `OEM:DM`, a key in
+   the firmware), not yet a row.
+2. **The Aspire's hand reinstall** (2026-09-27, before its follow-up
+   run). Windows put back by the owner with Microsoft's installer; the
+   follow-up run's job records whether activation came back. The licence
+   before the erase was never recorded (R30), so this row has only an
+   "after".
+3. **The guided stick.** From an installed Linux: download Microsoft's
+   installer, check it, write it to the named stick (refusing every other
+   drive), start from it with Secure Boot on, install, and read the
+   activation state on the new Windows.
+   **Built 2026-09-27** (`settle-in go-back`; the window's `--go-back`).
+   The rig leg first: `settle-in go-back write --image` writes a new file
+   (never a disk) from the rig's own Windows 10 ISO (Microsoft's English
+   x64 hash), and `rig/hyperv/v11-stick.ps1` boots that file as a disk in
+   a new Generation 2 VM, Secure Boot on (Microsoft's Windows template),
+   offline, with an empty 64 GB target. That proves the stick's layout
+   and the wimlib split (plumbing); only a real stick in a real machine
+   closes the step.
+   **Rig leg fired 2026-09-27** (`v11-way-back.csv`): line 2 `fail` (the
+   writer stopped itself at its last check, on a wimlib option; fixed),
+   line 3 `pass-plumbing`: 905 files and two `install.swm` parts read
+   back, the 11 editions the same as the original, Windows Setup started
+   with Secure Boot on, installed from the split image and restarted into
+   Windows' first screens. Two findings changed the done words: Setup lists
+   the stick (`WINSETUP`) beside the computer's drives, and it asks for an
+   edition, so the words now say never delete `WINSETUP` and name the
+   edition from the harvest.
+4. **Later, the walk-away reinstall:** refuse, cancel and erase arms, as in
+   V9.
+
+**Pass.** Step 3 puts back an activated Windows on at least two real
+machines with different licence kinds (a firmware key; a digital licence
+without one), each with its harvest from before and after, and a machine
+that cannot run Windows 11 is shown the Windows 10 path and its warning.
+
 # Tier 3: silent data loss (the trust-ending class)
 
 ## V8: OneDrive placeholders are materialized at evaluate · kills: file integrity on the default path · RISKS R8
@@ -1139,6 +1190,54 @@ Surface. This also feeds V4 for free.
 **Pass.** Reports arrive and the verdicts survive contact, or the failures
 are table gaps (one-line fixes) rather than logic failures.
 
+## V12: The window in front of the scripts · kills: the non-technical front door · RISKS R31
+
+Decided 2026-09-27 (the owner): `UPGRADE.exe`, a Rust window that runs the
+kit's scripts from the stick and opens again after the restart.
+`[##..]` built, untried.
+
+**Built 2026-09-27 (window 0.1.0, verify flow only).** The flow logic has
+19 tests on Linux: every call matches `RUN-VERIFY.cmd` argument for
+argument, RED and a missing verdict stop, refusals are read in the
+scripts' words, and the result screen reads `verify.json`,
+`refusal.json` and the return check's row. On the G16 it starts
+(`--version`) and draws its screens (`--preview`, which runs nothing), and
+Windows' task scheduler accepts its sign-in task (registered once without
+administrator rights under a test name, then deleted). None of that is
+the flow on a machine.
+
+**Rig run 1 (2026-09-27, window 0.1.1; `v12-window.csv` line 2,
+`stopped-before-arm`).** On the Hyper-V guest (basic display adapter,
+OpenGL 1.1 only) the window could not open with OpenGL, logged that to the
+stick, started again with wgpu and drew. Start was pressed from the guest's
+keyboard. The scan ran, then the job writer refused: "the stick is on bus
+'SAS', not USB". The window showed that sentence, said nothing was
+changed, armed nothing and left nothing behind (no task, no state, no
+`bootsequence`). That refusal is right (R16: the stick must be USB), and it
+means **the rig cannot take the window past the job writer**: Hyper-V has
+no USB, which is why `v1.sh` has always written the rig's job on the host.
+The restart, the reopen at sign-in and the result screen need the Aspire
+(step 2). Found and fixed in the bench on the way: a window started by a
+task does not get the keyboard focus (`v12.sh` now brings it to the
+front), and the bench must read only the window's own log lines.
+Before this, 0.1.0 on the same guest could not draw at all and wrote
+nothing to the stick (screenshots only, no row); 0.1.1 fixed both.
+
+**Method.** In order:
+
+1. **The rig.** The verify flow from the window on the Hyper-V guest,
+   Secure Boot on: scan, job, kickstart, arm, the live boot, the return,
+   the window opening at the next sign-in and showing the result. Plus the
+   stops: a kit with a file missing, a RED scan (a recorded RED machine or
+   an injected one), closing the window before the arm.
+2. **The Aspire.** The same flow on real firmware, as a physical row.
+3. **A machine on the basic display driver** (or a VM without 3D): the
+   window cannot draw, and the message box points to the `.cmd`.
+
+**Pass.** Steps 1 and 2 end with the window showing the same result the
+return check recorded, with nothing armed or registered left behind; step
+3 shows the fallback, not a blank screen or silence.
+
 ---
 
 ## V13: The port from PowerShell to Rust · kills: trust in every row the Windows side earned · RISKS R32
@@ -1207,6 +1306,7 @@ Real, but they degrade rather than kill, or only touch the fallback path:
 | V3 | the intent-capture UI's path logic; the settle-in file pull |
 | V4 | stick-size guidance; intent UI weighting (ship scanner change now) |
 | V8 | the settle-in file pull's integrity guarantee; `settle-in` never copying a stub as the file (online-only files stay in OneDrive, decided 2026-09-26) |
+| V11 | the guided "Go back to Windows" program; until it passes, the launchers' line promises only what a person can do by hand |
 | V13 | retiring each PowerShell piece; the ported writers (steps 3 to 5 also wait on V0's vendors and V9's re-run) |
 | V5 | nothing: do it this week regardless |
 | V6 | nothing: start the clock now; blocks only the eventual release |

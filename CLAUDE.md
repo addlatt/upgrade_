@@ -119,6 +119,14 @@ firmware entry is a button at the end of `settle-in` (`architecture.md`,
 Next: the Aspire's physical row recorded, then a re-run that ends at the
 desktop, and a plain-words screen for a `%pre` refusal (today it's
 Anaconda's traceback). Design in `architecture.md`, "Erase and install".
+**Decided (2026-09-27, the owner): there is always a way back to
+Windows,** a new and empty one, and it says its cost first (most of these
+machines can only go back to Windows 10). Its own "Go back to Windows"
+program on the Linux side: a guided stick first, a walk-away reinstall
+later (an erase, so rule #4). `evaluate` harvests the edition and how
+Windows was activated, never a key (R30, V11; `architecture.md`, "The way
+back to Windows"). The Aspire's follow-up run starts from a Windows the
+owner reinstalls by hand: the first activation data point.
 
 **Tier 1: no product if these fail.**
 - **V0 / R15: the boot handoff fires.** Walk-away rests entirely on
@@ -309,7 +317,7 @@ data/            hardware + distro knowledge base; community PRs land here
   devices.ps1      Wi-Fi/GPU/audio/storage quirks by PCI ID
   distros.ps1      distro kernel table (goes stale; verify against release notes)
 evaluate/windows/  scanner (upgrade-scan.ps1), harvester, job writer, stick writer
-upgrade_/          the converter: windows/ prologue, rollback, kickstart, launchers, V0 handoff harness; linux/ %pre verify + outcome
+upgrade_/          the converter: windows/ prologue, rollback, kickstart, launchers, the window (UPGRADE.exe, Rust), V0 handoff harness; linux/ %pre verify + outcome
 settle-in/         first-boot verify + file pull + reclaim (nothing built)
 schemas/           job.json / outcome.json contracts (change rarely, review hard)
 docs/              architecture.md, RISKS.md, VALIDATION.md, validation-results/

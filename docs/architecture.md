@@ -152,6 +152,19 @@ Linux. So `evaluate` captures them while Windows is alive. This is the same
   `cloud_files.result = left-in-cloud`, and `settle-in` skips them and
   reconnects OneDrive instead. (The harvester's `-Materialize`, which
   downloads and verifies them, stays built and unused.)
+- **Which Windows this was, and how it was activated** (decided
+  2026-09-27, the owner; RISKS R30). The way back to Windows (`settle-in`,
+  "The way back to Windows") needs to know this, and only Windows can say.
+  `harvest.windows_license` records the edition (Home or Pro), whether it
+  was Windows 10 or 11 (from the build number: Windows 11 still calls
+  itself "Windows 10" in the registry), whether it was activated, the
+  licence channel (for example `OEM:DM`, a key the maker put in the
+  firmware, or `Retail`), and whether the firmware holds a product key.
+  **Never a key itself.** A firmware key stays in the firmware, where
+  Windows' installer finds it again. A key the person typed is theirs to
+  keep, and the stick is not a credential store (R13). A read that fails
+  is recorded with its reason, not refused: its cost is a less informed
+  way back, never lost data. Built 2026-09-27 (job writer 0.16.0).
 
 **The software inventory (2026-09-13).** The job writer records every
 installed desktop program (the registry's Apps & features entries, minus
@@ -482,7 +495,18 @@ said, before anything started, that nothing is to be kept.
 
 What it does not do: carry files, Wi-Fi, browsers or programs (stage 2),
 or keep Windows as a fallback (there is none after the commit line; the
-countdown is the last exit). The existing clean-slate path with staged
+countdown is the last exit). Going back later means a new, empty Windows
+(`settle-in`, "The way back to Windows"), and the launcher says so before
+the sentence is typed (draft words, awaiting the owner's approval):
+
+```text
+  If you change your mind later, you can put Windows back, but it will be
+  a new, empty Windows: nothing on this computer today comes back. On many
+  older computers that means Windows 10, which no longer gets free
+  security updates.
+```
+
+The existing clean-slate path with staged
 files still stops before arming, as before, because its restore is not
 built.
 
@@ -1091,6 +1115,92 @@ installer adapter's hand-over (`%post`), then `settle-in`'s first-startup
 service (clock, Wi-Fi) on the rig, then the button with `settle-in`'s
 window.
 
+### The way back to Windows (decided 2026-09-27, the owner)
+
+On the keep-Windows path the way back already exists: step 5 above offers
+"keep, or roll back" until the person says yes to the reclaim. On the
+erase path, and after a reclaim, there is no Windows left to roll back to.
+**Decided: there is still a way back, and it is honest about what it
+costs.** "You can always go back" is what gets a nervous person to try
+Linux at all, and someone who could not make a Windows stick is exactly who
+this project is for. If Linux does not suit them, they need the same help
+getting back. RISKS R30, VALIDATION V11.
+
+- **It is its own program, "Go back to Windows", in the app menu,** for as
+  long as the person wants it. It is not in the first-start window: the
+  first start is about settling in, and a way out on the first day sends
+  the wrong message. It ships with `settle-in` (the same package, any
+  Linux).
+- **It says the cost first.** Going back means a new, empty Windows.
+  Nothing on the Linux side comes along unless the person copies it off
+  first. **The catch:** most of these computers cannot run Windows 11.
+  That is why this project exists. For them, going back means Windows 10,
+  whose free security updates ended in October 2025 (the paid extension
+  for home users ends in October 2026). It is their computer and their
+  choice; the screen says it plainly.
+- **It shows what Windows told us before it was erased**
+  (`harvest.windows_license`, kept in the installed system's root-only copy
+  of `job.json`): the edition, 10 or 11, whether it was activated and how.
+  What that means for activation after a reinstall is said only where a
+  primary source says it (R30 names the unknowns).
+
+It is built in two stages:
+
+1. `[##..]` **A guided stick.** The person downloads Microsoft's own
+   installer in their own browser, from Microsoft's page (we never
+   redistribute it). The program checks the file, writes it to a USB
+   stick the person names, and shows the steps in plain words (restart,
+   the maker's boot key, remove the Linux partitions, install). It writes
+   only to that stick, never to an internal drive, with the stick writer's
+   refusals (R16) on the Linux side. Nothing on the computer changes until
+   the person starts the Windows installer themselves.
+
+   **Design (2026-09-27), from what Microsoft's pages show.** Read that
+   day with a Linux browser's identity:
+   - Microsoft still offers both: the Windows 10 page (edition "Windows 10
+     (multi-edition ISO)", 22H2) and the Windows 11 page ("multi-edition ISO
+     for x64 devices"). Its download link is made by the page's scripts
+     after the person picks the edition and language, and lasts 24 hours.
+     So the person downloads; the program does not drive Microsoft's page
+     (that would lean on an interface nobody promised to keep).
+   - Both pages print a SHA-256 for every language ("Verify your
+     download"). `settle-in/tools/refresh-windows-media.py` copies those
+     tables into `settle-in/data/windows-media.json` (114 rows). A file not
+     in the table is refused, and so is the 32-bit Windows 10 file and the
+     wrong Windows for this computer.
+   - Which Windows to offer: 11 if Windows 11 ran here before, or if Linux
+     can see TPM 2.0 and UEFI (Microsoft's installer then checks the
+     processor); otherwise 10, with the October 2025 / October 2026 warning.
+   - The 4 GB limit: Microsoft's own instructions for a stick
+     (learn.microsoft.com, "Install Windows from a Flash Drive") say FAT32,
+     copy everything but `sources\install.wim`, and split that into
+     `install.swm` parts ("Windows Setup automatically installs from this
+     file"). On Linux the split is `wimlib-imagex split`. Whether a
+     wimlib-made split installs cleanly, Secure Boot on, is R30's open
+     question.
+
+   **Built (2026-09-27, the read-only half, `settle-in go-back`):**
+   `screen` (the cost first, which Windows it was, which to download;
+   draft words), `check` (the file against Microsoft's table),
+   `downloads`, and `sticks` (every disk with the rules it breaks; the
+   Aspire's two internal drives, recorded and replayed in a test, are both
+   refused). Read on the Aspire under Fedora: it offers Windows 11 (TPM
+   2.0, UEFI, Secure Boot on, a key in the firmware; i7-8550U).
+   **The writer and the window, built the same day** (`go-back write`, as
+   root through its own password prompt; the window's `--go-back`, in the
+   app menu as "Go back to Windows"). The writer finds the stick again by
+   serial, exact size and the typed model name, writes a DOS table and
+   FAT32, copies, splits `install.wim` with `wimlib-imagex` (static,
+   GPL-3.0, built from a pinned source and carried on the kit), and reads
+   every file back. `[###.]` on the rig (`v11-way-back.csv` line 3):
+   Windows 10 installed from it, Secure Boot on. A real stick in a real
+   machine is still owed, and the window has not been seen on a desktop.
+2. `[#...]` **Later, a walk-away reinstall.** An unattended Windows install
+   (an answer file on the stick), with its own typed sentence and a
+   countdown as its commit line: the erase path in reverse. It deletes
+   Linux and `/home`, so under rule #4 it is built last and reviewed
+   hardest. It does not jump ahead of the current work.
+
 ### Scope boundary
 
 `settle-in` does not teach Linux, install applications, run a tour, or
@@ -1224,18 +1334,40 @@ and only on that branch; see "When Windows cannot be kept" above.)
 
 ### Stack
 
-**C# WPF targeting .NET Framework 4.8**, as a single `.exe`.
+**Decided (2026-09-27, the owner): a Rust window, `UPGRADE.exe`, in front
+of the scripts on the stick.** It replaces the 2026-09-13 plan (WPF hosted
+in Windows PowerShell 5.1 now, C# WPF on .NET Framework 4.8 later).
 
-- 4.8 comes preinstalled on every Windows 10 1903+ and Windows 11 machine
-  (checked: Release 533509 on the test system). Nothing to install.
-- The manifest gives single-prompt elevation.
-- It **double-clicks**. A `.ps1` opens in Notepad, which fails at step one
-  for exactly this audience.
+- It is one `.exe` at the stick's root. It **double-clicks**, asks for
+  administrator access once, and needs nothing installed.
+- It draws with egui, the same library as `settle-in`'s window, so the
+  person sees one kind of window before and after the switch.
+- **It directs the work; it does not redo it.** It runs the kit's scripts
+  as child `powershell.exe` processes with the same arguments the `.cmd`
+  launchers use, shows their progress in plain words, and stops where they
+  stop. The scripts stay the thing under test, and `data/*.ps1` stays the
+  community's edit surface.
+- It adds exactly two things of its own. It stops on a RED scan before the
+  job writer runs (more cautious than before, never less). And before the
+  restart it registers a one-shot sign-in task that opens it again, so the
+  person sees the result without looking for it. That task has the shape of
+  `Test-Handoff.ps1`'s return-check task, which fired on the Aspire. A
+  restart the window cannot follow is not started.
+- **What it cannot do:** show anything before a sign-in. The walk-away
+  resume runs as SYSTEM with no screen (above); the window reopens at the
+  next sign-in and shows where things stand.
+- If its graphics cannot draw on a machine, it says so in a plain Windows
+  message box and points to the `.cmd`, which stays on the stick.
+- Built from WSL for `x86_64-pc-windows-gnu`, linked by zig through
+  `cargo-zigbuild` (`upgrade_/windows/window/build.sh`); its logic is
+  tested on Linux, and `make-kit.sh` checks it starts on Windows.
 
-The exe directs the work rather than redoing it. It hosts a PowerShell
-runspace in its own process and calls the existing scripts, getting
-structured objects back. That keeps `data/*.ps1` editable by the community,
-which is what makes the hardware database get better.
+**First slice (2026-09-27): the verify flow only** (`RUN-VERIFY.cmd`:
+nothing installed, nothing on the internal drive changed). The convert and
+erase flows, with their typed words, come after it has earned its rows
+(RISKS R31, VALIDATION V12). Its words are drafts until the owner approves
+them. Rust does not change code signing (R12): the `.exe` still needs a
+certificate and time.
 
 Not WebView2: it is present on Windows 11, but not guaranteed on
 Windows 10.

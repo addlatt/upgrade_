@@ -39,7 +39,22 @@ pub fn build(root: &str, report: &Value, job: &Value) -> Value {
             "passwords_deleted": report.pointer("/wifi/passwords_deleted"),
         },
         "old_boot_entry": report.get("old_boot_entry").cloned().unwrap_or(json!({ "offered": false })),
+        // for "Go back to Windows": which Windows it was, never a key (the
+        // schema refuses key shapes in every field; R13, R30)
+        "windows_before": windows_before(job),
     })
+}
+
+fn windows_before(job: &Value) -> Value {
+    let l = job.pointer("/harvest/windows_license").cloned().unwrap_or(Value::Null);
+    if l.is_null() {
+        return json!({ "result": "unreadable", "reason": "the job predates the licence harvest" });
+    }
+    let mut o = serde_json::Map::new();
+    for k in ["result", "reason", "windows_version", "edition_id", "product_name", "display_version", "build", "activated", "channel", "firmware_key_present"] {
+        o.insert(k.to_string(), l.get(k).cloned().unwrap_or(Value::Null));
+    }
+    Value::Object(o)
 }
 
 fn join(v: &Value) -> String {

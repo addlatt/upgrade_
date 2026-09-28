@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Go back to Windows
+Comment=Make a Windows installer stick, checked against Microsoft's own numbers
+Exec=/usr/local/libexec/upgrade_/settle-in-window --go-back
+Icon=system-reboot
+Terminal=false
+Categories=System;
