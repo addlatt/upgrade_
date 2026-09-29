@@ -102,6 +102,9 @@ pub fn collect(root: &str) -> Value {
             "vendor": read(&format!("{}/device/vendor", sys)),
             "model": read(&format!("{}/device/model", sys)).or_else(|| u.get("ID_MODEL").cloned()),
             "serial": u.get("ID_SERIAL_SHORT").or(u.get("ID_SERIAL")),
+            // the world-wide name (NAA / EUI): Hyper-V's disks have no serial in WinPE,
+            // and Windows gives NVMe drives' EUI as their serial (R33, 2026-09-29)
+            "wwn": u.get("ID_WWN_WITH_EXTENSION").or(u.get("ID_WWN")).cloned().or_else(|| read(&format!("{}/wwid", sys)).or_else(|| read(&format!("{}/device/wwid", sys)))),
             "partitions": parts,
         }));
     }
