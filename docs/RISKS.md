@@ -3292,6 +3292,45 @@ Evidence: `rig/vm/artifacts/windows/spike1/` (the key page), `spike2/`
 (through to the desktop), the answer file in `tree11/`. Plumbing on
 Hyper-V's firmware, one edition, one language; no gate yet, one disk.
 
+**Built the same day (2026-09-29, unfired on a real machine).** The gate
+(`settle-in/gate`, upgrade-gate 0.1.0, Rust for Windows) and the Linux
+preparation (`settle-in go-back walkaway plan|prepare|undo`, and the window's
+pages; every word a DRAFT). Found while building:
+
+- **Hyper-V's disks give no serial number in WinPE**, and Windows reports an
+  NVMe drive's EUI where Linux shows the controller's serial (the G16). So
+  the job carries each drive's world-wide name as well, and the gate matches
+  on exact size plus the serial or the world-wide name. Linux's "t10.ATA
+  ..." fallback text is not counted as one (the Aspire's SSD has none; its
+  serial matches).
+- **Microsoft's catalog cabinet is LZX-compressed**, so the program carries
+  a static `cabextract` built from a pinned source (the same SHA-256 as
+  Debian's `cabextract_1.11-2.dsc`).
+- **The 16 GB stick reports no serial number to Windows.** On Linux the
+  stick rule then falls back to udev's vendor-and-model ID, which is weaker
+  (still: exact size, the typed model word, only one such disk). Open.
+
+**Rig spikes of the gate (2026-09-29, not rows; `rig/vm/artifacts/windows/`).**
+spike3: a job naming a drive that is not there, refused before any
+countdown ("NOTHING WAS ERASED"). spike4: one Space during the countdown
+cancelled at once; on the next start the countdown was left alone, the gate
+recorded `crossed` after 121 s, found the system disk by its world-wide
+name, wrote the answer file, and Setup installed Windows 11 to the sign-in
+with nobody at the keyboard. After Setup's first restart the gate did not
+run again: Setup put Windows Boot Manager first in the firmware's order.
+Then the product path: `walkaway prepare` (run as root in WSL, `--image`,
+against a made-up root describing the rig VM's disk: a spoof, plumbing only)
+fetched the catalog live, re-checked the cached file's SHA-1, built and
+wrote the stick and read it back; the VM booted it once (standing in for
+BootNext), the gate found the disk by its world-wide name, crossed after
+121 s, and Setup installed Windows 11 to the lock screen with nobody at the
+keyboard; the new `SetupComplete.cmd` left `go-back-installed.txt` on the
+stick. WinPE's own clock stamps (`crossed_utc`) read about an hour off: WinPE
+reads the firmware clock through its default time zone, so the gate's times
+are approximate (a note, not a fix yet). Still owed: a real Linux running
+`prepare` on its own drives, a real stick and BootNext on real firmware, and
+a real keyboard on the gate's countdown: the Aspire.
+
 **Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on
 and nobody at the keyboard, ending at the Windows sign-in; then one real
 machine (the Aspire, run under R23 on its dying SSD first), with a physical
