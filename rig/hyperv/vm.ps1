@@ -3,7 +3,8 @@
 #   vm.ps1 shot [file.png]          thumbnail screenshot via WMI (default C:\upgrade-rig\hv\shots\<ts>.png)
 #   vm.ps1 type "text"              type a string into the guest console (WMI Msvm_Keyboard)
 #   vm.ps1 key <vk> [<vk>...]       press virtual-key codes (13=Enter, 27=Esc, 9=Tab, 32=Space, 37/38/39/40=arrows); 's<vk>' = with Shift
-#   vm.ps1 press-any-key            spam Enter for 30 s (Windows Setup's "Press any key" window)
+#   vm.ps1 click <x> <y>            left click via the synthetic mouse (guest pixels; locate it in a shot first)
+#   vm.ps1 press-any-key           spam Enter for 30 s (Windows Setup's "Press any key" window)
 #   vm.ps1 fw                       Secure Boot state/template, boot order, TPM
 #   vm.ps1 sb on|off [template]     toggle Secure Boot (VM must be off)
 #   vm.ps1 dvd <iso>|none [n]       swap the n-th DVD's media
@@ -78,6 +79,18 @@ switch ($Action) {
             }
             Start-Sleep -Milliseconds 80
         }
+    }
+    'click' {
+        # the synthetic mouse (the settle-in runs, 2026-09-27; kept here since the scratchpad copy was lost):
+        # guest pixels, the same as a 1024x768 'shot' while the guest screen is 1024x768. Find the target in
+        # a screenshot each time - a button moves when its text changes
+        $cs = Get-VmWmi
+        $m = Get-CimAssociatedInstance -InputObject $cs -ResultClassName Msvm_SyntheticMouse
+        if (-not $m) { throw "no synthetic mouse on '$Name' (a desktop must be running)" }
+        Invoke-CimMethod -InputObject $m -MethodName SetAbsolutePosition -Arguments @{ horizontalPosition = [int]$Rest[0]; verticalPosition = [int]$Rest[1] } | Out-Null
+        Start-Sleep -Milliseconds 200
+        Invoke-CimMethod -InputObject $m -MethodName ClickButton -Arguments @{ buttonIndex = [uint32]1 } | Out-Null
+        Write-Host "clicked $($Rest[0]),$($Rest[1])"
     }
     'press-any-key' {
         $kb = Get-Keyboard; $t = [DateTime]::Now

@@ -155,8 +155,8 @@ flowchart LR
 
 | Case | On the rig | On the Acer Aspire |
 |---|---|---|
-| Says no before the countdown | `[####]` `refused-before-countdown` | |
-| Cancel during the countdown | `[####]` `cancelled-untouched` (froze the first time, fixed in `verify.sh` 0.4.1) | |
+| Says no before the countdown | `[###.]` `refused-before-countdown` | |
+| Cancel during the countdown | `[###.]` `cancelled-untouched` (froze the first time, fixed in `verify.sh` 0.4.1; on 2026-09-29 two presses of the rig's virtual Space went unread, cause not found) | owed: the next run cancels once before it erases |
 | Erase and install: KDE, GNOME, text-only | `[####]` `erased-installed`, even over an old Ubuntu setup | `[FAIL]` **run 9:** wiped and installed on its own with Secure Boot on, but came up at a **text login** because the install recipe was missing the desktop login. Fixed in 0.3.0, and the rig now checks for it every time |
 
 **Up next:** run it on the Aspire again and land on the desktop. Run 9 also

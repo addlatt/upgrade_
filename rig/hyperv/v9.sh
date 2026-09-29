@@ -32,7 +32,7 @@
 #   v9.sh pull TAG         the records from the stick and the guest (Windows must be up)
 #   v9.sh inspect LABEL    v9-inspect.py on both disks (VM off)
 #   v9.sh stick-pull TAG   VM off: the stick's records read offline (after the erase there is no Windows)
-#   v9.sh verdict ARM      v9-verdict.py -> docs/validation-results/v9-erase.csv
+#   v9.sh verdict ARM [NOTE]  v9-verdict.py (ARM B3 = arm B again) -> docs/validation-results/v9-erase.csv
 #   v9.sh restore          VM off: main UPGRIGHV.vhdx back at 0:0, erase + home detached
 #
 # Secure Boot off (Hyper-V template clause). Rows are written by v9-verdict.py,
@@ -138,7 +138,7 @@ stick-pull)
     mdir -i "$A/stick.raw@@1M" "::/upgrade_/artifacts/credentials" > "$A/$tag/stick-credentials-dir.txt" 2>&1 || true
     rm -f "$A/stick.raw"; ls -la "$A/$tag"
     ;;
-verdict) python3 v9-verdict.py "$A" "${2:?arm}" "$CSV" "$FIRMWARE" ;;
+verdict) python3 v9-verdict.py "$A" "${2:?arm}" "$CSV" "$FIRMWARE" ${3:+"$3"} ;;   # $3: a note (was dropped until 2026-09-29)
 restore)
     need_off
     PSC "Get-VMHardDiskDrive $VMNAME | Where-Object { \$_.Path -notlike '*stick*' } | Remove-VMHardDiskDrive; Add-VMHardDiskDrive -VMName $VMNAME -ControllerType SCSI -ControllerNumber 0 -ControllerLocation 0 -Path '$MAIN_VHDX_WIN'"

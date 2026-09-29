@@ -939,7 +939,10 @@ to cancel.
 Most rows are the rig. Line 11 is the Aspire's physical run 9 (2026-09-26,
 `fail`: it erased and installed unattended but came up at a text login,
 fixed in kickstart generator 0.3.0). Lines 12-13 are the rig's GNOME and
-KDE desktops seen and signed in (2026-09-27).
+KDE desktops seen and signed in (2026-09-27). The rows of 2026-09-29 (C, B,
+B3) re-prove the kit the Aspire's next run carries (552b6fb); B3 is arm B
+again, a key test (RISKS R27). From that date an arm named with a number is
+judged by its letter.
 
 One row per arm, written by `rig/hyperv/v9-verdict.py` from the arm's own
 evidence (`rig/hyperv/v9.sh`; never by hand). The guest is a copy of the

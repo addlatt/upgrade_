@@ -2863,6 +2863,33 @@ writer 0.14.0 refuses the placeholder unless `-VerifyOnly` (`RUN-VERIFY.cmd`,
 which installs nothing). All four install launchers now ask for the
 password and name the account, before and after.
 
+**The Aspire's kit, proven on the rig first (2026-09-29, kit 552b6fb,
+prologue 0.11.0, verify 0.5.0, outcome 0.5.0).** The exact tree the
+Aspire's next run will carry, built by `make-kit.sh` from `main`, ran arms C
+and B on the rig. Arm C (`v9-erase.csv`, the C row of 2026-09-29):
+`erased-installed`, KDE, graphical sign-in; settle-in's run 13 on the same
+install is `pass-plumbing` (window in front, the button removed the stale
+Windows entry, the next boot came up from Fedora's). Arm B: the
+prologue's first cancel on 0.11.0; `cancelled-untouched`, and the stick's
+Wi-Fi passwords were gone after the return.
+
+**Found the same night: two key presses the countdown never read.** In the
+B row, the rig sent Space twice (Hyper-V's `Msvm_Keyboard` `TypeKey 32`, at
+33 s and 52 s into the countdown) and nothing happened; Enter and A at
+66.6 s cancelled at once (`verify.log`: "cancelled after 66.6 s"). Two
+controlled runs followed. B2: the letter B as the first key, cancelled at
+18.0 s. B3 (its own row): Space as the first and only key, cancelled at
+9.9 s. So neither Space nor "the first key" is always lost. **Why the two
+presses went unread is not found.** The code reads any byte, so the cause
+is most likely the rig's virtual keyboard, but that is argument (rule #2).
+It sits on the commit line's only exit, so: **the Aspire's run gets a
+physical cancel before the real erase**, which is also the "real keyboard
+on the countdown" residue below. The harness had two faults of its own,
+fixed the same night: `v9.sh verdict` dropped its note argument (the C and B
+rows above carry none), and `v9-verdict.py` judged a re-run named "B3" as an
+erase and wrote `fail`. It now judges by the arm's letter; that misjudged
+line, uncommitted and minutes old, was removed and the verdict run again.
+
 **Unspoofable residue (rule #5), for the Aspire's physical row:**
 
 - Secure Boot on (the rig's is off). Run 9 installed with it on

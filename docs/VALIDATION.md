@@ -69,7 +69,7 @@ A few words used all through this file:
 | V2 amp firmware | `[....]` | experiment on the G16 not run |
 | V3 BitLocker read | `[###.]` | all three configs byte-identical via ntfs-3g; real disks owed |
 | V4 disks shrink | `[####]` 1 disk | the Aspire's answer is no (best 9.5 of 25 GB); the population count needs ~20 elevated reports |
-| V9 erase and install | rig `[###.]`, real `[FAIL]` | run 9 came up at a text login (fixed); physical re-run owed |
+| V9 erase and install | rig `[###.]`, real `[FAIL]` | run 9 came up at a text login (fixed); the next run's kit (552b6fb) re-proven on the rig 2026-09-29 (C, B, B3); physical re-run owed, with a real cancel first (two rig key presses went unread, cause not found: R27) |
 | V11 way back to Windows | harvest `[##..]`, guided stick `[###.]`, walk-away `[#...]` | designed 2026-09-27; licence harvest built (job writer 0.16.0); the Aspire's hand reinstall is the first activation data point |
 | V8 OneDrive placeholders | `[###.]` | cfapi provider `pass-plumbing` on the rig and the G16; signed-in OneDrive owed |
 | V5 VMD detection | plumbing `[###.]`, AHCI row `[####]` | the RST/VMD row on real hardware is owed |

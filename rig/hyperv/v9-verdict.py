@@ -75,10 +75,12 @@ if boots.exists():
         notes.append("first boot: default_target=%s display_manager=%s" % (f.get("default_target"), f.get("display_manager")))
         notes.append("boot marker: user=%s home_disk=%s root_disk=%s" % (f.get("user"), f.get("home_disk"), f.get("root_disk")))
 
-if ARM == "A":
+# a re-run is named by its arm letter and a number (B3 = arm B again); judge it by the letter (2026-09-29)
+KIND = ARM[:1]
+if KIND == "A":
     ok = identity == "fail" and countdown == "none" and unchanged == "y"
     result = "refused-before-countdown" if ok else "fail"
-elif ARM == "B":
+elif KIND == "B":
     ok = countdown == "cancelled" and status == "stopped" and stopped_at == "countdown" and ov == "y" and unchanged == "y"
     result = "cancelled-untouched" if ok else "fail"
 else:
@@ -92,7 +94,7 @@ else:
 if o and o.get("reason"): notes.append("reason: " + o["reason"])
 
 row = {"timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "arm": ARM, "firmware": FIRMWARE,
-       "prologue_version": ((pro or {}).get("prologue_version") or ("harness" if ARM == "A" else "n/a")),
+       "prologue_version": ((pro or {}).get("prologue_version") or ("harness" if KIND == "A" else "n/a")),
        "verify_version": (v or {}).get("verify_version", "n/a"), "identity": identity, "countdown": countdown,
        "outcome_status": status, "stopped_at": stopped_at, "commit_crossed": crossed, "outcome_valid": ov,
        "disks_unchanged": unchanged, "system_gpt_after": sys_after, "home_gpt_after": home_after,
