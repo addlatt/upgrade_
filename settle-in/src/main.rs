@@ -340,12 +340,25 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
     let drives = walkaway::drives(root, &facts);
     match args.first().map(String::as_str) {
         Some("plan") => {
-            println!("{}", json!({
+            let mut plan = json!({
                 "before": before, "this_computer": pc, "offer": off, "edition": edition, "language": language,
                 "drives": match &drives { Ok(d) => json!(d), Err(e) => json!({ "refused": e }) },
                 "sentence": walkaway::SENTENCE,
-            }));
+            });
+            plan["words"] = walkaway::words(&plan);
+            println!("{}", plan);
             0
+        }
+        Some("undo") => {
+            // SAFETY: geteuid has no preconditions.
+            if unsafe { libc::geteuid() } != 0 {
+                println!("{}", json!({ "result": "stopped", "why": "undoing the one-time start needs administrator rights (run it through pkexec)" }));
+                return 1;
+            }
+            match walkaway::undo() {
+                Ok(v) => { println!("{}", v); 0 }
+                Err(e) => { println!("{}", json!({ "result": "stopped", "why": e })); 1 }
+            }
         }
         Some("prepare") => {
             let started = now_iso();

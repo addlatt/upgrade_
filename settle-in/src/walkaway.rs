@@ -108,7 +108,28 @@ pub fn download(entry: &Value, dir: &str) -> Result<String, String> {
         return Ok(dst);
     }
     let url = entry["url"].as_str().unwrap_or("");
-    run("curl", &["--fail", "--silent", "--show-error", "--location", "--proto", "=http,https", "--retry", "5", "-C", "-", "-o", &part, url])?;
+    // curl in the background; its progress is the file's size, said every 2 s
+    let mut child = Command::new("curl")
+        .args(["--fail", "--silent", "--show-error", "--location", "--proto", "=http,https", "--retry", "5", "-C", "-", "-o", &part, url])
+        .env("PATH", PATH_ENV).stderr(std::process::Stdio::piped()).spawn().map_err(|e| format!("curl could not start ({})", e))?;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(st)) => break st,
+            Ok(None) => {
+                let got = std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
+                eprintln!("{}", json!({ "step": "download", "progress": got, "total": size }));
+                std::thread::sleep(std::time::Duration::from_secs(2));
+            }
+            Err(e) => return Err(format!("the download stopped ({})", e)),
+        }
+    };
+    if !status.success() {
+        let mut msg = String::new();
+        if let Some(mut e) = child.stderr.take() {
+            let _ = std::io::Read::read_to_string(&mut e, &mut msg);
+        }
+        return Err(format!("the download from Microsoft stopped ({}); running it again carries on where it stopped", msg.trim()));
+    }
     if std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0) != size {
         return Err("the download is not the size Microsoft's catalog says".into());
     }
@@ -311,6 +332,79 @@ pub fn boot_once(stick_disk: &str) -> Result<Value, String> {
     Ok(json!({ "entry": format!("Boot{}", num), "boot_next": num }))
 }
 
+/// Undo the one-time start: clear BootNext if it points at our entry, and
+/// delete our entries. Nothing else on the computer was changed before it.
+pub fn undo() -> Result<Value, String> {
+    let out = run("efibootmgr", &[])?;
+    let ours: Vec<String> = out.lines().filter_map(|l| l.strip_prefix("Boot")).filter(|l| l.contains("upgrade_ go back to Windows"))
+        .filter_map(|l| l.get(0..4)).map(str::to_string).collect();
+    let next = out.lines().find_map(|l| l.strip_prefix("BootNext:")).map(|v| v.trim().to_string());
+    if let Some(n) = &next {
+        if ours.contains(n) {
+            run("efibootmgr", &["-N"])?;
+        }
+    }
+    for n in &ours {
+        run("efibootmgr", &["-b", n, "-B"])?;
+    }
+    Ok(json!({ "result": "undone", "removed": ours, "boot_next_was": next }))
+}
+
+/// The walk-away pages' words (the window has none of its own). DRAFT,
+/// awaiting the owner's approval. Pure.
+pub fn words(plan: &Value) -> Value {
+    let drives = plan["drives"].as_array().cloned().unwrap_or_default();
+    let gb = |d: &Value| d["size_bytes"].as_u64().unwrap_or(0) as f64 / 1e9;
+    let mut named: Vec<String> = drives.iter().map(|d| format!("{} ({:.0} GB, {})", d["model"].as_str().unwrap_or("?"),
+        gb(d), if d["role"] == "system" { "Linux is on it: Windows goes here" } else { "your files in Linux are on it: it is left empty" })).collect();
+    if let Some(r) = plan["drives"]["refused"].as_str() {
+        named = vec![format!("None: {}.", r)];
+    }
+    json!({
+        "what": {
+            "heading": "What happens",
+            "lines": [
+                "This program downloads Windows from Microsoft (about 5 GB), makes a USB stick from it, and restarts this computer from the stick.",
+                "After the restart a 2-minute countdown appears. Press any key during it to stop: nothing is deleted and Linux starts again.",
+                "If you leave it, these drives are erased and Windows is installed, with nobody at the keyboard:",
+            ],
+            "drives": named,
+            "after": "At the end, Windows starts. Your account is there without a password: Windows asks you to choose one the first time you sign in.",
+        },
+        "stick": {
+            "heading": "The USB stick",
+            "lines": [
+                "Plug in a USB stick of 16 GB or more. Everything on it will be deleted.",
+                "Only a USB stick can be chosen. This computer's own drives, USB hard drives and the upgrade_ stick are never offered.",
+            ],
+        },
+        "consent": {
+            "heading": "Your decision",
+            "lines": [ "To go back to Windows, type this sentence exactly:" ],
+            "sentence": SENTENCE,
+            "button": "Prepare the way back",
+            "note": "You will be asked for your password. Preparing takes 20 to 60 minutes; nothing on this computer is deleted yet.",
+        },
+        "preparing": {
+            "heading": "Preparing",
+            "steps": { "consent": "Checking your decision", "drives": "Naming the drives", "room": "Checking space", "catalog": "Asking Microsoft which file",
+                       "download": "Downloading Windows from Microsoft", "build": "Preparing Windows' files", "stick": "Writing the USB stick", "boot-once": "Setting the computer to start from the stick once" },
+        },
+        "ready": {
+            "heading": "Ready",
+            "lines": [
+                "Everything is prepared. Nothing on this computer has been deleted.",
+                "Leave the USB stick in. When you restart, the countdown appears. Press any key during it to stop.",
+            ],
+            "restart": "Restart now",
+            "undo": "Do not go back after all",
+            "undone": "Done. This computer starts Linux as usual. The USB stick can be used for something else.",
+        },
+        "failed": "The way back was not prepared: ",
+        "failed_unchanged": "Nothing on this computer changed.",
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -421,6 +515,20 @@ mod tests {
         ds[0]["serial"] = json!("");
         assert!(drives(r.to_str().unwrap(), &ds).unwrap_err().contains("no serial number or world-wide name"));
         std::fs::remove_dir_all(&r).unwrap();
+    }
+
+    #[test]
+    fn the_words_name_both_drives_and_the_way_to_stop() {
+        let plan = json!({ "drives": [
+            { "role": "system", "model": "HFS256G39TND-N21", "size_bytes": 256060514304u64 },
+            { "role": "second", "model": "WDC WD10SPZX-21Z", "size_bytes": 1000204886016u64 } ] });
+        let w = words(&plan);
+        assert_eq!(w["what"]["drives"][0], "HFS256G39TND-N21 (256 GB, Linux is on it: Windows goes here)");
+        assert!(w["what"]["drives"][1].as_str().unwrap().contains("1000 GB"));
+        assert!(w["what"]["lines"].to_string().contains("Press any key during it to stop"));
+        assert_eq!(w["consent"]["sentence"], SENTENCE);
+        let w = words(&json!({ "drives": { "refused": "Linux here is spread over 2 drives" } }));
+        assert!(w["what"]["drives"][0].as_str().unwrap().starts_with("None: Linux here is spread"));
     }
 
     #[test]

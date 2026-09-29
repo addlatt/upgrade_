@@ -116,6 +116,12 @@ sh -n "$ROOT/settle-in/linux/upgrade_-settle-in.sh" || fail "the settle-in conso
 # "Go back to Windows" carries wimlib-imagex (static, pinned source; built once into settle-in/target/wimlib/)
 WIMLIB="$ROOT/settle-in/target/wimlib/wimlib-imagex"
 [ -x "$WIMLIB" ] || "$ROOT/settle-in/tools/build-wimlib.sh" "$ROOT/settle-in/target/wimlib" >/dev/null || fail "wimlib-imagex does not build (settle-in/tools/build-wimlib.sh)"
+# ... and, for the walk-away way back (R33, 2026-09-29), cabextract (Microsoft's
+# catalog is an LZX cabinet; static, pinned source) and the gate (upgrade-gate.exe,
+# Rust for Windows, started first in WinPE on the stick; its tests run first)
+CABEXTRACT="$ROOT/settle-in/target/cabextract/cabextract"
+[ -x "$CABEXTRACT" ] || "$ROOT/settle-in/tools/build-cabextract.sh" "$ROOT/settle-in/target/cabextract" >/dev/null || fail "cabextract does not build (settle-in/tools/build-cabextract.sh)"
+GATE_EXE=$("$ROOT/settle-in/gate/build.sh") || fail "the gate (upgrade-gate.exe) does not build or its tests fail"
 step "settle-in $SETTLE_IN_VERSION: tests pass, static build; window built"
 grep -q 'boot-install' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the boot-install branch"
 # UPGRADE.exe: the window in front of the scripts (Rust, decided 2026-09-27);
@@ -241,6 +247,8 @@ sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-settle-in.desktop" > "$D/upgrade_/
 sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-settle-in.sh" > "$D/upgrade_/settle-in/upgrade_-settle-in.sh"
 sed 's/\r$//' "$ROOT/settle-in/linux/org.upgrade.settle-in.policy" > "$D/upgrade_/settle-in/org.upgrade.settle-in.policy"
 cp "$WIMLIB" "$D/upgrade_/settle-in/wimlib-imagex"
+cp "$CABEXTRACT" "$D/upgrade_/settle-in/cabextract"
+cp "$GATE_EXE" "$D/upgrade_/settle-in/upgrade-gate.exe"
 sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-go-back-to-windows.desktop" > "$D/upgrade_/settle-in/upgrade_-go-back-to-windows.desktop"
 # the desktops: Fedora's own live squashfs images, unmodified, one per
 # desktop the intent capture offers (rig/vm/fetch-desktops.sh). The

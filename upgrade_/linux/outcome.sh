@@ -30,7 +30,7 @@
 # hardware clock as UTC, and settle-in must know before it "corrects" it.
 set -u
 JOB=${1:?job.json}
-OUTCOME_VERSION=0.5.0
+OUTCOME_VERSION=0.6.0
 STICK=${UPG_TEST_STICK:-/run/install/repo}   # overridable only for the local spoof test (rule #5, logic level)
 SYSROOT=${UPG_TEST_SYSROOT:-/mnt/sysroot}
 REPORT=$STICK/upgrade_/report
@@ -100,11 +100,15 @@ else SETTLE_IN_WHY="settle-in could not be copied onto the installed system"; fi
 # outside tool it carries (wimlib-imagex, static). Separate from the files
 # above on purpose: if these are missing or do not match, settle-in still
 # installs, and only the way back is left out (said on the log line below).
-GB_FILES="wimlib-imagex upgrade_-go-back-to-windows.desktop"; GO_BACK=false
+# 0.6.0 (2026-09-29, R33): the walk-away way back adds cabextract (static, reads
+# Microsoft's catalog) and upgrade-gate.exe (the gate the stick starts in WinPE).
+GB_FILES="wimlib-imagex cabextract upgrade-gate.exe upgrade_-go-back-to-windows.desktop"; GO_BACK=false
 if [ "$SETTLE_IN" = true ]; then
     gb_ok=true; for f in $GB_FILES; do { [ -f "$SI_SRC/$f" ] && si_ok "$f"; } || gb_ok=false; done
     if [ "$gb_ok" = true ] && mkdir -p "$SYSROOT/usr/share/applications" \
         && cp "$SI_SRC/wimlib-imagex" "$SYSROOT/usr/local/libexec/upgrade_/wimlib-imagex" && chmod 0755 "$SYSROOT/usr/local/libexec/upgrade_/wimlib-imagex" \
+        && cp "$SI_SRC/cabextract" "$SYSROOT/usr/local/libexec/upgrade_/cabextract" && chmod 0755 "$SYSROOT/usr/local/libexec/upgrade_/cabextract" \
+        && cp "$SI_SRC/upgrade-gate.exe" "$SYSROOT/usr/local/libexec/upgrade_/upgrade-gate.exe" && chmod 0644 "$SYSROOT/usr/local/libexec/upgrade_/upgrade-gate.exe" \
         && cp "$SI_SRC/upgrade_-go-back-to-windows.desktop" "$SYSROOT/usr/share/applications/upgrade_-go-back-to-windows.desktop" && chmod 0644 "$SYSROOT/usr/share/applications/upgrade_-go-back-to-windows.desktop"; then
         GO_BACK=true
         chroot "$SYSROOT" restorecon -R /usr/local/libexec/upgrade_ /usr/share/applications/upgrade_-go-back-to-windows.desktop >/dev/null 2>&1 || true
