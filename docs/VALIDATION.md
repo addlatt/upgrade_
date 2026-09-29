@@ -70,7 +70,7 @@ A few words used all through this file:
 | V3 BitLocker read | `[###.]` | all three configs byte-identical via ntfs-3g; real disks owed |
 | V4 disks shrink | `[####]` 1 disk | the Aspire's answer is no (best 9.5 of 25 GB); the population count needs ~20 elevated reports |
 | V9 erase and install | rig `[###.]`, real `[FAIL]` | run 9 came up at a text login (fixed); the next run's kit (552b6fb) re-proven on the rig 2026-09-29 (C, B, B3); physical re-run owed, with a real cancel first (two rig key presses went unread, cause not found: R27) |
-| V11 way back to Windows | harvest `[##..]`, guided stick `[###.]`, walk-away `[#...]` | designed 2026-09-27; licence harvest built (job writer 0.16.0); the Aspire's hand reinstall is the first activation data point |
+| V11 way back to Windows | harvest `[##..]`, guided stick `[###.]`, walk-away `[#...]` (decided 2026-09-29: 100% managed, now; R33) | designed 2026-09-27; licence harvest built (job writer 0.16.0); the Aspire's hand reinstall is the first activation data point |
 | V8 OneDrive placeholders | `[###.]` | cfapi provider `pass-plumbing` on the rig and the G16; signed-in OneDrive owed |
 | V5 VMD detection | plumbing `[###.]`, AHCI row `[####]` | the RST/VMD row on real hardware is owed |
 | V6 code signing | `[....]` | calendar-bound, not started |
@@ -998,8 +998,16 @@ the Linux side offers a new, empty Windows, and says what that costs first
    the stick (`WINSETUP`) beside the computer's drives, and it asks for an
    edition, so the words now say never delete `WINSETUP` and name the
    edition from the harvest.
-4. **Later, the walk-away reinstall:** refuse, cancel and erase arms, as in
-   V9.
+4. **The walk-away reinstall** (RISKS R33; decided 2026-09-29, the
+   owner: 100% managed, now). Refuse, cancel and erase arms, as in V9. The
+   rig starts from a Fedora the V9 rig installed (two disks), Secure Boot
+   on. Refuse: a job naming a drive that is not there; the gate must
+   refuse before any countdown, both disks unchanged, and Linux start
+   again. Cancel: a key during the gate's countdown; Linux starts again,
+   untouched. Erase: nobody at the keyboard from the restart to the
+   Windows sign-in; both disks rewritten (Windows on the system disk, one
+   empty NTFS volume on the second), the gate's record on the stick. Then
+   the Aspire: a physical cancel first, then the erase.
 
 **Pass.** Step 3 puts back an activated Windows on at least two real
 machines with different licence kinds (a firmware key; a digital licence

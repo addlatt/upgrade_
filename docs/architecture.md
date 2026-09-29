@@ -1201,6 +1201,66 @@ It is built in two stages:
    Linux and `/home`, so under rule #4 it is built last and reviewed
    hardest. It does not jump ahead of the current work.
 
+   **Decided (2026-09-29, the owner): the way back is 100% managed, and it
+   comes now.** The owner wants to reinstall the Aspire's Windows with it,
+   so it moves ahead of the other work. Three answers, all the same day:
+
+   - **Windows comes from Microsoft's catalog, not a browser.** This
+     reverses the 2026-09-27 choice. Microsoft's own Media Creation Tool
+     reads a signed catalog, `products.cab`, reached through
+     `go.microsoft.com/fwlink` and served by `download.microsoft.com` over
+     HTTPS. It lists every Windows 10 22H2 and Windows 11 file by edition
+     and language, with a direct link, its size and its SHA-1 (read
+     2026-09-29: Windows 11 is 24H2, build 26100.4349; Windows 10 is
+     19045.3803). The file is an `.esd` (Windows' compressed image format),
+     not an ISO. Its host, `dl.delivery.mp.microsoft.com`, refuses HTTPS
+     (seen 2026-09-29), so the file comes over plain HTTP and is kept only if
+     its size and SHA-1 match the catalog fetched over HTTPS (RISKS R33).
+   - **Both internal drives are erased.** Windows goes on the system drive.
+     The second drive is wiped and left as one empty NTFS drive, so Windows
+     shows it as an empty drive and nothing from Linux is left behind. The
+     same shape as the forward erase, and the screen says it first.
+   - **The commit line is on the stick, before Windows Setup.** A small
+     program of ours (the gate) runs first inside Windows Setup's own
+     environment (WinPE, the small Windows that runs Setup). It is built
+     with the same Rust toolchain as `UPGRADE.exe`.
+
+   **How it runs (design, 2026-09-29; nothing built):**
+
+   ```text
+   Linux, the "Go back to Windows" program            (nothing changed yet)
+     cost first -> which Windows -> both drives named -> the typed sentence
+     -> choose the stick (R16's rules) -> download from Microsoft's catalog
+     -> check size + SHA-1 -> build the stick from the .esd -> read it back
+     -> a one-time boot entry for the stick (BootNext) -> restart
+   The stick, WinPE: the gate                         (nothing changed yet)
+     find each drive by serial and exact size, or refuse (plain screen,
+     restart into Linux) -> 2-minute any-key countdown (a key: restart into
+     Linux, untouched)
+     ---- countdown ends: the commit line ----
+     record the crossing on the stick -> write the answer file naming the
+     drives it found -> Windows Setup, unattended: wipe both drives,
+     install -> first start creates the account -> the Windows sign-in
+   ```
+
+   - **The stick is built from the `.esd`** with `wimlib-imagex` (already on
+     the kit): its first image is Setup's files (copied to the stick), its
+     second and third make `sources\boot.wim`, and the one edition this
+     computer had goes into `install.wim`, split into `install.swm` parts
+     under FAT32's 4 GB (the split V11's rig leg already proved).
+     `boot.wim` is changed in one way: it starts the gate instead of Setup.
+   - **The job travels on the stick** (`upgrade_\go-back.json`): each drive
+     by serial, size and model, the sentence, the edition, the account
+     name. The gate refuses a job it cannot match to this computer.
+   - **No password rides on the stick.** The answer file creates a local
+     account with the person's Linux name and no password, marked "change
+     at first sign-in", so Windows asks for a new password the first time.
+     Unproven (R33).
+   - **No product key is written anywhere.** Windows Setup reads a
+     firmware key itself (R13). A computer without one may stop at Setup's
+     key page, which would break walk-away: the rig has no firmware key,
+     so it shows what happens (R33).
+
 ### Scope boundary
 
 `settle-in` does not teach Linux, install applications, run a tour, or

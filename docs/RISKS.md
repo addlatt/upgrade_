@@ -3217,3 +3217,82 @@ corpus replays as `cargo test`, rig rows re-run by the same
 release is rebuilt byte for byte from the source by someone else. A replay
 of recorded tool output closes the decision, never the firmware's
 behaviour: that part of a physical row takes the machine again.
+
+## R33: The walk-away way back to Windows · critical · open (decided 2026-09-29; nothing built)
+
+**What.** "Go back to Windows", 100% managed (decided 2026-09-29, the
+owner; `architecture.md`, "The way back to Windows", stage 2). From the
+installed Linux: download Windows from Microsoft's catalog, build a stick,
+restart into it once, and a gate program of ours on the stick checks the
+drives and shows a 2-minute countdown. When it ends, Windows Setup erases
+**both internal drives** and installs Windows, with nobody at the keyboard.
+It is the forward erase (R27) in reverse, so it carries R27's bar and rule
+#4: built with its rig arms (refuse, cancel, erase) before a real machine.
+R30 keeps the guided stick and the activation question; this entry is the
+erase.
+
+**If real.** What can go wrong:
+
+- **The wrong drive is erased.** In WinPE, disk numbers are not the ones
+  Linux saw. The gate finds each drive by serial and exact size and writes
+  the answer file with the numbers it found. No match, no erase.
+- **The download is not Microsoft's file.** The catalog comes over HTTPS
+  from `download.microsoft.com`. The file itself comes over plain HTTP
+  (its host refused HTTPS, 2026-09-29), so its size and SHA-1 must match
+  the catalog. SHA-1 has known collision attacks; none makes a second file
+  match a hash already published. Setup's boot files are also checked by
+  Secure Boot. The catalog's own signature is not yet checked on Linux.
+- **The countdown does not cancel.** The same clause as R27, in a
+  different environment (WinPE's console). R27's rig lost two key presses
+  on 2026-09-29, cause not found; the gate needs its own cancel arm, on the
+  rig and on real hardware.
+- **Setup stops and waits.** An answer file that misses one question
+  leaves Setup waiting at a screen, with Linux already erased. The two
+  known candidates: the product key page on a computer without a firmware
+  key, and Windows 11's account screens. Only a rig run with nobody at the
+  keyboard shows it.
+- **The boot into the stick.** Linux sets a one-time boot entry for the
+  stick (`BootNext`). Firmware that ignores it boots Linux again: safe, but
+  the program must say so. Firmware that keeps it would start Setup twice.
+- **Windows 11 refuses the processor.** Setup checks it after the gate,
+  so the check must come before the countdown (the program's offer, R30)
+  or Setup stops after the erase.
+- **The account without a password.** Created with "change at first
+  sign-in", so no password is on the stick. Whether Windows 11 24H2 accepts
+  that from an answer file is unproven.
+
+**Decided (2026-09-29, the owner).** Microsoft's catalog (reversing the
+browser download of 2026-09-27); both drives erased, the second left empty;
+the commit line in the gate on the stick, before Setup.
+
+**The first spike (2026-09-29, the rig, not a row).** Before any product
+code, by hand in WSL: the Windows 11 catalog (`Products-Win11-24H2-6B.cab`)
+over HTTPS, the English x64 consumer `.esd` over HTTP (4,680,320,173 bytes,
+SHA-1 `8ceab283...` = the catalog's), and a stick built from it with the
+kit's wimlib (image 1 copied out; images 2 and 3 into `boot.wim`; Home,
+image 4, into `install.wim` split into two `install.swm` parts). A new
+Generation 2 VM, Secure Boot on (Microsoft's template), a virtual TPM, no
+network, an empty 80 GB disk. Two findings:
+
+- **With no key in the answer file, Setup stopped at its "Product key"
+  page** (`<WillShowUI>OnError</WillShowUI>`, no `<Key>`). The rig has no
+  firmware key, so this is the digital-licence case: it would have stopped
+  after the erase. **`<Key></Key>` with `<WillShowUI>Never</WillShowUI>`
+  went past it.** No key is written anywhere.
+- **Then nothing stopped.** Setup installed, restarted, put Windows Boot
+  Manager first in the firmware's order itself, skipped Windows' first-run
+  screens offline (`HideOnlineAccountScreens` and a `LocalAccounts` entry
+  with an empty password), and reached the lock screen. `SetupComplete.cmd`
+  (copied by Setup from `sources\$OEM$`) ran `net user rig
+  /logonpasswordchg:yes`. At sign-in Windows said "The user's password must
+  be changed before signing in", took a new one and opened the desktop. So
+  no password needs to ride on the stick.
+
+Evidence: `rig/vm/artifacts/windows/spike1/` (the key page), `spike2/`
+(through to the desktop), the answer file in `tree11/`. Plumbing on
+Hyper-V's firmware, one edition, one language; no gate yet, one disk.
+
+**Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on
+and nobody at the keyboard, ending at the Windows sign-in; then one real
+machine (the Aspire, run under R23 on its dying SSD first), with a physical
+cancel before the erase. VALIDATION V11, step 4.
