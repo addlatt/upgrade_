@@ -3307,8 +3307,19 @@ pages; every word a DRAFT). Found while building:
   a static `cabextract` built from a pinned source (the same SHA-256 as
   Debian's `cabextract_1.11-2.dsc`).
 - **The 16 GB stick reports no serial number to Windows.** On Linux the
-  stick rule then falls back to udev's vendor-and-model ID, which is weaker
-  (still: exact size, the typed model word, only one such disk). Open.
+  stick rule then falls back to udev's vendor-and-model ID
+  (`General_UDisk-0:0`), which is weaker (still: exact size, the typed model
+  word, only one such disk). Open.
+- **The same stick was refused as "a hard drive, not a stick"** (the
+  Aspire, 2026-09-29): the kernel reports `rotational=1` for it only as its
+  default, because the stick sends no VPD page B1 (the page where a drive
+  says how it spins). The Aspire's real hard drive and SSD both send it (1
+  and 0, both right). The check was wrong, so it was fixed, not removed: a
+  disk is refused as a hard drive when it says it spins; one that never said
+  is judged by the other rules (USB, removable, serial, size, the typed
+  name). Recordings made before the field existed keep the stricter
+  reading. The stick is now offered; both internal drives are still
+  refused.
 
 **Rig spikes of the gate (2026-09-29, not rows; `rig/vm/artifacts/windows/`).**
 spike3: a job naming a drive that is not there, refused before any
