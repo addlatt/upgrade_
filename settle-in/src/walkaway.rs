@@ -375,6 +375,7 @@ pub fn words(plan: &Value) -> Value {
             "heading": "The USB stick",
             "lines": [
                 "Plug in a USB stick of 16 GB or more. Everything on it will be deleted.",
+                "Use a name-brand stick (for example SanDisk, Kingston or Samsung). Some no-name sticks cannot start a computer.",
                 "Only a USB stick can be chosen. This computer's own drives, USB hard drives and the upgrade_ stick are never offered.",
             ],
         },

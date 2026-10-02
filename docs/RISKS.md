@@ -3342,6 +3342,39 @@ are approximate (a note, not a fix yet). Still owed: a real Linux running
 `prepare` on its own drives, a real stick and BootNext on real firmware, and
 a real keyboard on the gate's countdown: the Aspire.
 
+**The first real run (the Aspire, 2026-10-01/02): the firmware would not
+start from the stick. Nothing was erased.** `walkaway prepare` ran from the
+app menu on the Aspire's Fedora and finished: download from Microsoft's
+catalog at about 30 MB/s, the files built, the stick written and read back,
+`BootNext` set to our new entry (Boot0003, not in the boot order). On
+"Restart now" Fedora was back 39 s after shutdown, `BootNext` used up: the
+firmware passed over the stick. A second try through the firmware's own
+generic USB entry (Boot2001 "EFI USB Device") stopped on the firmware's
+message "system doesn't have any usb boot option". So the firmware does not
+see this stick as bootable at all. What was ruled out: Secure Boot (the
+stick's `bootx64.efi` is signed through Microsoft Windows Production PCA
+2011, which this firmware trusts) and the layout (a DOS table, one active
+0x0C FAT32 partition at 1 MiB, the same writer that booted on the rig).
+What stands out: the stick's USB ID is `abcd:1234` (a placeholder ID that
+no-name sticks ship with), it has no serial number, and it reports USB
+revision "5.00". The Aspire has started from a different stick before (the
+old 8 GB kit stick: V0 and run 9).
+
+**Limitation (recorded 2026-10-02, the owner): no-name USB sticks.** Use a
+name-brand stick (SanDisk, Kingston, Samsung, PNY, Lexar, Verbatim,
+Transcend) of 16 GB or more, for the way back and for the kit. This is
+**suspected, not proven**: the twin stick (the same model, carrying the kit)
+was not tried on the Aspire. The test that would prove it: that twin, or a
+name-brand stick, started from the F12 menu. Two reasons hold either way: a
+stick with no serial number cannot be found again for certain (the program
+falls back to the vendor-and-model ID, see above), and if the firmware
+cannot start from it, the way back fails safe but does not work. Open: the
+program should say this before it writes, and could refuse a stick with no
+serial number outright (a stricter rule, the owner's decision).
+**Also found:** the window's progress bar sits at the last percentage
+during steps that report none (it read 99% while the files were built and
+13% while install.wim was split); it must show that it is still working.
+
 **Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on
 and nobody at the keyboard, ending at the Windows sign-in; then one real
 machine (the Aspire, run under R23 on its dying SSD first), with a physical
