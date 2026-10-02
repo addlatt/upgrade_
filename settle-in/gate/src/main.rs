@@ -92,7 +92,19 @@ fn run() -> i32 {
     }
     let started = now_utc();
     let mut rec = json!({ "schema": "go-back-gate/1", "gate_version": VERSION, "started_utc": started });
-    let Some(stick) = find_stick() else {
+    // On a real machine the USB stick appears some seconds after WinPE starts
+    // (the Aspire, 2026-10-02: the gate looked once, at once, and refused with
+    // no record); on the rig the disks are there at once. Wait up to 90 s.
+    let mut stick = find_stick();
+    let t0 = std::time::Instant::now();
+    while stick.is_none() && t0.elapsed().as_secs() < 90 {
+        win::clear();
+        print!("\n\n   Looking for the USB stick... ({} s)\n\n   Nothing has been changed.\n", t0.elapsed().as_secs());
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        stick = find_stick();
+    }
+    rec["stick_wait_s"] = json!(t0.elapsed().as_secs());
+    let Some(stick) = stick else {
         return refuse_and_restart(None, rec, "the instructions from Linux were not found on this USB stick");
     };
     let rec_path = format!("{}\\upgrade_\\go-back-gate.json", stick);
