@@ -3450,6 +3450,21 @@ written**: this same stick did start the Aspire, through the firmware's own
 USB entry. What stands: it has no serial number, and starting from it was
 inconsistent (one "no usb boot option").
 
+**The fixes on the rig (2026-10-03, not a row).** `walkaway prepare` (as root
+in WSL, `--image`, a made-up root describing the rig VM's disk and two
+spoofed saved networks), then the VM started from the stick: gate 0.2.0
+crossed, Setup installed, Windows signed in once by itself and its
+first-sign-in commands ran (`go-back-installed.txt` written, without
+SetupComplete.cmd), and at the sign-in Windows said "The user's password must
+be changed before signing in" (fix 2, plumbing). The Wi-Fi script ran and
+removed the profiles from the stick; Windows answered "The Wireless
+AutoConfig Service (wlansvc) is not running", expected on a VM without Wi-Fi
+hardware, so the script now starts that service and waits 5 s before adding
+(a real machine might not have it running yet at that moment). The job
+listed the enterprise network as not carried. Still owed on the Aspire: the
+profile actually added and Windows online at its first start, the program's
+own start from the stick through Boot2001, and a real cancel.
+
 **Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on
 and nobody at the keyboard, ending at the Windows sign-in; then one real
 machine (the Aspire, run under R23 on its dying SSD first), with a physical
