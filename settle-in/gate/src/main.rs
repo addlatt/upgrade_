@@ -68,9 +68,22 @@ fn save(p: &str, v: &Value) {
     }
 }
 
+/// The Wi-Fi passwords leave the stick at every stop (decided 2026-10-02).
+fn wipe_wifi(stick: &str) -> Value {
+    let d = format!("{}\\upgrade_\\wifi", stick);
+    if !std::path::Path::new(&d).exists() {
+        return json!("none on the stick");
+    }
+    json!(if std::fs::remove_dir_all(&d).is_ok() { "removed" } else { "NOT removed" })
+}
+
 fn refuse_and_restart(record_path: Option<&str>, mut rec: Value, why: &str) -> i32 {
     rec["result"] = json!("refused");
     rec["why"] = json!(why);
+    if let Some(p) = record_path {
+        // <stick>\upgrade_\go-back-gate.json -> <stick>
+        rec["wifi_on_stick"] = wipe_wifi(&p[..2]);
+    }
     rec["ended_utc"] = json!(now_utc());
     if let Some(p) = record_path {
         save(p, &rec);
@@ -150,6 +163,7 @@ fn run() -> i32 {
         let to_next = 1000 - (t0.elapsed().as_millis() % 1000) as u32;
         if win::key_within(to_next.max(50)) {
             rec["result"] = json!("cancelled");
+            rec["wifi_on_stick"] = wipe_wifi(&stick);
             rec["countdown"] = json!({ "seconds": total, "cancelled_after_s": t0.elapsed().as_secs_f64() });
             rec["ended_utc"] = json!(now_utc());
             save(&rec_path, &rec);

@@ -3431,6 +3431,13 @@ It is a `fail` row by the bar set for it, for four reasons, each in the row
   `go-back-installed.txt`, mark the password "must change", and sign out. The
   rig and real machines now take the same path.
 - **Windows was offline at its first start** (the 2026-10-02 rule).
+  **Built (2026-10-03, unfired):** `prepare` reads NetworkManager's saved
+  networks (root) and writes each one Windows can take as a Windows profile
+  on the stick (WPA2/WPA3 personal and open; enterprise, WEP and passwords
+  kept in a keyring are listed, not carried); the stick's first-sign-in
+  script adds them for all users and deletes them from the stick; the gate
+  deletes them at every refusal and cancel; "Do not go back" deletes them;
+  the job lists names only. The consent page says so (DRAFT).
 - **The cancel was not tested on real hardware** (the countdown ran out);
   still owed.
 

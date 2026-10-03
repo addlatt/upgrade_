@@ -445,9 +445,18 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
                     return stop(&mut steps, "build", e);
                 }
             };
+            // Wi-Fi comes along (decided 2026-10-02): profiles onto the stick, names into the job
+            let wifi = match walkaway::carry_wifi(root, &tree) {
+                Ok(w) => w,
+                Err(e) => {
+                    let _ = std::fs::remove_dir_all(&tree);
+                    return stop(&mut steps, "wifi", e);
+                }
+            };
+            ok!("wifi", json!(wifi));
             let edition_name = goback::edition_name(&before, Some(&windows)).unwrap_or_else(|| format!("Windows {}", windows));
             let job_id = format!("go-back-{}", started.replace([':', '-'], ""));
-            let job = walkaway::job(&job_id, &started, walkaway::SENTENCE, &windows, edition, &edition_name, &entry["language"].as_str().unwrap_or("en-us").to_string(), &account, &drives, &entry);
+            let job = walkaway::job(&job_id, &started, walkaway::SENTENCE, &windows, edition, &edition_name, &entry["language"].as_str().unwrap_or("en-us").to_string(), &account, &drives, &entry, &wifi);
             let job_path = format!("{}/upgrade_/go-back.json", tree);
             if let Err(e) = std::fs::write(&job_path, serde_json::to_string_pretty(&job).unwrap_or_default()) {
                 let _ = std::fs::remove_dir_all(&tree);

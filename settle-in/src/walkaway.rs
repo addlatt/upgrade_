@@ -225,6 +225,101 @@ pub fn account_ok(name: &str) -> bool {
         && !reserved.contains(&name.to_ascii_lowercase().as_str())
 }
 
+// ---------------------------------------------------------------- Wi-Fi
+// Decided 2026-10-02 (the owner): every OS switch carries the saved networks
+// and their passwords (architecture.md, "What migrates"). Here: Linux's
+// NetworkManager keyfiles -> Windows Wi-Fi profiles on the stick, added at the
+// first sign-in by the stick's own script, then deleted from the stick.
+
+/// A NetworkManager keyfile as sections of key=value. Pure.
+fn ini(text: &str) -> std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> {
+    let mut m: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = Default::default();
+    let mut sec = String::new();
+    for l in text.lines() {
+        let l = l.trim();
+        if l.starts_with('#') || l.is_empty() {
+            continue;
+        }
+        if l.starts_with('[') && l.ends_with(']') {
+            sec = l[1..l.len() - 1].to_string();
+        } else if let Some((k, v)) = l.split_once('=') {
+            m.entry(sec.clone()).or_default().insert(k.trim().to_string(), v.to_string());
+        }
+    }
+    m
+}
+
+fn xml_esc(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&apos;")
+}
+
+/// One saved network: the Windows profile to carry, or why it is not
+/// carried. Pure. The password is only in the profile, never in the answer.
+pub fn wifi_profile(keyfile: &str) -> Option<(Value, Option<String>)> {
+    let k = ini(keyfile);
+    let conn = k.get("connection")?;
+    let kind = conn.get("type").map(String::as_str).unwrap_or("");
+    if kind != "wifi" && kind != "802-11-wireless" {
+        return None;
+    }
+    let wifi = k.get("wifi").or_else(|| k.get("802-11-wireless"))?;
+    let ssid = wifi.get("ssid")?.clone();
+    let name = conn.get("id").cloned().unwrap_or_else(|| ssid.clone());
+    let info = |carried: bool, why: &str| json!({ "name": ssid, "connection": name, "carried": carried, "why": why });
+    if wifi.get("mode").map(|m| m != "infrastructure").unwrap_or(false) {
+        return Some((info(false, "not an ordinary network (hotspot or ad-hoc)"), None));
+    }
+    let sec = k.get("wifi-security").or_else(|| k.get("802-11-wireless-security"));
+    let mgmt = sec.and_then(|s| s.get("key-mgmt")).map(String::as_str).unwrap_or("open");
+    let (auth, enc, psk) = match mgmt {
+        "open" => ("open", "none", None),
+        "wpa-psk" | "sae" => {
+            let Some(pw) = sec.and_then(|s| s.get("psk")) else {
+                return Some((info(false, "Linux keeps its password in a keyring, not in a file this program can read"), None));
+            };
+            (if mgmt == "sae" { "WPA3SAE" } else { "WPA2PSK" }, "AES", Some(pw.clone()))
+        }
+        "none" => return Some((info(false, "an old WEP network, which Windows no longer sets up this way"), None)),
+        _ => return Some((info(false, "an enterprise network (a company or school sign-in)"), None)),
+    };
+    let hex: String = ssid.bytes().map(|b| format!("{:02X}", b)).collect();
+    let hidden = wifi.get("hidden").map(|h| h == "true").unwrap_or(false);
+    let auto = conn.get("autoconnect").map(|a| a != "false").unwrap_or(true);
+    let key = psk.map(|pw| format!("<sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial>{}</keyMaterial></sharedKey>", xml_esc(&pw))).unwrap_or_default();
+    let xml = format!(
+        "<?xml version=\"1.0\"?>\r\n<WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\"><name>{n}</name><SSIDConfig><SSID><hex>{hex}</hex><name>{n}</name></SSID><nonBroadcast>{hidden}</nonBroadcast></SSIDConfig><connectionType>ESS</connectionType><connectionMode>{mode}</connectionMode><MSM><security><authEncryption><authentication>{auth}</authentication><encryption>{enc}</encryption><useOneX>false</useOneX></authEncryption>{key}</security></MSM></WLANProfile>\r\n",
+        n = xml_esc(&ssid), hex = hex, hidden = hidden, mode = if auto { "auto" } else { "manual" }, auth = auth, enc = enc, key = key);
+    Some((info(true, if auto { "connects by itself" } else { "set up; connect from the network menu" }), Some(xml)))
+}
+
+/// The stick's first-sign-in script (run by the gate's answer file, with the
+/// stick's drive as %1): add every profile for all users, log what Windows
+/// said (names only), delete the profiles from the stick. Pure.
+pub const FIRST_LOGON_CMD: &str = "@echo off\r\nrem written by settle-in: Wi-Fi from Linux (decided 2026-10-02); passwords leave this stick here\r\nset S=%1\r\nif exist %S%\\upgrade_\\wifi (\r\n  for %%f in (%S%\\upgrade_\\wifi\\*.xml) do netsh wlan add profile filename=\"%%f\" user=all >> %S%\\upgrade_\\go-back-wifi.log 2>&1\r\n  rmdir /s /q %S%\\upgrade_\\wifi\r\n)\r\nif exist %S%\\upgrade_\\wifi (echo wifi folder NOT removed >> %S%\\upgrade_\\go-back-wifi.log) else (echo wifi folder removed >> %S%\\upgrade_\\go-back-wifi.log)\r\n";
+
+/// Read Linux's saved networks (root) and write the profiles into the
+/// stick's files. Returns the list for the job: names and reasons, never a password.
+pub fn carry_wifi(root: &str, tree: &str) -> Result<Vec<Value>, String> {
+    let dir = format!("{}/etc/NetworkManager/system-connections", root.trim_end_matches('/'));
+    let mut names: Vec<String> = std::fs::read_dir(&dir).map(|d| d.flatten().map(|e| e.path().to_string_lossy().to_string()).collect()).unwrap_or_default();
+    names.sort();
+    let out = format!("{}/upgrade_/wifi", tree);
+    let mut list = Vec::new();
+    let mut n = 0;
+    for f in names {
+        let Ok(text) = std::fs::read_to_string(&f) else { continue };
+        let Some((info, xml)) = wifi_profile(&text) else { continue };
+        if let Some(x) = xml {
+            std::fs::create_dir_all(&out).map_err(|e| format!("{}: {}", out, e))?;
+            n += 1;
+            std::fs::write(format!("{}/{:02}.xml", out, n), x).map_err(|e| e.to_string())?;
+        }
+        list.push(info);
+    }
+    std::fs::write(format!("{}/upgrade_/go-back-first-logon.cmd", tree), FIRST_LOGON_CMD).map_err(|e| e.to_string())?;
+    Ok(list)
+}
+
 // ---------------------------------------------------------------- the drives
 
 fn read(p: &str) -> Option<String> {
@@ -298,7 +393,7 @@ pub fn drives(root: &str, disks: &Value) -> Result<Vec<Value>, String> {
 }
 
 /// The gate's job. Pure.
-pub fn job(job_id: &str, now: &str, typed: &str, windows: &str, edition: &str, edition_name: &str, language: &str, account: &str, drives: &[Value], entry: &Value) -> Value {
+pub fn job(job_id: &str, now: &str, typed: &str, windows: &str, edition: &str, edition_name: &str, language: &str, account: &str, drives: &[Value], entry: &Value, wifi: &[Value]) -> Value {
     json!({
         "schema": "go-back-job/1",
         "job_id": job_id,
@@ -308,6 +403,7 @@ pub fn job(job_id: &str, now: &str, typed: &str, windows: &str, edition: &str, e
         "windows": { "version": windows, "edition": edition, "edition_name": edition_name, "image_index": 1, "language": language,
                      "source": { "file": entry["file"], "sha1": entry["sha1"], "size": entry["size"] } },
         "account": { "name": account },
+        "wifi": wifi,
         "drives": drives.iter().map(|d| json!({ "role": d["role"], "serial": d["serial"], "wwn": d["wwn"], "size_bytes": d["size_bytes"], "model": d["model"] })).collect::<Vec<_>>(),
     })
 }
@@ -371,7 +467,26 @@ pub fn undo() -> Result<Value, String> {
     for n in &ours {
         run("efibootmgr", &["-b", n, "-B"])?;
     }
-    Ok(json!({ "result": "undone", "removed": ours, "boot_next_was": next }))
+    // the Wi-Fi passwords leave the stick at every stop (if the stick is in)
+    let wifi = wipe_stick_wifi();
+    Ok(json!({ "result": "undone", "removed": ours, "boot_next_was": next, "stick_wifi": wifi }))
+}
+
+/// Delete upgrade_/wifi from the WINSETUP stick, mounting it privately if needed.
+fn wipe_stick_wifi() -> Value {
+    let dev = "/dev/disk/by-label/WINSETUP";
+    if !std::path::Path::new(dev).exists() {
+        return json!("the stick is not plugged in");
+    }
+    let mp = format!("/run/upgrade_-go-back-undo.{}", std::process::id());
+    if std::fs::create_dir_all(&mp).is_err() || run("mount", &["-t", "vfat", dev, &mp]).is_err() {
+        let _ = std::fs::remove_dir(&mp);
+        return json!("the stick could not be opened");
+    }
+    let gone = std::fs::remove_dir_all(format!("{}/upgrade_/wifi", mp)).is_ok() || !std::path::Path::new(&format!("{}/upgrade_/wifi", mp)).exists();
+    let _ = run("umount", &[&mp]);
+    let _ = std::fs::remove_dir(&mp);
+    json!(if gone { "removed" } else { "NOT removed" })
 }
 
 /// The walk-away pages' words (the window has none of its own). DRAFT,
@@ -405,7 +520,10 @@ pub fn words(plan: &Value) -> Value {
         },
         "consent": {
             "heading": "Your decision",
-            "lines": [ "To go back to Windows, type this sentence exactly:" ],
+            "lines": [
+                "Your saved Wi-Fi networks and their passwords are copied onto the USB stick, so Windows can connect to them on its own. They are removed from the stick once Windows has them, or if you stop.",
+                "To go back to Windows, type this sentence exactly:",
+            ],
             "sentence": SENTENCE,
             "button": "Prepare the way back",
             "note": "You will be asked for your password. Preparing takes 20 to 60 minutes; nothing on this computer is deleted yet.",
@@ -574,9 +692,51 @@ mod tests {
     }
 
     #[test]
+    fn wifi_profiles_for_windows_and_what_is_not_carried() {
+        let home = "[connection]\nid=Home\ntype=wifi\n\n[wifi]\nmode=infrastructure\nssid=Home & Co\n\n[wifi-security]\nkey-mgmt=wpa-psk\npsk=p<ss\"w0rd\n";
+        let (i, x) = wifi_profile(home).unwrap();
+        let x = x.unwrap();
+        assert_eq!(i["carried"], true);
+        assert!(x.contains("<name>Home &amp; Co</name>") && x.contains("<hex>486F6D65202620436F</hex>"));
+        assert!(x.contains("<authentication>WPA2PSK</authentication>") && x.contains("<keyMaterial>p&lt;ss&quot;w0rd</keyMaterial>"));
+        assert!(!i.to_string().contains("w0rd"), "a password never reaches the record");
+        let wpa3 = home.replace("wpa-psk", "sae");
+        assert!(wifi_profile(&wpa3).unwrap().1.unwrap().contains("WPA3SAE"));
+        let hidden_manual = "[connection]\nid=x\ntype=wifi\nautoconnect=false\n[wifi]\nssid=Lab\nhidden=true\n";
+        let x = wifi_profile(hidden_manual).unwrap().1.unwrap();
+        assert!(x.contains("<nonBroadcast>true</nonBroadcast>") && x.contains("<connectionMode>manual</connectionMode>") && x.contains("<authentication>open</authentication>"));
+        let eap = "[connection]\nid=Work\ntype=wifi\n[wifi]\nssid=Work\n[wifi-security]\nkey-mgmt=wpa-eap\n";
+        let (i, x) = wifi_profile(eap).unwrap();
+        assert!(x.is_none() && i["why"].as_str().unwrap().contains("enterprise"));
+        let keyring = "[connection]\nid=K\ntype=wifi\n[wifi]\nssid=K\n[wifi-security]\nkey-mgmt=wpa-psk\npsk-flags=1\n";
+        assert!(wifi_profile(keyring).unwrap().1.is_none());
+        assert!(wifi_profile("[connection]\nid=eth\ntype=ethernet\n").is_none());
+    }
+
+    #[test]
+    fn carry_wifi_writes_profiles_and_the_first_logon_script() {
+        let r = std::env::temp_dir().join(format!("walkaway-wifi-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&r);
+        let nm = r.join("root/etc/NetworkManager/system-connections");
+        std::fs::create_dir_all(&nm).unwrap();
+        std::fs::write(nm.join("Home.nmconnection"), "[connection]\nid=Home\ntype=wifi\n[wifi]\nssid=Home\n[wifi-security]\nkey-mgmt=wpa-psk\npsk=secret123\n").unwrap();
+        std::fs::write(nm.join("Work.nmconnection"), "[connection]\nid=Work\ntype=wifi\n[wifi]\nssid=Work\n[wifi-security]\nkey-mgmt=wpa-eap\n").unwrap();
+        let tree = r.join("tree");
+        std::fs::create_dir_all(tree.join("upgrade_")).unwrap();
+        let list = carry_wifi(r.join("root").to_str().unwrap(), tree.to_str().unwrap()).unwrap();
+        assert_eq!(list.len(), 2);
+        assert!(std::fs::read_to_string(tree.join("upgrade_/wifi/01.xml")).unwrap().contains("secret123"));
+        assert!(!tree.join("upgrade_/wifi/02.xml").exists());
+        let cmd = std::fs::read_to_string(tree.join("upgrade_/go-back-first-logon.cmd")).unwrap();
+        assert!(cmd.contains("netsh wlan add profile filename=") && cmd.contains("user=all") && cmd.contains("rmdir /s /q %S%\\upgrade_\\wifi"));
+        assert!(!serde_json::to_string(&list).unwrap().contains("secret123"));
+        std::fs::remove_dir_all(&r).unwrap();
+    }
+
+    #[test]
     fn the_job_is_what_the_gate_reads() {
         let d = vec![json!({ "role": "system", "name": "sda", "serial": "S", "wwn": "", "size_bytes": 1u64, "model": "M" })];
-        let j = job("id", "2026-09-29T00:00:00Z", SENTENCE, "11", "Core", "Windows 11 Home", "en-US", "rig", &d, &json!({ "file": "f.esd", "sha1": "ab", "size": 2 }));
+        let j = job("id", "2026-09-29T00:00:00Z", SENTENCE, "11", "Core", "Windows 11 Home", "en-US", "rig", &d, &json!({ "file": "f.esd", "sha1": "ab", "size": 2 }), &[]);
         assert_eq!(j["schema"], "go-back-job/1");
         assert_eq!(j["consent"]["sentence"], SENTENCE);
         assert_eq!(j["windows"]["image_index"], 1);
