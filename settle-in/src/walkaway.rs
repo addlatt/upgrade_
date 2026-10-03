@@ -294,8 +294,11 @@ pub fn wifi_profile(keyfile: &str) -> Option<(Value, Option<String>)> {
 
 /// The stick's first-sign-in script (run by the gate's answer file, with the
 /// stick's drive as %1): add every profile for all users, log what Windows
-/// said (names only), delete the profiles from the stick. Pure.
-pub const FIRST_LOGON_CMD: &str = "@echo off\r\nrem written by settle-in: Wi-Fi from Linux (decided 2026-10-02); passwords leave this stick here\r\nset S=%1\r\nif exist %S%\\upgrade_\\wifi (\r\n  for %%f in (%S%\\upgrade_\\wifi\\*.xml) do netsh wlan add profile filename=\"%%f\" user=all >> %S%\\upgrade_\\go-back-wifi.log 2>&1\r\n  rmdir /s /q %S%\\upgrade_\\wifi\r\n)\r\nif exist %S%\\upgrade_\\wifi (echo wifi folder NOT removed >> %S%\\upgrade_\\go-back-wifi.log) else (echo wifi folder removed >> %S%\\upgrade_\\go-back-wifi.log)\r\n";
+/// said (names only), delete the profiles from the stick. Pure. It starts the
+/// Wi-Fi service first and waits 5 s: at the first sign-in it may not be
+/// running yet (the rig answered "wlansvc is not running", 2026-10-03; there
+/// because a VM has no Wi-Fi hardware).
+pub const FIRST_LOGON_CMD: &str = "@echo off\r\nrem written by settle-in: Wi-Fi from Linux (decided 2026-10-02); passwords leave this stick here\r\nset S=%1\r\nif exist %S%\\upgrade_\\wifi (\r\n  net start wlansvc >> %S%\\upgrade_\\go-back-wifi.log 2>&1\r\n  ping -n 6 127.0.0.1 > nul\r\n  for %%f in (%S%\\upgrade_\\wifi\\*.xml) do netsh wlan add profile filename=\"%%f\" user=all >> %S%\\upgrade_\\go-back-wifi.log 2>&1\r\n  rmdir /s /q %S%\\upgrade_\\wifi\r\n)\r\nif exist %S%\\upgrade_\\wifi (echo wifi folder NOT removed >> %S%\\upgrade_\\go-back-wifi.log) else (echo wifi folder removed >> %S%\\upgrade_\\go-back-wifi.log)\r\n";
 
 /// Read Linux's saved networks (root) and write the profiles into the
 /// stick's files. Returns the list for the job: names and reasons, never a password.
