@@ -186,8 +186,14 @@ fn esc(s: &str) -> String {
 
 /// The answer file for Windows Setup, naming the drives the gate found. Pure.
 /// No product key (Setup reads a firmware key itself; `<Key></Key>` +
-/// `Never` skips its key page, rig spike 2026-09-29), no password (the
-/// account is empty and must be changed at first sign-in, SetupComplete.cmd).
+/// `Never` skips its key page, rig spike 2026-09-29), no password: the
+/// account starts empty, Windows signs it in once by itself (AutoLogon,
+/// LogonCount 1), and its first-sign-in commands mark the password
+/// "must change", leave go-back-installed.txt on the stick, then sign out,
+/// so the person meets a sign-in that demands a new password. Not
+/// SetupComplete.cmd: Microsoft disables it "when using OEM product keys"
+/// (learn.microsoft.com, "Add a Custom Script to Windows Setup", read
+/// 2026-10-03), which is why the Aspire's run 1 kept an empty password.
 pub fn unattend(job: &Value, found: &[Found]) -> String {
     let lang = esc(job["windows"]["language"].as_str().unwrap_or("en-US"));
     let index = job["windows"]["image_index"].as_u64().unwrap_or(1);
@@ -220,6 +226,7 @@ pub fn unattend(job: &Value, found: &[Found]) -> String {
             f.number
         ));
     }
+    let first = first_logon(job["account"]["name"].as_str().unwrap_or("user"));
     format!(
         r#"<?xml version="1.0" encoding="utf-8"?>
 <!-- written by upgrade-gate {ver} for job {job_id}: the drives it found by serial and size -->
@@ -253,6 +260,10 @@ pub fn unattend(job: &Value, found: &[Found]) -> String {
         <Name>{name}</Name><Group>Administrators</Group>
         <Password><Value></Value><PlainText>true</PlainText></Password>
       </LocalAccount></LocalAccounts></UserAccounts>
+      <AutoLogon><Enabled>true</Enabled><LogonCount>1</LogonCount><Username>{name}</Username>
+        <Password><Value></Value><PlainText>true</PlainText></Password></AutoLogon>
+      <FirstLogonCommands>
+{first}      </FirstLogonCommands>
     </component>
   </settings>
 </unattend>
@@ -260,6 +271,23 @@ pub fn unattend(job: &Value, found: &[Found]) -> String {
         ver = crate::VERSION,
         job_id = esc(job["job_id"].as_str().unwrap_or("?")),
     )
+}
+
+/// The commands Windows runs at the account's first (automatic) sign-in,
+/// as answer-file XML. Pure. Every one runs on every computer (unlike
+/// SetupComplete.cmd): the stick's own script if it is there (Wi-Fi and the
+/// installed note), then the password rule, then sign out.
+pub fn first_logon(account: &str) -> String {
+    let letters = "C D E F G H I J K L M N O P Q R S T U V W Y Z";
+    let cmds = [
+        format!(r#"cmd /c for %d in ({}) do if exist %d:\upgrade_\go-back-first-logon.cmd call %d:\upgrade_\go-back-first-logon.cmd %d:"#, letters),
+        format!(r#"cmd /c for %d in ({}) do if exist %d:\upgrade_\go-back-gate.json echo installed %DATE% %TIME%> %d:\upgrade_\go-back-installed.txt"#, letters),
+        format!(r#"net user "{}" /logonpasswordchg:yes"#, account),
+        "shutdown /l".to_string(),
+    ];
+    cmds.iter().enumerate().map(|(i, c)| format!(
+        "        <SynchronousCommand wcm:action=\"add\"><Order>{}</Order><CommandLine>{}</CommandLine><RequiresUserInput>false</RequiresUserInput></SynchronousCommand>\n",
+        i + 1, esc(c))).collect()
 }
 
 /// The countdown screen. DRAFT words.
@@ -418,6 +446,12 @@ mod tests {
         assert!(x.contains("<Name>rig</Name>"));
         assert!(x.contains("<Password><Value></Value>"));
         assert!(x.contains("<Label>Data</Label>"));
+        // the password rule runs at the first sign-in, on every computer, then signs out
+        assert!(x.contains("<AutoLogon><Enabled>true</Enabled><LogonCount>1</LogonCount><Username>rig</Username>"));
+        assert!(x.contains("<CommandLine>net user &quot;rig&quot; /logonpasswordchg:yes</CommandLine>"));
+        assert!(x.contains("<Order>4</Order><CommandLine>shutdown /l</CommandLine>"));
+        assert!(x.contains("echo installed %DATE% %TIME%&gt; %d:\\upgrade_\\go-back-installed.txt"));
+        assert!(!x.contains("SetupComplete"));
     }
 
     #[test]

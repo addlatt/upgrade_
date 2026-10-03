@@ -3421,6 +3421,15 @@ It is a `fail` row by the bar set for it, for four reasons, each in the row
   it on computers whose firmware carries a maker's (OEM) key, which the
   Aspire does and the rig does not. The owner set a password by hand. Until
   fixed, the account starts with no password: a security gap, not a cosmetic one.
+  **Confirmed (2026-10-03, primary source):** Microsoft's "Add a Custom Script
+  to Windows Setup" says SetupComplete.cmd "is disabled when using OEM product
+  keys, except on Enterprise editions and Windows Server", and that the
+  answer file's FirstLogonCommands "can be used with OEM product keys".
+  **Fixed (2026-10-03, gate 0.2.0, unfired):** no SetupComplete.cmd; the
+  answer file signs the account in once by itself (AutoLogon, count 1), whose
+  first-sign-in commands run the stick's own script if present, write
+  `go-back-installed.txt`, mark the password "must change", and sign out. The
+  rig and real machines now take the same path.
 - **Windows was offline at its first start** (the 2026-10-02 rule).
 - **The cancel was not tested on real hardware** (the countdown ran out);
   still owed.

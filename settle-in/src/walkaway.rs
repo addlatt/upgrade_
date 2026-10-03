@@ -158,16 +158,6 @@ pub fn edition_index(info: &str, edition: &str) -> Option<u32> {
     None
 }
 
-/// SetupComplete.cmd: runs once when Windows is installed. No password rides
-/// on the stick: the account starts empty and must be changed at first
-/// sign-in (rig spike, 2026-09-29). Pure.
-pub fn setup_complete(account: &str) -> String {
-    format!(
-        "@echo off\r\nrem written by settle-in {}: the account has no password yet; Windows asks for a new one at the first sign-in\r\nnet user \"{}\" /logonpasswordchg:yes > \"%WINDIR%\\Setup\\Scripts\\upgrade_-setupcomplete.log\" 2>&1\r\nfor %%d in (C D E F G H I J K L M N O P Q R S T U V W Y Z) do if exist %%d:\\upgrade_\\go-back-gate.json (echo installed %DATE% %TIME%> %%d:\\upgrade_\\go-back-installed.txt)\r\n",
-        crate::VERSION, account
-    )
-}
-
 pub const WINPESHL: &str = "[LaunchApps]\r\n%SYSTEMROOT%\\System32\\wpeinit.exe\r\n%SYSTEMROOT%\\System32\\upgrade-gate.exe\r\n";
 
 /// Build the stick's files in `tree` (a new folder) from the .esd.
@@ -194,9 +184,10 @@ pub fn build_tree(esd: &str, edition: &str, account: &str, tree: &str, gate: &st
     run(wimlib, &["update", &boot, "2", &format!("--command=add {} /Windows/System32/winpeshl.ini", ini)])?;
     let _ = std::fs::remove_file(&ini);
     run(wimlib, &["export", esd, &index.to_string(), &format!("{}/sources/install.wim", tree), "--compress=LZX"])?;
-    let scripts = format!("{}/sources/$OEM$/$$/Setup/Scripts", tree);
-    std::fs::create_dir_all(&scripts).map_err(|e| e.to_string())?;
-    std::fs::write(format!("{}/SetupComplete.cmd", scripts), setup_complete(account)).map_err(|e| e.to_string())?;
+    // no SetupComplete.cmd: Windows skips it on computers with a maker's key
+    // (the Aspire, 2026-10-02); the gate's answer file runs first-sign-in
+    // commands instead, which run everywhere (R33)
+    let _ = account;
     std::fs::create_dir_all(format!("{}/upgrade_", tree)).map_err(|e| e.to_string())?;
     Ok(json!({ "edition": edition, "esd_index": index }))
 }
@@ -491,13 +482,6 @@ mod tests {
         assert_eq!(edition_index(info, "Core"), Some(4));
         assert_eq!(edition_index(info, "Professional"), Some(9));
         assert_eq!(edition_index(info, "Education"), None);
-    }
-
-    #[test]
-    fn setup_complete_carries_no_password() {
-        let s = setup_complete("rig");
-        assert!(s.contains("net user \"rig\" /logonpasswordchg:yes"));
-        assert!(!s.to_lowercase().contains("password:"));
     }
 
     fn fake_sys(tag: &str) -> std::path::PathBuf {

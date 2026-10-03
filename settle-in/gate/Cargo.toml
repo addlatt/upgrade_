@@ -1,6 +1,6 @@
 [package]
 name = "upgrade-gate"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 
 # The gate on a "Go back to Windows" stick (RISKS R33): it runs first inside
