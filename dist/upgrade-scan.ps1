@@ -43,7 +43,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$UpgVersion = '0.3.2'
+$UpgVersion = '0.4.0'   # 0.4.0 (2026-10-03): Secure Boot revocations (SBAT), after the Aspire's run 10
 
 # --- data ---------------------------------------------------------------
 # The build script replaces this block with the file contents inline, so the
@@ -517,6 +517,195 @@ function Test-UpgFirmware {
     } else {
         New-UpgCheck -Section 'Fundamentals' -Title 'Secure Boot' -Status 'info' -Detail 'could not determine'
     }
+}
+
+# --- Secure Boot revocations (SBAT) -------------------------------------------
+# Added 2026-10-03 after the Aspire's run 10: Windows 11 had raised the
+# firmware's SBAT level (shim's revocation list) to 2025051000, which requires
+# grub,5. The kit's GRUB (Fedora 42 install media) is grub,3, so the stick's
+# shim refused it ("Verification failed: (0x1A) Security Violation") and the
+# firmware fell back to Windows. The installed system would have carried the
+# same GRUB. This check says so before anything is armed.
+#
+# The rule is shim's own (rhboot/shim SBAT.md): a revocation level is a list
+# of "component,generation" lines; a boot file whose .sbat names a component
+# with a LOWER generation than the level requires is refused. Components the
+# level does not name are not judged.
+
+function ConvertFrom-UpgSbatText {
+    # 'sbat,1,2025051000\nshim,4\ngrub,5' or a .sbat section ('sbat,1,SBAT
+    # Version,...\ngrub,3,Free Software Foundation,...') -> [ordered]
+    # component -> generation, plus 'sbat' -> the level's date where there is one.
+    param([string]$Text)
+    $out = [ordered]@{}
+    foreach ($line in @("$Text" -split "[`r`n]+")) {
+        $f = @($line.Trim([char]0, ' ') -split ',')
+        if ($f.Count -lt 2 -or -not $f[0]) { continue }
+        $gen = 0
+        if (-not [int]::TryParse($f[1], [ref]$gen)) { continue }
+        if ($f[0] -eq 'sbat') {
+            if ($f.Count -ge 3 -and $f[2] -match '^\d{10}$') { $out['sbat'] = $f[2] }
+            continue
+        }
+        if (-not $out.Contains($f[0]) -or $out[$f[0]] -lt $gen) { $out[$f[0]] = $gen }
+    }
+    $out
+}
+
+function Merge-UpgSbatLevel {
+    # The strictest of several levels: per component the highest generation,
+    # and the newest date. Refuse by default: every source counts.
+    param([object[]]$Levels)
+    $m = [ordered]@{ sbat = '' }
+    foreach ($l in @($Levels)) {
+        if (-not $l) { continue }
+        foreach ($k in @($l.Keys)) {
+            if ($k -eq 'sbat') { if ("$($l[$k])" -gt "$($m['sbat'])") { $m['sbat'] = "$($l[$k])" }; continue }
+            if (-not $m.Contains($k) -or $m[$k] -lt $l[$k]) { $m[$k] = $l[$k] }
+        }
+    }
+    $m
+}
+
+function Get-UpgSbatRevoked {
+    # The components of one boot file that the level refuses, as
+    # 'grub,3 < grub,5'. Empty = the level allows it.
+    param($Level, $FileSbat)
+    $bad = @()
+    foreach ($k in @($FileSbat.Keys)) {
+        if ($k -eq 'sbat') { continue }
+        if ($Level.Contains($k) -and $FileSbat[$k] -lt $Level[$k]) { $bad += "$k,$($FileSbat[$k]) < $k,$($Level[$k])" }
+    }
+    $bad
+}
+
+function Test-UpgSbat {
+    # Judgment half. $Levels: @(@{ Source; Text }) - the firmware's level as
+    # Windows recorded it, the firmware variable, and the stick shim's own
+    # built-in level. $Files: @(@{ Name; Sbat; Error }) - the kit's boot files
+    # (the stick's shim and GRUB, and the installed system's, recorded by
+    # make-kit). No kit beside the scanner = report the level only.
+    param($SecureBoot, [object[]]$Levels, [object[]]$Files)
+    $parsed = @(@($Levels) | Where-Object { $_ -and $_.Text } | ForEach-Object { ConvertFrom-UpgSbatText $_.Text })
+    $level = Merge-UpgSbatLevel $parsed
+    $lv = @($level.Keys | Where-Object { $_ -ne 'sbat' } | ForEach-Object { "$_,$($level[$_])" }) -join ' '
+    $lvText = if ($lv) { "level $(if ($level['sbat']) { $level['sbat'] } else { '(no date)' }): $lv" } else { 'no revocation level found' }
+    $sources = (@(@($Levels) | Where-Object { $_ -and $_.Text } | ForEach-Object { $_.Source }) -join ', ')
+    if (@($Files).Count -eq 0) {
+        New-UpgCheck -Section 'Fundamentals' -Title 'Secure Boot revocations' -Status 'info' -Detail $lvText `
+            -Note "Secure Boot refuses Linux boot programs older than this level (from: $(if ($sources) { $sources } else { 'nothing readable' })). Run the scanner from the upgrade_ stick to check the stick's own boot files against it."
+        return
+    }
+    $bad = @(); $unread = @()
+    foreach ($f in @($Files)) {
+        if ($f.Error -or -not $f.Sbat) { $unread += "$($f.Name) ($(if ($f.Error) { $f.Error } else { 'no SBAT data' }))"; continue }
+        $r = @(Get-UpgSbatRevoked -Level $level -FileSbat (ConvertFrom-UpgSbatText $f.Sbat))
+        if ($r.Count) { $bad += "$($f.Name): $($r -join ', ')" }
+    }
+    if ($SecureBoot -eq 0 -and ($bad.Count -or $unread.Count)) {
+        New-UpgCheck -Section 'Fundamentals' -Title 'Secure Boot revocations' -Status 'warn' -Detail "Secure Boot is off; with it on, these would be refused: $((@($bad) + @($unread)) -join '; ')" `
+            -Note "$lvText. Turning Secure Boot on later would stop Linux from starting." `
+            -Remedy 'Leave Secure Boot as it is until a kit with newer boot files is used.'
+        return
+    }
+    if ($bad.Count) {
+        New-UpgCheck -Section 'Fundamentals' -Title 'Secure Boot revocations' -Status 'fail' -Detail ("this computer's Secure Boot refuses the stick's boot files: " + ($bad -join '; ')) `
+            -Note "$lvText (from: $sources). The computer would restart, refuse to start Linux, and come back to Windows. Nothing has been changed." `
+            -Remedy 'This kit cannot convert this computer. It needs a kit built with newer boot files. Do not turn Secure Boot off to get around it.'
+        return
+    }
+    if ($unread.Count) {
+        New-UpgCheck -Section 'Fundamentals' -Title 'Secure Boot revocations' -Status 'fail' -Detail ("the stick's boot files could not be checked: " + ($unread -join '; ')) `
+            -Note "$lvText. A boot file that cannot be checked is treated as refused." `
+            -Remedy 'Rebuild the stick with the kit builder, then scan again.'
+        return
+    }
+    New-UpgCheck -Section 'Fundamentals' -Title 'Secure Boot revocations' -Status 'ok' -Detail "the stick's boot files meet this computer's $lvText" `
+        -Note "Checked: $((@($Files) | ForEach-Object { $_.Name }) -join ', ') (from: $sources)."
+}
+
+function Get-UpgPeSection {
+    # The bytes of one named section of a PE file, as text, or $null.
+    param([byte[]]$Bytes, [string]$Name)
+    try {
+        $pe = [BitConverter]::ToInt32($Bytes, 0x3c)
+        if ([Text.Encoding]::ASCII.GetString($Bytes, $pe, 4) -ne "PE`0`0") { return $null }
+        $nsec = [BitConverter]::ToUInt16($Bytes, $pe + 6)
+        $tab = $pe + 24 + [BitConverter]::ToUInt16($Bytes, $pe + 20)
+        for ($i = 0; $i -lt $nsec; $i++) {
+            $s = $tab + 40 * $i
+            if ([Text.Encoding]::ASCII.GetString($Bytes, $s, 8).TrimEnd([char]0) -eq $Name) {
+                $size = [BitConverter]::ToInt32($Bytes, $s + 16); $at = [BitConverter]::ToInt32($Bytes, $s + 20)
+                return [Text.Encoding]::ASCII.GetString($Bytes, $at, $size)
+            }
+        }
+    } catch { }
+    $null
+}
+
+function Get-UpgSbatFacts {
+    # Collection half, read-only. The level Windows recorded applying
+    # (HKLM\...\SecureBoot\SBAT\SbatLevel, readable without elevation), the
+    # firmware's own copy (SbatLevelRT, written by shim at boot; elevated
+    # only), and, when the scanner runs from the kit, the kit's boot files:
+    # EFI\BOOT\BOOTX64.EFI (shim, whose built-in level counts too),
+    # EFI\BOOT\grubx64.efi, and the installed system's files that make-kit
+    # recorded under upgrade_\boot-chain\ (<name>.sbat, <name>.sbatlevel).
+    param([string]$Root, [bool]$IsAdmin)
+    $levels = @(); $files = @()
+    try {
+        $b = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecureBoot\SBAT' -Name SbatLevel -ErrorAction Stop).SbatLevel
+        if ($b) { $levels += @{ Source = 'Windows (registry)'; Text = [Text.Encoding]::ASCII.GetString([byte[]]$b).Split([char]0)[0] } }
+    } catch { }
+    if ($IsAdmin) {
+        try {
+            try {
+                Add-Type -Namespace Upg -Name FwVar -MemberDefinition @'
+[StructLayout(LayoutKind.Sequential)] public struct LUID { public uint Low; public int High; }
+[StructLayout(LayoutKind.Sequential)] public struct TP { public int Count; public LUID Luid; public int Attr; }
+[DllImport("advapi32.dll", SetLastError=true)] public static extern bool OpenProcessToken(IntPtr h, int access, out IntPtr tok);
+[DllImport("advapi32.dll", SetLastError=true, CharSet=CharSet.Unicode)] public static extern bool LookupPrivilegeValue(string sys, string name, out LUID luid);
+[DllImport("advapi32.dll", SetLastError=true)] public static extern bool AdjustTokenPrivileges(IntPtr tok, bool all, ref TP tp, int len, IntPtr prev, IntPtr rlen);
+[DllImport("kernel32.dll")] public static extern IntPtr GetCurrentProcess();
+[DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)] public static extern uint GetFirmwareEnvironmentVariableExW(string name, string guid, byte[] buf, uint size, out uint attrs);
+'@ -ErrorAction Stop
+            } catch { }  # type already loaded on a second call
+            $tok = [IntPtr]::Zero; $luid = New-Object Upg.FwVar+LUID
+            if ([Upg.FwVar]::OpenProcessToken([Upg.FwVar]::GetCurrentProcess(), 0x28, [ref]$tok) -and [Upg.FwVar]::LookupPrivilegeValue($null, 'SeSystemEnvironmentPrivilege', [ref]$luid)) {
+                $tp = New-Object Upg.FwVar+TP; $tp.Count = 1; $tp.Luid = $luid; $tp.Attr = 2
+                [void][Upg.FwVar]::AdjustTokenPrivileges($tok, $false, [ref]$tp, 0, [IntPtr]::Zero, [IntPtr]::Zero)
+                $buf = New-Object byte[] 4096; $attrs = [uint32]0
+                $n = [Upg.FwVar]::GetFirmwareEnvironmentVariableExW('SbatLevelRT', '{605dab50-e046-4300-abb6-3dd810dd8b23}', $buf, 4096, [ref]$attrs)
+                if ($n -gt 0) { $levels += @{ Source = 'firmware (SbatLevelRT)'; Text = [Text.Encoding]::ASCII.GetString($buf, 0, $n).Split([char]0)[0] } }
+            }
+        } catch { }
+    }
+    if ($Root -and (Test-Path (Join-Path $Root 'EFI\BOOT\BOOTX64.EFI'))) {
+        foreach ($n in 'BOOTX64.EFI', 'grubx64.efi') {
+            $p = Join-Path $Root "EFI\BOOT\$n"
+            $f = @{ Name = "stick $n"; Sbat = $null; Error = $null }
+            try {
+                $bytes = [IO.File]::ReadAllBytes($p)
+                $f.Sbat = Get-UpgPeSection -Bytes $bytes -Name '.sbat'
+                if ($n -eq 'BOOTX64.EFI') {
+                    # shim applies its own built-in level too; count the newest it carries
+                    $lvl = Get-UpgPeSection -Bytes $bytes -Name '.sbatlevel'
+                    if ($lvl) { $levels += @{ Source = 'the stick''s shim (built in)'; Text = (@([regex]::Matches($lvl, 'sbat,1,\d{10}[^\x00]*') | ForEach-Object { $_.Value }) -join "`n") } }
+                }
+            } catch { $f.Error = "not readable: $($_.Exception.Message)" }
+            $files += $f
+        }
+        $chain = Join-Path $Root 'upgrade_\boot-chain'
+        if (Test-Path $chain) {
+            foreach ($s in @(Get-ChildItem $chain -Filter '*.sbat' | Sort-Object Name)) {
+                $files += @{ Name = "installed $($s.BaseName)"; Sbat = (Get-Content $s.FullName -Raw); Error = $null }
+            }
+            foreach ($s in @(Get-ChildItem $chain -Filter '*.sbatlevel' | Sort-Object Name)) {
+                $levels += @{ Source = "installed $($s.BaseName) (built in)"; Text = (Get-Content $s.FullName -Raw) }
+            }
+        }
+    }
+    @{ Levels = $levels; Files = $files }
 }
 
 function Get-UpgResumeFacts {
@@ -2058,6 +2247,12 @@ function Invoke-UpgSelfTest {
     # to expected status(es); an empty array asserts the check must NOT fire.
     $gb = 1073741824
     $uefiSys = [pscustomobject]@{ Firmware = 'UEFI' }
+    # SBAT strings as read on 2026-10-03 (Diag-SecureBoot.ps1 on the Aspire; objdump -j .sbat on the binaries)
+    $sbatAspire  = "sbat,1,2025051000`nshim,4`ngrub,5`ngrub.debian,4`ngrub.peimage,2`ngrub.proxmox,2"
+    $sbatGrubF42 = "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md`ngrub,3,Free Software Foundation,grub,2.12,https//www.gnu.org/software/grub/`ngrub.rh,2,Red Hat,grub2,2.12-28.fc42,mailto:secalert@redhat.com"
+    $sbatGrubF44 = "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md`ngrub,5,Free Software Foundation,grub,2.12,https//www.gnu.org/software/grub/`ngrub.rh,2,Red Hat,grub2,2.12-66.fc44,mailto:secalert@redhat.com"
+    $sbatShim158 = "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md`nshim,4,UEFI shim,shim,1,https://github.com/rhboot/shim`nshim.rh,3,The Fedora Project,shim,15.8,https://src.fedoraproject.org/rpms/shim-unsigned-x64"
+    $sbatShim161 = "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md`nshim,4,UEFI shim,shim,1,https://github.com/rhboot/shim`nshim.rh,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64"
     $seamCases = @(
         @{ Name = 'seam: Secure Boot enabled is ok with distro note'
            Run = { Test-UpgFirmware -Sys $uefiSys -SecureBoot 1 }
@@ -2068,6 +2263,36 @@ function Invoke-UpgSelfTest {
         @{ Name = 'seam: Secure Boot unreadable is info, not a guess'
            Run = { Test-UpgFirmware -Sys $uefiSys -SecureBoot $null }
            Expect = @{ 'Secure Boot' = 'info' } }
+
+        # SBAT (2026-10-03, the Aspire's run 10). Strings as read that day: the
+        # Aspire's SbatLevelRT, the kit's Fedora 42 install-media GRUB, Fedora 44's.
+        @{ Name = 'sbat: the Aspire (level 2025051000, grub,5) refuses the Fedora 42 GRUB (grub,3)'
+           Run = { Test-UpgSbat -SecureBoot 1 -Levels @(@{ Source = 'firmware'; Text = $sbatAspire }) -Files @(@{ Name = 'stick BOOTX64.EFI'; Sbat = $sbatShim158 }, @{ Name = 'stick grubx64.efi'; Sbat = $sbatGrubF42 }) }
+           Expect = @{ 'Secure Boot revocations' = 'fail' } }
+        @{ Name = 'sbat: the same level allows the Fedora 44 GRUB (grub,5) and shim 16.1'
+           Run = { Test-UpgSbat -SecureBoot 1 -Levels @(@{ Source = 'firmware'; Text = $sbatAspire }) -Files @(@{ Name = 'stick BOOTX64.EFI'; Sbat = $sbatShim161 }, @{ Name = 'stick grubx64.efi'; Sbat = $sbatGrubF44 }) }
+           Expect = @{ 'Secure Boot revocations' = 'ok' } }
+        @{ Name = 'sbat: the strictest source wins (Windows recorded 2024010900, the firmware holds 2025051000)'
+           Run = { Test-UpgSbat -SecureBoot 1 -Levels @(@{ Source = 'registry'; Text = "sbat,1,2024010900`nshim,4`ngrub,3`ngrub.debian,4" }, @{ Source = 'firmware'; Text = $sbatAspire }) -Files @(@{ Name = 'stick grubx64.efi'; Sbat = $sbatGrubF42 }) }
+           Expect = @{ 'Secure Boot revocations' = 'fail' } }
+        @{ Name = 'sbat: an older level (2024010900, grub,3) allows the Fedora 42 GRUB, as on 2026-09-26'
+           Run = { Test-UpgSbat -SecureBoot 1 -Levels @(@{ Source = 'registry'; Text = "sbat,1,2024010900`nshim,4`ngrub,3`ngrub.debian,4" }) -Files @(@{ Name = 'stick grubx64.efi'; Sbat = $sbatGrubF42 }) }
+           Expect = @{ 'Secure Boot revocations' = 'ok' } }
+        @{ Name = 'sbat: an installed-system GRUB below the level fails even when the stick passes'
+           Run = { Test-UpgSbat -SecureBoot 1 -Levels @(@{ Source = 'firmware'; Text = $sbatAspire }) -Files @(@{ Name = 'stick grubx64.efi'; Sbat = $sbatGrubF44 }, @{ Name = 'installed kde-grubx64'; Sbat = $sbatGrubF42 }) }
+           Expect = @{ 'Secure Boot revocations' = 'fail' } }
+        @{ Name = 'sbat: a boot file with no SBAT data is treated as refused'
+           Run = { Test-UpgSbat -SecureBoot 1 -Levels @(@{ Source = 'firmware'; Text = $sbatAspire }) -Files @(@{ Name = 'stick grubx64.efi'; Sbat = $null; Error = 'not readable' }) }
+           Expect = @{ 'Secure Boot revocations' = 'fail' } }
+        @{ Name = 'sbat: Secure Boot off turns a refusal into a warning'
+           Run = { Test-UpgSbat -SecureBoot 0 -Levels @(@{ Source = 'firmware'; Text = $sbatAspire }) -Files @(@{ Name = 'stick grubx64.efi'; Sbat = $sbatGrubF42 }) }
+           Expect = @{ 'Secure Boot revocations' = 'warn' } }
+        @{ Name = 'sbat: Secure Boot unreadable is judged as on'
+           Run = { Test-UpgSbat -SecureBoot $null -Levels @(@{ Source = 'firmware'; Text = $sbatAspire }) -Files @(@{ Name = 'stick grubx64.efi'; Sbat = $sbatGrubF42 }) }
+           Expect = @{ 'Secure Boot revocations' = 'fail' } }
+        @{ Name = 'sbat: without the kit beside the scanner only the level is reported'
+           Run = { Test-UpgSbat -SecureBoot 1 -Levels @(@{ Source = 'firmware'; Text = $sbatAspire }) -Files @() }
+           Expect = @{ 'Secure Boot revocations' = 'info' } }
         # the walk-away resume (RISKS R24): info/warn only, never fail
         @{ Name = 'seam: resume - a personal machine with the scheduler running is ok'
            Run = { Test-UpgResume -Facts ([ordered]@{ ScheduleService = 'Running'; TaskCreationPolicy = $null; DomainJoined = $false; AzureAdJoined = $false; Mdm = $null }) }
@@ -2512,8 +2737,11 @@ $pnp = Get-UpgPnp
 
 Test-UpgArchitecture -Sys $sys
 Test-UpgMemory       -Sys $sys
-Test-UpgFirmware     -Sys $sys -SecureBoot (Get-UpgSecureBootState)
-Test-UpgResume       -Facts (Get-UpgResumeFacts)
+$sbState = Get-UpgSecureBootState
+Test-UpgFirmware     -Sys $sys -SecureBoot $sbState
+$sbat = Get-UpgSbatFacts -Root $PSScriptRoot -IsAdmin $isAdmin
+Test-UpgSbat         -SecureBoot $sbState -Levels $sbat.Levels -Files $sbat.Files
+Test-UpgResume      -Facts (Get-UpgResumeFacts)
 Test-UpgStorageMode  -Pnp $pnp
 $diskFacts = Get-UpgDiskFacts
 $volHealth = Get-UpgVolumeHealth -IsAdmin $isAdmin -ShrinkError $diskFacts.ShrinkError

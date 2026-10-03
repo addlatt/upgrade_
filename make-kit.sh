@@ -206,6 +206,8 @@ crlf "$PAYLOAD/RUN-ERASE-AND-INSTALL-ACCEPTING-DATA-LOSS.cmd" "$D/RUN-ERASE-AND-
 cp "$ROOT/evaluate/windows/Read-Password.ps1" "$D/Read-Password.ps1"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-VOLUME.cmd" "$D/DIAG-VOLUME.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SMART.cmd"  "$D/DIAG-SMART.cmd"
+crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SECUREBOOT.cmd" "$D/DIAG-SECUREBOOT.cmd"
+cp "$ROOT/evaluate/windows/usb-kit/Diag-SecureBoot.ps1" "$D/Diag-SecureBoot.ps1"
 crlf "$ROOT/evaluate/windows/usb-kit/RUN-STORAGE-MODE.cmd" "$D/RUN-STORAGE-MODE.cmd"
 cp "$ROOT/evaluate/windows/Test-StorageMode.ps1" "$D/Test-StorageMode.ps1"
 cp "$ROOT/evaluate/windows/usb-kit/Diag-Smart.ps1" "$D/Diag-Smart.ps1"
