@@ -278,7 +278,7 @@ pub fn countdown_screen(left: u64, found: &[Found]) -> String {
 /// The refusal screen. DRAFT words.
 pub fn refusal_screen(why: &str) -> String {
     format!(
-        "\n\n   NOTHING WAS ERASED.\n\n   Going back to Windows stopped before changing anything, because\n   {}.\n\n   This computer restarts into Linux in a minute (or press any key).\n   The reason is also written on this USB stick, in upgrade_\\go-back-gate.json.\n",
+        "\n\n   NOTHING WAS ERASED.\n\n   Going back to Windows stopped before changing anything, because\n   {}.\n\n   This computer restarts into Linux in a minute (or press any key).\n",
         why
     )
 }

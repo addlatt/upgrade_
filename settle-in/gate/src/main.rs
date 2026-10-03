@@ -105,7 +105,11 @@ fn run() -> i32 {
     }
     rec["stick_wait_s"] = json!(t0.elapsed().as_secs());
     let Some(stick) = stick else {
-        return refuse_and_restart(None, rec, "the instructions from Linux were not found on this USB stick");
+        // nowhere to write a record: say on screen what WinPE can see instead
+        let seen: Vec<String> = ('C'..='Z').map(|c| format!("{}:", c)).filter(|l| std::path::Path::new(&format!("{}\\", l)).exists()).collect();
+        let why = format!("the instructions from Linux were not found on this USB stick after {} s (drives seen: {}; this reason could not be written to the stick)",
+            t0.elapsed().as_secs(), if seen.is_empty() { "none".to_string() } else { seen.join(" ") });
+        return refuse_and_restart(None, rec, &why);
     };
     let rec_path = format!("{}\\upgrade_\\go-back-gate.json", stick);
     let previous = load(&rec_path);
