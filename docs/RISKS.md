@@ -3403,11 +3403,16 @@ the full 120 s with nobody at the keyboard, wrote an answer file wiping
 exactly those two drives, and Windows Setup ran to the sign-in with no
 product key page. The owner signed in, joined Wi-Fi, and Windows reported
 **activated with a digital license** (R30's first after-reinstall data point).
-It is a `fail` row by the bar set for it, for four reasons, each in the row:
+It is a `fail` row by the bar set for it, for four reasons, each in the row
+(fixes built 2026-10-03, each its own commit, unfired on the Aspire):
 
 - **The program's own start from the stick did not work on this firmware.**
   `BootNext` to our own entry was passed over; the run used a tester icon
-  pointing `BootNext` at the firmware's own USB entry (Boot2001). Before
+  pointing `BootNext` at the firmware's own USB entry (Boot2001). **Fixed
+  (2026-10-03):** the program now points `BootNext` at the firmware's own
+  generic USB entry when the firmware has one and the stick is the only USB
+  disk, and at its own entry otherwise (the rig); "Do not go back" clears
+  either. Before
   that, gate 0.1.0 refused twice because the stick was not yet visible in
   WinPE (fixed in 0.1.1, put on the stick from Fedora).
 - **No password was forced.** `go-back-installed.txt` is missing:

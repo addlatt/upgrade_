@@ -321,15 +321,45 @@ pub fn job(job_id: &str, now: &str, typed: &str, windows: &str, edition: &str, e
     })
 }
 
-/// A one-time boot of the stick: a new firmware entry that is NOT added to the
-/// boot order (efibootmgr -C), then BootNext. Linux starts again after it.
-pub fn boot_once(stick_disk: &str) -> Result<Value, String> {
+/// Which entry to start once. Pure, over `efibootmgr`'s own listing.
+///
+/// The firmware's own generic USB entry when it has one (a "USB" entry whose
+/// path is not a partition, e.g. Insyde's "Boot2001* EFI USB Device  RC"),
+/// and the stick is the only USB disk plugged in: on the Aspire (2026-10-02)
+/// that entry started the stick and our own partition entry was passed over.
+/// Otherwise our own entry (the rig, whose firmware has no generic USB entry).
+pub fn pick_boot_next(listing: &str, ours: &str, usb_disks: usize) -> (String, &'static str) {
+    let order: Vec<String> = listing.lines().find_map(|l| l.strip_prefix("BootOrder:"))
+        .map(|o| o.trim().split(',').map(|x| x.trim().to_ascii_uppercase()).collect()).unwrap_or_default();
+    let mut generic: Vec<String> = listing.lines().filter_map(|l| {
+        let rest = l.strip_prefix("Boot")?;
+        let num = rest.get(0..4)?.to_ascii_uppercase();
+        if !num.chars().all(|c| c.is_ascii_hexdigit()) || num == ours.to_ascii_uppercase() {
+            return None;
+        }
+        let body = rest.get(4..)?.trim_start_matches('*').trim();
+        let (label, path) = body.split_once('\t').unwrap_or((body, ""));
+        let path = path.trim();
+        (label.to_ascii_lowercase().contains("usb") && !path.starts_with("HD(") && !path.contains("File(")).then_some(num)
+    }).collect();
+    generic.sort_by_key(|n| order.iter().position(|o| o == n).unwrap_or(usize::MAX));
+    match generic.first() {
+        Some(g) if usb_disks == 1 => (g.clone(), "the firmware's own USB entry"),
+        _ => (ours.to_ascii_uppercase(), "our own entry for the stick"),
+    }
+}
+
+/// A one-time boot of the stick: our own firmware entry (efibootmgr -C: not
+/// added to the boot order), then BootNext at the entry pick_boot_next
+/// chooses. Linux starts again after it.
+pub fn boot_once(stick_disk: &str, usb_disks: usize) -> Result<Value, String> {
     let dev = format!("/dev/{}", stick_disk);
     let out = run("efibootmgr", &["-C", "-d", &dev, "-p", "1", "-L", "upgrade_ go back to Windows", "-l", "\\EFI\\BOOT\\BOOTX64.EFI"])?;
-    let num = out.lines().filter_map(|l| l.strip_prefix("Boot")).filter(|l| l.contains("upgrade_ go back to Windows"))
+    let ours = out.lines().filter_map(|l| l.strip_prefix("Boot")).filter(|l| l.contains("upgrade_ go back to Windows"))
         .filter_map(|l| l.get(0..4)).last().ok_or("the new firmware entry could not be found")?.to_string();
+    let (num, why) = pick_boot_next(&run("efibootmgr", &[])?, &ours, usb_disks);
     run("efibootmgr", &["-n", &num])?;
-    Ok(json!({ "entry": format!("Boot{}", num), "boot_next": num }))
+    Ok(json!({ "entry": format!("Boot{}", ours), "boot_next": num, "chosen": why, "usb_disks": usb_disks }))
 }
 
 /// Undo the one-time start: clear BootNext if it points at our entry, and
@@ -339,8 +369,11 @@ pub fn undo() -> Result<Value, String> {
     let ours: Vec<String> = out.lines().filter_map(|l| l.strip_prefix("Boot")).filter(|l| l.contains("upgrade_ go back to Windows"))
         .filter_map(|l| l.get(0..4)).map(str::to_string).collect();
     let next = out.lines().find_map(|l| l.strip_prefix("BootNext:")).map(|v| v.trim().to_string());
+    // BootNext is ours to clear when it points at our entry, or at the
+    // firmware's generic USB entry that boot_once may have chosen instead
+    let generic = pick_boot_next(&out, "----", 1);
     if let Some(n) = &next {
-        if ours.contains(n) {
+        if ours.contains(n) || (generic.1 == "the firmware's own USB entry" && generic.0 == n.to_ascii_uppercase()) {
             run("efibootmgr", &["-N"])?;
         }
     }
@@ -538,6 +571,22 @@ mod tests {
         assert_eq!(clean_wwn("eui.000000000000000100a07524480c575b"), "eui.000000000000000100a07524480c575b");
         assert_eq!(clean_wwn("t10.ATA     HFS256G39TND-N210A                      EI8AN00951150A71I"), "");
         assert_eq!(clean_wwn("0x1234"), "");
+    }
+
+    #[test]
+    fn the_aspire_starts_through_its_own_usb_entry() {
+        // the Aspire's firmware listing, 2026-10-02 (Insyde H2O); Boot0003 is ours
+        let aspire = "BootCurrent: 0004\nTimeout: 0 seconds\nBootOrder: 0000,2001,2002,2003,0004\n\
+            Boot0000* Unknown Device: \tHD(1,GPT,530bed19-60b9-48af-9ce5-c0c6942310ef,0x800,0x12c000)/\\EFI\\fedora\\shim.efiRC\n\
+            Boot0003* upgrade_ go back to Windows\tHD(1,MBR,0x4003abbf,0x800,0x1d4b800)/\\EFI\\BOOT\\BOOTX64.EFI\n\
+            Boot0004* Fedora\tHD(1,GPT,530bed19-60b9-48af-9ce5-c0c6942310ef,0x800,0x12c000)/\\EFI\\fedora\\shimx64.efi\n\
+            Boot2001* EFI USB Device\tRC\nBoot2002* EFI DVD/CDROM\tRC\nBoot2003* EFI Network\tRC\n";
+        assert_eq!(pick_boot_next(aspire, "0003", 1), ("2001".to_string(), "the firmware's own USB entry"));
+        // two USB disks: "any USB" could start the wrong one, so our own entry
+        assert_eq!(pick_boot_next(aspire, "0003", 2).0, "0003");
+        // the rig (Hyper-V): no generic USB entry at all
+        let rig = "BootOrder: 0001,0002\nBoot0001* Windows Boot Manager\tHD(1,GPT,x,0x800,0x32000)/\\EFI\\Microsoft\\Boot\\bootmgfw.efi\nBoot0002* EFI SCSI Device\tAcpiEx(VMBus,0,0)/VenHw(9b17)\nBoot0005* upgrade_ go back to Windows\tHD(1,MBR,0x1,0x800,0x1)/\\EFI\\BOOT\\BOOTX64.EFI\n";
+        assert_eq!(pick_boot_next(rig, "0005", 1).0, "0005");
     }
 
     #[test]

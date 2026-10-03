@@ -478,7 +478,8 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
             if req.image.is_some() || args.iter().any(|a| a == "--no-boot-entry") {
                 return finish(&mut steps, json!({ "result": "ready", "job_id": job_id, "boot_once": null, "note": "no boot entry: a test image, or asked not to" }));
             }
-            match walkaway::boot_once(&stick_name) {
+            let usb_disks = sticks::collect(root).as_array().map(|a| a.iter().filter(|d| d["usb"] == json!(true)).count()).unwrap_or(0);
+            match walkaway::boot_once(&stick_name, usb_disks) {
                 Ok(b) => {
                     ok!("boot-once", b.clone());
                     finish(&mut steps, json!({ "result": "ready", "job_id": job_id, "boot_once": b }))
