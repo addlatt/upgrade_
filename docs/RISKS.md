@@ -3375,6 +3375,18 @@ serial number outright (a stricter rule, the owner's decision).
 during steps that report none (it read 99% while the files were built and
 13% while install.wim was split); it must show that it is still working.
 
+**Decided (2026-10-02, the owner): the way back carries Wi-Fi, as the
+forward path does.** On the Aspire's first way back Windows came up offline
+(our answer file skips its Wi-Fi screen), so it could not activate until the
+owner joined a network by hand. Going forward this is a given: the networks
+Linux knows go across as Windows profiles and are in place before the first
+sign-in (`architecture.md`, "The way back to Windows"). What can go wrong:
+the passwords are on the stick for the trip (the forward path's rule: deleted
+from it once used, and at every stop; never in a record); a network Windows
+cannot take (an enterprise sign-in) is listed, not guessed; and the step
+that adds them must run on every computer, not from `SetupComplete.cmd`
+alone (see the Aspire's password finding). Not built.
+
 **Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on
 and nobody at the keyboard, ending at the Windows sign-in; then one real
 machine (the Aspire, run under R23 on its dying SSD first), with a physical

@@ -1260,6 +1260,21 @@ It is built in two stages:
      firmware key itself (R13). A computer without one may stop at Setup's
      key page, which would break walk-away: the rig has no firmware key,
      so it shows what happens (R33).
+   - **Decided (2026-10-02, the owner): Wi-Fi comes along, both ways, as a
+     given.** Going to Linux already carries the saved networks and their
+     passwords (`harvest.wifi`, set up by `settle-in`). Going back must do
+     the same: the networks Linux knows (NetworkManager's saved
+     connections) are written as Windows Wi-Fi profiles onto the stick, and
+     the new Windows adds them before anyone signs in, so it is online from
+     its first start (and can activate). The same rules as the forward path:
+     the passwords sit on the stick only for the trip, are deleted from it
+     once Windows has added them (and at every stop), never go into a
+     record, and the screen says so before the sentence is typed (words to
+     be approved). Not built. Open: Windows runs `SetupComplete.cmd` only on
+     some computers (on the Aspire, which has a maker's key in its firmware,
+     the password step in it did not take effect, 2026-10-02), so the step
+     that adds the profiles must run from a hook that runs on every
+     computer (R33).
 
 ### Scope boundary
 

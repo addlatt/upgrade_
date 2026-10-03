@@ -1008,6 +1008,10 @@ the Linux side offers a new, empty Windows, and says what that costs first
    Windows sign-in; both disks rewritten (Windows on the system disk, one
    empty NTFS volume on the second), the gate's record on the stick. Then
    the Aspire: a physical cancel first, then the erase.
+   **Added 2026-10-02 (the owner): Wi-Fi.** The erase arm also passes only
+   when the new Windows is on the network the Linux side knew, at its
+   first start, with no Wi-Fi password left on the stick (spoofed networks
+   on the rig, as `settle-in`'s rows do; a real network on the Aspire).
 
 **Pass.** Step 3 puts back an activated Windows on at least two real
 machines with different licence kinds (a firmware key; a digital licence
