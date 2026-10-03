@@ -3381,6 +3381,10 @@ serial number outright (a stricter rule, the owner's decision).
 **Also found:** the window's progress bar sits at the last percentage
 during steps that report none (it read 99% while the files were built and
 13% while install.wim was split); it must show that it is still working.
+**Fixed (2026-10-03, unfired):** every step now says when it starts (the
+preparation's and the stick writer's); the window names the step, clears the
+old percentage, and where a step has none shows a moving bar, "Still
+working", and how long the step has run (words DRAFT).
 
 **Decided (2026-10-02, the owner): the way back carries Wi-Fi, as the
 forward path does** (and, as a general rule, every OS switch does:

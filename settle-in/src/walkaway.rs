@@ -531,7 +531,12 @@ pub fn words(plan: &Value) -> Value {
         "preparing": {
             "heading": "Preparing",
             "steps": { "consent": "Checking your decision", "drives": "Naming the drives", "room": "Checking space", "catalog": "Asking Microsoft which file",
-                       "download": "Downloading Windows from Microsoft", "build": "Preparing Windows' files", "stick": "Writing the USB stick", "boot-once": "Setting the computer to start from the stick once" },
+                       "download": "Downloading Windows from Microsoft", "build": "Preparing Windows' files (the longest step)", "wifi": "Copying your Wi-Fi networks",
+                       "stick": "Writing the USB stick", "check-file": "Writing the USB stick: checking the files", "find-stick": "Writing the USB stick: finding it again",
+                       "partition": "Writing the USB stick: preparing it", "format": "Writing the USB stick: formatting it", "copy": "Writing the USB stick: copying",
+                       "split": "Writing the USB stick: Windows' largest file (slow on some sticks)", "read-back": "Writing the USB stick: checking every file",
+                       "boot-once": "Setting the computer to start from the stick once" },
+            "working": "Still working. This step shows no percentage; it has been running for",
         },
         "ready": {
             "heading": "Ready",

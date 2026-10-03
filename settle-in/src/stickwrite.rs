@@ -50,6 +50,11 @@ struct Log {
     steps: Vec<Value>,
 }
 
+/// A step starts (the window names it; 2026-10-03).
+fn begin(step: &str) {
+    eprintln!("{}", json!({ "step": step, "start": true }));
+}
+
 impl Log {
     fn ok(&mut self, step: &str, detail: Value) {
         eprintln!("{}", json!({ "step": step, "ok": true }));
@@ -273,6 +278,7 @@ pub fn write(req: &Request) -> Value {
         }
     };
 
+    begin("partition");
     // the last moment nothing has been written
     let mut disk = match std::fs::OpenOptions::new().read(true).write(true).custom_flags(libc::O_EXCL).open(&dev) {
         Ok(f) => f,
@@ -308,6 +314,7 @@ pub fn write(req: &Request) -> Value {
         return log.stop("partition", format!("{} did not appear", part), true);
     }
     log.ok("partition", json!({ "table": "dos", "partition": part, "type": "0x0C FAT32 LBA, active" }));
+    begin("format");
     if let Err(e) = run("mkfs.vfat", &["-F", "32", "-n", LABEL, &part]) {
         return log.stop("format", e, true);
     }
@@ -351,6 +358,7 @@ pub fn write(req: &Request) -> Value {
     if total + 64 * 1024 * 1024 > end {
         return log.stop("read-installer", format!("the installer needs {:.1} GB; the stick holds {:.1} GB", total as f64 / 1e9, end as f64 / 1e9), true);
     }
+    begin("copy");
     let mut sums = Vec::new();
     let mut done = 0u64;
     for (rel, size) in &copy {
@@ -362,6 +370,7 @@ pub fn write(req: &Request) -> Value {
         eprintln!("{}", json!({ "progress": done, "total": total }));
     }
     log.ok("copy", json!({ "files": copy.len(), "bytes": done }));
+    begin("split");
     if let Some(wim) = &split {
         let src = format!("{}/{}", isodir, wim);
         let dst = format!("{}/sources/install.swm", stickdir);
@@ -371,6 +380,7 @@ pub fn write(req: &Request) -> Value {
         log.ok("split", json!({ "from": wim, "to": "sources/install*.swm", "part_mb": SPLIT_MB }));
     }
 
+    begin("read-back");
     // read back: unmount, drop the cache, mount read-only, compare
     let _ = run("umount", &[&stickdir]);
     mounts.points.retain(|p| p != &stickdir);

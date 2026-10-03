@@ -41,8 +41,10 @@ enum Page {
 /// A long job in a thread: its stderr progress lines and its final JSON.
 struct Job {
     rx: mpsc::Receiver<Value>,
-    progress: f32,
+    /// None while the current step has said no percentage (shown as working, not frozen)
+    progress: Option<f32>,
     step: String,
+    since: std::time::Instant,
 }
 
 fn spawn(ctx: &egui::Context, prog: &str, args: Vec<String>) -> Job {
@@ -78,7 +80,7 @@ fn spawn(ctx: &egui::Context, prog: &str, args: Vec<String>) -> Job {
         let _ = tx.send(json!({ "done": v }));
         ctx.request_repaint();
     });
-    Job { rx, progress: 0.0, step: String::new() }
+    Job { rx, progress: None, step: String::new(), since: std::time::Instant::now() }
 }
 
 pub struct GoBack {
@@ -132,13 +134,19 @@ impl GoBack {
         if let Some(job) = &mut self.job {
             while let Ok(m) = job.rx.try_recv() {
                 if let Some(l) = m.get("line") {
+                    // a step that starts (or a new step) clears the old percentage
+                    if let Some(s) = l["step"].as_str()
+                        && (l["start"] == json!(true) || s != job.step) && l.get("progress").is_none() {
+                            if l["start"] == json!(true) || s != job.step {
+                                job.step = s.to_string();
+                                job.progress = None;
+                                job.since = std::time::Instant::now();
+                            }
+                        }
                     if let (Some(d), Some(t)) = (l["progress"].as_u64(), l["total"].as_u64())
                         && t > 0 {
-                            job.progress = d as f32 / t as f32;
+                            job.progress = Some(d as f32 / t as f32);
                         }
-                    if let Some(s) = l["step"].as_str() {
-                        job.step = s.to_string();
-                    }
                 }
                 if let Some(d) = m.get("done") {
                     finished = Some(d.clone());
@@ -231,7 +239,15 @@ impl GoBack {
                     if let Some(j) = &self.job {
                         let name = self.plan.pointer(&format!("/words/preparing/steps/{}", j.step)).and_then(Value::as_str).unwrap_or(&j.step).to_string();
                         ui.label(name);
-                        ui.add(egui::ProgressBar::new(j.progress).show_percentage());
+                        match j.progress {
+                            Some(p) => { ui.add(egui::ProgressBar::new(p).show_percentage()); }
+                            None => {
+                                ui.add(egui::ProgressBar::new(0.0).animate(true));
+                                let s = j.since.elapsed().as_secs();
+                                ui.label(format!("{} {}:{:02}", self.w("preparing/working"), s / 60, s % 60));
+                            }
+                        }
+                        ctx.request_repaint_after(std::time::Duration::from_millis(500));
                     }
                 }
                 Page::Ready => {

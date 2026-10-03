@@ -387,6 +387,9 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
                     steps.push(json!({ "step": $step, "ok": true, "detail": $detail }));
                 }};
             }
+            // each step says when it starts, so the window can name it and show
+            // that it is working even where there is no percentage (2026-10-03)
+            let begin = |step: &str| eprintln!("{}", json!({ "step": step, "start": true }));
             // SAFETY: geteuid has no preconditions.
             if unsafe { libc::geteuid() } != 0 {
                 return stop(&mut steps, "rights", "preparing the way back needs administrator rights (run it through pkexec)".into());
@@ -404,6 +407,7 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
             };
             ok!("consent", json!({ "windows": windows, "edition": edition, "language": language, "account": account }));
             // 2. the drives to erase, named now; the gate finds them again
+            begin("drives");
             let drives = match drives {
                 Ok(d) => d,
                 Err(e) => return stop(&mut steps, "drives", e),
@@ -415,6 +419,7 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
                 return stop(&mut steps, "room", format!("{}: {}", cache, e));
             }
             let _ = std::fs::set_permissions(&cache, std::os::unix::fs::PermissionsExt::from_mode(0o700));
+            begin("room");
             let free = walkaway::free_bytes(&cache);
             if free < 14_000_000_000 {
                 return stop(&mut steps, "room", format!("this computer needs 14 GB free to prepare Windows; it has {:.1} GB", free as f64 / 1e9));
@@ -422,6 +427,7 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
             // 4. Microsoft's catalog, then its file
             let exe_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_string_lossy().to_string())).unwrap_or_default();
             let tool = |n: &str| opt(&format!("--{}", n)).unwrap_or_else(|| format!("{}/{}", exe_dir, n));
+            begin("catalog");
             let xml = match walkaway::fetch_catalog(&windows, &cache, &tool("cabextract")) {
                 Ok(x) => x,
                 Err(e) => return stop(&mut steps, "catalog", e),
@@ -431,6 +437,7 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
                 Err(e) => return stop(&mut steps, "catalog", e),
             };
             ok!("catalog", entry.clone());
+            begin("download");
             let esd = match walkaway::download(&entry, &cache) {
                 Ok(p) => p,
                 Err(e) => return stop(&mut steps, "download", e),
@@ -438,6 +445,7 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
             ok!("download", json!({ "file": esd, "sha1": entry["sha1"], "size": entry["size"] }));
             // 5. the stick's files
             let tree = format!("{}/stick-{}", cache, started.replace(':', ""));
+            begin("build");
             let built = match walkaway::build_tree(&esd, edition, &account, &tree, &tool("upgrade-gate.exe"), &tool("wimlib-imagex")) {
                 Ok(b) => b,
                 Err(e) => {
@@ -446,6 +454,7 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
                 }
             };
             // Wi-Fi comes along (decided 2026-10-02): profiles onto the stick, names into the job
+            begin("wifi");
             let wifi = match walkaway::carry_wifi(root, &tree) {
                 Ok(w) => w,
                 Err(e) => {
@@ -475,6 +484,7 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
                 wimlib: tool("wimlib-imagex"),
                 root: root.to_string(),
             };
+            begin("stick");
             let w = stickwrite::write(&req);
             let _ = std::fs::remove_dir_all(&tree);
             if w["result"] != "written" {
@@ -487,6 +497,7 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
             if req.image.is_some() || args.iter().any(|a| a == "--no-boot-entry") {
                 return finish(&mut steps, json!({ "result": "ready", "job_id": job_id, "boot_once": null, "note": "no boot entry: a test image, or asked not to" }));
             }
+            begin("boot-once");
             let usb_disks = sticks::collect(root).as_array().map(|a| a.iter().filter(|d| d["usb"] == json!(true)).count()).unwrap_or(0);
             match walkaway::boot_once(&stick_name, usb_disks) {
                 Ok(b) => {
