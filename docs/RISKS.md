@@ -3111,6 +3111,13 @@ reinstalls Windows by hand with Microsoft's installer before the follow-up
 run, and that run's job records whether activation came back. One machine,
 by hand, not the guided tool.
 
+**First after-reinstall data point (the Aspire, 2026-10-03).** Windows 11
+Home put back by the walk-away way back (R33) onto the same SSD reported
+"activated with a digital license" once online, with no key typed and none
+written by us. The firmware carries a maker's key (`MSDM`, seen 2026-09-27).
+One machine, one licence kind (a firmware key); a digital licence without a
+firmware key is still owed.
+
 **Closes when** the guided stick has put back an activated Windows on
 real machines of at least two licence kinds (a firmware key, and a digital
 licence without one), each run leaving its harvest from before and after
@@ -3387,6 +3394,36 @@ from it once used, and at every stop; never in a record); a network Windows
 cannot take (an enterprise sign-in) is listed, not guessed; and the step
 that adds them must run on every computer, not from `SetupComplete.cmd`
 alone (see the Aspire's password finding). Not built.
+
+**The first real way back (the Aspire, 2026-10-01..03, `v11-walkaway.csv`
+line 2, `fail`).** Fedora to Windows 11 Home on the real machine, Secure
+Boot on: the gate (0.1.1) found the stick after waiting 2 s, matched the SSD
+and the 1 TB drive by serial (the stick, disk 2, left alone), counted down
+the full 120 s with nobody at the keyboard, wrote an answer file wiping
+exactly those two drives, and Windows Setup ran to the sign-in with no
+product key page. The owner signed in, joined Wi-Fi, and Windows reported
+**activated with a digital license** (R30's first after-reinstall data point).
+It is a `fail` row by the bar set for it, for four reasons, each in the row:
+
+- **The program's own start from the stick did not work on this firmware.**
+  `BootNext` to our own entry was passed over; the run used a tester icon
+  pointing `BootNext` at the firmware's own USB entry (Boot2001). Before
+  that, gate 0.1.0 refused twice because the stick was not yet visible in
+  WinPE (fixed in 0.1.1, put on the stick from Fedora).
+- **No password was forced.** `go-back-installed.txt` is missing:
+  Windows did not run `SetupComplete.cmd`. Leading explanation, from memory
+  and still to be checked against Microsoft's documentation: Windows skips
+  it on computers whose firmware carries a maker's (OEM) key, which the
+  Aspire does and the rig does not. The owner set a password by hand. Until
+  fixed, the account starts with no password: a security gap, not a cosmetic one.
+- **Windows was offline at its first start** (the 2026-10-02 rule).
+- **The cancel was not tested on real hardware** (the countdown ran out);
+  still owed.
+
+The no-name stick limitation recorded on 2026-10-02 is **weaker than first
+written**: this same stick did start the Aspire, through the firmware's own
+USB entry. What stands: it has no serial number, and starting from it was
+inconsistent (one "no usb boot option").
 
 **Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on
 and nobody at the keyboard, ending at the Windows sign-in; then one real
