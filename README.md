@@ -134,7 +134,7 @@ Think of each bar as how far along the road a step has got:
 | **Reading BitLocker drives from Linux** (V3) | `[###.]` | [`v3-bitlk-read.csv`](docs/validation-results/v3-bitlk-read.csv): works using `ntfs-3g` |
 | **Spotting the RST / VMD disk setting** (V5) | `[##..]` | [`v5-controller-mode.csv`](docs/validation-results/v5-controller-mode.csv): one side is tested for real, but **VMD itself has never been caught on a real machine** |
 | **`settle-in`**: first boot checks, copy files, clean-up | `[#...]` | only the BitLocker reading is proven |
-| **Clock, Wi-Fi passwords, the leftover Windows boot entry** | `[#...]` | planned 2026-09-26: collected on Windows, applied on first boot |
+| **Clock, Wi-Fi passwords, the leftover Windows boot entry** | `[###.]` | [`settle-in-first-start.csv`](docs/validation-results/settle-in-first-start.csv): built 2026-09-27; collected on Windows, applied by `settle-in` on first boot, with a button for the old entry. Passes on the rig (KDE and GNOME, runs up to 13 on 2026-09-29). A real machine is still owed |
 | **Offer to delete Windows when it can't be kept** (R26) | `[#...]` | planned 2026-09-26 |
 | **Different laptop brands** | `[#...]` 1 of 4+ | Acer so far. Dell, Lenovo and HP still to go |
 | **Code signing** | `[....]` | until it's signed, Windows Defender treats it like malware |
