@@ -3448,7 +3448,10 @@ It is a `fail` row by the bar set for it, for four reasons, each in the row
 The no-name stick limitation recorded on 2026-10-02 is **weaker than first
 written**: this same stick did start the Aspire, through the firmware's own
 USB entry. What stands: it has no serial number, and starting from it was
-inconsistent (one "no usb boot option").
+inconsistent (one "no usb boot option"). Further evidence (2026-10-03): the
+old 8 GB kit stick that started this Aspire in V0 and run 9 is a "General
+UDisk" too, the same no-name family. So the limitation stands only as "no
+serial number; booting it was inconsistent once", not as "cannot boot".
 
 **The fixes on the rig (2026-10-03, not a row).** `walkaway prepare` (as root
 in WSL, `--image`, a made-up root describing the rig VM's disk and two
