@@ -939,7 +939,10 @@ to cancel.
 Most rows are the rig. Line 11 is the Aspire's physical run 9 (2026-09-26,
 `fail`: it erased and installed unattended but came up at a text login,
 fixed in kickstart generator 0.3.0). Lines 12-13 are the rig's GNOME and
-KDE desktops seen and signed in (2026-09-27).
+KDE desktops seen and signed in (2026-09-27). The rows of 2026-09-29 (C, B,
+B3) re-prove the kit the Aspire's next run carries (552b6fb); B3 is arm B
+again, a key test (RISKS R27). From that date an arm named with a number is
+judged by its letter.
 
 One row per arm, written by `rig/hyperv/v9-verdict.py` from the arm's own
 evidence (`rig/hyperv/v9.sh`; never by hand). The guest is a copy of the
@@ -966,3 +969,21 @@ evidence it earned gets a line here with `result` = `owed`. The line turns
 `pass` only when a Rust test or a re-run row matches it. The columns are
 described in [../VALIDATION.md](../VALIDATION.md), V13. Header only on
 2026-09-27: nothing ported yet.
+
+## `v11-walkaway.csv`: the walk-away way back to Windows (gate V11 step 4, risk R33)
+
+The program on Linux downloads Windows from Microsoft's catalog, writes a
+stick and starts from it once; the gate on the stick finds the drives, counts
+down two minutes, and Windows Setup erases and installs with nobody at the
+keyboard. One row per real run, written by `rig/hyperv/v11w-verdict.py` from
+the records copied off the stick (`go-back.json`, `go-back-gate.json`,
+`go-back-unattend.xml`, `go-back-installed.txt`); what only a person at the
+machine can see is passed as observations and the row says so. Never by hand.
+
+A row reads `windows-reached` only when the gate crossed after a full
+countdown, every drive matched, the answer file wipes exactly those drives
+and never the stick, Windows ran SetupComplete, no product key page showed,
+the password was forced, the program itself started the stick, and the new
+Windows was online at its first start. Anything less is `fail`, every reason
+in the notes. Line 2 is the Aspire's first run (2026-10-03): Windows 11
+reached and activated, `fail` for four reasons (RISKS R33).

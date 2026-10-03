@@ -98,10 +98,17 @@ pub fn collect(root: &str) -> Value {
             "bus": u.get("ID_BUS"),
             "removable": read(&format!("{}/removable", sys)) == Some("1".into()),
             "rotational": read(&format!("{}/queue/rotational", sys)) == Some("1".into()),
+            // whether the drive itself said how it spins (SCSI VPD page B1). Without
+            // it, rotational=1 is only the kernel's default: the 16 GB stick on the
+            // Aspire, 2026-09-29, while its real HDD and SSD both report it
+            "rotation_reported": std::path::Path::new(&format!("{}/device/vpd_pgb1", sys)).exists(),
             "read_only": read(&format!("{}/ro", sys)) == Some("1".into()),
             "vendor": read(&format!("{}/device/vendor", sys)),
             "model": read(&format!("{}/device/model", sys)).or_else(|| u.get("ID_MODEL").cloned()),
             "serial": u.get("ID_SERIAL_SHORT").or(u.get("ID_SERIAL")),
+            // the world-wide name (NAA / EUI): Hyper-V's disks have no serial in WinPE,
+            // and Windows gives NVMe drives' EUI as their serial (R33, 2026-09-29)
+            "wwn": u.get("ID_WWN_WITH_EXTENSION").or(u.get("ID_WWN")).cloned().or_else(|| read(&format!("{}/wwid", sys)).or_else(|| read(&format!("{}/device/wwid", sys)))),
             "partitions": parts,
         }));
     }
@@ -121,7 +128,9 @@ pub fn refusals(d: &Value, all: &[Value], min_bytes: u64) -> Vec<String> {
     if d["removable"] != json!(true) {
         why.push("it does not call itself removable (USB hard drives and SSDs usually don't; they are somebody's backup)".to_string());
     }
-    if d["rotational"] == json!(true) {
+    // a hard drive only when the drive says so; an older recording without the
+    // field keeps the old, stricter reading
+    if d["rotational"] == json!(true) && d["rotation_reported"] != json!(false) {
         why.push("it is a hard drive, not a stick".to_string());
     }
     if d["read_only"] == json!(true) {
@@ -227,6 +236,20 @@ mod tests {
 
     fn one(d: &Value) -> Vec<String> {
         refusals(d, std::slice::from_ref(d), 8 * GB)
+    }
+
+    #[test]
+    fn a_stick_the_kernel_only_guesses_spins_is_still_a_stick() {
+        // the Aspire, 2026-09-29: a 16 GB "General UDisk" with rotational=1 and no
+        // VPD page B1; its real HDD reported rotational=1 WITH page B1
+        let mut d = stick("sdc", "General_UDisk-0:0", 15_664_676_864);
+        d["rotational"] = json!(true);
+        d["rotation_reported"] = json!(false);
+        assert!(refusals(&d, &[d.clone()], 14_000_000_000).is_empty());
+        d["rotation_reported"] = json!(true);
+        assert!(refusals(&d, &[d.clone()], 14_000_000_000).contains(&"it is a hard drive, not a stick".to_string()));
+        d.as_object_mut().unwrap().remove("rotation_reported");
+        assert!(refusals(&d, &[d.clone()], 14_000_000_000).contains(&"it is a hard drive, not a stick".to_string()));
     }
 
     #[test]

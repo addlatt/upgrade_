@@ -33,6 +33,9 @@ const PATH_ENV: &str = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:
 
 pub struct Request {
     pub iso: String,
+    /// The walk-away way back (R33): a folder already built from Microsoft's
+    /// catalog file (walkaway::build_tree), checked there, instead of an ISO.
+    pub tree: Option<String>,
     pub want: Option<String>,
     pub serial: String,
     pub size_bytes: u64,
@@ -45,6 +48,11 @@ pub struct Request {
 /// What happened, step by step. Every stop names its step and reason.
 struct Log {
     steps: Vec<Value>,
+}
+
+/// A step starts (the window names it; 2026-10-03).
+fn begin(step: &str) {
+    eprintln!("{}", json!({ "step": step, "start": true }));
 }
 
 impl Log {
@@ -203,14 +211,25 @@ pub fn write(req: &Request) -> Value {
         }
     }
 
-    // 1. the file, again
-    let chk = goback::check_report(&req.iso, req.want.as_deref(), &goback::media());
-    if chk["result"] != "verified" {
-        return log.stop("check-file", chk["why"].as_str().unwrap_or("the file is not Microsoft's installer").to_string(), false);
-    }
-    let iso_size = chk["size"].as_u64().unwrap_or(0);
-    log.ok("check-file", json!({ "sha256": chk["sha256"], "media": chk["media"] }));
-    let min = iso_size + 256 * 1024 * 1024;
+    // 1. the file, again (or the built folder: its source was checked against
+    //    Microsoft's catalog when it was built, and it must look like Setup's)
+    let (chk, min) = if let Some(t) = &req.tree {
+        let need = ["setup.exe", "bootmgr.efi", "efi/boot/bootx64.efi", "sources/boot.wim", "sources/install.wim", "upgrade_/go-back.json"];
+        if let Some(m) = need.iter().find(|n| !std::path::Path::new(&format!("{}/{}", t, n)).exists()) {
+            return log.stop("check-file", format!("the prepared Windows files are incomplete ({} is missing)", m), false);
+        }
+        let total: u64 = walk(t).map(|f| f.iter().map(|x| x.1).sum()).unwrap_or(0);
+        log.ok("check-file", json!({ "tree": t, "bytes": total }));
+        (json!({ "media": { "windows": req.want, "language": null } }), total + 256 * 1024 * 1024)
+    } else {
+        let chk = goback::check_report(&req.iso, req.want.as_deref(), &goback::media());
+        if chk["result"] != "verified" {
+            return log.stop("check-file", chk["why"].as_str().unwrap_or("the file is not Microsoft's installer").to_string(), false);
+        }
+        let iso_size = chk["size"].as_u64().unwrap_or(0);
+        log.ok("check-file", json!({ "sha256": chk["sha256"], "media": chk["media"] }));
+        (chk, iso_size + 256 * 1024 * 1024)
+    };
 
     let mut mounts = Mounts { points: Vec::new(), loops: Vec::new() };
     // 2. the stick, found again
@@ -259,6 +278,7 @@ pub fn write(req: &Request) -> Value {
         }
     };
 
+    begin("partition");
     // the last moment nothing has been written
     let mut disk = match std::fs::OpenOptions::new().read(true).write(true).custom_flags(libc::O_EXCL).open(&dev) {
         Ok(f) => f,
@@ -294,6 +314,7 @@ pub fn write(req: &Request) -> Value {
         return log.stop("partition", format!("{} did not appear", part), true);
     }
     log.ok("partition", json!({ "table": "dos", "partition": part, "type": "0x0C FAT32 LBA, active" }));
+    begin("format");
     if let Err(e) = run("mkfs.vfat", &["-F", "32", "-n", LABEL, &part]) {
         return log.stop("format", e, true);
     }
@@ -308,12 +329,17 @@ pub fn write(req: &Request) -> Value {
         }
     }
     let _ = std::fs::set_permissions(&base, std::os::unix::fs::PermissionsExt::from_mode(0o700));
-    if run("mount", &["-o", "ro,loop", "-t", "udf", &req.iso, &isodir]).is_err() {
-        if let Err(e) = run("mount", &["-o", "ro,loop", "-t", "iso9660", &req.iso, &isodir]) {
-            return log.stop("mount", e, true);
+    let isodir = if let Some(t) = &req.tree {
+        t.clone()
+    } else {
+        if run("mount", &["-o", "ro,loop", "-t", "udf", &req.iso, &isodir]).is_err() {
+            if let Err(e) = run("mount", &["-o", "ro,loop", "-t", "iso9660", &req.iso, &isodir]) {
+                return log.stop("mount", e, true);
+            }
         }
-    }
-    mounts.points.push(isodir.clone());
+        mounts.points.push(isodir.clone());
+        isodir
+    };
     if let Err(e) = run("mount", &["-t", "vfat", "-o", "flush", &part, &stickdir]) {
         return log.stop("mount", e, true);
     }
@@ -332,6 +358,7 @@ pub fn write(req: &Request) -> Value {
     if total + 64 * 1024 * 1024 > end {
         return log.stop("read-installer", format!("the installer needs {:.1} GB; the stick holds {:.1} GB", total as f64 / 1e9, end as f64 / 1e9), true);
     }
+    begin("copy");
     let mut sums = Vec::new();
     let mut done = 0u64;
     for (rel, size) in &copy {
@@ -343,6 +370,7 @@ pub fn write(req: &Request) -> Value {
         eprintln!("{}", json!({ "progress": done, "total": total }));
     }
     log.ok("copy", json!({ "files": copy.len(), "bytes": done }));
+    begin("split");
     if let Some(wim) = &split {
         let src = format!("{}/{}", isodir, wim);
         let dst = format!("{}/sources/install.swm", stickdir);
@@ -352,6 +380,7 @@ pub fn write(req: &Request) -> Value {
         log.ok("split", json!({ "from": wim, "to": "sources/install*.swm", "part_mb": SPLIT_MB }));
     }
 
+    begin("read-back");
     // read back: unmount, drop the cache, mount read-only, compare
     let _ = run("umount", &[&stickdir]);
     mounts.points.retain(|p| p != &stickdir);
@@ -455,7 +484,7 @@ mod tests {
         if unsafe { libc::geteuid() } == 0 {
             return;
         }
-        let r = write(&Request { iso: "/nonexistent".into(), want: None, serial: "X".into(), size_bytes: 1, typed: "X".into(), image: None, wimlib: "/nonexistent".into(), root: "/".into() });
+        let r = write(&Request { iso: "/nonexistent".into(), tree: None, want: None, serial: "X".into(), size_bytes: 1, typed: "X".into(), image: None, wimlib: "/nonexistent".into(), root: "/".into() });
         assert_eq!(r["result"], "stopped");
         assert_eq!(r["stopped_at"], "rights");
         assert_eq!(r["stick_changed"], false);

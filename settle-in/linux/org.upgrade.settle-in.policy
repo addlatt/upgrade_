@@ -5,8 +5,9 @@
      button raises (approved 2026-09-27, the owner). Without this file the
      desktop shows the program's path. Installed in /usr/share/polkit-1/actions/
      by the installer adapter. Two actions, told apart by the first argument:
-     `settle-in remove-old-boot-entry` and `settle-in go-back` (whose only
-     root step is `write`; the go-back words are a DRAFT, 2026-09-27). -->
+     `settle-in remove-old-boot-entry` and `settle-in go-back` (its root
+     steps: `write`, and since 2026-09-29 `walkaway prepare` and `walkaway
+     undo`, RISKS R33; the go-back words are a DRAFT). -->
 <policyconfig>
   <vendor>upgrade_</vendor>
   <action id="org.upgrade.settle-in.remove-old-boot-entry">
@@ -21,8 +22,8 @@
     <annotate key="org.freedesktop.policykit.exec.argv1">remove-old-boot-entry</annotate>
   </action>
   <action id="org.upgrade.settle-in.go-back-write">
-    <description>Make a Windows installer stick</description>
-    <message>Making a Windows installer stick deletes everything on the USB stick you chose. Nothing else on this computer changes. Type your password to allow it.</message>
+    <description>Prepare the way back to Windows</description>
+    <message>Preparing the way back to Windows deletes everything on the USB stick you chose and sets this computer to start from it once. Nothing on this computer is deleted until the countdown after the restart ends. Type your password to allow it.</message>
     <defaults>
       <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>

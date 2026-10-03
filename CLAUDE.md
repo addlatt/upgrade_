@@ -310,6 +310,12 @@ user's files from the kept Windows partition** (default path), and offers
 reclaim once everything is confirmed. No external drive anywhere: one stick
 is the whole kit.
 
+The module names are roles, not OSes: `evaluate` runs on the OS being left,
+`settle-in` on the OS being arrived in. **Decided (2026-10-02, the owner):
+every OS switch, in any direction, carries the Wi-Fi networks and their
+passwords as part of the one click** (`architecture.md`, "What migrates").
+A new direction is not finished until it does.
+
 ## Layout
 
 ```

@@ -2863,6 +2863,33 @@ writer 0.14.0 refuses the placeholder unless `-VerifyOnly` (`RUN-VERIFY.cmd`,
 which installs nothing). All four install launchers now ask for the
 password and name the account, before and after.
 
+**The Aspire's kit, proven on the rig first (2026-09-29, kit 552b6fb,
+prologue 0.11.0, verify 0.5.0, outcome 0.5.0).** The exact tree the
+Aspire's next run will carry, built by `make-kit.sh` from `main`, ran arms C
+and B on the rig. Arm C (`v9-erase.csv`, the C row of 2026-09-29):
+`erased-installed`, KDE, graphical sign-in; settle-in's run 13 on the same
+install is `pass-plumbing` (window in front, the button removed the stale
+Windows entry, the next boot came up from Fedora's). Arm B: the
+prologue's first cancel on 0.11.0; `cancelled-untouched`, and the stick's
+Wi-Fi passwords were gone after the return.
+
+**Found the same night: two key presses the countdown never read.** In the
+B row, the rig sent Space twice (Hyper-V's `Msvm_Keyboard` `TypeKey 32`, at
+33 s and 52 s into the countdown) and nothing happened; Enter and A at
+66.6 s cancelled at once (`verify.log`: "cancelled after 66.6 s"). Two
+controlled runs followed. B2: the letter B as the first key, cancelled at
+18.0 s. B3 (its own row): Space as the first and only key, cancelled at
+9.9 s. So neither Space nor "the first key" is always lost. **Why the two
+presses went unread is not found.** The code reads any byte, so the cause
+is most likely the rig's virtual keyboard, but that is argument (rule #2).
+It sits on the commit line's only exit, so: **the Aspire's run gets a
+physical cancel before the real erase**, which is also the "real keyboard
+on the countdown" residue below. The harness had two faults of its own,
+fixed the same night: `v9.sh verdict` dropped its note argument (the C and B
+rows above carry none), and `v9-verdict.py` judged a re-run named "B3" as an
+erase and wrote `fail`. It now judges by the arm's letter; that misjudged
+line, uncommitted and minutes old, was removed and the verdict run again.
+
 **Unspoofable residue (rule #5), for the Aspire's physical row:**
 
 - Secure Boot on (the rig's is off). Run 9 installed with it on
@@ -3084,6 +3111,13 @@ reinstalls Windows by hand with Microsoft's installer before the follow-up
 run, and that run's job records whether activation came back. One machine,
 by hand, not the guided tool.
 
+**First after-reinstall data point (the Aspire, 2026-10-03).** Windows 11
+Home put back by the walk-away way back (R33) onto the same SSD reported
+"activated with a digital license" once online, with no key typed and none
+written by us. The firmware carries a maker's key (`MSDM`, seen 2026-09-27).
+One machine, one licence kind (a firmware key); a digital licence without a
+firmware key is still owed.
+
 **Closes when** the guided stick has put back an activated Windows on
 real machines of at least two licence kinds (a firmware key, and a digital
 licence without one), each run leaving its harvest from before and after
@@ -3190,3 +3224,233 @@ corpus replays as `cargo test`, rig rows re-run by the same
 release is rebuilt byte for byte from the source by someone else. A replay
 of recorded tool output closes the decision, never the firmware's
 behaviour: that part of a physical row takes the machine again.
+
+## R33: The walk-away way back to Windows · critical · open (decided 2026-09-29; nothing built)
+
+**What.** "Go back to Windows", 100% managed (decided 2026-09-29, the
+owner; `architecture.md`, "The way back to Windows", stage 2). From the
+installed Linux: download Windows from Microsoft's catalog, build a stick,
+restart into it once, and a gate program of ours on the stick checks the
+drives and shows a 2-minute countdown. When it ends, Windows Setup erases
+**both internal drives** and installs Windows, with nobody at the keyboard.
+It is the forward erase (R27) in reverse, so it carries R27's bar and rule
+#4: built with its rig arms (refuse, cancel, erase) before a real machine.
+R30 keeps the guided stick and the activation question; this entry is the
+erase.
+
+**If real.** What can go wrong:
+
+- **The wrong drive is erased.** In WinPE, disk numbers are not the ones
+  Linux saw. The gate finds each drive by serial and exact size and writes
+  the answer file with the numbers it found. No match, no erase.
+- **The download is not Microsoft's file.** The catalog comes over HTTPS
+  from `download.microsoft.com`. The file itself comes over plain HTTP
+  (its host refused HTTPS, 2026-09-29), so its size and SHA-1 must match
+  the catalog. SHA-1 has known collision attacks; none makes a second file
+  match a hash already published. Setup's boot files are also checked by
+  Secure Boot. The catalog's own signature is not yet checked on Linux.
+- **The countdown does not cancel.** The same clause as R27, in a
+  different environment (WinPE's console). R27's rig lost two key presses
+  on 2026-09-29, cause not found; the gate needs its own cancel arm, on the
+  rig and on real hardware.
+- **Setup stops and waits.** An answer file that misses one question
+  leaves Setup waiting at a screen, with Linux already erased. The two
+  known candidates: the product key page on a computer without a firmware
+  key, and Windows 11's account screens. Only a rig run with nobody at the
+  keyboard shows it.
+- **The boot into the stick.** Linux sets a one-time boot entry for the
+  stick (`BootNext`). Firmware that ignores it boots Linux again: safe, but
+  the program must say so. Firmware that keeps it would start Setup twice.
+- **Windows 11 refuses the processor.** Setup checks it after the gate,
+  so the check must come before the countdown (the program's offer, R30)
+  or Setup stops after the erase.
+- **The account without a password.** Created with "change at first
+  sign-in", so no password is on the stick. Whether Windows 11 24H2 accepts
+  that from an answer file is unproven.
+
+**Decided (2026-09-29, the owner).** Microsoft's catalog (reversing the
+browser download of 2026-09-27); both drives erased, the second left empty;
+the commit line in the gate on the stick, before Setup.
+
+**The first spike (2026-09-29, the rig, not a row).** Before any product
+code, by hand in WSL: the Windows 11 catalog (`Products-Win11-24H2-6B.cab`)
+over HTTPS, the English x64 consumer `.esd` over HTTP (4,680,320,173 bytes,
+SHA-1 `8ceab283...` = the catalog's), and a stick built from it with the
+kit's wimlib (image 1 copied out; images 2 and 3 into `boot.wim`; Home,
+image 4, into `install.wim` split into two `install.swm` parts). A new
+Generation 2 VM, Secure Boot on (Microsoft's template), a virtual TPM, no
+network, an empty 80 GB disk. Two findings:
+
+- **With no key in the answer file, Setup stopped at its "Product key"
+  page** (`<WillShowUI>OnError</WillShowUI>`, no `<Key>`). The rig has no
+  firmware key, so this is the digital-licence case: it would have stopped
+  after the erase. **`<Key></Key>` with `<WillShowUI>Never</WillShowUI>`
+  went past it.** No key is written anywhere.
+- **Then nothing stopped.** Setup installed, restarted, put Windows Boot
+  Manager first in the firmware's order itself, skipped Windows' first-run
+  screens offline (`HideOnlineAccountScreens` and a `LocalAccounts` entry
+  with an empty password), and reached the lock screen. `SetupComplete.cmd`
+  (copied by Setup from `sources\$OEM$`) ran `net user rig
+  /logonpasswordchg:yes`. At sign-in Windows said "The user's password must
+  be changed before signing in", took a new one and opened the desktop. So
+  no password needs to ride on the stick.
+
+Evidence: `rig/vm/artifacts/windows/spike1/` (the key page), `spike2/`
+(through to the desktop), the answer file in `tree11/`. Plumbing on
+Hyper-V's firmware, one edition, one language; no gate yet, one disk.
+
+**Built the same day (2026-09-29, unfired on a real machine).** The gate
+(`settle-in/gate`, upgrade-gate 0.1.0, Rust for Windows) and the Linux
+preparation (`settle-in go-back walkaway plan|prepare|undo`, and the window's
+pages; every word a DRAFT). Found while building:
+
+- **Hyper-V's disks give no serial number in WinPE**, and Windows reports an
+  NVMe drive's EUI where Linux shows the controller's serial (the G16). So
+  the job carries each drive's world-wide name as well, and the gate matches
+  on exact size plus the serial or the world-wide name. Linux's "t10.ATA
+  ..." fallback text is not counted as one (the Aspire's SSD has none; its
+  serial matches).
+- **Microsoft's catalog cabinet is LZX-compressed**, so the program carries
+  a static `cabextract` built from a pinned source (the same SHA-256 as
+  Debian's `cabextract_1.11-2.dsc`).
+- **The 16 GB stick reports no serial number to Windows.** On Linux the
+  stick rule then falls back to udev's vendor-and-model ID
+  (`General_UDisk-0:0`), which is weaker (still: exact size, the typed model
+  word, only one such disk). Open.
+- **The same stick was refused as "a hard drive, not a stick"** (the
+  Aspire, 2026-09-29): the kernel reports `rotational=1` for it only as its
+  default, because the stick sends no VPD page B1 (the page where a drive
+  says how it spins). The Aspire's real hard drive and SSD both send it (1
+  and 0, both right). The check was wrong, so it was fixed, not removed: a
+  disk is refused as a hard drive when it says it spins; one that never said
+  is judged by the other rules (USB, removable, serial, size, the typed
+  name). Recordings made before the field existed keep the stricter
+  reading. The stick is now offered; both internal drives are still
+  refused.
+
+**Rig spikes of the gate (2026-09-29, not rows; `rig/vm/artifacts/windows/`).**
+spike3: a job naming a drive that is not there, refused before any
+countdown ("NOTHING WAS ERASED"). spike4: one Space during the countdown
+cancelled at once; on the next start the countdown was left alone, the gate
+recorded `crossed` after 121 s, found the system disk by its world-wide
+name, wrote the answer file, and Setup installed Windows 11 to the sign-in
+with nobody at the keyboard. After Setup's first restart the gate did not
+run again: Setup put Windows Boot Manager first in the firmware's order.
+Then the product path: `walkaway prepare` (run as root in WSL, `--image`,
+against a made-up root describing the rig VM's disk: a spoof, plumbing only)
+fetched the catalog live, re-checked the cached file's SHA-1, built and
+wrote the stick and read it back; the VM booted it once (standing in for
+BootNext), the gate found the disk by its world-wide name, crossed after
+121 s, and Setup installed Windows 11 to the lock screen with nobody at the
+keyboard; the new `SetupComplete.cmd` left `go-back-installed.txt` on the
+stick. WinPE's own clock stamps (`crossed_utc`) read about an hour off: WinPE
+reads the firmware clock through its default time zone, so the gate's times
+are approximate (a note, not a fix yet). Still owed: a real Linux running
+`prepare` on its own drives, a real stick and BootNext on real firmware, and
+a real keyboard on the gate's countdown: the Aspire.
+
+**The first real run (the Aspire, 2026-10-01/02): the firmware would not
+start from the stick. Nothing was erased.** `walkaway prepare` ran from the
+app menu on the Aspire's Fedora and finished: download from Microsoft's
+catalog at about 30 MB/s, the files built, the stick written and read back,
+`BootNext` set to our new entry (Boot0003, not in the boot order). On
+"Restart now" Fedora was back 39 s after shutdown, `BootNext` used up: the
+firmware passed over the stick. A second try through the firmware's own
+generic USB entry (Boot2001 "EFI USB Device") stopped on the firmware's
+message "system doesn't have any usb boot option". So the firmware does not
+see this stick as bootable at all. What was ruled out: Secure Boot (the
+stick's `bootx64.efi` is signed through Microsoft Windows Production PCA
+2011, which this firmware trusts) and the layout (a DOS table, one active
+0x0C FAT32 partition at 1 MiB, the same writer that booted on the rig).
+What stands out: the stick's USB ID is `abcd:1234` (a placeholder ID that
+no-name sticks ship with), it has no serial number, and it reports USB
+revision "5.00". The Aspire has started from a different stick before (the
+old 8 GB kit stick: V0 and run 9).
+
+**Limitation (recorded 2026-10-02, the owner): no-name USB sticks.** Use a
+name-brand stick (SanDisk, Kingston, Samsung, PNY, Lexar, Verbatim,
+Transcend) of 16 GB or more, for the way back and for the kit. This is
+**suspected, not proven**: the twin stick (the same model, carrying the kit)
+was not tried on the Aspire. The test that would prove it: that twin, or a
+name-brand stick, started from the F12 menu. Two reasons hold either way: a
+stick with no serial number cannot be found again for certain (the program
+falls back to the vendor-and-model ID, see above), and if the firmware
+cannot start from it, the way back fails safe but does not work. Open: the
+program should say this before it writes, and could refuse a stick with no
+serial number outright (a stricter rule, the owner's decision).
+**Also found:** the window's progress bar sits at the last percentage
+during steps that report none (it read 99% while the files were built and
+13% while install.wim was split); it must show that it is still working.
+**Fixed (2026-10-03, unfired):** every step now says when it starts (the
+preparation's and the stick writer's); the window names the step, clears the
+old percentage, and where a step has none shows a moving bar, "Still
+working", and how long the step has run (words DRAFT).
+
+**Decided (2026-10-02, the owner): the way back carries Wi-Fi, as the
+forward path does** (and, as a general rule, every OS switch does:
+`architecture.md`, "What migrates"). On the Aspire's first way back Windows came up offline
+(our answer file skips its Wi-Fi screen), so it could not activate until the
+owner joined a network by hand. Going forward this is a given: the networks
+Linux knows go across as Windows profiles and are in place before the first
+sign-in (`architecture.md`, "The way back to Windows"). What can go wrong:
+the passwords are on the stick for the trip (the forward path's rule: deleted
+from it once used, and at every stop; never in a record); a network Windows
+cannot take (an enterprise sign-in) is listed, not guessed; and the step
+that adds them must run on every computer, not from `SetupComplete.cmd`
+alone (see the Aspire's password finding). Not built.
+
+**The first real way back (the Aspire, 2026-10-01..03, `v11-walkaway.csv`
+line 2, `fail`).** Fedora to Windows 11 Home on the real machine, Secure
+Boot on: the gate (0.1.1) found the stick after waiting 2 s, matched the SSD
+and the 1 TB drive by serial (the stick, disk 2, left alone), counted down
+the full 120 s with nobody at the keyboard, wrote an answer file wiping
+exactly those two drives, and Windows Setup ran to the sign-in with no
+product key page. The owner signed in, joined Wi-Fi, and Windows reported
+**activated with a digital license** (R30's first after-reinstall data point).
+It is a `fail` row by the bar set for it, for four reasons, each in the row
+(fixes built 2026-10-03, each its own commit, unfired on the Aspire):
+
+- **The program's own start from the stick did not work on this firmware.**
+  `BootNext` to our own entry was passed over; the run used a tester icon
+  pointing `BootNext` at the firmware's own USB entry (Boot2001). **Fixed
+  (2026-10-03):** the program now points `BootNext` at the firmware's own
+  generic USB entry when the firmware has one and the stick is the only USB
+  disk, and at its own entry otherwise (the rig); "Do not go back" clears
+  either. Before
+  that, gate 0.1.0 refused twice because the stick was not yet visible in
+  WinPE (fixed in 0.1.1, put on the stick from Fedora).
+- **No password was forced.** `go-back-installed.txt` is missing:
+  Windows did not run `SetupComplete.cmd`. Leading explanation, from memory
+  and still to be checked against Microsoft's documentation: Windows skips
+  it on computers whose firmware carries a maker's (OEM) key, which the
+  Aspire does and the rig does not. The owner set a password by hand. Until
+  fixed, the account starts with no password: a security gap, not a cosmetic one.
+  **Confirmed (2026-10-03, primary source):** Microsoft's "Add a Custom Script
+  to Windows Setup" says SetupComplete.cmd "is disabled when using OEM product
+  keys, except on Enterprise editions and Windows Server", and that the
+  answer file's FirstLogonCommands "can be used with OEM product keys".
+  **Fixed (2026-10-03, gate 0.2.0, unfired):** no SetupComplete.cmd; the
+  answer file signs the account in once by itself (AutoLogon, count 1), whose
+  first-sign-in commands run the stick's own script if present, write
+  `go-back-installed.txt`, mark the password "must change", and sign out. The
+  rig and real machines now take the same path.
+- **Windows was offline at its first start** (the 2026-10-02 rule).
+  **Built (2026-10-03, unfired):** `prepare` reads NetworkManager's saved
+  networks (root) and writes each one Windows can take as a Windows profile
+  on the stick (WPA2/WPA3 personal and open; enterprise, WEP and passwords
+  kept in a keyring are listed, not carried); the stick's first-sign-in
+  script adds them for all users and deletes them from the stick; the gate
+  deletes them at every refusal and cancel; "Do not go back" deletes them;
+  the job lists names only. The consent page says so (DRAFT).
+- **The cancel was not tested on real hardware** (the countdown ran out);
+  still owed.
+
+The no-name stick limitation recorded on 2026-10-02 is **weaker than first
+written**: this same stick did start the Aspire, through the firmware's own
+USB entry. What stands: it has no serial number, and starting from it was
+inconsistent (one "no usb boot option").
+
+**Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on
+and nobody at the keyboard, ending at the Windows sign-in; then one real
+machine (the Aspire, run under R23 on its dying SSD first), with a physical
+cancel before the erase. VALIDATION V11, step 4.
