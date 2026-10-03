@@ -1261,7 +1261,7 @@ It is built in two stages:
      key page, which would break walk-away: the rig has no firmware key,
      so it shows what happens (R33).
    - **Decided (2026-10-02, the owner): Wi-Fi comes along, both ways, as a
-     given.** Going to Linux already carries the saved networks and their
+     given** (the general rule: "What migrates", every OS switch). Going to Linux already carries the saved networks and their
      passwords (`harvest.wifi`, set up by `settle-in`). Going back must do
      the same: the networks Linux knows (NetworkManager's saved
      connections) are written as Windows Wi-Fi profiles onto the stick, and
@@ -1480,6 +1480,21 @@ there is anything to sign.
 ---
 
 ## What migrates, and what silently doesn't
+
+**Decided (2026-10-02, the owner): every OS switch carries Wi-Fi, as part
+of the one click.** Any direction, any source, any target: Windows to Linux
+today, Linux back to Windows, and every pair added later. The modules are
+named for their roles, not their OS: `evaluate` runs on the OS being left
+and harvests the saved networks and their passwords; `settle-in` runs on the
+OS being arrived in and adds them before anyone signs in, so the new system
+is online from its first start. The person does nothing for it. The rules
+are the same in every direction: the passwords travel on the stick only for
+the trip, are deleted from it once added (and at every stop), never go into
+a record, and the screen says so before the decision is typed. A network
+the target cannot take (an enterprise sign-in) is listed, not guessed.
+Built today for Windows to Linux only (`harvest.wifi`, `settle-in`
+first-start); Linux to Windows is not built (`The way back to Windows`,
+R33). A new direction is not finished until it does this.
 
 | Item | Ports? | Notes |
 |---|---|---|
