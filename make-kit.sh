@@ -212,6 +212,7 @@ cp "$ROOT/evaluate/windows/usb-kit/Diag-Smart.ps1" "$D/Diag-Smart.ps1"
 cp "$ROOT/upgrade_/windows/Invoke-Prologue.ps1" "$D/Invoke-Prologue.ps1"
 cp "$ROOT/upgrade_/windows/Invoke-Logged.ps1"   "$D/Invoke-Logged.ps1"
 crlf "$PAYLOAD/ROLLBACK.cmd"        "$D/ROLLBACK.cmd"
+crlf "$PAYLOAD/CANCEL-CONVERSION.cmd" "$D/CANCEL-CONVERSION.cmd"
 cp "$ROOT/upgrade_/windows/Invoke-Rollback.ps1" "$D/Invoke-Rollback.ps1"
 cp "$ROOT/evaluate/windows/New-Job.ps1"        "$D/New-Job.ps1"
 # the folder map (0.10.0): the job writer runs the harvester beside it, in its own process

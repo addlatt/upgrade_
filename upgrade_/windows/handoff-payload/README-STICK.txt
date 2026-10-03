@@ -91,6 +91,16 @@ boot file back from the copy this stick took before the conversion.
 It deletes nothing: Linux stays on the disk and in the firmware's boot
 menu. Restart, and Windows comes up by itself.
 
+CANCELLING A CONVERSION (CANCEL-CONVERSION.cmd)
+-----------------------------------------------
+When Windows is back but a launcher says "a conversion is already in
+progress" (for example, the computer restarted into Windows instead
+of the stick): double-click CANCEL-CONVERSION.cmd and click Yes. It
+saves the firmware's boot list to upgrade_\report\ on this stick,
+then removes the one-time boot entry, puts back what the prologue
+changed in Windows and clears the "in progress" state. Nothing is
+erased. Then a launcher can start again.
+
 THE ONE-CLICK WAY (V0)
 ----------------------
  1. Plug this stick into the computer under test.
