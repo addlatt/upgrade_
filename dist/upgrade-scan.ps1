@@ -43,7 +43,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$UpgVersion = '0.4.0'   # 0.4.0 (2026-10-03): Secure Boot revocations (SBAT), after the Aspire's run 10
+$UpgVersion = '0.5.0'   # 0.5.0 (2026-10-03): which Linux releases start here (data/releases.ps1, R34); 0.4.0: Secure Boot revocations (SBAT)
 
 # --- data ---------------------------------------------------------------
 # The build script replaces this block with the file contents inline, so the
@@ -322,6 +322,44 @@ function Get-UpgDistroTable {
 function Get-UpgDistroTableAge {
     $verified = [datetime]::ParseExact($script:UpgDistroTableVerified, 'yyyy-MM-dd', $null)
     [int]((Get-Date) - $verified).TotalDays
+}
+
+# =============================================================================
+#  upgrade_ / Linux releases the kit can carry, and what Secure Boot needs
+# =============================================================================
+#  Decided (2026-10-03, the owner; RISKS R34): the release is chosen from what
+#  the machine accepts. evaluate reads the machine (Secure Boot on or off, the
+#  firmware's SBAT revocation level, which Microsoft certificate authorities
+#  its db trusts), matches it against this table, and the kit is built for a
+#  release the machine can start, both from the stick and once installed.
+#
+#  Every fact below the header of an entry is MEASURED from the release's own
+#  files by data/tools/measure-release.py and pinned by sha256. Never type or
+#  edit them by hand: re-run the tool. The kit builder refuses files whose
+#  hashes differ from the entry.
+#
+#  Per entry:
+#    Family/Installer  who installs it unattended. Only 'fedora'/'kickstart'
+#                      has installer automation today. A release without it
+#                      can be listed (and judged) but not installed.
+#    Netinst           the installer ISO: its EFI/BOOT files boot the stick.
+#    Desktops          live ISOs; ImageSha256 is the image the stick carries.
+#    Boot              each boot file's facts. Role 'stick' = what the stick
+#                      starts; 'installed <desktop>' = what the installed
+#                      system starts. Sbat = the generations it declares;
+#                      SbatLevel = a shim's built-in revocation levels;
+#                      SignedBy = the authorities its signatures chain to.
+#
+#  Adding a release (a distro, or a new version): fetch its ISOs, run
+#  measure-release.py, commit the entry with the URLs it read. A release
+#  that cannot start with Secure Boot on (no Microsoft-signed shim) is still
+#  worth an entry: the scanner then says so plainly.
+# =============================================================================
+
+function Get-UpgReleaseTable {
+    @(
+    # (releases end)
+    )
 }
 
 
@@ -624,6 +662,86 @@ function Test-UpgSbat {
         -Note "Checked: $((@($Files) | ForEach-Object { $_.Name }) -join ', ') (from: $sources)."
 }
 
+function Get-UpgDbAuthorities {
+    # Collection half, elevated only: the names (CN) of the certificates in
+    # the firmware's db, the list of authorities whose signatures it accepts.
+    # $null = could not read (not elevated, or no Secure Boot variables).
+    param([byte[]]$Bytes)
+    if (-not $Bytes) {
+        try { $Bytes = (Get-SecureBootUEFI -Name db -ErrorAction Stop).Bytes } catch { return $null }
+    }
+    $names = @(); $pos = 0
+    $x509 = [Guid]'a5c059a1-94e4-4aa7-87b5-ab155c2bf072'   # EFI_CERT_X509_GUID
+    while ($pos + 28 -le $Bytes.Length) {
+        $type = New-Object Guid (, [byte[]]$Bytes[$pos..($pos + 15)])
+        $listSize = [BitConverter]::ToUInt32($Bytes, $pos + 16)
+        $hdr = [BitConverter]::ToUInt32($Bytes, $pos + 20)
+        $sigSize = [BitConverter]::ToUInt32($Bytes, $pos + 24)
+        if ($listSize -lt 28) { break }
+        if ($type -eq $x509 -and $sigSize -gt 16) {
+            $at = $pos + 28 + $hdr
+            while ($at + $sigSize -le $pos + $listSize) {
+                try {
+                    $c = New-Object Security.Cryptography.X509Certificates.X509Certificate2 (, [byte[]]$Bytes[($at + 16)..($at + $sigSize - 1)])
+                    $names += $c.GetNameInfo([Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
+                } catch { }
+                $at += $sigSize
+            }
+        }
+        $pos += $listSize
+    }
+    , $names
+}
+
+function Test-UpgReleases {
+    # Judgment half (decided 2026-10-03, the owner; RISKS R34): which Linux
+    # releases in data/releases.ps1 this computer can start, from the stick
+    # and once installed. Per release: every boot file's SBAT generations
+    # against the firmware's level merged with the release's own shims'
+    # built-in levels (shim applies those itself); with Secure Boot on, each
+    # shim must be signed under an authority in the firmware's db; and the
+    # kit must be able to install it unattended. Records the per-release
+    # verdicts in $script:UpgReleases for the JSON report.
+    param($SecureBoot, $Level, $DbAuthorities, [object[]]$Table)
+    $script:UpgReleases = @()
+    foreach ($r in @($Table)) {
+        $why = @(); $unknown = @()
+        if (-not $r.Installer) { $why += 'the kit cannot install it unattended yet' }
+        if ($SecureBoot -ne 0) {
+            $own = @(@($r.Boot) | ForEach-Object { @($_.SbatLevel) } | Where-Object { $_ } | ForEach-Object { ConvertFrom-UpgSbatText $_ })
+            $lv = Merge-UpgSbatLevel (@(, $Level) + $own)
+            foreach ($f in @($r.Boot)) {
+                $bad = @(Get-UpgSbatRevoked -Level $lv -FileSbat (ConvertFrom-UpgSbatText $f.Sbat))
+                if ($bad.Count) { $why += "$($f.Role) $($f.File): $($bad -join ', ')" }
+            }
+            foreach ($f in @(@($r.Boot) | Where-Object { $_.File -match '^(?i)(BOOTX64\.EFI|shimx64\.efi)$' })) {
+                if ($null -eq $DbAuthorities) { $unknown += "$($f.Role) $($f.File)"; continue }
+                if (-not @(@($f.SignedBy) | Where-Object { $DbAuthorities -contains $_ }).Count) {
+                    $why += "$($f.Role) $($f.File): signed by $(@($f.SignedBy)[0]), which this computer's Secure Boot does not trust"
+                }
+            }
+        }
+        $state = if ($why.Count) { 'no' } elseif ($unknown.Count) { 'unknown' } else { 'yes' }
+        $script:UpgReleases += [pscustomobject]@{ Id = $r.Id; Name = $r.Name; Starts = $state; Why = @($why) }
+    }
+    $yes = @($script:UpgReleases | Where-Object { $_.Starts -eq 'yes' })
+    $unk = @($script:UpgReleases | Where-Object { $_.Starts -eq 'unknown' })
+    $no = @($script:UpgReleases | Where-Object { $_.Starts -eq 'no' })
+    $noText = (@($no | ForEach-Object { "$($_.Name): $($_.Why -join '; ')" }) -join ' | ')
+    if ($yes.Count) {
+        New-UpgCheck -Section 'Fundamentals' -Title 'Linux releases' -Status 'ok' -Detail ("starts on this computer: " + (@($yes | ForEach-Object { $_.Name }) -join ', ')) `
+            -Note $(if ($no.Count) { "Not these: $noText" } else { 'Every release in the kit''s table starts here.' })
+    } elseif ($unk.Count) {
+        New-UpgCheck -Section 'Fundamentals' -Title 'Linux releases' -Status 'unknown' -Detail 'could not read which signing keys this computer trusts' `
+            -Note $(if ($no.Count) { "Not these: $noText" } else { 'The release check needs the firmware''s key list.' }) `
+            -Remedy 'Run the scanner as administrator.'
+    } else {
+        New-UpgCheck -Section 'Fundamentals' -Title 'Linux releases' -Status 'fail' -Detail 'no release the kit carries can start on this computer' `
+            -Note $(if ($noText) { $noText } else { 'The release table is empty.' }) `
+            -Remedy 'Nothing has been changed. A kit with a newer release is needed.'
+    }
+}
+
 function Get-UpgPeSection {
     # The bytes of one named section of a PE file, as text, or $null.
     param([byte[]]$Bytes, [string]$Name)
@@ -634,7 +752,14 @@ function Get-UpgPeSection {
         $tab = $pe + 24 + [BitConverter]::ToUInt16($Bytes, $pe + 20)
         for ($i = 0; $i -lt $nsec; $i++) {
             $s = $tab + 40 * $i
-            if ([Text.Encoding]::ASCII.GetString($Bytes, $s, 8).TrimEnd([char]0) -eq $Name) {
+            $n = [Text.Encoding]::ASCII.GetString($Bytes, $s, 8).TrimEnd([char]0)
+            if ($n -match '^/(\d+)$') {
+                # a name longer than 8 characters (.sbatlevel) lives in the COFF string table
+                $at0 = [BitConverter]::ToInt32($Bytes, $pe + 12) + 18 * [BitConverter]::ToInt32($Bytes, $pe + 16) + [int]$Matches[1]
+                $end = [Array]::IndexOf($Bytes, [byte]0, $at0)
+                $n = [Text.Encoding]::ASCII.GetString($Bytes, $at0, $end - $at0)
+            }
+            if ($n -eq $Name) {
                 $size = [BitConverter]::ToInt32($Bytes, $s + 16); $at = [BitConverter]::ToInt32($Bytes, $s + 20)
                 return [Text.Encoding]::ASCII.GetString($Bytes, $at, $size)
             }
@@ -2253,6 +2378,17 @@ function Invoke-UpgSelfTest {
     $sbatGrubF44 = "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md`ngrub,5,Free Software Foundation,grub,2.12,https//www.gnu.org/software/grub/`ngrub.rh,2,Red Hat,grub2,2.12-66.fc44,mailto:secalert@redhat.com"
     $sbatShim158 = "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md`nshim,4,UEFI shim,shim,1,https://github.com/rhboot/shim`nshim.rh,3,The Fedora Project,shim,15.8,https://src.fedoraproject.org/rpms/shim-unsigned-x64"
     $sbatShim161 = "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md`nshim,4,UEFI shim,shim,1,https://github.com/rhboot/shim`nshim.rh,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64"
+    $db2011 = @('Microsoft Windows Production PCA 2011', 'Microsoft Corporation UEFI CA 2011')
+    $sign1123 = @('Microsoft Corporation UEFI CA 2011', 'Microsoft Corporation Third Party Marketplace Root', 'Microsoft UEFI CA 2023', 'Microsoft RSA Devices Root CA 2021')
+    $relF42 = @{ Id = 'f42'; Name = 'Fedora 42'; Installer = 'kickstart'; Boot = @(
+        @{ Role = 'stick'; File = 'BOOTX64.EFI'; Sbat = $sbatShim158; SbatLevel = @("sbat,1,2024010900`nshim,4`ngrub,3`ngrub.debian,4"); SignedBy = @('Microsoft Corporation UEFI CA 2011') }
+        @{ Role = 'stick'; File = 'grubx64.efi'; Sbat = $sbatGrubF42; SbatLevel = @(); SignedBy = @('Fedora Secure Boot CA') }) }
+    $relF44 = @{ Id = 'f44'; Name = 'Fedora 44'; Installer = 'kickstart'; Boot = @(
+        @{ Role = 'stick'; File = 'BOOTX64.EFI'; Sbat = $sbatShim161; SbatLevel = @("sbat,1,2025051000`nshim,4`ngrub,5`ngrub.proxmox,2"); SignedBy = $sign1123 }
+        @{ Role = 'installed kde'; File = 'grubx64.efi'; Sbat = $sbatGrubF44; SbatLevel = @(); SignedBy = @('Fedora Secure Boot CA') }) }
+    $rel2023only = @{ Id = 'n'; Name = 'New'; Installer = 'kickstart'; Boot = @(
+        @{ Role = 'stick'; File = 'BOOTX64.EFI'; Sbat = $sbatShim161; SbatLevel = @(); SignedBy = @('Microsoft UEFI CA 2023', 'Microsoft RSA Devices Root CA 2021') }) }
+    $relNoInstaller = @{ Id = 'x'; Name = 'No installer'; Installer = ''; Boot = @() }
     $seamCases = @(
         @{ Name = 'seam: Secure Boot enabled is ok with distro note'
            Run = { Test-UpgFirmware -Sys $uefiSys -SecureBoot 1 }
@@ -2290,6 +2426,25 @@ function Invoke-UpgSelfTest {
         @{ Name = 'sbat: Secure Boot unreadable is judged as on'
            Run = { Test-UpgSbat -SecureBoot $null -Levels @(@{ Source = 'firmware'; Text = $sbatAspire }) -Files @(@{ Name = 'stick grubx64.efi'; Sbat = $sbatGrubF42 }) }
            Expect = @{ 'Secure Boot revocations' = 'fail' } }
+        @{ Name = 'releases: on the Aspire (grub,5; db 2011 only) Fedora 44 starts and Fedora 42 does not'
+           Run = { Test-UpgReleases -SecureBoot 1 -Level (ConvertFrom-UpgSbatText $sbatAspire) -DbAuthorities $db2011 -Table @($relF42, $relF44) }
+           Expect = @{ 'Linux releases' = 'ok' }
+           Match = @{ 'Linux releases' = 'starts on this computer: Fedora 44 Not these: Fedora 42: stick grubx64.efi: grub,3 < grub,5' } }
+        @{ Name = 'releases: only Fedora 42 in the table on the Aspire is a fail (nothing can start)'
+           Run = { Test-UpgReleases -SecureBoot 1 -Level (ConvertFrom-UpgSbatText $sbatAspire) -DbAuthorities $db2011 -Table @($relF42) }
+           Expect = @{ 'Linux releases' = 'fail' } }
+        @{ Name = 'releases: a shim signed only under the 2023 authority does not start where db holds only 2011'
+           Run = { Test-UpgReleases -SecureBoot 1 -Level (ConvertFrom-UpgSbatText $sbatAspire) -DbAuthorities $db2011 -Table @($rel2023only) }
+           Expect = @{ 'Linux releases' = 'fail' } }
+        @{ Name = 'releases: a release without an unattended installer is listed, never eligible'
+           Run = { Test-UpgReleases -SecureBoot 0 -Level (ConvertFrom-UpgSbatText $sbatAspire) -DbAuthorities $db2011 -Table @($relNoInstaller) }
+           Expect = @{ 'Linux releases' = 'fail' } }
+        @{ Name = 'releases: an unreadable key list is unknown, not a pass'
+           Run = { Test-UpgReleases -SecureBoot 1 -Level (ConvertFrom-UpgSbatText $sbatAspire) -DbAuthorities $null -Table @($relF44) }
+           Expect = @{ 'Linux releases' = 'unknown' } }
+        @{ Name = 'releases: with Secure Boot off every release with an installer starts'
+           Run = { Test-UpgReleases -SecureBoot 0 -Level (ConvertFrom-UpgSbatText $sbatAspire) -DbAuthorities $null -Table @($relF42) }
+           Expect = @{ 'Linux releases' = 'ok' } }
         @{ Name = 'sbat: without the kit beside the scanner only the level is reported'
            Run = { Test-UpgSbat -SecureBoot 1 -Levels @(@{ Source = 'firmware'; Text = $sbatAspire }) -Files @() }
            Expect = @{ 'Secure Boot revocations' = 'info' } }
@@ -2741,6 +2896,8 @@ $sbState = Get-UpgSecureBootState
 Test-UpgFirmware     -Sys $sys -SecureBoot $sbState
 $sbat = Get-UpgSbatFacts -Root $PSScriptRoot -IsAdmin $isAdmin
 Test-UpgSbat         -SecureBoot $sbState -Levels $sbat.Levels -Files $sbat.Files
+$sbLevel = Merge-UpgSbatLevel @(@($sbat.Levels) | Where-Object { $_ -and $_.Text } | ForEach-Object { ConvertFrom-UpgSbatText $_.Text })
+Test-UpgReleases     -SecureBoot $sbState -Level $sbLevel -DbAuthorities $(if ($isAdmin) { Get-UpgDbAuthorities }) -Table (Get-UpgReleaseTable)
 Test-UpgResume      -Facts (Get-UpgResumeFacts)
 Test-UpgStorageMode  -Pnp $pnp
 $diskFacts = Get-UpgDiskFacts
@@ -2804,6 +2961,7 @@ if (-not $NoFile) {
             Verdict        = $verdict
             Recommended    = @($rec.Distros | ForEach-Object { $_.Name })
             Checks         = $script:Checks
+            Releases       = @($script:UpgReleases)
             UnmatchedIds   = @($script:Unmatched | Sort-Object -Unique)
         } | ConvertTo-Json -Depth 6 | Out-File -FilePath $jsonPath -Encoding UTF8
         Write-Host "  JSON saved:   $jsonPath" -ForegroundColor Cyan
