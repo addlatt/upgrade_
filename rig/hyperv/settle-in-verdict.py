@@ -133,6 +133,9 @@ else: before = "y"
 jl = [l for f in sorted(S.glob("sessions-before-*.txt")) for l in text(f).splitlines()] or text(S / "sessions.txt").splitlines() or [l for f in sorted(D.glob("journal-*.txt")) if "user" not in f.name for l in text(f).splitlines()]
 # a sign-in starts a session: SDDM logs "Starting Wayland user session", GDM a PAM session for gdm-password
 start_re = r"Starting Wayland user session|pam_unix\(gdm-password:session\): session opened"   # GDM writes gdm-password][PID]
+# Fedora 44's KDE login screen (plasmalogin) logs its OWN session with the same words,
+# as startplasma-login-wayland: that is the login screen, not a sign-in (rig run 16, 2026-10-03)
+jl = [l for l in jl if "startplasma-login-wayland" not in l]
 starts, hung = 0, 0
 for i, l in enumerate(jl):
     if re.search(start_re, l):

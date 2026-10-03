@@ -222,6 +222,13 @@ refuse for free:
   clean slate, never quietly installed alongside. (Scanner check landed
   2026-08-30 as "Boot partition (ESP)"; see RISKS R21 item 4.)
 
+- **No Linux release the kit carries can start here** (RISKS R34,
+  2026-10-03). Secure Boot keeps a list of boot programs too old to trust
+  (the SBAT level). Windows raises it by itself. A release whose GRUB is
+  older than the list, or whose shim is signed by a key the firmware does
+  not hold, would restart, be refused, and fall back to Windows; once
+  installed it would not start at all. See "It chooses the Linux release".
+
 **One exception, narrow and dated (2026-09-13, RISKS R23):** a person who
 has already copied their files off a machine the scanner refused for its
 *drive* (bad blocks, SMART media errors, a volume needing a full repair)
@@ -229,6 +236,44 @@ may type a fixed sentence on a separate launcher and go ahead. It lifts
 those two refusals and no other. It is recorded in `job.json` and
 `outcome.json`, and it turns every later screen red. CLAUDE.md rule #1
 carries the amendment.
+
+### It chooses the Linux release from what the machine accepts (decided 2026-10-03, the owner)
+
+Found on the Aspire's run 10 (RISKS R34): the new Windows 11 had raised
+the firmware's revocation level to `grub,5`, and the kit's Fedora 42 GRUB
+is `grub,3`. A fixed release in the kit breaks as soon as Windows moves
+the level. So the release is a choice, made from facts on both sides:
+
+```text
+ the machine (scanner)              the releases (data/releases.ps1)       the kit (make-kit.sh)
+ ---------------------              --------------------------------       ---------------------
+ Secure Boot on / off               one entry per release, MEASURED        --release ID: fetches
+ SBAT level (registry +        ->   from its own files by              ->  that release's files,
+   firmware SbatLevelRT)            data/tools/measure-release.py:          refuses any byte that
+ the authorities in the db          each boot file's SBAT data, a           differs from the entry,
+   (2011, 2023)                     shim's built-in levels, who signed      writes release.json and
+                                    it; every file pinned by sha256         the installed boot facts
+```
+
+- **The scanner** reads the machine and judges every release in the table
+  (check *Linux releases*): each boot file, on the stick and in the
+  installed system, against the level (the strictest of every source,
+  plus the release's own shims' levels), and each shim against the
+  authorities in the firmware's db. It also checks the actual files on
+  the stick (check *Secure Boot revocations*). Both are RED when nothing
+  can start; the R23 sentence lifts neither.
+- **The job writer** reads `release.json` on the stick and refuses a
+  release the scan did not find startable (no, unknown, or not judged).
+- **A new release, or a new distribution, is a table entry.** The facts
+  are measured from the files, never typed. A release without a
+  Microsoft-signed shim (Arch, so Omarchy, today) is still worth an
+  entry: the scanner then says plainly that it cannot start with Secure
+  Boot on. Installing it also needs installer automation of its own
+  (today only Fedora's kickstart exists) and a rig run.
+- **Not yet built:** choosing among several releases on one stick, and
+  fetching a release from Windows. Today `make-kit.sh --release ID` builds
+  one kit for one release, and the scan says whether this computer can
+  start it.
 
 ### Output
 
@@ -1225,22 +1270,28 @@ It is built in two stages:
      environment (WinPE, the small Windows that runs Setup). It is built
      with the same Rust toolchain as `UPGRADE.exe`.
 
-   **How it runs (design, 2026-09-29; nothing built):**
+   **How it runs (designed 2026-09-29; built 2026-09-29..10-03; rig `[###.]`;
+   the Aspire reached Windows 11 on 2026-10-03, a `fail` row whose four
+   defects are fixed and unfired on it, R33):**
 
    ```text
    Linux, the "Go back to Windows" program            (nothing changed yet)
      cost first -> which Windows -> both drives named -> the typed sentence
      -> choose the stick (R16's rules) -> download from Microsoft's catalog
      -> check size + SHA-1 -> build the stick from the .esd -> read it back
-     -> a one-time boot entry for the stick (BootNext) -> restart
+     -> start from the stick once (BootNext: the firmware's own USB entry
+        when it has one, else our own) -> restart
    The stick, WinPE: the gate                         (nothing changed yet)
-     find each drive by serial and exact size, or refuse (plain screen,
+     wait for the stick to appear (up to 90 s) -> find each drive by serial
+     or world-wide name and exact size, or refuse (plain screen,
      restart into Linux) -> 2-minute any-key countdown (a key: restart into
      Linux, untouched)
      ---- countdown ends: the commit line ----
      record the crossing on the stick -> write the answer file naming the
      drives it found -> Windows Setup, unattended: wipe both drives,
-     install -> first start creates the account -> the Windows sign-in
+     install -> the account is created and signs in once by itself: the
+     Wi-Fi profiles are added (and leave the stick), the password is marked
+     "must change", it signs out -> the Windows sign-in asks for a new password
    ```
 
    - **The stick is built from the `.esd`** with `wimlib-imagex` (already on
@@ -1250,12 +1301,16 @@ It is built in two stages:
      under FAT32's 4 GB (the split V11's rig leg already proved).
      `boot.wim` is changed in one way: it starts the gate instead of Setup.
    - **The job travels on the stick** (`upgrade_\go-back.json`): each drive
-     by serial, size and model, the sentence, the edition, the account
-     name. The gate refuses a job it cannot match to this computer.
+     by serial, world-wide name, size and model, the sentence, the edition,
+     the account name, and the Wi-Fi networks by name (never a password).
+     The gate refuses a job it cannot match to this computer.
    - **No password rides on the stick.** The answer file creates a local
-     account with the person's Linux name and no password, marked "change
-     at first sign-in", so Windows asks for a new password the first time.
-     Unproven (R33).
+     account with the person's Linux name and no password; Windows signs it
+     in once by itself, and its first-sign-in commands mark it "must change"
+     and sign out, so Windows asks for a new password the first time.
+     Not `SetupComplete.cmd`: Microsoft disables it on computers with a
+     maker's key, which is why the Aspire's first run kept an empty password
+     (2026-10-02/03, R33). Rig `[###.]`; unfired on a real machine.
    - **No product key is written anywhere.** Windows Setup reads a
      firmware key itself (R13). A computer without one may stop at Setup's
      key page, which would break walk-away: the rig has no firmware key,
@@ -1270,11 +1325,14 @@ It is built in two stages:
      the passwords sit on the stick only for the trip, are deleted from it
      once Windows has added them (and at every stop), never go into a
      record, and the screen says so before the sentence is typed (words to
-     be approved). Not built. Open: Windows runs `SetupComplete.cmd` only on
-     some computers (on the Aspire, which has a maker's key in its firmware,
-     the password step in it did not take effect, 2026-10-02), so the step
-     that adds the profiles must run from a hook that runs on every
-     computer (R33).
+     be approved). **Built (2026-10-03):** NetworkManager's saved networks
+     become Windows profiles on the stick (WPA2/WPA3 personal and open;
+     enterprise, WEP and keyring passwords listed, not carried); the stick's
+     script adds them at the first automatic sign-in (a hook that runs on
+     every computer, unlike `SetupComplete.cmd`), after starting Windows'
+     Wi-Fi service, then deletes them; the gate and "Do not go back" delete
+     them at every stop. Rig `[##..]`: the script ran and the profiles left
+     the stick, but a VM has no Wi-Fi to add them to; the Aspire owes it.
 
 ### Scope boundary
 

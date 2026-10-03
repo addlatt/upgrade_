@@ -3225,7 +3225,7 @@ release is rebuilt byte for byte from the source by someone else. A replay
 of recorded tool output closes the decision, never the firmware's
 behaviour: that part of a physical row takes the machine again.
 
-## R33: The walk-away way back to Windows · critical · open (decided 2026-09-29; nothing built)
+## R33: The walk-away way back to Windows · critical · open (decided 2026-09-29; built and rig `[###.]`; the Aspire's first real run 2026-10-03 reached Windows 11, `fail` on four defects, fixed 2026-10-03 and unfired)
 
 **What.** "Go back to Windows", 100% managed (decided 2026-09-29, the
 owner; `architecture.md`, "The way back to Windows", stage 2). From the
@@ -3448,9 +3448,123 @@ It is a `fail` row by the bar set for it, for four reasons, each in the row
 The no-name stick limitation recorded on 2026-10-02 is **weaker than first
 written**: this same stick did start the Aspire, through the firmware's own
 USB entry. What stands: it has no serial number, and starting from it was
-inconsistent (one "no usb boot option").
+inconsistent (one "no usb boot option"). Further evidence (2026-10-03): the
+old 8 GB kit stick that started this Aspire in V0 and run 9 is a "General
+UDisk" too, the same no-name family. So the limitation stands only as "no
+serial number; booting it was inconsistent once", not as "cannot boot".
+
+**The fixes on the rig (2026-10-03, not a row).** `walkaway prepare` (as root
+in WSL, `--image`, a made-up root describing the rig VM's disk and two
+spoofed saved networks), then the VM started from the stick: gate 0.2.0
+crossed, Setup installed, Windows signed in once by itself and its
+first-sign-in commands ran (`go-back-installed.txt` written, without
+SetupComplete.cmd), and at the sign-in Windows said "The user's password must
+be changed before signing in" (fix 2, plumbing). The Wi-Fi script ran and
+removed the profiles from the stick; Windows answered "The Wireless
+AutoConfig Service (wlansvc) is not running", expected on a VM without Wi-Fi
+hardware, so the script now starts that service and waits 5 s before adding
+(a real machine might not have it running yet at that moment). The job
+listed the enterprise network as not carried. Still owed on the Aspire: the
+profile actually added and Windows online at its first start, the program's
+own start from the stick through Boot2001, and a real cancel.
 
 **Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on
 and nobody at the keyboard, ending at the Windows sign-in; then one real
 machine (the Aspire, run under R23 on its dying SSD first), with a physical
 cancel before the erase. VALIDATION V11, step 4.
+
+## R34: Secure Boot revokes the kit's boot files · critical · open (found 2026-10-03 on the Aspire, run 10; the scanner check built and fired the same day; the kit still carries the revoked GRUB)
+
+**What.** Secure Boot keeps a revocation list for Linux boot programs, the
+SBAT level (a UEFI variable shim reads; rules in rhboot/shim `SBAT.md`).
+Each line is `component,generation`. A boot file whose own `.sbat` data
+names a component with a lower generation is refused. Windows raises this
+level by itself through Windows Update, and so does a newer shim when it
+boots. The level only goes up.
+
+**What happened (2026-10-03, the Aspire's run 10).** The new Windows 11
+(put back by our way back the same morning) had applied level
+`2025051000` (`shim,4 grub,5 ...`): the registry records it as applied
+(`SecureBoot\SBAT\UpdateStatus = 2`) and the firmware's `SbatLevelRT` holds
+it. The kit's GRUB, Fedora 42's install-media build `2.12-28.fc42`, is
+`grub,3`. So the one-time boot entry fired, the stick's shim started,
+refused GRUB (`Verification failed: (0x1A) Security Violation`), and the
+firmware fell back to Windows. The first attempt looked like `ignored`
+(the stick's grubenv stayed blank, `SequenceCleared: true`); the second,
+started by hand with F12, showed the message. Nothing was changed on the
+disks. On 2026-09-26 (run 9) the same GRUB booted because the old Windows
+had never raised the level. Evidence:
+`rig/hyperv/artifacts/aspire-r27-2026-10-03-run10/` (stick records,
+return records, `secureboot-diag-2026-10-03T1601Z.txt`).
+
+**If real.** Two failures, the second far worse:
+
+- **The stick will not start.** Safe: the firmware comes back to Windows.
+  But it reads as a handoff that did not fire, and nothing says why.
+- **The installed system will not start.** The erase installs Fedora from
+  the stick's live image, whose own GRUB is the same old one. Had only the
+  stick been fixed, the drives would have been erased and Linux then
+  refused at its first boot. A machine with nothing on it that starts.
+  Everything that can refuse must refuse before the line (rule #3).
+
+Fedora 42 is also out of support (its updates folder on Fedora's servers is
+empty, 2026-10-03), so it would not get a fixed GRUB.
+
+**Decided (2026-10-03, the owner):** the release is not fixed in the kit.
+`evaluate` reads what the machine accepts and the kit is built for a
+release that meets it, from a table of releases whose facts are measured
+from their own files (`data/releases.ps1`; `architecture.md`, "It chooses
+the Linux release"; VALIDATION V14). "If I wanted to one day support
+Omarchy, we could read state, identify version, install, proceed."
+
+**Built (2026-10-03).** Scanner 0.4.0, check *Secure Boot revocations*:
+reads the level Windows recorded, the firmware's `SbatLevelRT` (elevated),
+the stick shim's built-in level, and the `.sbat` of the stick's
+`EFI\BOOT` files and of the installed system's files that the kit records
+under `upgrade_\boot-chain\`. Shim's rule, strictest source wins. A refused
+or unreadable boot file is FAIL, which the job writer refuses and the R23
+sentence cannot lift. Fired on the Aspire over SSH: Fedora 42 files FAIL
+(`grub,3 < grub,5`), Fedora 44 files (shim 16.1-7, GRUB 2.12-66.fc44) OK.
+`DIAG-SECUREBOOT.cmd` on the kit reads the same facts, read-only.
+
+**Fedora 44 on the rig (2026-10-03).** `make-kit.sh --release fedora-44`
+built kit 2ab02b2. V9 arm C (`v9-erase.csv`, the Fedora 44 row) erased,
+installed and booted as designed. Three findings the same day:
+
+- **Hyper-V cannot trust both Windows and the third-party CA.** Its
+  `MicrosoftWindows` template holds only Windows' authority (no Linux
+  shim starts) and `MicrosoftUEFICertificateAuthority` only the
+  third-party one (Windows does not start). So the rig's erase rows run
+  with Secure Boot off, as they always have. The Secure Boot half was
+  proven apart, on a VM with the third-party CA (`UPGRIGSB`): the stick's
+  Fedora 44 shim and GRUB fired (grubenv `upg_fired=1`), and the installed
+  Fedora 44 from arm C booted to its desktop session
+  (`rig/hyperv/artifacts/v9/sb-installed-f44/`). A real machine trusts
+  both, which only the Aspire shows.
+- **Fedora 44 KDE's first-run wizard.** The first boot showed Plasma Setup
+  ("Welcome to Plasma Desktop / Begin Setup") instead of the sign-in, and
+  the settle-in window opened over it. Its unit runs unless
+  `/etc/plasma-setup-done` exists. Fixed: kickstart 0.5.0 marks it done and
+  disables it; the window never opens in a login screen's session.
+- **Fedora 44's release shim is signed under the 2011 authority only**
+  (shim 16.1, sha256 571ea56b...). The dual-signed 16.1-7 is only in
+  updates. Fine on the Aspire (2011 in its db); a machine whose db drops
+  the 2011 authority would refuse it, and the scanner says so.
+
+**Still open.**
+
+- The kit itself: its boot chain and its desktop images must move to a
+  release whose GRUB meets today's levels (Fedora 44: `grub,5`), and
+  `make-kit.sh` must write `upgrade_\boot-chain\` from the live images, or
+  the check cannot see the installed system's GRUB.
+- Fedora 44's GRUB is `grub,5`; shim's list already has `2025112400`
+  (`grub,6`). A machine whose level reaches it refuses Fedora 44 too. The
+  check catches that before the line; it does not fix it.
+- The Aspire cannot take Microsoft's 2023 keys (event 1803: no PK-signed
+  KEK from Acer). Fedora 44's shim carries both the 2011 and 2023
+  signatures, so it still starts there.
+
+**Closes when.** The kit carries boot files that meet the level on the
+machines in the record, the installed system's files are checked too, and
+the Aspire's re-run boots the stick and the installed system with Secure
+Boot on.

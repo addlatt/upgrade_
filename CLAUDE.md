@@ -125,8 +125,15 @@ machines can only go back to Windows 10). Its own "Go back to Windows"
 program on the Linux side: a guided stick first, a walk-away reinstall
 later (an erase, so rule #4). `evaluate` harvests the edition and how
 Windows was activated, never a key (R30, V11; `architecture.md`, "The way
-back to Windows"). The Aspire's follow-up run starts from a Windows the
-owner reinstalls by hand: the first activation data point.
+back to Windows"). **Decided (2026-09-29, the owner): the way back is 100%
+managed** (Microsoft's catalog, both drives erased, the commit line in a
+gate on the stick; R33, critical). **The Aspire's first real way back
+(2026-10-03) reached an activated Windows 11 by itself** (digital licence,
+R30's first after-reinstall data point), a `fail` row (`v11-walkaway.csv`
+line 2) on four defects, all fixed the same day and unfired: start through
+the firmware's own USB entry, the password forced at the first sign-in (not
+SetupComplete.cmd, which Microsoft disables with OEM keys), Wi-Fi carried,
+progress shown. Owed: a real cancel, Wi-Fi online at first start.
 
 **Tier 1: no product if these fail.**
 - **V0 / R15: the boot handoff fires.** Walk-away rests entirely on

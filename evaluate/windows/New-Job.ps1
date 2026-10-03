@@ -123,7 +123,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.16.0'
+$JobWriterVersion = '0.17.0'   # 0.17.0 (2026-10-03): the release comes from the stick's release.json and must be one the scan found this computer can start (R34)
 # the harvester versions whose folder map this writer reads; any other is refused, not guessed
 $KnownHarvestVersions = @('0.3.0')
 $LinuxMinGB = 25
@@ -677,11 +677,14 @@ function Get-JobFacts {
             # which checks made it RED: only the two acknowledgeable ones may be lifted
             $f.FailedChecks = @($r.Checks | Where-Object { $_.Status -eq 'fail' -and $_.Section -ne 'Software' } | ForEach-Object { "$($_.Title)" })
             $f.WarnChecks = @($r.Checks | Where-Object { $_.Status -eq 'warn' } | ForEach-Object { "$($_.Title)" })
+            $f.Releases = @($r.Releases)
         }
     }
 
-    $f.Stick = $null
+    $f.Stick = $null; $f.KitRelease = $null
     if ($StickDrive) {
+        $rj = Join-Path ($StickDrive.TrimEnd('\') + '\') 'release.json'
+        if (Test-Path $rj) { try { $f.KitRelease = Get-Content $rj -Raw | ConvertFrom-Json } catch { } }
         $l = $StickDrive.TrimEnd(':', '\')
         try {
             $sv = Get-Volume -DriveLetter $l -ErrorAction Stop
@@ -820,6 +823,20 @@ function ConvertTo-JobHarvest {
     }
 }
 
+function Get-JobReleaseRefusal {
+    # Pure (self-tested), decided 2026-10-03 (the owner; RISKS R34): the job
+    # carries the release on this stick only if the scanner found this
+    # computer can start it (data/releases.ps1, the 'Linux releases' check).
+    # $Kit: the stick's release.json (make-kit). $Releases: the report's list.
+    param($Kit, [object[]]$Releases)
+    if (-not $Kit -or -not $Kit.id) { return 'this stick does not say which Linux release it carries (no release.json); rebuild it with the kit builder' }
+    $r = @(@($Releases) | Where-Object { "$($_.Id)" -eq "$($Kit.id)" }) | Select-Object -First 1
+    if (-not $r) { return "the scan did not judge the release on this stick ($($Kit.name)); run the scanner from this stick first" }
+    if ("$($r.Starts)" -eq 'yes') { return $null }
+    if ("$($r.Starts)" -eq 'unknown') { return "the scan could not tell whether this computer can start $($Kit.name) (its key list was not read); run it as administrator" }
+    "this computer cannot start $($Kit.name), the release on this stick: $(@($r.Why) -join '; ')"
+}
+
 function New-JobDocument {
     param($F, [string]$Desktop, [string]$PasswordHash, [string]$IfCannotKeep, [string]$ReportRel, [string]$AcknowledgeDataLoss, [string]$EraseEverything, [string]$StartAt = 'desktop')
     $refusals = @()
@@ -847,6 +864,8 @@ function New-JobDocument {
     if (-not $F.Stick) { $refusals += "the stick's identity could not be read ($($F.StickError))" }
     if ($F.Stick -and $F.Stick.Bus -ne 'USB') { $refusals += "the stick is on bus '$($F.Stick.Bus)', not USB" }
     if (-not $F.Disk.UniqueId) { $refusals += 'the system disk has no unique id' }
+    $rel = Get-JobReleaseRefusal -Kit $F.KitRelease -Releases @($F.Releases)
+    if ($rel) { $refusals += $rel }
     # the folder map decides what is kept; an erase job keeps nothing, so it
     # only needs the map to exist (it lists what will be deleted)
     if ($erase) { if (-not $F.Harvest) { $refusals += "the list of your folders could not be read ($($F.HarvestError))" } }
@@ -891,7 +910,7 @@ function New-JobDocument {
         scan = [ordered]@{ verdict = $F.Verdict; required_kernel = $(if ($F.RequiredKernel) { "$($F.RequiredKernel)" } else { $null }); report = $ReportRel }
         intent = [ordered]@{
             path = $path.Path; path_reason = $path.Reason; desktop = $Desktop; start_at = $StartAt
-            distro = [ordered]@{ name = 'fedora'; release = '42' }
+            distro = [ordered]@{ name = 'fedora'; release = "$($F.KitRelease.release)" }
             account = [ordered]@{ windows_name = $F.UserName; full_name = $(if ($F.FullName) { "$($F.FullName)" } else { $null })
                                   linux_name = (ConvertTo-JobLinuxName $F.UserName); password_hash = $PasswordHash }
             locale = [ordered]@{ lang = (($F.Locale -replace '-', '_') + '.UTF-8'); timezone = $iana; keymap = $keymap }
@@ -965,6 +984,7 @@ function Invoke-SelfTest {
                WindowsTz = 'Eastern Standard Time'; Locale = 'en-US'; InputTip = '0409:00000409'; UserName = 'Addison'; FullName = 'Addison Example'
                FailedChecks = @(); WarnChecks = @(); RepairQueued = $false; RepairQueuedWhy = ''; RepairStale = ''; LastUnmovable = $null
                Harvest = (New-TestHarvest); HarvestError = $null
+               KitRelease = [pscustomobject]@{ id = 'fedora-44'; name = 'Fedora 44'; release = '44' }; Releases = @([pscustomobject]@{ Id = 'fedora-44'; Name = 'Fedora 44'; Starts = 'yes'; Why = @() })
                Clock = @{ WindowsZone = 'Eastern Standard Time'; RealTimeIsUniversal = $null; DynamicDstDisabled = $null; OffsetMinutes = -240; BaseOffsetMinutes = -300; DstActive = $true; NowUtc = '2026-09-27T12:00:00Z' }
                License = @{ Os = @{ ProductName = 'Windows 10 Home'; EditionId = 'Core'; DisplayVersion = '24H2'; Build = '26100' }
                             Products = @(@{ LicenseStatus = 1; Channel = 'OEM:DM'; Addon = $false }); Firmware = @{ Present = $true; Description = '[4.0] Core OEM:DM' }; Error = $null; NowUtc = '2026-09-27T12:00:00Z' }
@@ -1233,6 +1253,16 @@ function Invoke-SelfTest {
            Run = { $l = ConvertTo-JobLicense -Os @{ Build = '19045' } -Products @(@{ LicenseStatus = 1; Channel = 'Retail'; Addon = $true }, @{ LicenseStatus = 0; Channel = 'OEM:DM'; Addon = $false }) -Firmware $null -NowUtc 'x'; "$($l.activated):$($l.channel)" }; Expect = 'False:OEM:DM' }
         @{ Name = 'licence: the licensed product is chosen when there are several'
            Run = { (ConvertTo-JobLicense -Os @{ Build = '26100' } -Products @(@{ LicenseStatus = 0; Channel = 'Volume:GVLK'; Addon = $false }, @{ LicenseStatus = 1; Channel = 'Retail'; Addon = $false }) -NowUtc 'x').channel }; Expect = 'Retail' }
+        @{ Name = 'release (R34): the job carries the release the stick names'
+           Run = { (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.distro.release }; Expect = '44' }
+        @{ Name = 'release (R34): a release this computer cannot start is a refusal, with the scan''s reason'
+           Run = { $f = With $good 'Releases' @([pscustomobject]@{ Id = 'fedora-44'; Name = 'Fedora 44'; Starts = 'no'; Why = @('stick grubx64.efi: grub,5 < grub,6') }); [bool]((New-JobDocument -F $f -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match 'cannot start Fedora 44, the release on this stick: stick grubx64.efi: grub,5 < grub,6') }; Expect = $true }
+        @{ Name = 'release (R34): a stick without release.json is a refusal'
+           Run = { [bool]((New-JobDocument -F (With $good 'KitRelease' $null) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match 'does not say which Linux release') }; Expect = $true }
+        @{ Name = 'release (R34): a release the scan did not judge is a refusal'
+           Run = { [bool]((New-JobDocument -F (With $good 'Releases' @()) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match 'did not judge the release') }; Expect = $true }
+        @{ Name = 'release (R34): unknown (key list not read) is a refusal, not a pass'
+           Run = { $f = With $good 'Releases' @([pscustomobject]@{ Id = 'fedora-44'; Name = 'Fedora 44'; Starts = 'unknown'; Why = @() }); [bool]((New-JobDocument -F $f -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Refusals -match 'could not tell') }; Expect = $true }
         @{ Name = 'licence: a failed read is unreadable with its reason, and the job is still written'
            Run = { $r = New-JobDocument -F (With $good 'License' @{ Os = @{ Build = '26100' }; Products = @(); Firmware = $null; Error = 'Access denied'; NowUtc = '2026-09-27T12:00:00Z' }) -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r'; $l = $r.Job.harvest.windows_license; "$($r.Refusals.Count):$($l.result):$([bool]($l.reason -match 'Access denied')):$($l.windows_version)" }; Expect = '0:unreadable:True:11' }
         @{ Name = 'licence: no Windows licence reported is unreadable, not a guess'

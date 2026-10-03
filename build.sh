@@ -17,6 +17,7 @@ OUT="$OUT_DIR/upgrade-scan.ps1"
 DATA_FILES=(
     "$ROOT/data/devices.ps1"
     "$ROOT/data/distros.ps1"
+    "$ROOT/data/releases.ps1"
 )
 
 for f in "$SRC" "${DATA_FILES[@]}"; do

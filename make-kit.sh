@@ -4,7 +4,13 @@
 # stick for a physical V0 boot-handoff run - and verify every part of it
 # before it leaves the tree.
 #
-#   ./make-kit.sh [--allow-dirty] [--to DIR]
+#   ./make-kit.sh [--release ID] [--allow-dirty] [--to DIR]
+#
+# --release names an entry in data/releases.ps1 (default fedora-44). The kit
+# carries that release's signed boot chain, installer and desktop images,
+# fetched and checked against the table by rig/vm/fetch-release.sh, and says
+# which release it is in release.json; the scanner and the job writer refuse
+# it on a computer that cannot start it (decided 2026-10-03, the owner; R34).
 #
 # One stick layout comes out, dist/kit/stick/ (copy its CONTENTS to the root
 # of a FAT32 stick). It carries BOTH payloads - Fedora's signed shim+grub at
@@ -46,11 +52,12 @@ HARVEST_SRC="$ROOT/evaluate/windows/Harvest-UpgradeState.ps1"
 SCANNER_DIST="$ROOT/dist/upgrade-scan.ps1"
 RUN_SCANNER="$ROOT/evaluate/windows/usb-kit/RUN-SCANNER.cmd"
 
-ALLOW_DIRTY=0 TO=
+ALLOW_DIRTY=0 TO= RELEASE=fedora-44
 while [ $# -gt 0 ]; do
     case "$1" in
         --allow-dirty) ALLOW_DIRTY=1; shift ;;
         --to) TO=$2; shift 2 ;;
+        --release) RELEASE=$2; shift 2 ;;
         *) echo "make-kit: unknown flag $1" >&2; exit 1 ;;
     esac
 done
@@ -166,12 +173,19 @@ parsecheck "$ROOT/evaluate/windows/Test-StorageMode.ps1"
 step "schemas check passed"
 
 # --- 5. payload bits --------------------------------------------------------
-for f in Shell.efi shimx64.efi grubx64.efi; do
-    [ -f "$BITS/$f" ] || fail "missing $BITS/$f - run rig/vm/fetch-payload-bits.sh"
-done
-NETINST_SRC=$(sed -n 1p "$BITS/fedora-netinst.source.txt" 2>/dev/null || echo "unknown")
+[ -f "$BITS/Shell.efi" ] || fail "missing $BITS/Shell.efi - run rig/vm/fetch-payload-bits.sh"
+# the release: its boot chain, installer and desktop images, each checked
+# against data/releases.ps1 (fetch-release.sh refuses any other bytes)
+"$ROOT/rig/vm/fetch-release.sh" "$RELEASE" >/dev/null || fail "release $RELEASE could not be fetched or does not match data/releases.ps1 (rig/vm/fetch-release.sh $RELEASE)"
+REL="$ROOT/rig/vm/artifacts/releases/$RELEASE"
+RBITS="$REL/bits"
+RJ="$REL/release.json.table"
+rq() { python3 -c "import json,sys; j=json.load(open('$RJ')); print($1)"; }
+[ -n "$(rq "j.get('Installer') or ''")" ] || fail "release $RELEASE has no unattended installer in data/releases.ps1"
+NETINST_SRC=$(rq "j['Netinst']['Url']")
 # the shim payload's grub MUST be the install-media build (reads EFI/BOOT/grub.cfg)
-grep -q 'save_env' <(strings -n 6 "$BITS/grubx64.efi") || fail "grubx64.efi lacks save_env - wrong GRUB build"
+grep -q 'save_env' <(strings -n 6 "$RBITS/EFI/BOOT/grubx64.efi") || fail "grubx64.efi lacks save_env - wrong GRUB build"
+step "release $RELEASE ($(rq "j['Name']")): boot chain, installer and desktop images match data/releases.ps1"
 
 # --- 6. the grubenv block ---------------------------------------------------
 [ "$(stat -c %s "$PAYLOAD/grubenv")" = 1024 ] || fail "grubenv is not 1024 bytes"
@@ -206,20 +220,23 @@ crlf "$PAYLOAD/RUN-ERASE-AND-INSTALL-ACCEPTING-DATA-LOSS.cmd" "$D/RUN-ERASE-AND-
 cp "$ROOT/evaluate/windows/Read-Password.ps1" "$D/Read-Password.ps1"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-VOLUME.cmd" "$D/DIAG-VOLUME.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SMART.cmd"  "$D/DIAG-SMART.cmd"
+crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SECUREBOOT.cmd" "$D/DIAG-SECUREBOOT.cmd"
+cp "$ROOT/evaluate/windows/usb-kit/Diag-SecureBoot.ps1" "$D/Diag-SecureBoot.ps1"
 crlf "$ROOT/evaluate/windows/usb-kit/RUN-STORAGE-MODE.cmd" "$D/RUN-STORAGE-MODE.cmd"
 cp "$ROOT/evaluate/windows/Test-StorageMode.ps1" "$D/Test-StorageMode.ps1"
 cp "$ROOT/evaluate/windows/usb-kit/Diag-Smart.ps1" "$D/Diag-Smart.ps1"
 cp "$ROOT/upgrade_/windows/Invoke-Prologue.ps1" "$D/Invoke-Prologue.ps1"
 cp "$ROOT/upgrade_/windows/Invoke-Logged.ps1"   "$D/Invoke-Logged.ps1"
 crlf "$PAYLOAD/ROLLBACK.cmd"        "$D/ROLLBACK.cmd"
+crlf "$PAYLOAD/CANCEL-CONVERSION.cmd" "$D/CANCEL-CONVERSION.cmd"
 cp "$ROOT/upgrade_/windows/Invoke-Rollback.ps1" "$D/Invoke-Rollback.ps1"
 cp "$ROOT/evaluate/windows/New-Job.ps1"        "$D/New-Job.ps1"
 # the folder map (0.10.0): the job writer runs the harvester beside it, in its own process
 cp "$HARVEST_SRC"                             "$D/Harvest-UpgradeState.ps1"
 cp "$ROOT/upgrade_/windows/New-Kickstart.ps1"  "$D/New-Kickstart.ps1"
 # signed payload: the product path, at the removable-media default location
-cp "$BITS/shimx64.efi"  "$D/EFI/BOOT/BOOTX64.EFI"
-cp "$BITS/grubx64.efi"  "$D/EFI/BOOT/grubx64.efi"
+cp "$RBITS/EFI/BOOT/BOOTX64.EFI" "$D/EFI/BOOT/BOOTX64.EFI"
+cp "$RBITS/EFI/BOOT/grubx64.efi" "$D/EFI/BOOT/grubx64.efi"
 cp "$PAYLOAD/grub.cfg"  "$D/EFI/BOOT/grub.cfg"
 cp "$PAYLOAD/grubenv"   "$D/EFI/BOOT/grubenv"
 # unsigned payload: the matrix rows (Test-Handoff.ps1 -Payload shell)
@@ -229,13 +246,10 @@ cp "$PAYLOAD/startup.nsh" "$D/startup.nsh"
 # grub.cfg boots them only when upgrade_/boot-verify exists on the stick
 # (the rig's v1.sh puts it there beside job.json + ks.cfg); without it the
 # stick is the V0 marker stick, unchanged.
-for f in images/pxeboot/vmlinuz images/pxeboot/initrd.img images/install.img; do
-    [ -f "$BITS/$f" ] || fail "missing $BITS/$f - run rig/vm/fetch-payload-bits.sh"
-done
 mkdir -p "$D/images/pxeboot" "$D/upgrade_"
-cp "$BITS/images/pxeboot/vmlinuz"    "$D/images/pxeboot/vmlinuz"
-cp "$BITS/images/pxeboot/initrd.img" "$D/images/pxeboot/initrd.img"
-cp "$BITS/images/install.img"        "$D/images/install.img"
+cp "$RBITS/images/pxeboot/vmlinuz"    "$D/images/pxeboot/vmlinuz"
+cp "$RBITS/images/pxeboot/initrd.img" "$D/images/pxeboot/initrd.img"
+cp "$RBITS/images/install.img"        "$D/images/install.img"
 sed 's/\r$//' "$ROOT/upgrade_/linux/verify.sh"  > "$D/upgrade_/verify.sh"
 sed 's/\r$//' "$ROOT/upgrade_/linux/outcome.sh" > "$D/upgrade_/outcome.sh"
 # settle-in and its service; outcome.sh installs them only if their checksums match SHA256SUMS
@@ -254,12 +268,28 @@ sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-go-back-to-windows.desktop" > "$D/
 # desktop the intent capture offers (rig/vm/fetch-desktops.sh). The
 # kickstart's liveimg line names one of them; verify.sh reads it back
 # against SHA256SUMS in the live session before anything is installed.
-for d in gnome kde; do
-    [ -f "$BITS/LiveOS/$d.squashfs" ] || fail "missing $BITS/LiveOS/$d.squashfs - run rig/vm/fetch-desktops.sh"
-done
 mkdir -p "$D/upgrade_/LiveOS"
-cp "$BITS/LiveOS/gnome.squashfs" "$D/upgrade_/LiveOS/gnome.squashfs"
-cp "$BITS/LiveOS/kde.squashfs"   "$D/upgrade_/LiveOS/kde.squashfs"
+for d in gnome kde; do
+    [ -f "$RBITS/LiveOS/$d.squashfs" ] || fail "release $RELEASE has no '$d' desktop image (the launchers offer gnome and kde)"
+    cp "$RBITS/LiveOS/$d.squashfs" "$D/upgrade_/LiveOS/$d.squashfs"
+done
+# which release this stick carries (the job writer reads it and refuses one
+# the scan found this computer cannot start), and the installed system's boot
+# files' SBAT facts from the table (the scanner judges them; the images they
+# came from are pinned by sha256 above)
+python3 - "$RJ" "$D" <<'PY'
+import json, os, sys
+j = json.load(open(sys.argv[1])); d = sys.argv[2]
+rel = {'id': j['Id'], 'name': j['Name'], 'family': j['Family'], 'release': j['Id'].rsplit('-', 1)[-1], 'measured': j['Measured']}
+open(os.path.join(d, 'release.json'), 'w').write(json.dumps(rel, indent=2) + '\n')
+bc = os.path.join(d, 'upgrade_', 'boot-chain'); os.makedirs(bc, exist_ok=True)
+for b in j['Boot'] if isinstance(j['Boot'], list) else [j['Boot']]:
+    if not b['Role'].startswith('installed '): continue
+    name = b['Role'].split(' ', 1)[1] + '-' + os.path.splitext(b['File'])[0]
+    open(os.path.join(bc, name + '.sbat'), 'w').write(b['Sbat'] + '\n')
+    lv = b['SbatLevel'] if isinstance(b['SbatLevel'], list) else ([b['SbatLevel']] if b['SbatLevel'] else [])
+    if lv: open(os.path.join(bc, name + '.sbatlevel'), 'w').write('\n'.join(lv) + '\n')
+PY
 
 # --- manifest + checksums -----------------------------------------------------
 (cd "$D" && find . -type f ! -name SHA256SUMS ! -name KIT-MANIFEST.txt | sort | xargs sha256sum > SHA256SUMS)
@@ -271,14 +301,13 @@ harness:          Test-Handoff.ps1 $HARNESS_VERSION
 window:           UPGRADE.exe $(grep -m1 '^version' "$ROOT/upgrade_/windows/window/Cargo.toml" | cut -d'"' -f2)  $(sha256sum "$UPGRADE_EXE" | cut -c1-64)   (verify flow; RUN-VERIFY.cmd stays as the fallback)
 settle-in:        $SETTLE_IN_VERSION  $(sha256sum "$SETTLE_IN_BIN" | cut -c1-64)   -> upgrade_/settle-in/settle-in
 scanner:          upgrade-scan.ps1 $SCANNER_VERSION (single-file build of evaluate/windows + data/)
-payload bits:     rig/vm/artifacts/payload-bits (gitignored inputs; fetch-payload-bits.sh)
+release:          $RELEASE ($(rq "j['Name']"), measured $(rq "j['Measured']")) - data/releases.ps1; release.json on this stick
   Shell.efi       $(sha256sum "$BITS/Shell.efi" | cut -c1-64)   -> EFI/SHELL/SHELLX64.EFI
-  shimx64.efi     $(sha256sum "$BITS/shimx64.efi" | cut -c1-64)   -> EFI/BOOT/BOOTX64.EFI
-  grubx64.efi     $(sha256sum "$BITS/grubx64.efi" | cut -c1-64)   -> EFI/BOOT/grubx64.efi
-  install.img     $(sha256sum "$BITS/images/install.img" | cut -c1-64)   -> images/install.img (+ pxeboot vmlinuz, initrd.img)
-desktops:         rig/vm/artifacts/payload-bits/LiveOS (unmodified Fedora live squashfs; fetch-desktops.sh)
-$(sed 's/^/  /' "$BITS/LiveOS/source.txt")
-  from netinst:   $NETINST_SRC
+  shim            $(sha256sum "$RBITS/EFI/BOOT/BOOTX64.EFI" | cut -c1-64)   -> EFI/BOOT/BOOTX64.EFI
+  grub            $(sha256sum "$RBITS/EFI/BOOT/grubx64.efi" | cut -c1-64)   -> EFI/BOOT/grubx64.efi
+  install.img     $(sha256sum "$RBITS/images/install.img" | cut -c1-64)   -> images/install.img (+ pxeboot vmlinuz, initrd.img)
+  from installer: $NETINST_SRC
+$(rq "chr(10).join('  %-15s %s  <- %s' % (x['Id'] + ' image', x['ImageSha256'], x['Url']) for x in (j['Desktops'] if isinstance(j['Desktops'], list) else [j['Desktops']]))")
 verified at build: dist matches source; scanner/harvester/harness self-tests
                   passed on Windows PowerShell 5.1; shipped .ps1 parse under
                   the PS 5.1 parser; grubenv block 1024 B with GRUB header.

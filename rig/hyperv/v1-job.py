@@ -46,6 +46,9 @@ job["scan"]["verdict"] = "YELLOW"
 job["intent"]["account"] = {"windows_name": "rig", "full_name": None, "linux_name": "rig", "password_hash": pw_hash}
 job["intent"]["locale"] = {"lang": "en_US.UTF-8", "timezone": settings["clock"]["iana"], "keymap": "us"}
 job["intent"]["desktop"] = "kde"
+# the release the kit carries (make-kit.sh writes release.json; R34, 2026-10-03), not the example's
+_rel = pathlib.Path(__file__).resolve().parents[2] / "dist/kit/stick/release.json"
+if _rel.exists(): job["intent"]["distro"] = {"name": "fedora", "release": json.load(open(_rel))["release"]}
 job["fork"] = {"if_cannot_keep": "stop", "volume_check_consented": True}
 job["storage"]["shrinkable_gb"] = float(facts.get("shrink_gb") or 0) or None
 job["storage"]["shrink_source"] = "storage-api" if job["storage"]["shrinkable_gb"] else None

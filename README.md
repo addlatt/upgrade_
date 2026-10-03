@@ -130,10 +130,11 @@ Think of each bar as how far along the road a step has got:
 | **Install next to Windows** and check both boot (V1b) | `[###.]` | [`v2-install.csv`](docs/validation-results/v2-install.csv): on the rig, Secure Boot off. The real one needs a laptop with a healthy drive |
 | **Undo, from the Windows side** | `[###.]` | [`r21-rollback.csv`](docs/validation-results/r21-rollback.csv) |
 | **Erase and install**, one click, keep nothing (V9) | `[###.]`, real machine `[FAIL]`, fixed | [`v9-erase.csv`](docs/validation-results/v9-erase.csv): more below |
+| **Go back to Windows**, one click, keep nothing (V11, R33) | `[###.]`, real machine `[FAIL]`, fixed | [`v11-walkaway.csv`](docs/validation-results/v11-walkaway.csv): on 2026-10-03 the Acer went from Fedora back to an activated Windows 11 by itself, but needed a manual start from the stick, kept no password and came up offline. All three fixed; the next run proves it |
 | **Reading BitLocker drives from Linux** (V3) | `[###.]` | [`v3-bitlk-read.csv`](docs/validation-results/v3-bitlk-read.csv): works using `ntfs-3g` |
 | **Spotting the RST / VMD disk setting** (V5) | `[##..]` | [`v5-controller-mode.csv`](docs/validation-results/v5-controller-mode.csv): one side is tested for real, but **VMD itself has never been caught on a real machine** |
 | **`settle-in`**: first boot checks, copy files, clean-up | `[#...]` | only the BitLocker reading is proven |
-| **Clock, Wi-Fi passwords, the leftover Windows boot entry** | `[#...]` | planned 2026-09-26: collected on Windows, applied on first boot |
+| **Clock, Wi-Fi passwords, the leftover Windows boot entry** | `[###.]` | [`settle-in-first-start.csv`](docs/validation-results/settle-in-first-start.csv): built 2026-09-27; collected on Windows, applied by `settle-in` on first boot, with a button for the old entry. Passes on the rig (KDE and GNOME, runs up to 13 on 2026-09-29). A real machine is still owed |
 | **Offer to delete Windows when it can't be kept** (R26) | `[#...]` | planned 2026-09-26 |
 | **Different laptop brands** | `[#...]` 1 of 4+ | Acer so far. Dell, Lenovo and HP still to go |
 | **Code signing** | `[....]` | until it's signed, Windows Defender treats it like malware |
