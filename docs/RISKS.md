@@ -3510,6 +3510,13 @@ return records, `secureboot-diag-2026-10-03T1601Z.txt`).
 Fedora 42 is also out of support (its updates folder on Fedora's servers is
 empty, 2026-10-03), so it would not get a fixed GRUB.
 
+**Decided (2026-10-03, the owner):** the release is not fixed in the kit.
+`evaluate` reads what the machine accepts and the kit is built for a
+release that meets it, from a table of releases whose facts are measured
+from their own files (`data/releases.ps1`; `architecture.md`, "It chooses
+the Linux release"; VALIDATION V14). "If I wanted to one day support
+Omarchy, we could read state, identify version, install, proceed."
+
 **Built (2026-10-03).** Scanner 0.4.0, check *Secure Boot revocations*:
 reads the level Windows recorded, the firmware's `SbatLevelRT` (elevated),
 the stick shim's built-in level, and the `.sbat` of the stick's

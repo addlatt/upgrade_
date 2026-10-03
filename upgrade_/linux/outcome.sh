@@ -267,7 +267,7 @@ o = {
     "identity_verified": v.get("identity", {}).get("result") == "pass",
     "stick_verified": {"files": 1 if pl.get("result") == "pass" else 0, "bytes": 0, "failed": [] if pl.get("result") == "pass" else [pl.get("image", "")]},
     "hardware": {"display": hw.get("display", "skipped"), "wifi": hw.get("wifi", "skipped"), "audio_firmware": hw.get("audio_firmware", "skipped"), "human_gate": "not-required"},
-    "install": {"distro": "fedora", "release": E("UPG_RELEASE") or "42", "kernel": E("UPG_KERNEL", ""), "root_partition": E("UPG_ROOTDEV", ""), "esp_reused": keep, "artifacts_injected": [],
+    "install": {"distro": "fedora", "release": E("UPG_RELEASE") or "unknown", "kernel": E("UPG_KERNEL", ""), "root_partition": E("UPG_ROOTDEV", ""), "esp_reused": keep, "artifacts_injected": [],
                 "boot_target": E("UPG_BOOT_TARGET") or "unknown", "display_manager": E("UPG_DM") or None,
                 "start_at": job["intent"].get("start_at", "desktop")},
     "boot_chain": {"windows_entry_present": win_present, "windows_entry_recreated": b("UPG_WIN_RECREATED"), "linux_first_in_bootorder": b("UPG_LINUX_FIRST"),

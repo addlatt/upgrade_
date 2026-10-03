@@ -1252,6 +1252,26 @@ return check recorded, with nothing armed or registered left behind; step
 
 ---
 
+## V14: The kit's Linux release starts where it is used · kills: the one click, and after an erase, the machine · RISKS R34
+
+Decided 2026-10-03 (the owner): the release is chosen from what the
+machine accepts (`architecture.md`, "It chooses the Linux release").
+`[##..]` built, partly fired.
+
+| Step | What | Status |
+|---|---|---|
+| 1 | The scanner reads the SBAT level and judges the stick's boot files | `[####]` fired on the Aspire 2026-10-03 over SSH: Fedora 42 files FAIL (`grub,3 < grub,5`), Fedora 44 files OK |
+| 2 | Release facts measured from the files (`measure-release.py`), Fedora 42 and 44 | `[##..]` |
+| 3 | The scanner judges every release, including the db's authorities; the job writer refuses an unstartable one | `[##..]` self-tests only |
+| 4 | `make-kit.sh --release fedora-44`: the kit carries Fedora 44, every file checked against the table | `[##..]` |
+| 5 | The rig: V9 arm C and a settle-in run on the Fedora 44 kit, Secure Boot on | `[....]` |
+| 6 | The Aspire: the scan says Fedora 44 starts; the stick boots; the installed system boots, Secure Boot on | `[....]` |
+
+**Residue that only a real machine closes:** what a firmware actually
+holds (the level and the db) and whether it refuses exactly as shim's rule
+says. The rig's Hyper-V firmware has its own level and keys; a pass there
+is plumbing.
+
 ## V13: The port from PowerShell to Rust · kills: trust in every row the Windows side earned · RISKS R32
 
 Decided 2026-09-27 (the owner): Rust becomes the conversion's one
@@ -1319,6 +1339,7 @@ Real, but they degrade rather than kill, or only touch the fallback path:
 | V4 | stick-size guidance; intent UI weighting (ship scanner change now) |
 | V8 | the settle-in file pull's integrity guarantee; `settle-in` never copying a stub as the file (online-only files stay in OneDrive, decided 2026-09-26) |
 | V11 | the "Go back to Windows" program (walk-away since 2026-09-29); until it passes, the launchers' line promises only what is proven |
+| V14 | every kit build (its release must be one the target machines can start); the Aspire's run 10 re-run |
 | V13 | retiring each PowerShell piece; the ported writers (steps 3 to 5 also wait on V0's vendors and V9's re-run) |
 | V5 | nothing: do it this week regardless |
 | V6 | nothing: start the clock now; blocks only the eventual release |
