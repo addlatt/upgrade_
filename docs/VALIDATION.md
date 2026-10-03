@@ -1261,10 +1261,10 @@ machine accepts (`architecture.md`, "It chooses the Linux release").
 | Step | What | Status |
 |---|---|---|
 | 1 | The scanner reads the SBAT level and judges the stick's boot files | `[####]` fired on the Aspire 2026-10-03 over SSH: Fedora 42 files FAIL (`grub,3 < grub,5`), Fedora 44 files OK |
-| 2 | Release facts measured from the files (`measure-release.py`), Fedora 42 and 44 | `[##..]` |
+| 2 | Release facts measured from the files (`measure-release.py`) | `[###.]` Fedora 44 measured and committed (47bc8cf); Fedora 42 owed (a record only) |
 | 3 | The scanner judges every release, including the db's authorities; the job writer refuses an unstartable one | `[##..]` self-tests only |
-| 4 | `make-kit.sh --release fedora-44`: the kit carries Fedora 44, every file checked against the table | `[##..]` |
-| 5 | The rig: V9 arm C and a settle-in run on the Fedora 44 kit, Secure Boot on | `[....]` |
+| 4 | `make-kit.sh --release fedora-44`: the kit carries Fedora 44, every file checked against the table | `[###.]` built and used on the rig; both new scanner checks OK inside the rig guest from the stick |
+| 5 | The rig: V9 arm C and a settle-in run on the Fedora 44 kit | `[###.]` arm C erased-installed (Secure Boot off: Hyper-V cannot trust both authorities); the stick's chain and the installed system booted with Secure Boot on under the third-party CA on a second VM; Plasma Setup found and fixed, re-run under way |
 | 6 | The Aspire: the scan says Fedora 44 starts; the stick boots; the installed system boots, Secure Boot on | `[....]` |
 
 **Residue that only a real machine closes:** what a firmware actually

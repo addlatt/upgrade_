@@ -3527,6 +3527,30 @@ sentence cannot lift. Fired on the Aspire over SSH: Fedora 42 files FAIL
 (`grub,3 < grub,5`), Fedora 44 files (shim 16.1-7, GRUB 2.12-66.fc44) OK.
 `DIAG-SECUREBOOT.cmd` on the kit reads the same facts, read-only.
 
+**Fedora 44 on the rig (2026-10-03).** `make-kit.sh --release fedora-44`
+built kit 2ab02b2. V9 arm C (`v9-erase.csv`, the Fedora 44 row) erased,
+installed and booted as designed. Three findings the same day:
+
+- **Hyper-V cannot trust both Windows and the third-party CA.** Its
+  `MicrosoftWindows` template holds only Windows' authority (no Linux
+  shim starts) and `MicrosoftUEFICertificateAuthority` only the
+  third-party one (Windows does not start). So the rig's erase rows run
+  with Secure Boot off, as they always have. The Secure Boot half was
+  proven apart, on a VM with the third-party CA (`UPGRIGSB`): the stick's
+  Fedora 44 shim and GRUB fired (grubenv `upg_fired=1`), and the installed
+  Fedora 44 from arm C booted to its desktop session
+  (`rig/hyperv/artifacts/v9/sb-installed-f44/`). A real machine trusts
+  both, which only the Aspire shows.
+- **Fedora 44 KDE's first-run wizard.** The first boot showed Plasma Setup
+  ("Welcome to Plasma Desktop / Begin Setup") instead of the sign-in, and
+  the settle-in window opened over it. Its unit runs unless
+  `/etc/plasma-setup-done` exists. Fixed: kickstart 0.5.0 marks it done and
+  disables it; the window never opens in a login screen's session.
+- **Fedora 44's release shim is signed under the 2011 authority only**
+  (shim 16.1, sha256 571ea56b...). The dual-signed 16.1-7 is only in
+  updates. Fine on the Aspire (2011 in its db); a machine whose db drops
+  the 2011 authority would refuse it, and the scanner says so.
+
 **Still open.**
 
 - The kit itself: its boot chain and its desktop images must move to a
