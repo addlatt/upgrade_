@@ -3225,7 +3225,7 @@ release is rebuilt byte for byte from the source by someone else. A replay
 of recorded tool output closes the decision, never the firmware's
 behaviour: that part of a physical row takes the machine again.
 
-## R33: The walk-away way back to Windows · critical · open (decided 2026-09-29; nothing built)
+## R33: The walk-away way back to Windows · critical · open (decided 2026-09-29; built and rig `[###.]`; the Aspire's first real run 2026-10-03 reached Windows 11, `fail` on four defects, fixed 2026-10-03 and unfired)
 
 **What.** "Go back to Windows", 100% managed (decided 2026-09-29, the
 owner; `architecture.md`, "The way back to Windows", stage 2). From the
