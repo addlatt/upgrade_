@@ -3568,3 +3568,71 @@ installed and booted as designed. Three findings the same day:
 machines in the record, the installed system's files are checked too, and
 the Aspire's re-run boots the stick and the installed system with Secure
 Boot on.
+
+## R35: The stick installs again after the install · critical · open (found 2026-10-04 on the Aspire, run 10; fixed the same day, rig arm D added; a real machine owed)
+
+**What.** The stick starts the installer whenever it carries the marker
+file `upgrade_/boot-install`. The Windows side removed that marker at every
+stop. Nothing on the Linux side ever removed it. That was safe only as
+long as the firmware started the new system after the install, and not the
+stick.
+
+**What happened (2026-10-04, the Aspire's run 10, kit ee74318).** The first
+install finished and restarted. The firmware started the USB stick again.
+The installer's own record shows the boot order read Fedora first at that
+moment; the Insyde firmware started the stick anyway, and later listed
+`EFI USB Device` first by itself. The stick still said "install", so it
+counted down 2 minutes, erased both drives and installed a second time.
+Then a third countdown began. The owner pressed a key at 15.9 s and took
+the stick out. With nobody at the keyboard it would never have stopped:
+erase, install, restart, for ever. `v9-erase.csv`, the physical run 10
+row, `fail`. Evidence:
+`rig/hyperv/artifacts/aspire-r27-2026-10-04-run10b/`.
+
+**What it cost.** No data (the job was an erase). But:
+
+- The second install had no Wi-Fi password: the first had moved it off
+  the stick, as designed. So Wi-Fi was not carried.
+- The records of the first install were overwritten by the second.
+- A cancel left the marker in place too, and its screen said "Restarting
+  into Windows" when no Windows was left.
+- Any person who left the stick in would have found the computer
+  installing, whenever they came back.
+
+**Why rule #3 names this.** The commit line is one moment. A stick that
+can cross it again by itself, with no consent typed for the second time,
+is a second commit line nobody agreed to.
+
+**Fixed (2026-10-04).**
+
+- `verify.sh` 0.6.0: in install mode, after every refusal and the
+  countdown, and before the installer touches a drive, it writes
+  `upgrade_/converted` on the stick and removes `upgrade_/boot-install`.
+  If it cannot, it refuses and nothing is erased. A stick that carries
+  `converted` is refused before anything else. A cancelled countdown
+  removes `boot-install` too.
+- `grub.cfg`: a stick that carries `converted` never starts the
+  installer. It hands over to the internal drive's Fedora, or back to
+  the firmware.
+- Prologue 0.12.0: arming a new job, behind its typed sentences, is the
+  one thing that clears `converted`.
+- Rig arm D (`v9.sh stick-first`, verdict `not-installed-again`): after
+  arm C, the stick first in the boot order and left in. The rig never
+  tested this, which is why it passed and the Aspire did not.
+
+**Still open.**
+
+- A real machine: the Aspire, with the stick left in after the install.
+- If the install fails after the line (power, a dying drive), the stick
+  now refuses to try again by itself. Recovery is a new job from a
+  working system, or the way back. That is the right default, and it has
+  no plain-words screen yet.
+- A stick that was cancelled, on firmware that prefers USB, restarts
+  into the stick's "returning to Windows" branch each time. It erases
+  nothing, but it may not reach Windows without taking the stick out.
+  Not seen yet.
+- Why the Aspire's firmware started the stick with Fedora first in its
+  order is not known.
+
+**Closes when.** Arm D passes on the rig, and the Aspire finishes an
+install with the stick left in and comes up in Fedora once.
