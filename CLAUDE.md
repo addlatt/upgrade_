@@ -145,9 +145,21 @@ machine to reach its desktop.** Three things came out of it:
 Held on the Aspire in run 10: the handoff by itself, the erase, the
 install, the graphical sign-in (GNOME), `/home` on the second drive, the
 clock corrected at first start (the installer was 7 h off). Failed: the
-second install, and Wi-Fi as its consequence. Owed: one install with the
-stick left in, Fedora up once, Wi-Fi carried (the Aspire needs Windows
-back first), and the clean cancel row.
+second install, and Wi-Fi as its consequence.
+**2026-10-04, later: the Aspire's run 11, the first clean conversion.** Kit
+aba09ec (rig C7, D3 first), the stick left in throughout. `v9-erase.csv`:
+physical `erased-installed` (one install; the firmware started the stick
+again and it handed over to Fedora), then physical `not-installed-again`
+after one restart with the stick in. `settle-in-first-start.csv`: physical
+`pass` (the clock corrected, Wi-Fi connected by itself, SSH carried, KDE).
+R25's detector fired for the first time on a real machine (a waiting
+update was let finish, one restart). R27's and R35's closing clauses are
+met; both stay open for what is listed in them. Owed: the clean cancel row
+(Part A was skipped by accident; it needs Windows back first), other
+vendors, the old-entry button on real firmware (the firmware had left
+nothing named Windows to remove), and a stale "upgrade_ go back to
+Windows" entry that nothing removes. Next toward carrying files: the
+harvest's staging on the exFAT partition, then `settle-in`'s file pull.
 **Decided (2026-09-27, the owner): there is always a way back to
 Windows,** a new and empty one, and it says its cost first (most of these
 machines can only go back to Windows 10). Its own "Go back to Windows"
@@ -479,6 +491,6 @@ so far. The ASUS ROG Zephyrus G16 (Ryzen AI 9 HX 370, RTX 4060, MediaTek
 MT7925, Cirrus CS35L56) is the development machine the scanner was built
 on. The Acer Aspire A515-51G (InsydeH2O, dying SATA SSD) is the one that
 has run the conversion itself: the handoff, the live boot, the prologue's
-stops and the erase and install (runs 9 and 10; it runs Fedora 44 since
-2026-10-04). Most `fail` paths are still
+stops and the erase and install (runs 9, 10 and 11; it runs Fedora 44
+since 2026-10-04, from run 11, the first clean one). Most `fail` paths are still
 synthetic (R2), so treat one green run as one data point, not proof.

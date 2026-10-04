@@ -69,7 +69,7 @@ A few words used all through this file:
 | V2 amp firmware | `[....]` | experiment on the G16 not run |
 | V3 BitLocker read | `[###.]` | all three configs byte-identical via ntfs-3g; real disks owed |
 | V4 disks shrink | `[####]` 1 disk | the Aspire's answer is no (best 9.5 of 25 GB); the population count needs ~20 elevated reports |
-| V9 erase and install | rig `[###.]`, real `[FAIL]` | run 9 came up at a text login (fixed); the next run's kit (552b6fb) re-proven on the rig 2026-09-29 (C, B, B3); physical re-run owed, with a real cancel first (two rig key presses went unread, cause not found: R27) |
+| V9 erase and install | rig `[###.]`, real `[####]` 2026-10-04 (run 11: `erased-installed` with the stick left in, then `not-installed-again`); runs 9 and 10 `[FAIL]`, fixed | run 9 came up at a text login; run 10 installed twice (R35). Run 11, kit aba09ec, is the first clean conversion (R27). The clean physical cancel row is still owed (Part A was skipped in run 11; two rig key presses went unread on 2026-09-29, cause not found) |
 | V11 way back to Windows | harvest `[##..]`, guided stick `[###.]`, walk-away rig `[###.]`, real `[FAIL]` (2026-10-03: the Aspire reached Windows 11, activated; fail on four defects, `v11-walkaway.csv` line 2; R33) | the four fixed 2026-10-03 (start through the firmware's USB entry, password forced at the first sign-in, Wi-Fi carried, progress shown), the password and the first-sign-in hook proven on the rig; owed on the Aspire: Wi-Fi online at first start, the program's own start, a real cancel |
 | V8 OneDrive placeholders | `[###.]` | cfapi provider `pass-plumbing` on the rig and the G16; signed-in OneDrive owed |
 | V5 VMD detection | plumbing `[###.]`, AHCI row `[####]` | the RST/VMD row on real hardware is owed |
@@ -819,8 +819,24 @@ proven on the rig as a fourth arm:
    hands over to the installed Fedora, no countdown, both disks unchanged
    (`not-installed-again`).
 
-The physical row now owed: one install with the stick left in, Fedora up
+The physical row then owed: one install with the stick left in, Fedora up
 once, Wi-Fi carried.
+
+**Physical: the Aspire's run 11 (2026-10-04) PASSED. The first clean
+conversion.** Kit aba09ec (re-proven on the rig first: C7, D3), Fedora 44,
+KDE, Secure Boot on, the stick left in throughout. Three rows, each written
+by its verdict script from the machine's own records:
+
+- `v9-erase.csv`, `erased-installed`: one install. The firmware started
+  the stick again after it, and the stick handed over to Fedora.
+- `v9-erase.csv`, `not-installed-again`: the owner restarted once with the
+  stick in. The stick started again and handed over again.
+- `settle-in-first-start.csv`, `pass`: the clock corrected, Wi-Fi connected
+  by itself, remote access carried (V10).
+
+Still owed after run 11: the clean physical cancel (arm 2 on a real
+machine; it was skipped by accident), other vendors' firmware, and the
+old-entry button on real firmware (nothing was left for it to remove).
 
 **Method.** Rig first, on a copy of the rig's Windows disk plus a blank
 second disk:
@@ -977,7 +993,7 @@ carried only if Windows had it on, public keys only. `[###.]` on the rig
 key, the new Fedora 44 accepted that key over SSH from the host, refused a
 password (the server offered only public key), ran sshd enabled, and kept
 `~/.ssh` 700 and `authorized_keys` 600 owned by the person with the
-`ssh_home_t` label. **Physical, 2026-10-04 (the Aspire's run 10): carried.**
+`ssh_home_t` label. **Physical, 2026-10-04 (the Aspire's run 10): carried.** Carried again in run 11 the same day, on KDE, inside a passing row.
 The new Fedora came up with SSH on and the G16's key signed in, with no
 tester step. That key then gathered the run's evidence.
 
@@ -1298,7 +1314,7 @@ machine accepts (`architecture.md`, "It chooses the Linux release").
 | 3 | The scanner judges every release, including the db's authorities; the job writer refuses an unstartable one | `[##..]` self-tests only |
 | 4 | `make-kit.sh --release fedora-44`: the kit carries Fedora 44, every file checked against the table | `[###.]` built and used on the rig; both new scanner checks OK inside the rig guest from the stick |
 | 5 | The rig: V9 arm C and a settle-in run on the Fedora 44 kit | `[###.]` arm C erased-installed (Secure Boot off: Hyper-V cannot trust both authorities); the stick's chain and the installed system booted with Secure Boot on under the third-party CA on a second VM; Plasma Setup found and fixed (C2, settle-in run 16) |
-| 6 | The Aspire: the scan says Fedora 44 starts; the stick boots; the installed system boots, Secure Boot on | `[####]` 2026-10-04, run 10: all three held (the run itself is a `fail` row for R35, not for this) |
+| 6 | The Aspire: the scan says Fedora 44 starts; the stick boots; the installed system boots, Secure Boot on | `[####]` 2026-10-04, run 10: all three held (the run itself is a `fail` row for R35, not for this). Held again in run 11 the same day (kit aba09ec), a passing run |
 
 **Residue that only a real machine closes:** what a firmware actually
 holds (the level and the db) and whether it refuses exactly as shim's rule
@@ -1396,7 +1412,7 @@ Real, but they degrade rather than kill, or only touch the fallback path:
 | V4 | stick-size guidance; intent UI weighting (ship scanner change now) |
 | V8 | the settle-in file pull's integrity guarantee; `settle-in` never copying a stub as the file (online-only files stay in OneDrive, decided 2026-09-26) |
 | V11 | the "Go back to Windows" program (walk-away since 2026-09-29); until it passes, the launchers' line promises only what is proven |
-| V14 | every kit build (its release must be one the target machines can start); the Aspire's run 10 re-run |
+| V14 | every kit build (its release must be one the target machines can start); the Aspire's run 10 re-run (done 2026-10-04, run 11) |
 | V13 | retiring each PowerShell piece; the cut-over to Rust (decided 2026-10-04: after one success of the PowerShell process on `main`) |
 | V5 | nothing: do it this week regardless |
 | V6 | nothing: start the clock now; blocks only the eventual release |
