@@ -12,7 +12,8 @@
 #   2. the recorded files are fresh: data/tables.json (from data/*.ps1),
 #      schemas/rust/tests/refused-cases.json (from check.py),
 #      evaluate/scan/tests/golden.json (from the PowerShell scanner),
-#      upgrade_/kickstart/tests/golden.json (from New-Kickstart.ps1)
+#      and the golden.json of the harvester, the job writer and the
+#      kickstart generator (each from its own script)
 #   3. every PowerShell self-test case has a Rust case under the same name
 #   4. cargo test in every Rust crate of the port, and the differential
 #      run against check.py
@@ -55,6 +56,12 @@ if [ "$HAVE_PS" = 1 ]; then
 else
     skip "New-Kickstart.ps1 -SelfTest"
 fi
+if [ "$HAVE_PS" = 1 ]; then
+    ps evaluate/windows/New-Job.ps1 -SelfTest > "$TMP/job-selftest.txt" || true
+    if grep -q 'all checks passed' "$TMP/job-selftest.txt"; then pass "New-Job.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/job-selftest.txt") cases)"; else fail "New-Job.ps1 -SelfTest"; fi
+else
+    skip "New-Job.ps1 -SelfTest"
+fi
 if python3 schemas/check.py --dump-cases "$TMP/refused-cases.json" --dump-mutations "$TMP/mutations.jsonl" > "$TMP/check.txt" 2>&1; then
     pass "schemas/check.py ($(grep -c '  PASS  ' "$TMP/check.txt") checks)"
 else fail "schemas/check.py"; fi
@@ -70,6 +77,8 @@ if [ "$HAVE_PS" = 1 ]; then
     fresh upgrade_/kickstart/tests/golden.json "$TMP/ks-golden.json"
     ps evaluate/harvest/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\harvest-golden.json" > /dev/null
     fresh evaluate/harvest/tests/golden.json "$TMP/harvest-golden.json"
+    ps evaluate/job/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\job-golden.json" > /dev/null
+    fresh evaluate/job/tests/golden.json "$TMP/job-golden.json"
 else
     skip "upgrade_/kickstart/tests/golden.json against New-Kickstart.ps1"
     skip "data/tables.json against data/*.ps1"; skip "evaluate/scan/tests/golden.json against the PowerShell scanner"
@@ -98,12 +107,13 @@ if [ "$HAVE_PS" = 1 ]; then
     same_names "$TMP/scan-selftest.txt" evaluate/scan/tests/cases.json "scanner"
     same_names "$TMP/ks-selftest.txt" upgrade_/kickstart/tests/cases.json "kickstart"
     same_names "$TMP/harvest-selftest.txt" evaluate/harvest/tests/cases.json "harvester" evaluate/harvest/tests/owed-selftest.txt
+    same_names "$TMP/job-selftest.txt" evaluate/job/tests/cases.json "job writer"
 else
     skip "self-test case names against cases.json"
 fi
 
 say; say "  4. the Rust side"; say
-for crate in schemas/rust evaluate/scan evaluate/harvest upgrade_/kickstart; do
+for crate in schemas/rust evaluate/scan evaluate/harvest evaluate/job upgrade_/kickstart; do
     if (cd "$crate" && cargo test --locked --quiet) > "$TMP/cargo.txt" 2>&1; then pass "cargo test in $crate"
     else fail "cargo test in $crate"; sed 's/^/          /' "$TMP/cargo.txt" | tail -40; fi
 done

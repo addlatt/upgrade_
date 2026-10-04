@@ -76,7 +76,7 @@ A few words used all through this file:
 | V6 code signing | `[....]` | calendar-bound, not started |
 | V7 scanner generalizes | `[....]` | needs the public release and reports |
 | V12 the window | verify flow: stop path `[###.]`, restart and reopen `[##..]` | rig line 2: draws via wgpu, shows the job writer's refusal, leaves nothing; the rig has no USB, so the reopen after the restart needs the Aspire |
-| V13 the Rust port | steps 1 and 2 `[##..]`, steps 3 to 5 `[#...]` | 2026-10-04: the schema library and the scanner's judging half are built; 228 ledger lines `pass`, 14 `owed` (rig and physical rows); nothing switched over |
+| V13 the Rust port | steps 1 and 2 `[##..]`, steps 3 to 5 `[#...]` | 2026-10-04: the schema library and the scanner's judging half are built; 389 ledger lines `pass`, 32 `owed` (rig and physical rows, and 12 harvester cases that need a real Windows filesystem); nothing switched over |
 
 ---
 
@@ -1344,6 +1344,8 @@ name, and the Rust tests.
 |---|---|---|---|
 | `schemas/check.py` (step 1) | 103 | 103 | 0 |
 | `upgrade-scan.ps1` (step 2: judging half only) | 113 | 103 | 10 (rig and physical: `v5-controller-mode.csv` lines 2 to 10, `v1-live-boot.csv` line 4) |
+| `Harvest-UpgradeState.ps1` (pure half) | 49 | 35 | 14 (12 self-test cases that need a real Windows filesystem; `v8-materialize.csv`; `harvest-folder-map.csv`) |
+| `New-Job.ps1` (judging half) | 130 | 126 | 4 (the rig and physical rows that ran its jobs) |
 | `New-Kickstart.ps1` (step 4, first piece) | 26 | 22 | 4 (the rig and physical rows whose installs ran its kickstart: `v1-live-boot.csv`, `v2-install.csv`, `v9-erase.csv`) |
 
 The scanner's rig and physical rows are not all found yet. Before step 3

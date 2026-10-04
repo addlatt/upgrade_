@@ -3334,6 +3334,14 @@ roadmap).
   replays a recording (`upgrade-scan --replay`). Six whole scans match the
   PowerShell scanner's own main section, run as written with only its reads
   replaced, report line for line.
+- **The harvester's pure half, the kickstart generator, the job writer's
+  judging half** (same day; `evaluate/harvest`, `upgrade_/kickstart`,
+  `evaluate/job`). Each is held to its script the same way. The job writer
+  is the one that matters most here: its refusals are rule #1 in code (the
+  RED verdict, the typed statements, the drive list of an erase). 965 calls
+  match, word for word and field for field.
+- **What none of this is yet:** Rust that reads a live Windows or writes to
+  a disk. Every piece so far decides from facts handed to it.
 - **Still open for step 2:** 10 ledger lines, the scanner's rig and physical
   rows. They were earned by reading real machines, and the Rust does not
   read a machine yet. A word-for-word match on made-up inputs and three

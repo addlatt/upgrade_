@@ -290,132 +290,132 @@ Harvest-UpgradeState.ps1,capacity: a too-small drive is not sufficient,selftest,
 Harvest-UpgradeState.ps1,capacity: no external drive is reported plainly,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
 Harvest-UpgradeState.ps1,v8-materialize.csv:2-5 (the materializer's rig and G16 rows; split per row when re-run),rig,,owed,2026-10-04
 Harvest-UpgradeState.ps1,harvest-folder-map.csv:2-4 (the folder map's rows; split per row when re-run),physical,,owed,2026-10-04
-New-Job.ps1,clock: RealTimeIsUniversal absent = the hardware clock holds local time (Windows default),selftest,,owed,2026-10-04
-New-Job.ps1,"clock: RealTimeIsUniversal 1 = UTC, 0 = local",selftest,,owed,2026-10-04
-New-Job.ps1,clock: refuse a RealTimeIsUniversal value that is neither 0 nor 1 (not guessed),selftest,,owed,2026-10-04
-New-Job.ps1,"clock: ""adjust for daylight saving automatically"" turned off is recorded",selftest,,owed,2026-10-04
-New-Job.ps1,clock: the job carries harvest.clock with the IANA name,selftest,,owed,2026-10-04
-New-Job.ps1,clock: a bad RealTimeIsUniversal refuses the job,selftest,,owed,2026-10-04
-New-Job.ps1,"wifi: WPA2-personal with its password -> wpa-psk, joined automatically",selftest,,owed,2026-10-04
-New-Job.ps1,wifi: WPA3 in transition mode -> wpa-psk (the router also takes WPA2); WPA3 only -> sae,selftest,,owed,2026-10-04
-New-Job.ps1,wifi: an open network needs no password; manual connect and hidden are kept,selftest,,owed,2026-10-04
-New-Job.ps1,"wifi: enterprise is listed, not set up",selftest,,owed,2026-10-04
-New-Job.ps1,"wifi: WEP and ad-hoc are listed, not set up",selftest,,owed,2026-10-04
-New-Job.ps1,"wifi: a password Windows kept encrypted (protected) is not a password - listed, not set up",selftest,,owed,2026-10-04
-New-Job.ps1,wifi: an XML that is not a network profile is skipped,selftest,,owed,2026-10-04
-New-Job.ps1,wifi: the SSID bytes are computed when Windows gives no hex,selftest,,owed,2026-10-04
-New-Job.ps1,"wifi: the row carries no password, only the file it is in",selftest,,owed,2026-10-04
-New-Job.ps1,wifi: only networks with a password get a file; the result is exported,selftest,,owed,2026-10-04
-New-Job.ps1,wifi: refuse when Windows stores more networks than could be read (one would go missing),selftest,,owed,2026-10-04
-New-Job.ps1,wifi: the same network saved on two adapters is set up once,selftest,,owed,2026-10-04
-New-Job.ps1,wifi: no Wi-Fi service and nothing stored = no-wireless; stored but unreadable = refusal; an API error = refusal,selftest,,owed,2026-10-04
-New-Job.ps1,"wifi: a Wi-Fi adapter with nothing saved = none-saved, no directory",selftest,,owed,2026-10-04
-New-Job.ps1,wifi: the job writes not-harvested until main exports (a verify-only job never exports),selftest,,owed,2026-10-04
-New-Job.ps1,"mitigable (R18): 0 GB with hiberfil.sys named as the last unmovable file is a keep-windows job, the cold number kept as measured",selftest,,owed,2026-10-04
-New-Job.ps1,"mitigable (R18): 0 GB pinned by anything else, fork clean-slate, is no room (clean slate, forced - the person allowed it)",selftest,,owed,2026-10-04
-New-Job.ps1,"fork stop (R18, 2026-09-22): 0 GB pinned by anything else is keep-windows - the prologue re-measures and stops; never a wipe the person declined",selftest,,owed,2026-10-04
-New-Job.ps1,"fork stop (R18, 2026-09-22): the Aspire run 5 as scanned - RED on Disk health acknowledged, 3.2 GB pinned by $UsnJrnl - is keep-windows, no staged block",selftest,,owed,2026-10-04
-New-Job.ps1,mitigable (R18): it never buys a path the disk gate or the ESP refuses,selftest,,owed,2026-10-04
-New-Job.ps1,"mitigable (R18): hiberfil, pagefile and swapfile only",selftest,,owed,2026-10-04
-New-Job.ps1,defrag 259: the Aspire's real text parses to \hiberfil.sys,selftest,,owed,2026-10-04
-New-Job.ps1,defrag 259: text without the line parses to null,selftest,,owed,2026-10-04
-New-Job.ps1,"repair queued (R18, 2026-09-20): an event 98 older than the last completed check is history, not a queued repair",selftest,,owed,2026-10-04
-New-Job.ps1,"repair queued (R18, 2026-09-20): an event 98 newer than the last completed check still counts",selftest,,owed,2026-10-04
-New-Job.ps1,"repair queued (R18, 2026-09-20): the volume's own status counts whatever the history says",selftest,,owed,2026-10-04
-New-Job.ps1,"repair queued (R18): 0 GB with a clean bit and a queued full chkdsk is a keep-windows job, shrinkable unmeasured",selftest,,owed,2026-10-04
-New-Job.ps1,repair queued (R18): the untrusted number and its reason are carried in shrink_error,selftest,,owed,2026-10-04
-New-Job.ps1,"repair queued (R18): 0 GB with a clean bit and NO repair queued, fork clean-slate, is no room (clean slate, forced)",selftest,,owed,2026-10-04
-New-Job.ps1,repair queued (R18): a measured number that already fits is kept as measured,selftest,,owed,2026-10-04
-New-Job.ps1,"repair queued (R18): the Aspire as scanned - RED on Disk health, acknowledged, healthy status, 0 GB, repair queued - is a keep-windows job",selftest,,owed,2026-10-04
-New-Job.ps1,repair queued: Get-Volume Full Repair Needed counts,selftest,,owed,2026-10-04
-New-Job.ps1,repair queued: NTFS event 98 counts on its own,selftest,,owed,2026-10-04
-New-Job.ps1,repair queued: OK and no event is not queued,selftest,,owed,2026-10-04
-New-Job.ps1,consents (R18): every job carries the launcher's restore-point and change-journal consent,selftest,,owed,2026-10-04
-New-Job.ps1,a healthy machine with room gets a keep-windows job,selftest,,owed,2026-10-04
-New-Job.ps1,"too little shrink room, fork clean-slate, forces clean slate, with staged block",selftest,,owed,2026-10-04
-New-Job.ps1,"too little shrink room, fork stop, is keep-windows with no staged block (R18, 2026-09-22)",selftest,,owed,2026-10-04
-New-Job.ps1,"an unmeasured shrink (null) on a clean volume: clean slate under fork clean-slate, keep-windows under fork stop",selftest,,owed,2026-10-04
-New-Job.ps1,"an unmeasured shrink on a FLAGGED volume, Healthy disk, is a keep-windows job with the fork pending (R18)",selftest,,owed,2026-10-04
-New-Job.ps1,a flagged volume on a Warning disk still forces clean slate (fork clean-slate),selftest,,owed,2026-10-04
-New-Job.ps1,a Warning disk forces clean slate (fork clean-slate),selftest,,owed,2026-10-04
-New-Job.ps1,a full ESP forces clean slate (fork clean-slate),selftest,,owed,2026-10-04
-New-Job.ps1,"refuse (R18, 2026-09-22): a Warning disk under fork stop is no job, never a wipe - named",selftest,,owed,2026-10-04
-New-Job.ps1,"refuse (R18, 2026-09-22): a full ESP under fork stop is no job, never a wipe - named",selftest,,owed,2026-10-04
-New-Job.ps1,"fork stop never yields a clean-slate job, over every disk state (R18, 2026-09-22)",selftest,,owed,2026-10-04
-New-Job.ps1,refuse: RED verdict,selftest,,owed,2026-10-04
-New-Job.ps1,"R23: RED for Disk health with the statement typed verbatim is a job carrying the acknowledgement (RED kept, overrides named)",selftest,,owed,2026-10-04
-New-Job.ps1,R23: a paraphrased statement lifts nothing,selftest,,owed,2026-10-04
-New-Job.ps1,"R23: the statement never lifts a RED from another check (CPU architecture, VMD)",selftest,,owed,2026-10-04
-New-Job.ps1,R23: the statement typed on a YELLOW machine adds no acknowledgement block,selftest,,owed,2026-10-04
-New-Job.ps1,"R23: with disk-health acknowledged, keep-windows is offered on a Warning disk that has room",selftest,,owed,2026-10-04
-New-Job.ps1,refuse: no verdict,selftest,,owed,2026-10-04
-New-Job.ps1,refuse: legacy BIOS,selftest,,owed,2026-10-04
-New-Job.ps1,refuse: unknown BitLocker state,selftest,,owed,2026-10-04
-New-Job.ps1,"refuse: unmapped time zone, not a guess",selftest,,owed,2026-10-04
-New-Job.ps1,refuse: a stick that is not on USB,selftest,,owed,2026-10-04
-New-Job.ps1,BitLocker on names the key file; off names none,selftest,,owed,2026-10-04
-New-Job.ps1,"software: updates, hidden system components and nameless entries are dropped; duplicates merged; sorted",selftest,,owed,2026-10-04
-New-Job.ps1,"software: Store frameworks and system packages are dropped, ms-resource names fall back to the package name",selftest,,owed,2026-10-04
-New-Job.ps1,software: a list over the cap is cut and truncated=true,selftest,,owed,2026-10-04
-New-Job.ps1,"software: the job carries the block, and an empty inventory is an empty block, not a refusal",selftest,,owed,2026-10-04
-New-Job.ps1,"folder map: the job carries the folders, the OneDrive result, the stick fit and the harvester version",selftest,,owed,2026-10-04
-New-Job.ps1,"folder map: refuse when there is no map, with the reason",selftest,,owed,2026-10-04
-New-Job.ps1,folder map: refuse a harvester version this writer does not read (a mixed kit),selftest,,owed,2026-10-04
-New-Job.ps1,folder map: refuse when another account is signed in on this screen (UAC with someone else's password),selftest,,owed,2026-10-04
-New-Job.ps1,folder map: refuse when no desktop owner can be found (who these folders belong to is unknown),selftest,,owed,2026-10-04
-New-Job.ps1,folder map (R6): refuse a folder that hit the file cap,selftest,,owed,2026-10-04
-New-Job.ps1,"folder map (R6): refuse a folder with parts Windows would not list, naming the first",selftest,,owed,2026-10-04
-New-Job.ps1,"folder map (R8, decided 2026-09-26): online-only files not downloaded are a job recording them as left-in-cloud, not a refusal",selftest,,owed,2026-10-04
-New-Job.ps1,folder map (R8): a download that failed is a refusal,selftest,,owed,2026-10-04
-New-Job.ps1,folder map (R8): files online-only again after the download are a refusal,selftest,,owed,2026-10-04
-New-Job.ps1,folder map (R8): a clean download is a job recording what was online-only before it,selftest,,owed,2026-10-04
-New-Job.ps1,folder map: a stick whose free space cannot be read is a refusal,selftest,,owed,2026-10-04
-New-Job.ps1,"stick fit: keep-windows whose folders do not fit the stick is still a job - it records fits=false (no discard offer later, R26)",selftest,,owed,2026-10-04
-New-Job.ps1,"stick fit: clean slate whose folders do not fit is no job, with the gap (a stick of at least N GB)",selftest,,owed,2026-10-04
-New-Job.ps1,stick fit (R5): clean slate on a computer with another account is no job - naming it,selftest,,owed,2026-10-04
-New-Job.ps1,"stick fit: clean slate that fits, one account, is a job with the staged block",selftest,,owed,2026-10-04
-New-Job.ps1,folder map (R5): another account on a keep-windows machine is not a refusal (their files stay in the kept Windows),selftest,,owed,2026-10-04
-New-Job.ps1,"erase: the sentence verbatim + a chosen password is a clean-slate fresh-start job naming the system drive, nothing staged",selftest,,owed,2026-10-04
-New-Job.ps1,erase (Aspire layout): a second Healthy internal drive becomes home; the USB stick is left out,selftest,,owed,2026-10-04
-New-Job.ps1,erase (rig): a stick on the same bus as the internal drive is left out by its unique id,selftest,,owed,2026-10-04
-New-Job.ps1,erase: a paraphrased sentence is a refusal,selftest,,owed,2026-10-04
-New-Job.ps1,erase: no chosen password (the verify-only placeholder) is a refusal,selftest,,owed,2026-10-04
-New-Job.ps1,erase: a third internal drive is a refusal,selftest,,owed,2026-10-04
-New-Job.ps1,erase: a second drive that is not Healthy never takes the home folder,selftest,,owed,2026-10-04
-New-Job.ps1,"erase: a drive on a bus this version does not know is a refusal, not a guess",selftest,,owed,2026-10-04
-New-Job.ps1,"erase: an SD card is left alone, not a refusal",selftest,,owed,2026-10-04
-New-Job.ps1,erase: a RED machine still needs the R23 sentence too - the erase sentence does not lift it,selftest,,owed,2026-10-04
-New-Job.ps1,erase (the Aspire): RED on disk health with both sentences is a job carrying both blocks,selftest,,owed,2026-10-04
-New-Job.ps1,erase: the folder map's refusals do not apply (nothing is kept) - another account signed in is still a job,selftest,,owed,2026-10-04
-New-Job.ps1,erase: with no folder map at all it refuses (it lists what will be deleted),selftest,,owed,2026-10-04
-New-Job.ps1,start_at: the person's choice is carried into the job (desktop / console),selftest,,owed,2026-10-04
-New-Job.ps1,no erase sentence: nothing changes - a plain job carries no erase consent,selftest,,owed,2026-10-04
-New-Job.ps1,locale: en-US + 0409 + Eastern -> en_US.UTF-8 / us / America/New_York,selftest,,owed,2026-10-04
-New-Job.ps1,licence (R30): Windows 11 from the build although the registry says Windows 10; activated OEM:DM with a firmware key,selftest,,owed,2026-10-04
-New-Job.ps1,"licence: build 19045 is Windows 10; not activated is recorded, not refused",selftest,,owed,2026-10-04
-New-Job.ps1,licence: an add-on licence (Windows 10 extended updates) is not taken for Windows itself,selftest,,owed,2026-10-04
-New-Job.ps1,licence: the licensed product is chosen when there are several,selftest,,owed,2026-10-04
-New-Job.ps1,"ssh (2026-10-04): on, with a key in the administrators file, is carried, keys only",selftest,,owed,2026-10-04
-New-Job.ps1,ssh: the same key in both files is carried once,selftest,,owed,2026-10-04
-New-Job.ps1,"ssh: installed but Manual is off, nothing carried",selftest,,owed,2026-10-04
-New-Job.ps1,ssh: no OpenSSH server is not-installed,selftest,,owed,2026-10-04
-New-Job.ps1,ssh: on with no key (passwords only) carries nothing,selftest,,owed,2026-10-04
-New-Job.ps1,ssh: a key line with options in front is not carried (its restriction would be lost),selftest,,owed,2026-10-04
-New-Job.ps1,ssh: an unreadable key file carries nothing (never half),selftest,,owed,2026-10-04
-New-Job.ps1,ssh: the job carries harvest.ssh and validates as written (facts without Ssh = not-harvested),selftest,,owed,2026-10-04
-New-Job.ps1,release (R34): the job carries the release the stick names,selftest,,owed,2026-10-04
-New-Job.ps1,"release (R34): a release this computer cannot start is a refusal, with the scan's reason",selftest,,owed,2026-10-04
-New-Job.ps1,release (R34): a stick without release.json is a refusal,selftest,,owed,2026-10-04
-New-Job.ps1,release (R34): a release the scan did not judge is a refusal,selftest,,owed,2026-10-04
-New-Job.ps1,"release (R34): unknown (key list not read) is a refusal, not a pass",selftest,,owed,2026-10-04
-New-Job.ps1,"licence: a failed read is unreadable with its reason, and the job is still written",selftest,,owed,2026-10-04
-New-Job.ps1,"licence: no Windows licence reported is unreadable, not a guess",selftest,,owed,2026-10-04
-New-Job.ps1,licence (R13): a value shaped like a product key never reaches the job,selftest,,owed,2026-10-04
-New-Job.ps1,licence: the job carries harvest.windows_license,selftest,,owed,2026-10-04
-New-Job.ps1,keymap: German KLID maps to de; unknown maps to null,selftest,,owed,2026-10-04
-New-Job.ps1,"linux name: spaces stripped, lowercased, 32 max",selftest,,owed,2026-10-04
-New-Job.ps1,"json: LF only, schema string first",selftest,,owed,2026-10-04
-New-Job.ps1,"fsutil: NOT Dirty parses clean, localized parses unknown",selftest,,owed,2026-10-04
+New-Job.ps1,clock: RealTimeIsUniversal absent = the hardware clock holds local time (Windows default),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"clock: RealTimeIsUniversal 1 = UTC, 0 = local",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,clock: refuse a RealTimeIsUniversal value that is neither 0 nor 1 (not guessed),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"clock: ""adjust for daylight saving automatically"" turned off is recorded",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,clock: the job carries harvest.clock with the IANA name,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,clock: a bad RealTimeIsUniversal refuses the job,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"wifi: WPA2-personal with its password -> wpa-psk, joined automatically",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: WPA3 in transition mode -> wpa-psk (the router also takes WPA2); WPA3 only -> sae,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: an open network needs no password; manual connect and hidden are kept,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"wifi: enterprise is listed, not set up",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"wifi: WEP and ad-hoc are listed, not set up",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"wifi: a password Windows kept encrypted (protected) is not a password - listed, not set up",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: an XML that is not a network profile is skipped,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: the SSID bytes are computed when Windows gives no hex,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"wifi: the row carries no password, only the file it is in",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: only networks with a password get a file; the result is exported,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: refuse when Windows stores more networks than could be read (one would go missing),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: the same network saved on two adapters is set up once,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: no Wi-Fi service and nothing stored = no-wireless; stored but unreadable = refusal; an API error = refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"wifi: a Wi-Fi adapter with nothing saved = none-saved, no directory",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: the job writes not-harvested until main exports (a verify-only job never exports),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"mitigable (R18): 0 GB with hiberfil.sys named as the last unmovable file is a keep-windows job, the cold number kept as measured",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"mitigable (R18): 0 GB pinned by anything else, fork clean-slate, is no room (clean slate, forced - the person allowed it)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"fork stop (R18, 2026-09-22): 0 GB pinned by anything else is keep-windows - the prologue re-measures and stops; never a wipe the person declined",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"fork stop (R18, 2026-09-22): the Aspire run 5 as scanned - RED on Disk health acknowledged, 3.2 GB pinned by $UsnJrnl - is keep-windows, no staged block",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,mitigable (R18): it never buys a path the disk gate or the ESP refuses,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"mitigable (R18): hiberfil, pagefile and swapfile only",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,defrag 259: the Aspire's real text parses to \hiberfil.sys,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,defrag 259: text without the line parses to null,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"repair queued (R18, 2026-09-20): an event 98 older than the last completed check is history, not a queued repair",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"repair queued (R18, 2026-09-20): an event 98 newer than the last completed check still counts",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"repair queued (R18, 2026-09-20): the volume's own status counts whatever the history says",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"repair queued (R18): 0 GB with a clean bit and a queued full chkdsk is a keep-windows job, shrinkable unmeasured",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,repair queued (R18): the untrusted number and its reason are carried in shrink_error,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"repair queued (R18): 0 GB with a clean bit and NO repair queued, fork clean-slate, is no room (clean slate, forced)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,repair queued (R18): a measured number that already fits is kept as measured,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"repair queued (R18): the Aspire as scanned - RED on Disk health, acknowledged, healthy status, 0 GB, repair queued - is a keep-windows job",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,repair queued: Get-Volume Full Repair Needed counts,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,repair queued: NTFS event 98 counts on its own,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,repair queued: OK and no event is not queued,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,consents (R18): every job carries the launcher's restore-point and change-journal consent,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,a healthy machine with room gets a keep-windows job,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"too little shrink room, fork clean-slate, forces clean slate, with staged block",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"too little shrink room, fork stop, is keep-windows with no staged block (R18, 2026-09-22)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"an unmeasured shrink (null) on a clean volume: clean slate under fork clean-slate, keep-windows under fork stop",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"an unmeasured shrink on a FLAGGED volume, Healthy disk, is a keep-windows job with the fork pending (R18)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,a flagged volume on a Warning disk still forces clean slate (fork clean-slate),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,a Warning disk forces clean slate (fork clean-slate),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,a full ESP forces clean slate (fork clean-slate),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"refuse (R18, 2026-09-22): a Warning disk under fork stop is no job, never a wipe - named",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"refuse (R18, 2026-09-22): a full ESP under fork stop is no job, never a wipe - named",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"fork stop never yields a clean-slate job, over every disk state (R18, 2026-09-22)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,refuse: RED verdict,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"R23: RED for Disk health with the statement typed verbatim is a job carrying the acknowledgement (RED kept, overrides named)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,R23: a paraphrased statement lifts nothing,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"R23: the statement never lifts a RED from another check (CPU architecture, VMD)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,R23: the statement typed on a YELLOW machine adds no acknowledgement block,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"R23: with disk-health acknowledged, keep-windows is offered on a Warning disk that has room",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,refuse: no verdict,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,refuse: legacy BIOS,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,refuse: unknown BitLocker state,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"refuse: unmapped time zone, not a guess",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,refuse: a stick that is not on USB,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,BitLocker on names the key file; off names none,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"software: updates, hidden system components and nameless entries are dropped; duplicates merged; sorted",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"software: Store frameworks and system packages are dropped, ms-resource names fall back to the package name",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,software: a list over the cap is cut and truncated=true,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"software: the job carries the block, and an empty inventory is an empty block, not a refusal",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"folder map: the job carries the folders, the OneDrive result, the stick fit and the harvester version",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"folder map: refuse when there is no map, with the reason",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map: refuse a harvester version this writer does not read (a mixed kit),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map: refuse when another account is signed in on this screen (UAC with someone else's password),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map: refuse when no desktop owner can be found (who these folders belong to is unknown),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map (R6): refuse a folder that hit the file cap,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"folder map (R6): refuse a folder with parts Windows would not list, naming the first",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"folder map (R8, decided 2026-09-26): online-only files not downloaded are a job recording them as left-in-cloud, not a refusal",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map (R8): a download that failed is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map (R8): files online-only again after the download are a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map (R8): a clean download is a job recording what was online-only before it,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map: a stick whose free space cannot be read is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"stick fit: keep-windows whose folders do not fit the stick is still a job - it records fits=false (no discard offer later, R26)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"stick fit: clean slate whose folders do not fit is no job, with the gap (a stick of at least N GB)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,stick fit (R5): clean slate on a computer with another account is no job - naming it,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"stick fit: clean slate that fits, one account, is a job with the staged block",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map (R5): another account on a keep-windows machine is not a refusal (their files stay in the kept Windows),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"erase: the sentence verbatim + a chosen password is a clean-slate fresh-start job naming the system drive, nothing staged",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase (Aspire layout): a second Healthy internal drive becomes home; the USB stick is left out,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase (rig): a stick on the same bus as the internal drive is left out by its unique id,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: a paraphrased sentence is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: no chosen password (the verify-only placeholder) is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: a third internal drive is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: a second drive that is not Healthy never takes the home folder,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"erase: a drive on a bus this version does not know is a refusal, not a guess",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"erase: an SD card is left alone, not a refusal",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: a RED machine still needs the R23 sentence too - the erase sentence does not lift it,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase (the Aspire): RED on disk health with both sentences is a job carrying both blocks,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: the folder map's refusals do not apply (nothing is kept) - another account signed in is still a job,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: with no folder map at all it refuses (it lists what will be deleted),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,start_at: the person's choice is carried into the job (desktop / console),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,no erase sentence: nothing changes - a plain job carries no erase consent,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,locale: en-US + 0409 + Eastern -> en_US.UTF-8 / us / America/New_York,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,licence (R30): Windows 11 from the build although the registry says Windows 10; activated OEM:DM with a firmware key,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"licence: build 19045 is Windows 10; not activated is recorded, not refused",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,licence: an add-on licence (Windows 10 extended updates) is not taken for Windows itself,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,licence: the licensed product is chosen when there are several,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"ssh (2026-10-04): on, with a key in the administrators file, is carried, keys only",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,ssh: the same key in both files is carried once,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"ssh: installed but Manual is off, nothing carried",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,ssh: no OpenSSH server is not-installed,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,ssh: on with no key (passwords only) carries nothing,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,ssh: a key line with options in front is not carried (its restriction would be lost),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,ssh: an unreadable key file carries nothing (never half),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,ssh: the job carries harvest.ssh and validates as written (facts without Ssh = not-harvested),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,release (R34): the job carries the release the stick names,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"release (R34): a release this computer cannot start is a refusal, with the scan's reason",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,release (R34): a stick without release.json is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,release (R34): a release the scan did not judge is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"release (R34): unknown (key list not read) is a refusal, not a pass",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"licence: a failed read is unreadable with its reason, and the job is still written",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"licence: no Windows licence reported is unreadable, not a guess",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,licence (R13): a value shaped like a product key never reaches the job,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,licence: the job carries harvest.windows_license,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,keymap: German KLID maps to de; unknown maps to null,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"linux name: spaces stripped, lowercased, 32 max",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"json: LF only, schema string first",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"fsutil: NOT Dirty parses clean, localized parses unknown",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
 New-Job.ps1,v1-live-boot.csv:5 (the Aspire's first job),physical,,owed,2026-10-04
 New-Job.ps1,r18-prologue.csv:2-12 (the jobs the prologue ran from; split per row when re-run),rig,,owed,2026-10-04
 New-Job.ps1,v9-erase.csv:2-31 (the erase jobs; split per row when re-run),rig,,owed,2026-10-04

@@ -1,0 +1,18 @@
+[package]
+name = "upgrade-job"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+
+# The job writer's judging half in Rust (RISKS R32, docs/RUST-PORT.md step 4).
+# Facts go in; a job document or the refusals come out. It reads no machine
+# and writes no file yet. New-Job.ps1 stays the job writer in use until its
+# ledger lines all read `pass`.
+[dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }
+roxmltree = "0.21"
+regress = "0.10"
+upgrade-scan = { path = "../scan" }
+
+[dev-dependencies]
+upgrade-schema = { path = "../../schemas/rust" }

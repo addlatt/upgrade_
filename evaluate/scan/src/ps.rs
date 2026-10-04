@@ -57,6 +57,30 @@ pub fn num(x: f64) -> String {
     format!("{x}")
 }
 
+/// A number the way `{0:N1}` or `{0:N2}` prints it: fixed decimals, halves
+/// rounded away from zero, thousands separated by commas (`2,040.06`).
+pub fn fmt_n(x: f64, decimals: usize) -> String {
+    // .NET Framework rounds from the 15-digit decimal form of the number
+    let whole_digits = if x.abs() < 1.0 { 1 } else { x.abs().log10().floor() as usize + 1 };
+    let shown = format!("{:.*}", 15usize.saturating_sub(whole_digits).max(decimals + 1), x.abs());
+    let (int_part, frac) = shown.split_once('.').unwrap_or((&shown, ""));
+    let mut scaled: u128 = format!("{int_part}{}", &frac[..decimals]).parse().unwrap_or(0);
+    if frac.as_bytes().get(decimals).is_some_and(|d| *d >= b'5') {
+        scaled += 1;
+    }
+    let pow = 10u128.pow(decimals as u32);
+    let digits = (scaled / pow).to_string();
+    let mut grouped = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            grouped.push(',');
+        }
+        grouped.push(c);
+    }
+    let sign = if x < 0.0 && scaled > 0 { "-" } else { "" };
+    if decimals == 0 { format!("{sign}{grouped}") } else { format!("{sign}{grouped}.{:0width$}", scaled % pow, width = decimals) }
+}
+
 /// A local date and time, as the Windows event log gives it. Inside a
 /// "..." string PowerShell prints it month first: 09/13/2026 15:16:48.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -191,6 +215,16 @@ mod tests {
         }
         assert_eq!(num(120.0), "120");
         assert_eq!(num(9.5), "9.5");
+    }
+
+    #[test]
+    fn fmt_n_prints_as_powershell_does() {
+        // recorded from Windows PowerShell 5.1 (the harvester's and the job writer's golden files)
+        assert_eq!(fmt_n(1.125, 2), "1.13");
+        assert_eq!(fmt_n(2040.0625, 2), "2,040.06");
+        assert_eq!(fmt_n(13.4, 1), "13.4");
+        assert_eq!(fmt_n(2000.0, 1), "2,000.0");
+        assert_eq!(fmt_n(0.0, 2), "0.00");
     }
 
     #[test]

@@ -28,9 +28,11 @@ Three docs already cover parts of this, and this page does not repeat them:
 | 1 | the schema library (`schemas/rust`) | `[##..]` built, no program uses it yet | 103 of 103 ledger lines `pass` |
 | 2 | the scanner's judging half (`evaluate/scan`) | `[##..]` built, no program uses it yet | 103 of 103 self-test and corpus lines `pass`; 10 rig and physical lines `owed` |
 | 3a | the scanner's whole-scan order, its text report, a program that replays recordings | `[##..]` built | 6 whole scans match the PowerShell scanner's own main section, report line for line |
-| 3b | the live reads (registry, WMI, event log, firmware), the harvester | `[#...]` planned | ledger lines not written |
+| 3b | the harvester's pure half (`evaluate/harvest`) | `[##..]` built, no program uses it yet | 35 of 47 self-test lines `pass`; 12 `owed` (they need a real Windows filesystem); rig and physical rows `owed` |
+| 3c | the live reads (registry, WMI, event log, firmware, folder sizes) | `[#...]` planned | ledger lines not written |
 | 4a | the kickstart generator (`upgrade_/kickstart`) | `[##..]` built, no program uses it yet | 22 of 22 self-test lines `pass`; its rig and physical rows `owed` |
-| 4b | the job writer, the stick writer | `[#...]` planned | ledger lines not written |
+| 4b | the job writer's judging half (`evaluate/job`) | `[##..]` built, no program uses it yet | 126 of 126 self-test lines `pass`; rig and physical rows `owed` |
+| 4c | the job writer's live half (the reads, the files it writes), the stick writer | `[#...]` planned | ledger lines not written |
 | 5 | the prologue, handoff, rollback | `[#...]` planned | ledger lines not written |
 
 Nothing has been switched over. The stick still runs the PowerShell, and
@@ -136,8 +138,8 @@ on 2026-10-04.
 | `schemas/*.schema.json` + `check.py` | 3,300 | `schemas/rust` (crate `upgrade-schema`) | 1 | `check.py`, 103 checks |
 | `upgrade-scan.ps1`, judging half | about 1,300 | `evaluate/scan` (crate `upgrade-scan`) | 2 | `-SelfTest`, 102 cases |
 | `upgrade-scan.ps1`, reads and report | about 1,300 | `evaluate/scan`, a `collect` module and a program | 3 | none (live reads) |
-| `Harvest-UpgradeState.ps1` | 1,279 | a harvest crate under `evaluate/` | 3 | `-SelfTest` |
-| `New-Job.ps1` | 1,451 | a job writer crate | 4 | none of its own; rig and physical rows |
+| `Harvest-UpgradeState.ps1` | 1,279 | `evaluate/harvest` (crate `upgrade-harvest`) | 3 | `-SelfTest`, 47 cases |
+| `New-Job.ps1` | 1,451 | `evaluate/job` (crate `upgrade-job`) | 4 | `-SelfTest`, 126 cases |
 | `New-Kickstart.ps1` | 226 | part of the job writer crate | 4 | rig rows |
 | `Write-UpgradeStick.ps1` | 514 | a stick writer (shares ideas with `settle-in/src/stickwrite.rs`) | 4 | `r16-stick-writer.csv` |
 | `Read-Password.ps1` | 201 | part of the window | 4 | none |
@@ -255,7 +257,29 @@ later, an ARM machine with almost nothing readable). The program is
 Items 3 to 5 no longer wait on V0 and V9 (decided 2026-10-04, above).
 Item 4 needs a Windows machine; the G16 is the first.
 
-## Step 4: the job writer, the stick writer, the kickstart. Planned.
+### The harvester's pure half. Built 2026-10-04.
+
+`evaluate/harvest` (following harvester 0.3.0) holds what needs no machine:
+the time zone and sign-in name mappings, the two cloud-placeholder
+judgments (R8), whether the folders fit the stick (R26), the backup
+arithmetic, and the reader for one exported Wi-Fi profile. 41 cases match
+the PowerShell's answers; 35 of them are the self-test's own.
+
+The other 12 self-test cases need a real Windows filesystem: a junction, a
+folder Windows will not list, the offline attribute, allocated bytes. They
+stay `owed` and are named in `tests/owed-selftest.txt`. `port-check.sh`
+requires every self-test case to be in the Rust's list or in that file, so
+none can be forgotten.
+
+One thing the port found in the PowerShell: `Get-HarvestWifi` drops a
+profile it cannot parse without a word (an empty `catch`). A saved network
+with no authentication element would vanish from the list. The Rust reader
+returns an error for such a file, and the live half must list that network
+as not carried. This harvester path is no longer the one a job uses (the
+job writer reads Wi-Fi through the Native Wifi API and counts profiles two
+ways), so nothing on the stick is affected today.
+
+## Step 4: the job writer, the stick writer, the kickstart.
 
 - **The kickstart generator: built 2026-10-04** (`upgrade_/kickstart`,
   following `New-Kickstart.ps1` 0.5.0). It is a pure function: a job goes
@@ -264,8 +288,20 @@ Item 4 needs a Windows machine; the G16 is the first.
   the same order), and the manifest's edges. The text is equal byte for
   byte from the second line on. The converter's way in (`kickstart_for`)
   only takes a `Job` that passed the whole contract.
-- The job writer next. Its output is a `job.json`, and step 1 already
-  checks those.
+- **The job writer's judging half: built 2026-10-04** (`evaluate/job`,
+  following `New-Job.ps1` 0.18.0). Facts and the person's choices go in; a
+  job document or the refusals come out. It holds the path decision (keep
+  Windows, clean slate, or no job), the typed data-loss statement (R23), the
+  erase sentence and its drive list (R27), the folder-map refusals (R5, R6,
+  R8, R26), the release check (R34), and the records a job carries (clock,
+  licence, SSH keys, Wi-Fi rows, installed programs). 965 calls match the
+  PowerShell: all 126 self-test cases with their own inputs, and 15 more
+  groups for the branches the self-test does not reach. Every refusal is
+  word for word. Every job document is equal field for field, in the same
+  order. And every job it writes from the self-test's machine passes
+  `job.schema.json`, checked with the step 1 library.
+- Its live half is not built: reading the machine, writing `job.json` and
+  the Wi-Fi password files, calling the harvester.
 - The stick writer last in this step. It writes to a disk (the stick), so
   rule #4 applies: its rig rows and its two physical R16 rows are re-run
   with the Rust build before it replaces anything.
@@ -297,6 +333,8 @@ Each one is stricter than the original, or changes no decision.
 | schema patterns | Python's regular expressions | ECMAScript's (what JSON Schema names) | `$` no longer accepts a trailing newline; `\d` is ASCII digits only. Both stricter |
 | kickstart, first line | `generated by New-Kickstart.ps1 0.5.0` | `generated by upgrade-kickstart 0.1.0 (Rust; follows New-Kickstart.ps1 0.5.0)` | a file should say what wrote it. A comment; nothing reads it |
 | kickstart, way in | its own shape checks (they accept `JOB/1`, any case) | the converter's way in needs a `Job` that passed the whole schema | never softer |
+| installed programs in a job | sorted by the machine's language rules (PowerShell's `Sort-Object`) | sorted by the lower-cased name, the same on every machine | the list is an inventory; nothing decides on its order. Past the 2,000 cap the two could keep different entries |
+| a job's `evaluate.version` | `0.18.0` | given by the program that writes the job | a record should say what wrote it |
 | `Disk N` detail line | printed with the machine's own number format (`931,5 GB` on a German Windows) | always a dot (`931.5 GB`) | a display line only; no decision reads it |
 
 ## The data tables
@@ -317,6 +355,8 @@ PowerShell and is still a one-line edit. That format is not decided.
 ```text
 schemas/rust/        crate upgrade-schema: the contract reader
 upgrade_/kickstart/  crate upgrade-kickstart: job.json -> ks.cfg
+evaluate/harvest/    crate upgrade-harvest: the harvester's pure half
+evaluate/job/        crate upgrade-job: facts -> job.json or refusals
 evaluate/scan/       crate upgrade-scan: the judging half
   tests/cases.json     the inputs (shared with the PowerShell recorder)
   tests/golden.ps1     asks the PowerShell scanner; writes golden.json
@@ -339,21 +379,27 @@ else.
 
 In order. The first three need no decision.
 
-1. **The harvester's and the job writer's judging halves**, the same way
-   as the scanner's: ledger lines first, then cases, golden, Rust.
-2. **The live reads** (step 3, items 3 to 5), compared side by side with
-   the PowerShell on the G16.
-3. **Put the schema library to work.** `settle-in` and the window read
+1. **The live reads** (step 3, items 3 to 5), compared side by side with
+   the PowerShell on the G16. This is the first Rust that has to run on
+   Windows, and it closes the 12 harvester cases that need a real
+   filesystem.
+2. **Put the schema library to work.** `settle-in` and the window read
    `job.json` and `outcome.json` through `upgrade-schema`.
-4. **Make the PowerShell prologue keep raw tool output** (on `main`). Owed
+3. **Make the PowerShell prologue keep raw tool output** (on `main`). Owed
    since 2026-09-27. Every physical run made without it is one the Rust
    cannot replay later.
-5. The stick writer, then the prologue, handoff and rollback (step 5).
+4. **The prologue's judging half** (its guardrails and its fork), the same
+   way as the job writer's.
+5. The stick writer, then the prologue's live half, handoff and rollback (step 5).
 
 ## Open decisions (the owner's)
 
 1. **Which run counts as the "one success"** that triggers the cut-over.
-   The owner names it when it happens; it gets a dated line here.
+   The owner names it when it happens; it gets a dated line here. Note
+   (2026-10-04): `main` now records the Aspire's run 11 as "the first clean
+   conversion". Whether that is the success meant is the owner's to say.
+   What the Rust has today is the deciding, not the doing: no Rust has read
+   a live machine or written to a disk yet.
 2. **The data tables' format** after the PowerShell scanner is retired.
 3. **Beyond the Windows side.** The decision covers the Windows side. The
    Linux side still has shell (`upgrade_/linux/verify.sh`, `outcome.sh`,
