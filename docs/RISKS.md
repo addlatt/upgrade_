@@ -3487,6 +3487,47 @@ listed the enterprise network as not carried. Still owed on the Aspire: the
 profile actually added and Windows online at its first start, the program's
 own start from the stick through Boot2001, and a real cancel.
 
+**2026-10-04: the time, remote access, and a gate that could erase twice.**
+Decided (the owner): the way back carries the time and remote access (SSH)
+too, as the forward conversion does. Built (settle-in 0.3.0, gate 0.3.0)
+and run on the rig the same day (`rig/hyperv/artifacts/v11w-2026-10-04/`;
+not rows: a rig cannot start the stick as the program does):
+
+- **A crossed job could be erased again.** Reading the gate after the
+  forward stick installed twice (R35) found the same fault here. A stick
+  started again after its line was refused, but the refusal overwrote the
+  record's `crossed` with `refused` and deleted the stick's Wi-Fi files. A
+  third start would have counted down and erased again, in the middle of
+  Windows Setup. It did not happen on 2026-10-03 only because the firmware
+  started Windows after Setup's restarts. Now the record keeps `crossed`,
+  the Wi-Fi files stay for the first sign-in, and the gate asks the
+  firmware for Windows' own boot manager once. Rig: the stick first in the
+  boot order after the install; the gate recorded `started_again`,
+  `handed_to_windows: true`, and Windows came up at the forced password
+  change.
+- **The clock.** Linux keeps the hardware clock in UTC; Windows reads it
+  as local time. A first design set the UTC in WinPE and was wrong twice
+  (WinPE keeps no daylight saving: 1 h; the answer file's TimeZone keeps
+  the wall time and shifts the UTC: 3 h more for Eastern). The lock screen
+  looked right only because Windows reached a time server; Windows' own
+  record of clock changes showed it. The fix: the gate, after the line,
+  writes the wall time of the person's zone (the UTC plus the offset Linux
+  worked out) to the hardware clock. Rig, network unplugged, hardware
+  clock in UTC, zone Eastern: the gate read 16:59:30, wrote 12:59:30; the
+  lock screen read 1:04 at 13:04 Eastern; Windows logged one change (the
+  zone, landing on the true UTC) and none when the network came back.
+- **Remote access.** Only if Linux's SSH server is enabled, only the
+  person's plain public keys. The first sign-in registers a SYSTEM task
+  that installs Windows' OpenSSH server once the network is up (it is a
+  download), writes the keys, turns password sign-in off and removes
+  itself. Rig: without a network the first try failed (0x8024402c) and it
+  tried again each minute; 8 minutes after the network came back the key
+  signed in from the host, and a password was refused.
+- **Not proven by the rig:** the Linux half (`prepare` reading the zone,
+  its offset and the keys) ran only in unit tests; its first real run is
+  the Aspire's. The rig stick was last run's image with the new gate, job
+  and files put in.
+
 **Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on
 and nobody at the keyboard, ending at the Windows sign-in; then one real
 machine (the Aspire, run under R23 on its dying SSD first), with a physical

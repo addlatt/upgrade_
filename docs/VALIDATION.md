@@ -1032,6 +1032,15 @@ the Linux side offers a new, empty Windows, and says what that costs first
    Windows sign-in; both disks rewritten (Windows on the system disk, one
    empty NTFS volume on the second), the gate's record on the stick. Then
    the Aspire: a physical cancel first, then the erase.
+   **Added 2026-10-04 (the owner): the time and remote access.** The erase
+   arm also passes only when the new Windows shows the right time in the
+   right zone before it reaches any network (the gate's record names what
+   it read and wrote; Windows' Kernel-General record shows no later
+   jump), and, where Linux had SSH on, when its key signs in and a password
+   does not. And a fourth arm, as V9 has: the stick left in and started
+   again after the line never counts down again and hands over to Windows.
+   All three ran on the rig 2026-10-04 (`[###.]`, RISKS R33); the Aspire is
+   owed.
    **Added 2026-10-02 (the owner): Wi-Fi.** The erase arm also passes only
    when the new Windows is on the network the Linux side knew, at its
    first start, with no Wi-Fi password left on the stick (spoofed networks
