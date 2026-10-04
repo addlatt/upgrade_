@@ -113,6 +113,25 @@ pub fn account_ok(name: &str) -> bool {
         && !reserved.contains(&name.to_ascii_lowercase().as_str())
 }
 
+/// True when this stick's job has already crossed its commit line: Windows
+/// is being installed (or is installed) from it. Such a stick never counts
+/// down again, and its record is never overwritten: the gate's own refusal
+/// used to replace "crossed" with "refused", so a third start would have
+/// erased again, mid-install (found 2026-10-04, after the forward stick
+/// did the same on the Aspire: RISKS R35). Pure.
+pub fn already_crossed(job: &Value, previous: Option<&Value>) -> bool {
+    previous.map(|p| p["job_id"] == job["job_id"] && p["result"] == json!("crossed")).unwrap_or(false)
+}
+
+/// The screen for a stick started again after its line. DRAFT words.
+pub fn after_crossing_screen(handed_over: bool) -> String {
+    if handed_over {
+        "\n\n   Windows is already being installed on this computer.\n   This USB stick never erases twice.\n\n   Going on with Windows now. You can take the USB stick out.\n".into()
+    } else {
+        "\n\n   Windows is already being installed on this computer.\n   This USB stick never erases twice.\n\n   TAKE THE USB STICK OUT, then press any key.\n   (The computer restarts by itself in 60 seconds.)\n".into()
+    }
+}
+
 /// Check the job itself. Pure. Err = the reason, in words for the screen.
 pub fn check_job(job: &Value, previous: Option<&Value>) -> Result<(), String> {
     if job["schema"] != json!(SCHEMA) {
@@ -435,6 +454,17 @@ mod tests {
         assert!(unattend(&j, &f).contains("<TimeZone>Eastern Standard Time</TimeZone>"));
         j["clock"] = json!(null);
         assert!(!unattend(&j, &f).contains("<TimeZone>"));
+    }
+
+    #[test]
+    fn a_crossed_job_stays_crossed() {
+        let job = json!({ "job_id": "j1" });
+        assert!(already_crossed(&job, Some(&json!({ "job_id": "j1", "result": "crossed" }))));
+        assert!(already_crossed(&job, Some(&json!({ "job_id": "j1", "result": "crossed", "started_again": ["t"] }))));
+        assert!(!already_crossed(&job, Some(&json!({ "job_id": "j1", "result": "cancelled" }))));
+        assert!(!already_crossed(&job, Some(&json!({ "job_id": "other", "result": "crossed" }))));
+        assert!(!already_crossed(&job, None));
+        assert!(after_crossing_screen(false).contains("TAKE THE USB STICK OUT"));
     }
 
     #[test]

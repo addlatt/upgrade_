@@ -133,6 +133,29 @@ fn run() -> i32 {
     if let Some(p) = &previous {
         rec["previous"] = json!({ "job_id": p["job_id"], "result": p["result"], "ended_utc": p["ended_utc"] });
     }
+    if logic::already_crossed(&job, previous.as_ref()) {
+        // Started again after the line (the firmware chose the stick during
+        // Setup's restarts, or it was left in). The record keeps "crossed":
+        // only a note is added. The Wi-Fi files stay for the first sign-in.
+        // Then Windows' own boot manager is asked for, once.
+        let mut p = previous.clone().unwrap_or_else(|| json!({}));
+        let mut again = p["started_again"].as_array().cloned().unwrap_or_default();
+        let st = std::process::Command::new("X:\\Windows\\System32\\bcdedit.exe").args(["/set", "{fwbootmgr}", "bootsequence", "{bootmgr}"]).status();
+        let handed = st.as_ref().map(|s| s.success()).unwrap_or(false);
+        again.push(json!({ "utc": now_utc(), "gate_version": VERSION, "handed_to_windows": handed }));
+        p["started_again"] = json!(again);
+        save(&rec_path, &p);
+        win::clear();
+        print!("{}", logic::after_crossing_screen(handed));
+        if handed {
+            std::thread::sleep(std::time::Duration::from_secs(8));
+        } else {
+            win::flush_keys();
+            win::key_within(60_000);
+        }
+        win::reboot();
+        return 4;
+    }
     if let Err(why) = logic::check_job(&job, previous.as_ref()) {
         return refuse_and_restart(Some(&rec_path), rec, &why);
     }
