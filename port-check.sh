@@ -68,17 +68,25 @@ if [ "$HAVE_PS" = 1 ]; then
     fresh evaluate/scan/tests/golden.json "$TMP/golden.json"
     ps upgrade_/kickstart/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\ks-golden.json" > /dev/null
     fresh upgrade_/kickstart/tests/golden.json "$TMP/ks-golden.json"
+    ps evaluate/harvest/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\harvest-golden.json" > /dev/null
+    fresh evaluate/harvest/tests/golden.json "$TMP/harvest-golden.json"
 else
     skip "upgrade_/kickstart/tests/golden.json against New-Kickstart.ps1"
     skip "data/tables.json against data/*.ps1"; skip "evaluate/scan/tests/golden.json against the PowerShell scanner"
 fi
 
 say; say "  3. every self-test case has a Rust case"; say
-same_names() {  # $1 = the self-test's output, $2 = the crate's cases.json, $3 = what to call it
-    if python3 - "$1" "$2" <<'PY'
+same_names() {  # $1 = the self-test's output, $2 = the crate's cases.json, $3 = what to call it,
+                # $4 = (optional) a file naming the self-test cases not ported yet
+    if python3 - "$1" "$2" "${4:-}" <<'PY'
 import json, sys
 ran = {l.split('  PASS  ', 1)[1].rstrip('\n') for l in open(sys.argv[1], encoding='utf-8', errors='replace') if '  PASS  ' in l}
 ours = {c['name'] for c in json.load(open(sys.argv[2], encoding='utf-8')) if c['origin'] != 'port'} - {'distro table: every kernel parses'}
+if sys.argv[3]:
+    owed = {l.rstrip('\n') for l in open(sys.argv[3], encoding='utf-8') if l.strip() and not l.startswith('#')}
+    for n in sorted(owed & ours): print(f"          listed as not ported, but it is in cases.json: {n}")
+    if owed & ours: sys.exit(1)
+    ours |= owed
 for n in sorted(ran - ours): print(f"          in the PowerShell self-test, not in cases.json: {n}")
 for n in sorted(ours - ran): print(f"          in cases.json, not in the PowerShell self-test: {n}")
 sys.exit(1 if ran != ours else 0)
@@ -89,12 +97,13 @@ PY
 if [ "$HAVE_PS" = 1 ]; then
     same_names "$TMP/scan-selftest.txt" evaluate/scan/tests/cases.json "scanner"
     same_names "$TMP/ks-selftest.txt" upgrade_/kickstart/tests/cases.json "kickstart"
+    same_names "$TMP/harvest-selftest.txt" evaluate/harvest/tests/cases.json "harvester" evaluate/harvest/tests/owed-selftest.txt
 else
     skip "self-test case names against cases.json"
 fi
 
 say; say "  4. the Rust side"; say
-for crate in schemas/rust evaluate/scan upgrade_/kickstart; do
+for crate in schemas/rust evaluate/scan evaluate/harvest upgrade_/kickstart; do
     if (cd "$crate" && cargo test --locked --quiet) > "$TMP/cargo.txt" 2>&1; then pass "cargo test in $crate"
     else fail "cargo test in $crate"; sed 's/^/          /' "$TMP/cargo.txt" | tail -40; fi
 done

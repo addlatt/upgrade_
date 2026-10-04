@@ -1,0 +1,16 @@
+# Self-test cases of Harvest-UpgradeState.ps1 that the Rust does not have yet.
+# They need a real Windows filesystem (a junction, a denied folder, the offline
+# attribute, allocated bytes), so they belong to the collectors (docs/RUST-PORT.md,
+# step 3). port-check.sh requires every self-test case to be in cases.json or here.
+folder stats: counts files and bytes recursively
+folder stats: file cap truncates and says so (F1/R6)
+folder stats: on-stick size = clusters + directories + manifest lines
+folder stats: no cluster size, no on-stick size
+folder stats: a junction is not followed
+folder stats: a directory Windows will not list is counted as unreadable (R6)
+folder stats: offline-attribute file counts as cloud-only (R8)
+materialize: a real 10-byte file reports allocated bytes > 0
+materialize: an ordinary file passes through as materialized
+materialize: a vanished file is a failure with the reason, not a crash
+materialize: a stub no provider will fill is reported failed (refuse arm)
+materialize: summary counts the stub as found and failed, result refused
