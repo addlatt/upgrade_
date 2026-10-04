@@ -29,6 +29,14 @@ fn marker() -> std::path::PathBuf {
     base.join("upgrade_/settle-in-shown") // one mark for the window and the console: shown once per person
 }
 
+/// A login screen's own session, not a person's: the greeter's session class,
+/// or a system account (below UID_MIN, 1000 on Fedora). Fedora 44's KDE login
+/// screen runs /etc/xdg/autostart too, and the window opened over it before
+/// anyone signed in (rig, 2026-10-03).
+fn is_login_screen(session_class: Option<&str>, uid: u32) -> bool {
+    session_class == Some("greeter") || uid < 1000
+}
+
 fn sections() -> Option<Value> {
     let out = Command::new(core()).arg("summary").output().ok()?;
     if !out.status.success() {
@@ -180,6 +188,12 @@ fn main() {
     if std::env::args().any(|a| a == "--go-back") {
         return go_back();
     }
+    let uid = std::fs::metadata("/proc/self").map(|m| std::os::unix::fs::MetadataExt::uid(&m)).unwrap_or(0);
+    let class = std::env::var("XDG_SESSION_CLASS").ok();
+    if is_login_screen(class.as_deref(), uid) {
+        eprintln!("settle-in-window: a login screen's session (class {:?}, uid {}); not opening", class, uid);
+        return;
+    }
     // once per person: after it has been shown, a later sign-in does not open it again
     let m = marker();
     if m.exists() {
@@ -201,5 +215,17 @@ fn main() {
     if let Err(e) = eframe::run_native(&title, opts, Box::new(|_cc| Ok(Box::new(App { screen, drawn: false, shown_at: None, focus_logged: false, running: None, last: None })))) {
         eprintln!("settle-in-window: could not open the window: {}", e);
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_login_screen;
+    #[test]
+    fn a_greeter_session_never_opens_the_window() {
+        assert!(is_login_screen(Some("greeter"), 1000));
+        assert!(is_login_screen(None, 977)); // a login manager's system account
+        assert!(!is_login_screen(Some("user"), 1000));
+        assert!(!is_login_screen(None, 1001));
     }
 }

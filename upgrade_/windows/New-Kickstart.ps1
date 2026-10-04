@@ -41,7 +41,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$KsGenVersion = '0.4.0'
+$KsGenVersion = '0.5.0'   # 0.5.0 (2026-10-03): no first-run wizard over a made account (Plasma Setup, Fedora 44 KDE)
 
 function Test-KsJob {
     # The shape checks a PS 5.1 host can do without a JSON Schema validator:
@@ -132,6 +132,14 @@ function New-Kickstart {
         $L.Add('grub2-mkconfig -o /boot/grub2/grub.cfg')
         $L.Add("grep -c -i windows /boot/grub2/grub.cfg > /root/upgrade_-grub-windows-entries.txt || true")
     }
+    # The account is made here, so no desktop's first-run wizard may ask for one.
+    # Fedora 44 KDE's Plasma Setup runs at every boot until /etc/plasma-setup-done
+    # exists (its unit: ConditionPathExists=!/etc/plasma-setup-done; "enabled after
+    # the system installation if new user setup is desired"). The rig's first
+    # Fedora 44 boot showed "Welcome to Plasma Desktop / Begin Setup" instead of the
+    # sign-in (2026-10-03). Harmless where the wizard is not installed.
+    $L.Add('touch /etc/plasma-setup-done')
+    $L.Add('systemctl disable plasma-setup.service 2>/dev/null || true')
     $L.Add("systemctl set-default $target")
     $L.Add('systemctl get-default > /root/upgrade_-default-target.txt 2>&1 || true')
     $L.Add('efibootmgr -v > /root/upgrade_-efibootmgr.txt 2>&1 || true')
@@ -186,6 +194,8 @@ function Invoke-SelfTest {
                    (New-Kickstart -Job $keep -Label 'UPGV0' -ManifestLines $m) -match '(?m)^liveimg --url=file:///run/install/repo/upgrade_/LiveOS/kde\.squashfs --checksum=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef$' }; Expect = $true }
         @{ Name = 'the installed system boots to the graphical sign-in (xconfig, and %post sets the target) - never a text console'
            Run = { ($ksK -match '(?m)^xconfig --startxonboot$') -and ($ksK -match '(?m)^systemctl set-default graphical\.target$') -and ($ksC -match '(?m)^xconfig --startxonboot$') }; Expect = $true }
+        @{ Name = 'the account is made by the kickstart, so Plasma Setup (Fedora 44 KDE) is marked done and disabled'
+           Run = { ($ksK -match '(?m)^touch /etc/plasma-setup-done$') -and ($ksK -match '(?m)^systemctl disable plasma-setup\.service') -and ($ksK.IndexOf('touch /etc/plasma-setup-done') -gt $ksK.IndexOf('%post --log=/root/upgrade_-post.log')) }; Expect = $true }
         @{ Name = 'console chosen: no graphical login, the text console is the default target'
            Run = { $j = $keep | ConvertTo-Json -Depth 10 | ConvertFrom-Json; $j.intent.start_at = 'console'; $k = New-Kickstart -Job $j -Label 'UPGV0'; ($k -notmatch 'xconfig') -and ($k -match '(?m)^systemctl set-default multi-user\.target$') }; Expect = $true }
         @{ Name = 'refuse: a job with no choice of what the computer starts at'

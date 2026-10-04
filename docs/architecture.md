@@ -222,6 +222,13 @@ refuse for free:
   clean slate, never quietly installed alongside. (Scanner check landed
   2026-08-30 as "Boot partition (ESP)"; see RISKS R21 item 4.)
 
+- **No Linux release the kit carries can start here** (RISKS R34,
+  2026-10-03). Secure Boot keeps a list of boot programs too old to trust
+  (the SBAT level). Windows raises it by itself. A release whose GRUB is
+  older than the list, or whose shim is signed by a key the firmware does
+  not hold, would restart, be refused, and fall back to Windows; once
+  installed it would not start at all. See "It chooses the Linux release".
+
 **One exception, narrow and dated (2026-09-13, RISKS R23):** a person who
 has already copied their files off a machine the scanner refused for its
 *drive* (bad blocks, SMART media errors, a volume needing a full repair)
@@ -229,6 +236,44 @@ may type a fixed sentence on a separate launcher and go ahead. It lifts
 those two refusals and no other. It is recorded in `job.json` and
 `outcome.json`, and it turns every later screen red. CLAUDE.md rule #1
 carries the amendment.
+
+### It chooses the Linux release from what the machine accepts (decided 2026-10-03, the owner)
+
+Found on the Aspire's run 10 (RISKS R34): the new Windows 11 had raised
+the firmware's revocation level to `grub,5`, and the kit's Fedora 42 GRUB
+is `grub,3`. A fixed release in the kit breaks as soon as Windows moves
+the level. So the release is a choice, made from facts on both sides:
+
+```text
+ the machine (scanner)              the releases (data/releases.ps1)       the kit (make-kit.sh)
+ ---------------------              --------------------------------       ---------------------
+ Secure Boot on / off               one entry per release, MEASURED        --release ID: fetches
+ SBAT level (registry +        ->   from its own files by              ->  that release's files,
+   firmware SbatLevelRT)            data/tools/measure-release.py:          refuses any byte that
+ the authorities in the db          each boot file's SBAT data, a           differs from the entry,
+   (2011, 2023)                     shim's built-in levels, who signed      writes release.json and
+                                    it; every file pinned by sha256         the installed boot facts
+```
+
+- **The scanner** reads the machine and judges every release in the table
+  (check *Linux releases*): each boot file, on the stick and in the
+  installed system, against the level (the strictest of every source,
+  plus the release's own shims' levels), and each shim against the
+  authorities in the firmware's db. It also checks the actual files on
+  the stick (check *Secure Boot revocations*). Both are RED when nothing
+  can start; the R23 sentence lifts neither.
+- **The job writer** reads `release.json` on the stick and refuses a
+  release the scan did not find startable (no, unknown, or not judged).
+- **A new release, or a new distribution, is a table entry.** The facts
+  are measured from the files, never typed. A release without a
+  Microsoft-signed shim (Arch, so Omarchy, today) is still worth an
+  entry: the scanner then says plainly that it cannot start with Secure
+  Boot on. Installing it also needs installer automation of its own
+  (today only Fedora's kickstart exists) and a rig run.
+- **Not yet built:** choosing among several releases on one stick, and
+  fetching a release from Windows. Today `make-kit.sh --release ID` builds
+  one kit for one release, and the scan says whether this computer can
+  start it.
 
 ### Output
 
