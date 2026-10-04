@@ -23,14 +23,16 @@ and set to one side until you're sure you don't need it.
 </div>
 
 > [!IMPORTANT]
-> **Status (2026-09-26): not ready for your machine yet.** Every step of
-> the conversion is written and has run start to finish on the test rig. One
-> real laptop has now been erased and reinstalled with nobody touching it.
-> It woke up to a text login instead of a desktop, so that counts as a fail.
-> The cause is fixed and the rig passes again. What's left is doing it for
-> real once more. Other gaps: only one brand of laptop tested so far,
-> `settle-in` (the first boot on Linux) isn't built, and nothing is signed.
-> Every claim below links to the test results, failures included.
+> **Status (2026-10-04): not ready for your machine yet.** One real laptop
+> has now gone from Windows 11 to Fedora in one click, with nobody touching
+> it: it installed once, came up at the desktop sign-in, set its clock,
+> joined Wi-Fi by itself and kept remote access. That is the "erase and keep
+> nothing" path, on one brand of laptop, after two real runs that failed
+> first (both kept in the record). **It does not carry your files yet.**
+> Other gaps: a real cancel during the countdown is still owed as its own
+> test, the keep-Windows path has never installed on a real machine, and
+> nothing is signed. Every claim below links to the test results, failures
+> included.
 
 ---
 
@@ -122,19 +124,19 @@ Think of each bar as how far along the road a step has got:
 | **Scanner**: checks, verdict, which Linux to use | `[####]` | real hardware, plus saved machine recordings replayed on every self-test |
 | **Stick writer** (R16) | `[####]` | [`r16-stick-writer.csv`](docs/validation-results/r16-stick-writer.csv): real writes, checked afterwards |
 | **OneDrive files** (V8) | `[###.]` | [`v8-materialize.csv`](docs/validation-results/v8-materialize.csv): tested with a real cloud-files provider. *Decided 2026-09-26:* files that only live in OneDrive stay there, and `settle-in` signs you back in |
-| **Job writer**: `job.json`, installed programs, folder map, does it fit the stick | `[####]` / `[##..]` | [`harvest-folder-map.csv`](docs/validation-results/harvest-folder-map.csv). Wi-Fi, browsers, the BitLocker key and the clock are still to do |
+| **Job writer**: `job.json`, installed programs, folder map, does it fit the stick | `[####]` / `[##..]` | [`harvest-folder-map.csv`](docs/validation-results/harvest-folder-map.csv). Wi-Fi passwords, the clock and remote access are collected and carried (below). Browsers and the BitLocker key are still to do |
 | **Boot handoff**: restart once into the stick (V0) | `[####]` | [`v0-handoff.csv`](docs/validation-results/v0-handoff.csv): Acer, Secure Boot on, worked first time, no keypress |
 | **Walk-away restart**: keeps going after a restart with nobody signed in | `[####]` | [`walkaway-probe.csv`](docs/validation-results/walkaway-probe.csv): never asks for your password |
 | **Live boot and hardware check** (V1) | `[####]` | [`v1-live-boot.csv`](docs/validation-results/v1-live-boot.csv): right machine, screen, Wi-Fi (28 networks found), the whole image read back from the stick |
 | **Prologue**: re-check, disk repair, shrink, BitLocker | `[###.]`, real machine stops safely `[####]` | [`r18-prologue.csv`](docs/validation-results/r18-prologue.csv): 7 runs on a real machine, and **every one stopped safely** before anything permanent |
 | **Install next to Windows** and check both boot (V1b) | `[###.]` | [`v2-install.csv`](docs/validation-results/v2-install.csv): on the rig, Secure Boot off. The real one needs a laptop with a healthy drive |
 | **Undo, from the Windows side** | `[###.]` | [`r21-rollback.csv`](docs/validation-results/r21-rollback.csv) |
-| **Erase and install**, one click, keep nothing (V9) | `[###.]`, real machine `[FAIL]` twice, each fixed | [`v9-erase.csv`](docs/validation-results/v9-erase.csv): more below |
+| **Erase and install**, one click, keep nothing (V9) | `[####]` 2026-10-04 (run 11, the first clean conversion); runs 9 and 10 `[FAIL]`, each fixed | [`v9-erase.csv`](docs/validation-results/v9-erase.csv): more below |
 | **Linux release chosen from what the computer accepts** (V14, R34) | scan `[####]`, kit `[###.]` | Secure Boot keeps a list of boot programs too old to trust, and Windows raises it by itself. On 2026-10-03 the Acer refused the kit's Fedora 42. Now the scan reads the list, [`data/releases.ps1`](data/releases.ps1) holds each release's facts (measured from its files), and the kit is built for a release the computer can start: Fedora 44 |
-| **Go back to Windows**, one click, keep nothing (V11, R33) | `[####]` 2026-10-04 (run 2: the time, Wi-Fi and remote access carried); run 1 `[FAIL]`, fixed | [`v11-walkaway.csv`](docs/validation-results/v11-walkaway.csv): on 2026-10-03 the Acer went from Fedora back to an activated Windows 11 by itself, but needed a manual start from the stick, kept no password and came up offline. All three fixed; the next run proves it |
+| **Go back to Windows**, one click, keep nothing (V11, R33) | `[####]` 2026-10-04 (run 2: the time, Wi-Fi and remote access carried); run 1 `[FAIL]`, fixed | [`v11-walkaway.csv`](docs/validation-results/v11-walkaway.csv): on 2026-10-03 the Acer went from Fedora back to an activated Windows 11 by itself, but needed a manual start from the stick, kept no password and came up offline. All fixed, and run 2 on 2026-10-04 reached Windows 11 by itself with the time, Wi-Fi and remote access carried. A real cancel is still owed |
 | **Reading BitLocker drives from Linux** (V3) | `[###.]` | [`v3-bitlk-read.csv`](docs/validation-results/v3-bitlk-read.csv): works using `ntfs-3g` |
 | **Spotting the RST / VMD disk setting** (V5) | `[##..]` | [`v5-controller-mode.csv`](docs/validation-results/v5-controller-mode.csv): one side is tested for real, but **VMD itself has never been caught on a real machine** |
-| **`settle-in`**: first boot checks, copy files, clean-up | `[#...]` | only the BitLocker reading is proven |
+| **`settle-in`**: first boot checks, copy files, clean-up | first start `[####]`, copying files `[#...]` | the first start (clock, Wi-Fi, remote access, its window) passed on the Acer on 2026-10-04; see the next row. Copying your files is not built; only the BitLocker reading is proven |
 | **Clock, Wi-Fi passwords, the leftover Windows boot entry** | `[###.]` | [`settle-in-first-start.csv`](docs/validation-results/settle-in-first-start.csv): built 2026-09-27; collected on Windows, applied by `settle-in` on first boot, with a button for the old entry. Passes on the rig (KDE and GNOME, runs up to 17). The Acer, 2026-10-04: run 10 corrected the clock but lost Wi-Fi `[FAIL]` (the stick installed twice; see below). Run 11 the same day `[####]`: the clock corrected and Wi-Fi connected by itself, a `pass` row. The old-entry button is still rig-only: on the Acer the firmware had left nothing for it to remove |
 | **Remote access (SSH)**, carried only if Windows had it on | `[####]` | decided 2026-10-04: public keys only, password sign-in off. The Acer came up with it on and its one key worked |
 | **Offer to delete Windows when it can't be kept** (R26) | `[#...]` | planned 2026-09-26 |
@@ -163,11 +165,10 @@ flowchart LR
 | Erase and install: KDE, GNOME, text-only | `[####]` `erased-installed`, even over an old Ubuntu setup | `[FAIL]` **run 9:** wiped and installed on its own with Secure Boot on, but came up at a **text login** because the install recipe was missing the desktop login. Fixed in 0.3.0, and the rig now checks for it every time. `[FAIL]` **run 10** (2026-10-04, Fedora 44, Secure Boot on): it went to the stick by itself, erased, installed and reached the desktop sign-in. Then the firmware started the stick again and **it erased and installed a second time**. A key press stopped the third countdown. Fixed the same day (R35). `[####]` **run 11** (2026-10-04, the stick left in): one click, one install, the KDE sign-in, `erased-installed`. The first clean conversion |
 | The stick is started again after the install | `[###.]` `not-installed-again`: the stick hands over to the installed Fedora, no countdown, both disks unchanged | `[FAIL]` run 10, before the fix. `[####]` run 11 (2026-10-04): the Acer's firmware started the stick after the install and again after a restart, and both times the stick handed over to Fedora (`not-installed-again`) |
 
-**Up next:** run it on the Aspire again with the stick left in, and land on
-the desktop once, with Wi-Fi carried. The Aspire runs Fedora now, so that
-needs Windows back on it first (the way back). Run 9's three smaller things
-are done: the clock is corrected at first start, the old Windows entry has
-a button, and a refusal shows plain words.
+**Done on 2026-10-04 (run 11):** one click, the stick left in, one install,
+the desktop sign-in, Wi-Fi carried. **Up next:** the cancel as its own test
+on the Aspire (it was skipped by accident in run 11, and needs Windows back
+first), then step two: bringing your files along.
 
 <details>
 <summary><b>What the Aspire has taught us so far</b> (the laptop with the dying drive)</summary>
@@ -193,6 +194,12 @@ path ([R23](docs/RISKS.md)).
   signed in, turning off the page file, putting Windows back exactly as it
   was after a stop, a "stop" never turning into a wipe, and clearing and
   rebuilding the change journal (+1.1 GB).
+- **The firmware starts what it likes.** After the install the Aspire
+  started the USB stick again, not the new Fedora. In run 10 the stick
+  still said "install", so it erased and installed a second time. Now the
+  stick marks itself "converted" the moment the countdown ends, and a
+  converted stick only hands over to the installed system. Run 11 showed it
+  twice on the real machine ([R35](docs/RISKS.md)).
 
 </details>
 
@@ -306,10 +313,10 @@ Give both a read before trusting any single check.
 - [x] Disk check, shrink and handoff; install next to Windows; undo. All on the rig
 - [x] Keep going after a restart with nobody signed in, on a real machine
 - [x] Folder map, and checking your files fit on the stick
-- [ ] **0. One-click erase and install.** Passes on the rig. Still need a real run that ends at the desktop, plus three small fixes
+- [x] **0. One-click erase and install.** Passes on the rig, and on the Acer on 2026-10-04 (run 11): one install, the desktop, Wi-Fi carried. Still owed: a real cancel as its own test, and other brands
 - [ ] **1. A real keep-Windows install with Secure Boot on.** Needs a laptop with a healthy drive
-- [ ] **2. `settle-in`:** hardware check on first boot, copying your files (unlock BitLocker, copy, double-check), a "you used these programs, here's the Linux version" list, clock and Wi-Fi setup, undo from the Linux side, clean-up
-- [ ] **3. The rest of the collecting:** Wi-Fi, browsers, the BitLocker key, the clock, a screen that asks what you want
+- [ ] **2. `settle-in`:** hardware check on first boot, copying your files (unlock BitLocker, copy, double-check), a "you used these programs, here's the Linux version" list, undo from the Linux side, clean-up. The clock and Wi-Fi setup are done (2026-10-04, on the Acer)
+- [ ] **3. The rest of the collecting:** browsers, the BitLocker key, a screen that asks what you want. Wi-Fi, the clock and remote access are done
 - [ ] **4. A proper window** instead of the black console: `UPGRADE.exe`, a Rust window that runs the scripts on the stick (decided 2026-09-27, replacing the 2026-09-13 WPF plan). The test-only flow is built; convert and erase come next
 - [ ] **5. More brands:** Dell, Lenovo and HP, half an hour each, look but don't touch
 - [ ] **6. Code signing.** This one just takes time, not code, so start now
