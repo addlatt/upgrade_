@@ -2915,6 +2915,17 @@ unattended and Secure Boot on. A real key press cancelled a countdown
 stick installed twice and would not have stopped (R35, fixed the same day).
 The row this risk still owes is one install, once, with the stick left in.
 
+**The installer's own startup hung once on the rig (2026-10-04, arm C5).**
+Fedora 44's installer stopped 91 s into its startup, before `%pre` and so
+before our verifier and any countdown, and stayed there 30 min. Both disks
+were unchanged and the stick had not reached the line. The cause is not
+known; the same kit passed straight after (C6, D2) and the same path had
+passed five times before. On a real machine this would be a black screen
+of text until the power button is held; Windows then comes back, since the
+handoff is one-time. Nothing detects it or says so in plain words. One
+occurrence is a data point: it goes in the record, and a second one makes
+it a risk of its own.
+
 ## R28: settle-in runs on any Linux · high · open (decided 2026-09-27; built and passed on the rig the same day: Fedora KDE, GNOME, console)
 
 **What.** `settle-in` must work on whatever Linux the person picks, not
