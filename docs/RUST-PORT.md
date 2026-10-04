@@ -5,6 +5,14 @@ from the window down to the code that touches the disk. This page is the
 plan for getting there: what exists, in what order it moves, and how each
 move is proven.
 
+**Decided (2026-10-04, the owner): the whole port is built now, on the
+branch `rust-port`, beside the scripts.** It no longer waits for V0's three
+more vendors or V9's re-run (that was the 2026-09-27 plan). `main` keeps
+validating the process in PowerShell. **As soon as that process has one
+success on `main`, the project cuts over to Rust.** The reason is the same
+as on 2026-09-27: one language controls the whole path. See "The branch"
+and "The cut-over" below.
+
 Three docs already cover parts of this, and this page does not repeat them:
 
 - `architecture.md`, "Stack": what was decided and the five steps.
@@ -19,7 +27,8 @@ Three docs already cover parts of this, and this page does not repeat them:
 | 0 | the window, `UPGRADE.exe` | `[###.]` stop path, `[##..]` reopen | V12, `v12-window.csv` |
 | 1 | the schema library (`schemas/rust`) | `[##..]` built, no program uses it yet | 103 of 103 ledger lines `pass` |
 | 2 | the scanner's judging half (`evaluate/scan`) | `[##..]` built, no program uses it yet | 103 of 103 self-test and corpus lines `pass`; 10 rig and physical lines `owed` |
-| 3 | the read-only collectors (the scanner's reads, the harvester) | `[#...]` planned | ledger lines not written |
+| 3a | the scanner's whole-scan order, its text report, a program that replays recordings | `[##..]` built | 6 whole scans match the PowerShell scanner's own main section, report line for line |
+| 3b | the live reads (registry, WMI, event log, firmware), the harvester | `[#...]` planned | ledger lines not written |
 | 4 | the job writer, stick writer, kickstart generator | `[#...]` planned | ledger lines not written |
 | 5 | the prologue, handoff, rollback | `[#...]` planned | ledger lines not written |
 
@@ -33,6 +42,46 @@ One command checks all of it:
 ```text
 ./port-check.sh
 ```
+
+## The branch
+
+All of the port lives on `rust-port` until the cut-over. Nothing from it
+goes to `main` before then, so nothing the stick runs changes while the
+PowerShell process is being validated.
+
+`main` will keep changing (a fix after a physical run, a new check). The
+port follows it like this:
+
+1. Merge `main` into `rust-port` often.
+2. Run `./port-check.sh`. If a script changed what it says, the recorded
+   answers are stale and the check fails, naming the file.
+3. Record again (`./port-check.sh --record`), read the diff, and change the
+   Rust until it says the new thing too.
+
+So a PowerShell fix can never be silently missing from the Rust: the check
+fails until it is carried over.
+
+## The cut-over
+
+The trigger is the owner's: one success of the PowerShell process on
+`main`. What the cut-over is, and is not:
+
+- **It is the moment the Rust becomes the thing under test.** From then on
+  the rig and the physical machines run the Rust build.
+- **It does not carry evidence across.** Every rig and physical row was
+  earned by the PowerShell that ran (rule #2). The parity tests prove the
+  Rust decides the same and says the same. They cannot prove what a real
+  disk or real firmware does when the Rust is the one asking. Those ledger
+  lines stay `owed` until the Rust re-earns them.
+- **The order at cut-over:** every self-test, corpus and differential line
+  `pass` (before the cut-over, on this branch); then the rig harnesses
+  (`rig/hyperv/*.sh`) re-run with the Rust build; then one physical run on
+  the Aspire. The `.cmd` launchers and the scripts stay on the stick as the
+  way back until the Rust has its own rig rows.
+
+What makes the cut-over safe to be confident in is how much is closed
+before it: everything a test can close without hardware. That is the work
+of this branch.
 
 ## The rules of the port
 
@@ -193,8 +242,17 @@ This is where the Rust first touches a real Windows machine, read-only.
 5. **The harvester.** Its ledger lines first (its `-SelfTest` cases and
    `harvest-folder-map.csv`), then the same four moves.
 
-**Waits on (decided 2026-09-27):** V0's three more vendors and V9's
-physical re-run. See "Open decisions" for the one question this raises.
+Items 1 and 2 are built (2026-10-04). `run::scan` is the scanner's main
+section with the reads taken out, and `report::lines` is its text report.
+The proof runs the PowerShell scanner's own main section, as written, with
+only its reads replaced by a case's facts, and requires the same report,
+line for line: six whole machines (the Aspire elevated, the G16 not
+elevated, the VMD spoof, a clean ThinkPad, the same ThinkPad 199 days
+later, an ARM machine with almost nothing readable). The program is
+`upgrade-scan --replay machine.json`.
+
+Items 3 to 5 no longer wait on V0 and V9 (decided 2026-10-04, above).
+Item 4 needs a Windows machine; the G16 is the first.
 
 ## Step 4: the job writer, the stick writer, the kickstart. Planned.
 
@@ -255,6 +313,7 @@ evaluate/scan/       crate upgrade-scan: the judging half
   tests/cases.json     the inputs (shared with the PowerShell recorder)
   tests/golden.ps1     asks the PowerShell scanner; writes golden.json
   tests/golden.json    the PowerShell's answers
+  src/main.rs          upgrade-scan --replay machine.json
 data/tables.json     the data tables as JSON (written by a tool)
 port-check.sh        the one command
 ```
@@ -272,27 +331,23 @@ else.
 
 In order. The first three need no decision.
 
-1. **Put the schema library to work.** `settle-in` and the window read
-   `job.json` and `outcome.json` through `upgrade-schema`, and refuse what
-   it refuses.
-2. **The report and the replay program** (step 3, items 1 and 2). No live
-   reads, so nothing waits on hardware.
-3. **Make the PowerShell prologue keep raw tool output.** Owed since
-   2026-09-27. The Aspire's run 11 should not be made without it.
-4. **The kickstart generator** (step 4, first item): a pure function, and
+1. **The kickstart generator** (step 4, first item): a pure function, and
    the next piece with a clean differential test.
-5. The live reads (step 3, items 3 to 5), when the gate below opens.
+2. **The harvester's and the job writer's judging halves**, the same way
+   as the scanner's: ledger lines first, then cases, golden, Rust.
+3. **The live reads** (step 3, items 3 to 5), compared side by side with
+   the PowerShell on the G16.
+4. **Put the schema library to work.** `settle-in` and the window read
+   `job.json` and `outcome.json` through `upgrade-schema`.
+5. **Make the PowerShell prologue keep raw tool output** (on `main`). Owed
+   since 2026-09-27. Every physical run made without it is one the Rust
+   cannot replay later.
+6. The stick writer, then the prologue, handoff and rollback (step 5).
 
 ## Open decisions (the owner's)
 
-1. **What exactly waits for V0 and V9?** The 2026-09-27 decision says steps
-   3 and later wait for V0's three more vendors and V9's physical re-run.
-   Read strictly, that stops all Rust work past step 2. A narrower reading
-   keeps what the wait protects (nothing the stick runs changes while the
-   physical matrix is being filled) and still lets the port move: Rust
-   pieces may be built and tested beside the scripts, and no script is
-   replaced until the gate opens. Items 2 and 4 above assume the narrower
-   reading. Not decided.
+1. **Which run counts as the "one success"** that triggers the cut-over.
+   The owner names it when it happens; it gets a dated line here.
 2. **The data tables' format** after the PowerShell scanner is retired.
 3. **Beyond the Windows side.** The decision covers the Windows side. The
    Linux side still has shell (`upgrade_/linux/verify.sh`, `outcome.sh`,

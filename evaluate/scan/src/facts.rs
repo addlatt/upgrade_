@@ -20,6 +20,7 @@ pub struct Sys {
     pub cpu_arch: Option<i64>,
     pub cpu_cores: Option<i64>,
     pub firmware: Option<String>,
+    pub bios_version: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
@@ -197,4 +198,35 @@ pub struct DiskEvent {
     pub time_created: Stamp,
     #[serde(default)]
     pub message: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "PascalCase", default)]
+pub struct SbatFacts {
+    pub levels: Vec<SbatSource>,
+    pub files: Vec<KitBootFile>,
+}
+
+/// Everything one scan reads from a machine, in one piece. The collectors
+/// will fill it from a live Windows (step 3); a recording fills it from a
+/// file. Either way the judging is the same call: `run::scan`.
+#[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "PascalCase", default)]
+pub struct Machine {
+    pub is_admin: bool,
+    pub sys: Sys,
+    pub pnp: Vec<Pnp>,
+    /// 1 on, 0 off, absent = could not read
+    pub secure_boot: Option<i64>,
+    pub sbat: SbatFacts,
+    /// absent = could not read (not elevated); an empty list is a read list
+    pub db_authorities: Option<Vec<String>>,
+    pub resume: Option<ResumeFacts>,
+    pub disk: DiskFacts,
+    pub volume_health: Option<VolumeHealth>,
+    pub physical_disk: Option<PhysicalDiskFacts>,
+    pub hiberboot: Option<i64>,
+    pub bit_locker: Option<BitLockerState>,
+    pub esp: Option<EspFacts>,
+    pub apps: Vec<String>,
 }

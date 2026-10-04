@@ -16,8 +16,8 @@ use serde_json::{json, Map, Value};
 use std::path::PathBuf;
 use upgrade_scan::data::{tables, Release};
 use upgrade_scan::facts::*;
-use upgrade_scan::ps::Version;
-use upgrade_scan::{hardware, parse, sbat, software, storage, system, verdict, Scan};
+use upgrade_scan::ps::{Stamp, Version};
+use upgrade_scan::{hardware, parse, report, run, sbat, software, storage, system, verdict, Scan};
 
 fn cases() -> Vec<Value> {
     serde_json::from_str(include_str!("cases.json")).unwrap()
@@ -50,6 +50,30 @@ fn run(scan: &mut Scan, fn_name: &str, a: &Value, extra: &mut Map<String, Value>
             extra.insert("kernel".into(), kernel.map_or(Value::Null, |k| json!(k.to_string())));
             let names = |l: &[&upgrade_scan::data::Distro]| l.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
             extra.insert("recommendation".into(), json!({"Distros": names(&rec.distros), "HasNvidia": rec.has_nvidia, "LowRam": rec.low_ram, "Excluded": names(&rec.excluded)}));
+            Value::Null
+        }
+        "scan" => {
+            let mut m = a["Machine"].clone();
+            if let Some(file) = m.get("Corpus").and_then(Value::as_str) {
+                let cap: Value = serde_json::from_str(corpus_text(file).trim_start_matches('\u{feff}')).unwrap();
+                let mut sys = cap["Sys"].clone();
+                for (k, v) in m["Sys"].as_object().into_iter().flatten() {
+                    sys[k.as_str()] = v.clone();
+                }
+                m["Sys"] = sys;
+                m["Pnp"] = cap["Pnp"].clone();
+            }
+            let machine: Machine = serde_json::from_value(m).unwrap_or_else(|e| panic!("Machine: {e}"));
+            let now = Stamp::parse(a["Now"].as_str().unwrap()).unwrap();
+            let o = run::scan(&machine);
+            let groups: Vec<Value> = o.verdict.groups.iter().map(|g| json!({"Priority": g.priority, "Label": g.label, "Items": g.items})).collect();
+            extra.insert("lines".into(), json!(report::lines(&machine, &o, now, upgrade_scan::FOLLOWS_SCANNER)));
+            extra.insert("verdict".into(), json!({"Level": o.verdict.level.as_str(), "Summary": o.verdict.summary, "Groups": groups}));
+            extra.insert("kernel".into(), o.required_kernel.map_or(Value::Null, |k| json!(k.to_string())));
+            let names = |l: &[&upgrade_scan::data::Distro]| l.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
+            extra.insert("recommendation".into(), json!({"Distros": names(&o.recommendation.distros), "HasNvidia": o.recommendation.has_nvidia, "LowRam": o.recommendation.low_ram, "Excluded": names(&o.recommendation.excluded)}));
+            extra.insert("unmatchedIds".into(), json!(report::unmatched_sorted(&o.scan.unmatched)));
+            *scan = o.scan;
             Value::Null
         }
         "corpus" => {
@@ -112,10 +136,13 @@ fn run(scan: &mut Scan, fn_name: &str, a: &Value, extra: &mut Map<String, Value>
     }
 }
 
-fn capture(file: &str) -> Capture {
+fn corpus_text(file: &str) -> String {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../windows/corpus").join(file);
-    let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-    serde_json::from_str(text.trim_start_matches('\u{feff}')).unwrap_or_else(|e| panic!("{file}: {e}"))
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+}
+
+fn capture(file: &str) -> Capture {
+    serde_json::from_str(corpus_text(file).trim_start_matches('\u{feff}')).unwrap_or_else(|e| panic!("{file}: {e}"))
 }
 
 /// The checks a recording can replay: the ones that read only the

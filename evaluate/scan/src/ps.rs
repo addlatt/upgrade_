@@ -82,6 +82,19 @@ impl Stamp {
         ok.then_some(st)
     }
 
+    /// Seconds since 1970-01-01, treating the stamp as it stands (no zone).
+    pub fn seconds(&self) -> i64 {
+        // days from the civil date (Howard Hinnant's algorithm)
+        let y = (if self.month <= 2 { self.year - 1 } else { self.year }) as i64;
+        let era = y.div_euclid(400);
+        let yoe = y.rem_euclid(400);
+        let mp = (self.month as i64 + 9) % 12;
+        let doy = (153 * mp + 2) / 5 + self.day as i64 - 1;
+        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+        let days = era * 146097 + doe - 719468;
+        days * 86400 + self.hour as i64 * 3600 + self.minute as i64 * 60 + self.second as i64
+    }
+
     pub fn iso(&self) -> String {
         format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", self.year, self.month, self.day, self.hour, self.minute, self.second)
     }

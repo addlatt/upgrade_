@@ -27,9 +27,35 @@ $text = [IO.File]::ReadAllText($scanner)
 $cut = $text.IndexOf('if ($SelfTest) { Invoke-UpgSelfTest }')
 if ($cut -lt 0) { throw 'golden: the scanner has no main marker to cut at' }
 $text = $text.Substring(0, $cut) -replace '(?m)^\. \(Join-Path \$PSScriptRoot .*$', ''
+$full = [IO.File]::ReadAllText($scanner)
 . ([scriptblock]::Create($text))
 
-$dateKeys = @('NtfsFullChkdsk', 'LastCheck', 'First', 'Last', 'TimeCreated', 'When')
+# --- a whole scan, replayed (the 'scan' cases) --------------------------------
+# The scanner's own main section runs as written, from its first read to the
+# report. Only the reads are replaced: each collector hands back the case's
+# facts instead of asking the machine, and the clock is the case's clock.
+$mainFrom = $full.IndexOf('$isAdmin = Test-UpgAdmin')
+$mainTo = $full.IndexOf('-IsAdmin $isAdmin', $full.IndexOf('$lines = Write-UpgReport'))
+if ($mainFrom -lt 0 -or $mainTo -lt 0) { throw 'golden: the scanner main section was not found' }
+$mainBlock = [scriptblock]::Create($full.Substring($mainFrom, $mainTo + 17 - $mainFrom))
+$script:Now = [DateTime]'2026-10-04T10:00:00'
+function Get-Date { param([string]$Format) if ($Format) { $script:Now.ToString($Format) } else { $script:Now } }
+function Test-UpgAdmin { [bool]$script:M.IsAdmin }
+function Get-UpgSystem { $script:M.Sys }
+function Get-UpgPnp { @($script:M.Pnp) }
+function Get-UpgSecureBootState { $script:M.SecureBoot }
+function Get-UpgSbatFacts { param($Root, $IsAdmin) @{ Levels = @($script:M.Sbat.Levels | Where-Object { $_ }); Files = @($script:M.Sbat.Files | Where-Object { $_ }) } }
+function Get-UpgDbAuthorities { param($Bytes) if ($null -eq $script:M.DbAuthorities) { return $null }; , @($script:M.DbAuthorities) }
+function Get-UpgResumeFacts { $script:M.Resume }
+function Get-UpgDiskFacts { $script:M.Disk }
+function Get-UpgVolumeHealth { param($IsAdmin, $ShrinkError) $script:M.VolumeHealth }
+function Get-UpgPhysicalDiskFacts { param($IsAdmin) $script:M.PhysicalDisk }
+function Get-UpgFastStartupState { $script:M.Hiberboot }
+function Get-UpgBitLockerState { $script:M.BitLocker }
+function Get-UpgEspFacts { $script:M.Esp }
+function Get-UpgInstalledApps { @($script:M.Apps) }
+
+$dateKeys = @('NtfsFullChkdsk', 'LastCheck', 'First', 'Last', 'TimeCreated', 'When', 'Now')
 function Fix {
     # JSON -> what the live collectors hand the judging functions: doubles
     # (not decimals) and real DateTime values.
@@ -68,7 +94,7 @@ function Norm {
 }
 
 $cases = Get-Content (Join-Path $here 'cases.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$lines = @()
+$outLines = @()
 foreach ($case in $cases) {
     $script:Checks = @(); $script:Unmatched = @(); $script:UpgReleases = $null
     $r = [ordered]@{}
@@ -99,6 +125,25 @@ foreach ($case in $cases) {
                 Test-UpgVendor       -Sys $cap.Sys
                 $returns += , $null
             }
+            'scan' {
+                $script:Now = $a.Now
+                $m = $a.Machine
+                if ($m.Corpus) {
+                    $cap = Get-Content (Join-Path $here "..\..\windows\corpus\$($m.Corpus)") -Raw | ConvertFrom-Json
+                    foreach ($p in @($m.Sys.PSObject.Properties)) { $cap.Sys | Add-Member -NotePropertyName $p.Name -NotePropertyValue $p.Value -Force }
+                    $m | Add-Member -NotePropertyName Sys -NotePropertyValue $cap.Sys -Force
+                    $m | Add-Member -NotePropertyName Pnp -NotePropertyValue @($cap.Pnp) -Force
+                }
+                $script:M = $m
+                . $mainBlock 6>$null
+                $r.lines = @($lines)
+                $r.verdict = [ordered]@{ Level = $verdict.Level; Summary = $verdict.Summary; Groups = @($verdict.Groups | ForEach-Object { [ordered]@{ Priority = $_.Priority; Label = $_.Label; Items = @($_.Items) } }) }
+                $r.kernel = $(if ($requiredKernel) { $requiredKernel.ToString() } else { $null })
+                $r.recommendation = [ordered]@{ Distros = @($rec.Distros | ForEach-Object { $_.Name }); HasNvidia = $rec.HasNvidia; LowRam = $rec.LowRam; Excluded = @($rec.Excluded | ForEach-Object { $_.Name }) }
+                $r.unmatchedIds = @($script:Unmatched | Sort-Object -Unique)
+                $script:Now = [DateTime]'2026-10-04T10:00:00'
+                $returns += , $null
+            }
             'distro-table' {
                 $returns += , @(Get-UpgDistroTable | ForEach-Object { $v = ConvertTo-UpgVersion $_.Kernel; [ordered]@{ Name = $_.Name; Kernel = $_.Kernel; Parsed = $(if ($v) { $v.ToString() } else { $null }) } })
             }
@@ -118,8 +163,8 @@ foreach ($case in $cases) {
     $r.unmatched = @($script:Unmatched)
     $r.releases = @($script:UpgReleases | Where-Object { $_ } | ForEach-Object { [ordered]@{ Id = $_.Id; Name = $_.Name; Starts = $_.Starts; Why = @($_.Why) } })
     $r.returns = $returns
-    $lines += ((ConvertTo-Json $case.name -Compress) + ': ' + (ConvertTo-Json $r -Depth 12 -Compress))
+    $outLines += ((ConvertTo-Json $case.name -Compress) + ': ' + (ConvertTo-Json $r -Depth 12 -Compress))
 }
-$outText = "{`n" + ($lines -join ",`n") + "`n}`n"
+$outText = "{`n" + ($outLines -join ",`n") + "`n}`n"
 [IO.File]::WriteAllText($Out, $outText, (New-Object Text.UTF8Encoding $false))
-Write-Host "  golden: $($lines.Count) cases written to $Out"
+Write-Host "  golden: $($outLines.Count) cases written to $Out"

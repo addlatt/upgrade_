@@ -14,6 +14,8 @@ pub mod facts;
 pub mod hardware;
 pub mod parse;
 pub mod ps;
+pub mod report;
+pub mod run;
 pub mod sbat;
 pub mod software;
 pub mod storage;

@@ -380,6 +380,10 @@ dist/              built single-file scanner (rebuild with ./build.sh)
   in `docs/validation-results/port-parity.csv` reads `pass` in Rust.
   The roadmap is `docs/RUST-PORT.md`. Built 2026-10-04: the schema library
   and the scanner's judging half, beside the scripts, nothing switched over.
+  **Decided (2026-10-04, the owner):** the whole port is built on the branch
+  `rust-port` now, and the project cuts over to Rust after one success of
+  the PowerShell process on `main`. Rig and physical rows do not carry
+  across: the Rust re-earns them, rig first.
 - **Run `./port-check.sh` when the scanner, `data/`, or `schemas/`
   changes.** It fails when the Rust side no longer says what the PowerShell
   says, or when a recorded file (`data/tables.json`,

@@ -1517,8 +1517,11 @@ VALIDATION V13):
 4. the job writer, the stick writer and the kickstart generator;
 5. the prologue, the handoff and the rollback, last.
 
-Steps 3 to 5 wait for V0's three more vendors and V9's physical re-run.
-Until then, and for each piece until its lines in
+**Decided (2026-10-04, the owner):** all five steps are built now, on the
+branch `rust-port`, beside the scripts, and the project cuts over to Rust
+after one success of the PowerShell process on `main`. (The 2026-09-27 plan
+had steps 3 to 5 wait for V0's three more vendors and V9's physical re-run.)
+Until the cut-over, and for each piece until its lines in
 `docs/validation-results/port-parity.csv` all read `pass`, the window
 keeps calling that piece's script as described above, and the `.cmd`
 launchers stay on the stick. So today the scripts are still the thing

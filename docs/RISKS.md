@@ -3236,6 +3236,24 @@ the `.cmd` launchers stay on the stick until then. Builds are made
 reproducible. From now on every physical run keeps the raw output of the
 Windows tools it calls, so later decisions can be replayed (rule #5).
 
+**Decided (2026-10-04, the owner): build the whole port now, cut over
+after one success.** The port is built on the branch `rust-port`, beside
+the scripts, without waiting for V0's vendors or V9's re-run. `main` keeps
+validating the process in PowerShell, and as soon as that has one success
+the project cuts over to Rust. This replaces the 2026-09-27 wait. What it
+changes for this risk:
+
+- The stakes move to one moment. At the cut-over the Rust becomes the thing
+  under test, with every rig and physical line in the ledger still `owed`.
+  Parity tests close the deciding and the wording. They close nothing a
+  disk or a firmware does (rule #2, rule #5).
+- So everything that can be closed without hardware is closed before the
+  cut-over, on the branch, and the rig is re-run with the Rust build before
+  a physical machine is (`docs/RUST-PORT.md`, "The cut-over"). The scripts
+  stay on the stick as the way back until the Rust has its own rig rows.
+- A second branch can fall behind. `./port-check.sh` fails when a script on
+  `main` changes what it says and the Rust has not followed.
+
 **Where it stands (2026-10-04).** Steps 1 and 2 are built, beside the
 scripts, and nothing the stick runs has changed (`docs/RUST-PORT.md` is the
 roadmap).
@@ -3253,6 +3271,11 @@ roadmap).
   habits a reading would have missed: equal entries come out of
   `Sort-Object -Descending` in reverse order, and halves round to the even
   digit.
+- **Step 3, first half** (same day). The scanner's main section and its
+  text report, as `run::scan` and `report::lines`, and a program that
+  replays a recording (`upgrade-scan --replay`). Six whole scans match the
+  PowerShell scanner's own main section, run as written with only its reads
+  replaced, report line for line.
 - **Still open for step 2:** 10 ledger lines, the scanner's rig and physical
   rows. They were earned by reading real machines, and the Rust does not
   read a machine yet. A word-for-word match on made-up inputs and three

@@ -1309,8 +1309,15 @@ is plumbing.
 
 Decided 2026-09-27 (the owner): Rust becomes the conversion's one
 language, piece by piece (`architecture.md`, "Stack"). The roadmap is
-`docs/RUST-PORT.md`. Steps 1 and 2 `[##..]` built (2026-10-04), steps 3 to
-5 `[#...]` planned.
+`docs/RUST-PORT.md`. Steps 1 and 2 `[##..]` built (2026-10-04), with the
+replay half of step 3; the rest `[#...]` planned.
+
+**Decided (2026-10-04, the owner):** the whole port is built now on the
+branch `rust-port`, and the project cuts over to Rust after one success of
+the PowerShell process on `main`. This gate's order at the cut-over: every
+`selftest`, `corpus` and differential line `pass` first (on the branch),
+then the `rig` lines re-run with the Rust build, then the `physical` ones.
+A line is never marked `pass` because its PowerShell row passed.
 
 **Where it stands (2026-10-04).** `./port-check.sh` runs the whole check:
 the two PowerShell self-tests and `schemas/check.py`, that the recorded
@@ -1389,7 +1396,7 @@ Real, but they degrade rather than kill, or only touch the fallback path:
 | V8 | the settle-in file pull's integrity guarantee; `settle-in` never copying a stub as the file (online-only files stay in OneDrive, decided 2026-09-26) |
 | V11 | the "Go back to Windows" program (walk-away since 2026-09-29); until it passes, the launchers' line promises only what is proven |
 | V14 | every kit build (its release must be one the target machines can start); the Aspire's run 10 re-run |
-| V13 | retiring each PowerShell piece; the ported writers (steps 3 to 5 also wait on V0's vendors and V9's re-run) |
+| V13 | retiring each PowerShell piece; the cut-over to Rust (decided 2026-10-04: after one success of the PowerShell process on `main`) |
 | V5 | nothing: do it this week regardless |
 | V6 | nothing: start the clock now; blocks only the eventual release |
 | V7 | table confidence; multi-distro ambitions |
