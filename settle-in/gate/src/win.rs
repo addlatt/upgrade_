@@ -162,13 +162,13 @@ mod imp {
         [t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond]
     }
 
-    /// Sets the system clock to this UTC time. Windows then writes the
-    /// hardware clock in its own way (local time). True if Windows took it.
-    pub fn set_utc(w: &[u16; 6]) -> bool {
-        use windows_sys::Win32::System::SystemInformation::SetSystemTime;
+    /// Sets the local (wall) time. Windows keeps the hardware clock in local
+    /// time, so this is what the hardware clock then holds. True if Windows took it.
+    pub fn set_wall(w: &[u16; 6]) -> bool {
+        use windows_sys::Win32::System::SystemInformation::SetLocalTime;
         let mut t: windows_sys::Win32::Foundation::SYSTEMTIME = unsafe { std::mem::zeroed() };
         t.wYear = w[0]; t.wMonth = w[1]; t.wDay = w[2]; t.wHour = w[3]; t.wMinute = w[4]; t.wSecond = w[5];
-        unsafe { SetSystemTime(&t) != 0 }
+        unsafe { SetLocalTime(&t) != 0 }
     }
 }
 
@@ -182,7 +182,7 @@ mod imp {
     pub fn clear() {}
     pub fn reboot() {}
     pub fn local_wall() -> [u16; 6] { [1970, 1, 1, 0, 0, 0] }
-    pub fn set_utc(_: &[u16; 6]) -> bool { false }
+    pub fn set_wall(_: &[u16; 6]) -> bool { false }
 }
 
 pub use imp::*;

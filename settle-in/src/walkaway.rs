@@ -349,7 +349,11 @@ pub fn clock(root: &str, forward: Option<&Value>) -> Value {
     let from_job = forward.and_then(|j| j.pointer("/harvest/clock")).filter(|c| c["iana"].as_str() == Some(iana.as_str()) && !iana.is_empty())
         .and_then(|c| c["windows_zone"].as_str()).map(str::to_string);
     let zone = from_job.clone().or_else(|| ZONES.iter().find(|(i, _)| *i == iana).map(|(_, w)| w.to_string()));
-    json!({ "iana": iana, "windows_zone": zone, "windows_zone_from": if from_job.is_some() { "the job that converted this computer" } else if zone.is_some() { "the table" } else { "not known: Windows keeps its default zone" }, "rtc": rtc })
+    // the zone's offset from UTC right now, by the system's own zone rules: the gate adds it to the
+    // hardware clock's UTC to write the wall time Windows expects there
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let offset = crate::zone::Zone::load(r, &iana).and_then(|z| z.offset_at(now)).ok();
+    json!({ "iana": iana, "offset_seconds": offset, "windows_zone": zone, "windows_zone_from": if from_job.is_some() { "the job that converted this computer" } else if zone.is_some() { "the table" } else { "not known: Windows keeps its default zone" }, "rtc": rtc })
 }
 
 /// The person who started the way back: pkexec and sudo say who asked; else
@@ -898,6 +902,7 @@ mod tests {
         assert_eq!(c["iana"], "America/New_York");
         assert_eq!(c["windows_zone"], "Eastern Standard Time");
         assert_eq!(c["rtc"], "utc");
+        assert!(c["offset_seconds"].is_null()); // this made-up root has no zone rules: no offset, and the gate then leaves the clock alone
         std::fs::write(d.join("etc/adjtime"), "0.0 0 0.0\n0\nLOCAL\n").unwrap();
         assert_eq!(clock(d.to_str().unwrap(), None)["rtc"], "local");
         // the forward job's own name wins when the zone is the same; an unknown zone names none

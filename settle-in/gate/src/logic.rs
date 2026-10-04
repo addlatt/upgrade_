@@ -300,21 +300,51 @@ pub fn unattend(job: &Value, found: &[Found]) -> String {
 /// The clock, after the commit line (2026-10-04). Linux keeps the hardware
 /// clock in UTC; Windows reads it as local time, so a new Windows would be
 /// hours off until it reached a time server. WinPE made the same reading,
-/// so what WinPE shows as local time IS the true UTC. Setting the system
-/// clock to that makes Windows write the hardware clock its own way, and
-/// the installed Windows (same default zone as WinPE) reads it back right;
-/// the answer file's TimeZone then only changes how it is shown.
-/// Returns the UTC to set, or None when the hardware clock already holds
+/// so what WinPE shows as local time IS the true UTC. The new Windows takes
+/// the hardware clock's reading as the wall time, and the answer file's
+/// TimeZone keeps that wall time (it shifts the UTC instead; rig,
+/// 2026-10-04: a first design that set the UTC here came out 1 h off for
+/// WinPE's lack of daylight saving and 3 h more for the zone). So the
+/// hardware clock must hold the wall time of the person's own zone:
+/// the true UTC plus the zone's offset, which Linux worked out.
+/// Returns that wall time, to set as WinPE's local time (Windows writes the
+/// hardware clock with it), or None when the hardware clock already holds
 /// local time or the job does not say. Pure.
 pub fn clock_fix(job: &Value, wall: &[u16; 6]) -> Option<[u16; 6]> {
     if job["clock"]["rtc"].as_str() != Some("utc") {
         return None;
     }
-    // a clock that was never set is not copied (WinPE without a battery clock starts in the past)
-    if wall[0] < 2025 {
+    let offset = job["clock"]["offset_seconds"].as_i64()?;
+    // a clock that was never set is not copied (WinPE without a battery clock starts in the past);
+    // an offset no zone has is not applied
+    if wall[0] < 2025 || offset.abs() > 15 * 3600 {
         return None;
     }
-    Some(*wall)
+    Some(from_unix(to_unix(wall) + offset))
+}
+
+/// Civil time <-> seconds since 1970 (proleptic Gregorian; Howard Hinnant's algorithms).
+fn to_unix(w: &[u16; 6]) -> i64 {
+    let (y, m, d) = (w[0] as i64 - if w[1] <= 2 { 1 } else { 0 }, w[1] as i64, w[2] as i64);
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (m + if m > 2 { -3 } else { 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    (era * 146097 + doe - 719468) * 86400 + w[3] as i64 * 3600 + w[4] as i64 * 60 + w[5] as i64
+}
+
+fn from_unix(t: i64) -> [u16; 6] {
+    let (days, rem) = (t.div_euclid(86400), t.rem_euclid(86400));
+    let z = days + 719468;
+    let era = z.div_euclid(146097);
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + if m <= 2 { 1 } else { 0 };
+    [y as u16, m as u16, d as u16, (rem / 3600) as u16, (rem % 3600 / 60) as u16, (rem % 60) as u16]
 }
 
 /// The commands Windows runs at the account's first (automatic) sign-in,
@@ -470,10 +500,15 @@ mod tests {
     #[test]
     fn the_clock_is_set_only_from_a_utc_hardware_clock() {
         let w = [2026u16, 10, 4, 15, 0, 0];
-        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc" } }), &w), Some(w));
-        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "local" } }), &w), None);
+        // UTC 15:00 in New York's summer (-4 h) is 11:00 on the wall
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc", "offset_seconds": -14400 } }), &w), Some([2026, 10, 4, 11, 0, 0]));
+        // across midnight, a month end and a leap day
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc", "offset_seconds": -25200 } }), &[2026, 11, 1, 3, 30, 0]), Some([2026, 10, 31, 20, 30, 0]));
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc", "offset_seconds": 19800 } }), &[2028, 2, 28, 20, 0, 59]), Some([2028, 2, 29, 1, 30, 59]));
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "local", "offset_seconds": -14400 } }), &w), None);
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc" } }), &w), None);
         assert_eq!(clock_fix(&json!({}), &w), None);
-        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc" } }), &[2001, 1, 1, 0, 0, 0]), None);
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc", "offset_seconds": -14400 } }), &[2001, 1, 1, 0, 0, 0]), None);
     }
 
     #[test]

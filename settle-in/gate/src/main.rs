@@ -206,8 +206,9 @@ fn run() -> i32 {
     // the clock (2026-10-04): only after the line, so a cancel leaves Linux's clock as it was
     let wall = win::local_wall();
     rec["clock"] = match logic::clock_fix(&job, &wall) {
-        Some(utc) => json!({ "hardware_clock_read": format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", wall[0], wall[1], wall[2], wall[3], wall[4], wall[5]), "taken_as": "utc", "set": win::set_utc(&utc) }),
-        None => json!({ "set": false, "why": "the job does not say the hardware clock holds UTC, or the clock was never set" }),
+        Some(w) => json!({ "hardware_clock_read": format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", wall[0], wall[1], wall[2], wall[3], wall[4], wall[5]), "taken_as": "utc",
+                           "wall_time_set": format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", w[0], w[1], w[2], w[3], w[4], w[5]), "offset_seconds": job["clock"]["offset_seconds"], "set": win::set_wall(&w) }),
+        None => json!({ "set": false, "why": "the job does not say the hardware clock holds UTC, or names no offset, or the clock was never set" }),
     };
     save(&rec_path, &rec);
     let xml = logic::unattend(&job, &found);
