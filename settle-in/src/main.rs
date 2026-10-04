@@ -51,6 +51,7 @@ mod gpt;
 mod hw;
 mod sticks;
 mod stickwrite;
+mod ssh;
 mod summary;
 mod wifi;
 mod zone;
@@ -208,6 +209,9 @@ fn first_start(root: &str, rtc: &str) -> i32 {
     // --- Wi-Fi
     report["wifi"] = wifi::run(root, &handoff, &job);
     println!("settle-in: wifi: {} ({} created)", report["wifi"]["result"], report["wifi"].get("created").unwrap_or(&json!(0)));
+    // remote access, only if Windows had it on (decided 2026-10-04)
+    report["ssh"] = ssh::run(root, &job);
+    println!("settle-in: ssh: {} {}", report["ssh"]["result"], report["ssh"].get("why").map(|w| w.to_string()).unwrap_or_default());
 
     // --- our own one-time entry: removed automatically (the owner, 2026-09-27)
     report["own_boot_entry"] = bootentry::remove_ours(root, &outcome);

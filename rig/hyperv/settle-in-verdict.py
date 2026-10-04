@@ -200,6 +200,14 @@ else:
 
 result = ("pass-plumbing" if spoofed else "pass") if not fails else "fail"
 if result != "fail" and spoofed and "partial" in wifi_nm: result = "partial"
+# remote access (2026-10-04): carried only when the job says Windows had it on; a carried
+# job whose report is not "carried" fails the row (the reason is settle-in's own)
+hs = (load(D / "job.json") or {}).get("harvest", {}).get("ssh") or {}
+rs = rep.get("ssh") or {}
+if hs.get("result") == "carried":
+    notes.append("ssh: %s (%s key(s), password sign-in %s)" % (rs.get("result", "not in the report"), rs.get("keys", "?"), rs.get("password_sign_in", "?")))
+    if rs.get("result") != "carried": fails.append("ssh")
+elif rs: notes.append("ssh: %s" % rs.get("result"))
 if fails: notes.append("failed: " + ", ".join(fails))
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), MACHINE, rep.get("settle_in_version", si.get("version", "")),
        installed, handoff, clock_result, clock_why, installer_err, wifi_result, wifi_nm, deleted, before, result, "; ".join(notes),
