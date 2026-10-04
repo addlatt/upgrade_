@@ -1038,6 +1038,53 @@
             }
           }
         },
+        "ssh": {
+          "description": "Remote access (SSH), carried only if Windows already had it on (decided 2026-10-04, the owner: every OS switch carries what the old system had set up). Only PUBLIC keys are carried, never a password or a private key; settle-in turns on the installed system's SSH server with those keys and password sign-in off. Optional: a job without it carries nothing.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "result",
+            "keys",
+            "sources"
+          ],
+          "properties": {
+            "result": {
+              "description": "carried: Windows' OpenSSH server was set to start and allowed at least one key. off: installed but not set to start. not-installed: no OpenSSH server. no-keys: on, but no key allowed (password sign-in only, which is not carried). unreadable: the state or a key file could not be read; nothing is carried. not-harvested: a verify-only job.",
+              "enum": [
+                "carried",
+                "off",
+                "not-installed",
+                "no-keys",
+                "unreadable",
+                "not-harvested"
+              ]
+            },
+            "keys": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|sk-ssh-ed25519@openssh\\.com|sk-ecdsa-sha2-nistp256@openssh\\.com) [A-Za-z0-9+/]+={0,3}( [^\\r\\n]*)?$"
+              }
+            },
+            "sources": {
+              "description": "The Windows files the keys came from.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "why": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
         "bitlocker": {
           "type": "object",
           "additionalProperties": false,

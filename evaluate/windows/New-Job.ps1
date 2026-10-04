@@ -123,7 +123,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$JobWriterVersion = '0.17.0'   # 0.17.0 (2026-10-03): the release comes from the stick's release.json and must be one the scan found this computer can start (R34)
+$JobWriterVersion = '0.18.0'   # 0.18.0 (2026-10-04): harvest.ssh, carried only if Windows had it on, public keys only; 0.17.0 (2026-10-03): the release comes from the stick's release.json and must be one the scan found this computer can start (R34)
 # the harvester versions whose folder map this writer reads; any other is refused, not guessed
 $KnownHarvestVersions = @('0.3.0')
 $LinuxMinGB = 25
@@ -324,6 +324,49 @@ function Get-JobClockFacts {
        DynamicDstDisabled = $(if ($ti -and $null -ne $ti.PSObject.Properties['DynamicDaylightTimeDisabled']) { $ti.DynamicDaylightTimeDisabled } else { $null })
        OffsetMinutes = [int]$tz.GetUtcOffset($now).TotalMinutes; BaseOffsetMinutes = [int]$tz.BaseUtcOffset.TotalMinutes
        DstActive = $tz.IsDaylightSavingTime($now); NowUtc = $now.ToString('yyyy-MM-ddTHH:mm:ssZ') }
+}
+
+function ConvertTo-JobSsh {
+    # Pure (self-tested), decided 2026-10-04 (the owner): remote access (SSH)
+    # is carried only if Windows already had it on, and only as PUBLIC keys.
+    # $StartType: the sshd service's start type ($null = not installed).
+    # $KeyFiles: @(@{ Path; Lines; Error }) for each authorized-keys file read.
+    param($StartType, [object[]]$KeyFiles, [string]$ReadError)
+    $out = [ordered]@{ result = 'not-installed'; keys = @(); sources = @(); why = $null }
+    if ($ReadError) { $out.result = 'unreadable'; $out.why = $ReadError; return $out }
+    if ($null -eq $StartType -or "$StartType" -eq '') { $out.why = 'no OpenSSH server in Windows'; return $out }
+    if ("$StartType" -ne 'Automatic') { $out.result = 'off'; $out.why = "Windows' OpenSSH server is set to $StartType, not to start by itself"; return $out }
+    $re = '^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) [A-Za-z0-9+/]+={0,3}( [^\r\n]*)?$'
+    $keys = New-Object System.Collections.Generic.List[string]
+    foreach ($f in @($KeyFiles)) {
+        if (-not $f) { continue }
+        if ($f.Error) { $out.result = 'unreadable'; $out.keys = @(); $out.sources = @(); $out.why = "$($f.Path): $($f.Error)"; return $out }
+        $took = $false
+        foreach ($l in @($f.Lines)) {
+            $t = "$l".Trim()
+            # a line with options in front (from=..., command=...) is a restriction Windows enforced; not carried rather than carried without it
+            if ($t -cmatch $re -and -not $keys.Contains($t)) { $keys.Add($t); $took = $true }
+        }
+        if ($took) { $out.sources += "$($f.Path)" }
+    }
+    if ($keys.Count -eq 0) { $out.result = 'no-keys'; $out.why = 'the OpenSSH server allowed no key (password sign-in is not carried)'; return $out }
+    $out.result = 'carried'; $out.keys = @($keys); $out
+}
+
+function Get-JobSshFacts {
+    # Live half: the sshd service's start type, and the two files Windows'
+    # OpenSSH reads keys from by default: the person's own
+    # %USERPROFILE%\.ssh\authorized_keys and, for an administrator,
+    # %ProgramData%\ssh\administrators_authorized_keys. Read-only.
+    $svc = $null
+    try { $svc = Get-Service -Name sshd -ErrorAction Stop } catch { return @{ StartType = $null; KeyFiles = @(); ReadError = $null } }
+    $files = @()
+    foreach ($p in @((Join-Path $env:USERPROFILE '.ssh\authorized_keys'), (Join-Path $env:ProgramData 'ssh\administrators_authorized_keys'))) {
+        if (-not (Test-Path -LiteralPath $p)) { continue }
+        try { $files += @{ Path = $p; Lines = @(Get-Content -LiteralPath $p -ErrorAction Stop); Error = $null } }
+        catch { $files += @{ Path = $p; Lines = @(); Error = "$($_.Exception.Message)" } }
+    }
+    @{ StartType = "$($svc.StartType)"; KeyFiles = $files; ReadError = $null }
 }
 
 function Get-JobLicenseFacts {
@@ -699,6 +742,7 @@ function Get-JobFacts {
     $f.WindowsTz = $tz.Id; $f.Locale = $loc.Name
     $f.Clock = Get-JobClockFacts
     $f.License = Get-JobLicenseFacts
+    $f.Ssh = Get-JobSshFacts
     $f.InputTip = try { (Get-WinUserLanguageList)[0].InputMethodTips[0] } catch { '' }
     $f.Software = Get-JobSoftware
     $fm = Get-JobFolderMap -StickDrive $StickDrive -Materialize $Materialize; $f.Harvest = $fm.Map; $f.HarvestError = $fm.Error
@@ -936,6 +980,7 @@ function New-JobDocument {
             # the Wi-Fi export runs in main, after every refusal above has had its say
             # (a refused job never leaves passwords on the stick); a verify-only job installs nothing and exports nothing
             wifi = [ordered]@{ result = 'not-harvested'; secrets_dir = $null; profiles = @() }
+            ssh = $(if ($F.Ssh) { ConvertTo-JobSsh -StartType $F.Ssh.StartType -KeyFiles @($F.Ssh.KeyFiles) -ReadError "$($F.Ssh.ReadError)" } else { [ordered]@{ result = 'not-harvested'; keys = @(); sources = @(); why = $null } })
             bitlocker = [ordered]@{ status = $bl; recovery_key_file = $(if ($bl -eq 'on') { 'artifacts/credentials/bitlocker-C.txt' } else { $null }) }
             firmware_artifacts = @()
             software = $(if ($F.Software) { $F.Software } else { [ordered]@{ desktop = @(); store = @(); truncated = $false } })
@@ -1253,6 +1298,22 @@ function Invoke-SelfTest {
            Run = { $l = ConvertTo-JobLicense -Os @{ Build = '19045' } -Products @(@{ LicenseStatus = 1; Channel = 'Retail'; Addon = $true }, @{ LicenseStatus = 0; Channel = 'OEM:DM'; Addon = $false }) -Firmware $null -NowUtc 'x'; "$($l.activated):$($l.channel)" }; Expect = 'False:OEM:DM' }
         @{ Name = 'licence: the licensed product is chosen when there are several'
            Run = { (ConvertTo-JobLicense -Os @{ Build = '26100' } -Products @(@{ LicenseStatus = 0; Channel = 'Volume:GVLK'; Addon = $false }, @{ LicenseStatus = 1; Channel = 'Retail'; Addon = $false }) -NowUtc 'x').channel }; Expect = 'Retail' }
+        @{ Name = 'ssh (2026-10-04): on, with a key in the administrators file, is carried, keys only'
+           Run = { $r = ConvertTo-JobSsh -StartType 'Automatic' -KeyFiles @(@{ Path = 'C:\ProgramData\ssh\administrators_authorized_keys'; Lines = @('ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMQQyvVmEy6AQRORsQwKHQO9f1hMJtfxm1tm/jWBqmvP laptop', '', '# a comment'); Error = $null }); "$($r.result):$(@($r.keys).Count):$(@($r.sources).Count)" }; Expect = 'carried:1:1' }
+        @{ Name = 'ssh: the same key in both files is carried once'
+           Run = { $k = @{ Path = 'a'; Lines = @('ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMQQyvVmEy6AQRORsQwKHQO9f1hMJtfxm1tm/jWBqmvP laptop'); Error = $null }; $r = ConvertTo-JobSsh -StartType 'Automatic' -KeyFiles @($k, $k); @($r.keys).Count }; Expect = 1 }
+        @{ Name = 'ssh: installed but Manual is off, nothing carried'
+           Run = { $r = ConvertTo-JobSsh -StartType 'Manual' -KeyFiles @(@{ Path = 'a'; Lines = @('ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMQQyvVmEy6AQRORsQwKHQO9f1hMJtfxm1tm/jWBqmvP laptop'); Error = $null }); "$($r.result):$(@($r.keys).Count)" }; Expect = 'off:0' }
+        @{ Name = 'ssh: no OpenSSH server is not-installed'
+           Run = { (ConvertTo-JobSsh -StartType $null -KeyFiles @()).result }; Expect = 'not-installed' }
+        @{ Name = 'ssh: on with no key (passwords only) carries nothing'
+           Run = { (ConvertTo-JobSsh -StartType 'Automatic' -KeyFiles @(@{ Path = 'a'; Lines = @('not a key'); Error = $null })).result }; Expect = 'no-keys' }
+        @{ Name = 'ssh: a key line with options in front is not carried (its restriction would be lost)'
+           Run = { (ConvertTo-JobSsh -StartType 'Automatic' -KeyFiles @(@{ Path = 'a'; Lines = @('from="10.0.0.1" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMQQyvVmEy6AQRORsQwKHQO9f1hMJtfxm1tm/jWBqmvP laptop'); Error = $null })).result }; Expect = 'no-keys' }
+        @{ Name = 'ssh: an unreadable key file carries nothing (never half)'
+           Run = { $r = ConvertTo-JobSsh -StartType 'Automatic' -KeyFiles @(@{ Path = 'a'; Lines = @('ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMQQyvVmEy6AQRORsQwKHQO9f1hMJtfxm1tm/jWBqmvP laptop'); Error = $null }, @{ Path = 'b'; Lines = @(); Error = 'denied' }); "$($r.result):$(@($r.keys).Count)" }; Expect = 'unreadable:0' }
+        @{ Name = 'ssh: the job carries harvest.ssh and validates as written (facts without Ssh = not-harvested)'
+           Run = { (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.harvest.ssh.result }; Expect = 'not-harvested' }
         @{ Name = 'release (R34): the job carries the release the stick names'
            Run = { (New-JobDocument -F $good -Desktop kde -PasswordHash $ph -IfCannotKeep stop -ReportRel 'r').Job.intent.distro.release }; Expect = '44' }
         @{ Name = 'release (R34): a release this computer cannot start is a refusal, with the scan''s reason'
@@ -1303,7 +1364,7 @@ if ($HarvestSettingsOut) {
     $why = @(); if (-not $iana) { $why += "Windows time zone '$($c.WindowsZone)' has no IANA mapping in this version" }; if ($ck.Refusal) { $why += $ck.Refusal }
     if ($why.Count -eq 0) { $wx = Export-JobWifi -OutDir $OutDir; if ($wx.Refusal) { $why += $wx.Refusal } }
     if ($why.Count -gt 0) { foreach ($x in $why) { Write-Host "  REFUSED: $x" -ForegroundColor Red }; exit 2 }
-    [IO.File]::WriteAllText($HarvestSettingsOut, (ConvertTo-JobJson ([ordered]@{ job_writer = $JobWriterVersion; clock = $ck.Clock; wifi = $wx.Wifi; windows_license = (ConvertTo-JobLicenseFromFacts (Get-JobLicenseFacts)) })), (New-Object Text.UTF8Encoding($false)))
+    [IO.File]::WriteAllText($HarvestSettingsOut, (ConvertTo-JobJson ([ordered]@{ job_writer = $JobWriterVersion; clock = $ck.Clock; wifi = $wx.Wifi; ssh = $(& { $sf = Get-JobSshFacts; ConvertTo-JobSsh -StartType $sf.StartType -KeyFiles @($sf.KeyFiles) -ReadError "$($sf.ReadError)" }); windows_license = (ConvertTo-JobLicenseFromFacts (Get-JobLicenseFacts)) })), (New-Object Text.UTF8Encoding($false)))
     Write-Host "  clock + Wi-Fi harvest written: $HarvestSettingsOut (Wi-Fi: $($wx.Wifi.result), $(@($wx.Wifi.profiles).Count) network(s))"
     return
 }
