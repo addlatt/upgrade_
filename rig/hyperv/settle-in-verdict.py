@@ -142,7 +142,7 @@ for i, l in enumerate(jl):
         starts += 1
         nxt = jl[i + 1:]
         end = next((k for k, x in enumerate(nxt) if re.search(start_re, x)), len(nxt))
-        if not any(re.search(r"Started plasma-kwin_wayland|Started org\.gnome\.Shell@wayland", x) for x in nxt[:end]): hung += 1
+        if not any(re.search(r"Started plasma-kwin_wayland|Started org\.gnome\.Shell@(wayland|user)", x) for x in nxt[:end]): hung += 1
 # --- the window: shown in the first desktop sign-in?
 chose = o.get("cutover", {}).get("install", {}).get("start_at") or (load(D / "job.json") or {}).get("intent", {}).get("start_at")
 first = next((i for i, l in enumerate(jl) if re.search(start_re, l)), None)
@@ -194,12 +194,20 @@ snaps = sorted(S.glob("efibootmgr-*.txt"))
 if own is None:
     own_entry = "n/a (settle-in before the own-entry removal)"
 else:
-    left = bool(snaps) and bool(re.search(r"Boot[0-9A-F]{4}\*? upgrade_\b", text(snaps[0])))
+    left = bool(snaps) and bool(re.search(r"(?m)^Boot[0-9A-F]{4}\*? upgrade_(\t|\s*$|\s+(HD|PciRoot|VenHw)\()", text(snaps[0])))
     own_entry = "%s%s" % (own.get("result"), "; still in the firmware" if left else ("; gone from the firmware" if snaps else ""))
     if own.get("result") not in ("removed", "already-gone") or left: fails.append("own entry")
 
 result = ("pass-plumbing" if spoofed else "pass") if not fails else "fail"
 if result != "fail" and spoofed and "partial" in wifi_nm: result = "partial"
+# remote access (2026-10-04): carried only when the job says Windows had it on; a carried
+# job whose report is not "carried" fails the row (the reason is settle-in's own)
+hs = (load(D / "job.json") or {}).get("harvest", {}).get("ssh") or {}
+rs = rep.get("ssh") or {}
+if hs.get("result") == "carried":
+    notes.append("ssh: %s (%s key(s), password sign-in %s)" % (rs.get("result", "not in the report"), rs.get("keys", "?"), rs.get("password_sign_in", "?")))
+    if rs.get("result") != "carried": fails.append("ssh")
+elif rs: notes.append("ssh: %s" % rs.get("result"))
 if fails: notes.append("failed: " + ", ".join(fails))
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), MACHINE, rep.get("settle_in_version", si.get("version", "")),
        installed, handoff, clock_result, clock_why, installer_err, wifi_result, wifi_nm, deleted, before, result, "; ".join(notes),

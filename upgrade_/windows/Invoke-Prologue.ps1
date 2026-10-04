@@ -107,7 +107,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.11.0'   # 0.11.0 (2026-09-27): every stop and every return to Windows removes the stick's Wi-Fi passwords (the owner); 0.10.0 (2026-09-26): the erase-and-install path (RISKS R27); 0.9.1: only the no-folders stop message
+$PrologueVersion = '0.12.0'   # 0.12.0 (2026-10-04, R35): arming clears the stick's 'converted' marker; 0.11.0 (2026-09-27): every stop and every return to Windows removes the stick's Wi-Fi passwords (the owner); 0.10.0 (2026-09-26): the erase-and-install path (RISKS R27); 0.9.1: only the no-folders stop message
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -1593,6 +1593,8 @@ function Invoke-Arm {
         Write-Log '      BitLocker suspended for one restart'
     }
     Remove-Item (Join-Path $Root 'upgrade_\boot-verify') -Force -ErrorAction SilentlyContinue
+    # a stick that converted a computer before says so and never installs (R35); arming a new job is the one thing that clears it
+    Remove-Item (Join-Path $Root 'upgrade_\converted') -Force -ErrorAction SilentlyContinue
     [IO.File]::WriteAllText((Join-Path $Root 'upgrade_\boot-install'), "prologue $PrologueVersion job $($S.JobId)`n", (New-Object Text.UTF8Encoding($false)))
     $S.Handoff.Marker = 'boot-install'
     $S.Handoff.GrubEnvReset = Reset-GrubEnv -Root $Root

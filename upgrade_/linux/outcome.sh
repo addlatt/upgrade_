@@ -30,7 +30,7 @@
 # hardware clock as UTC, and settle-in must know before it "corrects" it.
 set -u
 JOB=${1:?job.json}
-OUTCOME_VERSION=0.6.0
+OUTCOME_VERSION=0.6.1
 STICK=${UPG_TEST_STICK:-/run/install/repo}   # overridable only for the local spoof test (rule #5, logic level)
 SYSROOT=${UPG_TEST_SYSROOT:-/mnt/sysroot}
 REPORT=$STICK/upgrade_/report
@@ -39,6 +39,8 @@ LOG=/tmp/upgrade_-outcome.log
 exec > >(tee -a "$LOG") 2>&1
 echo "== upgrade_ outcome.sh $OUTCOME_VERSION $(date -u +%FT%TZ)"
 mount -o remount,rw "$STICK" 2>/dev/null || true
+# the stick must already be disarmed here (verify.sh 0.6.0, R35); say what it carries
+echo "== stick markers: boot-install=$([ -e "$STICK/upgrade_/boot-install" ] && echo PRESENT || echo gone) converted=$([ -s "$STICK/upgrade_/converted" ] && echo written || echo MISSING)"
 mkdir -p "$REPORT"
 
 jq_() { python3 -c 'import json,sys; j=json.load(open(sys.argv[1])); v=j
@@ -370,7 +372,7 @@ if [ -e /mnt/upgstick/upgrade_/settle-in-capture/done ]; then
     t=$(date -u +%Y%m%dT%H%M%SZ); C=/mnt/upgstick/upgrade_/settle-in-capture
     efibootmgr > "$C/efibootmgr-$t.txt" 2>&1
     # the previous boot's desktop sign-ins (the first boot's capture runs before anyone signs in)
-    journalctl -b -1 -o short-monotonic --no-pager 2>/dev/null | grep -E 'Starting Wayland user session|Started plasma-kwin_wayland|pam_unix\(gdm-password:session\): session opened|Started org.gnome.Shell@wayland|sddm-helper exited|settle-in-window: ' > "$C/sessions-before-$t.txt" 2>&1
+    journalctl -b -1 -o short-monotonic --no-pager 2>/dev/null | grep -E 'Starting Wayland user session|Started plasma-kwin_wayland|pam_unix\(gdm-password:session\): session opened|Started org.gnome.Shell@(wayland|user)|sddm-helper exited|settle-in-window: ' > "$C/sessions-before-$t.txt" 2>&1
     cp /var/lib/upgrade_/settle-in/report.json "$C/report-$t.json" 2>/dev/null
     cp /var/lib/upgrade_-settle-in/summary.json "$C/summary-$t.json" 2>/dev/null
 fi

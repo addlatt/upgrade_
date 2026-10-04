@@ -33,6 +33,9 @@
 #   v9.sh inspect LABEL    v9-inspect.py on both disks (VM off)
 #   v9.sh stick-pull TAG   VM off: the stick's records read offline (after the erase there is no Windows)
 #   v9.sh verdict ARM [NOTE]  v9-verdict.py (ARM B3 = arm B again) -> docs/validation-results/v9-erase.csv
+#   v9.sh stick-first      VM off: the stick first in the firmware's boot order - what the Aspire's firmware
+#                          did after its install (run 10, R35). Arm D: start, the stick must hand over to the
+#                          installed Fedora and never install again (inspect before-D / after-D, verdict D)
 #   v9.sh restore          VM off: main UPGRIGHV.vhdx back at 0:0, erase + home detached
 #
 # Secure Boot off (Hyper-V template clause). Rows are written by v9-verdict.py,
@@ -131,12 +134,17 @@ inspect) need_off; python3 v9-inspect.py "${2:?label}" "$A" "$ERA_VHDX" "$HOME_V
 stick-pull)
     need_off; tag=${2:?tag}; mkdir -p "$A/$tag"; evict "$STICK_VHDX" || true
     qemu-img convert -f vhdx -O raw "$STICK_VHDX" "$A/stick.raw"
-    for f in outcome.json prologue.json boots.log job.json; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/$f" "$A/$tag/$f" 2>/dev/null || true; done
+    for f in outcome.json prologue.json boots.log job.json converted boot-install; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/$f" "$A/$tag/$f" 2>/dev/null || true; done
+    mdir -b -i "$A/stick.raw@@1M" "::/upgrade_" > "$A/$tag/stick-upgrade-dir.txt" 2>&1 || true   # which markers the stick carries (R35)
     for f in verify.json verify.log countdown.json storage.ks outcome.log anaconda.log storage.log efibootmgr-after.txt; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/report/$f" "$A/$tag/$f" 2>/dev/null || true; done
     # settle-in's first startup, captured by the bench marker (2026-09-27)
     mkdir -p "$A/$tag/settle-in"; mcopy -s -o -i "$A/stick.raw@@1M" "::/upgrade_/settle-in-capture/*" "$A/$tag/settle-in/" 2>/dev/null || true
     mdir -i "$A/stick.raw@@1M" "::/upgrade_/artifacts/credentials" > "$A/$tag/stick-credentials-dir.txt" 2>&1 || true
     rm -f "$A/stick.raw"; ls -la "$A/$tag"
+    ;;
+stick-first)
+    need_off
+    PSC "\$d = Get-VMHardDiskDrive $VMNAME | Where-Object { \$_.Path -like '*stick*' }; Set-VMFirmware -VMName $VMNAME -FirstBootDevice \$d; 'first: ' + (Get-VMFirmware -VMName $VMNAME).BootOrder[0].Device.Path"
     ;;
 verdict) python3 v9-verdict.py "$A" "${2:?arm}" "$CSV" "$FIRMWARE" ${3:+"$3"} ;;   # $3: a note (was dropped until 2026-09-29)
 restore)

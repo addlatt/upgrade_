@@ -38,6 +38,7 @@ pub fn build(root: &str, report: &Value, job: &Value) -> Value {
             "not_set_up": nets.iter().filter(|n| n["result"] == "not-set-up").map(|n| json!({ "ssid": n["ssid"], "why": n["why"] })).collect::<Vec<_>>(),
             "passwords_deleted": report.pointer("/wifi/passwords_deleted"),
         },
+        "ssh": report.get("ssh").cloned().unwrap_or(json!({ "result": "not-carried" })),
         "old_boot_entry": report.get("old_boot_entry").cloned().unwrap_or(json!({ "offered": false })),
         // for "Go back to Windows": which Windows it was, never a key (the
         // schema refuses key shapes in every field; R13, R30)
@@ -107,6 +108,20 @@ pub fn sections(s: &Value) -> Value {
         }
     }
     out.push(json!({ "heading": "Wi-Fi", "lines": wl }));
+    // --- remote access (2026-10-04; words are a draft for the owner): only when Windows had it on
+    let h = &s["ssh"];
+    match h["result"].as_str() {
+        Some("carried") => {
+            let n = h["keys"].as_u64().unwrap_or(0);
+            out.push(json!({ "heading": "Remote access (SSH)", "lines": [format!(
+                "Turned on, as it was in Windows. Only the {} key{} Windows allowed can sign in this way; passwords cannot.",
+                n, if n == 1 { "" } else { "s" })] }));
+        }
+        Some("failed") | Some("no-ssh-server") => {
+            out.push(json!({ "heading": "Remote access (SSH)", "lines": [format!("Windows had it on, but it was not turned on here: {}.", h["why"].as_str().unwrap_or("the reason was not recorded"))] }));
+        }
+        _ => {}
+    }
     // --- the old boot entry (approved 2026-09-27): only when offered
     let b = &s["old_boot_entry"];
     if b["offered"] == json!(true) {
@@ -179,6 +194,17 @@ The old Windows startup entry
   You will be asked for your password.
 ";
         assert_eq!(t, want);
+    }
+
+    #[test]
+    fn ssh_only_when_carried() {
+        let mut s = summary();
+        assert!(!text(&sections(&s)).contains("Remote access"));
+        s["ssh"] = json!({ "result": "carried", "keys": 1 });
+        let t = text(&sections(&s));
+        assert!(t.contains("Remote access (SSH)") && t.contains("Turned on, as it was in Windows. Only the 1 key Windows allowed can sign in this way; passwords cannot."), "{}", t);
+        s["ssh"] = json!({ "result": "no-ssh-server", "why": "this system has no SSH server installed; the keys were not set up" });
+        assert!(text(&sections(&s)).contains("was not turned on here: this system has no SSH server installed"));
     }
 
     #[test]

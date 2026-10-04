@@ -31,7 +31,7 @@ if (-not (Test-Path (Join-Path $Kit 'SHA256SUMS'))) { throw "no SHA256SUMS in $K
 Write-Host "  stick $l`: '$($vol.FileSystemLabel)' $($disk.FriendlyName) $([math]::Round($disk.Size/1e9,1)) GB, $([math]::Round($vol.SizeRemaining/1e9,2)) GB free"
 
 # stale runtime files from a previous run (the evidence CSV and captures stay)
-foreach ($rel in @('upgrade_\job.json', 'upgrade_\ks.cfg', 'upgrade_\boot-verify', 'upgrade_\boot-install', 'upgrade_\prologue.json',
+foreach ($rel in @('upgrade_\job.json', 'upgrade_\ks.cfg', 'upgrade_\boot-verify', 'upgrade_\boot-install', 'upgrade_\converted', 'upgrade_\prologue.json',
                    'upgrade_\prologue-return.json', 'upgrade_\outcome.json', 'upgrade_\rollback.json', 'upgrade_\report', 'upgrade_\reports',
                    'upgrade_\artifacts', 'upgrade_\esp-snapshot', 'upgrade_\staging', 'upgrade_\rollback', 'upgrade_\boots.log')) {
     $p = "$l`:\$rel"; if (Test-Path $p) { Remove-Item $p -Recurse -Force; Write-Host "  removed stale $rel" }

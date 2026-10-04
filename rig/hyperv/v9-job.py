@@ -11,7 +11,7 @@ typed sentence, and every internal disk by the identity the guest reported
 (disks.json: Get-Disk rows) - the system disk first, the other non-stick
 disk as home. Validated against schemas/job.schema.json before it is written.
 
-    v9-job.py base-job.json disks.json out.json [--bogus-home] [--desktop=kde|gnome] [--start-at=desktop|console] [--spoof-wifi=DIR]
+    v9-job.py base-job.json disks.json out.json [--bogus-home] [--desktop=kde|gnome] [--start-at=desktop|console] [--spoof-wifi=DIR] [--spoof-ssh=PUBKEY]
 
 --spoof-wifi=DIR (2026-09-27, settle-in's Wi-Fi on the rig): the rig's
 Windows has no Wi-Fi, so its real harvest says no-wireless. This replaces
@@ -53,6 +53,11 @@ elif others:
     if h["health_status"] != "Healthy": sys.exit("v9-job: the home disk is %s, not Healthy" % h["health_status"])
     listed.append(h)
 
+# --spoof-ssh=PUBKEY (2026-10-04): the rig's Windows has no SSH server, so harvest.ssh is made
+# up the way evaluate writes it for a Windows that had one on (the Aspire's shape: one key)
+if "--spoof-ssh" in opts:
+    k = pathlib.Path(opts["--spoof-ssh"]).read_text().strip()
+    job["harvest"]["ssh"] = {"result": "carried", "keys": [k], "sources": ["(rig spoof) C:\\ProgramData\\ssh\\administrators_authorized_keys"], "why": None}
 if "--spoof-wifi" in opts:
     d = pathlib.Path(opts["--spoof-wifi"]); d.mkdir(parents=True, exist_ok=True)
     (d / "01.xml").write_text('<?xml version="1.0"?><WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1"><name>RigSpoof Home</name><SSIDConfig><SSID><hex>52696753706F6F6620486F6D65</hex><name>RigSpoof Home</name></SSID></SSIDConfig><connectionType>ESS</connectionType><connectionMode>auto</connectionMode><MSM><security><authEncryption><authentication>WPA3SAE</authentication><encryption>AES</encryption><useOneX>false</useOneX><transitionMode xmlns="http://www.microsoft.com/networking/WLAN/profile/v4">true</transitionMode></authEncryption><sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial>rig spoof pass 1</keyMaterial></sharedKey></security></MSM></WLANProfile>')

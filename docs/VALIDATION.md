@@ -808,6 +808,20 @@ Everything ran unattended and the password signed in, but it came up at a
 text login (fixed; RISKS R27). A physical re-run that ends at the chosen
 screen is owed.
 
+**Physical: the Aspire's run 10 (2026-10-04) FAILED too, on a new fault.**
+Kit ee74318, Fedora 44, Secure Boot on. It ended at the chosen screen
+(GNOME's sign-in), with the handoff, the erase and the install all
+unattended. But the firmware started the stick again after the install,
+and the stick installed a second time (RISKS R35). Fixed the same day and
+proven on the rig as a fourth arm:
+
+4. After arm 3, the stick first in the boot order and left in: the stick
+   hands over to the installed Fedora, no countdown, both disks unchanged
+   (`not-installed-again`).
+
+The physical row now owed: one install with the stick left in, Fedora up
+once, Wi-Fi carried.
+
 **Method.** Rig first, on a copy of the rig's Windows disk plus a blank
 second disk:
 
@@ -956,6 +970,16 @@ distribution by hand with a hand-placed handoff folder. On each, check:
 Then the same on a real machine.
 
 **Pass.** The same file, byte for byte, passes 1-4 on all three.
+
+**V10 addition, remote access (decided 2026-10-04, the owner).** SSH is
+carried only if Windows had it on, public keys only. `[###.]` on the rig
+(settle-in-first-start.csv, rig run 17): with a spoofed "Windows had it on"
+key, the new Fedora 44 accepted that key over SSH from the host, refused a
+password (the server offered only public key), ran sshd enabled, and kept
+`~/.ssh` 700 and `authorized_keys` 600 owned by the person with the
+`ssh_home_t` label. **Physical, 2026-10-04 (the Aspire's run 10): carried.**
+The new Fedora came up with SSH on and the G16's key signed in, with no
+tester step. That key then gathered the run's evidence.
 
 ## V11: The way back to Windows (R30)
 
@@ -1264,8 +1288,8 @@ machine accepts (`architecture.md`, "It chooses the Linux release").
 | 2 | Release facts measured from the files (`measure-release.py`) | `[###.]` Fedora 44 measured and committed (47bc8cf); Fedora 42 owed (a record only) |
 | 3 | The scanner judges every release, including the db's authorities; the job writer refuses an unstartable one | `[##..]` self-tests only |
 | 4 | `make-kit.sh --release fedora-44`: the kit carries Fedora 44, every file checked against the table | `[###.]` built and used on the rig; both new scanner checks OK inside the rig guest from the stick |
-| 5 | The rig: V9 arm C and a settle-in run on the Fedora 44 kit | `[###.]` arm C erased-installed (Secure Boot off: Hyper-V cannot trust both authorities); the stick's chain and the installed system booted with Secure Boot on under the third-party CA on a second VM; Plasma Setup found and fixed, re-run under way |
-| 6 | The Aspire: the scan says Fedora 44 starts; the stick boots; the installed system boots, Secure Boot on | `[....]` |
+| 5 | The rig: V9 arm C and a settle-in run on the Fedora 44 kit | `[###.]` arm C erased-installed (Secure Boot off: Hyper-V cannot trust both authorities); the stick's chain and the installed system booted with Secure Boot on under the third-party CA on a second VM; Plasma Setup found and fixed (C2, settle-in run 16) |
+| 6 | The Aspire: the scan says Fedora 44 starts; the stick boots; the installed system boots, Secure Boot on | `[####]` 2026-10-04, run 10: all three held (the run itself is a `fail` row for R35, not for this) |
 
 **Residue that only a real machine closes:** what a firmware actually
 holds (the level and the db) and whether it refuses exactly as shim's rule
