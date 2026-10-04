@@ -241,3 +241,52 @@ New-Kickstart.ps1,v1-live-boot.csv:2-5 (the kickstart each row booted; split per
 New-Kickstart.ps1,v1-live-boot.csv:5,physical,,owed,2026-10-04
 New-Kickstart.ps1,v2-install.csv:2-6 (the kickstart each install ran),rig,,owed,2026-10-04
 New-Kickstart.ps1,v9-erase.csv:2-31 (rig arms and the Aspire's rows; split per row when re-run),rig,,owed,2026-10-04
+Harvest-UpgradeState.ps1,folder stats: counts files and bytes recursively,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,folder stats: file cap truncates and says so (F1/R6),selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,folder stats: on-stick size = clusters + directories + manifest lines,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"folder stats: no cluster size, no on-stick size",selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,folder stats: a junction is not followed,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,folder stats: a directory Windows will not list is counted as unreadable (R6),selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,stick fit: 1 GB of folders on 2 GB free fits; a missing folder counts nothing,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"stick fit: too big says so, with the gap in bytes and a plain reason",selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,stick fit: large files - the prologue's 2% rule is the floor of what is needed,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"stick fit: a file over 4 GB never fits a FAT32 stick, whatever the space",selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,stick fit: the same file fits exFAT,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"stick fit: a filesystem this version does not size is not a fit (refuse, not guess)",selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,stick fit: an unread cluster size is not a fit,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,stick fit: no folders needs only the reserve,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,folder stats: offline-attribute file counts as cloud-only (R8),selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,materialize: recall-on-data-access bit is a placeholder,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,materialize: offline bit is a placeholder,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,materialize: pinned alone is not a placeholder (V8: pin bits are not detection),selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,materialize: bits cleared + every byte read + allocated is materialized,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"materialize: recall bit still set is NOT materialized, whatever was read",selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,materialize: a short read is NOT materialized,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,materialize: zero bytes allocated for a non-empty file is NOT materialized,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,materialize: an empty file needs no allocation,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,materialize: a real 10-byte file reports allocated bytes > 0,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,materialize: an ordinary file passes through as materialized,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"materialize: a vanished file is a failure with the reason, not a crash",selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,materialize: a stub no provider will fill is reported failed (refuse arm),selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"materialize: summary counts the stub as found and failed, result refused",selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,wlan: curly-quote SSID survives byte-for-byte (F3),selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"wlan: WPA2PSK maps to wpa-psk, supported, autoconnect",selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,wlan: secrets stay out of the output unless asked for,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,wlan: -IncludeWifiSecrets carries the key through,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"wlan: accented + emoji SSID survives, WPA3 maps to sae",selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"wlan: open network - no secret, manual connect, supported",selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"wlan: enterprise 802.1X is flagged unsupported, not guessed",selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,wlan: DPAPI-protected key does not count as a usable secret,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,account: simple name lowercases and stays safe,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,account: space in name is stripped,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,account: leading digit falls back to user,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,account: fully non-latin name falls back to user,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,account: dash and underscore survive,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,locale: known Windows timezone maps to IANA,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,locale: unknown timezone returns nothing rather than a guess,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,capacity: needed = 1.1x windows + user + browser data,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,capacity: picks the largest drive and calls it sufficient,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,capacity: a too-small drive is not sufficient,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,capacity: no external drive is reported plainly,selftest,,owed,2026-10-04
+Harvest-UpgradeState.ps1,v8-materialize.csv:2-5 (the materializer's rig and G16 rows; split per row when re-run),rig,,owed,2026-10-04
+Harvest-UpgradeState.ps1,harvest-folder-map.csv:2-4 (the folder map's rows; split per row when re-run),physical,,owed,2026-10-04
