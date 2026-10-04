@@ -2657,7 +2657,7 @@ refusing before the wipe. Then one physical row, on a machine whose owner
 has chosen to lose Windows. Plus evidence of the folder map's coverage on
 real machines (what share of a person's files it finds).
 
-## R27: The one-click erase and install · critical · open (decided 2026-09-26; all three arms pass on the rig 2026-09-26; physical run 9 failed on a text login, fixed; re-run owed)
+## R27: The one-click erase and install · critical · open (decided 2026-09-26; all three arms pass on the rig 2026-09-26; physical run 9 failed on a text login, fixed; physical run 10, 2026-10-04, reached the desktop but installed twice, R35, fixed; one clean run owed)
 
 **What.** A launcher that, after one typed sentence and a password, erases
 every internal drive and installs Fedora with nothing kept
@@ -2898,7 +2898,8 @@ line, uncommitted and minutes old, was removed and the verdict run again.
 - a real keyboard on the countdown;
 - the Aspire's real drives by their real identities;
 - installing onto a drive with bad blocks (under R23: the install may fail
-  after the commit line, and the stick can run it again);
+  after the commit line. Since 2026-10-04 the stick never runs it again by
+  itself, R35; a new job from a working system does);
 - whether a person reads the countdown.
 
 **Closes when.** The rig arms above (done 2026-09-26) and one physical row
@@ -2906,6 +2907,13 @@ on the Aspire: one click, the sentences, nobody at the keyboard, Fedora
 signs in with the chosen password **at the graphical sign-in screen**. Run 9
 (2026-09-26) did everything but that last part, so it is a `fail` row; the
 re-run is owed.
+
+**Run 10 (2026-10-04, the Aspire, kit ee74318, Fedora 44).** The graphical
+sign-in held this time, with the handoff, the erase and the install
+unattended and Secure Boot on. A real key press cancelled a countdown
+(15.9 s), the first on real hardware. But it is a `fail` row again: the
+stick installed twice and would not have stopped (R35, fixed the same day).
+The row this risk still owes is one install, once, with the stick left in.
 
 ## R28: settle-in runs on any Linux · high · open (decided 2026-09-27; built and passed on the rig the same day: Fedora KDE, GNOME, console)
 
@@ -3473,7 +3481,7 @@ and nobody at the keyboard, ending at the Windows sign-in; then one real
 machine (the Aspire, run under R23 on its dying SSD first), with a physical
 cancel before the erase. VALIDATION V11, step 4.
 
-## R34: Secure Boot revokes the kit's boot files · critical · open (found 2026-10-03 on the Aspire, run 10; the scanner check built and fired the same day; the kit still carries the revoked GRUB)
+## R34: Secure Boot revokes the kit's boot files · critical · open (found 2026-10-03 on the Aspire, run 10; the scanner check and the release table built; the kit moved to Fedora 44; its closing clause met on the Aspire 2026-10-04; kept open for the next level, `grub,6`)
 
 **What.** Secure Boot keeps a revocation list for Linux boot programs, the
 SBAT level (a UEFI variable shim reads; rules in rhboot/shim `SBAT.md`).
@@ -3567,7 +3575,10 @@ installed and booted as designed. Three findings the same day:
 **Closes when.** The kit carries boot files that meet the level on the
 machines in the record, the installed system's files are checked too, and
 the Aspire's re-run boots the stick and the installed system with Secure
-Boot on.
+Boot on. **Met 2026-10-04 (the Aspire's run 10, kit ee74318):** the scan
+said Fedora 44 starts, and the stick and the installed Fedora 44 both
+started with Secure Boot on. Kept open because the level moves: the next
+one in shim's list needs `grub,6`, which Fedora 44's GRUB is not.
 
 ## R35: The stick installs again after the install · critical · open (found 2026-10-04 on the Aspire, run 10; fixed the same day, rig arm D `[###.]`; a real machine owed)
 

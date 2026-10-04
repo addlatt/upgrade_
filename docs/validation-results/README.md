@@ -944,6 +944,17 @@ B3) re-prove the kit the Aspire's next run carries (552b6fb); B3 is arm B
 again, a key test (RISKS R27). From that date an arm named with a number is
 judged by its letter.
 
+The rows of 2026-10-03 and 2026-10-04 are the Fedora 44 kit (RISKS R34):
+C (the Plasma Setup finding in its note), C2 after that fix, C3 with remote
+access carried. Then **the Aspire's physical run 10 (2026-10-04, `fail`)**:
+the handoff, Secure Boot, the erase, the install and the sign-in all held,
+but the firmware started the stick again and it installed a second time
+(RISKS R35). C4 and D are the fix on the rig. Arm D is new: after C, the
+stick is put first in the boot order and left in, and the row passes
+(`not-installed-again`) only if the stick carries `converted` and no
+`boot-install`, no new countdown ran, both disks are unchanged and Linux
+booted again.
+
 One row per arm, written by `rig/hyperv/v9-verdict.py` from the arm's own
 evidence (`rig/hyperv/v9.sh`; never by hand). The guest is a copy of the
 rig's install-day Windows disk plus a blank 64 GiB second disk.
@@ -960,6 +971,28 @@ rig's install-day Windows disk plus a blank 64 GiB second disk.
 | `fedora_booted`, `password_matches`, `home_on_second_disk` | the first Linux boot's marker line (rig-only bench instrumentation): it booted, the account's stored hash is the job's, `/home` is on the second disk |
 | `graphical_login` | (from 2026-09-26) the person's choice held at first boot: `desktop` = graphical.target with the display manager running, `console` = multi-user.target with none; `not-recorded` on rows from before the check |
 | `result` | `refused-before-countdown` / `cancelled-untouched` / `erased-installed` pass their arm; `fail` is kept, never removed |
+
+## `settle-in-first-start.csv`: the first start of the new system (gate V10, risk R28)
+
+One row per run, written by `rig/hyperv/settle-in-verdict.py` from the
+run's own evidence (never by hand): whether settle-in was installed, the
+Wi-Fi handoff from the stick, the clock and why, the networks set up, the
+passwords deleted, settle-in finished before the network, every sign-in
+reached its desktop, the window shown, the old-entry button, and the
+conversion's own firmware entry removed. From 2026-10-04 the notes carry
+the remote-access (SSH) result. A `fail` stays, with the re-judged row
+after it when the verdict itself was wrong.
+
+**The physical rows (2026-10-04, the Aspire's run 10).** Two rows, the same
+install. The first failed on three things; two were the verdict's own
+(Fedora 44's GNOME logs its start under a new name, and the way back's
+stale firmware entry was taken for the conversion's own). The second row is
+the same evidence judged again: `fail` on the handoff only. Wi-Fi was not
+carried, because the stick installed twice (RISKS R35) and the first
+install had already moved the password off the stick. The clock was
+corrected at first start (the installer was 7 hours off) and remote access
+was carried. A product stick has no bench marker, so the evidence was
+gathered over SSH (`rig/hyperv/artifacts/aspire-r27-2026-10-04-run10b/`).
 
 ## `port-parity.csv`: the parity ledger for the Rust port (gate V13, risk R32)
 

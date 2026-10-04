@@ -142,7 +142,7 @@ for i, l in enumerate(jl):
         starts += 1
         nxt = jl[i + 1:]
         end = next((k for k, x in enumerate(nxt) if re.search(start_re, x)), len(nxt))
-        if not any(re.search(r"Started plasma-kwin_wayland|Started org\.gnome\.Shell@wayland", x) for x in nxt[:end]): hung += 1
+        if not any(re.search(r"Started plasma-kwin_wayland|Started org\.gnome\.Shell@(wayland|user)", x) for x in nxt[:end]): hung += 1
 # --- the window: shown in the first desktop sign-in?
 chose = o.get("cutover", {}).get("install", {}).get("start_at") or (load(D / "job.json") or {}).get("intent", {}).get("start_at")
 first = next((i for i, l in enumerate(jl) if re.search(start_re, l)), None)
@@ -194,7 +194,7 @@ snaps = sorted(S.glob("efibootmgr-*.txt"))
 if own is None:
     own_entry = "n/a (settle-in before the own-entry removal)"
 else:
-    left = bool(snaps) and bool(re.search(r"Boot[0-9A-F]{4}\*? upgrade_\b", text(snaps[0])))
+    left = bool(snaps) and bool(re.search(r"(?m)^Boot[0-9A-F]{4}\*? upgrade_(\t|\s*$|\s+(HD|PciRoot|VenHw)\()", text(snaps[0])))
     own_entry = "%s%s" % (own.get("result"), "; still in the firmware" if left else ("; gone from the firmware" if snaps else ""))
     if own.get("result") not in ("removed", "already-gone") or left: fails.append("own entry")
 

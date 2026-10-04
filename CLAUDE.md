@@ -119,6 +119,35 @@ firmware entry is a button at the end of `settle-in` (`architecture.md`,
 Next: the Aspire's physical row recorded, then a re-run that ends at the
 desktop, and a plain-words screen for a `%pre` refusal (today it's
 Anaconda's traceback). Design in `architecture.md`, "Erase and install".
+**2026-10-04: the Aspire's run 10, a second physical `fail`, and the first
+machine to reach its desktop.** Three things came out of it:
+- **Secure Boot revokes old boot files (R34, V14).** Windows 11 raised the
+  firmware's SBAT level (its list of boot programs too old to trust) and
+  the kit's Fedora 42 GRUB was refused. **Decided (2026-10-03, the owner):**
+  `evaluate` catches it, and the Linux release is chosen from what the
+  machine accepts. `data/releases.ps1` holds each release's boot facts,
+  measured from its files by `data/tools/measure-release.py`, never typed.
+  The scanner judges them (0.5.0), the job writer refuses a release that
+  cannot start (0.17.0), and `make-kit.sh --release` builds for one. The
+  kit is Fedora 44. Held on the Aspire, Secure Boot on.
+- **The stick installed twice (R35, critical).** After the install the
+  firmware started the stick again, the stick still said "install", and it
+  erased and installed a second time. The owner's key press stopped the
+  third countdown. Fixed the same day: `verify.sh` 0.6.0 writes
+  `upgrade_/converted` and removes `upgrade_/boot-install` at the commit
+  line, and a converted stick only hands over to the installed system. Rig
+  arm D (`not-installed-again`) is the test the rig lacked. **Never assume
+  the firmware starts the right thing after an install.**
+- **Remote access is carried (decided 2026-10-04, the owner):** SSH is
+  turned on in the new system only if Windows had it on, with its public
+  keys only and password sign-in off. Carried on the Aspire.
+
+Held on the Aspire in run 10: the handoff by itself, the erase, the
+install, the graphical sign-in (GNOME), `/home` on the second drive, the
+clock corrected at first start (the installer was 7 h off). Failed: the
+second install, and Wi-Fi as its consequence. Owed: one install with the
+stick left in, Fedora up once, Wi-Fi carried (the Aspire needs Windows
+back first), and the clean cancel row.
 **Decided (2026-09-27, the owner): there is always a way back to
 Windows,** a new and empty one, and it says its cost first (most of these
 machines can only go back to Windows 10). Its own "Go back to Windows"
@@ -329,6 +358,7 @@ A new direction is not finished until it does.
 data/            hardware + distro knowledge base; community PRs land here
   devices.ps1      Wi-Fi/GPU/audio/storage quirks by PCI ID
   distros.ps1      distro kernel table (goes stale; verify against release notes)
+  releases.ps1     the Linux releases the kit can carry, and what Secure Boot needs of each (measured by tools/measure-release.py, never typed)
 evaluate/windows/  scanner (upgrade-scan.ps1), harvester, job writer, stick writer
 upgrade_/          the converter: windows/ prologue, rollback, kickstart, launchers, the window (UPGRADE.exe, Rust), V0 handoff harness; linux/ %pre verify + outcome
 settle-in/         first-boot verify + file pull + reclaim (nothing built)
@@ -436,5 +466,6 @@ so far. The ASUS ROG Zephyrus G16 (Ryzen AI 9 HX 370, RTX 4060, MediaTek
 MT7925, Cirrus CS35L56) is the development machine the scanner was built
 on. The Acer Aspire A515-51G (InsydeH2O, dying SATA SSD) is the one that
 has run the conversion itself: the handoff, the live boot, the prologue's
-stops and the erase and install (run 9). Most `fail` paths are still
+stops and the erase and install (runs 9 and 10; it runs Fedora 44 since
+2026-10-04). Most `fail` paths are still
 synthetic (R2), so treat one green run as one data point, not proof.
