@@ -341,6 +341,31 @@ prologue's own run (`v2-install.csv` row 4, `pass-plumbing`;
 typed word: disk check → shrink → handoff → install → cycles. The restore
 half of the snapshot also fired (`r21-rollback.csv` row 1).
 
+**2026-10-04: re-proven on the rig with today's kit, before the Aspire's
+own attempt.** The keep-Windows path had last run end to end on 2026-09-13,
+on Fedora 42 and prologue 0.3.0. Kit aba09ec (Fedora 44, prologue 0.12.0,
+`verify.sh` 0.6.0) ran it again: shrink, handoff, install beside Windows,
+Windows through GRUB twice, Fedora twice, `bootmgfw.efi` unchanged
+(`v2-install.csv`, `pass-plumbing`, Secure Boot off). Two things came out
+of getting there:
+
+- The rig's stand-in job always said "no repair queued". With the dirty
+  flag injected, Windows queued a repair, and the prologue rightly refused
+  the job. The stand-in now reads the guest's real state.
+- Two rig runs overlapped on one VM by a mistake in the driving shell, and
+  wrote four rows that could not be trusted. They were dropped before any
+  commit, and the run was repeated with one driver. Only that row is kept.
+
+**Decided (2026-10-04, the owner): try keep-Windows on the Aspire itself
+(option C).** Its SSD is dying, so it runs under R23, and a pass is evidence
+for the mechanism on real firmware with Secure Boot on. It is not the
+healthy-drive row, which still needs another machine. The Windows the way
+back installs is new, so its disk may shrink where the old one could not
+(R18); only a re-measure says. A real machine has no bench marker, so the
+evidence comes from `rig/hyperv/physical/`: the collectors' boot lines, and
+the offline inspector run on an image assembled from the drive's first MiB
+and its ESP. `v2-verdict.py --physical` writes `pass` for such a row.
+
 **VM leg fired (2026-08-27).** On the QEMU+OVMF rig (`rig/vm/v1b.sh`, SB
 off, the only mode this host can run): C: shrunk by 32 GiB, Fedora 42
 kickstarted into the gap reusing the Windows ESP unformatted. All five
