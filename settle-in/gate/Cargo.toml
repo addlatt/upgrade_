@@ -1,6 +1,6 @@
 [package]
 name = "upgrade-gate"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 
 # The gate on a "Go back to Windows" stick (RISKS R33): it runs first inside
@@ -14,7 +14,7 @@ path = "src/main.rs"
 serde_json = "1"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl", "Win32_System_Console", "Win32_System_Threading"] }
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl", "Win32_System_Console", "Win32_System_Threading", "Win32_System_SystemInformation"] }
 
 [profile.release]
 opt-level = "s"

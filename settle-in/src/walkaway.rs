@@ -298,7 +298,7 @@ pub fn wifi_profile(keyfile: &str) -> Option<(Value, Option<String>)> {
 /// Wi-Fi service first and waits 5 s: at the first sign-in it may not be
 /// running yet (the rig answered "wlansvc is not running", 2026-10-03; there
 /// because a VM has no Wi-Fi hardware).
-pub const FIRST_LOGON_CMD: &str = "@echo off\r\nrem written by settle-in: Wi-Fi from Linux (decided 2026-10-02); passwords leave this stick here\r\nset S=%1\r\nif exist %S%\\upgrade_\\wifi (\r\n  net start wlansvc >> %S%\\upgrade_\\go-back-wifi.log 2>&1\r\n  ping -n 6 127.0.0.1 > nul\r\n  for %%f in (%S%\\upgrade_\\wifi\\*.xml) do netsh wlan add profile filename=\"%%f\" user=all >> %S%\\upgrade_\\go-back-wifi.log 2>&1\r\n  rmdir /s /q %S%\\upgrade_\\wifi\r\n)\r\nif exist %S%\\upgrade_\\wifi (echo wifi folder NOT removed >> %S%\\upgrade_\\go-back-wifi.log) else (echo wifi folder removed >> %S%\\upgrade_\\go-back-wifi.log)\r\n";
+pub const FIRST_LOGON_CMD: &str = "@echo off\r\nrem written by settle-in: Wi-Fi from Linux (decided 2026-10-02); passwords leave this stick here\r\nset S=%1\r\nif exist %S%\\upgrade_\\wifi (\r\n  net start wlansvc >> %S%\\upgrade_\\go-back-wifi.log 2>&1\r\n  ping -n 6 127.0.0.1 > nul\r\n  for %%f in (%S%\\upgrade_\\wifi\\*.xml) do netsh wlan add profile filename=\"%%f\" user=all >> %S%\\upgrade_\\go-back-wifi.log 2>&1\r\n  rmdir /s /q %S%\\upgrade_\\wifi\r\n)\r\nif exist %S%\\upgrade_\\wifi (echo wifi folder NOT removed >> %S%\\upgrade_\\go-back-wifi.log) else (echo wifi folder removed >> %S%\\upgrade_\\go-back-wifi.log)\r\nrem remote access from Linux (decided 2026-10-04): public keys only; a task as SYSTEM installs the SSH server once the network is up\r\nif exist %S%\\upgrade_\\ssh\\authorized_keys (\r\n  mkdir C:\\ProgramData\\upgrade_ 2>nul\r\n  copy /y %S%\\upgrade_\\ssh\\authorized_keys C:\\ProgramData\\upgrade_\\go-back-ssh-keys > nul\r\n  copy /y %S%\\upgrade_\\go-back-ssh.ps1 C:\\ProgramData\\upgrade_\\go-back-ssh.ps1 > nul\r\n  powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\\ProgramData\\upgrade_\\go-back-ssh.ps1 -Register >> %S%\\upgrade_\\go-back-ssh.log 2>&1\r\n)\r\n";
 
 /// Read Linux's saved networks (root) and write the profiles into the
 /// stick's files. Returns the list for the job: names and reasons, never a password.
@@ -321,6 +321,144 @@ pub fn carry_wifi(root: &str, tree: &str) -> Result<Vec<Value>, String> {
     }
     std::fs::write(format!("{}/upgrade_/go-back-first-logon.cmd", tree), FIRST_LOGON_CMD).map_err(|e| e.to_string())?;
     Ok(list)
+}
+
+// ---------------------------------------------------------------- the clock and remote access
+//
+// Decided 2026-10-04 (the owner): the way back carries the time and remote
+// access too, as the forward conversion does. The clock: Linux keeps the
+// hardware clock in UTC and Windows reads it as local time, so the job tells
+// the gate which it is and names the time zone in Windows' words. Remote
+// access: only if Linux's SSH server starts by itself, only the person's
+// PUBLIC keys, and password sign-in off on the Windows side.
+
+/// IANA zone -> Windows' name for it (the pairs evaluate maps the other way).
+const ZONES: &[(&str, &str)] = &[("America/New_York", "Eastern Standard Time"), ("America/Chicago", "Central Standard Time"), ("America/Denver", "Mountain Standard Time"), ("America/Los_Angeles", "Pacific Standard Time"), ("America/Anchorage", "Alaskan Standard Time"), ("Pacific/Honolulu", "Hawaiian Standard Time"), ("America/Phoenix", "US Mountain Standard Time"), ("America/Halifax", "Atlantic Standard Time"), ("Europe/London", "GMT Standard Time"), ("Europe/Berlin", "W. Europe Standard Time"), ("Europe/Paris", "Romance Standard Time"), ("Europe/Budapest", "Central Europe Standard Time"), ("Europe/Warsaw", "Central European Standard Time"), ("Europe/Athens", "GTB Standard Time"), ("Australia/Sydney", "AUS Eastern Standard Time"), ("Asia/Tokyo", "Tokyo Standard Time"), ("Asia/Kolkata", "India Standard Time"), ("Asia/Shanghai", "China Standard Time")];
+
+/// What the gate needs to know about the clock. `forward`: the job that
+/// brought this computer to Linux, if it is still here: its Windows zone
+/// name is exact when the zone has not changed since. Pure but for reads.
+pub fn clock(root: &str, forward: Option<&Value>) -> Value {
+    let r = root.trim_end_matches('/');
+    let iana = std::fs::read_link(format!("{}/etc/localtime", r)).ok()
+        .and_then(|p| p.to_string_lossy().split("zoneinfo/").nth(1).map(str::to_string)).unwrap_or_default();
+    let rtc = match std::fs::read_to_string(format!("{}/etc/adjtime", r)) {
+        Ok(t) if t.lines().nth(2).map(str::trim) == Some("LOCAL") => "local",
+        _ => "utc", // no adjtime, or UTC: Linux's default
+    };
+    let from_job = forward.and_then(|j| j.pointer("/harvest/clock")).filter(|c| c["iana"].as_str() == Some(iana.as_str()) && !iana.is_empty())
+        .and_then(|c| c["windows_zone"].as_str()).map(str::to_string);
+    let zone = from_job.clone().or_else(|| ZONES.iter().find(|(i, _)| *i == iana).map(|(_, w)| w.to_string()));
+    json!({ "iana": iana, "windows_zone": zone, "windows_zone_from": if from_job.is_some() { "the job that converted this computer" } else if zone.is_some() { "the table" } else { "not known: Windows keeps its default zone" }, "rtc": rtc })
+}
+
+/// The person who started the way back: pkexec and sudo say who asked; else
+/// the only ordinary account on the system. None when it cannot be told.
+pub fn person(root: &str) -> Option<String> {
+    let passwd = std::fs::read_to_string(format!("{}/etc/passwd", root.trim_end_matches('/'))).unwrap_or_default();
+    let rows: Vec<Vec<&str>> = passwd.lines().map(|l| l.split(':').collect::<Vec<_>>()).filter(|f| f.len() >= 7).collect();
+    for var in ["PKEXEC_UID", "SUDO_UID"] {
+        if let Ok(uid) = std::env::var(var) {
+            if let Some(f) = rows.iter().find(|f| f[2] == uid && uid != "0") {
+                return Some(f[0].to_string());
+            }
+        }
+    }
+    let people: Vec<&Vec<&str>> = rows.iter().filter(|f| f[2].parse::<u32>().map(|u| (1000..60000).contains(&u)).unwrap_or(false)).collect();
+    if people.len() == 1 { Some(people[0][0].to_string()) } else { None }
+}
+
+fn plain_key(line: &str) -> bool {
+    let mut f = line.split(' ');
+    let kind = f.next().unwrap_or("");
+    let body = f.next().unwrap_or("");
+    ["ssh-ed25519", "ssh-rsa", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521", "sk-ssh-ed25519@openssh.com", "sk-ecdsa-sha2-nistp256@openssh.com"].contains(&kind)
+        && body.len() >= 16 && body.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'=')
+}
+
+/// Windows turns its SSH server on with these keys (as SYSTEM, from a task
+/// the first sign-in registers). The server is a download from Windows
+/// Update, so it waits for the network and tries again at every start until
+/// it has it. Keys only: password sign-in is switched off. Windows
+/// PowerShell 5.1.
+pub const SSH_PS1: &str = r##"# written by settle-in: remote access (SSH) carried from Linux (decided 2026-10-04)
+param([switch]$Register)
+$ErrorActionPreference = 'Continue'
+$d = 'C:\ProgramData\upgrade_'; $log = "$d\go-back-ssh.log"; $task = 'upgrade_ go-back ssh'
+function L([string]$s) { Add-Content -Path $log -Value ((Get-Date).ToUniversalTime().ToString('o') + ' ' + $s) }
+if ($Register) {
+    # the first sign-in only registers this script as a task (SYSTEM, every start, on battery too) and starts it;
+    # the work goes on after the person is signed out
+    $a = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -ExecutionPolicy Bypass -File "' + $PSCommandPath + '"')
+    $p = New-ScheduledTaskPrincipal -UserId 'NT AUTHORITY\SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+    $s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 2)
+    Register-ScheduledTask -TaskName $task -Action $a -Trigger (New-ScheduledTaskTrigger -AtStartup) -Principal $p -Settings $s -Force | Out-Null
+    Start-ScheduledTask -TaskName $task
+    L 'task registered and started'
+    exit 0
+}
+if (Test-Path "$d\go-back-ssh.done") { schtasks /delete /tn $task /f | Out-Null; exit 0 }
+if (-not (Test-Path "$d\go-back-ssh-keys")) { L 'no keys file; nothing to do'; schtasks /delete /tn $task /f | Out-Null; exit 0 }
+$name = 'OpenSSH.Server~~~~0.0.1.0'; $have = $false
+for ($i = 0; $i -lt 60 -and -not $have; $i++) {
+    $c = Get-WindowsCapability -Online -Name $name -ErrorAction SilentlyContinue
+    if ($c -and "$($c.State)" -eq 'Installed') { $have = $true; break }
+    try { Add-WindowsCapability -Online -Name $name -ErrorAction Stop | Out-Null; $have = $true; L 'the SSH server was installed' }
+    catch { L ('not yet (try ' + ($i + 1) + '): ' + $_.Exception.Message); Start-Sleep -Seconds 60 }
+}
+if (-not $have) { L 'the SSH server could not be downloaded this time; trying again at the next start'; exit 1 }
+Start-Service sshd -ErrorAction SilentlyContinue   # its first start writes C:\ProgramData\ssh\sshd_config
+$k = 'C:\ProgramData\ssh\administrators_authorized_keys'
+Copy-Item "$d\go-back-ssh-keys" $k -Force
+icacls $k /inheritance:r /grant '*S-1-5-32-544:F' /grant '*S-1-5-18:F' | Out-Null
+$cfg = 'C:\ProgramData\ssh\sshd_config'
+if (Test-Path $cfg) {
+    $t = Get-Content $cfg -Raw
+    if ($t -notmatch '(?m)^# upgrade_: keys only') {
+        # sshd keeps the first value it reads: these lines go on top
+        Set-Content -Path $cfg -Value ("# upgrade_: keys only, carried from Linux`r`nPasswordAuthentication no`r`nKbdInteractiveAuthentication no`r`n" + $t) -Encoding ascii
+    }
+} else { L 'sshd_config was not found; password sign-in was NOT switched off' }
+Set-Service sshd -StartupType Automatic
+Restart-Service sshd -ErrorAction SilentlyContinue
+if (-not (Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue)) { New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 | Out-Null }
+Set-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -Profile Any -Enabled True
+$s = Get-Service sshd -ErrorAction SilentlyContinue
+L ('sshd: ' + $s.Status + ', start ' + $s.StartType + '; keys ' + @(Get-Content $k).Count + '; password sign-in off: ' + [bool]((Get-Content $cfg -Raw -ErrorAction SilentlyContinue) -match '(?m)^PasswordAuthentication no'))
+if ("$($s.Status)" -eq 'Running') { Set-Content "$d\go-back-ssh.done" 'done'; Remove-Item "$d\go-back-ssh-keys" -Force; schtasks /delete /tn $task /f | Out-Null }
+"##;
+
+/// Linux's remote access, for the stick: the keys file and the Windows
+/// script, written only when the SSH server is enabled and the person has
+/// plain public keys. `user`: whose keys (the person who started the way
+/// back). Returns what goes into the job: a result and a count, never a key.
+pub fn carry_ssh(root: &str, user: &str, tree: &str) -> Result<Value, String> {
+    let r = root.trim_end_matches('/');
+    let on = ["multi-user.target.wants/sshd.service", "multi-user.target.wants/ssh.service", "sockets.target.wants/sshd.socket", "sockets.target.wants/ssh.socket"]
+        .iter().any(|u| std::fs::symlink_metadata(format!("{}/etc/systemd/system/{}", r, u)).is_ok());
+    if !on {
+        return Ok(json!({ "result": "off", "why": "Linux's SSH server is not set to start by itself" }));
+    }
+    let passwd = std::fs::read_to_string(format!("{}/etc/passwd", r)).unwrap_or_default();
+    let Some((_, _, home)) = crate::ssh::account(&passwd, user) else {
+        return Ok(json!({ "result": "no-keys", "why": format!("could not tell whose keys to carry (no account '{}')", user) }));
+    };
+    let text = std::fs::read_to_string(format!("{}{}/.ssh/authorized_keys", r, home)).unwrap_or_default();
+    let mut keys: Vec<&str> = Vec::new();
+    for l in text.lines().map(str::trim) {
+        // a line with options in front is a restriction Linux enforced; not carried rather than carried without it
+        if plain_key(l) && !keys.contains(&l) {
+            keys.push(l);
+        }
+    }
+    if keys.is_empty() {
+        return Ok(json!({ "result": "no-keys", "why": "the SSH server allowed no key of this person (password sign-in is not carried)" }));
+    }
+    let dir = format!("{}/upgrade_/ssh", tree);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {}", dir, e))?;
+    std::fs::write(format!("{}/authorized_keys", dir), keys.join("\r\n") + "\r\n").map_err(|e| e.to_string())?;
+    std::fs::write(format!("{}/upgrade_/go-back-ssh.ps1", tree), SSH_PS1.replace('\n', "\r\n")).map_err(|e| e.to_string())?;
+    Ok(json!({ "result": "carried", "keys": keys.len() }))
 }
 
 // ---------------------------------------------------------------- the drives
@@ -750,4 +888,50 @@ mod tests {
         assert_eq!(j["windows"]["image_index"], 1);
         assert!(j["drives"][0].get("name").is_none(), "Linux's own disk names mean nothing to the gate");
     }
+    #[test]
+    fn clock_names_the_zone_and_the_hardware_clock() {
+        let d = std::env::temp_dir().join(format!("upg-wclock-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join("etc")).unwrap();
+        std::os::unix::fs::symlink("../usr/share/zoneinfo/America/New_York", d.join("etc/localtime")).unwrap();
+        let c = clock(d.to_str().unwrap(), None);
+        assert_eq!(c["iana"], "America/New_York");
+        assert_eq!(c["windows_zone"], "Eastern Standard Time");
+        assert_eq!(c["rtc"], "utc");
+        std::fs::write(d.join("etc/adjtime"), "0.0 0 0.0\n0\nLOCAL\n").unwrap();
+        assert_eq!(clock(d.to_str().unwrap(), None)["rtc"], "local");
+        // the forward job's own name wins when the zone is the same; an unknown zone names none
+        let fwd = json!({ "harvest": { "clock": { "iana": "America/New_York", "windows_zone": "US Eastern Standard Time" } } });
+        assert_eq!(clock(d.to_str().unwrap(), Some(&fwd))["windows_zone"], "US Eastern Standard Time");
+        std::fs::remove_file(d.join("etc/localtime")).unwrap();
+        std::os::unix::fs::symlink("../usr/share/zoneinfo/Antarctica/Troll", d.join("etc/localtime")).unwrap();
+        assert!(clock(d.to_str().unwrap(), Some(&fwd))["windows_zone"].is_null());
+    }
+
+    #[test]
+    fn ssh_is_carried_only_when_on_and_only_plain_public_keys() {
+        let d = std::env::temp_dir().join(format!("upg-wssh-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let (root, tree) = (d.join("root"), d.join("tree"));
+        std::fs::create_dir_all(root.join("etc/systemd/system/multi-user.target.wants")).unwrap();
+        std::fs::create_dir_all(root.join("home/a/.ssh")).unwrap();
+        std::fs::create_dir_all(tree.join("upgrade_")).unwrap();
+        std::fs::write(root.join("etc/passwd"), "root:x:0:0::/root:/bin/bash\na:x:1000:1000::/home/a:/bin/bash\n").unwrap();
+        let k = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMQQyvVmEy6AQRORsQwKHQO9f1hMJtfxm1tm/jWBqmvP laptop";
+        std::fs::write(root.join("home/a/.ssh/authorized_keys"), format!("{}\nfrom=\"10.0.0.1\" {}\n# note\n{}\n", k, k, k)).unwrap();
+        let (r, t) = (root.to_str().unwrap(), tree.to_str().unwrap());
+        // not enabled: nothing on the stick
+        assert_eq!(carry_ssh(r, "a", t).unwrap()["result"], "off");
+        assert!(!tree.join("upgrade_/ssh").exists());
+        std::fs::write(root.join("etc/systemd/system/multi-user.target.wants/sshd.service"), "").unwrap();
+        let out = carry_ssh(r, "a", t).unwrap();
+        assert_eq!(out, json!({ "result": "carried", "keys": 1 }));
+        assert_eq!(std::fs::read_to_string(tree.join("upgrade_/ssh/authorized_keys")).unwrap(), format!("{}\r\n", k));
+        let ps = std::fs::read_to_string(tree.join("upgrade_/go-back-ssh.ps1")).unwrap();
+        assert!(ps.contains("PasswordAuthentication no") && ps.contains("OpenSSH.Server~~~~0.0.1.0") && ps.contains("administrators_authorized_keys"));
+        assert_eq!(carry_ssh(r, "nobody", t).unwrap()["result"], "no-keys");
+        assert_eq!(person(r).as_deref(), Some("a"));
+        assert!(FIRST_LOGON_CMD.contains("go-back-ssh.ps1 -Register") && ps.contains("NT AUTHORITY\\SYSTEM") && ps.contains("AllowStartIfOnBatteries"));
+    }
+
 }

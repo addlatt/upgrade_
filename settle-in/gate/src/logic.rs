@@ -227,6 +227,11 @@ pub fn unattend(job: &Value, found: &[Found]) -> String {
         ));
     }
     let first = first_logon(job["account"]["name"].as_str().unwrap_or("user"));
+    // the time zone Linux was in, under Windows' name for it (2026-10-04); none known: Windows' default
+    let tz = match job["clock"]["windows_zone"].as_str() {
+        Some(z) if !z.is_empty() => format!("\n      <TimeZone>{}</TimeZone>", esc(z)),
+        _ => String::new(),
+    };
     format!(
         r#"<?xml version="1.0" encoding="utf-8"?>
 <!-- written by upgrade-gate {ver} for job {job_id}: the drives it found by serial and size -->
@@ -250,7 +255,7 @@ pub fn unattend(job: &Value, found: &[Found]) -> String {
     <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <InputLocale>{lang}</InputLocale><SystemLocale>{lang}</SystemLocale><UILanguage>{lang}</UILanguage><UserLocale>{lang}</UserLocale>
     </component>
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">{tz}
       <OOBE>
         <HideEULAPage>true</HideEULAPage><HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
         <HideOnlineAccountScreens>true</HideOnlineAccountScreens><HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
@@ -271,6 +276,26 @@ pub fn unattend(job: &Value, found: &[Found]) -> String {
         ver = crate::VERSION,
         job_id = esc(job["job_id"].as_str().unwrap_or("?")),
     )
+}
+
+/// The clock, after the commit line (2026-10-04). Linux keeps the hardware
+/// clock in UTC; Windows reads it as local time, so a new Windows would be
+/// hours off until it reached a time server. WinPE made the same reading,
+/// so what WinPE shows as local time IS the true UTC. Setting the system
+/// clock to that makes Windows write the hardware clock its own way, and
+/// the installed Windows (same default zone as WinPE) reads it back right;
+/// the answer file's TimeZone then only changes how it is shown.
+/// Returns the UTC to set, or None when the hardware clock already holds
+/// local time or the job does not say. Pure.
+pub fn clock_fix(job: &Value, wall: &[u16; 6]) -> Option<[u16; 6]> {
+    if job["clock"]["rtc"].as_str() != Some("utc") {
+        return None;
+    }
+    // a clock that was never set is not copied (WinPE without a battery clock starts in the past)
+    if wall[0] < 2025 {
+        return None;
+    }
+    Some(*wall)
 }
 
 /// The commands Windows runs at the account's first (automatic) sign-in,
@@ -401,6 +426,24 @@ mod tests {
         let mut s = seen();
         s[2].serial = "EI8AN00951150A71I".into();
         assert!(find_drives(&job(), &s, None).unwrap_err().contains("more than one drive"));
+    }
+
+    #[test]
+    fn the_time_zone_goes_into_the_answer_file_only_when_known() {
+        let f = [Found { role: "system".into(), number: 0, model: "m".into(), size: 1, how: "serial" }];
+        let mut j = json!({ "job_id": "j", "windows": { "language": "en-US", "image_index": 1 }, "account": { "name": "a" }, "clock": { "windows_zone": "Eastern Standard Time", "rtc": "utc" } });
+        assert!(unattend(&j, &f).contains("<TimeZone>Eastern Standard Time</TimeZone>"));
+        j["clock"] = json!(null);
+        assert!(!unattend(&j, &f).contains("<TimeZone>"));
+    }
+
+    #[test]
+    fn the_clock_is_set_only_from_a_utc_hardware_clock() {
+        let w = [2026u16, 10, 4, 15, 0, 0];
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc" } }), &w), Some(w));
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "local" } }), &w), None);
+        assert_eq!(clock_fix(&json!({}), &w), None);
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc" } }), &[2001, 1, 1, 0, 0, 0]), None);
     }
 
     #[test]

@@ -180,6 +180,13 @@ fn run() -> i32 {
     rec["countdown"] = json!({ "seconds": total, "elapsed_s": t0.elapsed().as_secs_f64() });
     rec["crossed_utc"] = json!(now_utc());
     save(&rec_path, &rec);
+    // the clock (2026-10-04): only after the line, so a cancel leaves Linux's clock as it was
+    let wall = win::local_wall();
+    rec["clock"] = match logic::clock_fix(&job, &wall) {
+        Some(utc) => json!({ "hardware_clock_read": format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", wall[0], wall[1], wall[2], wall[3], wall[4], wall[5]), "taken_as": "utc", "set": win::set_utc(&utc) }),
+        None => json!({ "set": false, "why": "the job does not say the hardware clock holds UTC, or the clock was never set" }),
+    };
+    save(&rec_path, &rec);
     let xml = logic::unattend(&job, &found);
     let _ = std::fs::create_dir_all("X:\\upgrade_gate");
     let _ = std::fs::write("X:\\upgrade_gate\\unattend.xml", &xml);
