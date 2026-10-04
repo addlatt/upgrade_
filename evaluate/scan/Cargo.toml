@@ -1,0 +1,14 @@
+[package]
+name = "upgrade-scan"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+
+# The scanner's judging half in Rust (RISKS R32, step 2 of docs/RUST-PORT.md).
+# It decides; it does not read the machine yet. evaluate/windows/upgrade-scan.ps1
+# stays the scanner in use until every line it earned in
+# docs/validation-results/port-parity.csv reads `pass` here.
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+regress = "0.10"

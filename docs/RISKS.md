@@ -3191,7 +3191,7 @@ the basic display driver.
 
 ---
 
-## R32: The port from PowerShell to Rust · critical · open (decided 2026-09-27; nothing ported yet)
+## R32: The port from PowerShell to Rust · critical · open (decided 2026-09-27; steps 1 and 2 built 2026-10-04 and held to the originals by tests; nothing switched over)
 
 **What.** The Windows side (about 10,600 lines of PowerShell: the scanner,
 harvester, job writer, stick writer, kickstart generator, prologue,
@@ -3235,6 +3235,32 @@ the parity ledger (V13) has a Rust pass beside every line it earned, and
 the `.cmd` launchers stay on the stick until then. Builds are made
 reproducible. From now on every physical run keeps the raw output of the
 Windows tools it calls, so later decisions can be replayed (rule #5).
+
+**Where it stands (2026-10-04).** Steps 1 and 2 are built, beside the
+scripts, and nothing the stick runs has changed (`docs/RUST-PORT.md` is the
+roadmap).
+
+- **Step 1, the schema library** (`schemas/rust`). It carries the two
+  schema files inside itself, so there is no second copy of the rules. All
+  103 checks of `schemas/check.py` are replayed in Rust, and both checkers
+  gave the same answer on 4,943 one-edit documents. Rust refused 54 more,
+  all for a date that is not a date, which the Python skips on this machine.
+- **Step 2, the scanner's judging half** (`evaluate/scan`, following scanner
+  0.5.0). 167 cases are compared word for word with what the PowerShell
+  answers: its 100 self-test cases, the 3 recordings, and 64 more that reach
+  wording the self-test misses. The first risk above (a port that decides
+  differently) is what this comparison is for. It caught two PowerShell
+  habits a reading would have missed: equal entries come out of
+  `Sort-Object -Descending` in reverse order, and halves round to the even
+  digit.
+- **Still open for step 2:** 10 ledger lines, the scanner's rig and physical
+  rows. They were earned by reading real machines, and the Rust does not
+  read a machine yet. A word-for-word match on made-up inputs and three
+  recordings closes the judging, never the reading (rule #5).
+- **A new risk the port brings:** `data/tables.json` is a written-out copy
+  of `data/*.ps1`. A table edited in one and not the other would make the
+  two scanners disagree. `port-check.sh` fails when the copy is stale;
+  nothing runs it automatically yet (the same gap as R9).
 
 **Closes when.** Per piece: its lines in
 `docs/validation-results/port-parity.csv` all read `pass` (self-tests and

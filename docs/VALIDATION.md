@@ -76,7 +76,7 @@ A few words used all through this file:
 | V6 code signing | `[....]` | calendar-bound, not started |
 | V7 scanner generalizes | `[....]` | needs the public release and reports |
 | V12 the window | verify flow: stop path `[###.]`, restart and reopen `[##..]` | rig line 2: draws via wgpu, shows the job writer's refusal, leaves nothing; the rig has no USB, so the reopen after the restart needs the Aspire |
-| V13 the Rust port | `[#...]` | decided 2026-09-27; nothing ported; the parity ledger has its header only |
+| V13 the Rust port | steps 1 and 2 `[##..]`, steps 3 to 5 `[#...]` | 2026-10-04: the schema library and the scanner's judging half are built; 206 ledger lines `pass`, 10 `owed` (the scanner's rig and physical rows); nothing switched over |
 
 ---
 
@@ -1308,7 +1308,23 @@ is plumbing.
 ## V13: The port from PowerShell to Rust · kills: trust in every row the Windows side earned · RISKS R32
 
 Decided 2026-09-27 (the owner): Rust becomes the conversion's one
-language, piece by piece (`architecture.md`, "Stack"). `[#...]` planned.
+language, piece by piece (`architecture.md`, "Stack"). The roadmap is
+`docs/RUST-PORT.md`. Steps 1 and 2 `[##..]` built (2026-10-04), steps 3 to
+5 `[#...]` planned.
+
+**Where it stands (2026-10-04).** `./port-check.sh` runs the whole check:
+the two PowerShell self-tests and `schemas/check.py`, that the recorded
+files are fresh, that every self-test case has a Rust case under the same
+name, and the Rust tests.
+
+| Piece | Ledger lines | `pass` | `owed` |
+|---|---|---|---|
+| `schemas/check.py` (step 1) | 103 | 103 | 0 |
+| `upgrade-scan.ps1` (step 2: judging half only) | 113 | 103 | 10 (rig and physical: `v5-controller-mode.csv` lines 2 to 10, `v1-live-boot.csv` line 4) |
+
+The scanner's rig and physical rows are not all found yet. Before step 3
+starts, every results file is read again for rows the scanner had a part
+in, and each gets its `owed` line.
 
 **The parity ledger.** `docs/validation-results/port-parity.csv` lists
 every piece of evidence a PowerShell piece has earned, one line each, and

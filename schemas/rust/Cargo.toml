@@ -1,0 +1,12 @@
+[package]
+name = "upgrade-schema"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+
+# The job.json / outcome.json contract, read in Rust (RISKS R32, step 1 of
+# docs/RUST-PORT.md). The two schema files stay the contract; this crate
+# carries them inside itself and refuses what they refuse.
+[dependencies]
+serde_json = "1"
+regress = "0.10"

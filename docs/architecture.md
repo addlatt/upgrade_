@@ -1525,6 +1525,16 @@ launchers stay on the stick. So today the scripts are still the thing
 under test. Builds are made reproducible, so the `.exe` on the stick can
 be matched to the open source (R14).
 
+**Built (2026-10-04): steps 1 and 2, beside the scripts.** `schemas/rust`
+(crate `upgrade-schema`) carries the two schema files inside itself and
+only hands out a `Job` or an `Outcome` that passed them. `evaluate/scan`
+(crate `upgrade-scan`) is the scanner's judging half: facts go in, checks
+and a verdict come out, and it reads nothing from the machine. Both are
+held to the originals by tests that compare full answers (`port-parity.csv`,
+`./port-check.sh`). No program uses either crate yet. The device tables
+stay in `data/*.ps1`; a tool writes them to `data/tables.json` for the
+Rust. The plan from here is `docs/RUST-PORT.md`.
+
 ### Code signing is the gating item
 
 See RISKS R12. The finished tool elevates, reads BitLocker keys, exports

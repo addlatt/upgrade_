@@ -81,6 +81,104 @@ def report(ok, name, detail=""):
                 print(f"          {line}")
 
 
+# --- the same cases, for the Rust reader (RISKS R32, docs/RUST-PORT.md) ------
+# `--dump-cases FILE` writes every refused document above as the edits that
+# turn an example into it, so schemas/rust replays exactly these documents
+# and not a retyped copy. `--dump-mutations FILE` writes a broad set of
+# one-edit documents with this checker's own answer, for the differential run.
+
+def same(a, b):
+    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+def diff_ops(base, doc, path=()):
+    """The edits that turn base into doc: [path, value] sets, [path] deletes."""
+    if isinstance(base, dict) and isinstance(doc, dict):
+        ops = [[list(path) + [k]] for k in base if k not in doc]
+        for k, val in doc.items():
+            if k not in base:
+                ops.append([list(path) + [k], val])
+            elif not same(base[k], val):
+                ops += diff_ops(base[k], val, path + (k,))
+        return ops
+    if isinstance(base, list) and isinstance(doc, list) and len(base) == len(doc):
+        ops = []
+        for i, (a, b) in enumerate(zip(base, doc)):
+            if not same(a, b):
+                ops += diff_ops(a, b, path + (i,))
+        return ops
+    return [[list(path), doc]]
+
+
+def apply_ops(base, ops):
+    d = copy.deepcopy(base)
+    for op in ops:
+        d = del_path(d, op[0]) if len(op) == 1 else set_path(d, op[0], op[1])
+    return d
+
+
+def dump_cases(negatives, out_path):
+    examples = {ex.name: load(ex) for ex in sorted((HERE / "examples").glob("*.json"))}
+    cases = []
+    for kind, name, doc in negatives:
+        best = None
+        for ex_name, ex in examples.items():
+            if not ex_name.startswith(kind + "."):
+                continue
+            ops = diff_ops(ex, doc)
+            if best is None or len(json.dumps(ops)) < len(json.dumps(best[1])):
+                best = (ex_name, ops)
+        if not same(apply_ops(examples[best[0]], best[1]), doc):
+            raise SystemExit(f"dump: the edits for '{name}' do not rebuild its document")
+        cases.append({"kind": kind, "name": name, "base": best[0], "ops": best[1]})
+    with open(out_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("[\n" + ",\n".join(json.dumps(c, ensure_ascii=False) for c in cases) + "\n]\n")
+    print(f"  wrote {len(cases)} refused cases to {out_path}")
+
+
+def mutations(doc, path=()):
+    """One-edit variants of a document: every field removed, an unknown field
+    added to every object, every value swapped for one of another type."""
+    if isinstance(doc, dict):
+        yield [list(path) + ["zz_unknown"], 1]
+        for k, val in doc.items():
+            yield [list(path) + [k]]
+            yield from mutations(val, path + (k,))
+    elif isinstance(doc, list):
+        yield [list(path), []]
+        for i, val in enumerate(doc):
+            yield from mutations(val, path + (i,))
+    elif isinstance(doc, bool):
+        yield [list(path), "yes"]
+        yield [list(path), not doc]
+    elif isinstance(doc, (int, float)):
+        yield [list(path), "7"]
+        yield [list(path), -1]
+        yield [list(path), doc + 0.5]
+    elif isinstance(doc, str):
+        yield [list(path), 7]
+        yield [list(path), ""]
+        yield [list(path), doc + " x"]
+        yield [list(path), None]
+    else:
+        yield [list(path), 7]
+
+
+def dump_mutations(v, out_path):
+    n = 0
+    with open(out_path, "w", encoding="utf-8", newline="\n") as f:
+        for ex in sorted((HERE / "examples").glob("*.json")):
+            kind = ex.name.split(".")[0]
+            base = load(ex)
+            for op in mutations(base):
+                if not op[0]:
+                    continue
+                accepted = not errors(v[kind], apply_ops(base, [op]))
+                f.write(json.dumps({"kind": kind, "base": ex.name, "op": op, "accepted": accepted}, ensure_ascii=False) + "\n")
+                n += 1
+    print(f"  wrote {n} one-edit documents to {out_path}")
+
+
 def main():
     print()
     print("  upgrade_ schemas check")
@@ -304,6 +402,11 @@ def main():
     for kind, name, doc in negatives:
         errs = errors(v[kind], doc)
         report(bool(errs), f"refused: {name}", "document was ACCEPTED")
+
+    if "--dump-cases" in sys.argv:
+        dump_cases(negatives, sys.argv[sys.argv.index("--dump-cases") + 1])
+    if "--dump-mutations" in sys.argv:
+        dump_mutations(v, sys.argv[sys.argv.index("--dump-mutations") + 1])
 
     print()
     if failed:
