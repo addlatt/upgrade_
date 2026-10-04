@@ -215,3 +215,29 @@ upgrade-scan.ps1,v5-controller-mode.csv:8,physical,,owed,2026-10-04
 upgrade-scan.ps1,v5-controller-mode.csv:9,physical,,owed,2026-10-04
 upgrade-scan.ps1,v5-controller-mode.csv:10,physical,,owed,2026-10-04
 upgrade-scan.ps1,v1-live-boot.csv:4,physical,,owed,2026-10-04
+New-Kickstart.ps1,keep-windows example generates,selftest,,owed,2026-10-04
+New-Kickstart.ps1,clean-slate example generates,selftest,,owed,2026-10-04
+New-Kickstart.ps1,"lang, keymap, timezone come from intent.locale",selftest,,owed,2026-10-04
+New-Kickstart.ps1,the password hash passes through untouched and root is locked,selftest,,owed,2026-10-04
+New-Kickstart.ps1,the desktop selects the squashfs,selftest,,owed,2026-10-04
+New-Kickstart.ps1,"storage is a %include the verifier writes, never inline",selftest,,owed,2026-10-04
+New-Kickstart.ps1,"%pre runs verify.sh with the job and the stick label, erroring on failure",selftest,,owed,2026-10-04
+New-Kickstart.ps1,keep-windows %post turns os-prober on; clean-slate does not,selftest,,owed,2026-10-04
+New-Kickstart.ps1,"a full name becomes --gecos, quoted",selftest,,owed,2026-10-04
+New-Kickstart.ps1,"no full name, no --gecos",selftest,,owed,2026-10-04
+New-Kickstart.ps1,refuse: schema job/2,selftest,,owed,2026-10-04
+New-Kickstart.ps1,refuse: cleartext password,selftest,,owed,2026-10-04
+New-Kickstart.ps1,refuse: a login name with a space,selftest,,owed,2026-10-04
+New-Kickstart.ps1,refuse: a distro with no generator,selftest,,owed,2026-10-04
+New-Kickstart.ps1,output uses LF line endings only (the installer reads it on Linux),selftest,,owed,2026-10-04
+New-Kickstart.ps1,the nochroot %post runs outcome.sh after the chroot %post,selftest,,owed,2026-10-04
+New-Kickstart.ps1,a manifest adds --checksum for the chosen desktop image,selftest,,owed,2026-10-04
+New-Kickstart.ps1,"the installed system boots to the graphical sign-in (xconfig, and %post sets the target) - never a text console",selftest,,owed,2026-10-04
+New-Kickstart.ps1,"the account is made by the kickstart, so Plasma Setup (Fedora 44 KDE) is marked done and disabled",selftest,,owed,2026-10-04
+New-Kickstart.ps1,"console chosen: no graphical login, the text console is the default target",selftest,,owed,2026-10-04
+New-Kickstart.ps1,refuse: a job with no choice of what the computer starts at,selftest,,owed,2026-10-04
+New-Kickstart.ps1,a manifest without the image adds no checksum (never a guess),selftest,,owed,2026-10-04
+New-Kickstart.ps1,v1-live-boot.csv:2-5 (the kickstart each row booted; split per row when re-run),rig,,owed,2026-10-04
+New-Kickstart.ps1,v1-live-boot.csv:5,physical,,owed,2026-10-04
+New-Kickstart.ps1,v2-install.csv:2-6 (the kickstart each install ran),rig,,owed,2026-10-04
+New-Kickstart.ps1,v9-erase.csv:2-27 (rig arms and the Aspire's rows; split per row when re-run),rig,,owed,2026-10-04
