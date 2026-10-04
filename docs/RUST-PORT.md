@@ -254,6 +254,18 @@ elevated, the VMD spoof, a clean ThinkPad, the same ThinkPad 199 days
 later, an ARM machine with almost nothing readable). The program is
 `upgrade-scan --replay machine.json`.
 
+**A real machine, replayed (2026-10-04).** `tools/Record-Machine.ps1` runs
+the PowerShell scanner's own main section with its own collectors on a
+live machine, read-only, and keeps each collector's answer and the report
+it printed in one file. `upgrade-scan --replay` on that file judges the
+same facts in Rust and compares. First run, the G16, not elevated: SAME,
+238 report lines and 25 checks, word for word. The elevated run (shrink
+room, BitLocker, the boot partition, SMART) is owed. This proves the Rust
+judges a real machine's real facts as the PowerShell does. It does not
+prove the Rust can read them: that is items 3 and 4. The capture holds the
+machine's program list and is never committed (`.gitignore` covers its
+name).
+
 Items 3 to 5 no longer wait on V0 and V9 (decided 2026-10-04, above).
 Item 4 needs a Windows machine; the G16 is the first.
 

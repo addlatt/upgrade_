@@ -5,6 +5,10 @@
 //!
 //!   upgrade-scan --replay machine.json [--now 2026-10-04T10:00:00] [--json]
 //!
+//! A capture made by tools/Record-Machine.ps1 also holds what the PowerShell
+//! scanner concluded from the same facts. Then the replay compares the two
+//! and says whether they are the same, line for line (exit 1 if not).
+//!
 //! Read-only: it opens the one file it is given and writes to the screen.
 
 use serde_json::{json, Value};
@@ -29,6 +33,53 @@ fn utc_now() -> Stamp {
     Stamp { year, month, day, hour: (rem / 3600) as u32, minute: (rem % 3600 / 60) as u32, second: (rem % 60) as u32 }
 }
 
+/// The PowerShell scanner's own conclusions, from the same facts, against
+/// this program's: every report line and every check, word for word.
+fn compare(ps: &Value, machine: &Machine, outcome: &run::Outcome, now: Stamp) -> ExitCode {
+    let ours = report::lines(machine, outcome, now, FOLLOWS_SCANNER);
+    let theirs: Vec<String> = ps["Lines"].as_array().map(|l| l.iter().map(|x| x.as_str().unwrap_or("").to_string()).collect()).unwrap_or_default();
+    let mut differences = Vec::new();
+    for i in 0..ours.len().max(theirs.len()) {
+        let (a, b) = (theirs.get(i), ours.get(i));
+        if a != b {
+            differences.push(format!("  report line {}:\n    PowerShell: {}\n    Rust:       {}", i + 1, a.map_or("(no line)", String::as_str), b.map_or("(no line)", String::as_str)));
+        }
+    }
+    let checks = ps["Checks"].as_array().cloned().unwrap_or_default();
+    if checks.len() != outcome.scan.checks.len() {
+        differences.push(format!("  PowerShell made {} checks, Rust made {}", checks.len(), outcome.scan.checks.len()));
+    }
+    for (i, (p, r)) in checks.iter().zip(&outcome.scan.checks).enumerate() {
+        let mine = [("Section", r.section.as_str()), ("Title", r.title.as_str()), ("Status", r.status.as_str()), ("Detail", r.detail.as_str()), ("Note", r.note.as_str()), ("MinKernel", r.min_kernel.as_str()), ("Remedy", r.remedy.as_str())];
+        for (field, value) in mine {
+            let theirs = p[field].as_str().unwrap_or("");
+            if theirs != value {
+                differences.push(format!("  check {} ({}), {field}:\n    PowerShell: {theirs}\n    Rust:       {value}", i + 1, r.title));
+            }
+        }
+    }
+    if ps["Verdict"].as_str() != Some(outcome.verdict.level.as_str()) {
+        differences.push(format!("  verdict: PowerShell {}, Rust {}", ps["Verdict"], outcome.verdict.level.as_str()));
+    }
+    let kernel = outcome.required_kernel.map(|k| k.to_string());
+    if ps["RequiredKernel"].as_str() != kernel.as_deref() {
+        differences.push(format!("  required kernel: PowerShell {}, Rust {kernel:?}", ps["RequiredKernel"]));
+    }
+    println!();
+    println!("  machine: {} {}   elevated: {}   verdict: {}", machine.sys.vendor.as_deref().unwrap_or(""), machine.sys.model.as_deref().unwrap_or(""), machine.is_admin, outcome.verdict.level.as_str());
+    if differences.is_empty() {
+        println!("  SAME: {} report lines and {} checks, word for word, as the PowerShell scanner concluded from these facts.", ours.len(), outcome.scan.checks.len());
+        println!();
+        return ExitCode::SUCCESS;
+    }
+    println!("  DIFFERENT in {} places (first {}):", differences.len(), differences.len().min(10));
+    for d in differences.iter().take(10) {
+        println!("{d}");
+    }
+    println!();
+    ExitCode::from(1)
+}
+
 fn usage() -> ExitCode {
     eprintln!("upgrade-scan {} (Rust; follows scanner {FOLLOWS_SCANNER}; replays recordings, reads no live machine yet)", env!("CARGO_PKG_VERSION"));
     eprintln!("usage: upgrade-scan --replay <machine.json> [--now YYYY-MM-DDTHH:MM:SS] [--json]");
@@ -43,16 +94,6 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
     let Some(path) = value_of("--replay") else { return usage() };
-    let now = match value_of("--now") {
-        Some(text) => match Stamp::parse(&text) {
-            Some(t) => t,
-            None => {
-                eprintln!("upgrade-scan: --now {text} is not a date and time (2026-10-04T10:00:00)");
-                return ExitCode::from(2);
-            }
-        },
-        None => utc_now(),
-    };
     let text = match std::fs::read_to_string(&path) {
         Ok(t) => t,
         Err(e) => {
@@ -66,6 +107,18 @@ fn main() -> ExitCode {
             eprintln!("upgrade-scan: {path} is not JSON: {e}");
             return ExitCode::from(2);
         }
+    };
+    let powershell = doc.get("PowerShell").cloned();
+    let captured_now = doc.get("Now").and_then(Value::as_str).map(str::to_string);
+    let now = match value_of("--now").or(captured_now) {
+        Some(text) => match Stamp::parse(&text) {
+            Some(t) => t,
+            None => {
+                eprintln!("upgrade-scan: --now {text} is not a date and time (2026-10-04T10:00:00)");
+                return ExitCode::from(2);
+            }
+        },
+        None => utc_now(),
     };
     // a -DumpMachine recording holds the device list only; it has no IsAdmin
     let hardware_only = doc.get("IsAdmin").is_none();
@@ -82,6 +135,9 @@ fn main() -> ExitCode {
     } else {
         run::scan(&machine)
     };
+    if let Some(ps) = powershell {
+        return compare(&ps, &machine, &outcome, now);
+    }
     if args.iter().any(|a| a == "--json") {
         let checks: Vec<Value> = outcome
             .scan
