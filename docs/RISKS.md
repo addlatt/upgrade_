@@ -2497,7 +2497,7 @@ considered and refused (`architecture.md`, "The walk-away resume"):
 Fast Startup row, and no Defender detection across them. Or a signed
 release (R12), after which the antivirus half no longer matters.
 
-## R25: Windows Update restarts the machine during the prologue · high · open (found 2026-09-23; gate built 0.9.0; detector fired on the rig 2026-09-26)
+## R25: Windows Update restarts the machine during the prologue · high · open (found 2026-09-23; gate built 0.9.0; detector fired on the rig 2026-09-26, and on the Aspire 2026-10-04, run 11)
 
 **What.** The prologue restarts Windows before the commit line (the disk
 check, the pagefile rung) and relies on Windows restarting only when the
@@ -2563,6 +2563,15 @@ as SYSTEM, read nothing waiting after the restart and again before arming,
 then armed: `prologue.windows_update` = 3 checks, pending seen, 1 restart.
 A real pending state, not an injected one, but Windows 10 on the rig.
 Windows 11 26200 is still owed.
+
+**The detector's first firing on a real machine (2026-10-04, the Aspire's
+run 11, Windows 11 Home 26100, prologue 0.12.0).** A real update was
+waiting (`WU RebootRequired` True; both CBS markers False). The prologue
+read it at `before-changes`, restarted once, resumed as SYSTEM with nobody
+signed in, read nothing waiting, then armed. `outcome.json`:
+`prologue.windows_update` = 3 checks, pending seen, 1 restart. The job was
+an erase, so there was no shrink to hold back; the closing clause's
+"neither arms nor shrinks" is shown for arming only.
 
 **Closes when.** A physical row in which a waiting update exists at CONVERT
 and the prologue neither arms nor shrinks until it has cleared, and a rig
@@ -2657,7 +2666,7 @@ refusing before the wipe. Then one physical row, on a machine whose owner
 has chosen to lose Windows. Plus evidence of the folder map's coverage on
 real machines (what share of a person's files it finds).
 
-## R27: The one-click erase and install · critical · open (decided 2026-09-26; all three arms pass on the rig 2026-09-26; physical run 9 failed on a text login, fixed; physical run 10, 2026-10-04, reached the desktop but installed twice, R35, fixed; one clean run owed)
+## R27: The one-click erase and install · critical · open (decided 2026-09-26; all three arms pass on the rig 2026-09-26; physical run 9 failed on a text login, fixed; physical run 10, 2026-10-04, reached the desktop but installed twice, R35, fixed; physical run 11, 2026-10-04, `erased-installed` with the stick left in: the closing clause met; the clean cancel row still owed)
 
 **What.** A launcher that, after one typed sentence and a password, erases
 every internal drive and installs Fedora with nothing kept
@@ -2915,6 +2924,32 @@ unattended and Secure Boot on. A real key press cancelled a countdown
 stick installed twice and would not have stopped (R35, fixed the same day).
 The row this risk still owes is one install, once, with the stick left in.
 
+**Run 11 (2026-10-04, the Aspire, kit aba09ec, Fedora 44, KDE): the first
+clean conversion.** `v9-erase.csv`, physical, `erased-installed`, with the
+stick left in from the launcher to the desktop. One click and both
+sentences, the handoff by itself, the countdown left alone, both drives
+erased, Fedora installed once, the KDE sign-in screen, the chosen password
+(its fingerprint matches the job's), `/home` on the 1 TB drive, Secure Boot
+on. The first start then passed `settle-in-first-start.csv` too: the clock
+corrected, Wi-Fi connected by itself, remote access carried (R28). The
+kit was re-proven on the rig first (C7, D3). Evidence:
+`rig/hyperv/artifacts/aspire-r27-2026-10-04-run11/`.
+
+What this run does not show:
+
+- **The cancel.** Part A (one key press at the first countdown, Windows
+  back untouched) was skipped by accident. The clean physical cancel row
+  is still owed, and it needs Windows back on a machine first.
+- **Other firmware.** One machine, one vendor (Insyde).
+- **A healthy or a failing install.** The dying SSD took this install
+  without an error. That is one data point, not a property of the drive.
+- A product stick carries no bench marker. The boot line and the
+  partition tables were gathered over the carried SSH key, 10 min into
+  the first boot, with the marker's own commands. The row says so.
+
+**The closing clause above is met (2026-10-04).** Kept open for the clean
+cancel row.
+
 **The installer's own startup hung once on the rig (2026-10-04, arm C5).**
 Fedora 44's installer stopped 91 s into its startup, before `%pre` and so
 before our verifier and any countdown, and stayed there 30 min. Both disks
@@ -2926,7 +2961,7 @@ handoff is one-time. Nothing detects it or says so in plain words. One
 occurrence is a data point: it goes in the record, and a second one makes
 it a risk of its own.
 
-## R28: settle-in runs on any Linux · high · open (decided 2026-09-27; built and passed on the rig the same day: Fedora KDE, GNOME, console)
+## R28: settle-in runs on any Linux · high · open (decided 2026-09-27; built and passed on the rig the same day: Fedora KDE, GNOME, console; first physical `pass` 2026-10-04, the Aspire's run 11, Fedora KDE)
 
 **What.** `settle-in` must work on whatever Linux the person picks, not
 only Fedora (`architecture.md`, "It runs on any Linux"). It is one
@@ -3005,6 +3040,29 @@ start, matched only by the BCD id the prologue recorded; rig next.
 startup on Fedora KDE, Fedora GNOME and at least one non-Fedora
 distribution, on the rig and then on a real machine, each leaving a capture
 behind. VALIDATION V10.
+
+**The first physical pass (2026-10-04, the Aspire's run 11, settle-in
+0.3.0, Fedora 44 KDE).** `settle-in-first-start.csv`, `pass`. The clock was
+corrected (the installer was 7 h behind) and agrees with network time. The
+one saved Wi-Fi network was set up from the stick's file and connected by
+itself 7 s after NetworkManager started, before anyone signed in; the
+password is gone from the stick and from the handoff folder. Remote access
+was carried, keys only. The conversion's own firmware entry was removed.
+The window showed at the first sign-in, in front. Findings, not fixed:
+
+- **The old-entry button had nothing to offer.** Between the install and
+  the first start the firmware rewrote the Windows entry: `Boot0001` now
+  reads "Unknown Device" and points at `\EFI\fedora\shim.efi`. Nothing
+  named Windows was left, so the button was not shown. The button is still
+  unproven on real firmware.
+- **A stale "upgrade_ go back to Windows" entry** (`Boot0003`, from the
+  way back) is still in the firmware. settle-in does not remove it and the
+  button does not cover it.
+- **The window opened again at the second sign-in.** Whether it should
+  show once or until closed is not decided.
+
+Still owed for this risk: GNOME's physical pass (run 10's row is a `fail`
+on Wi-Fi only) and a non-Fedora distribution.
 
 ## R29: The Microsoft third-party UEFI CA is off on Secured-core PCs · high · open (raised 2026-09-27 by research, unverified)
 
@@ -3656,8 +3714,14 @@ Boot on. **Met 2026-10-04 (the Aspire's run 10, kit ee74318):** the scan
 said Fedora 44 starts, and the stick and the installed Fedora 44 both
 started with Secure Boot on. Kept open because the level moves: the next
 one in shim's list needs `grub,6`, which Fedora 44's GRUB is not.
+**Held again 2026-10-04 (run 11, kit aba09ec),** on the Windows 11 the way
+back had installed that day: the scan from the stick read level 2025051000
+and said the stick's boot files meet it, and the stick, the installed
+Fedora 44 and the stick's handover to it all started with Secure Boot on.
+That fresh Windows holds no level of its own yet (its registry value reads
+`NOTFOUND`); the level comes from the firmware.
 
-## R35: The stick installs again after the install · critical · open (found 2026-10-04 on the Aspire, run 10; fixed the same day, rig arm D `[###.]`; a real machine owed)
+## R35: The stick installs again after the install · critical · open (found 2026-10-04 on the Aspire, run 10; fixed the same day, rig arm D `[###.]`; the Aspire's run 11, 2026-10-04, `[####]`: the closing clause met; kept open for the items still listed)
 
 **What.** The stick starts the installer whenever it carries the marker
 file `upgrade_/boot-install`. The Windows side removed that marker at every
@@ -3717,9 +3781,21 @@ disks with Secure Boot on (VM `UPGRIGSB`, the third-party CA): Fedora
 booted through the stick again (a third boot line,
 `rig/hyperv/artifacts/v9/D-sb-f44/`).
 
+**Proven on the Aspire (2026-10-04, run 11, kit aba09ec).** Two physical
+rows in `v9-erase.csv`. The install row (`erased-installed`): the stick
+carried `converted` and no `boot-install` after the commit line, and the
+firmware did start the stick again after the install (`BootCurrent=0000`,
+"USB HDD"; the order read USB first). The stick's GRUB handed over to the
+installed Fedora with Secure Boot on. No second countdown, one boot in the
+journal. Then the owner restarted once with the stick left in
+(`not-installed-again`): the stick started again, handed over again, the
+stick's records were byte for byte the install's own, and each drive's
+partition table was unchanged. So on this firmware the stick is started
+at every boot while it is in, and it only ever hands over.
+
 **Still open.**
 
-- A real machine: the Aspire, with the stick left in after the install.
+- Other firmware. One machine is not the matrix.
 - If the install fails after the line (power, a dying drive), the stick
   now refuses to try again by itself. Recovery is a new job from a
   working system, or the way back. That is the right default, and it has
@@ -3732,4 +3808,5 @@ booted through the stick again (a third boot line,
   order is not known.
 
 **Closes when.** Arm D passes on the rig, and the Aspire finishes an
-install with the stick left in and comes up in Fedora once.
+install with the stick left in and comes up in Fedora once. **Met
+2026-10-04 (run 11).** Kept open for the list above.
