@@ -1,1 +1,217 @@
 piece,evidence,kind,rust_test,result,date
+schemas/check.py,example validates: job.acknowledged-data-loss.json,selftest,,owed,2026-10-04
+schemas/check.py,example validates: job.clean-slate.json,selftest,,owed,2026-10-04
+schemas/check.py,example validates: job.erase-and-install.json,selftest,,owed,2026-10-04
+schemas/check.py,example validates: job.keep-windows.json,selftest,,owed,2026-10-04
+schemas/check.py,example validates: outcome.acknowledged-data-loss.json,selftest,,owed,2026-10-04
+schemas/check.py,example validates: outcome.clean-slate.json,selftest,,owed,2026-10-04
+schemas/check.py,example validates: outcome.erase-and-install.json,selftest,,owed,2026-10-04
+schemas/check.py,example validates: outcome.keep-windows.json,selftest,,owed,2026-10-04
+schemas/check.py,example validates: outcome.stopped-unhealthy-disk.json,selftest,,owed,2026-10-04
+schemas/check.py,example pair: keep-windows job and outcome share job_id,selftest,,owed,2026-10-04
+schemas/check.py,example pair: clean-slate job and outcome share job_id,selftest,,owed,2026-10-04
+schemas/check.py,example pair: acknowledged-data-loss job and outcome share job_id,selftest,,owed,2026-10-04
+schemas/check.py,refused: RED verdict without the acknowledgement is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: acknowledgement with a paraphrased statement is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: acknowledgement with no overrides is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: acknowledgement that names identity as an override is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: keep-windows on a Warning disk without disk-health acknowledged is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a repair on a Warning disk without the acknowledgement is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: an acknowledgement in the outcome with an unknown override is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a resume run_as outside SYSTEM|user is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a resume without unattended is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a windows_update record with a negative restart count is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a windows_update record with an unknown field is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: unknown schema version is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: unknown outcome version is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: RED verdict is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: unelevated run is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: legacy BIOS is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: missing fork is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: fork with an unknown branch is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: flagged volume without consent to the disk check is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: restore_points_consented that is not a boolean is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: usn_journal_consented that is not a boolean is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: volume_health without repair_queued is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: last_unmovable_file that is not a string or null is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a queued repair without consent to the disk check is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: keep-windows on a Warning disk is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: keep-windows with a full ESP is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: cloud files with failures is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: cloud files 'refused' is not a writable result,selftest,,owed,2026-10-04
+schemas/check.py,refused: an erase job that also stages files is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: clean-slate with neither staged files nor the erase consent is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: an erase consent with a paraphrased sentence is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: an erase consent on a keep-windows job is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a fresh-start reason without the erase consent is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: an erase consent under another reason is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a home drive that is not Healthy is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a third drive to erase is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a first drive that is not the system drive is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a drive to erase without a unique id is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a job without the stick fit is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: clean-slate whose folders do not fit the stick is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a negative gap is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: truncated folder sizing is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: unknown BitLocker state is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: BitLocker on without a recovery key file is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a non-sha512-crypt password field is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a path that escapes the job directory is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: an absolute path is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: clean-slate without staged files is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a software entry without a name is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a job without the software inventory is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: an unknown top-level field is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: keep-windows claiming the line was crossed is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: keep-windows with Windows not kept is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: keep-windows scrubbing credentials before the pull is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: completed without a cutover block is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: stopped without a reason is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a stopped run that crossed the line is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: clean-slate completed without crossing the line is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a repair on a non-Healthy disk is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a repair that names no method is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a repair that took no restart is not refused by shape but a negative restart count is,selftest,,owed,2026-10-04
+schemas/check.py,refused: a remeasurement from an unknown path is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a staged block without the measured write speed is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a completed erase with neither a countdown nor restored files is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a completed erase whose countdown was cancelled is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a cancelled countdown that claims the line was crossed is refused,selftest,,owed,2026-10-04
+schemas/check.py,"refused: a completed conversion that boots to a text console is refused (2026-09-26, Aspire run 9)",selftest,,owed,2026-10-04
+schemas/check.py,refused: a text console the person did not choose is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a desktop when the person chose the console is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a job without the person's choice of what the computer starts at is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a start_at that is neither desktop nor console is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a completed conversion without the Wi-Fi hand-over record is refused (2026-09-27),selftest,,owed,2026-10-04
+schemas/check.py,refused: a completed conversion that left the Wi-Fi passwords on the stick is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a completed conversion without the end-of-install clock record is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a completed conversion without settle-in installed is refused (2026-09-27),selftest,,owed,2026-10-04
+schemas/check.py,refused: a handoff folder other than the one settle-in reads is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a job without the Windows licence facts is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a product key as its own field is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a product key hidden in the firmware key's description is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a product key in the reason is refused,selftest,,owed,2026-10-04
+schemas/check.py,"refused: a Windows version other than 10, 11 or unknown is refused",selftest,,owed,2026-10-04
+schemas/check.py,refused: a job without the clock facts is refused (2026-09-27),selftest,,owed,2026-10-04
+schemas/check.py,"refused: a real_time_is_universal other than 0, 1 or absent is refused, never guessed",selftest,,owed,2026-10-04
+schemas/check.py,refused: a Wi-Fi network with a password but no password file is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: an unsupported Wi-Fi network without the reason in plain words is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: an unsupported Wi-Fi network that claims a password file is refused,selftest,,owed,2026-10-04
+schemas/check.py,"refused: a Wi-Fi password as a field is refused (secrets are files, R13)",selftest,,owed,2026-10-04
+schemas/check.py,refused: the old single secrets_file shape is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: a completed conversion that does not say what it boots to is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: an erase consent with another sentence is refused,selftest,,owed,2026-10-04
+schemas/check.py,refused: an unknown stage name is refused,selftest,,owed,2026-10-04
+upgrade-scan.ps1,ARM laptop is an outright no,selftest,,owed,2026-10-04
+upgrade-scan.ps1,Intel VMD blocks the install,selftest,,owed,2026-10-04
+upgrade-scan.ps1,A failing drive is an outright no (Disk health fail is RED),selftest,,owed,2026-10-04
+upgrade-scan.ps1,"Adobe is a software problem, not a hardware one",selftest,,owed,2026-10-04
+upgrade-scan.ps1,Broadcom Wi-Fi is a hardware blocker,selftest,,owed,2026-10-04
+upgrade-scan.ps1,Old clean ThinkPad passes,selftest,,owed,2026-10-04
+upgrade-scan.ps1,Kernel requirement is the max across all checks,selftest,,owed,2026-10-04
+upgrade-scan.ps1,storage: VMD PCI ID fires (Tiger Lake 9a0b),selftest,,owed,2026-10-04
+upgrade-scan.ps1,storage: VMD managed child fires (09ab),selftest,,owed,2026-10-04
+upgrade-scan.ps1,storage: unknown VMD ID still fires via iaStorVD service,selftest,,owed,2026-10-04
+upgrade-scan.ps1,storage: pre-VMD RST RAID class fires via CC_0104 (iaStorAVC era),selftest,,owed,2026-10-04
+upgrade-scan.ps1,"storage: RST driver on AHCI-class controller warns, not fails",selftest,,owed,2026-10-04
+upgrade-scan.ps1,storage: standard NVMe passes (the G16 as seen 2026-08-22),selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: Secure Boot enabled is ok with distro note,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: Secure Boot disabled is ok,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: Secure Boot unreadable is info, not a guess",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"sbat: the Aspire (level 2025051000, grub,5) refuses the Fedora 42 GRUB (grub,3)",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"sbat: the same level allows the Fedora 44 GRUB (grub,5) and shim 16.1",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"sbat: the strictest source wins (Windows recorded 2024010900, the firmware holds 2025051000)",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"sbat: an older level (2024010900, grub,3) allows the Fedora 42 GRUB, as on 2026-09-26",selftest,,owed,2026-10-04
+upgrade-scan.ps1,sbat: an installed-system GRUB below the level fails even when the stick passes,selftest,,owed,2026-10-04
+upgrade-scan.ps1,sbat: a boot file with no SBAT data is treated as refused,selftest,,owed,2026-10-04
+upgrade-scan.ps1,sbat: Secure Boot off turns a refusal into a warning,selftest,,owed,2026-10-04
+upgrade-scan.ps1,sbat: Secure Boot unreadable is judged as on,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"releases: on the Aspire (grub,5; db 2011 only) Fedora 44 starts and Fedora 42 does not",selftest,,owed,2026-10-04
+upgrade-scan.ps1,releases: only Fedora 42 in the table on the Aspire is a fail (nothing can start),selftest,,owed,2026-10-04
+upgrade-scan.ps1,releases: a shim signed only under the 2023 authority does not start where db holds only 2011,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"releases: a release without an unattended installer is listed, never eligible",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"releases: an unreadable key list is unknown, not a pass",selftest,,owed,2026-10-04
+upgrade-scan.ps1,releases: with Secure Boot off every release with an installer starts,selftest,,owed,2026-10-04
+upgrade-scan.ps1,sbat: without the kit beside the scanner only the level is reported,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: resume - a personal machine with the scheduler running is ok,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: resume - a policy prohibiting task creation is warn,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: resume - a managed device is info, not a refusal",selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: resume - unreadable is info,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: disk with shrink headroom keeps Windows,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: too little shrink room warns toward clean slate,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam (R18): 0 GB with a repair queued is info saying the number is not trusted - never a warn toward clean slate,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam (R18): a number that already fits is trusted even with a repair queued,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam (R18, 2026-09-20): 0 GB pinned by hiberfil.sys is info naming the file - never a warn toward clean slate",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam (R18, 2026-09-20): 0 GB pinned by anything else still warns",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"pure (R18, 2026-09-20): defrag 259 parses; only hiberfil/pagefile/swapfile are mitigable; a 98 older than the last check is not fresh",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"volume health (R18, 2026-09-20): a clean volume whose 98 predates a completed check is ok, and says so",selftest,,owed,2026-10-04
+upgrade-scan.ps1,repair queued (R18): Full Repair Needed / NTFS 98 / neither / no data,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: unelevated shrink query says re-run as Administrator,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: elevated but unmeasurable shrink is info, not fail",selftest,,owed,2026-10-04
+upgrade-scan.ps1,diskpart: the real querymax line parses to the MB figure (17417 MB -> 17.0 GB),selftest,,owed,2026-10-04
+upgrade-scan.ps1,"diskpart: thousands separators in the MB figure are handled (1,234,567 MB)",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"diskpart: an error or localized output parses to null, never a number",selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: a diskpart-sourced number is labelled and keeps the Storage API reason,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: both measurement paths failing carries both reasons,selftest,,owed,2026-10-04
+upgrade-scan.ps1,fsutil: the real NOT Dirty line parses clean,selftest,,owed,2026-10-04
+upgrade-scan.ps1,fsutil: the flagged line parses dirty,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"fsutil: an error or localized line is unknown, never clean",selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: a Healthy physical disk is ok,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: a Warning disk warns and steers to clean slate,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: an Unhealthy disk fails (refuse; no override),selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: disk health that could not be read is unknown, not ok",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: an unrecognised health string is unknown, never ok",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: reliability counters ride along as facts, not verdicts",selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: a dirty volume warns and names chkdsk,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: a clean volume with a clean scan is ok,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: a clean flag but a scan that found errors still warns,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: unelevated volume health is info,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: unreadable volume flag is unknown, not ok",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: Get-Volume ""Full Repair Needed"" warns and names real damage, flag clear and cmdlet NoErrorsFound notwithstanding",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: the Chkdsk log's 'found problems' outranks the cmdlet's NoErrorsFound, and says so",selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: NTFS event 98 (needs a Full Chkdsk) warns on its own,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"chkdsk event: ""found problems"" with queued items parses; ""found no problems"" parses clean; localized is unknown",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"disk events: only the C: disk counts, Harddisk1 does not match Harddisk10, ids 7/51 tallied, others ignored",selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: bad-block events make a Healthy drive a fail (RED), naming the count",selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: SMART uncorrectable reads make a Healthy drive a fail even with no events,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: CRC errors alone are a warn that names the connector, not the flash",selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: paging errors on the C: disk are a warn,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: a Healthy drive with an empty error log and clean SMART is ok,selftest,,owed,2026-10-04
+upgrade-scan.ps1,smart: the 12-byte attribute layout parses ids and low-16 raw values,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: a shrink refused for volume errors points at Volume health,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: an unmeasurable shrink carries Windows own reason, not a guess",selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: an unmeasurable shrink never blames Fast Startup,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: unreadable C: is unknown and stops there,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: MBR at the four-partition limit warns,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: Fast Startup enabled warns,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: Fast Startup disabled is ok,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: Fast Startup unreadable stays silent,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: BitLocker without Administrator is unknown,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: encrypted volume warns with the recovery-key remedy,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: no encrypted volumes is ok,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: failed BitLocker query is unknown - possibly encrypted,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: ESP with room and the boot entry on it is ok,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: full ESP warns toward clean slate (the R21 gate),selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: boot entry on a different volume warns,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: unresolvable Windows boot entry is unknown, not a guess",selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: unelevated ESP check says re-run as Administrator,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: failed ESP query is unknown - promise nothing,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: F4 regression - real VS Community install must match,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: VS Code must NOT trip the Visual Studio rule,selftest,,owed,2026-10-04
+upgrade-scan.ps1,"seam: Adobe is a blocker, Steam is info",selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: empty app enumeration is unknown,selftest,,owed,2026-10-04
+upgrade-scan.ps1,seam: Windows 10 build gets the end-of-support note,selftest,,owed,2026-10-04
+upgrade-scan.ps1,corpus: Acer Aspire A515-51G (acer-aspire-a515-51g.json),corpus,,owed,2026-10-04
+upgrade-scan.ps1,corpus: ASUSTeK COMPUTER INC. ROG Zephyrus G16 GA605WV_GA605WV (asus-rog-zephyrus-g16-ga605wv.json),corpus,,owed,2026-10-04
+upgrade-scan.ps1,corpus: VM: QEMU q35 + spoofed Intel VMD 9a0b (synthetic) (vm-qemu-q35-vmd-spoof-9a0b.json),corpus,,owed,2026-10-04
+upgrade-scan.ps1,distro table: every kernel parses,selftest,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:2,physical,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:3,rig,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:4,rig,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:5,rig,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:6,rig,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:7,physical,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:8,physical,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:9,physical,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:10,physical,,owed,2026-10-04
+upgrade-scan.ps1,v1-live-boot.csv:4,physical,,owed,2026-10-04
