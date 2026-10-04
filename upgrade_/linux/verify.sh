@@ -30,7 +30,7 @@
 set -u
 JOB=${1:?job.json path}
 LABEL=${2:-UPGV0}
-VERIFY_VERSION=0.5.0
+VERIFY_VERSION=0.6.0   # 0.6.0 (2026-10-04, R35): the stick disarms itself at the commit line and never installs twice
 STICK=/run/install/repo
 REPORT=$STICK/upgrade_/report
 STORAGE_KS=/tmp/upgrade_-storage.ks
@@ -383,6 +383,12 @@ if [ "$MODE" = verify ]; then
     exit 0
 fi
 # install mode: the refusal is the exit code - %pre is --erroronfail
+# A stick that has crossed a commit line never installs again (RISKS R35). The
+# Aspire's run 10 (2026-10-04): after the install the firmware started the
+# stick again, boot-install was still on it, and it erased and installed a
+# second time and began a third countdown. grub.cfg hands a converted stick
+# straight to the computer's own system; this is the second lock.
+[ ! -e "$STICK/upgrade_/converted" ] || refuse 28 "this USB stick has already converted this computer, and it never installs twice. Take the stick out and restart" "the stick carries upgrade_/converted ($(head -c 200 "$STICK/upgrade_/converted" 2>/dev/null | tr '\n' ' ')) - refusing a second install (R35)"
 [ "$IDENTITY" = pass ] || refuse 20 "this USB stick was prepared for a different computer, or one of its drives has changed since" "IDENTITY MISMATCH - refusing to install on this machine"
 [ -f "$STORAGE_KS" ] || refuse 21 "the installer could not work out where to put Linux" "no storage include written"
 [ "$ESP_RESULT" != fail ] || refuse 22 "Windows' startup files were not where the preparation found them" "keep-windows needs the Windows ESP"
@@ -479,6 +485,11 @@ PYEOF
         printf '\033[2J\033[H\n\n   CANCELLED. Nothing was erased. Restarting into Windows...\n' > "$CTTY"
         echo "== countdown CANCELLED by a key press - nothing erased; restarting into Windows"
         countdown_record cancelled
+        # a cancelled stick is not left armed (R35): the next start of this stick must not count down again
+        mount -o remount,rw "$STICK" 2>/dev/null || true
+        rm -f "$STICK/upgrade_/boot-install" 2>/dev/null; sync
+        [ -e "$STICK/upgrade_/boot-install" ] && echo "!! boot-install could not be removed after the cancel" || echo "== boot-install removed from the stick"
+        cp "$LOG" "$REPORT/verify.log" 2>/dev/null; sync
         sleep 3
         systemctl reboot 2>/dev/null || reboot -f 2>/dev/null || { echo b > /proc/sysrq-trigger; }
         sleep 60
@@ -489,4 +500,20 @@ PYEOF
     countdown_record elapsed
     chvt 1 2>/dev/null || true
 fi
+
+# --- 5. the stick disarms itself at the commit line (RISKS R35, 2026-10-04) ------
+# From here the installer changes the drives. Before it does, the stick stops
+# saying "install" and says "converted": whatever the firmware starts next,
+# this stick never installs again by itself. If the stick cannot be changed,
+# nothing is erased (everything that can refuse refuses before the line).
+mount -o remount,rw "$STICK" 2>/dev/null || true
+printf 'verify %s job %s committed %s\n' "$VERIFY_VERSION" "$JOB_ID" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STICK/upgrade_/converted" 2>/dev/null
+rm -f "$STICK/upgrade_/boot-install" 2>/dev/null
+sync; sync
+if [ ! -s "$STICK/upgrade_/converted" ] || [ -e "$STICK/upgrade_/boot-install" ]; then
+    rm -f "$STICK/upgrade_/converted" 2>/dev/null
+    refuse 29 "this USB stick could not be switched off as an installer, and without that it could install again by itself" "could not write upgrade_/converted or remove upgrade_/boot-install on the stick - no install without a disarmed stick (R35)"
+fi
+echo "== the stick is disarmed: upgrade_/converted written, upgrade_/boot-install removed"
+cp "$LOG" "$REPORT/verify.log" 2>/dev/null; sync
 exit 0

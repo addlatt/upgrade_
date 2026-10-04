@@ -10,6 +10,9 @@ offline disk inspections v9-pre.json and v9-after-<X>.json.
   A refuse: verify.json identity=fail, no countdown.json, disks unchanged -> refused-before-countdown
   B cancel: countdown.json cancelled, outcome.json stopped at countdown and schema-valid,
             disks unchanged -> cancelled-untouched
+  D again:  after C, the stick first in the boot order and left in: the stick carries
+            'converted', no 'boot-install', no new countdown, disks unchanged, Linux booted
+            again -> not-installed-again (RISKS R35)
   C erase:  countdown.json elapsed, outcome.json completed + schema-valid with crossed_utc =
             the countdown's end, system disk = EFI + /boot + root, home disk = one Linux
             filesystem, first Linux boot marker: password fingerprint = the job's hash,
@@ -77,7 +80,20 @@ if boots.exists():
 
 # a re-run is named by its arm letter and a number (B3 = arm B again); judge it by the letter (2026-09-29)
 KIND = ARM[:1]
-if KIND == "A":
+if KIND == "D":
+    # the stick started again after a finished install (RISKS R35; the Aspire's run 10):
+    # it carries 'converted' and no 'boot-install', the countdown record is the install's own
+    # (no new countdown ran), both disks are byte-for-byte as before this start (v9-before-<ARM>
+    # vs v9-after-<ARM>), and Linux booted again (a second linux-boot line)
+    listing = (D / "stick-upgrade-dir.txt").read_text(errors="replace") if (D / "stick-upgrade-dir.txt").exists() else ""
+    conv = (D / "converted").exists(); armed = (D / "boot-install").exists() or "boot-install" in listing
+    before = load(A / ("v9-before-%s.json" % ARM)); unchanged = same(before, after)
+    nboots = len([l for l in open(boots, encoding="utf-8-sig", errors="replace") if l.startswith("linux-boot")]) if boots.exists() else 0
+    elapsed_at = (cd or {}).get("ended_utc"); same_cd = bool(elapsed_at) and (o or {}).get("commit_line", {}).get("crossed_utc") == elapsed_at
+    notes.append("stick: converted=%s boot-install=%s; countdown record still the install's=%s; linux boots=%d" % ("y" if conv else "n", "y" if armed else "n", "y" if same_cd else "n", nboots))
+    ok = conv and not armed and unchanged == "y" and same_cd and countdown == "elapsed" and nboots >= 2
+    result = "not-installed-again" if ok else "fail"
+elif KIND == "A":
     ok = identity == "fail" and countdown == "none" and unchanged == "y"
     result = "refused-before-countdown" if ok else "fail"
 elif KIND == "B":
