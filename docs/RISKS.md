@@ -3225,7 +3225,7 @@ release is rebuilt byte for byte from the source by someone else. A replay
 of recorded tool output closes the decision, never the firmware's
 behaviour: that part of a physical row takes the machine again.
 
-## R33: The walk-away way back to Windows · critical · open (decided 2026-09-29; nothing built)
+## R33: The walk-away way back to Windows · critical · open (decided 2026-09-29; built and rig `[###.]`; the Aspire's first real run 2026-10-03 reached Windows 11, `fail` on four defects, fixed 2026-10-03 and unfired)
 
 **What.** "Go back to Windows", 100% managed (decided 2026-09-29, the
 owner; `architecture.md`, "The way back to Windows", stage 2). From the
@@ -3448,7 +3448,25 @@ It is a `fail` row by the bar set for it, for four reasons, each in the row
 The no-name stick limitation recorded on 2026-10-02 is **weaker than first
 written**: this same stick did start the Aspire, through the firmware's own
 USB entry. What stands: it has no serial number, and starting from it was
-inconsistent (one "no usb boot option").
+inconsistent (one "no usb boot option"). Further evidence (2026-10-03): the
+old 8 GB kit stick that started this Aspire in V0 and run 9 is a "General
+UDisk" too, the same no-name family. So the limitation stands only as "no
+serial number; booting it was inconsistent once", not as "cannot boot".
+
+**The fixes on the rig (2026-10-03, not a row).** `walkaway prepare` (as root
+in WSL, `--image`, a made-up root describing the rig VM's disk and two
+spoofed saved networks), then the VM started from the stick: gate 0.2.0
+crossed, Setup installed, Windows signed in once by itself and its
+first-sign-in commands ran (`go-back-installed.txt` written, without
+SetupComplete.cmd), and at the sign-in Windows said "The user's password must
+be changed before signing in" (fix 2, plumbing). The Wi-Fi script ran and
+removed the profiles from the stick; Windows answered "The Wireless
+AutoConfig Service (wlansvc) is not running", expected on a VM without Wi-Fi
+hardware, so the script now starts that service and waits 5 s before adding
+(a real machine might not have it running yet at that moment). The job
+listed the enterprise network as not carried. Still owed on the Aspire: the
+profile actually added and Windows online at its first start, the program's
+own start from the stick through Boot2001, and a real cancel.
 
 **Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on
 and nobody at the keyboard, ending at the Windows sign-in; then one real
