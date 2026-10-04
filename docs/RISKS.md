@@ -3244,7 +3244,7 @@ release is rebuilt byte for byte from the source by someone else. A replay
 of recorded tool output closes the decision, never the firmware's
 behaviour: that part of a physical row takes the machine again.
 
-## R33: The walk-away way back to Windows · critical · open (decided 2026-09-29; built and rig `[###.]`; the Aspire's first real run 2026-10-03 reached Windows 11, `fail` on four defects, fixed 2026-10-03 and unfired)
+## R33: The walk-away way back to Windows · critical · open (decided 2026-09-29; the Aspire's first real run 2026-10-03 `fail` on four defects; its second, 2026-10-04, `windows-reached` with the time, Wi-Fi and SSH carried; a real cancel and a real never-twice still owed)
 
 **What.** "Go back to Windows", 100% managed (decided 2026-09-29, the
 owner; `architecture.md`, "The way back to Windows", stage 2). From the
@@ -3486,6 +3486,72 @@ hardware, so the script now starts that service and waits 5 s before adding
 listed the enterprise network as not carried. Still owed on the Aspire: the
 profile actually added and Windows online at its first start, the program's
 own start from the stick through Boot2001, and a real cancel.
+
+**2026-10-04: the time, remote access, and a gate that could erase twice.**
+Decided (the owner): the way back carries the time and remote access (SSH)
+too, as the forward conversion does. Built (settle-in 0.3.0, gate 0.3.0)
+and run on the rig the same day (`rig/hyperv/artifacts/v11w-2026-10-04/`;
+not rows: a rig cannot start the stick as the program does):
+
+- **A crossed job could be erased again.** Reading the gate after the
+  forward stick installed twice (R35) found the same fault here. A stick
+  started again after its line was refused, but the refusal overwrote the
+  record's `crossed` with `refused` and deleted the stick's Wi-Fi files. A
+  third start would have counted down and erased again, in the middle of
+  Windows Setup. It did not happen on 2026-10-03 only because the firmware
+  started Windows after Setup's restarts. Now the record keeps `crossed`,
+  the Wi-Fi files stay for the first sign-in, and the gate asks the
+  firmware for Windows' own boot manager once. Rig: the stick first in the
+  boot order after the install; the gate recorded `started_again`,
+  `handed_to_windows: true`, and Windows came up at the forced password
+  change.
+- **The clock.** Linux keeps the hardware clock in UTC; Windows reads it
+  as local time. A first design set the UTC in WinPE and was wrong twice
+  (WinPE keeps no daylight saving: 1 h; the answer file's TimeZone keeps
+  the wall time and shifts the UTC: 3 h more for Eastern). The lock screen
+  looked right only because Windows reached a time server; Windows' own
+  record of clock changes showed it. The fix: the gate, after the line,
+  writes the wall time of the person's zone (the UTC plus the offset Linux
+  worked out) to the hardware clock. Rig, network unplugged, hardware
+  clock in UTC, zone Eastern: the gate read 16:59:30, wrote 12:59:30; the
+  lock screen read 1:04 at 13:04 Eastern; Windows logged one change (the
+  zone, landing on the true UTC) and none when the network came back.
+- **Remote access.** Only if Linux's SSH server is enabled, only the
+  person's plain public keys. The first sign-in registers a SYSTEM task
+  that installs Windows' OpenSSH server once the network is up (it is a
+  download), writes the keys, turns password sign-in off and removes
+  itself. Rig: without a network the first try failed (0x8024402c) and it
+  tried again each minute; 8 minutes after the network came back the key
+  signed in from the host, and a password was refused.
+- **Not proven by the rig:** the Linux half (`prepare` reading the zone,
+  its offset and the keys) ran only in unit tests; its first real run is
+  the Aspire's.
+
+**The Aspire's second run (2026-10-04, `v11-walkaway.csv` line 3,
+`windows-reached`).** Fedora 44 to Windows 11 Home, nobody at the keyboard
+from "Restart now" to the sign-in. The four fixes of 2026-10-03 all fired:
+the program's own restart started the stick, the password was forced, Wi-Fi
+was online at the first start, progress was shown. The clock: the gate read
+18:26:55 UTC and wrote 11:26:55 Pacific; the lock screen was right and
+Windows logged no clock change afterwards. Remote access: the key signed in
+15 min after the first sign-in, a password was refused. Windows activated.
+What it found:
+
+- **The computer went to sleep during Prepare.** GNOME suspends after 15
+  idle minutes and nothing holds it awake; it sat until the owner touched
+  it. A walk-away step that stops when walked away from. Not fixed yet:
+  Prepare must hold a sleep inhibitor, and its timer must count wall time.
+- **The owner could not find "Go back to Windows".** GNOME's search did
+  not show it; the window was opened over SSH. A way back nobody can find
+  is not one click. Not fixed yet (a button in settle-in's window, an icon
+  in the dock, a note on the kit stick; the owner's call).
+- **Never-twice did not run.** The stick stayed in, but this time the
+  firmware started Windows after Setup's restarts. The gate's
+  `started_again` path is proven on the rig only.
+- **The cancel was not tested.** A cancel also deletes the stick's Wi-Fi
+  files, so a run after a cancel needs Prepare again.
+- SSH took 15 min to appear and nothing tells the person it is coming. The rig stick was last run's image with the new gate, job
+  and files put in.
 
 **Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on
 and nobody at the keyboard, ending at the Windows sign-in; then one real

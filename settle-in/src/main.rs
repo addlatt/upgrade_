@@ -467,9 +467,24 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
                 }
             };
             ok!("wifi", json!(wifi));
+            // the clock and remote access come along too (decided 2026-10-04)
+            let forward = read_json(&format!("{}/var/lib/upgrade_/job.json", root.trim_end_matches('/'))).ok();
+            let clock = walkaway::clock(root, forward.as_ref());
+            ok!("clock", clock.clone());
+            let ssh = match walkaway::carry_ssh(root, &opt("--linux-user").or_else(|| walkaway::person(root)).unwrap_or_default(), &tree) {
+                Ok(s) => s,
+                Err(e) => {
+                    let _ = std::fs::remove_dir_all(&tree);
+                    return stop(&mut steps, "ssh", e);
+                }
+            };
+            ok!("ssh", ssh.clone());
             let edition_name = goback::edition_name(&before, Some(&windows)).unwrap_or_else(|| format!("Windows {}", windows));
             let job_id = format!("go-back-{}", started.replace([':', '-'], ""));
             let job = walkaway::job(&job_id, &started, walkaway::SENTENCE, &windows, edition, &edition_name, &entry["language"].as_str().unwrap_or("en-us").to_string(), &account, &drives, &entry, &wifi);
+            let mut job = job;
+            job["clock"] = clock;
+            job["ssh"] = ssh;
             let job_path = format!("{}/upgrade_/go-back.json", tree);
             if let Err(e) = std::fs::write(&job_path, serde_json::to_string_pretty(&job).unwrap_or_default()) {
                 let _ = std::fs::remove_dir_all(&tree);

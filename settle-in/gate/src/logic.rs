@@ -113,6 +113,25 @@ pub fn account_ok(name: &str) -> bool {
         && !reserved.contains(&name.to_ascii_lowercase().as_str())
 }
 
+/// True when this stick's job has already crossed its commit line: Windows
+/// is being installed (or is installed) from it. Such a stick never counts
+/// down again, and its record is never overwritten: the gate's own refusal
+/// used to replace "crossed" with "refused", so a third start would have
+/// erased again, mid-install (found 2026-10-04, after the forward stick
+/// did the same on the Aspire: RISKS R35). Pure.
+pub fn already_crossed(job: &Value, previous: Option<&Value>) -> bool {
+    previous.map(|p| p["job_id"] == job["job_id"] && p["result"] == json!("crossed")).unwrap_or(false)
+}
+
+/// The screen for a stick started again after its line. DRAFT words.
+pub fn after_crossing_screen(handed_over: bool) -> String {
+    if handed_over {
+        "\n\n   Windows is already being installed on this computer.\n   This USB stick never erases twice.\n\n   Going on with Windows now. You can take the USB stick out.\n".into()
+    } else {
+        "\n\n   Windows is already being installed on this computer.\n   This USB stick never erases twice.\n\n   TAKE THE USB STICK OUT, then press any key.\n   (The computer restarts by itself in 60 seconds.)\n".into()
+    }
+}
+
 /// Check the job itself. Pure. Err = the reason, in words for the screen.
 pub fn check_job(job: &Value, previous: Option<&Value>) -> Result<(), String> {
     if job["schema"] != json!(SCHEMA) {
@@ -227,6 +246,11 @@ pub fn unattend(job: &Value, found: &[Found]) -> String {
         ));
     }
     let first = first_logon(job["account"]["name"].as_str().unwrap_or("user"));
+    // the time zone Linux was in, under Windows' name for it (2026-10-04); none known: Windows' default
+    let tz = match job["clock"]["windows_zone"].as_str() {
+        Some(z) if !z.is_empty() => format!("\n      <TimeZone>{}</TimeZone>", esc(z)),
+        _ => String::new(),
+    };
     format!(
         r#"<?xml version="1.0" encoding="utf-8"?>
 <!-- written by upgrade-gate {ver} for job {job_id}: the drives it found by serial and size -->
@@ -250,7 +274,7 @@ pub fn unattend(job: &Value, found: &[Found]) -> String {
     <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <InputLocale>{lang}</InputLocale><SystemLocale>{lang}</SystemLocale><UILanguage>{lang}</UILanguage><UserLocale>{lang}</UserLocale>
     </component>
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">{tz}
       <OOBE>
         <HideEULAPage>true</HideEULAPage><HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
         <HideOnlineAccountScreens>true</HideOnlineAccountScreens><HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
@@ -271,6 +295,56 @@ pub fn unattend(job: &Value, found: &[Found]) -> String {
         ver = crate::VERSION,
         job_id = esc(job["job_id"].as_str().unwrap_or("?")),
     )
+}
+
+/// The clock, after the commit line (2026-10-04). Linux keeps the hardware
+/// clock in UTC; Windows reads it as local time, so a new Windows would be
+/// hours off until it reached a time server. WinPE made the same reading,
+/// so what WinPE shows as local time IS the true UTC. The new Windows takes
+/// the hardware clock's reading as the wall time, and the answer file's
+/// TimeZone keeps that wall time (it shifts the UTC instead; rig,
+/// 2026-10-04: a first design that set the UTC here came out 1 h off for
+/// WinPE's lack of daylight saving and 3 h more for the zone). So the
+/// hardware clock must hold the wall time of the person's own zone:
+/// the true UTC plus the zone's offset, which Linux worked out.
+/// Returns that wall time, to set as WinPE's local time (Windows writes the
+/// hardware clock with it), or None when the hardware clock already holds
+/// local time or the job does not say. Pure.
+pub fn clock_fix(job: &Value, wall: &[u16; 6]) -> Option<[u16; 6]> {
+    if job["clock"]["rtc"].as_str() != Some("utc") {
+        return None;
+    }
+    let offset = job["clock"]["offset_seconds"].as_i64()?;
+    // a clock that was never set is not copied (WinPE without a battery clock starts in the past);
+    // an offset no zone has is not applied
+    if wall[0] < 2025 || offset.abs() > 15 * 3600 {
+        return None;
+    }
+    Some(from_unix(to_unix(wall) + offset))
+}
+
+/// Civil time <-> seconds since 1970 (proleptic Gregorian; Howard Hinnant's algorithms).
+fn to_unix(w: &[u16; 6]) -> i64 {
+    let (y, m, d) = (w[0] as i64 - if w[1] <= 2 { 1 } else { 0 }, w[1] as i64, w[2] as i64);
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (m + if m > 2 { -3 } else { 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    (era * 146097 + doe - 719468) * 86400 + w[3] as i64 * 3600 + w[4] as i64 * 60 + w[5] as i64
+}
+
+fn from_unix(t: i64) -> [u16; 6] {
+    let (days, rem) = (t.div_euclid(86400), t.rem_euclid(86400));
+    let z = days + 719468;
+    let era = z.div_euclid(146097);
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + if m <= 2 { 1 } else { 0 };
+    [y as u16, m as u16, d as u16, (rem / 3600) as u16, (rem % 3600 / 60) as u16, (rem % 60) as u16]
 }
 
 /// The commands Windows runs at the account's first (automatic) sign-in,
@@ -401,6 +475,40 @@ mod tests {
         let mut s = seen();
         s[2].serial = "EI8AN00951150A71I".into();
         assert!(find_drives(&job(), &s, None).unwrap_err().contains("more than one drive"));
+    }
+
+    #[test]
+    fn the_time_zone_goes_into_the_answer_file_only_when_known() {
+        let f = [Found { role: "system".into(), number: 0, model: "m".into(), size: 1, how: "serial" }];
+        let mut j = json!({ "job_id": "j", "windows": { "language": "en-US", "image_index": 1 }, "account": { "name": "a" }, "clock": { "windows_zone": "Eastern Standard Time", "rtc": "utc" } });
+        assert!(unattend(&j, &f).contains("<TimeZone>Eastern Standard Time</TimeZone>"));
+        j["clock"] = json!(null);
+        assert!(!unattend(&j, &f).contains("<TimeZone>"));
+    }
+
+    #[test]
+    fn a_crossed_job_stays_crossed() {
+        let job = json!({ "job_id": "j1" });
+        assert!(already_crossed(&job, Some(&json!({ "job_id": "j1", "result": "crossed" }))));
+        assert!(already_crossed(&job, Some(&json!({ "job_id": "j1", "result": "crossed", "started_again": ["t"] }))));
+        assert!(!already_crossed(&job, Some(&json!({ "job_id": "j1", "result": "cancelled" }))));
+        assert!(!already_crossed(&job, Some(&json!({ "job_id": "other", "result": "crossed" }))));
+        assert!(!already_crossed(&job, None));
+        assert!(after_crossing_screen(false).contains("TAKE THE USB STICK OUT"));
+    }
+
+    #[test]
+    fn the_clock_is_set_only_from_a_utc_hardware_clock() {
+        let w = [2026u16, 10, 4, 15, 0, 0];
+        // UTC 15:00 in New York's summer (-4 h) is 11:00 on the wall
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc", "offset_seconds": -14400 } }), &w), Some([2026, 10, 4, 11, 0, 0]));
+        // across midnight, a month end and a leap day
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc", "offset_seconds": -25200 } }), &[2026, 11, 1, 3, 30, 0]), Some([2026, 10, 31, 20, 30, 0]));
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc", "offset_seconds": 19800 } }), &[2028, 2, 28, 20, 0, 59]), Some([2028, 2, 29, 1, 30, 59]));
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "local", "offset_seconds": -14400 } }), &w), None);
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc" } }), &w), None);
+        assert_eq!(clock_fix(&json!({}), &w), None);
+        assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc", "offset_seconds": -14400 } }), &[2001, 1, 1, 0, 0, 0]), None);
     }
 
     #[test]

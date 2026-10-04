@@ -151,6 +151,25 @@ mod imp {
     pub fn reboot() {
         let _ = std::process::Command::new("wpeutil.exe").arg("reboot").status();
     }
+
+    /// The clock as WinPE shows it locally: [year, month, day, hour, minute, second].
+    /// WinPE read the hardware clock as local time at its start, so this is
+    /// the hardware clock's own reading.
+    pub fn local_wall() -> [u16; 6] {
+        use windows_sys::Win32::System::SystemInformation::GetLocalTime;
+        let mut t: windows_sys::Win32::Foundation::SYSTEMTIME = unsafe { std::mem::zeroed() };
+        unsafe { GetLocalTime(&mut t) };
+        [t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond]
+    }
+
+    /// Sets the local (wall) time. Windows keeps the hardware clock in local
+    /// time, so this is what the hardware clock then holds. True if Windows took it.
+    pub fn set_wall(w: &[u16; 6]) -> bool {
+        use windows_sys::Win32::System::SystemInformation::SetLocalTime;
+        let mut t: windows_sys::Win32::Foundation::SYSTEMTIME = unsafe { std::mem::zeroed() };
+        t.wYear = w[0]; t.wMonth = w[1]; t.wDay = w[2]; t.wHour = w[3]; t.wMinute = w[4]; t.wSecond = w[5];
+        unsafe { SetLocalTime(&t) != 0 }
+    }
 }
 
 #[cfg(not(windows))]
@@ -162,6 +181,8 @@ mod imp {
     pub fn key_within(ms: u32) -> bool { std::thread::sleep(std::time::Duration::from_millis(ms as u64)); false }
     pub fn clear() {}
     pub fn reboot() {}
+    pub fn local_wall() -> [u16; 6] { [1970, 1, 1, 0, 0, 0] }
+    pub fn set_wall(_: &[u16; 6]) -> bool { false }
 }
 
 pub use imp::*;

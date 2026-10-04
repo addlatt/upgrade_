@@ -133,6 +133,29 @@ fn run() -> i32 {
     if let Some(p) = &previous {
         rec["previous"] = json!({ "job_id": p["job_id"], "result": p["result"], "ended_utc": p["ended_utc"] });
     }
+    if logic::already_crossed(&job, previous.as_ref()) {
+        // Started again after the line (the firmware chose the stick during
+        // Setup's restarts, or it was left in). The record keeps "crossed":
+        // only a note is added. The Wi-Fi files stay for the first sign-in.
+        // Then Windows' own boot manager is asked for, once.
+        let mut p = previous.clone().unwrap_or_else(|| json!({}));
+        let mut again = p["started_again"].as_array().cloned().unwrap_or_default();
+        let st = std::process::Command::new("X:\\Windows\\System32\\bcdedit.exe").args(["/set", "{fwbootmgr}", "bootsequence", "{bootmgr}"]).status();
+        let handed = st.as_ref().map(|s| s.success()).unwrap_or(false);
+        again.push(json!({ "utc": now_utc(), "gate_version": VERSION, "handed_to_windows": handed }));
+        p["started_again"] = json!(again);
+        save(&rec_path, &p);
+        win::clear();
+        print!("{}", logic::after_crossing_screen(handed));
+        if handed {
+            std::thread::sleep(std::time::Duration::from_secs(8));
+        } else {
+            win::flush_keys();
+            win::key_within(60_000);
+        }
+        win::reboot();
+        return 4;
+    }
     if let Err(why) = logic::check_job(&job, previous.as_ref()) {
         return refuse_and_restart(Some(&rec_path), rec, &why);
     }
@@ -179,6 +202,14 @@ fn run() -> i32 {
     rec["result"] = json!("crossed");
     rec["countdown"] = json!({ "seconds": total, "elapsed_s": t0.elapsed().as_secs_f64() });
     rec["crossed_utc"] = json!(now_utc());
+    save(&rec_path, &rec);
+    // the clock (2026-10-04): only after the line, so a cancel leaves Linux's clock as it was
+    let wall = win::local_wall();
+    rec["clock"] = match logic::clock_fix(&job, &wall) {
+        Some(w) => json!({ "hardware_clock_read": format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", wall[0], wall[1], wall[2], wall[3], wall[4], wall[5]), "taken_as": "utc",
+                           "wall_time_set": format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", w[0], w[1], w[2], w[3], w[4], w[5]), "offset_seconds": job["clock"]["offset_seconds"], "set": win::set_wall(&w) }),
+        None => json!({ "set": false, "why": "the job does not say the hardware clock holds UTC, or names no offset, or the clock was never set" }),
+    };
     save(&rec_path, &rec);
     let xml = logic::unattend(&job, &found);
     let _ = std::fs::create_dir_all("X:\\upgrade_gate");
