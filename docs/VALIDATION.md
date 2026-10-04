@@ -957,6 +957,15 @@ Then the same on a real machine.
 
 **Pass.** The same file, byte for byte, passes 1-4 on all three.
 
+**V10 addition, remote access (decided 2026-10-04, the owner).** SSH is
+carried only if Windows had it on, public keys only. `[###.]` on the rig
+(settle-in-first-start.csv, rig run 17): with a spoofed "Windows had it on"
+key, the new Fedora 44 accepted that key over SSH from the host, refused a
+password (the server offered only public key), ran sshd enabled, and kept
+`~/.ssh` 700 and `authorized_keys` 600 owned by the person with the
+`ssh_home_t` label. The physical row is the Aspire's Part B, whose Windows
+has SSH on with one key (read-only check, 2026-10-04: `carried`, 1 key).
+
 ## V11: The way back to Windows (R30)
 
 Decided 2026-09-27 (the owner): after an erase or a reclaim, a program on
