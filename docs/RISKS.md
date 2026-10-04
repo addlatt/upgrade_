@@ -3569,7 +3569,7 @@ machines in the record, the installed system's files are checked too, and
 the Aspire's re-run boots the stick and the installed system with Secure
 Boot on.
 
-## R35: The stick installs again after the install · critical · open (found 2026-10-04 on the Aspire, run 10; fixed the same day, rig arm D added; a real machine owed)
+## R35: The stick installs again after the install · critical · open (found 2026-10-04 on the Aspire, run 10; fixed the same day, rig arm D `[###.]`; a real machine owed)
 
 **What.** The stick starts the installer whenever it carries the marker
 file `upgrade_/boot-install`. The Windows side removed that marker at every
@@ -3619,6 +3619,15 @@ is a second commit line nobody agreed to.
 - Rig arm D (`v9.sh stick-first`, verdict `not-installed-again`): after
   arm C, the stick first in the boot order and left in. The rig never
   tested this, which is why it passed and the Aspire did not.
+
+**Proven on the rig (2026-10-04, kit 89cc4f0).** `v9-erase.csv`: C4
+`erased-installed` (the stick wrote `converted` and removed
+`boot-install` at the line), then D `not-installed-again`: the stick first
+in the boot order and left in, GRUB handed over to the installed Fedora,
+no countdown, both disks byte for byte unchanged. The same stick and
+disks with Secure Boot on (VM `UPGRIGSB`, the third-party CA): Fedora
+booted through the stick again (a third boot line,
+`rig/hyperv/artifacts/v9/D-sb-f44/`).
 
 **Still open.**
 
