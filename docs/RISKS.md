@@ -3244,7 +3244,7 @@ release is rebuilt byte for byte from the source by someone else. A replay
 of recorded tool output closes the decision, never the firmware's
 behaviour: that part of a physical row takes the machine again.
 
-## R33: The walk-away way back to Windows · critical · open (decided 2026-09-29; built and rig `[###.]`; the Aspire's first real run 2026-10-03 reached Windows 11, `fail` on four defects, fixed 2026-10-03 and unfired)
+## R33: The walk-away way back to Windows · critical · open (decided 2026-09-29; the Aspire's first real run 2026-10-03 `fail` on four defects; its second, 2026-10-04, `windows-reached` with the time, Wi-Fi and SSH carried; a real cancel and a real never-twice still owed)
 
 **What.** "Go back to Windows", 100% managed (decided 2026-09-29, the
 owner; `architecture.md`, "The way back to Windows", stage 2). From the
@@ -3525,7 +3525,32 @@ not rows: a rig cannot start the stick as the program does):
   signed in from the host, and a password was refused.
 - **Not proven by the rig:** the Linux half (`prepare` reading the zone,
   its offset and the keys) ran only in unit tests; its first real run is
-  the Aspire's. The rig stick was last run's image with the new gate, job
+  the Aspire's.
+
+**The Aspire's second run (2026-10-04, `v11-walkaway.csv` line 3,
+`windows-reached`).** Fedora 44 to Windows 11 Home, nobody at the keyboard
+from "Restart now" to the sign-in. The four fixes of 2026-10-03 all fired:
+the program's own restart started the stick, the password was forced, Wi-Fi
+was online at the first start, progress was shown. The clock: the gate read
+18:26:55 UTC and wrote 11:26:55 Pacific; the lock screen was right and
+Windows logged no clock change afterwards. Remote access: the key signed in
+15 min after the first sign-in, a password was refused. Windows activated.
+What it found:
+
+- **The computer went to sleep during Prepare.** GNOME suspends after 15
+  idle minutes and nothing holds it awake; it sat until the owner touched
+  it. A walk-away step that stops when walked away from. Not fixed yet:
+  Prepare must hold a sleep inhibitor, and its timer must count wall time.
+- **The owner could not find "Go back to Windows".** GNOME's search did
+  not show it; the window was opened over SSH. A way back nobody can find
+  is not one click. Not fixed yet (a button in settle-in's window, an icon
+  in the dock, a note on the kit stick; the owner's call).
+- **Never-twice did not run.** The stick stayed in, but this time the
+  firmware started Windows after Setup's restarts. The gate's
+  `started_again` path is proven on the rig only.
+- **The cancel was not tested.** A cancel also deletes the stick's Wi-Fi
+  files, so a run after a cancel needs Prepare again.
+- SSH took 15 min to appear and nothing tells the person it is coming. The rig stick was last run's image with the new gate, job
   and files put in.
 
 **Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on
