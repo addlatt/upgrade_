@@ -7,10 +7,17 @@ wrote to the stick (validated against schemas/outcome.schema.json), the
 boot markers both OSes left on the stick (boots.log), and the V0 harness
 row. Never by hand.
 
-    v2-verdict.py <artifacts dir> <csv> <harness version> <firmware>
+    v2-verdict.py <artifacts dir> <csv> <harness version> <firmware> [--physical] [note]
+
+--physical: the evidence came from a real machine (rig/hyperv/physical/: the
+collectors' boot lines, and inspections of images assembled from the drive's
+first MiB and its ESP). A row that passes every check then reads "pass", not
+"pass-plumbing": a rig pass closes plumbing only (rule #5).
 """
 import csv, json, sys, datetime, pathlib
 A = pathlib.Path(sys.argv[1]); CSV = pathlib.Path(sys.argv[2]); HARNESS = sys.argv[3]; FIRMWARE = sys.argv[4]
+PHYSICAL = "--physical" in sys.argv[5:]; EXTRA = [x for x in sys.argv[5:] if x != "--physical"]
+PASS = "pass" if PHYSICAL else "pass-plumbing"
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 HEADER = ["timestamp", "harness", "firmware", "secureboot", "path", "desktop", "handoff_result", "install_done",
           "outcome_valid", "esp_size_mib", "esp_free_before", "esp_free_after", "esp_added_bytes", "bootmgfw_intact",
@@ -30,7 +37,7 @@ def load(p):
 pre, post, cyc = load("pre-install.json"), load("post-install.json"), load("post-cycles.json")
 outcome = load("outcome.json")
 verify = load("verify.json")
-notes = []
+notes = list(EXTRA[:1])
 v0 = None
 if (A / "v0-handoff.csv").exists():
     try:
@@ -117,7 +124,7 @@ elif wb < 1 or grub_win != "y": result = "windows-unbootable-via-grub"
 elif lb < 1: result = "linux-unbootable"
 elif fallback != "shim" or snap_files < 1: result = "fallback-loader-unrecorded"
 elif wb < 2 or lb < 2: result = "cycles-incomplete"
-else: result = "pass-plumbing"
+else: result = PASS
 
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), HARNESS, FIRMWARE, sb, path, desktop, handoff,
        install_done, outcome_valid, esp_size, free_b, free_a, added, bootmgfw_ok, ",".join(ms_changed) or "none", fallback, snap_files,
@@ -128,4 +135,4 @@ with open(CSV, "a", newline="", encoding="utf-8") as f:
     if new: w.writerow(HEADER)
     w.writerow(row)
 print(f"v2-verdict: {result} (install_done={install_done} outcome_valid={outcome_valid} bootmgfw={bootmgfw_ok} fallback={fallback} wb={wb} lb={lb}) -> {CSV}")
-sys.exit(0 if result == "pass-plumbing" else 1)
+sys.exit(0 if result == PASS else 1)
