@@ -11,9 +11,10 @@
 #   1. the two PowerShell self-tests and schemas/check.py (the originals)
 #   2. the recorded files are fresh: data/tables.json (from data/*.ps1),
 #      schemas/rust/tests/refused-cases.json (from check.py),
-#      evaluate/scan/tests/golden.json (from the PowerShell scanner)
+#      evaluate/scan/tests/golden.json (from the PowerShell scanner),
+#      upgrade_/kickstart/tests/golden.json (from New-Kickstart.ps1)
 #   3. every PowerShell self-test case has a Rust case under the same name
-#   4. cargo test in schemas/rust and evaluate/scan, and the differential
+#   4. cargo test in every Rust crate of the port, and the differential
 #      run against check.py
 #
 # powershell.exe is needed for the PowerShell parts (WSL on Windows). Without
@@ -48,6 +49,12 @@ if [ "$HAVE_PS" = 1 ]; then
 else
     skip "upgrade-scan.ps1 -SelfTest"; skip "Harvest-UpgradeState.ps1 -SelfTest"
 fi
+if [ "$HAVE_PS" = 1 ]; then
+    ps upgrade_/windows/New-Kickstart.ps1 -SelfTest > "$TMP/ks-selftest.txt" || true
+    if grep -q 'all checks passed' "$TMP/ks-selftest.txt"; then pass "New-Kickstart.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/ks-selftest.txt") cases)"; else fail "New-Kickstart.ps1 -SelfTest"; fi
+else
+    skip "New-Kickstart.ps1 -SelfTest"
+fi
 if python3 schemas/check.py --dump-cases "$TMP/refused-cases.json" --dump-mutations "$TMP/mutations.jsonl" > "$TMP/check.txt" 2>&1; then
     pass "schemas/check.py ($(grep -c '  PASS  ' "$TMP/check.txt") checks)"
 else fail "schemas/check.py"; fi
@@ -59,13 +66,16 @@ if [ "$HAVE_PS" = 1 ]; then
     fresh data/tables.json "$TMP/tables.json"
     ps evaluate/scan/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\golden.json" > /dev/null
     fresh evaluate/scan/tests/golden.json "$TMP/golden.json"
+    ps upgrade_/kickstart/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\ks-golden.json" > /dev/null
+    fresh upgrade_/kickstart/tests/golden.json "$TMP/ks-golden.json"
 else
+    skip "upgrade_/kickstart/tests/golden.json against New-Kickstart.ps1"
     skip "data/tables.json against data/*.ps1"; skip "evaluate/scan/tests/golden.json against the PowerShell scanner"
 fi
 
 say; say "  3. every self-test case has a Rust case"; say
-if [ "$HAVE_PS" = 1 ]; then
-    if python3 - "$TMP/scan-selftest.txt" evaluate/scan/tests/cases.json <<'PY'
+same_names() {  # $1 = the self-test's output, $2 = the crate's cases.json, $3 = what to call it
+    if python3 - "$1" "$2" <<'PY'
 import json, sys
 ran = {l.split('  PASS  ', 1)[1].rstrip('\n') for l in open(sys.argv[1], encoding='utf-8', errors='replace') if '  PASS  ' in l}
 ours = {c['name'] for c in json.load(open(sys.argv[2], encoding='utf-8')) if c['origin'] != 'port'} - {'distro table: every kernel parses'}
@@ -73,14 +83,18 @@ for n in sorted(ran - ours): print(f"          in the PowerShell self-test, not 
 for n in sorted(ours - ran): print(f"          in cases.json, not in the PowerShell self-test: {n}")
 sys.exit(1 if ran != ours else 0)
 PY
-    then pass "the PowerShell self-test's cases and cases.json name the same cases"
-    else fail "the PowerShell self-test and evaluate/scan/tests/cases.json disagree"; fi
+    then pass "$3: the PowerShell self-test and $2 name the same cases"
+    else fail "$3: the PowerShell self-test and $2 disagree"; fi
+}
+if [ "$HAVE_PS" = 1 ]; then
+    same_names "$TMP/scan-selftest.txt" evaluate/scan/tests/cases.json "scanner"
+    same_names "$TMP/ks-selftest.txt" upgrade_/kickstart/tests/cases.json "kickstart"
 else
     skip "self-test case names against cases.json"
 fi
 
 say; say "  4. the Rust side"; say
-for crate in schemas/rust evaluate/scan; do
+for crate in schemas/rust evaluate/scan upgrade_/kickstart; do
     if (cd "$crate" && cargo test --locked --quiet) > "$TMP/cargo.txt" 2>&1; then pass "cargo test in $crate"
     else fail "cargo test in $crate"; sed 's/^/          /' "$TMP/cargo.txt" | tail -40; fi
 done

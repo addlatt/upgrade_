@@ -362,7 +362,7 @@ data/            hardware + distro knowledge base; community PRs land here
   tables.json      the same three tables as JSON, for the Rust side (written by tools/export-tables.ps1, never edited)
 evaluate/windows/  scanner (upgrade-scan.ps1), harvester, job writer, stick writer
 evaluate/scan/     the scanner's judging half in Rust (reads no machine yet; held to the PowerShell word for word)
-upgrade_/          the converter: windows/ prologue, rollback, kickstart, launchers, the window (UPGRADE.exe, Rust), V0 handoff harness; linux/ %pre verify + outcome
+upgrade_/          the converter: kickstart/ the kickstart generator in Rust (held to New-Kickstart.ps1); windows/ prologue, rollback, kickstart, launchers, the window (UPGRADE.exe, Rust), V0 handoff harness; linux/ %pre verify + outcome
 settle-in/         first-boot verify + file pull + reclaim (nothing built)
 schemas/           job.json / outcome.json contracts (change rarely, review hard); rust/ reads them in Rust
 docs/              architecture.md, RISKS.md, VALIDATION.md, validation-results/

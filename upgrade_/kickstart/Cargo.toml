@@ -1,0 +1,13 @@
+[package]
+name = "upgrade-kickstart"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+
+# The kickstart generator in Rust: job.json -> ks.cfg (Fedora). RISKS R32,
+# docs/RUST-PORT.md step 4. upgrade_/windows/New-Kickstart.ps1 stays the
+# generator in use until its ledger lines all read `pass`.
+[dependencies]
+serde_json = "1"
+regress = "0.10"
+upgrade-schema = { path = "../../schemas/rust" }
