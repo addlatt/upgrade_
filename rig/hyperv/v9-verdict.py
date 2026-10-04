@@ -76,7 +76,8 @@ if boots.exists():
         elif want_console: gui_ok = "y" if f.get("default_target") == "multi-user.target" and f.get("display_manager") != "active" else "n"
         else: gui_ok = "y" if f.get("default_target") == "graphical.target" and f.get("display_manager") == "active" else "n"
         notes.append("first boot: default_target=%s display_manager=%s" % (f.get("default_target"), f.get("display_manager")))
-        notes.append("boot marker: user=%s home_disk=%s root_disk=%s" % (f.get("user"), f.get("home_disk"), f.get("root_disk")))
+        # a real person's account name never goes into a tracked row (the rig's account is "rig")
+        notes.append("boot marker: user=%s home_disk=%s root_disk=%s" % (f.get("user") if f.get("user") == "rig" else "<name>", f.get("home_disk"), f.get("root_disk")))
 
 # a re-run is named by its arm letter and a number (B3 = arm B again); judge it by the letter (2026-09-29)
 KIND = ARM[:1]

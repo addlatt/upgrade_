@@ -955,6 +955,19 @@ stick is put first in the boot order and left in, and the row passes
 `boot-install`, no new countdown ran, both disks are unchanged and Linux
 booted again.
 
+**The Aspire's physical run 11 (2026-10-04): the first clean conversion.**
+Four rows. C7 and D3 are the kit (aba09ec) re-proven on the rig before the
+run. Then the physical `erased-installed` row: one click, the stick left
+in, one install, the KDE sign-in. And the physical `not-installed-again`
+row: the owner restarted once with the stick in, and the stick handed over
+to Fedora again. A product stick has no bench marker, so the boot lines
+and each drive's partition table (its first MiB) were gathered over the
+carried SSH key with the marker's own commands
+(`rig/hyperv/artifacts/aspire-r27-2026-10-04-run11/`). On these two rows
+`disks_unchanged` compares the partition tables only, not whole drives.
+The verdict writes `<name>` in place of a real account name. The cancel
+arm was skipped by accident and its physical row is still owed.
+
 One row per arm, written by `rig/hyperv/v9-verdict.py` from the arm's own
 evidence (`rig/hyperv/v9.sh`; never by hand). The guest is a copy of the
 rig's install-day Windows disk plus a blank 64 GiB second disk.
@@ -993,6 +1006,14 @@ install had already moved the password off the stick. The clock was
 corrected at first start (the installer was 7 hours off) and remote access
 was carried. A product stick has no bench marker, so the evidence was
 gathered over SSH (`rig/hyperv/artifacts/aspire-r27-2026-10-04-run10b/`).
+
+**The first physical pass (2026-10-04, the Aspire's run 11, KDE).** One
+install, the stick left in: the clock corrected (the installer was 7 hours
+off), the one saved Wi-Fi network set up from the stick's file and
+connected by itself, the password deleted from the stick and the handoff
+folder, remote access carried, the conversion's own firmware entry
+removed, the window shown in front. `button` is `n/a`: the firmware had
+already rewritten the Windows entry, so nothing was offered.
 
 ## `port-parity.csv`: the parity ledger for the Rust port (gate V13, risk R32)
 
