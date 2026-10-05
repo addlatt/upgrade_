@@ -3616,6 +3616,30 @@ and nobody at the keyboard, ending at the Windows sign-in; then one real
 machine (the Aspire, run under R23 on its dying SSD first), with a physical
 cancel before the erase. VALIDATION V11, step 4.
 
+**The computer can fall asleep while the program works (found 2026-10-04,
+backlog).** During the Aspire's second way back the computer suspended in
+the middle of Prepare: GNOME's 15-minute idle sleep, and nothing held it
+awake. The same gap exists on the Windows side: the launchers and the
+prologue hold nothing either (R27, R18). On both trips since, the session
+at the bench held it awake by hand. **Decided (2026-10-05, the owner): the
+product keeps the computer awake while it works, on both sides. In the
+backlog, not built.** The plan:
+
+- **Linux** (`settle-in`'s window and "Go back to Windows"): a logind
+  inhibitor (the system's own "do not sleep" request) for sleep, idle and
+  the lid switch, held while work is running and released when it ends.
+- **Windows** (the launchers, the prologue, `UPGRADE.exe`):
+  `SetThreadExecutionState`, the Windows call that says the system is
+  needed, held for the life of the process. It stops idle sleep. It cannot
+  stop a closed lid, which follows the power plan, so the launcher says
+  "keep the lid open".
+- The installer and the countdown run from the stick with no power manager
+  and do not idle-sleep. Not confirmed by a test.
+
+It changes `settle-in` and the Windows scripts, so it needs a kit rebuild
+and a rig re-proof. Proof owed: a rig row with a 1-minute idle sleep set,
+and a real machine left alone through Prepare.
+
 ## R34: Secure Boot revokes the kit's boot files · critical · open (found 2026-10-03 on the Aspire, run 10; the scanner check and the release table built; the kit moved to Fedora 44; its closing clause met on the Aspire 2026-10-04; kept open for the next level, `grub,6`)
 
 **What.** Secure Boot keeps a revocation list for Linux boot programs, the

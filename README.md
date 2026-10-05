@@ -322,6 +322,7 @@ Give both a read before trusting any single check.
 - [ ] **6. Code signing.** This one just takes time, not code, so start now
 - [ ] **7. Rescue mode** for machines turned down because of their drive: copy off whatever can still be read, and check every copy
 - [ ] **8. Offer to delete Windows when it can't be kept** (planned 2026-09-26, R26)
+- [ ] **Keep the computer awake while it works**, on Windows and on Linux (decided 2026-10-05, R33). Today nothing stops it going to sleep halfway through; it happened once on the Acer
 
 ### After v1: more kinds of devices
 
