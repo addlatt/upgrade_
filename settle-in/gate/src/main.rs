@@ -60,21 +60,38 @@ fn load(p: &str) -> Option<Value> {
     std::fs::read_to_string(p).ok().and_then(|s| serde_json::from_str(s.trim_start_matches('\u{feff}')).ok())
 }
 
-fn save(p: &str, v: &Value) {
-    if let Ok(mut f) = std::fs::File::create(p) {
-        use std::io::Write;
-        let _ = f.write_all(serde_json::to_string_pretty(v).unwrap_or_default().as_bytes());
-        let _ = f.sync_all();
+/// Write the record and read it back. A write the stick silently dropped is
+/// what 0.3.0 could not see (the Aspire, 2026-10-05: a cancelled countdown left
+/// no record and the Wi-Fi file in place; nothing on screen said so).
+fn save(p: &str, v: &Value) -> Result<(), String> {
+    use std::io::Write;
+    let text = serde_json::to_string_pretty(v).unwrap_or_default();
+    let mut f = std::fs::File::create(p).map_err(|e| format!("create {}: {}", p, e))?;
+    f.write_all(text.as_bytes()).map_err(|e| format!("write {}: {}", p, e))?;
+    f.sync_all().map_err(|e| format!("sync {}: {}", p, e))?;
+    drop(f);
+    let back = std::fs::read_to_string(p).map_err(|e| format!("read back {}: {}", p, e))?;
+    if back != text {
+        return Err(format!("read back {}: the stick returned different bytes", p));
     }
+    Ok(())
 }
 
 /// The Wi-Fi passwords leave the stick at every stop (decided 2026-10-02).
+/// Checked afterwards: "removed" means the folder is gone.
 fn wipe_wifi(stick: &str) -> Value {
     let d = format!("{}\\upgrade_\\wifi", stick);
     if !std::path::Path::new(&d).exists() {
         return json!("none on the stick");
     }
-    json!(if std::fs::remove_dir_all(&d).is_ok() { "removed" } else { "NOT removed" })
+    let r = std::fs::remove_dir_all(&d);
+    if std::path::Path::new(&d).exists() {
+        return json!(format!("NOT removed ({})", r.err().map(|e| e.to_string()).unwrap_or_else(|| "still present after the removal".into())));
+    }
+    json!("removed")
+}
+fn wifi_gone(v: &Value) -> bool {
+    matches!(v.as_str(), Some("removed") | Some("none on the stick"))
 }
 
 fn refuse_and_restart(record_path: Option<&str>, mut rec: Value, why: &str) -> i32 {
@@ -85,11 +102,15 @@ fn refuse_and_restart(record_path: Option<&str>, mut rec: Value, why: &str) -> i
         rec["wifi_on_stick"] = wipe_wifi(&p[..2]);
     }
     rec["ended_utc"] = json!(now_utc());
+    let mut unsaved = None;
     if let Some(p) = record_path {
-        save(p, &rec);
+        unsaved = save(p, &rec).err();
     }
     win::clear();
     print!("{}", logic::refusal_screen(why));
+    if let Some(e) = unsaved {
+        print!("\n   (This reason could not be written to the USB stick: {}.)\n", e);
+    }
     win::flush_keys();
     win::key_within(60_000);
     win::reboot();
@@ -144,7 +165,7 @@ fn run() -> i32 {
         let handed = st.as_ref().map(|s| s.success()).unwrap_or(false);
         again.push(json!({ "utc": now_utc(), "gate_version": VERSION, "handed_to_windows": handed }));
         p["started_again"] = json!(again);
-        save(&rec_path, &p);
+        let _ = save(&rec_path, &p);   // a note only; the crossing itself is already recorded
         win::clear();
         print!("{}", logic::after_crossing_screen(handed));
         if handed {
@@ -172,6 +193,14 @@ fn run() -> i32 {
     };
     rec["found"] = found_json(&found);
 
+    // The stick must take a write before the countdown starts (0.3.1): the crossing
+    // is recorded there first, and a stick that cannot hold the record cannot be
+    // kept from erasing twice. Checked by reading the record back.
+    rec["result"] = json!("counting-down");
+    if let Err(e) = save(&rec_path, &rec) {
+        return refuse_and_restart(Some(&rec_path), rec, &format!("this USB stick did not keep what was written to it ({}), so it could not record a decision", e));
+    }
+
     // The countdown: the last exit (rule #3). Keys pressed before it do not count.
     win::flush_keys();
     let t0 = std::time::Instant::now();
@@ -189,10 +218,16 @@ fn run() -> i32 {
             rec["wifi_on_stick"] = wipe_wifi(&stick);
             rec["countdown"] = json!({ "seconds": total, "cancelled_after_s": t0.elapsed().as_secs_f64() });
             rec["ended_utc"] = json!(now_utc());
-            save(&rec_path, &rec);
+            let saved = save(&rec_path, &rec);
             win::clear();
-            print!("\n\n   CANCELLED. Nothing was erased. Restarting into Linux...\n");
-            std::thread::sleep(std::time::Duration::from_secs(3));
+            print!("{}", logic::cancelled_screen(saved.as_ref().err().map(String::as_str), wifi_gone(&rec["wifi_on_stick"]), rec["wifi_on_stick"].as_str().unwrap_or("?")));
+            if saved.is_err() || !wifi_gone(&rec["wifi_on_stick"]) {
+                // something to photograph: wait for a key, up to 10 minutes
+                win::flush_keys();
+                win::key_within(600_000);
+            } else {
+                std::thread::sleep(std::time::Duration::from_secs(3));
+            }
             win::reboot();
             return 1;
         }
@@ -202,7 +237,11 @@ fn run() -> i32 {
     rec["result"] = json!("crossed");
     rec["countdown"] = json!({ "seconds": total, "elapsed_s": t0.elapsed().as_secs_f64() });
     rec["crossed_utc"] = json!(now_utc());
-    save(&rec_path, &rec);
+    if let Err(e) = save(&rec_path, &rec) {
+        // never cross on a stick that does not hold the crossing: it could erase twice
+        rec["result"] = json!("refused");
+        return refuse_and_restart(Some(&rec_path), rec, &format!("this USB stick did not keep the record of the decision ({}); nothing was erased", e));
+    }
     // the clock (2026-10-04): only after the line, so a cancel leaves Linux's clock as it was
     let wall = win::local_wall();
     rec["clock"] = match logic::clock_fix(&job, &wall) {
@@ -210,7 +249,7 @@ fn run() -> i32 {
                            "wall_time_set": format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", w[0], w[1], w[2], w[3], w[4], w[5]), "offset_seconds": job["clock"]["offset_seconds"], "set": win::set_wall(&w) }),
         None => json!({ "set": false, "why": "the job does not say the hardware clock holds UTC, or names no offset, or the clock was never set" }),
     };
-    save(&rec_path, &rec);
+    let _ = save(&rec_path, &rec);
     let xml = logic::unattend(&job, &found);
     let _ = std::fs::create_dir_all("X:\\upgrade_gate");
     let _ = std::fs::write("X:\\upgrade_gate\\unattend.xml", &xml);
@@ -220,7 +259,7 @@ fn run() -> i32 {
     let st = std::process::Command::new("X:\\sources\\setup.exe").arg("/unattend:X:\\upgrade_gate\\unattend.xml").status();
     rec["setup_exit"] = json!(st.map(|s| s.code()).ok().flatten());
     rec["ended_utc"] = json!(now_utc());
-    save(&rec_path, &rec);
+    let _ = save(&rec_path, &rec);
     win::reboot();
     0
 }

@@ -378,6 +378,27 @@ pub fn countdown_screen(left: u64, found: &[Found]) -> String {
 }
 
 /// The refusal screen. DRAFT words.
+/// After a key cancelled the countdown: what was and was not written to the
+/// stick. A write that did not take is said in words, never hidden (0.3.1).
+pub fn cancelled_screen(record_error: Option<&str>, wifi_gone: bool, wifi_said: &str) -> String {
+    let mut s = String::from("\n\n   CANCELLED. Nothing was erased.\n");
+    match record_error {
+        None => s.push_str("   The record of this cancel is on the USB stick.\n"),
+        Some(e) => s.push_str(&format!("   !! The record of this cancel could NOT be written to the USB stick ({}).\n", e)),
+    }
+    if wifi_gone {
+        s.push_str("   The Wi-Fi passwords were removed from the stick.\n");
+    } else {
+        s.push_str(&format!("   !! The Wi-Fi passwords are STILL on the USB stick ({}). Delete upgrade_\\wifi from it yourself.\n", wifi_said));
+    }
+    if record_error.is_some() || !wifi_gone {
+        s.push_str("\n   Photograph this screen. Press any key to restart into Linux (or wait 10 minutes).\n");
+    } else {
+        s.push_str("\n   Restarting into Linux...\n");
+    }
+    s
+}
+
 pub fn refusal_screen(why: &str) -> String {
     format!(
         "\n\n   NOTHING WAS ERASED.\n\n   Going back to Windows stopped before changing anything, because\n   {}.\n\n   This computer restarts into Linux in a minute (or press any key).\n",
@@ -387,6 +408,14 @@ pub fn refusal_screen(why: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn cancelled_screen_says_what_did_not_take() {
+        let ok = super::cancelled_screen(None, true, "removed");
+        assert!(ok.contains("Nothing was erased") && ok.contains("record of this cancel is on") && !ok.contains("!!"));
+        let bad = super::cancelled_screen(Some("sync D:\\upgrade_\\go-back-gate.json: I/O error"), false, "NOT removed (I/O error)");
+        assert!(bad.contains("could NOT be written") && bad.contains("STILL on the USB stick") && bad.contains("Photograph"));
+    }
+
     use super::*;
 
     fn job() -> Value {
