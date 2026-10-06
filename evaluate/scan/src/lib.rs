@@ -9,6 +9,7 @@
 //! here: status, wording, order.
 
 pub mod check;
+pub mod collect;
 pub mod data;
 pub mod facts;
 pub mod hardware;

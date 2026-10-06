@@ -4,6 +4,8 @@
 //! the scanner, and this program is for comparing the two.
 //!
 //!   upgrade-scan --replay machine.json [--now 2026-10-04T10:00:00] [--json]
+//!   upgrade-scan --record [--out <folder>]          (Windows: read this machine, write a capture)
+//!   upgrade-scan --compare-facts rust.json powershell.json
 //!
 //! A capture made by tools/Record-Machine.ps1 also holds what the PowerShell
 //! scanner concluded from the same facts. Then the replay compares the two
@@ -80,6 +82,150 @@ fn compare(ps: &Value, machine: &Machine, outcome: &run::Outcome, now: Stamp) ->
     ExitCode::from(1)
 }
 
+/// Read this machine with the Rust collectors and write the capture, in the
+/// same shape as tools/Record-Machine.ps1 writes one.
+fn record(out: Option<String>) -> ExitCode {
+    let now = utc_now();
+    let c = upgrade_scan::collect::collect();
+    let doc = c.to_capture(env!("CARGO_PKG_VERSION"), &now.iso());
+    let model = doc.pointer("/Sys/Model").and_then(Value::as_str).unwrap_or("unknown");
+    let safe: String = model.chars().map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' }).collect::<String>().split('-').filter(|p| !p.is_empty()).collect::<Vec<_>>().join("-");
+    let dir = out.unwrap_or_else(|| "captures".to_string());
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        eprintln!("upgrade-scan: cannot make {dir}: {e}");
+        return ExitCode::from(2);
+    }
+    let path = format!("{dir}/upgrade-report-capture-rust-{safe}-{:04}{:02}{:02}-{:02}{:02}.json", now.year, now.month, now.day, now.hour, now.minute);
+    if let Err(e) = std::fs::write(&path, serde_json::to_string_pretty(&doc).unwrap_or_default() + "\n") {
+        eprintln!("upgrade-scan: cannot write {path}: {e}");
+        return ExitCode::from(2);
+    }
+    println!();
+    println!("  read: {}", c.facts.keys().cloned().collect::<Vec<_>>().join(", "));
+    println!("  not read by this build yet: {}", c.not_read.join(", "));
+    for e in &c.errors {
+        println!("  read error: {e}");
+    }
+    println!("  written: {path}");
+    println!("  It holds this machine's hardware facts and program list. Do not commit it.");
+    println!();
+    if c.errors.is_empty() { ExitCode::SUCCESS } else { ExitCode::from(1) }
+}
+
+/// Two captures of the same machine, the Rust collectors' and the
+/// PowerShell recorder's: fact by fact, are they the same?
+fn compare_facts(rust_path: &str, ps_path: &str) -> ExitCode {
+    let load = |p: &str| -> Result<Value, String> { serde_json::from_str(std::fs::read_to_string(p).map_err(|e| format!("{p}: {e}"))?.trim_start_matches('\u{feff}')).map_err(|e| format!("{p}: {e}")) };
+    let (rust, ps) = match (load(rust_path), load(ps_path)) {
+        (Ok(a), Ok(b)) => (a, b),
+        (Err(e), _) | (_, Err(e)) => {
+            eprintln!("upgrade-scan: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    let not_read: Vec<String> = rust["NotRead"].as_array().map(|l| l.iter().map(|x| x.as_str().unwrap_or("").to_string()).collect()).unwrap_or_default();
+    let mut different = 0;
+    println!();
+    println!("  Rust:       {}   ({})", rust_path, rust["Now"].as_str().unwrap_or(""));
+    println!("  PowerShell: {}   ({})", ps_path, ps["Now"].as_str().unwrap_or(""));
+    println!();
+    for name in upgrade_scan::collect::FACT_NAMES {
+        if let Some(n) = not_read.iter().find(|n| n.starts_with(name)) {
+            println!("    not read by Rust yet   {n}");
+            continue;
+        }
+        let diffs = fact_differences(name, &rust[name], &ps[name]);
+        if diffs.is_empty() {
+            println!("    SAME                   {name}{}", fact_size(&rust[name]));
+        } else {
+            different += 1;
+            println!("    DIFFERENT              {name} ({} differences; first {})", diffs.len(), diffs.len().min(5));
+            for d in diffs.iter().take(5) {
+                println!("      {d}");
+            }
+        }
+    }
+    println!();
+    if different == 0 {
+        println!("  every fact Rust read is what PowerShell read");
+        println!();
+        ExitCode::SUCCESS
+    } else {
+        println!("  {different} facts differ");
+        println!();
+        ExitCode::from(1)
+    }
+}
+
+fn fact_size(v: &Value) -> String {
+    match v {
+        Value::Array(l) => format!(" ({} items)", l.len()),
+        _ => String::new(),
+    }
+}
+
+fn same_value(a: &Value, b: &Value) -> bool {
+    match (a, b) {
+        (Value::Number(x), Value::Number(y)) => x.as_f64() == y.as_f64(),
+        (Value::Array(x), Value::Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(p, q)| same_value(p, q)),
+        (Value::Object(x), Value::Object(y)) => x.len() == y.len() && x.iter().all(|(k, p)| y.get(k).is_some_and(|q| same_value(p, q))),
+        _ => a == b,
+    }
+}
+
+/// The differences inside one fact. The device list compares device by
+/// device (by DeviceID), the program list as a set regardless of case and
+/// order, everything else value by value.
+fn fact_differences(name: &str, rust: &Value, ps: &Value) -> Vec<String> {
+    let mut out = Vec::new();
+    match name {
+        "Pnp" => {
+            let by_id = |v: &Value| -> std::collections::BTreeMap<String, Value> { v.as_array().into_iter().flatten().map(|d| (d["DeviceID"].as_str().unwrap_or("").to_string(), d.clone())).collect() };
+            let (r, p) = (by_id(rust), by_id(ps));
+            for id in r.keys().filter(|k| !p.contains_key(*k)) {
+                out.push(format!("only Rust saw {id}"));
+            }
+            for id in p.keys().filter(|k| !r.contains_key(*k)) {
+                out.push(format!("only PowerShell saw {id}"));
+            }
+            for (id, rd) in &r {
+                if let Some(pd) = p.get(id) {
+                    for field in ["Name", "PNPClass", "Service", "CompatibleID"] {
+                        if !same_value(&rd[field], &pd[field]) {
+                            out.push(format!("{id} {field}: Rust {} PowerShell {}", rd[field], pd[field]));
+                        }
+                    }
+                }
+            }
+        }
+        "Apps" => {
+            let set = |v: &Value| -> std::collections::BTreeSet<String> { v.as_array().into_iter().flatten().map(|x| x.as_str().unwrap_or("").to_lowercase()).collect() };
+            let (r, p) = (set(rust), set(ps));
+            out.extend(r.difference(&p).map(|x| format!("only Rust listed {x}")));
+            out.extend(p.difference(&r).map(|x| format!("only PowerShell listed {x}")));
+        }
+        _ => match (rust, ps) {
+            (Value::Object(r), Value::Object(p)) => {
+                let mut keys: Vec<&String> = r.keys().chain(p.keys()).collect();
+                keys.sort();
+                keys.dedup();
+                for k in keys {
+                    match (r.get(k), p.get(k)) {
+                        (Some(x), Some(y)) if same_value(x, y) => {}
+                        (x, y) => out.push(format!("{k}: Rust {} PowerShell {}", x.map_or("(absent)".to_string(), Value::to_string), y.map_or("(absent)".to_string(), Value::to_string))),
+                    }
+                }
+            }
+            (x, y) => {
+                if !same_value(x, y) {
+                    out.push(format!("Rust {x} PowerShell {y}"));
+                }
+            }
+        },
+    }
+    out
+}
+
 fn usage() -> ExitCode {
     eprintln!("upgrade-scan {} (Rust; follows scanner {FOLLOWS_SCANNER}; replays recordings, reads no live machine yet)", env!("CARGO_PKG_VERSION"));
     eprintln!("usage: upgrade-scan --replay <machine.json> [--now YYYY-MM-DDTHH:MM:SS] [--json]");
@@ -92,6 +238,13 @@ fn main() -> ExitCode {
     if args.iter().any(|a| a == "--version") {
         println!("upgrade-scan {} (Rust; follows scanner {FOLLOWS_SCANNER})", env!("CARGO_PKG_VERSION"));
         return ExitCode::SUCCESS;
+    }
+    if args.iter().any(|a| a == "--record") {
+        return record(value_of("--out"));
+    }
+    if let Some(i) = args.iter().position(|a| a == "--compare-facts") {
+        let (Some(a), Some(b)) = (args.get(i + 1), args.get(i + 2)) else { return usage() };
+        return compare_facts(a, b);
     }
     let Some(path) = value_of("--replay") else { return usage() };
     let text = match std::fs::read_to_string(&path) {

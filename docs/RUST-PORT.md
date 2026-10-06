@@ -29,7 +29,8 @@ Three docs already cover parts of this, and this page does not repeat them:
 | 2 | the scanner's judging half (`evaluate/scan`) | `[##..]` built, no program uses it yet | 103 of 103 self-test and corpus lines `pass`; 10 rig and physical lines `owed` |
 | 3a | the scanner's whole-scan order, its text report, a program that replays recordings | `[##..]` built | 6 whole scans match the PowerShell scanner's own main section, report line for line |
 | 3b | the harvester's pure half (`evaluate/harvest`) | `[##..]` built, no program uses it yet | 35 of 47 self-test lines `pass`; 12 `owed` (they need a real Windows filesystem); rig and physical rows `owed` |
-| 3c | the live reads (registry, WMI, event log, firmware, folder sizes) | `[#...]` planned | ledger lines not written |
+| 3c | the live reads: unprivileged half (system facts, device list, registry, installed programs) | `[####]` the G16, side by side: every fact Rust read equals what PowerShell read | `upgrade-scan --record` and `--compare-facts`, 2026-10-06 |
+| 3d | the live reads: elevated half (disks, shrink room, volume health, BitLocker, boot partition, firmware variables, event log, SMART, the stick's boot files) | `[#...]` planned | ledger lines not written |
 | 4a | the kickstart generator (`upgrade_/kickstart`) | `[##..]` built, no program uses it yet | 22 of 22 self-test lines `pass`; its rig and physical rows `owed` |
 | 4b | the job writer's judging half (`evaluate/job`) | `[##..]` built, no program uses it yet | 126 of 126 self-test lines `pass`; rig and physical rows `owed` |
 | 4c | the job writer's live half (the reads, the files it writes), the stick writer | `[#...]` planned | ledger lines not written |
@@ -273,6 +274,27 @@ judges a real machine's real facts as the PowerShell does. It does not
 prove the Rust can read them: that is items 3 and 4. The capture holds the
 machine's program list and is never committed (`.gitignore` covers its
 name).
+
+**The first live reads in Rust (2026-10-06).** `evaluate/scan/src/collect`
+reads a Windows machine through Microsoft's own bindings (the `windows`
+crate): WMI over COM for the system facts and the device list, the registry
+for Secure Boot, Fast Startup, the SBAT level and the installed programs.
+`upgrade-scan --record` writes a capture in the recorder's shape;
+`upgrade-scan --compare-facts rust.json powershell.json` compares two
+captures fact by fact. On the G16, not elevated, run within a minute of
+the PowerShell recorder: every fact Rust read is what PowerShell read. The
+system facts, all 253 devices with their classes, drivers and compatible
+IDs, Secure Boot, Fast Startup, and all 110 installed programs. One
+difference showed up and was fixed on the spot: `Get-CimInstance` gives
+dates in local time, and the Rust had kept the BIOS date in UTC.
+
+What this build does not read yet is named in the capture (`NotRead`) and
+in the comparison, never guessed: elevation, the firmware's own SBAT copy,
+the stick's boot files, the trusted keys, the resume facts, the disks,
+volume health, the physical disk, BitLocker, the boot partition. Those are
+step 3d. The build is `cargo zigbuild --release --target
+x86_64-pc-windows-gnu` in `evaluate/scan`; run the `.exe` from a Windows
+folder, not from `\\wsl.localhost`.
 
 Items 3 to 5 no longer wait on V0 and V9 (decided 2026-10-04, above).
 Item 4 needs a Windows machine; the G16 is the first.
