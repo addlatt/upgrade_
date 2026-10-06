@@ -65,7 +65,7 @@ A few words used all through this file:
 |---|---|---|
 | V0 boot handoff | `[####]` 1 vendor | Acer fired once, SB on. Dell, Lenovo, HP and the real-firmware fail-safe rows owed |
 | V1 unattended install | live boot `[####]`, install `[###.]` | physical live boot SB on (row 4); the physical install is owed |
-| V1b alongside install | `[###.]` | rig passes, SB off; physical SB-on install needs a machine other than the Aspire |
+| V1b alongside install | rig `[###.]`; real: installed 2026-10-06 on the Aspire (dying drive, R23), Windows intact, but the machine starts Windows with no menu; paused before the boot cycles, no row | the firmware's boot order question (R21, R22); then the healthy-drive row on another machine |
 | V2 amp firmware | `[....]` | experiment on the G16 not run |
 | V3 BitLocker read | `[###.]` | all three configs byte-identical via ntfs-3g; real disks owed |
 | V4 disks shrink | `[####]` 1 disk | the Aspire's answer is no (best 9.5 of 25 GB); the population count needs ~20 elevated reports |
@@ -365,6 +365,19 @@ back installs is new, so its disk may shrink where the old one could not
 evidence comes from `rig/hyperv/physical/`: the collectors' boot lines, and
 the offline inspector run on an image assembled from the drive's first MiB
 and its ESP. `v2-verdict.py --physical` writes `pass` for such a row.
+
+**2026-10-06: the first alongside install on a real machine, paused.** On
+the Aspire (its new Windows 11 Home, dying SSD under R23, Secure Boot on):
+the shrink, the handoff, the install beside Windows and the R21 checklist
+all passed, Windows is intact and its boot file unchanged, the owner's test
+file came through. But the firmware starts Windows with no menu (Fedora
+had been left first; Windows was first again at the next boot). The owner
+paused before the boot cycles, so there is no `v2-install.csv` row: the
+verdict's words need the cycles. The records are in
+`rig/hyperv/artifacts/v1b-aspire-2026-10-06/` (the before and after
+pictures from `rig/hyperv/physical/`, the stick's records, the stopped
+first attempt). Next: a one-time start to Fedora's entry and the F12 list,
+to tell "demoted" from "refused"; then the fix, then the cycles. RISKS R21.
 
 **VM leg fired (2026-08-27).** On the QEMU+OVMF rig (`rig/vm/v1b.sh`, SB
 off, the only mode this host can run): C: shrunk by 32 GiB, Fedora 42

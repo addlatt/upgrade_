@@ -2008,7 +2008,7 @@ of failure, in the feature most people will check first.
 browser and version pair, and `evaluate`'s claims are narrowed to what the
 evidence supports.
 
-## R21: Installing alongside a shrunk Windows may not leave Windows bootable · critical · open (VM leg fired 2026-08-27; the converter's own install fired 2026-09-10)
+## R21: Installing alongside a shrunk Windows may not leave Windows bootable · critical · open (VM leg fired 2026-08-27; the converter's own install fired 2026-09-10; first real install 2026-10-06 on the Aspire: Windows intact, but the firmware starts Windows with no menu; paused)
 
 **What.** The keep-Windows path (now the **default**) installs Linux into
 the freed space. It must leave the shrunk Windows fully bootable, because
@@ -2284,6 +2284,46 @@ It deletes nothing. 14 self-test cases. Rig row 1 (2026-09-12)
 loader back byte for byte, `{bootmgr}` first, a keyless start reached
 Windows, GPT and `EFI/fedora` untouched. The Linux-side twin comes with
 `settle-in`.
+
+**The first alongside install on a real machine (2026-10-06, the Aspire,
+Windows 11 Home 26200 on the dying SSD under R23, kit aba09ec with
+prologue 0.12.1, Secure Boot on). Paused by the owner before the boot
+cycles; no row yet.** What held, from the records
+(`rig/hyperv/artifacts/v1b-aspire-2026-10-06/`):
+
+- The prologue: no disk check needed, 187.9 GB shrinkable by both paths,
+  the shrink freed exactly the 25,600 MiB asked for, the handoff fired.
+- The installer: identity by serial, the ESP snapshot (149 files), Fedora
+  44 KDE installed into the gap, the ESP reused unformatted (+17 files,
+  19.9 MB, 244 MiB still free), `outcome.json` completed with the R21
+  checklist: Windows entry present, Fedora first in the boot order, GRUB
+  lists Windows, `bootmgfw.efi` byte for byte as before (checked again
+  from Windows afterwards with the offline inspector: only the three files
+  Windows rewrites itself changed), settle-in installed, the stick disarmed.
+- Windows afterwards: intact, 228.9 GB, the owner's test file on the
+  Desktop with the same checksum, Fedora's two partitions visible to it.
+
+What did not hold: **the computer starts Windows, with no menu.** The
+installer left Fedora first in the firmware's order; by the time Windows
+ran the prologue's return check, Windows Boot Manager was first again and
+Fedora fifth. A plain restart with the stick in went straight to Windows:
+no menu, and the stick was not started either. The person would never see
+Fedora. Who moved Windows back up is not known: the Insyde firmware or
+Windows' own boot manager (R22's question, now on real hardware). Not
+tried yet: a one-time start to Fedora's entry (the handoff's own
+mechanism) and the firmware's F12 list, which tell apart "demoted" from
+"refused". The owner paused there: the install is not a failure of the
+mechanism, and the next session picks up the order question.
+
+Also found on the way: the first attempt stopped at the shrink because the
+plan asked for an odd byte count (the files' margin) and Windows rounded
+the resize down by 170 bytes; the prologue put C: back and nothing was
+installed. Fixed the same hour (prologue 0.12.1: the request is a whole
+MiB). And this Windows reads "fully encrypted, protection off" (automatic
+device encryption waiting for a Microsoft account); the scanner calls that
+"BitLocker not enabled", which is true of protection and false of the
+bytes. The install did not touch C:, so it did not matter here; the file
+pull will have to know.
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · open
 
