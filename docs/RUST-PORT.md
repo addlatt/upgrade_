@@ -259,8 +259,11 @@ the PowerShell scanner's own main section with its own collectors on a
 live machine, read-only, and keeps each collector's answer and the report
 it printed in one file. `upgrade-scan --replay` on that file judges the
 same facts in Rust and compares. First run, the G16, not elevated: SAME,
-238 report lines and 25 checks, word for word. The elevated run (shrink
-room, BitLocker, the boot partition, SMART) is owed. This proves the Rust
+238 report lines and 25 checks, word for word. Second run, 2026-10-06, the
+G16 elevated: SAME, 218 report lines and 25 checks. That run read what the
+first could not: 76.5 GB of shrink room, BitLocker on for C:, 185.9 MiB
+free on the boot partition, the firmware's six trusted signing authorities,
+the drive's reliability counters. This proves the Rust
 judges a real machine's real facts as the PowerShell does. It does not
 prove the Rust can read them: that is items 3 and 4. The capture holds the
 machine's program list and is never committed (`.gitignore` covers its
