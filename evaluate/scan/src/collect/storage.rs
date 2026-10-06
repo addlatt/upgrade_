@@ -28,6 +28,16 @@ fn int(v: &Value) -> Option<i64> {
     num(v).map(|f| f as i64)
 }
 
+/// A number as JSON: whole numbers stay whole (`9028`, not `9028.0`), as
+/// PowerShell writes them.
+fn count(v: &Value) -> Value {
+    match num(v) {
+        Some(f) if f.fract() == 0.0 && f.abs() < 9.0e15 => json!(f as i64),
+        Some(f) => json!(f),
+        None => Value::Null,
+    }
+}
+
 fn text(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
@@ -175,10 +185,10 @@ pub fn disk_facts(is_admin: bool) -> Value {
         .unwrap_or_default()
         .into_iter()
         .filter(|d| bus_type(&d["BusType"]) != "File Backed Virtual")
-        .map(|d| json!({"Number": int(&d["Number"]), "FriendlyName": d["FriendlyName"], "Size": num(&d["Size"]), "PartitionStyle": partition_style(&d["PartitionStyle"]), "BusType": bus_type(&d["BusType"])}))
+        .map(|d| json!({"Number": int(&d["Number"]), "FriendlyName": d["FriendlyName"], "Size": count(&d["Size"]), "PartitionStyle": partition_style(&d["PartitionStyle"]), "BusType": bus_type(&d["BusType"])}))
         .collect();
     let volume = storage.as_ref().ok().and_then(|w| w.query_where("MSFT_Volume", &["Size", "SizeRemaining"], "DriveLetter='C'").ok()).and_then(|l| l.into_iter().next());
-    let sys_volume = volume.map(|v| json!({"Size": num(&v["Size"]), "SizeRemaining": num(&v["SizeRemaining"])}));
+    let sys_volume = volume.map(|v| json!({"Size": count(&v["Size"]), "SizeRemaining": count(&v["SizeRemaining"])}));
 
     // the gate for keeping Windows: the same query Disk Management uses.
     // When it fails, WHY is kept; no cause is guessed.
@@ -360,7 +370,7 @@ pub fn physical_disk_facts(is_admin: bool) -> Value {
     f["BusType"] = json!(bus_type(&p["BusType"]));
     f["HealthStatus"] = json!(health_status(&p["HealthStatus"]));
     f["OperationalStatus"] = json!(operational_status(&p["OperationalStatus"], false));
-    f["Size"] = json!(num(&p["Size"]));
+    f["Size"] = count(&p["Size"]);
     f["DiskEvents"] = disk_event_facts(number);
     f["Smart"] = smart_facts(number);
     if is_admin {
@@ -369,8 +379,8 @@ pub fn physical_disk_facts(is_admin: bool) -> Value {
         match storage.wql(&assoc, &["Temperature", "Wear", "ReadErrorsUncorrected", "WriteErrorsUncorrected", "ReadErrorsTotal", "PowerOnHours"]) {
             Ok(l) if !l.is_empty() => {
                 let c = &l[0];
-                f["Counters"] = json!({"Temperature": num(&c["Temperature"]), "Wear": num(&c["Wear"]), "ReadErrorsUncorrected": num(&c["ReadErrorsUncorrected"]),
-                                       "WriteErrorsUncorrected": num(&c["WriteErrorsUncorrected"]), "ReadErrorsTotal": num(&c["ReadErrorsTotal"]), "PowerOnHours": num(&c["PowerOnHours"])});
+                f["Counters"] = json!({"Temperature": count(&c["Temperature"]), "Wear": count(&c["Wear"]), "ReadErrorsUncorrected": count(&c["ReadErrorsUncorrected"]),
+                                       "WriteErrorsUncorrected": count(&c["WriteErrorsUncorrected"]), "ReadErrorsTotal": count(&c["ReadErrorsTotal"]), "PowerOnHours": count(&c["PowerOnHours"])});
             }
             Ok(_) => f["CountersError"] = json!("no reliability counters for the disk"),
             Err(e) => f["CountersError"] = json!(e),

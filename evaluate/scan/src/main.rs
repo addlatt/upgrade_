@@ -3,7 +3,7 @@
 //! docs/RUST-PORT.md. Until then `evaluate/windows/upgrade-scan.ps1` is
 //! the scanner, and this program is for comparing the two.
 //!
-//!   upgrade-scan --replay machine.json [--now 2026-10-04T10:00:00] [--json]
+//!   upgrade-scan --replay machine.json [--now 2026-10-04T10:00:00] [--json] [--against powershell.json]
 //!   upgrade-scan --record [--out <folder>] [--kit <stick root>]   (Windows: read this machine, write a capture)
 //!   upgrade-scan --compare-facts rust.json powershell.json
 //!
@@ -199,7 +199,7 @@ fn fact_differences(name: &str, rust: &Value, ps: &Value) -> Vec<String> {
     let mut out = Vec::new();
     // values that move by the minute: free space, a temperature, hours of
     // use. Two recorders a minute apart differ here without being wrong.
-    let drifts = |field: &str| matches!((name, field), ("Disk", "SysVolume") | ("Esp", "FreeBytes") | ("PhysicalDisk", "Counters"));
+    let drifts = |field: &str| matches!((name, field), ("Disk", "SysVolume") | ("Disk", "ShrinkGB") | ("Esp", "FreeBytes") | ("PhysicalDisk", "Counters"));
     let within = |a: &Value, b: &Value| -> bool {
         match (a, b) {
             (Value::Number(x), Value::Number(y)) => match (x.as_f64(), y.as_f64()) {
@@ -300,8 +300,30 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let powershell = doc.get("PowerShell").cloned();
-    let captured_now = doc.get("Now").and_then(Value::as_str).map(str::to_string);
+    let mut captured_now = doc.get("Now").and_then(Value::as_str).map(str::to_string);
+    // --against: the PowerShell scanner's conclusions from its own capture
+    // of the same machine, to compare with what Rust concludes from what
+    // Rust itself read
+    let mut powershell = doc.get("PowerShell").cloned();
+    if let Some(other) = value_of("--against") {
+        match std::fs::read_to_string(&other).map_err(|e| e.to_string()).and_then(|t| serde_json::from_str::<Value>(t.trim_start_matches('\u{feff}')).map_err(|e| e.to_string())) {
+            Ok(v) => {
+                powershell = v.get("PowerShell").cloned();
+                // the report's clock line comes from the PowerShell run being compared with
+                if let Some(n) = v.get("Now").and_then(Value::as_str) {
+                    captured_now = Some(n.to_string());
+                }
+            }
+            Err(e) => {
+                eprintln!("upgrade-scan: {other}: {e}");
+                return ExitCode::from(2);
+            }
+        }
+        if powershell.is_none() {
+            eprintln!("upgrade-scan: {other} holds no PowerShell block");
+            return ExitCode::from(2);
+        }
+    }
     let now = match value_of("--now").or(captured_now) {
         Some(text) => match Stamp::parse(&text) {
             Some(t) => t,

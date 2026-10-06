@@ -30,7 +30,8 @@ Three docs already cover parts of this, and this page does not repeat them:
 | 3a | the scanner's whole-scan order, its text report, a program that replays recordings | `[##..]` built | 6 whole scans match the PowerShell scanner's own main section, report line for line |
 | 3b | the harvester's pure half (`evaluate/harvest`) | `[##..]` built, no program uses it yet | 35 of 47 self-test lines `pass`; 12 `owed` (they need a real Windows filesystem); rig and physical rows `owed` |
 | 3c | the live reads: unprivileged half (system facts, device list, registry, installed programs) | `[####]` the G16, side by side: every fact Rust read equals what PowerShell read | `upgrade-scan --record` and `--compare-facts`, 2026-10-06 |
-| 3d | the live reads: elevated half (disks, shrink room, volume health, physical disk, BitLocker, boot partition, firmware variables and trusted keys, event log, SMART, the stick's boot files) | `[####]` the G16, elevated, side by side: every fact equal; the Aspire owed | 2026-10-06; the online scan (`Repair-Volume -Scan`) is the one read not built |
+| 3d | the live reads: elevated half (disks, shrink room, volume health, physical disk, BitLocker, boot partition, firmware variables and trusted keys, event log, SMART, the stick's boot files) | `[####]` the G16 and the Aspire, elevated, side by side: every fact equal | 2026-10-06; the online scan (`Repair-Volume -Scan`) is the one read not built |
+| 3e | the whole scanner in Rust, end to end: Rust reads the machine, Rust judges, the report is PowerShell's | `[####]` the G16, elevated: SAME, 218 lines, 25 checks | `upgrade-scan --replay rust.json --against powershell.json`, 2026-10-06; the Aspire owed |
 | 4a | the kickstart generator (`upgrade_/kickstart`) | `[##..]` built, no program uses it yet | 22 of 22 self-test lines `pass`; its rig and physical rows `owed` |
 | 4b | the job writer's judging half (`evaluate/job`) | `[##..]` built, no program uses it yet | 126 of 126 self-test lines `pass`; rig and physical rows `owed` |
 | 4c | the job writer's live half (the reads, the files it writes), the stick writer | `[#...]` planned | ledger lines not written |
@@ -322,8 +323,19 @@ Not built: the online scan (`Repair-Volume -Scan`), which the PowerShell
 runs only when the volume gives a reason (the dirty flag, a queued repair,
 a shrink refused for volume errors). The capture says so, and the Rust
 report would say the scan did not run. The Aspire's elevated side-by-side
-run is owed: it has the ATA SMART data and the drive history the G16 does
-not.
+run came the same evening, over SSH: every fact Rust read is what
+PowerShell read there too, including the ATA SMART block (748 uncorrectable
+reads, 7 reallocated), the nine trusted authorities in its firmware and the
+Storage API's 164.6 GB of shrink room. A second run on the Aspire caught
+the machine shutting down for the owner's test and is void.
+
+**End to end (2026-10-06, the G16).** `upgrade-scan --replay <Rust
+capture> --against <PowerShell capture>` judges what Rust itself read and
+compares the report with the one PowerShell made from its own reads, the
+two recorders run back to back, elevated: SAME, 218 report lines and 25
+checks, word for word. That is the scanner in Rust from the machine to the
+report, with one read (the online scan) still PowerShell's alone. The same
+run on the Aspire is owed.
 
 Items 3 to 5 no longer wait on V0 and V9 (decided 2026-10-04, above).
 Item 4 needs a Windows machine; the G16 is the first.
