@@ -31,7 +31,7 @@ Three docs already cover parts of this, and this page does not repeat them:
 | 3b | the harvester's pure half (`evaluate/harvest`) | `[##..]` built, no program uses it yet | 35 of 47 self-test lines `pass`; 12 `owed` (they need a real Windows filesystem); rig and physical rows `owed` |
 | 3c | the live reads: unprivileged half (system facts, device list, registry, installed programs) | `[####]` the G16, side by side: every fact Rust read equals what PowerShell read | `upgrade-scan --record` and `--compare-facts`, 2026-10-06 |
 | 3d | the live reads: elevated half (disks, shrink room, volume health, physical disk, BitLocker, boot partition, firmware variables and trusted keys, event log, SMART, the stick's boot files) | `[####]` the G16 and the Aspire, elevated, side by side: every fact equal | 2026-10-06; the online scan (`Repair-Volume -Scan`) is the one read not built |
-| 3e | the whole scanner in Rust, end to end: Rust reads the machine, Rust judges, the report is PowerShell's | `[####]` the G16, elevated: SAME, 218 lines, 25 checks | `upgrade-scan --replay rust.json --against powershell.json`, 2026-10-06; the Aspire owed |
+| 3e | the whole scanner in Rust, end to end: Rust reads the machine, Rust judges, the report is PowerShell's | `[####]` the G16 (SAME, 218 lines, 25 checks, YELLOW) and the Aspire (SAME, 166 lines, 26 checks, RED), both elevated | `upgrade-scan --replay rust.json --against powershell.json`, 2026-10-06 |
 | 4a | the kickstart generator (`upgrade_/kickstart`) | `[##..]` built, no program uses it yet | 22 of 22 self-test lines `pass`; its rig and physical rows `owed` |
 | 4b | the job writer's judging half (`evaluate/job`) | `[##..]` built, no program uses it yet | 126 of 126 self-test lines `pass`; rig and physical rows `owed` |
 | 4c | the job writer's live half (the reads, the files it writes), the stick writer | `[#...]` planned | ledger lines not written |
@@ -334,8 +334,9 @@ capture> --against <PowerShell capture>` judges what Rust itself read and
 compares the report with the one PowerShell made from its own reads, the
 two recorders run back to back, elevated: SAME, 218 report lines and 25
 checks, word for word. That is the scanner in Rust from the machine to the
-report, with one read (the online scan) still PowerShell's alone. The same
-run on the Aspire is owed.
+report, with one read (the online scan) still PowerShell's alone. The
+Aspire followed the same evening, elevated over SSH: SAME, 166 report lines
+and 26 checks, verdict RED on both sides, from SMART that Rust read itself.
 
 Items 3 to 5 no longer wait on V0 and V9 (decided 2026-10-04, above).
 Item 4 needs a Windows machine; the G16 is the first.
