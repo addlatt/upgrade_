@@ -65,7 +65,7 @@ A few words used all through this file:
 |---|---|---|
 | V0 boot handoff | `[####]` 1 vendor | Acer fired once, SB on. Dell, Lenovo, HP and the real-firmware fail-safe rows owed |
 | V1 unattended install | live boot `[####]`, install `[###.]` | physical live boot SB on (row 4); the physical install is owed |
-| V1b alongside install | `[###.]` | rig passes, SB off; physical SB-on install needs a machine other than the Aspire |
+| V1b alongside install | rig `[###.]`; real: installed 2026-10-06 on the Aspire (dying drive, R23), Windows intact, but the machine starts Windows with no menu; paused before the boot cycles, no row | the firmware's boot order question (R21, R22); then the healthy-drive row on another machine |
 | V2 amp firmware | `[....]` | experiment on the G16 not run |
 | V3 BitLocker read | `[###.]` | all three configs byte-identical via ntfs-3g; real disks owed |
 | V4 disks shrink | `[####]` 1 disk | the Aspire's answer is no (best 9.5 of 25 GB); the population count needs ~20 elevated reports |
@@ -340,6 +340,44 @@ prologue's own run (`v2-install.csv` row 4, `pass-plumbing`;
 `r18-prologue.csv` row 4). That is the conversion end to end from the one
 typed word: disk check → shrink → handoff → install → cycles. The restore
 half of the snapshot also fired (`r21-rollback.csv` row 1).
+
+**2026-10-04: re-proven on the rig with today's kit, before the Aspire's
+own attempt.** The keep-Windows path had last run end to end on 2026-09-13,
+on Fedora 42 and prologue 0.3.0. Kit aba09ec (Fedora 44, prologue 0.12.0,
+`verify.sh` 0.6.0) ran it again: shrink, handoff, install beside Windows,
+Windows through GRUB twice, Fedora twice, `bootmgfw.efi` unchanged
+(`v2-install.csv`, `pass-plumbing`, Secure Boot off). Two things came out
+of getting there:
+
+- The rig's stand-in job always said "no repair queued". With the dirty
+  flag injected, Windows queued a repair, and the prologue rightly refused
+  the job. The stand-in now reads the guest's real state.
+- Two rig runs overlapped on one VM by a mistake in the driving shell, and
+  wrote four rows that could not be trusted. They were dropped before any
+  commit, and the run was repeated with one driver. Only that row is kept.
+
+**Decided (2026-10-04, the owner): try keep-Windows on the Aspire itself
+(option C).** Its SSD is dying, so it runs under R23, and a pass is evidence
+for the mechanism on real firmware with Secure Boot on. It is not the
+healthy-drive row, which still needs another machine. The Windows the way
+back installs is new, so its disk may shrink where the old one could not
+(R18); only a re-measure says. A real machine has no bench marker, so the
+evidence comes from `rig/hyperv/physical/`: the collectors' boot lines, and
+the offline inspector run on an image assembled from the drive's first MiB
+and its ESP. `v2-verdict.py --physical` writes `pass` for such a row.
+
+**2026-10-06: the first alongside install on a real machine, paused.** On
+the Aspire (its new Windows 11 Home, dying SSD under R23, Secure Boot on):
+the shrink, the handoff, the install beside Windows and the R21 checklist
+all passed, Windows is intact and its boot file unchanged, the owner's test
+file came through. But the firmware starts Windows with no menu (Fedora
+had been left first; Windows was first again at the next boot). The owner
+paused before the boot cycles, so there is no `v2-install.csv` row: the
+verdict's words need the cycles. The records are in
+`rig/hyperv/artifacts/v1b-aspire-2026-10-06/` (the before and after
+pictures from `rig/hyperv/physical/`, the stick's records, the stopped
+first attempt). Next: a one-time start to Fedora's entry and the F12 list,
+to tell "demoted" from "refused"; then the fix, then the cycles. RISKS R21.
 
 **VM leg fired (2026-08-27).** On the QEMU+OVMF rig (`rig/vm/v1b.sh`, SB
 off, the only mode this host can run): C: shrunk by 32 GiB, Fedora 42

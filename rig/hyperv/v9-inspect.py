@@ -20,6 +20,9 @@ disks = {"system": sys.argv[3], "home": sys.argv[4]}
 res = {"label": label, "disks": {}}
 with tempfile.TemporaryDirectory() as tmp:
     for role, img in disks.items():
+        if img == "-":          # no image of this disk (a real machine's before picture may lack one)
+            res["disks"][role] = None
+            continue
         head = os.path.join(tmp, "head-%s.raw" % role)
         v1b.qdd(img, head, 0, 1 << 20, 1 << 20)
         first = hashlib.sha256(open(head, "rb").read()).hexdigest()
@@ -29,5 +32,7 @@ with tempfile.TemporaryDirectory() as tmp:
 outdir.mkdir(parents=True, exist_ok=True)
 json.dump(res, open(outdir / ("v9-%s.json" % label), "w"), indent=2)
 for role, d in res["disks"].items():
+    if d is None:
+        print("v9-inspect %s %s: no image" % (label, role)); continue
     parts = d["gpt"]["partitions"] if d["gpt"] else []
     print("v9-inspect %s %s: %s" % (label, role, ", ".join("%s %s MiB" % (p["type"], p["size_mib"]) for p in parts) or "no GPT (first MiB %s)" % d["first_mib_sha256"][:12]))

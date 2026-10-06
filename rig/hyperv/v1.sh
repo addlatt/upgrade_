@@ -129,7 +129,11 @@ $shrink=$null; try { $s=Get-PartitionSupportedSize -DriveLetter C -ErrorAction S
 $pd=Get-PhysicalDisk | Where-Object { "$($_.DeviceId)" -eq "$($d.Number)" } | Select-Object -First 1
 $stick=Get-Volume -FileSystemLabel UPGV0 -ErrorAction SilentlyContinue | Get-Partition -ErrorAction SilentlyContinue | Get-Disk -ErrorAction SilentlyContinue | Select-Object -First 1
 $dirty="unknown"; $dq=(fsutil dirty query C: 2>&1) -join " "; if ($dq -match "is NOT Dirty") { $dirty="clean" } elseif ($dq -match "is Dirty") { $dirty="dirty" }
-[pscustomobject]@{vendor=$cs.Manufacturer; model=$cs.Model; uuid="$($sys.UUID)"; bios_serial="$($bios.SerialNumber)"; bios_version="$($bios.SMBIOSBIOSVersion)"; os=$os.Caption; build=[int]$os.BuildNumber; sb=$sb; bitlocker=$bl; shrink_gb=$shrink; health="$($pd.HealthStatus)"; dirty=$dirty
+# a repair Windows has queued (R18, the second trigger, 2026-09-17): the status of the volume, or a recent NTFS event 98 asking for a full chkdsk.
+# The prologue re-reads this and refuses a job that says otherwise (seen 2026-10-04: the injected dirty flag made Windows queue one)
+$rq=$false; try { if ((@((Get-Volume -DriveLetter C).OperationalStatus) -join ",") -match "Full Repair Needed") { $rq=$true } } catch { }
+try { if (@(Get-WinEvent -FilterHashtable @{ LogName="System"; Id=98; StartTime=(Get-Date).AddDays(-30) } -ErrorAction SilentlyContinue | Where-Object { "$($_.ProviderName)" -match "Ntfs" -and "$($_.Message)" -match "(?i)Full Chkdsk" -and "$($_.Message)" -match "(?i)Volume C:" }).Count) { $rq=$true } } catch { }
+[pscustomobject]@{vendor=$cs.Manufacturer; model=$cs.Model; uuid="$($sys.UUID)"; bios_serial="$($bios.SerialNumber)"; bios_version="$($bios.SMBIOSBIOSVersion)"; os=$os.Caption; build=[int]$os.BuildNumber; sb=$sb; bitlocker=$bl; shrink_gb=$shrink; repair_queued=$rq; health="$($pd.HealthStatus)"; dirty=$dirty
   disk=@{number=$d.Number; serial=("$($d.SerialNumber)" -replace "\s",""); unique_id="$($d.UniqueId)"; size=[long]$d.Size; style="$($d.PartitionStyle)"; name="$($d.FriendlyName)"}
   esp=@{size=[long]$esp.Size; free=[long]$(if ($espVol) { $espVol.SizeRemaining } else { 0 })}
   stick=@{unique_id="$($stick.UniqueId)"; size=[long]$stick.Size}} | ConvertTo-Json -Depth 4' > "$A/facts.json"

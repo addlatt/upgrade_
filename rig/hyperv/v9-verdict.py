@@ -43,8 +43,15 @@ def gpt_summary(ins, role):
     if not g: return "none"
     return "+".join("%s:%sMiB" % (p["type"].replace(" ", "_"), int(p["size_mib"])) for p in g["partitions"]) or "empty"
 def same(a, b):
+    # a real machine's before picture may hold only some disks (v9-inspect "-"): then only those
+    # are compared, the column says which, and the system disk must be among them
     if not a or not b: return "n/a"
-    return "y" if all(a["disks"][r] == b["disks"][r] for r in ("system", "home")) else "n"
+    roles = [r for r in ("system", "home") if a["disks"].get(r) and b["disks"].get(r)]
+    if "system" not in roles: return "n/a"
+    def bytes_of(d): return (d.get("first_mib_sha256"), d.get("gpt"))   # the disk itself, not the image file's name
+    v = "y" if all(bytes_of(a["disks"][r]) == bytes_of(b["disks"][r]) for r in roles) else "n"
+    missing = [r for r in ("system", "home") if r not in roles]
+    return v if not missing else "%s (%s only; no before image of the %s disk)" % (v, "+".join(roles), "+".join(missing))
 
 notes = [sys.argv[5]] if len(sys.argv) > 5 else []
 v = load(D / "verify.json"); cd = load(D / "countdown.json"); o = load(D / "outcome.json"); job = load(D / "job.json") or load(A / "job.json")
@@ -92,13 +99,13 @@ if KIND == "D":
     nboots = len([l for l in open(boots, encoding="utf-8-sig", errors="replace") if l.startswith("linux-boot")]) if boots.exists() else 0
     elapsed_at = (cd or {}).get("ended_utc"); same_cd = bool(elapsed_at) and (o or {}).get("commit_line", {}).get("crossed_utc") == elapsed_at
     notes.append("stick: converted=%s boot-install=%s; countdown record still the install's=%s; linux boots=%d" % ("y" if conv else "n", "y" if armed else "n", "y" if same_cd else "n", nboots))
-    ok = conv and not armed and unchanged == "y" and same_cd and countdown == "elapsed" and nboots >= 2
+    ok = conv and not armed and unchanged.startswith("y") and same_cd and countdown == "elapsed" and nboots >= 2
     result = "not-installed-again" if ok else "fail"
 elif KIND == "A":
-    ok = identity == "fail" and countdown == "none" and unchanged == "y"
+    ok = identity == "fail" and countdown == "none" and unchanged.startswith("y")
     result = "refused-before-countdown" if ok else "fail"
 elif KIND == "B":
-    ok = countdown == "cancelled" and status == "stopped" and stopped_at == "countdown" and ov == "y" and unchanged == "y"
+    ok = countdown == "cancelled" and status == "stopped" and stopped_at == "countdown" and ov == "y" and unchanged.startswith("y")
     result = "cancelled-untouched" if ok else "fail"
 else:
     elapsed_at = (cd or {}).get("ended_utc")
