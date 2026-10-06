@@ -286,7 +286,9 @@ the PowerShell recorder: every fact Rust read is what PowerShell read. The
 system facts, all 253 devices with their classes, drivers and compatible
 IDs, Secure Boot, Fast Startup, and all 110 installed programs. One
 difference showed up and was fixed on the spot: `Get-CimInstance` gives
-dates in local time, and the Rust had kept the BIOS date in UTC.
+dates in local time, and the Rust had kept the BIOS date in UTC. The same
+evening on the Aspire, over SSH (elevated; the reads need no privilege):
+SAME again, 131 devices and 13 programs. Two machines, no difference.
 
 What this build does not read yet is named in the capture (`NotRead`) and
 in the comparison, never guessed: elevation, the firmware's own SBAT copy,
