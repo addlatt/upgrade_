@@ -3616,6 +3616,40 @@ and nobody at the keyboard, ending at the Windows sign-in; then one real
 machine (the Aspire, run under R23 on its dying SSD first), with a physical
 cancel before the erase. VALIDATION V11, step 4.
 
+**The first real cancel (2026-10-05, `v11-walkaway.csv` line 4,
+`cancelled-untouched`).** From Fedora 44 KDE, gate 0.3.1: the countdown, the
+owner's key at 23 s, "CANCELLED. Nothing was erased.", Fedora back by itself,
+both drives' partition tables byte for byte as before, the record on the
+stick, the Wi-Fi file gone from it. It took two attempts, and the first one
+found a hole:
+
+- **Gate 0.3.0 lost its writes and said nothing.** The first attempt showed
+  the same countdown, cancelled on a key, and came back to Fedora untouched.
+  But the stick held no record of it, and the Wi-Fi password was still on
+  it. The stick was healthy and writable; no second copy of the files
+  existed. The gate's `save` ignored every error, so nothing on screen said
+  so. The same save records the crossing: had it been lost there, the stick
+  would not have known it had erased, and could have erased twice. The cause
+  of the lost writes is not found. **Fixed (gate 0.3.1, the same day):** every
+  write is read back; the record is written and checked before the countdown
+  (a stick that keeps nothing is refused); the line is never crossed on a
+  stick that did not keep the record; a cancel says on screen whether the
+  record and the Wi-Fi removal took, and waits for a key when they did not.
+  Evidence: `rig/hyperv/artifacts/aspire-r33-2026-10-05-cancel/`.
+- **The firmware did not see the stick once more.** After the second
+  Prepare the program's own one-time USB start met "no bootable device" and
+  fell through to Fedora; the stick's files were complete. The second
+  inconsistency with this no-serial "General UDisk" family. The row's start
+  was then a tester step: the program's own command (`BootNext` to the
+  firmware's USB entry), run by hand over SSH.
+- **One stale firmware entry per Prepare.** Each Prepare adds an "upgrade_
+  go back to Windows" entry and nothing removes the old ones: three now.
+- **The gate's clock reads 8 h ahead** (WinPE takes the hardware clock as
+  local), as known; the record's times are off by that.
+
+Still owed: a cancel started by the program's own restart, and the
+never-twice path on real firmware.
+
 **The computer can fall asleep while the program works (found 2026-10-04,
 backlog).** During the Aspire's second way back the computer suspended in
 the middle of Prepare: GNOME's 15-minute idle sleep, and nothing held it
