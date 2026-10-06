@@ -123,3 +123,135 @@ pub fn repair_queued(health: Option<&VolumeHealth>) -> bool {
     let Some(h) = health else { return false };
     matches("repair", h.volume_status.as_deref().unwrap_or("")) || ntfs98_fresh(health)
 }
+
+/// One named section of a PE file (`.sbat`, `.sbatlevel`) as text, or
+/// nothing. A name longer than eight characters lives in the COFF string
+/// table, which the section header points into (`/123`).
+pub fn pe_section(bytes: &[u8], name: &str) -> Option<String> {
+    let u16_at = |at: usize| bytes.get(at..at + 2).map(|b| u16::from_le_bytes([b[0], b[1]]) as usize);
+    let u32_at = |at: usize| bytes.get(at..at + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize);
+    let pe = u32_at(0x3c)?;
+    if bytes.get(pe..pe + 4)? != b"PE\0\0" {
+        return None;
+    }
+    let count = u16_at(pe + 6)?;
+    let table = pe + 24 + u16_at(pe + 20)?;
+    let strings = u32_at(pe + 12)? + 18 * u32_at(pe + 16)?;
+    for i in 0..count {
+        let s = table + 40 * i;
+        let raw = bytes.get(s..s + 8)?;
+        let mut n = String::from_utf8_lossy(raw).trim_end_matches('\0').to_string();
+        if let Some(offset) = n.strip_prefix('/').and_then(|d| d.parse::<usize>().ok()) {
+            let at = strings + offset;
+            let end = bytes.get(at..)?.iter().position(|b| *b == 0)? + at;
+            n = String::from_utf8_lossy(&bytes[at..end]).to_string();
+        }
+        if n == name {
+            let (size, at) = (u32_at(s + 16)?, u32_at(s + 20)?);
+            return Some(String::from_utf8_lossy(bytes.get(at..at + size)?).to_string());
+        }
+    }
+    None
+}
+
+/// The common names (CN) of the X.509 certificates in a UEFI signature
+/// database (`db`): the authorities whose signatures the firmware accepts.
+pub fn db_authorities(bytes: &[u8]) -> Vec<String> {
+    const X509: [u8; 16] = [0xa1, 0x59, 0xc0, 0xa5, 0xe4, 0x94, 0xa7, 0x4a, 0x87, 0xb5, 0xab, 0x15, 0x5c, 0x2b, 0xf0, 0x72];
+    let u32_at = |at: usize| bytes.get(at..at + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize);
+    let mut names = Vec::new();
+    let mut pos = 0;
+    while pos + 28 <= bytes.len() {
+        let (Some(list_size), Some(header), Some(sig_size)) = (u32_at(pos + 16), u32_at(pos + 20), u32_at(pos + 24)) else { break };
+        if list_size < 28 {
+            break;
+        }
+        if bytes[pos..pos + 16] == X509 && sig_size > 16 {
+            let mut at = pos + 28 + header;
+            while at + sig_size <= pos + list_size && at + sig_size <= bytes.len() {
+                if let Some(cn) = certificate_common_name(&bytes[at + 16..at + sig_size]) {
+                    names.push(cn);
+                }
+                at += sig_size;
+            }
+        }
+        pos += list_size;
+    }
+    names
+}
+
+/// DER: the length after a tag, and where the content starts.
+fn der_len(b: &[u8], at: usize) -> Option<(usize, usize)> {
+    let first = *b.get(at)? as usize;
+    if first < 0x80 {
+        return Some((first, at + 1));
+    }
+    let n = first & 0x7f;
+    if n == 0 || n > 4 {
+        return None;
+    }
+    let mut len = 0usize;
+    for i in 0..n {
+        len = (len << 8) | *b.get(at + 1 + i)? as usize;
+    }
+    Some((len, at + 1 + n))
+}
+
+/// The subject's common name of one DER certificate, as .NET's
+/// `GetNameInfo(SimpleName)` gives it: the CN, or the whole subject's first
+/// value when there is none.
+fn certificate_common_name(der: &[u8]) -> Option<String> {
+    // Certificate ::= SEQUENCE { tbsCertificate SEQUENCE { [0] version?, serial, signature, issuer, validity, subject, ... } }
+    let (_, tbs_at) = der_len(der, 1)?;
+    if der.first() != Some(&0x30) || der.get(tbs_at) != Some(&0x30) {
+        return None;
+    }
+    let (_, mut at) = der_len(der, tbs_at + 1)?;
+    let skip = |at: &mut usize| -> Option<()> {
+        let (len, start) = der_len(der, *at + 1)?;
+        *at = start + len;
+        Some(())
+    };
+    if der.get(at) == Some(&0xa0) {
+        skip(&mut at)?; // version
+    }
+    skip(&mut at)?; // serial
+    skip(&mut at)?; // signature algorithm
+    skip(&mut at)?; // issuer
+    skip(&mut at)?; // validity
+    // subject: SEQUENCE of SET of SEQUENCE { OID, value }
+    if der.get(at) != Some(&0x30) {
+        return None;
+    }
+    let (subject_len, mut rdn) = der_len(der, at + 1)?;
+    let subject_end = rdn + subject_len;
+    let mut first_value = None;
+    while rdn < subject_end {
+        if der.get(rdn) != Some(&0x31) {
+            return first_value;
+        }
+        let (set_len, mut attr) = der_len(der, rdn + 1)?;
+        let set_end = attr + set_len;
+        while attr < set_end {
+            let (seq_len, oid_tag) = der_len(der, attr + 1)?;
+            let (oid_len, oid_at) = der_len(der, oid_tag + 1)?;
+            let oid = &der[oid_at..oid_at + oid_len];
+            let value_tag = oid_at + oid_len;
+            let (value_len, value_at) = der_len(der, value_tag + 1)?;
+            let raw = &der[value_at..value_at + value_len];
+            let text = match der[value_tag] {
+                0x1e => String::from_utf16_lossy(&raw.chunks_exact(2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect::<Vec<_>>()),
+                _ => String::from_utf8_lossy(raw).to_string(),
+            };
+            if first_value.is_none() {
+                first_value = Some(text.clone());
+            }
+            if oid == [0x55, 0x04, 0x03] {
+                return Some(text);
+            }
+            attr = oid_tag + seq_len;
+        }
+        rdn = set_end;
+    }
+    first_value
+}

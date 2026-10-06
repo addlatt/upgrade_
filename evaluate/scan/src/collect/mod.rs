@@ -13,9 +13,19 @@
 use serde_json::{json, Map, Value};
 
 #[cfg(windows)]
+mod events;
+#[cfg(windows)]
+mod firmware;
+#[cfg(windows)]
 mod registry;
 #[cfg(windows)]
+mod resume;
+#[cfg(windows)]
+mod storage;
+#[cfg(windows)]
 mod system;
+#[cfg(windows)]
+mod win;
 #[cfg(windows)]
 mod wmi;
 
@@ -50,14 +60,62 @@ impl Collected {
     }
 }
 
-/// Read what this build can read. Off Windows there is nothing to read.
-pub fn collect() -> Collected {
+/// Read what this build can read. `kit_root`: the stick's root, when the
+/// scanner runs from one. Off Windows there is nothing to read.
+pub fn collect(kit_root: Option<&std::path::Path>) -> Collected {
     #[cfg(windows)]
     {
-        system::collect()
+        system::collect(kit_root)
     }
     #[cfg(not(windows))]
     {
+        let _ = kit_root;
         Collected { not_read: FACT_NAMES.to_vec(), errors: vec!["not running on Windows".into()], ..Default::default() }
+    }
+}
+
+/// `--try-wmi`: a debugging aid while the collectors are being built.
+pub fn try_wmi() -> Vec<String> {
+    #[cfg(windows)]
+    {
+        let mut out = Vec::new();
+        match wmi::Wmi::connect(wmi::STORAGE) {
+            Ok(w) => {
+                out.extend(w.try_method("MSFT_Partition", "DriveLetter='C'", "GetSupportedSize"));
+                match w.query("MSFT_PhysicalDiskToStorageReliabilityCounter", &["PhysicalDisk", "StorageReliabilityCounter"]) {
+                    Ok(l) => {
+                        for a in &l {
+                            out.push(format!("assoc: {a}"));
+                            if let Some(p) = a["StorageReliabilityCounter"].as_str() {
+                                out.push(format!("counter: {:?}", w.get_object(p, &["DeviceId", "Temperature", "Wear"])));
+                            }
+                        }
+                    }
+                    Err(e) => out.push(format!("assoc query: {e}")),
+                }
+                match w.query("MSFT_StorageReliabilityCounter", &["DeviceId", "Temperature", "Wear"]) {
+                    Ok(l) => out.extend(l.iter().map(|c| format!("counter row: {c}"))),
+                    Err(e) => out.push(format!("counter query: {e}")),
+                }
+                match w.query_where("MSFT_PhysicalDisk", &["DeviceId", "ObjectId"], "DeviceId='0'") {
+                    Ok(l) => {
+                        for c in &l {
+                            out.push(format!("physical disk: {c}"));
+                            let rel = c["__RELPATH"].as_str().unwrap_or("");
+                            for q in [format!("ASSOCIATORS OF {{{rel}}} WHERE AssocClass=MSFT_PhysicalDiskToStorageReliabilityCounter"), format!("ASSOCIATORS OF {{{rel}}}"), format!("REFERENCES OF {{{rel}}}")] {
+                                out.push(format!("{q}\n      -> {:?}", w.wql(&q, &["DeviceId", "Temperature"]).map(|l| l.len())));
+                            }
+                        }
+                    }
+                    Err(e) => out.push(format!("physical disk query: {e}")),
+                }
+            }
+            Err(e) => out.push(format!("storage: {e}")),
+        }
+        out
+    }
+    #[cfg(not(windows))]
+    {
+        vec!["not on Windows".into()]
     }
 }

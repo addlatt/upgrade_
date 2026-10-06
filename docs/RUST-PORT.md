@@ -30,7 +30,7 @@ Three docs already cover parts of this, and this page does not repeat them:
 | 3a | the scanner's whole-scan order, its text report, a program that replays recordings | `[##..]` built | 6 whole scans match the PowerShell scanner's own main section, report line for line |
 | 3b | the harvester's pure half (`evaluate/harvest`) | `[##..]` built, no program uses it yet | 35 of 47 self-test lines `pass`; 12 `owed` (they need a real Windows filesystem); rig and physical rows `owed` |
 | 3c | the live reads: unprivileged half (system facts, device list, registry, installed programs) | `[####]` the G16, side by side: every fact Rust read equals what PowerShell read | `upgrade-scan --record` and `--compare-facts`, 2026-10-06 |
-| 3d | the live reads: elevated half (disks, shrink room, volume health, BitLocker, boot partition, firmware variables, event log, SMART, the stick's boot files) | `[#...]` planned | ledger lines not written |
+| 3d | the live reads: elevated half (disks, shrink room, volume health, physical disk, BitLocker, boot partition, firmware variables and trusted keys, event log, SMART, the stick's boot files) | `[####]` the G16, elevated, side by side: every fact equal; the Aspire owed | 2026-10-06; the online scan (`Repair-Volume -Scan`) is the one read not built |
 | 4a | the kickstart generator (`upgrade_/kickstart`) | `[##..]` built, no program uses it yet | 22 of 22 self-test lines `pass`; its rig and physical rows `owed` |
 | 4b | the job writer's judging half (`evaluate/job`) | `[##..]` built, no program uses it yet | 126 of 126 self-test lines `pass`; rig and physical rows `owed` |
 | 4c | the job writer's live half (the reads, the files it writes), the stick writer | `[#...]` planned | ledger lines not written |
@@ -297,6 +297,33 @@ volume health, the physical disk, BitLocker, the boot partition. Those are
 step 3d. The build is `cargo zigbuild --release --target
 x86_64-pc-windows-gnu` in `evaluate/scan`; run the `.exe` from a Windows
 folder, not from `\\wsl.localhost`.
+
+**The elevated reads (2026-10-06, the same evening).** The rest of the
+scanner's reads, in Rust: whether the process is elevated; the firmware's
+own SBAT level and its trusted signing authorities (the `db` variable,
+read with the system-environment privilege and its certificates' names
+parsed from DER); the resume facts (the Schedule service, the task policy,
+`dsregcmd`); the disks, the volume and the room to shrink (the Storage
+API's `GetSupportedSize`, with diskpart as the second path); the drive
+that holds C: with its reliability counters, the System log's disk events
+and ATA SMART; volume health (`fsutil`, the volume's status, NTFS event
+98, Wininit 1001, the Chkdsk log); BitLocker; the boot partition (mounted
+on a free letter, measured, unmounted). On the G16, elevated, both
+recorders within a minute: every fact Rust read is what PowerShell read.
+
+Three things the comparison caught on the way, all fixed: WMI gives an
+object a usable path only when its key (`ObjectId`) is asked for, and
+without one the shrink-room method and the counters' association both
+failed; a WMI method needs an input-parameter object even with no
+parameters, as `Invoke-CimMethod` sends one; WMI's error codes have to be
+mapped to the words PowerShell uses (`Not supported`).
+
+Not built: the online scan (`Repair-Volume -Scan`), which the PowerShell
+runs only when the volume gives a reason (the dirty flag, a queued repair,
+a shrink refused for volume errors). The capture says so, and the Rust
+report would say the scan did not run. The Aspire's elevated side-by-side
+run is owed: it has the ATA SMART data and the drive history the G16 does
+not.
 
 Items 3 to 5 no longer wait on V0 and V9 (decided 2026-10-04, above).
 Item 4 needs a Windows machine; the G16 is the first.

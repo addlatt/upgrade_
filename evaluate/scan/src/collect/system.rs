@@ -1,12 +1,10 @@
-//! The collectors that need no privilege: the system facts, the device
-//! list, three registry values and the installed programs. Each shapes its
-//! fact exactly as the PowerShell collector does (`Get-UpgSystem`,
-//! `Get-UpgPnp`, `Get-UpgSecureBootState`, `Get-UpgFastStartupState`, the
-//! registry half of `Get-UpgSbatFacts`, `Get-UpgInstalledApps`).
+//! Get-UpgSystem, Get-UpgPnp, Get-UpgSecureBootState, Get-UpgFastStartupState,
+//! Get-UpgInstalledApps, and the run that strings every collector together in
+//! the scanner's own order, with the same "elevated only" gates.
 
 use super::registry::{self, Hive};
-use super::wmi::Wmi;
-use super::Collected;
+use super::wmi::{Wmi, CIMV2};
+use super::{firmware, resume, storage, win, Collected};
 use crate::ps::round1;
 use serde_json::{json, Value};
 
@@ -32,33 +30,14 @@ fn number(v: &Value) -> Option<f64> {
 /// as `Get-CimInstance` gives it: this machine's local time, written
 /// `2025-05-19T20:00:00`. Anything else is kept as it came.
 fn cim_date(v: &Value) -> Value {
-    use windows::Win32::Foundation::SYSTEMTIME;
-    use windows::Win32::System::Time::SystemTimeToTzSpecificLocalTime;
     let t = text(v);
     if t.len() < 25 || !t[..14].bytes().all(|b| b.is_ascii_digit()) {
         return v.clone();
     }
     let n = |a: usize, b: usize| t[a..b].parse::<i64>().unwrap_or(0);
     let offset: i64 = t[21..25].parse().unwrap_or(0);
-    // to UTC through a day count, so an offset can cross midnight
     let utc = crate::ps::Stamp { year: n(0, 4) as i32, month: n(4, 6) as u32, day: n(6, 8) as u32, hour: n(8, 10) as u32, minute: n(10, 12) as u32, second: n(12, 14) as u32 }.seconds() - offset * 60;
-    let days = utc.div_euclid(86400);
-    let rem = utc.rem_euclid(86400);
-    let z = days + 719468;
-    let era = z.div_euclid(146097);
-    let doe = z.rem_euclid(146097);
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = (doy - (153 * mp + 2) / 5 + 1) as u16;
-    let month = (if mp < 10 { mp + 3 } else { mp - 9 }) as u16;
-    let year = (yoe + era * 400 + if month <= 2 { 1 } else { 0 }) as u16;
-    let st = SYSTEMTIME { wYear: year, wMonth: month, wDay: day, wHour: (rem / 3600) as u16, wMinute: (rem % 3600 / 60) as u16, wSecond: (rem % 60) as u16, ..Default::default() };
-    let mut local = SYSTEMTIME::default();
-    if unsafe { SystemTimeToTzSpecificLocalTime(None, &st, &mut local) }.is_err() {
-        return v.clone();
-    }
-    json!(format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", local.wYear, local.wMonth, local.wDay, local.wHour, local.wMinute, local.wSecond))
+    json!(win::utc_to_local(win::utc_from_seconds(utc)).iso())
 }
 
 /// Get-UpgSystem.
@@ -80,13 +59,18 @@ fn system(wmi: &Wmi) -> Result<Value, String> {
     }))
 }
 
-/// Get-UpgPnp: one enumeration, every device.
+/// Get-UpgPnp: one enumeration, every device. The system properties WMI
+/// adds (`__PATH`) are left out; the recorder's shape has five fields.
 fn pnp(wmi: &Wmi) -> Result<Value, String> {
-    Ok(Value::Array(wmi.query("Win32_PnPEntity", &["Name", "DeviceID", "PNPClass", "Service", "CompatibleID"])?))
+    Ok(Value::Array(
+        wmi.query("Win32_PnPEntity", &["Name", "DeviceID", "PNPClass", "Service", "CompatibleID"])?
+            .into_iter()
+            .map(|d| json!({"Name": d["Name"], "DeviceID": d["DeviceID"], "PNPClass": d["PNPClass"], "Service": d["Service"], "CompatibleID": d["CompatibleID"]}))
+            .collect(),
+    ))
 }
 
 const SECURE_BOOT: &str = r"SYSTEM\CurrentControlSet\Control\SecureBoot\State";
-const SBAT: &str = r"SYSTEM\CurrentControlSet\Control\SecureBoot\SBAT";
 const POWER: &str = r"SYSTEM\CurrentControlSet\Control\Session Manager\Power";
 
 /// Get-UpgInstalledApps: the display names under the three uninstall keys,
@@ -110,17 +94,23 @@ fn installed_apps() -> Vec<String> {
     names
 }
 
-pub fn collect() -> Collected {
+/// Every collector, in the scanner's order, with its gates. `kit_root`:
+/// where the kit's boot files sit (the stick's root), if the scanner runs
+/// from one.
+pub fn collect(kit_root: Option<&std::path::Path>) -> Collected {
     let mut c = Collected::default();
-    match Wmi::connect() {
+    let is_admin = win::is_admin();
+    c.facts.insert("IsAdmin".into(), json!(is_admin));
+    let cimv2 = Wmi::connect(CIMV2);
+    match &cimv2 {
         Ok(wmi) => {
-            match system(&wmi) {
+            match system(wmi) {
                 Ok(v) => {
                     c.facts.insert("Sys".into(), v);
                 }
                 Err(e) => c.errors.push(format!("Sys: {e}")),
             }
-            match pnp(&wmi) {
+            match pnp(wmi) {
                 Ok(v) => {
                     c.facts.insert("Pnp".into(), v);
                 }
@@ -130,19 +120,22 @@ pub fn collect() -> Collected {
         Err(e) => c.errors.push(format!("WMI: {e}")),
     }
     c.facts.insert("SecureBoot".into(), json!(registry::dword(&Hive::LocalMachine, SECURE_BOOT, "UEFISecureBootEnabled")));
-    c.facts.insert("Hiberboot".into(), json!(registry::dword(&Hive::LocalMachine, POWER, "HiberbootEnabled")));
-    // the registry half of Get-UpgSbatFacts; the firmware's own copy and the
-    // stick's boot files are not read yet
-    let mut levels = Vec::new();
-    if let Some((_, bytes)) = registry::value(&Hive::LocalMachine, SBAT, "SbatLevel") {
-        let end = bytes.iter().position(|b| *b == 0).unwrap_or(bytes.len());
-        let level = String::from_utf8_lossy(&bytes[..end]).to_string();
-        if !level.is_empty() {
-            levels.push(json!({"Source": "Windows (registry)", "Text": level}));
-        }
+    c.facts.insert("Sbat".into(), firmware::sbat_facts(kit_root, is_admin));
+    if is_admin {
+        c.facts.insert("DbAuthorities".into(), json!(firmware::trusted_authorities()));
     }
-    c.facts.insert("Sbat".into(), json!({"Levels": levels, "Files": []}));
+    c.facts.insert("Resume".into(), resume::resume_facts(cimv2.as_ref().ok()));
+    let disk = storage::disk_facts(is_admin);
+    let shrink_error = text(&disk["ShrinkError"]);
+    c.facts.insert("Disk".into(), disk);
+    c.facts.insert("VolumeHealth".into(), storage::volume_health(is_admin, &shrink_error));
+    c.facts.insert("PhysicalDisk".into(), storage::physical_disk_facts(is_admin));
+    c.facts.insert("Hiberboot".into(), json!(registry::dword(&Hive::LocalMachine, POWER, "HiberbootEnabled")));
+    if is_admin {
+        c.facts.insert("BitLocker".into(), storage::bitlocker_state());
+        c.facts.insert("Esp".into(), storage::esp_facts());
+    }
     c.facts.insert("Apps".into(), json!(installed_apps()));
-    c.not_read = vec!["IsAdmin", "Sbat (firmware SbatLevelRT, the stick's boot files)", "DbAuthorities", "Resume", "Disk", "VolumeHealth", "PhysicalDisk", "BitLocker", "Esp"];
+    c.not_read = vec!["VolumeHealth.Scan (the online scan, Repair-Volume -Scan, when the volume gives a reason to run it)"];
     c
 }

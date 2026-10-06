@@ -4,7 +4,7 @@
 //! the scanner, and this program is for comparing the two.
 //!
 //!   upgrade-scan --replay machine.json [--now 2026-10-04T10:00:00] [--json]
-//!   upgrade-scan --record [--out <folder>]          (Windows: read this machine, write a capture)
+//!   upgrade-scan --record [--out <folder>] [--kit <stick root>]   (Windows: read this machine, write a capture)
 //!   upgrade-scan --compare-facts rust.json powershell.json
 //!
 //! A capture made by tools/Record-Machine.ps1 also holds what the PowerShell
@@ -84,9 +84,9 @@ fn compare(ps: &Value, machine: &Machine, outcome: &run::Outcome, now: Stamp) ->
 
 /// Read this machine with the Rust collectors and write the capture, in the
 /// same shape as tools/Record-Machine.ps1 writes one.
-fn record(out: Option<String>) -> ExitCode {
+fn record(out: Option<String>, kit: Option<String>) -> ExitCode {
     let now = utc_now();
-    let c = upgrade_scan::collect::collect();
+    let c = upgrade_scan::collect::collect(kit.as_deref().map(std::path::Path::new));
     let doc = c.to_capture(env!("CARGO_PKG_VERSION"), &now.iso());
     let model = doc.pointer("/Sys/Model").and_then(Value::as_str).unwrap_or("unknown");
     let safe: String = model.chars().map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' }).collect::<String>().split('-').filter(|p| !p.is_empty()).collect::<Vec<_>>().join("-");
@@ -130,11 +130,22 @@ fn compare_facts(rust_path: &str, ps_path: &str) -> ExitCode {
     println!("  PowerShell: {}   ({})", ps_path, ps["Now"].as_str().unwrap_or(""));
     println!();
     for name in upgrade_scan::collect::FACT_NAMES {
-        if let Some(n) = not_read.iter().find(|n| n.starts_with(name)) {
+        // a whole fact not read yet is skipped; a field of one ("Fact.Field ...") is left out of the comparison
+        if let Some(n) = not_read.iter().find(|n| n.split([' ', '.']).next() == Some(name) && !n.starts_with(&format!("{name}."))) {
             println!("    not read by Rust yet   {n}");
             continue;
         }
-        let diffs = fact_differences(name, &rust[name], &ps[name]);
+        let skipped: Vec<&str> = not_read.iter().filter_map(|n| n.strip_prefix(&format!("{name}."))).map(|rest| rest.split(' ').next().unwrap_or("")).collect();
+        let (mut r, mut p) = (rust[name].clone(), ps[name].clone());
+        for field in &skipped {
+            for side in [&mut r, &mut p] {
+                if let Some(m) = side.as_object_mut() {
+                    m.remove(*field);
+                }
+            }
+            println!("    not read by Rust yet   {name}.{field}");
+        }
+        let diffs = fact_differences(name, &r, &p);
         if diffs.is_empty() {
             println!("    SAME                   {name}{}", fact_size(&rust[name]));
         } else {
@@ -154,6 +165,14 @@ fn compare_facts(rust_path: &str, ps_path: &str) -> ExitCode {
         println!("  {different} facts differ");
         println!();
         ExitCode::from(1)
+    }
+}
+
+/// Two numbers within 2 percent and one unit of each other.
+fn within_drift(a: &Value, b: &Value) -> bool {
+    match (a.as_f64(), b.as_f64()) {
+        (Some(p), Some(q)) => (p - q).abs() <= p.abs().max(q.abs()) * 0.02 + 1.0,
+        _ => a == b,
     }
 }
 
@@ -178,6 +197,19 @@ fn same_value(a: &Value, b: &Value) -> bool {
 /// order, everything else value by value.
 fn fact_differences(name: &str, rust: &Value, ps: &Value) -> Vec<String> {
     let mut out = Vec::new();
+    // values that move by the minute: free space, a temperature, hours of
+    // use. Two recorders a minute apart differ here without being wrong.
+    let drifts = |field: &str| matches!((name, field), ("Disk", "SysVolume") | ("Esp", "FreeBytes") | ("PhysicalDisk", "Counters"));
+    let within = |a: &Value, b: &Value| -> bool {
+        match (a, b) {
+            (Value::Number(x), Value::Number(y)) => match (x.as_f64(), y.as_f64()) {
+                (Some(p), Some(q)) => (p - q).abs() <= p.abs().max(q.abs()) * 0.02 + 1.0,
+                _ => false,
+            },
+            (Value::Object(x), Value::Object(y)) => x.len() == y.len() && x.iter().all(|(k, p)| y.get(k).is_some_and(|q| same_value(p, q) || within_drift(p, q))),
+            _ => same_value(a, b),
+        }
+    };
     match name {
         "Pnp" => {
             let by_id = |v: &Value| -> std::collections::BTreeMap<String, Value> { v.as_array().into_iter().flatten().map(|d| (d["DeviceID"].as_str().unwrap_or("").to_string(), d.clone())).collect() };
@@ -212,6 +244,7 @@ fn fact_differences(name: &str, rust: &Value, ps: &Value) -> Vec<String> {
                 for k in keys {
                     match (r.get(k), p.get(k)) {
                         (Some(x), Some(y)) if same_value(x, y) => {}
+                        (Some(x), Some(y)) if drifts(k) && within(x, y) => {}
                         (x, y) => out.push(format!("{k}: Rust {} PowerShell {}", x.map_or("(absent)".to_string(), Value::to_string), y.map_or("(absent)".to_string(), Value::to_string))),
                     }
                 }
@@ -239,8 +272,14 @@ fn main() -> ExitCode {
         println!("upgrade-scan {} (Rust; follows scanner {FOLLOWS_SCANNER})", env!("CARGO_PKG_VERSION"));
         return ExitCode::SUCCESS;
     }
+    if args.iter().any(|a| a == "--try-wmi") {
+        for line in upgrade_scan::collect::try_wmi() {
+            println!("  {line}");
+        }
+        return ExitCode::SUCCESS;
+    }
     if args.iter().any(|a| a == "--record") {
-        return record(value_of("--out"));
+        return record(value_of("--out"), value_of("--kit"));
     }
     if let Some(i) = args.iter().position(|a| a == "--compare-facts") {
         let (Some(a), Some(b)) = (args.get(i + 1), args.get(i + 2)) else { return usage() };

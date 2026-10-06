@@ -14,9 +14,15 @@ pub struct Wmi {
     services: IWbemServices,
 }
 
+/// The namespaces the scanner reads.
+pub const CIMV2: &str = "ROOT\\CIMV2";
+pub const STORAGE: &str = "ROOT\\Microsoft\\Windows\\Storage";
+pub const WMI_ROOT: &str = "ROOT\\WMI";
+pub const BITLOCKER: &str = "ROOT\\CIMV2\\Security\\MicrosoftVolumeEncryption";
+
 impl Wmi {
-    /// Connect to `ROOT\CIMV2`.
-    pub fn connect() -> Result<Wmi, String> {
+    /// Connect to one namespace.
+    pub fn connect(namespace: &str) -> Result<Wmi, String> {
         unsafe {
             // S_FALSE (already initialised on this thread) is fine
             let hr = CoInitializeEx(None, COINIT_MULTITHREADED);
@@ -27,7 +33,7 @@ impl Wmi {
             let _ = CoInitializeSecurity(None, -1, None, None, RPC_C_AUTHN_LEVEL_DEFAULT, RPC_C_IMP_LEVEL_IMPERSONATE, None, EOAC_NONE, None);
             let locator: IWbemLocator = CoCreateInstance(&WbemLocator, None, CLSCTX_INPROC_SERVER).map_err(|e| format!("WbemLocator: {e}"))?;
             let services = locator
-                .ConnectServer(&BSTR::from("ROOT\\CIMV2"), &BSTR::new(), &BSTR::new(), &BSTR::new(), 0, &BSTR::new(), None)
+                .ConnectServer(&BSTR::from(namespace), &BSTR::new(), &BSTR::new(), &BSTR::new(), 0, &BSTR::new(), None)
                 .map_err(|e| format!("ConnectServer: {e}"))?;
             CoSetProxyBlanket(&services, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, None, RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, None, EOAC_NONE).map_err(|e| format!("CoSetProxyBlanket: {e}"))?;
             Ok(Wmi { services })
@@ -36,29 +42,50 @@ impl Wmi {
 
     /// `SELECT <properties> FROM <class>`: one JSON object per instance.
     pub fn query(&self, class: &str, properties: &[&str]) -> Result<Vec<Value>, String> {
-        let wql = format!("SELECT {} FROM {class}", properties.join(", "));
+        self.wql(&format!("SELECT {} FROM {class}", properties.join(", ")), properties)
+    }
+
+    /// `SELECT <properties> FROM <class> WHERE <condition>`.
+    pub fn query_where(&self, class: &str, properties: &[&str], condition: &str) -> Result<Vec<Value>, String> {
+        self.wql(&format!("SELECT {} FROM {class} WHERE {condition}", properties.join(", ")), properties)
+    }
+
+    /// Any WQL. Each row also carries `__RELPATH`, the object's own address,
+    /// so a method can be called on it. The address is only complete when
+    /// the class's key property (`ObjectId` in the Storage namespace) is
+    /// among the properties asked for.
+    pub fn wql(&self, wql: &str, properties: &[&str]) -> Result<Vec<Value>, String> {
+        let class = wql.split(" FROM ").nth(1).unwrap_or(wql).split(' ').next().unwrap_or(wql).to_string();
         let mut out = Vec::new();
         unsafe {
             let rows = self
                 .services
-                .ExecQuery(&BSTR::from("WQL"), &BSTR::from(wql.as_str()), WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY, None)
-                .map_err(|e| format!("{class}: {e}"))?;
+                .ExecQuery(&BSTR::from("WQL"), &BSTR::from(wql), WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY, None)
+                .map_err(|e| wmi_error(&e))?;
             loop {
                 let mut objects = [None];
                 let mut returned = 0u32;
                 let hr = rows.Next(WBEM_INFINITE, &mut objects, &mut returned);
                 if hr.is_err() {
-                    return Err(format!("{class}: {hr}"));
+                    return Err(wmi_error(&windows::core::Error::from_hresult(hr)));
                 }
                 if returned == 0 {
                     break;
                 }
                 let Some(obj) = objects[0].take() else { break };
                 let mut map = serde_json::Map::new();
+                for sys in ["__PATH", "__RELPATH"] {
+                    let mut path = VARIANT::default();
+                    let wide: Vec<u16> = sys.encode_utf16().chain(std::iter::once(0)).collect();
+                    if obj.Get(windows::core::PCWSTR(wide.as_ptr()), 0, &mut path, None, None).is_ok() {
+                        map.insert(sys.to_string(), variant_to_json(&path));
+                        let _ = VariantClear(&mut path);
+                    }
+                }
                 for name in properties {
                     let mut v = VARIANT::default();
                     let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
-                    obj.Get(windows::core::PCWSTR(wide.as_ptr()), 0, &mut v, None, None).map_err(|e| format!("{class}.{name}: {e}"))?;
+                    obj.Get(windows::core::PCWSTR(wide.as_ptr()), 0, &mut v, None, None).map_err(|e| format!("{class}.{name}: {}", wmi_error(&e)))?;
                     map.insert(name.to_string(), variant_to_json(&v));
                     let _ = VariantClear(&mut v);
                 }
@@ -66,6 +93,107 @@ impl Wmi {
             }
         }
         Ok(out)
+    }
+}
+
+impl Wmi {
+    /// Call a method on one object (by its `__PATH`) with no input, and
+    /// return the output parameters as JSON (`ReturnValue` among them).
+    pub fn call(&self, class: &str, path: &str, method: &str, out_names: &[&str]) -> Result<Value, String> {
+        use windows::Win32::System::Wmi::IWbemClassObject;
+        unsafe {
+            // an empty input object, as Invoke-CimMethod sends one
+            let mut class_obj: Option<IWbemClassObject> = None;
+            self.services.GetObject(&BSTR::from(class), windows::Win32::System::Wmi::WBEM_GENERIC_FLAG_TYPE(0), None, Some(&mut class_obj), None).map_err(|e| wmi_error(&e))?;
+            let class_obj = class_obj.ok_or("no class object")?;
+            let mut in_class: Option<IWbemClassObject> = None;
+            let wide: Vec<u16> = method.encode_utf16().chain(std::iter::once(0)).collect();
+            class_obj.GetMethod(windows::core::PCWSTR(wide.as_ptr()), 0, &mut in_class, std::ptr::null_mut()).map_err(|e| wmi_error(&e))?;
+            let in_params = match in_class {
+                Some(c) => Some(c.SpawnInstance(0).map_err(|e| wmi_error(&e))?),
+                None => None,
+            };
+            let mut out: Option<IWbemClassObject> = None;
+            self.services
+                .ExecMethod(&BSTR::from(path), &BSTR::from(method), windows::Win32::System::Wmi::WBEM_GENERIC_FLAG_TYPE(0), None, in_params.as_ref(), Some(&mut out), None)
+                .map_err(|e| wmi_error(&e))?;
+            let Some(obj) = out else { return Err(format!("{method}: no output")) };
+            let mut map = serde_json::Map::new();
+            for name in out_names {
+                let mut v = VARIANT::default();
+                let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+                if obj.Get(windows::core::PCWSTR(wide.as_ptr()), 0, &mut v, None, None).is_ok() {
+                    map.insert(name.to_string(), variant_to_json(&v));
+                    let _ = VariantClear(&mut v);
+                }
+            }
+            Ok(Value::Object(map))
+        }
+    }
+}
+
+impl Wmi {
+    /// One object by its path, with the properties named.
+    pub fn get_object(&self, path: &str, properties: &[&str]) -> Result<Value, String> {
+        use windows::Win32::System::Wmi::IWbemClassObject;
+        unsafe {
+            let mut obj: Option<IWbemClassObject> = None;
+            self.services.GetObject(&BSTR::from(path), windows::Win32::System::Wmi::WBEM_GENERIC_FLAG_TYPE(0), None, Some(&mut obj), None).map_err(|e| wmi_error(&e))?;
+            let obj = obj.ok_or("no object")?;
+            let mut map = serde_json::Map::new();
+            for name in properties {
+                let mut v = VARIANT::default();
+                let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+                if obj.Get(windows::core::PCWSTR(wide.as_ptr()), 0, &mut v, None, None).is_ok() {
+                    map.insert(name.to_string(), variant_to_json(&v));
+                    let _ = VariantClear(&mut v);
+                }
+            }
+            Ok(Value::Object(map))
+        }
+    }
+
+    /// Try a method call several ways and tell what each said (a debugging
+    /// aid for `--try-wmi`).
+    pub fn try_method(&self, class: &str, condition: &str, method: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        let rows = match self.query_where(class, &["ObjectId"], condition) {
+            Ok(r) => r,
+            Err(e) => return vec![format!("query: {e}")],
+        };
+        let Some(row) = rows.first() else { return vec!["no instance".into()] };
+        for key in ["__RELPATH", "__PATH"] {
+            let path = row[key].as_str().unwrap_or("").to_string();
+            let r = self.call(class, &path, method, &["ReturnValue", "SizeMin"]);
+            out.push(format!("{key} = {path}
+      -> {r:?}"));
+        }
+        out
+    }
+}
+
+/// A WMI failure in the words PowerShell's CIM cmdlets use for it.
+pub fn wmi_error(e: &windows::core::Error) -> String {
+    let code = e.code().0 as u32;
+    // the message text of a WBEM code is not in the system's tables
+    let fallback = || {
+        let m = e.message().trim().to_string();
+        if m.is_empty() || m.starts_with("0x") { format!("WMI error {code:#010x} [{e:?}]") } else { m }
+    };
+    match code {
+        0x8004100C => "Not supported".to_string(),
+        0x80041003 => "Access denied".to_string(),
+        0x80041010 => "Invalid class".to_string(),
+        0x8004100E => "Invalid namespace".to_string(),
+        0x80041002 => "Not found".to_string(),
+        0x80041017 => "Invalid query".to_string(),
+        0x80041008 => "Invalid parameter".to_string(),
+        0x8004103A => "Invalid object path".to_string(),
+        0x80041006 => "Out of memory".to_string(),
+        0x80041013 => "Provider load failure".to_string(),
+        0x80041014 => "Initialization failure".to_string(),
+        0x80041032 => "Call cancelled".to_string(),
+        _ => fallback(),
     }
 }
 
@@ -90,9 +218,19 @@ pub fn variant_to_json(v: &VARIANT) -> Value {
                     if SafeArrayGetElement(psa, &i, &mut b as *mut BSTR as *mut _).is_ok() {
                         items.push(Value::String(b.to_string()));
                     }
-                } else if element == VT_I4 || element == VT_UI4 || element == VT_I2 || element == VT_UI2 {
+                } else if element == VT_I4 || element == VT_UI4 {
                     let mut n: i32 = 0;
                     if SafeArrayGetElement(psa, &i, &mut n as *mut i32 as *mut _).is_ok() {
+                        items.push(Value::from(n));
+                    }
+                } else if element == VT_I2 || element == VT_UI2 {
+                    let mut n: i16 = 0;
+                    if SafeArrayGetElement(psa, &i, &mut n as *mut i16 as *mut _).is_ok() {
+                        items.push(Value::from(n as i32));
+                    }
+                } else if element == VT_UI1 {
+                    let mut n: u8 = 0;
+                    if SafeArrayGetElement(psa, &i, &mut n as *mut u8 as *mut _).is_ok() {
                         items.push(Value::from(n));
                     }
                 }
