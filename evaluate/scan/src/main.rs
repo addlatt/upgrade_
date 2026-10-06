@@ -272,8 +272,8 @@ fn main() -> ExitCode {
         println!("upgrade-scan {} (Rust; follows scanner {FOLLOWS_SCANNER})", env!("CARGO_PKG_VERSION"));
         return ExitCode::SUCCESS;
     }
-    if args.iter().any(|a| a == "--try-wmi") {
-        for line in upgrade_scan::collect::try_wmi() {
+    if let Some(i) = args.iter().position(|a| a == "--try-wmi") {
+        for line in upgrade_scan::collect::try_wmi(args.get(i + 1).map(String::as_str)) {
             println!("  {line}");
         }
         return ExitCode::SUCCESS;

@@ -28,9 +28,9 @@ Three docs already cover parts of this, and this page does not repeat them:
 | 1 | the schema library (`schemas/rust`) | `[##..]` built, no program uses it yet | 103 of 103 ledger lines `pass` |
 | 2 | the scanner's judging half (`evaluate/scan`) | `[##..]` built, no program uses it yet | 103 of 103 self-test and corpus lines `pass`; 10 rig and physical lines `owed` |
 | 3a | the scanner's whole-scan order, its text report, a program that replays recordings | `[##..]` built | 6 whole scans match the PowerShell scanner's own main section, report line for line |
-| 3b | the harvester's pure half (`evaluate/harvest`) | `[##..]` built, no program uses it yet | 35 of 47 self-test lines `pass`; 12 `owed` (they need a real Windows filesystem); rig and physical rows `owed` |
+| 3b | the harvester in Rust: the pure half and the filesystem reads (`evaluate/harvest`) | `[####]` the 12 filesystem cases pass on the G16 | 47 of 47 self-test lines `pass`; its rig and physical rows `owed` |
 | 3c | the live reads: unprivileged half (system facts, device list, registry, installed programs) | `[####]` the G16, side by side: every fact Rust read equals what PowerShell read | `upgrade-scan --record` and `--compare-facts`, 2026-10-06 |
-| 3d | the live reads: elevated half (disks, shrink room, volume health, physical disk, BitLocker, boot partition, firmware variables and trusted keys, event log, SMART, the stick's boot files) | `[####]` the G16 and the Aspire, elevated, side by side: every fact equal | 2026-10-06; the online scan (`Repair-Volume -Scan`) is the one read not built |
+| 3d | the live reads: elevated half (disks, shrink room, volume health with the online scan, physical disk, BitLocker, boot partition, firmware variables and trusted keys, event log, SMART, the stick's boot files) | `[####]` the G16 and the Aspire, elevated, side by side: every fact equal | 2026-10-06; `v13-rust-scanner.csv` |
 | 3e | the whole scanner in Rust, end to end: Rust reads the machine, Rust judges, the report is PowerShell's | `[####]` the G16 (SAME, 218 lines, 25 checks, YELLOW) and the Aspire (SAME, 166 lines, 26 checks, RED), both elevated | `upgrade-scan --replay rust.json --against powershell.json`, 2026-10-06 |
 | 4a | the kickstart generator (`upgrade_/kickstart`) | `[##..]` built, no program uses it yet | 22 of 22 self-test lines `pass`; its rig and physical rows `owed` |
 | 4b | the job writer's judging half (`evaluate/job`) | `[##..]` built, no program uses it yet | 126 of 126 self-test lines `pass`; rig and physical rows `owed` |
@@ -319,10 +319,28 @@ failed; a WMI method needs an input-parameter object even with no
 parameters, as `Invoke-CimMethod` sends one; WMI's error codes have to be
 mapped to the words PowerShell uses (`Not supported`).
 
-Not built: the online scan (`Repair-Volume -Scan`), which the PowerShell
-runs only when the volume gives a reason (the dirty flag, a queued repair,
-a shrink refused for volume errors). The capture says so, and the Rust
-report would say the scan did not run. The Aspire's elevated side-by-side
+The online scan (`Repair-Volume -Scan`) came last, the same evening: the
+Storage API's `Repair` method with `Scan` on, which only reads. Neither
+machine had a reason to run it (no dirty flag, no queued repair), so it was
+run on its own, elevated, on the G16's C: both ways: Rust `NoErrorsFound`,
+PowerShell `NoErrorsFound`. The result's name is read from this machine's
+own Storage module (`Volume.cdxml`), because Windows 10 and Windows 11 name
+the results differently. **A finding for `main`:** on Windows 11 the names
+are `ScanNoErrorsFound`, `ScanErrorsFoundNeedSpotFix` and so on, and the
+PowerShell scanner's judgment looks for `ErrorsFound` or `ErrorsNotFixed`
+exactly (Windows 10's names). A Windows 11 scan that found errors would not
+be judged as having found them; the fact would still be in the note. The
+Rust port mirrors the judgment as it is (parity), so the fix belongs in
+`upgrade-scan.ps1` first.
+
+The harvester's 12 filesystem cases followed (`evaluate/harvest/src/folders.rs`,
+`tests/filesystem.rs`, run on Windows by `windows-tests.sh`): folder
+sizes with the on-stick arithmetic (20,760 bytes for the self-test's tree,
+to the byte), a real junction not followed, a folder this account may not
+list counted as unreadable, the offline attribute, allocated bytes, the
+read-through. All 12 pass on the G16.
+
+The Aspire's elevated side-by-side
 run came the same evening, over SSH: every fact Rust read is what
 PowerShell read there too, including the ATA SMART block (748 uncorrectable
 reads, 7 reallocated), the nine trusted authorities in its firmware and the
@@ -463,18 +481,15 @@ else.
 
 In order. The first three need no decision.
 
-1. **The live reads** (step 3, items 3 to 5), compared side by side with
-   the PowerShell on the G16. This is the first Rust that has to run on
-   Windows, and it closes the 12 harvester cases that need a real
-   filesystem.
-2. **Put the schema library to work.** `settle-in` and the window read
+1. **Put the schema library to work.** `settle-in` and the window read
    `job.json` and `outcome.json` through `upgrade-schema`.
-3. **Make the PowerShell prologue keep raw tool output** (on `main`). Owed
+2. **Make the PowerShell prologue keep raw tool output** (on `main`), and
+   fix the scan-result names for Windows 11 (above). Owed
    since 2026-09-27. Every physical run made without it is one the Rust
    cannot replay later.
-4. **The prologue's judging half** (its guardrails and its fork), the same
+3. **The prologue's judging half** (its guardrails and its fork), the same
    way as the job writer's.
-5. The stick writer, then the prologue's live half, handoff and rollback (step 5).
+4. The job writer's live half, then the stick writer, then the prologue's live half, handoff and rollback (step 5).
 
 ## Open decisions (the owner's)
 

@@ -136,6 +136,5 @@ pub fn collect(kit_root: Option<&std::path::Path>) -> Collected {
         c.facts.insert("Esp".into(), storage::esp_facts());
     }
     c.facts.insert("Apps".into(), json!(installed_apps()));
-    c.not_read = vec!["VolumeHealth.Scan (the online scan, Repair-Volume -Scan, when the volume gives a reason to run it)"];
     c
 }

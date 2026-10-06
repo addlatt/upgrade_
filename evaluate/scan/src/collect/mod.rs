@@ -75,10 +75,16 @@ pub fn collect(kit_root: Option<&std::path::Path>) -> Collected {
 }
 
 /// `--try-wmi`: a debugging aid while the collectors are being built.
-pub fn try_wmi() -> Vec<String> {
+/// `--try-wmi scan` runs the online scan of C: (read-only) and prints its
+/// result word.
+pub fn try_wmi(what: Option<&str>) -> Vec<String> {
     #[cfg(windows)]
     {
         let mut out = Vec::new();
+        if what == Some("scan") {
+            out.push(format!("online scan of C: -> {}", storage::online_scan()));
+            return out;
+        }
         match wmi::Wmi::connect(wmi::STORAGE) {
             Ok(w) => {
                 out.extend(w.try_method("MSFT_Partition", "DriveLetter='C'", "GetSupportedSize"));
@@ -116,6 +122,7 @@ pub fn try_wmi() -> Vec<String> {
     }
     #[cfg(not(windows))]
     {
+        let _ = what;
         vec!["not on Windows".into()]
     }
 }

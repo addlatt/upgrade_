@@ -7,6 +7,8 @@
 
 pub mod capacity;
 pub mod cloud;
+#[cfg(windows)]
+pub mod folders;
 pub mod names;
 pub mod stick;
 pub mod wlan;

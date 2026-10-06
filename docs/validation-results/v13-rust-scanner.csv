@@ -1,0 +1,6 @@
+"timestamp","machine","os","elevated","rust_build","facts_equal","end_to_end","report_lines","checks","verdict","notes"
+"2026-10-06T21:31:00Z","ASUS ROG Zephyrus G16 GA605WV","Windows 11 26100","n","c25a243","yes","not run","","","","first slice of live reads: Sys, 253 devices, SecureBoot, Hiberboot, 110 programs; BIOS date fixed to local time on the way"
+"2026-10-06T21:35:30Z","Acer Aspire A515-51G","Windows 11 26200","y (reads need no privilege)","c25a243","yes","not run","","","","over SSH; 131 devices, 13 programs"
+"2026-10-06T22:22:00Z","ASUS ROG Zephyrus G16 GA605WV","Windows 11 26100","y","e2acbaf","yes","SAME","218","25","YELLOW","both recorders back to back; shrink room by the Storage API; free space and temperature allowed to drift"
+"2026-10-06T22:26:00Z","Acer Aspire A515-51G","Windows 11 26200","y","e2acbaf","yes","SAME","166","26","RED","over SSH; RED from SMART Rust read itself (748 uncorrectable); 9 firmware authorities"
+"2026-10-06T22:40:00Z","ASUS ROG Zephyrus G16 GA605WV","Windows 11 26100","y","(this commit)","n/a","n/a","","","","the online scan of C: (Repair-Volume -Scan): Rust NoErrorsFound, PowerShell NoErrorsFound"

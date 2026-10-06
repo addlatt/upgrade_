@@ -389,9 +389,58 @@ pub fn physical_disk_facts(is_admin: bool) -> Value {
     f
 }
 
-/// Get-UpgVolumeHealth (elevated only). The online scan (`Repair-Volume
-/// -Scan`) is not run by this build yet: when the PowerShell would run it,
-/// `Scan` says so, and the capture names the gap.
+/// The names `Repair-Volume` gives a scan's result, read from this
+/// machine's own Storage module (`Volume.cdxml`), so the word is the one
+/// PowerShell would print here. Windows 10 and 11 name them differently.
+fn repair_status_names() -> Vec<(i64, String)> {
+    let path = format!("{}\\System32\\WindowsPowerShell\\v1.0\\Modules\\Storage\\Volume.cdxml", std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into()));
+    let mut names = Vec::new();
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        if let Some(start) = text.find("EnumName=\"Volume.RepairStatus\"") {
+            let rest = &text[start..];
+            let end = rest.find("</Enum>").unwrap_or(rest.len());
+            let re = regress::Regex::new(r#"<Value Name="([A-Za-z]+)" Value="(\d+)""#).expect("a fixed pattern");
+            for m in re.find_iter(&rest[..end]) {
+                if let (Some(n), Some(v)) = (m.group(1), m.group(2)) {
+                    if let Ok(code) = rest[v].parse::<i64>() {
+                        names.push((code, rest[n].to_string()));
+                    }
+                }
+            }
+        }
+    }
+    if names.is_empty() {
+        // Windows 11 24H2's table, as read on the G16 (2026-10-06)
+        for (c, n) in [(0, "NoErrorsFound"), (1, "ErrorsFixed"), (2, "MinorErrorsFixedOrCleanup"), (3, "Failed"), (4, "ScanNoErrorsFound"), (5, "ScanErrorsFoundAndFixedOnline"), (6, "ScanErrorsFixedOnlineAlsoNeedSpotFix"), (7, "ScanErrorsFoundNeedSpotFix"), (8, "ScanNeedsRetry"), (9, "ScanRunning")] {
+            names.push((c, n.to_string()));
+        }
+    }
+    names
+}
+
+/// `Repair-Volume -DriveLetter C -Scan`: the online scan, which only reads.
+/// Its result as the cmdlet would print it, or `scan failed: <why>`.
+pub fn online_scan() -> String {
+    let storage = match storage_wmi() {
+        Ok(w) => w,
+        Err(e) => return format!("scan failed: {e}"),
+    };
+    let volume = match storage.query_where("MSFT_Volume", &["ObjectId"], "DriveLetter='C'") {
+        Ok(l) if !l.is_empty() => l.into_iter().next().unwrap(),
+        Ok(_) => return "scan failed: No MSFT_Volume objects found with property 'DriveLetter' equal to 'C'. Verify the value of the property and retry.".into(),
+        Err(e) => return format!("scan failed: {e}"),
+    };
+    match storage.call_with("MSFT_Volume", &text(&volume["__RELPATH"]), "Repair", &[("Scan", json!(true)), ("OfflineScanAndFix", json!(false)), ("SpotFix", json!(false))], &["ReturnValue", "Output", "ExtendedStatus"]) {
+        Ok(r) if int(&r["ReturnValue"]) == Some(0) => {
+            let code = int(&r["Output"]).unwrap_or(-1);
+            repair_status_names().into_iter().find(|(c, _)| *c == code).map(|(_, n)| n).unwrap_or_else(|| code.to_string())
+        }
+        Ok(r) => format!("scan failed: {}", storage_error(&r)),
+        Err(e) => format!("scan failed: {e}"),
+    }
+}
+
+/// Get-UpgVolumeHealth (elevated only).
 pub fn volume_health(is_admin: bool, shrink_error: &str) -> Value {
     if !is_admin {
         return json!({"Dirty": "unknown", "Scan": null, "ScanRan": false, "Error": "not elevated"});
@@ -430,7 +479,7 @@ pub fn volume_health(is_admin: bool, shrink_error: &str) -> Value {
     }
     let scan_started = now_local();
     let reason = dirty == "dirty" || matches("volume with errors|corrupt", shrink_error) || matches("repair", &text(&vol_status)) || ntfs_full.is_some();
-    let (scan, scan_ran) = if reason { (json!("scan failed: this build does not run the online scan yet"), true) } else { (Value::Null, false) };
+    let (scan, scan_ran) = if reason { (json!(online_scan()), true) } else { (Value::Null, false) };
     let since = if scan_ran { 5 } else { 7 * DAY };
     let logged = events::query("Application", &format!("*[System[Provider[@Name='Chkdsk'] and {}]]", within(since))).ok().and_then(|l| l.into_iter().next()).map(|e| {
         let r = chkdsk_event(&e.message);

@@ -100,6 +100,11 @@ impl Wmi {
     /// Call a method on one object (by its `__PATH`) with no input, and
     /// return the output parameters as JSON (`ReturnValue` among them).
     pub fn call(&self, class: &str, path: &str, method: &str, out_names: &[&str]) -> Result<Value, String> {
+        self.call_with(class, path, method, &[], out_names)
+    }
+
+    /// A method call with input parameters (booleans and whole numbers).
+    pub fn call_with(&self, class: &str, path: &str, method: &str, inputs: &[(&str, Value)], out_names: &[&str]) -> Result<Value, String> {
         use windows::Win32::System::Wmi::IWbemClassObject;
         unsafe {
             // an empty input object, as Invoke-CimMethod sends one
@@ -113,6 +118,27 @@ impl Wmi {
                 Some(c) => Some(c.SpawnInstance(0).map_err(|e| wmi_error(&e))?),
                 None => None,
             };
+            if let Some(params) = &in_params {
+                for (name, value) in inputs {
+                    let mut v = VARIANT::default();
+                    {
+                        let inner = &mut *v.Anonymous.Anonymous;
+                        match value {
+                            Value::Bool(b) => {
+                                inner.vt = VT_BOOL;
+                                inner.Anonymous.boolVal = (*b).into();
+                            }
+                            Value::Number(n) => {
+                                inner.vt = VT_I4;
+                                inner.Anonymous.lVal = n.as_i64().unwrap_or(0) as i32;
+                            }
+                            _ => return Err(format!("{method}: an input of a kind this cannot send ({name})")),
+                        }
+                    }
+                    let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+                    params.Put(windows::core::PCWSTR(wide.as_ptr()), 0, &v, 0).map_err(|e| format!("{method}.{name}: {}", wmi_error(&e)))?;
+                }
+            }
             let mut out: Option<IWbemClassObject> = None;
             self.services
                 .ExecMethod(&BSTR::from(path), &BSTR::from(method), windows::Win32::System::Wmi::WBEM_GENERIC_FLAG_TYPE(0), None, in_params.as_ref(), Some(&mut out), None)

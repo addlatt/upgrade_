@@ -106,7 +106,7 @@ PY
 if [ "$HAVE_PS" = 1 ]; then
     same_names "$TMP/scan-selftest.txt" evaluate/scan/tests/cases.json "scanner"
     same_names "$TMP/ks-selftest.txt" upgrade_/kickstart/tests/cases.json "kickstart"
-    same_names "$TMP/harvest-selftest.txt" evaluate/harvest/tests/cases.json "harvester" evaluate/harvest/tests/owed-selftest.txt
+    same_names "$TMP/harvest-selftest.txt" evaluate/harvest/tests/cases.json "harvester" evaluate/harvest/tests/windows-selftest.txt
     same_names "$TMP/job-selftest.txt" evaluate/job/tests/cases.json "job writer"
 else
     skip "self-test case names against cases.json"
@@ -117,6 +117,12 @@ for crate in schemas/rust evaluate/scan evaluate/harvest evaluate/job upgrade_/k
     if (cd "$crate" && cargo test --locked --quiet) > "$TMP/cargo.txt" 2>&1; then pass "cargo test in $crate"
     else fail "cargo test in $crate"; sed 's/^/          /' "$TMP/cargo.txt" | tail -40; fi
 done
+if [ "$HAVE_PS" = 1 ]; then
+    if (cd evaluate/harvest && ./windows-tests.sh) > "$TMP/wintests.txt" 2>&1 && grep -q "test result: ok. 12 passed" "$TMP/wintests.txt"; then pass "the harvester's 12 filesystem cases on this Windows machine"
+    else fail "the harvester's filesystem cases on Windows"; tail -20 "$TMP/wintests.txt" | sed 's/^/          /'; fi
+else
+    skip "the harvester's filesystem cases (they run on Windows)"
+fi
 if (cd schemas/rust && UPGRADE_SCHEMA_MUTATIONS="$TMP/mutations.jsonl" cargo test --locked --quiet -- --ignored --nocapture) > "$TMP/diff.txt" 2>&1; then
     pass "schemas differential: $(grep -o '[0-9]* one-edit documents judged the same.*' "$TMP/diff.txt" || echo done)"
 else fail "schemas differential against check.py"; sed 's/^/          /' "$TMP/diff.txt" | tail -30; fi
