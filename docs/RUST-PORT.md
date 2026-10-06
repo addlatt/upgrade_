@@ -263,7 +263,10 @@ same facts in Rust and compares. First run, the G16, not elevated: SAME,
 G16 elevated: SAME, 218 report lines and 25 checks. That run read what the
 first could not: 76.5 GB of shrink room, BitLocker on for C:, 185.9 MiB
 free on the boot partition, the firmware's six trusted signing authorities,
-the drive's reliability counters. This proves the Rust
+the drive's reliability counters. Third run, 2026-10-06, the Aspire on
+Windows 11 again, elevated, over SSH: SAME, 166 report lines and 26 checks.
+Its verdict is RED, from the drive's own error log (bad blocks) and SMART.
+Two machines, both verdicts, elevated and not. This proves the Rust
 judges a real machine's real facts as the PowerShell does. It does not
 prove the Rust can read them: that is items 3 and 4. The capture holds the
 machine's program list and is never committed (`.gitignore` covers its
