@@ -1,0 +1,19 @@
+[package]
+name = "upgrade-prologue"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+
+# The prologue's judging half in Rust (RISKS R32, docs/RUST-PORT.md step 5):
+# the R18 guardrails, the re-validation, the fork, the shrink ladder's rungs
+# and their consents, R25's waiting update, the stop conditions, and the
+# outcome.json contents at every stop. It reads no machine and writes no
+# file: Invoke-Prologue.ps1 stays the prologue in use until its ledger
+# lines all read `pass`.
+[dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }
+regress = "0.10"
+upgrade-scan = { path = "../../evaluate/scan" }
+
+[dev-dependencies]
+upgrade-schema = { path = "../../schemas/rust" }

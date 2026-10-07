@@ -3363,8 +3363,12 @@ roadmap).
   the Store packages through the deployment API) and writes `job.json`
   only as a document the contract accepted; its facts match the script's
   on the G16 but for the elevated-only reads, which still need the
-  elevated run. The prologue's, rollback's and handoff's 269 ledger lines
-  are written, all `owed`. Two differences kept on purpose, both stricter: the
+  elevated run. The prologue's judging half is ported (`upgrade_/prologue`:
+  the R18 guardrails, the re-validation, the fork, the ladder's consents,
+  R25, the erase path, the records; 161 cases and 228 calls match the
+  script word for word, and every realistic stopped outcome passes the
+  contract); its rig and physical rows, the rollback's and the handoff's
+  are written and `owed`. Two differences kept on purpose, both stricter: the
   online scan's Windows 11 names now count as errors found (the PowerShell
   judged them clean), and a typed pair whose bytes differ is refused even
   where PowerShell's culture-aware comparison accepted it. Each is held by

@@ -442,151 +442,150 @@ Read-Password.ps1,"a matching pair is accepted",selftest,evaluate/job password::
 Read-Password.ps1,"v9-erase.csv:11 (the Aspire's run 9: the password typed through the hasher signed in to Fedora; re-earned by one physical run with upgrade-job password)",physical,,owed,2026-10-07
 Read-Password.ps1,"v9-erase.csv:22 (the Aspire's run 10: the password typed through the hasher signed in to Fedora; re-earned by one physical run with upgrade-job password)",physical,,owed,2026-10-07
 Read-Password.ps1,"v9-erase.csv:30 (the Aspire's run 11: the password typed through the hasher signed in to Fedora; re-earned by one physical run with upgrade-job password)",physical,,owed,2026-10-07
-Invoke-Prologue.ps1,"C:\pagefile.sys",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"update pending: any one marker counts; none, or a record with none of them, is clear",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"update step: nothing pending is clear, wherever it is asked",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"update step: pending before anything changes or before the shrink takes a restart of ours, up to the limit, then stops",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"update step (R25): pending right before the arm never restarts - it stops, whatever the count",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"update record: the outcome block counts checks, what was seen and the restarts; a state from before 0.9.0 has none",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore-point verdict: all, some, none, none there, unreadable",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore-point line: the Aspire run 6 record (0.8.0 kept no exit code) says NONE, never ""deleted""",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore-point line: vssadmin exit and each WMI answer are carried",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore-point line: all deleted by vssadmin alone",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore-point line: an unreadable count never claims a deletion",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"change journal (R18): the Aspire",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"change journal (R18): named, consented, not done this boot -> delete",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"change journal (R18): no consent in the job (a 0.8.0-or-older job) -> never deleted",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"change journal (R18): not twice in one boot",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"change journal (R18): a number that fits, or another file in the way, deletes nothing",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"change journal: the Aspire",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"change journal: no active journal parses to Active=False",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore (R18): a deleted journal that was active comes back, on a stop and on the return; once created, not again",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore (R18): a journal that was not active, or a delete that failed, is not created",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore points (R18): the Aspire",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore points (R18): named, consented, not yet done -> delete",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore points (R18): no consent in the job -> never deleted",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore points (R18): never twice",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore points (R18): a number that fits deletes nothing, consent or not",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore points (R18): another file in the way deletes nothing",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore points (R18): a job written before the consent existed reads as no consent",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore (R18): both off, both were on -> both come back",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore (R18): nothing was turned off -> nothing to do",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore (R18): hibernation was already off -> it stays off; custom pagefile settings go back as they were",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore (R18): a machine that had no pagefile is not given one",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore (R18): no record of before (a 0.5.0 state) -> pagefile to automatic, hibernation named as left off",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore (R18): the return after an install keeps hibernation off and brings the pagefile back",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"restore (R18): one custom pagefile setting survives the state round trip across the restart",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"stop sentence (R18): nothing changed -> as it was",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"stop sentence (R18): a pagefile pending a restart is said",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"stop sentence (R18): a failed restore never reads ""as it was""",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"revalidate: an identical machine has no mismatches",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"revalidate: a different system disk id is a mismatch",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"revalidate: a different disk size is a mismatch",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"revalidate: a different stick is a mismatch",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"revalidate: an unreadable stick is a mismatch, not a pass",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"revalidate: BitLocker turned off since evaluate is a mismatch",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"revalidate (R18): a repair queued since evaluate is a mismatch",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"trigger (R18): the dirty flag runs the check",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"trigger (R18): a clean bit with a queued repair runs it too",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"trigger (R18): clean with nothing queued skips it",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"trigger (R18): an unreadable bit never skips, queued or not",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"repair queued (R18): Full Repair Needed / NTFS 98 alone / neither",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"repair queued (R18): the reason names the source",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"repair queued (R18, 2026-09-20): an event 98 older than the last completed check is history",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"repair queued (R18, 2026-09-20): an event 98 after the last check still counts; with no check on record it counts",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"repair queued (R18, 2026-09-20): the volume",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"ntfs98 fresh: DateTimes and round-trip strings compare alike; none is not fresh",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"the Aspire on 2026-09-20: clean bit, volume OK, stale 98 -> step 1b does not run",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"defrag 259: the Aspire",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"method (R18): a queued repair picks chkdsk-f even when the cmdlet says NoErrorsFound",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"revalidate: the flag cleared since evaluate is a change, and a change stops",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"revalidate: a disk health that changed is a mismatch",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"revalidate: Secure Boot toggled is a mismatch",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"rung: NoErrorsFound with no other evidence chooses the spot-fix",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"rung: ErrorsFound / ErrorsNotFixed choose chkdsk /f",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"rung: the Chkdsk log's found-problems outranks the cmdlet's NoErrorsFound (the Aspire)",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"rung: Get-Volume ""Full Repair Needed"" chooses chkdsk /f",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"rung: NTFS event 98 chooses chkdsk /f",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"rung: a failed scan with no evidence refuses, never a guess",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"rung: a failed scan but the log found problems still goes to chkdsk /f",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"rung: an empty answer refuses",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"chkdsk event: found problems with records and queued items; found no problems; localized unknown",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"disk events: only \Device\Harddisk1\ counts (not Harddisk10), 7 and 51 tallied",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"health gate: Healthy with no bad blocks passes",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"health gate: Healthy with bad-block events refuses and names the count",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"health gate: Warning refuses; Unknown refuses; empty refuses",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"health gate (R23): the acknowledgement lifts it and the reason says DATA LOSS ACCEPTED",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"health gate (R23): acknowledged on a clean disk says nothing about data loss",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"scan string: cmdlet and evidence in one line",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"stopped outcome (R23): carries the job",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"chkntfs: ""is dirty"" means a check runs at the restart",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"chkntfs: ""is not dirty"" means nothing will run",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"chkntfs: a manual schedule is scheduled",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"chkntfs: chkdsk's own Y answer is scheduled",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"chkntfs: localized output is unknown",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"fsutil: NOT Dirty is clean, Dirty is dirty, else unknown",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"diskpart: the rig line parses to the MB figure",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"diskpart: a refusal parses to null",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"manage-bde: Protection On / Off / localized",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"plan: 85.8 GB C:, 65 GB free, SizeMin 30 GB, Linux 25 GB fits, requests exactly 25 GB",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"plan: immovable files cap it below Linux -> does not fit, no request",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"plan: Windows kept with too little free space -> does not fit",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"plan: harvested files raise the target by 1.2x",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"plan: a SizeMin above the partition size is zero shrinkable, never negative",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"fork: keep-windows job that fits keeps Windows",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"fork: keep-windows job that does not fit takes if_cannot_keep=clean-slate",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"fork: keep-windows job that does not fit takes if_cannot_keep=stop",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"fork: an unknown if_cannot_keep stops, never guesses",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"fork: a clean-slate job the person chose is clean slate whatever the number",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"fork (R18, 2026-09-22): a forced clean-slate job under if_cannot_keep=stop stops - the Aspire run 5 job",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"fork: a forced clean-slate job the person allowed (if_cannot_keep=clean-slate) is clean slate",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase start: an erase job starts with the erase sentence and no CONVERT word",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase start: CONVERT alone does not start an erase job",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase start: a paraphrase does not start it",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase start: a job whose sentence differs from this prologue",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase start: the erase sentence never starts a keep-windows job",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase start: a keep-windows job still needs CONVERT",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase disks: both drives present at their sizes is no mismatch",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase disks: a home drive that is gone, or a different size, is a mismatch (never erase a stranger",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase disks: a first drive that is not the C: drive is a mismatch",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase return: a key in the countdown is stopped_at countdown, nothing erased",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase return: the installer refusing on identity is stopped_at identity",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase return: a countdown that elapsed and still came back says the drives may be partly erased - never ""nothing""",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"erase: a stopped outcome carries the erase consent",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"stage (R18, 2026-09-22): no folders in the job refuses before anything is staged, and says why",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"stage (R18, 2026-09-22): folders listed but 0 files staged refuses",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"stage: folders listed, before staging, and files staged, after, are not refusals",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"estimate: 20 GB at 20 MB/s is 1000 s, shown as about 17 minutes",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"estimate: no measurement gives null, shown as unknown",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"estimate: hours when it is hours",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"classify: fired + cleared + intact is fired-once",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"classify: fired but not cleared is persisted",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"classify: order changed is reordered",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"classify: not fired, intact is ignored",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"grubenv: clean block is 1024 bytes and not fired; upg_fired=1 is fired",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"stick: found again under a new letter by volume id; absent is null",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"record: a fresh state makes a schema-shaped block (needed false, method none, freed 0)",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"record: a check that ran carries Healthy, its method, the scan and one restart",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"record: an unrecognised health reading is written as Unknown, never Healthy",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"record: mismatches make revalidated false",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"record: the JSON round-trips through the state file as hashtables with the same block",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"stopped outcome: status stopped, the stage, the reason, line not crossed, credentials scrubbed",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"stopped outcome: a stop after the keep-windows fork keeps scrub_after settle-in-pull",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"json: LF only, schema string present",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"resume context: SYSTEM in session 0 is unattended",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"resume context: a signed-in person in session 1 is attended",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"resume context: session 0 is unattended even if the flag says interactive",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"notice: the RunOnce command is hidden, unelevated -Notify from the state copy",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"state: a fresh state carries an empty resume log; an old state without one round-trips",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"record: resumes carry SYSTEM/user, the session, unattended and the stick wait - never the raw account",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"record: no resumes yet means no resumes key (the field is optional in the contract)",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"probe: SYSTEM, stick found, task removed is resumed-unattended",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"probe: a session present is resumed-attended",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"probe: no stick names that first, whatever else",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"probe: a task left behind is task-not-removed",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"probe csv: fields quoted, quotes doubled, newlines flattened, header has 18 columns",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"wifi secrets: every file in the stick",selftest,,owed,2026-10-07
-Invoke-Prologue.ps1,"drive: e normalizes to E:\, a path is refused",selftest,,owed,2026-10-07
+Invoke-Prologue.ps1,"update pending: any one marker counts; none, or a record with none of them, is clear",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"update step: nothing pending is clear, wherever it is asked",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"update step: pending before anything changes or before the shrink takes a restart of ours, up to the limit, then stops",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"update step (R25): pending right before the arm never restarts - it stops, whatever the count",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"update record: the outcome block counts checks, what was seen and the restarts; a state from before 0.9.0 has none",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore-point verdict: all, some, none, none there, unreadable",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore-point line: the Aspire run 6 record (0.8.0 kept no exit code) says NONE, never ""deleted""",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore-point line: vssadmin exit and each WMI answer are carried",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore-point line: all deleted by vssadmin alone",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore-point line: an unreadable count never claims a deletion",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal (R18): the Aspire",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal (R18): named, consented, not done this boot -> delete",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal (R18): no consent in the job (a 0.8.0-or-older job) -> never deleted",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal (R18): not twice in one boot",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal (R18): a number that fits, or another file in the way, deletes nothing",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal: the Aspire",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal: no active journal parses to Active=False",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): a deleted journal that was active comes back, on a stop and on the return; once created, not again",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): a journal that was not active, or a delete that failed, is not created",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): the Aspire",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): named, consented, not yet done -> delete",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): no consent in the job -> never deleted",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): never twice",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): a number that fits deletes nothing, consent or not",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): another file in the way deletes nothing",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): a job written before the consent existed reads as no consent",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): both off, both were on -> both come back",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): nothing was turned off -> nothing to do",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): hibernation was already off -> it stays off; custom pagefile settings go back as they were",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): a machine that had no pagefile is not given one",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): no record of before (a 0.5.0 state) -> pagefile to automatic, hibernation named as left off",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): the return after an install keeps hibernation off and brings the pagefile back",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): one custom pagefile setting survives the state round trip across the restart",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stop sentence (R18): nothing changed -> as it was",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stop sentence (R18): a pagefile pending a restart is said",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stop sentence (R18): a failed restore never reads ""as it was""",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: an identical machine has no mismatches",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: a different system disk id is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: a different disk size is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: a different stick is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: an unreadable stick is a mismatch, not a pass",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: BitLocker turned off since evaluate is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate (R18): a repair queued since evaluate is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"trigger (R18): the dirty flag runs the check",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"trigger (R18): a clean bit with a queued repair runs it too",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"trigger (R18): clean with nothing queued skips it",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"trigger (R18): an unreadable bit never skips, queued or not",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"repair queued (R18): Full Repair Needed / NTFS 98 alone / neither",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"repair queued (R18): the reason names the source",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"repair queued (R18, 2026-09-20): an event 98 older than the last completed check is history",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"repair queued (R18, 2026-09-20): an event 98 after the last check still counts; with no check on record it counts",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"repair queued (R18, 2026-09-20): the volume",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"ntfs98 fresh: DateTimes and round-trip strings compare alike; none is not fresh",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"the Aspire on 2026-09-20: clean bit, volume OK, stale 98 -> step 1b does not run",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"defrag 259: the Aspire",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"method (R18): a queued repair picks chkdsk-f even when the cmdlet says NoErrorsFound",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: the flag cleared since evaluate is a change, and a change stops",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: a disk health that changed is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: Secure Boot toggled is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: NoErrorsFound with no other evidence chooses the spot-fix",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: ErrorsFound / ErrorsNotFixed choose chkdsk /f",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: the Chkdsk log's found-problems outranks the cmdlet's NoErrorsFound (the Aspire)",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: Get-Volume ""Full Repair Needed"" chooses chkdsk /f",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: NTFS event 98 chooses chkdsk /f",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: a failed scan with no evidence refuses, never a guess",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: a failed scan but the log found problems still goes to chkdsk /f",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: an empty answer refuses",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"chkdsk event: found problems with records and queued items; found no problems; localized unknown",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"disk events: only \Device\Harddisk1\ counts (not Harddisk10), 7 and 51 tallied",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"health gate: Healthy with no bad blocks passes",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"health gate: Healthy with bad-block events refuses and names the count",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"health gate: Warning refuses; Unknown refuses; empty refuses",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"health gate (R23): the acknowledgement lifts it and the reason says DATA LOSS ACCEPTED",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"health gate (R23): acknowledged on a clean disk says nothing about data loss",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"scan string: cmdlet and evidence in one line",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stopped outcome (R23): carries the job",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"chkntfs: ""is dirty"" means a check runs at the restart",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"chkntfs: ""is not dirty"" means nothing will run",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"chkntfs: a manual schedule is scheduled",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"chkntfs: chkdsk's own Y answer is scheduled",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"chkntfs: localized output is unknown",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fsutil: NOT Dirty is clean, Dirty is dirty, else unknown",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"diskpart: the rig line parses to the MB figure",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"diskpart: a refusal parses to null",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"manage-bde: Protection On / Off / localized",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"plan: 85.8 GB C:, 65 GB free, SizeMin 30 GB, Linux 25 GB fits, requests exactly 25 GB",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"plan: immovable files cap it below Linux -> does not fit, no request",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"plan: Windows kept with too little free space -> does not fit",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"plan: harvested files raise the target by 1.2x",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"plan: a SizeMin above the partition size is zero shrinkable, never negative",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork: keep-windows job that fits keeps Windows",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork: keep-windows job that does not fit takes if_cannot_keep=clean-slate",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork: keep-windows job that does not fit takes if_cannot_keep=stop",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork: an unknown if_cannot_keep stops, never guesses",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork: a clean-slate job the person chose is clean slate whatever the number",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork (R18, 2026-09-22): a forced clean-slate job under if_cannot_keep=stop stops - the Aspire run 5 job",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork: a forced clean-slate job the person allowed (if_cannot_keep=clean-slate) is clean slate",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase start: an erase job starts with the erase sentence and no CONVERT word",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase start: CONVERT alone does not start an erase job",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase start: a paraphrase does not start it",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase start: a job whose sentence differs from this prologue",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase start: the erase sentence never starts a keep-windows job",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase start: a keep-windows job still needs CONVERT",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase disks: both drives present at their sizes is no mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase disks: a home drive that is gone, or a different size, is a mismatch (never erase a stranger",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase disks: a first drive that is not the C: drive is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase return: a key in the countdown is stopped_at countdown, nothing erased",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase return: the installer refusing on identity is stopped_at identity",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase return: a countdown that elapsed and still came back says the drives may be partly erased - never ""nothing""",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase: a stopped outcome carries the erase consent",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stage (R18, 2026-09-22): no folders in the job refuses before anything is staged, and says why",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stage (R18, 2026-09-22): folders listed but 0 files staged refuses",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stage: folders listed, before staging, and files staged, after, are not refusals",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"estimate: 20 GB at 20 MB/s is 1000 s, shown as about 17 minutes",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"estimate: no measurement gives null, shown as unknown",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"estimate: hours when it is hours",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"classify: fired + cleared + intact is fired-once",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"classify: fired but not cleared is persisted",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"classify: order changed is reordered",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"classify: not fired, intact is ignored",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"grubenv: clean block is 1024 bytes and not fired; upg_fired=1 is fired",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stick: found again under a new letter by volume id; absent is null",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: a fresh state makes a schema-shaped block (needed false, method none, freed 0)",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: a check that ran carries Healthy, its method, the scan and one restart",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: an unrecognised health reading is written as Unknown, never Healthy",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: mismatches make revalidated false",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: the JSON round-trips through the state file as hashtables with the same block",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stopped outcome: status stopped, the stage, the reason, line not crossed, credentials scrubbed",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stopped outcome: a stop after the keep-windows fork keeps scrub_after settle-in-pull",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"json: LF only, schema string present",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"resume context: SYSTEM in session 0 is unattended",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"resume context: a signed-in person in session 1 is attended",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"resume context: session 0 is unattended even if the flag says interactive",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"notice: the RunOnce command is hidden, unelevated -Notify from the state copy",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"state: a fresh state carries an empty resume log; an old state without one round-trips",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: resumes carry SYSTEM/user, the session, unattended and the stick wait - never the raw account",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: no resumes yet means no resumes key (the field is optional in the contract)",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"probe: SYSTEM, stick found, task removed is resumed-unattended",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"probe: a session present is resumed-attended",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"probe: no stick names that first, whatever else",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"probe: a task left behind is task-not-removed",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"probe csv: fields quoted, quotes doubled, newlines flattened, header has 18 columns",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"wifi secrets: every file in the stick",selftest,"not a judgment: the scrub of the stick's Wi-Fi files is the live half's (Remove-PrologueWifiSecrets)",owed,2026-10-07
+Invoke-Prologue.ps1,"drive: e normalizes to E:\, a path is refused",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
 Invoke-Prologue.ps1,"r18-prologue.csv:2 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
 Invoke-Prologue.ps1,"r18-prologue.csv:3 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
 Invoke-Prologue.ps1,"r18-prologue.csv:4 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07

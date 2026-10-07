@@ -38,7 +38,8 @@ Three docs already cover parts of this, and this page does not repeat them:
 | 4b | the job writer's judging half (`evaluate/job`) | `[##..]` built, no program uses it yet | 126 of 126 self-test lines `pass`; rig and physical rows `owed` |
 | 4c | the job writer's live half (`evaluate/job/src/live.rs`; `upgrade-job write`): every read of `Get-JobFacts`, the Wi-Fi export, `job.json` written only as a document that passed the contract, the password files, `ks.cfg` through the kickstart crate | `[###.]` the G16, `upgrade-job facts` beside the script's `Get-JobFacts`, not elevated: SAME field for field but for the elevated-only reads and the two Store-signed non-removable apps; the elevated run and a `job.json` beside the PowerShell's (needs the kit stick) are owed | `upgrade-job compare-facts`, 2026-10-07; `v13-rust-job.csv` line 2. The stick writer is not started |
 | 4d | the password hasher (`evaluate/job/src/password.rs`; `upgrade-job password`) | `[##..]` built; the prompt not yet run on a stick | 12 of 12 self-test lines `pass`, 34 recorded calls match, the specification's vectors held directly; its 3 physical rows `owed` |
-| 5 | the prologue, handoff, rollback | `[#...]` planned | ledger lines not written |
+| 5a | the prologue's judging half (`upgrade_/prologue`, crate `upgrade-prologue`): the R18 guardrails, the re-validation, the shrink plan and the fork, the ladder's rungs and consents, R25's update step, the erase path's start and return, the handoff classifier, the resume context, the state, the `prologue` block and a stopped outcome | `[##..]` built, no program uses it yet | 143 of 144 self-test lines `pass` (the 144th is the Wi-Fi scrub, a live action); 161 cases, 228 calls match word for word; every realistic stopped outcome passes `outcome.schema.json`; its 36 rig and 12 physical rows `owed` |
+| 5b | the prologue's live half, the handoff, the rollback | `[#...]` ledger lines written (the rollback's 16, the handoff's 60), nothing ported | |
 
 Nothing has been switched over. The stick still runs the PowerShell, and
 every result in `docs/validation-results/` still belongs to the PowerShell
@@ -148,7 +149,7 @@ on 2026-10-04.
 | `New-Kickstart.ps1` | 226 | part of the job writer crate | 4 | rig rows |
 | `Write-UpgradeStick.ps1` | 514 | a stick writer (shares ideas with `settle-in/src/stickwrite.rs`) | 4 | `r16-stick-writer.csv` |
 | `Read-Password.ps1` | 201 | `evaluate/job/src/password.rs`, run as `upgrade-job password` until the window takes the prompt | 4 | `-SelfTest`, 12 cases |
-| `Invoke-Prologue.ps1` | 2,124 | the converter's Windows half | 5 | rig and physical rows (`r18-prologue.csv`) |
+| `Invoke-Prologue.ps1` | 2,124 | `upgrade_/prologue` (crate `upgrade-prologue`), then the converter's Windows half | 5 | `-SelfTest`, 144 cases; rig and physical rows (`r18-prologue.csv`, `v2-install.csv`, `v9-erase.csv`, `walkaway-probe.csv`) |
 | `Invoke-Rollback.ps1` | 238 | the converter's Windows half | 5 | `r21-rollback.csv` |
 | `Test-Handoff.ps1` | 809 | the converter's Windows half | 5 | `v0-handoff.csv` |
 | the `.cmd` launchers | about 1,200 | flows inside `UPGRADE.exe` | 5 | V12 |
@@ -440,6 +441,7 @@ Each one is stricter than the original, or changes no decision.
 | kickstart, way in | its own shape checks (they accept `JOB/1`, any case) | the converter's way in needs a `Job` that passed the whole schema | never softer |
 | installed programs in a job | sorted by the machine's language rules (PowerShell's `Sort-Object`) | sorted by the lower-cased name, the same on every machine | the list is an inventory; nothing decides on its order. Past the 2,000 cap the two could keep different entries |
 | Store apps marked non-removable (2026-10-07) | `Get-AppxPackage`'s `NonRemovable` flag, whose source Windows does not expose; dropped from the inventory | read as membership of Windows' inbox-application list in the registry, which covers 44 of the 46 on the G16; the two Store-signed ones (Windows Security, App Installer) are listed | an inventory, nothing decides on it; two Microsoft apps more is the whole difference |
+| the prologue's "is NTFS's request fresh" (2026-10-07) | `[DateTime]::Parse` of the evidence's round-trip text, then `ToUniversalTime()`: a time with no zone is read as this machine's local time | a time with no zone is read as UTC | the prologue's evidence always carries the `Z`; the self-test's one naked date gives the same answer either way. A text that is not a time makes the script throw; the Rust takes the request as standing (never a skip) |
 | the job writer's refusals at the door | a missing stick or scan folder, a wrong `-Desktop`, or a failed read makes the script throw (a traceback, exit 1) | the same words as a plain refusal, exit 2; a job is written only after `upgrade_schema::Job` accepted it | stricter and plainer; the script wrote without checking the contract |
 | a job's `evaluate.version` | `0.18.0` | given by the program that writes the job | a record should say what wrote it |
 | `Disk N` detail line | printed with the machine's own number format (`931,5 GB` on a German Windows) | always a dot (`931.5 GB`) | a display line only; no decision reads it |
@@ -491,10 +493,18 @@ else.
 active path over, in this order: the scanner's product command (done, 3f),
 the password hasher (done, 4d), the harvester's live half (done, 3g), the
 job writer's live half (built, 4c; its elevated run and a `job.json` side
-by side owed), the prologue's judging half (its 193 ledger lines written,
-with the rollback's 16 and the handoff's 60), the prologue's live half
-with the handoff and the rollback, the launchers as flows in
-`UPGRADE.exe`, the kit, the docs. The Windows 11 scan names are fixed in the Rust (above); the fix
+by side owed), the prologue's judging half (built, 5a), the prologue's
+live half with the handoff and the rollback (their ledger lines written),
+the launchers as flows in `UPGRADE.exe`, the kit, the docs.
+
+**A finding from 5a for `main`:** `Get-PrologueRepairMethod` knows only
+Windows 10's scan names. On Windows 11 a scan that found errors
+(`ScanErrorsFoundNeedSpotFix`) with no other evidence makes the prologue
+*refuse* the disk check, and `ScanNoErrorsFound` is not the spot-fix
+either. That is the safe side (never repair on a guess), so the Rust keeps
+it exactly; the fix belongs in `Invoke-Prologue.ps1` first, as the
+scanner's did. The log, the volume's status and NTFS event 98 still
+choose the full check on their own. The Windows 11 scan names are fixed in the Rust (above); the fix
 to `upgrade-scan.ps1` on `main` is still owed there.
 
 ## What comes next
