@@ -289,7 +289,9 @@ Harvest-UpgradeState.ps1,capacity: picks the largest drive and calls it sufficie
 Harvest-UpgradeState.ps1,capacity: a too-small drive is not sufficient,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
 Harvest-UpgradeState.ps1,capacity: no external drive is reported plainly,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
 Harvest-UpgradeState.ps1,v8-materialize.csv:2-5 (the materializer's rig and G16 rows; split per row when re-run),rig,,owed,2026-10-04
-Harvest-UpgradeState.ps1,harvest-folder-map.csv:2-4 (the folder map's rows; split per row when re-run),physical,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"harvest-folder-map.csv:2 (the G16's folder map)",physical,"upgrade-harvest folder-map beside -FolderMapOut on the G16 in the same minute, not elevated (the elevated run's UAC prompt was cancelled): SAME field for field (harvest-folder-map.csv:5)",pass,2026-10-07
+Harvest-UpgradeState.ps1,"harvest-folder-map.csv:3 (the Aspire's folder map over SSH)",physical,,owed,2026-10-07
+Harvest-UpgradeState.ps1,"harvest-folder-map.csv:4 (the Aspire's folder map in the real launcher)",physical,,owed,2026-10-07
 New-Job.ps1,clock: RealTimeIsUniversal absent = the hardware clock holds local time (Windows default),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
 New-Job.ps1,"clock: RealTimeIsUniversal 1 = UTC, 0 = local",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
 New-Job.ps1,clock: refuse a RealTimeIsUniversal value that is neither 0 nor 1 (not guessed),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04

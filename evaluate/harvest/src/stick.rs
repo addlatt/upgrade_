@@ -29,7 +29,7 @@ pub struct StickFit {
 
 /// A number the way PowerShell's `{0:N2}` prints it: two decimals, halves
 /// rounded away from zero, thousands separated by commas.
-fn n2(x: f64) -> String {
+pub fn n2(x: f64) -> String {
     // .NET Framework rounds from the 15-digit decimal form of the number
     let whole_digits = if x.abs() < 1.0 { 1 } else { x.abs().log10().floor() as usize + 1 };
     let shown = format!("{:.*}", 15usize.saturating_sub(whole_digits).max(2), x.abs());

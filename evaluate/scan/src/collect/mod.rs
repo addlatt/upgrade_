@@ -25,9 +25,10 @@ mod storage;
 #[cfg(windows)]
 mod system;
 #[cfg(windows)]
-mod win;
+pub mod win;
+/// The WMI client, shared with the harvester's and the job writer's live halves.
 #[cfg(windows)]
-mod wmi;
+pub mod wmi;
 
 #[cfg(windows)]
 pub use win::utc_to_local;

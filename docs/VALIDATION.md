@@ -1344,7 +1344,7 @@ name, and the Rust tests.
 |---|---|---|---|
 | `schemas/check.py` (step 1) | 103 | 103 | 0 |
 | `upgrade-scan.ps1` | 118 | 108 | 10 (`v5-controller-mode.csv` lines 2 to 10, `v1-live-boot.csv` line 4: the storage-mode rows need the rig's both-modes harness run with the Rust build, and the Aspire's RST driver is gone with its fresh Windows). Its own rows: `v13-rust-scanner.csv` |
-| `Harvest-UpgradeState.ps1` | 49 | 47 | 2 (`v8-materialize.csv`; `harvest-folder-map.csv`) |
+| `Harvest-UpgradeState.ps1` | 51 | 48 | 3 (`v8-materialize.csv`, the materializer's rig rows; `harvest-folder-map.csv` lines 3 and 4, the Aspire's folder maps). Line 2, the G16's, re-earned 2026-10-07 by `upgrade-harvest folder-map` side by side (line 5) |
 | `New-Job.ps1` (judging half) | 130 | 126 | 4 (the rig and physical rows that ran its jobs) |
 | `New-Kickstart.ps1` (step 4, first piece) | 26 | 22 | 4 (the rig and physical rows whose installs ran its kickstart: `v1-live-boot.csv`, `v2-install.csv`, `v9-erase.csv`) |
 | `Read-Password.ps1` (2026-10-07) | 15 | 12 | 3 (`v9-erase.csv` lines 11, 22, 30: the Aspire's runs where the person typed the password through it; one physical run with `upgrade-job password` re-earns them) |
@@ -1353,9 +1353,12 @@ name, and the Rust tests.
 scanner is a product command (`upgrade-scan scan --json --out`, proven on
 the G16 against `upgrade-scan.ps1 -Json -OutDir` in the same minute,
 elevated and not: JSON SAME field for field, text byte-identical;
-`v13-rust-scanner.csv` line 7), and the password hasher is ported (34
-recorded calls, the specification's vectors). Two differences kept on
-purpose, both stricter, in `docs/RUST-PORT.md`.
+`v13-rust-scanner.csv` line 7), the password hasher is ported (34
+recorded calls, the specification's vectors), and the harvester's live
+half writes the folder map (`upgrade-harvest folder-map`, side by side
+with `-FolderMapOut` on the G16: SAME field for field,
+`harvest-folder-map.csv` line 5). Two differences kept on purpose, both
+stricter, in `docs/RUST-PORT.md`.
 
 The scanner's rig and physical rows are not all found yet. Before step 3
 starts, every results file is read again for rows the scanner had a part

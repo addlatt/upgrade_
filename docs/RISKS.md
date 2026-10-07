@@ -3355,7 +3355,10 @@ roadmap).
   launchers expect them, proven on the G16 side by side with the
   PowerShell (JSON SAME, text byte-identical, elevated and not). The
   password hasher is ported and held to the specification's vectors and 34
-  recorded answers. Two differences kept on purpose, both stricter: the
+  recorded answers. The harvester's live half (the known folders, whose
+  desktop this is, the stick's volume, the browsers) writes the folder map
+  the job writer reads, proven side by side on the G16 the same day. Two
+  differences kept on purpose, both stricter: the
   online scan's Windows 11 names now count as errors found (the PowerShell
   judged them clean), and a typed pair whose bytes differ is refused even
   where PowerShell's culture-aware comparison accepted it. Each is held by

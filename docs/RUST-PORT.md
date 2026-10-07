@@ -33,6 +33,7 @@ Three docs already cover parts of this, and this page does not repeat them:
 | 3d | the live reads: elevated half (disks, shrink room, volume health with the online scan, physical disk, BitLocker, boot partition, firmware variables and trusted keys, event log, SMART, the stick's boot files) | `[####]` the G16 and the Aspire, elevated, side by side: every fact equal | 2026-10-06; `v13-rust-scanner.csv` |
 | 3e | the whole scanner in Rust, end to end: Rust reads the machine, Rust judges, the report is PowerShell's | `[####]` the G16 (SAME, 218 lines, 25 checks, YELLOW) and the Aspire (SAME, 166 lines, 26 checks, RED), both elevated | `upgrade-scan --replay rust.json --against powershell.json`, 2026-10-06 |
 | 3f | the scanner as the product command: `upgrade-scan scan --json --out <dir>` writes the report files where `upgrade-scan.ps1 -Json -OutDir` writes them; `upgrade-scan dump-machine` writes the `-DumpMachine` capture | `[####]` the G16, both scanners back to back, elevated and not: the JSON reports SAME field for field, the text reports byte-identical | `upgrade-scan compare-reports`, 2026-10-07; `v13-rust-scanner.csv` line 7. The one difference kept on purpose in the judgment (the Windows 11 scan names) is below |
+| 3g | the harvester's live half (`evaluate/harvest/src/live.rs`; `upgrade-harvest folder-map`): the known folders, whose desktop this is, the stick's volume facts, the browsers, the folder map as `-FolderMapOut` writes it | `[####]` the G16, both harvesters back to back, not elevated (the elevated run's UAC prompt was cancelled, so that run is still owed): the owner, all 6 folders, the cloud block, the stick and the fit SAME field for field; the browsers the same | `upgrade-harvest compare-maps`, 2026-10-07; `harvest-folder-map.csv` line 5 |
 | 4a | the kickstart generator (`upgrade_/kickstart`) | `[##..]` built, no program uses it yet | 22 of 22 self-test lines `pass`; its rig and physical rows `owed` |
 | 4b | the job writer's judging half (`evaluate/job`) | `[##..]` built, no program uses it yet | 126 of 126 self-test lines `pass`; rig and physical rows `owed` |
 | 4c | the job writer's live half (the reads, the files it writes), the stick writer | `[#...]` planned | ledger lines not written |
@@ -142,7 +143,7 @@ on 2026-10-04.
 | `schemas/*.schema.json` + `check.py` | 3,300 | `schemas/rust` (crate `upgrade-schema`) | 1 | `check.py`, 103 checks |
 | `upgrade-scan.ps1`, judging half | about 1,300 | `evaluate/scan` (crate `upgrade-scan`) | 2 | `-SelfTest`, 102 cases |
 | `upgrade-scan.ps1`, reads and report | about 1,300 | `evaluate/scan`, a `collect` module and a program | 3 | none (live reads) |
-| `Harvest-UpgradeState.ps1` | 1,279 | `evaluate/harvest` (crate `upgrade-harvest`) | 3 | `-SelfTest`, 47 cases |
+| `Harvest-UpgradeState.ps1` | 1,279 | `evaluate/harvest` (crate `upgrade-harvest`; the program `upgrade-harvest folder-map`) | 3 | `-SelfTest`, 47 cases |
 | `New-Job.ps1` | 1,451 | `evaluate/job` (crate `upgrade-job`) | 4 | `-SelfTest`, 126 cases |
 | `New-Kickstart.ps1` | 226 | part of the job writer crate | 4 | rig rows |
 | `Write-UpgradeStick.ps1` | 514 | a stick writer (shares ideas with `settle-in/src/stickwrite.rs`) | 4 | `r16-stick-writer.csv` |
@@ -441,7 +442,7 @@ Each one is stricter than the original, or changes no decision.
 | a job's `evaluate.version` | `0.18.0` | given by the program that writes the job | a record should say what wrote it |
 | `Disk N` detail line | printed with the machine's own number format (`931,5 GB` on a German Windows) | always a dot (`931.5 GB`) | a display line only; no decision reads it |
 | the password typed twice (2026-10-07) | `-cne`, which compares by the culture's rules: `é` and `e` + a combining accent count as the same, and the pair is accepted | the two entries are compared byte for byte; that pair is refused with "the two entries are not the same" | stricter, and right: Fedora's sign-in compares bytes, so the accepted pair would have locked the person out. `tests/password.rs` holds it by name |
-| the JSON report's form (2026-10-07) | `ConvertTo-Json`: a byte order mark, CRLF, .NET dates (`\/Date(...)\/`), a one-item array written as the item | plain UTF-8, LF, dates as `2025-05-19T20:00:00` local time, arrays always arrays; two fields more: `Scanner` (what wrote it) and, only when a read failed, `ReadErrors` | the same values in a plainer form. Every reader (`New-Job.ps1`, the window, the Rust) accepts both; nothing decides on `System.BiosDate`. The text report is byte-identical, mark and line ends included |
+| the JSON files' form: the report, the folder map (2026-10-07) | `ConvertTo-Json`: a byte order mark, CRLF, .NET dates (`\/Date(...)\/`), a one-item array written as the item | plain UTF-8, LF, dates as `2025-05-19T20:00:00` local time, arrays always arrays; one field more saying what wrote the file (`Scanner`, `Harvester`) and, in the report, `ReadErrors` only when a read failed | the same values in a plainer form. Every reader (`New-Job.ps1`, the window, the Rust) accepts both; nothing decides on `System.BiosDate`. The text report is byte-identical, mark and line ends included |
 | "Volume health", the online scan's result (2026-10-07) | judged under Windows 10's names only (`ErrorsFound`, `ErrorsNotFixed`); on Windows 11 a scan that found errors (`ScanErrorsFoundNeedSpotFix`, `ScanErrorsFixedOnlineAlsoNeedSpotFix`, `ScanErrorsFoundAndFixedOnline`) read as ok, the word left in the note | both sets of names mean errors found: WARN, "online scan reported: ..."; and `ScanNoErrorsFound` gets the "its own log contradicts" clause like `NoErrorsFound` | stricter. `storage::SCAN_FOUND_ERRORS`; `tests/parity.rs` holds the four cases by name, and fails the day the PowerShell says the same, so the exception cannot outlive its reason |
 
 ## The data tables
@@ -486,10 +487,10 @@ else.
 
 `docs/CUTOVER-PROMPT.md` is the brief for the sessions that cut the whole
 active path over, in this order: the scanner's product command (done, 3f),
-the password hasher (done, 4d), the harvester's live half, the job writer's
-live half, the prologue's judging half, the prologue's live half with the
-handoff and the rollback, the launchers as flows in `UPGRADE.exe`, the kit,
-the docs. The Windows 11 scan names are fixed in the Rust (above); the fix
+the password hasher (done, 4d), the harvester's live half (done, 3g), the
+job writer's live half, the prologue's judging half, the prologue's live
+half with the handoff and the rollback, the launchers as flows in
+`UPGRADE.exe`, the kit, the docs. The Windows 11 scan names are fixed in the Rust (above); the fix
 to `upgrade-scan.ps1` on `main` is still owed there.
 
 ## What comes next
