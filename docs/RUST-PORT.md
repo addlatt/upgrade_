@@ -438,6 +438,7 @@ Each one is stricter than the original, or changes no decision.
 | installed programs in a job | sorted by the machine's language rules (PowerShell's `Sort-Object`) | sorted by the lower-cased name, the same on every machine | the list is an inventory; nothing decides on its order. Past the 2,000 cap the two could keep different entries |
 | a job's `evaluate.version` | `0.18.0` | given by the program that writes the job | a record should say what wrote it |
 | `Disk N` detail line | printed with the machine's own number format (`931,5 GB` on a German Windows) | always a dot (`931.5 GB`) | a display line only; no decision reads it |
+| "Volume health", the online scan's result (2026-10-07) | judged under Windows 10's names only (`ErrorsFound`, `ErrorsNotFixed`); on Windows 11 a scan that found errors (`ScanErrorsFoundNeedSpotFix`, `ScanErrorsFixedOnlineAlsoNeedSpotFix`, `ScanErrorsFoundAndFixedOnline`) read as ok, the word left in the note | both sets of names mean errors found: WARN, "online scan reported: ..."; and `ScanNoErrorsFound` gets the "its own log contradicts" clause like `NoErrorsFound` | stricter. `storage::SCAN_FOUND_ERRORS`; `tests/parity.rs` holds the four cases by name, and fails the day the PowerShell says the same, so the exception cannot outlive its reason |
 
 ## The data tables
 

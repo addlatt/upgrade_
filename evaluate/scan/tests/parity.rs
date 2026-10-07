@@ -202,20 +202,76 @@ fn first_difference(path: &str, want: &Value, got: &Value) -> Option<String> {
     }
 }
 
+/// The differences kept on purpose (docs/RUST-PORT.md): where the Rust is
+/// stricter than scanner 0.5.0, by case name. Each one checks both sides:
+/// the PowerShell still gives its softer answer (when it stops doing so, the
+/// exception is stale and must go), and the Rust gives exactly the stricter
+/// one. Nothing here is skipped: the rest of the case still has to match.
+fn stricter_on_purpose(name: &str, want: &Value, got: &Value) -> Option<Result<(), String>> {
+    let scan_name = |suffix: &str| {
+        // "port: volume health - Windows 11 names: clean flag, <Name> (stricter..."
+        name.split("clean flag, ").nth(1).and_then(|r| r.split(' ').next()).map(|n| format!("{n}{suffix}"))
+    };
+    if name.starts_with("port: volume health - Windows 11 names: clean flag, ") {
+        let word = scan_name("")?;
+        let (p, r) = (&want["checks"][0], &got["checks"][0]);
+        let check = || -> Result<(), String> {
+            if p["Status"] != "ok" || p["Detail"] != json!(format!("no disk check pending; online scan: {word}")) {
+                return Err(format!("the PowerShell no longer says ok for '{word}': drop this exception and compare word for word\n  PowerShell: {p}"));
+            }
+            if r["Status"] != "warn" || r["Detail"] != json!(format!("online scan reported: {word}")) {
+                return Err(format!("the Rust must warn with 'online scan reported: {word}'\n  Rust: {r}"));
+            }
+            // the rest of the case: one check on each side, nothing else
+            let (mut w, mut g) = (want.clone(), got.clone());
+            w["checks"] = json!([]);
+            g["checks"] = json!([]);
+            first_difference("", &w, &g).map_or(Ok(()), Err)
+        };
+        return Some(check());
+    }
+    if name.starts_with("port: volume health - Windows 11 names: dirty, ScanNoErrorsFound, the log found problems") {
+        const CLAUSE: &str = " - which its own log contradicts; the log decides";
+        let (p, r) = (&want["checks"][0], &got["checks"][0]);
+        let check = || -> Result<(), String> {
+            let (pn, rn) = (p["Note"].as_str().unwrap_or(""), r["Note"].as_str().unwrap_or(""));
+            if pn.contains(CLAUSE) {
+                return Err("the PowerShell now names the contradiction for ScanNoErrorsFound: drop this exception".to_string());
+            }
+            if !rn.contains(CLAUSE) {
+                return Err(format!("the Rust must name the contradiction\n  Rust: {rn}"));
+            }
+            let mut g = got.clone();
+            g["checks"][0]["Note"] = json!(rn.replace(CLAUSE, ""));
+            first_difference("", want, &g).map_or(Ok(()), Err)
+        };
+        return Some(check());
+    }
+    None
+}
+
 #[test]
 fn every_case_matches_powershell() {
     let golden: Value = serde_json::from_str(include_str!("golden.json")).unwrap();
     let cases = cases();
     assert_eq!(golden.as_object().unwrap().len(), cases.len(), "golden.json is stale: run ./port-check.sh --record");
-    let mut wrong = Vec::new();
+    let (mut wrong, mut stricter) = (Vec::new(), 0);
     for case in &cases {
         let name = case["name"].as_str().unwrap();
         let want = golden.get(name).unwrap_or_else(|| panic!("golden.json has no '{name}': run ./port-check.sh --record"));
         let (_, got) = run_case(case);
+        if let Some(result) = stricter_on_purpose(name, want, &got) {
+            stricter += 1;
+            if let Err(d) = result {
+                wrong.push(format!("FAIL  {name}\n{d}"));
+            }
+            continue;
+        }
         if let Some(d) = first_difference("", want, &got) {
             wrong.push(format!("FAIL  {name}\n{d}"));
         }
     }
+    assert_eq!(stricter, 4, "the four Windows 11 scan-name cases are the only differences kept on purpose in this crate");
     assert!(wrong.is_empty(), "{} of {} cases differ from the PowerShell scanner:\n\n{}", wrong.len(), cases.len(), wrong.join("\n\n"));
 }
 

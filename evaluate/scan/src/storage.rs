@@ -256,6 +256,19 @@ pub fn physical_disk(scan: &mut Scan, facts: Option<&PhysicalDiskFacts>) {
     }
 }
 
+/// The online scan's results that mean errors were found, under both names
+/// Windows gives them. Windows 10 says `ErrorsFound` and `ErrorsNotFixed`;
+/// Windows 11 says `ScanErrorsFoundNeedSpotFix`,
+/// `ScanErrorsFixedOnlineAlsoNeedSpotFix` and `ScanErrorsFoundAndFixedOnline`
+/// (its table is `collect::storage::repair_status_names`). The PowerShell
+/// scanner 0.5.0 knows only the Windows 10 pair, so on Windows 11 a scan
+/// that found errors was judged as clean, with the word left in the note.
+/// Stricter here on purpose (docs/RUST-PORT.md, "Differences kept on
+/// purpose"); `tests/parity.rs` expects the difference by name.
+pub const SCAN_FOUND_ERRORS: &str = "^(ErrorsFound|ErrorsNotFixed|ScanErrorsFoundNeedSpotFix|ScanErrorsFixedOnlineAlsoNeedSpotFix|ScanErrorsFoundAndFixedOnline)$";
+/// The clean result under both names, for the "its own log contradicts" clause.
+pub const SCAN_NO_ERRORS: &str = "^(NoErrorsFound|ScanNoErrorsFound)$";
+
 /// Test-UpgVolumeHealth. A flagged volume is not data loss and not a
 /// refusal: it is something the keep-Windows path must clear first.
 pub fn volume_health(scan: &mut Scan, is_admin: bool, health: Option<&VolumeHealth>) {
@@ -271,7 +284,7 @@ pub fn volume_health(scan: &mut Scan, is_admin: bool, health: Option<&VolumeHeal
     let dirty = eq_ci(s(&h.dirty), "dirty");
 
     // anchored on purpose: 'NoErrorsFound' contains 'ErrorsFound'
-    let scan_found_errors = truthy(&h.scan) && matches("^(ErrorsFound|ErrorsNotFixed)$", scan_text.trim());
+    let scan_found_errors = truthy(&h.scan) && matches(SCAN_FOUND_ERRORS, scan_text.trim());
     let repair_needed = matches("repair", s(&h.volume_status));
     let ntfs_full = ntfs98_fresh(Some(h));
     let lg = h.logged.as_ref();
@@ -297,7 +310,7 @@ pub fn volume_health(scan: &mut Scan, is_admin: bool, health: Option<&VolumeHeal
         let detail = facts[0].clone();
         let real = repair_needed || ntfs_full || log_found || scan_found_errors;
         let cmdlet_line = if h.scan_ran && truthy(&h.scan) {
-            let contradicts = if log_found && matches("^NoErrorsFound$", scan_text) { " - which its own log contradicts; the log decides" } else { "" };
+            let contradicts = if log_found && matches(SCAN_NO_ERRORS, scan_text) { " - which its own log contradicts; the log decides" } else { "" };
             format!(" The Repair-Volume cmdlet answered '{scan_text}'{contradicts}.")
         } else {
             String::new()
