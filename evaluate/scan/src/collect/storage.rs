@@ -16,7 +16,7 @@ use serde_json::{json, Value};
 const GB: f64 = 1073741824.0;
 const DAY: i64 = 86400;
 
-fn num(v: &Value) -> Option<f64> {
+pub fn num(v: &Value) -> Option<f64> {
     match v {
         Value::Number(n) => n.as_f64(),
         Value::String(s) => s.trim().parse().ok(),
@@ -24,13 +24,13 @@ fn num(v: &Value) -> Option<f64> {
     }
 }
 
-fn int(v: &Value) -> Option<i64> {
+pub fn int(v: &Value) -> Option<i64> {
     num(v).map(|f| f as i64)
 }
 
 /// A number as JSON: whole numbers stay whole (`9028`, not `9028.0`), as
 /// PowerShell writes them.
-fn count(v: &Value) -> Value {
+pub fn count(v: &Value) -> Value {
     match num(v) {
         Some(f) if f.fract() == 0.0 && f.abs() < 9.0e15 => json!(f as i64),
         Some(f) => json!(f),
@@ -38,7 +38,7 @@ fn count(v: &Value) -> Value {
     }
 }
 
-fn text(v: &Value) -> String {
+pub fn text(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
         Value::Null => String::new(),
@@ -47,7 +47,7 @@ fn text(v: &Value) -> String {
 }
 
 /// MSFT_Disk / MSFT_PhysicalDisk BusType, as the cmdlets print it.
-fn bus_type(v: &Value) -> String {
+pub fn bus_type(v: &Value) -> String {
     match int(v) {
         Some(0) => "Unknown",
         Some(1) => "SCSI",
@@ -74,7 +74,7 @@ fn bus_type(v: &Value) -> String {
     .to_string()
 }
 
-fn partition_style(v: &Value) -> String {
+pub fn partition_style(v: &Value) -> String {
     match int(v) {
         Some(1) => "MBR",
         Some(2) => "GPT",
@@ -83,7 +83,7 @@ fn partition_style(v: &Value) -> String {
     .to_string()
 }
 
-fn health_status(v: &Value) -> String {
+pub fn health_status(v: &Value) -> String {
     match int(v) {
         Some(0) => "Healthy",
         Some(1) => "Warning",
@@ -93,7 +93,7 @@ fn health_status(v: &Value) -> String {
     .to_string()
 }
 
-fn media_type(v: &Value) -> String {
+pub fn media_type(v: &Value) -> String {
     match int(v) {
         Some(3) => "HDD",
         Some(4) => "SSD",
@@ -105,7 +105,7 @@ fn media_type(v: &Value) -> String {
 
 /// OperationalStatus (an array of codes) as the cmdlets print it, joined
 /// with commas as the PowerShell collector joins it.
-fn operational_status(v: &Value, volume: bool) -> String {
+pub fn operational_status(v: &Value, volume: bool) -> String {
     let name = |code: i64| -> String {
         match (code, volume) {
             (0, _) => "Unknown".into(),
@@ -152,7 +152,7 @@ fn operational_status(v: &Value, volume: bool) -> String {
 }
 
 /// The words the Storage cmdlets use for a method's return value.
-fn storage_error(result: &Value) -> String {
+pub fn storage_error(result: &Value) -> String {
     if let Some(msg) = result.get("ExtendedStatus").and_then(|e| e.get("Message")).and_then(Value::as_str) {
         return msg.to_string();
     }
@@ -170,7 +170,7 @@ fn storage_error(result: &Value) -> String {
     }
 }
 
-fn storage_wmi() -> Result<Wmi, String> {
+pub fn storage_wmi() -> Result<Wmi, String> {
     Wmi::connect(STORAGE)
 }
 
@@ -258,7 +258,7 @@ fn diskpart_query_max_lines() -> Vec<String> {
 
 /// Defrag event 259 since a moment; if none, `shrink querymax` makes
 /// Windows write one.
-fn last_unmovable_file(since: Stamp) -> Option<String> {
+pub fn last_unmovable_file(since: Stamp) -> Option<String> {
     let read = || {
         events::query("Application", &format!("*[System[Provider[@Name='Microsoft-Windows-Defrag'] and (EventID=259) and {}]]", within(600)))
             .ok()?

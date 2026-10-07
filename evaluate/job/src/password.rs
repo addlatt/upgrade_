@@ -126,13 +126,13 @@ pub fn new_salt() -> Result<String, String> {
 }
 
 #[cfg(windows)]
-fn os_random(buf: &mut [u8]) -> Result<(), String> {
+pub fn os_random(buf: &mut [u8]) -> Result<(), String> {
     use windows::Win32::Security::Cryptography::{BCryptGenRandom, BCRYPT_USE_SYSTEM_PREFERRED_RNG};
     unsafe { BCryptGenRandom(None, buf, BCRYPT_USE_SYSTEM_PREFERRED_RNG) }.ok().map_err(|e| format!("the OS random source failed: {e}"))
 }
 
 #[cfg(not(windows))]
-fn os_random(buf: &mut [u8]) -> Result<(), String> {
+pub fn os_random(buf: &mut [u8]) -> Result<(), String> {
     use std::io::Read;
     std::fs::File::open("/dev/urandom").and_then(|mut f| f.read_exact(buf)).map_err(|e| format!("the OS random source failed: {e}"))
 }

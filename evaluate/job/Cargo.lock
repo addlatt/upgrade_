@@ -246,6 +246,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954"
 
 [[package]]
+name = "upgrade-harvest"
+version = "0.2.0"
+dependencies = [
+ "roxmltree",
+ "serde_json",
+ "upgrade-scan",
+ "windows",
+]
+
+[[package]]
 name = "upgrade-job"
 version = "0.2.0"
 dependencies = [
@@ -253,9 +263,20 @@ dependencies = [
  "roxmltree",
  "serde_json",
  "sha2",
+ "upgrade-harvest",
+ "upgrade-kickstart",
  "upgrade-scan",
  "upgrade-schema",
  "windows",
+]
+
+[[package]]
+name = "upgrade-kickstart"
+version = "0.1.0"
+dependencies = [
+ "regress",
+ "serde_json",
+ "upgrade-schema",
 ]
 
 [[package]]

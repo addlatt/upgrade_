@@ -13,15 +13,15 @@
 use serde_json::{json, Map, Value};
 
 #[cfg(windows)]
-mod events;
+pub mod events;
 #[cfg(windows)]
 mod firmware;
 #[cfg(windows)]
-mod registry;
+pub mod registry;
 #[cfg(windows)]
 mod resume;
 #[cfg(windows)]
-mod storage;
+pub mod storage;
 #[cfg(windows)]
 mod system;
 #[cfg(windows)]
@@ -32,6 +32,8 @@ pub mod wmi;
 
 #[cfg(windows)]
 pub use win::utc_to_local;
+#[cfg(windows)]
+pub use system::SECURE_BOOT;
 
 /// What one run of the collectors produced: the facts, as the PowerShell
 /// recorder shapes them, and the names of the facts this build cannot read

@@ -1348,6 +1348,9 @@ name, and the Rust tests.
 | `New-Job.ps1` (judging half) | 130 | 126 | 4 (the rig and physical rows that ran its jobs) |
 | `New-Kickstart.ps1` (step 4, first piece) | 26 | 22 | 4 (the rig and physical rows whose installs ran its kickstart: `v1-live-boot.csv`, `v2-install.csv`, `v9-erase.csv`) |
 | `Read-Password.ps1` (2026-10-07) | 15 | 12 | 3 (`v9-erase.csv` lines 11, 22, 30: the Aspire's runs where the person typed the password through it; one physical run with `upgrade-job password` re-earns them) |
+| `Invoke-Prologue.ps1` (lines written 2026-10-07) | 193 | 0 | 193 (145 self-test cases; 36 rig rows in `r18-prologue.csv`, `v2-install.csv`, `v9-erase.csv`, `walkaway-probe.csv`; 12 physical rows, the Aspire's) |
+| `Invoke-Rollback.ps1` (lines written 2026-10-07) | 16 | 0 | 16 (14 self-test cases; `r21-rollback.csv` lines 2 and 3) |
+| `Test-Handoff.ps1` (lines written 2026-10-07) | 60 | 0 | 60 (45 self-test cases; `v0-handoff.csv` lines 2 to 12, `v1-live-boot.csv` lines 2 to 5) |
 
 **2026-10-07, the cut-over sessions** (`docs/CUTOVER-PROMPT.md`): the
 scanner is a product command (`upgrade-scan scan --json --out`, proven on
@@ -1357,8 +1360,12 @@ elevated and not: JSON SAME field for field, text byte-identical;
 recorded calls, the specification's vectors), and the harvester's live
 half writes the folder map (`upgrade-harvest folder-map`, side by side
 with `-FolderMapOut` on the G16: SAME field for field,
-`harvest-folder-map.csv` line 5). Two differences kept on purpose, both
-stricter, in `docs/RUST-PORT.md`.
+`harvest-folder-map.csv` line 5). The job writer's live half is built
+(`upgrade-job write`; `upgrade-job facts` beside the script's own
+`Get-JobFacts` on the G16, not elevated: SAME but for the elevated-only
+reads and two non-removable Store apps; `v13-rust-job.csv` line 2; the
+elevated run and a `job.json` side by side are owed). The differences
+kept on purpose are in `docs/RUST-PORT.md`.
 
 The scanner's rig and physical rows are not all found yet. Before step 3
 starts, every results file is read again for rows the scanner had a part

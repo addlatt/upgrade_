@@ -8,9 +8,12 @@
 //! so an odd or missing fact is judged exactly as the script judges it.
 //! `tests/parity.rs` holds every function to the PowerShell's answers.
 
+pub mod compare;
 pub mod decide;
 pub mod document;
 pub mod harvest;
+#[cfg(windows)]
+pub mod live;
 pub mod maps;
 pub mod password;
 pub mod records;

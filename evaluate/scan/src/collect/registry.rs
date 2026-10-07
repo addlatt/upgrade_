@@ -61,6 +61,32 @@ pub fn string(hive: &Hive, key: &str, name: &str) -> Option<String> {
     Some(String::from_utf16_lossy(&units))
 }
 
+/// The names of a key's values, in the registry's order.
+pub fn value_names(hive: &Hive, key: &str) -> Vec<String> {
+    use windows::Win32::System::Registry::RegEnumValueW;
+    let k = wide(key);
+    let mut out = Vec::new();
+    unsafe {
+        let mut h = HKEY::default();
+        if RegOpenKeyExW(hive.handle(), PCWSTR(k.as_ptr()), Some(0), KEY_READ, &mut h) != ERROR_SUCCESS {
+            return out;
+        }
+        let mut i = 0u32;
+        loop {
+            let mut name = [0u16; 16384];
+            let mut len = name.len() as u32;
+            let r = RegEnumValueW(h, i, Some(windows::core::PWSTR(name.as_mut_ptr())), &mut len, None, None, None, None);
+            if r != ERROR_SUCCESS {
+                break;
+            }
+            out.push(String::from_utf16_lossy(&name[..len as usize]));
+            i += 1;
+        }
+        let _ = RegCloseKey(h);
+    }
+    out
+}
+
 /// The names of a key's subkeys, in the registry's order.
 pub fn subkeys(hive: &Hive, key: &str) -> Vec<String> {
     let k = wide(key);

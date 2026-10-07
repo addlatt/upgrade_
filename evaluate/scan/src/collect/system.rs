@@ -70,7 +70,7 @@ fn pnp(wmi: &Wmi) -> Result<Value, String> {
     ))
 }
 
-const SECURE_BOOT: &str = r"SYSTEM\CurrentControlSet\Control\SecureBoot\State";
+pub const SECURE_BOOT: &str = r"SYSTEM\CurrentControlSet\Control\SecureBoot\State";
 const POWER: &str = r"SYSTEM\CurrentControlSet\Control\Session Manager\Power";
 
 /// Get-UpgInstalledApps: the display names under the three uninstall keys,

@@ -5,20 +5,21 @@ edition = "2024"
 license = "GPL-3.0-only"
 
 # The job writer in Rust (RISKS R32, docs/RUST-PORT.md step 4): its judging
-# half (facts go in; a job document or the refusals come out) and, piece by
-# piece, its live half. The binary `upgrade-job` is what the launchers run.
-# New-Job.ps1 and Read-Password.ps1 stay in use until their ledger lines all
-# read `pass`.
+# half (facts go in; a job document or the refusals come out) and its live
+# half (the reads, the files it writes). The binary `upgrade-job` is what
+# the launchers run. New-Job.ps1 and Read-Password.ps1 stay in use until
+# their ledger lines all read `pass`.
 [dependencies]
 serde_json = { version = "1", features = ["preserve_order"] }
 roxmltree = "0.21"
 regress = "0.10"
 sha2 = "0.10"
 upgrade-scan = { path = "../scan" }
-
-# the console and the OS random source (src/password.rs): Windows only
-[target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Console", "Win32_Security_Cryptography"] }
-
-[dev-dependencies]
+upgrade-harvest = { path = "../harvest" }
 upgrade-schema = { path = "../../schemas/rust" }
+upgrade-kickstart = { path = "../../upgrade_/kickstart" }
+
+# the console, the OS random source (src/password.rs) and the live reads
+# (src/live.rs): Windows only
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Console", "Win32_Security_Cryptography", "Win32_NetworkManagement_WiFi", "Win32_System_Time", "Win32_Globalization", "Management_Deployment", "ApplicationModel", "Foundation_Collections"] }
