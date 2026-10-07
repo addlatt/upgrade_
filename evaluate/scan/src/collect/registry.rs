@@ -1,8 +1,9 @@
-//! Registry values, read-only. `HKLM` and `HKCU` only, by full path.
+//! Registry values: reads, and the two writes the prologue makes (a RunOnce
+//! value for its sign-in notice, removed again). `HKLM` and `HKCU` only.
 
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::ERROR_SUCCESS;
-use windows::Win32::System::Registry::{RegCloseKey, RegEnumKeyExW, RegGetValueW, RegOpenKeyExW, HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, REG_VALUE_TYPE, RRF_RT_ANY};
+use windows::Win32::System::Registry::{RegCloseKey, RegDeleteValueW, RegEnumKeyExW, RegGetValueW, RegOpenKeyExW, RegSetValueExW, HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_SET_VALUE, REG_SZ, REG_VALUE_TYPE, RRF_RT_ANY};
 
 fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(std::iter::once(0)).collect()
@@ -110,4 +111,56 @@ pub fn subkeys(hive: &Hive, key: &str) -> Vec<String> {
         let _ = RegCloseKey(h);
     }
     out
+}
+
+/// Is the key there (`Test-Path HKLM:\...`)?
+pub fn key_exists(hive: &Hive, key: &str) -> bool {
+    let k = wide(key);
+    unsafe {
+        let mut h = HKEY::default();
+        if RegOpenKeyExW(hive.handle(), PCWSTR(k.as_ptr()), Some(0), KEY_READ, &mut h) != ERROR_SUCCESS {
+            return false;
+        }
+        let _ = RegCloseKey(h);
+        true
+    }
+}
+
+/// Write one REG_SZ value under an existing key.
+pub fn set_string(hive: &Hive, key: &str, name: &str, value: &str) -> Result<(), String> {
+    let (k, n) = (wide(key), wide(name));
+    let data: Vec<u16> = wide(value);
+    unsafe {
+        let mut h = HKEY::default();
+        let r = RegOpenKeyExW(hive.handle(), PCWSTR(k.as_ptr()), Some(0), KEY_SET_VALUE, &mut h);
+        if r != ERROR_SUCCESS {
+            return Err(format!("open {key}: error {}", r.0));
+        }
+        let bytes: &[u8] = std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 2);
+        let r = RegSetValueExW(h, PCWSTR(n.as_ptr()), Some(0), REG_SZ, Some(bytes));
+        let _ = RegCloseKey(h);
+        if r != ERROR_SUCCESS {
+            return Err(format!("set {key}\\{name}: error {}", r.0));
+        }
+    }
+    Ok(())
+}
+
+/// Remove one value; a value that is not there is not an error.
+pub fn delete_value(hive: &Hive, key: &str, name: &str) -> Result<(), String> {
+    let (k, n) = (wide(key), wide(name));
+    unsafe {
+        let mut h = HKEY::default();
+        let r = RegOpenKeyExW(hive.handle(), PCWSTR(k.as_ptr()), Some(0), KEY_SET_VALUE, &mut h);
+        if r != ERROR_SUCCESS {
+            return Err(format!("open {key}: error {}", r.0));
+        }
+        let r = RegDeleteValueW(h, PCWSTR(n.as_ptr()));
+        let _ = RegCloseKey(h);
+        // ERROR_FILE_NOT_FOUND = 2
+        if r != ERROR_SUCCESS && r.0 != 2 {
+            return Err(format!("delete {key}\\{name}: error {}", r.0));
+        }
+    }
+    Ok(())
 }

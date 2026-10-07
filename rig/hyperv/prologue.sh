@@ -140,7 +140,11 @@ probe-run)
     "$SELF" windows; "$SELF" autologon off
     L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume in the guest" >&2; exit 1; }
     guest "Remove-Item -Recurse -Force '$GUEST_STATE' -ErrorAction SilentlyContinue; Remove-Item ${L}:\\upgrade_\\probe.json,${L}:\\upgrade_\\walkaway-probe.csv -Force -ErrorAction SilentlyContinue"
-    guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Probe -ProbeStickDrive ${L}:" | tee "$A/probe-start.log"
+    if [ "${PROLOGUE:-ps}" = rust ]; then
+        guest "& ${L}:\\upgrade-prologue.exe probe --stick ${L}:" | tee "$A/probe-start.log"
+    else
+        guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Probe -ProbeStickDrive ${L}:" | tee "$A/probe-start.log"
+    fi
     grep -q 'restarting in 15 s' "$A/probe-start.log" || { echo "prologue: the probe did not reach a restart - read $A/probe-start.log" >&2; exit 1; }
     # the guest can take longer than its 15 s to actually go down: wait for a NEW boot
     # (LastBootUpTime changes), not merely for PS Direct to answer (run 1: it answered
@@ -259,7 +263,12 @@ convert)
     # step 5 - the prologue, the code under test - runs exactly as the launcher
     # runs it. The typed word is the launcher's; here it is passed straight.
     ./v1.sh job
-    guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Start -StickDrive ${L}: -ConfirmWord CONVERT" | tee "$A/convert.log"
+    # PROLOGUE=rust runs the Rust build from the stick (the cut-over, RISKS R32); the records it writes have the same names
+    if [ "${PROLOGUE:-ps}" = rust ]; then
+        guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --confirm-word CONVERT" | tee "$A/convert.log"
+    else
+        guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Start -StickDrive ${L}: -ConfirmWord CONVERT" | tee "$A/convert.log"
+    fi
     grep -q 'restarting in 15 s' "$A/convert.log" || { echo "prologue: the prologue did not reach a restart - read $A/convert.log" >&2; exit 1; }
     ;;
 wait-off) wait_off "${2:-5400}" ;;
@@ -292,7 +301,11 @@ rollback)
     need_off; PS start; sleep 10; shot grub-rollback
     for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; sleep 1; done; PS key 13
     wait_windows 600; L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume" >&2; exit 1; }
-    guest "cmd /c \"echo ROLLBACK| ${L}:\\ROLLBACK.cmd\"" | tee "$A/rollback.log"
+    if [ "${PROLOGUE:-ps}" = rust ]; then
+        guest "& ${L}:\\upgrade-prologue.exe rollback --stick ${L}:" | tee "$A/rollback.log"
+    else
+        guest "cmd /c \"echo ROLLBACK| ${L}:\\ROLLBACK.cmd\"" | tee "$A/rollback.log"
+    fi
     pull "${L}:\\upgrade_\\rollback.json" rollback.json
     guest "bcdedit /enum '{fwbootmgr}'" > "$A/bcd-fwbootmgr-after-rollback.txt" 2>/dev/null || true
     PS stop; wait_off 300

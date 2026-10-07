@@ -11,7 +11,10 @@ below are done or built; `docs/RUST-PORT.md`'s status table (rows 3f, 3g,
 what each one proved. Still owed from them: the elevated side-by-side run
 of the harvester on the G16 (its UAC prompt was cancelled; the job
 writer's ran, SAME), and a `job.json` written beside the PowerShell's (needs the
-kit stick in the G16). The next session starts at item 7.
+kit stick in the G16). Item 7 is built (`upgrade-prologue`, the rollback
+with it; `rig/hyperv/prologue.sh` and `v9.sh` take `PROLOGUE=rust`;
+`make-kit.sh` ships the binaries through `build-rust.sh`) and waits for
+its rig rows, then the Aspire. The next session starts there, or at item 8.
 
 ---
 

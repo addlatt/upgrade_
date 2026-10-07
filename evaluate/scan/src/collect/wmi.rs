@@ -120,21 +120,7 @@ impl Wmi {
             };
             if let Some(params) = &in_params {
                 for (name, value) in inputs {
-                    let mut v = VARIANT::default();
-                    {
-                        let inner = &mut *v.Anonymous.Anonymous;
-                        match value {
-                            Value::Bool(b) => {
-                                inner.vt = VT_BOOL;
-                                inner.Anonymous.boolVal = (*b).into();
-                            }
-                            Value::Number(n) => {
-                                inner.vt = VT_I4;
-                                inner.Anonymous.lVal = n.as_i64().unwrap_or(0) as i32;
-                            }
-                            _ => return Err(format!("{method}: an input of a kind this cannot send ({name})")),
-                        }
-                    }
+                    let v = variant_from_json(value).ok_or_else(|| format!("{method}: an input of a kind this cannot send ({name})"))?;
                     let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
                     params.Put(windows::core::PCWSTR(wide.as_ptr()), 0, &v, 0).map_err(|e| format!("{method}.{name}: {}", wmi_error(&e)))?;
                 }
@@ -195,6 +181,77 @@ impl Wmi {
       -> {r:?}"));
         }
         out
+    }
+}
+
+impl Wmi {
+    /// Change one property of an existing object and write it back
+    /// (`Set-CimInstance -Property @{ name = value }`).
+    pub fn put_property(&self, path: &str, name: &str, value: &Value) -> Result<(), String> {
+        use windows::Win32::System::Wmi::{IWbemClassObject, WBEM_FLAG_UPDATE_ONLY};
+        unsafe {
+            let mut obj: Option<IWbemClassObject> = None;
+            self.services.GetObject(&BSTR::from(path), windows::Win32::System::Wmi::WBEM_GENERIC_FLAG_TYPE(0), None, Some(&mut obj), None).map_err(|e| wmi_error(&e))?;
+            let obj = obj.ok_or("no object")?;
+            let v = variant_from_json(value).ok_or_else(|| format!("{name}: a value of a kind this cannot send"))?;
+            let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+            obj.Put(windows::core::PCWSTR(wide.as_ptr()), 0, &v, 0).map_err(|e| format!("{name}: {}", wmi_error(&e)))?;
+            self.services.PutInstance(&obj, windows::Win32::System::Wmi::WBEM_GENERIC_FLAG_TYPE(WBEM_FLAG_UPDATE_ONLY.0), None, None).map_err(|e| wmi_error(&e))
+        }
+    }
+
+    /// Remove one object by its path (`Remove-CimInstance`).
+    pub fn delete_instance(&self, path: &str) -> Result<(), String> {
+        unsafe { self.services.DeleteInstance(&BSTR::from(path), windows::Win32::System::Wmi::WBEM_GENERIC_FLAG_TYPE(0), None, None).map_err(|e| wmi_error(&e)) }
+    }
+
+    /// Make one new object of a class with the properties given
+    /// (`New-CimInstance -ClassName ... -Property @{...}`).
+    pub fn create_instance(&self, class: &str, properties: &[(&str, Value)]) -> Result<(), String> {
+        use windows::Win32::System::Wmi::{IWbemClassObject, WBEM_FLAG_CREATE_ONLY};
+        unsafe {
+            let mut class_obj: Option<IWbemClassObject> = None;
+            self.services.GetObject(&BSTR::from(class), windows::Win32::System::Wmi::WBEM_GENERIC_FLAG_TYPE(0), None, Some(&mut class_obj), None).map_err(|e| wmi_error(&e))?;
+            let inst = class_obj.ok_or("no class object")?.SpawnInstance(0).map_err(|e| wmi_error(&e))?;
+            for (name, value) in properties {
+                let v = variant_from_json(value).ok_or_else(|| format!("{name}: a value of a kind this cannot send"))?;
+                let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+                inst.Put(windows::core::PCWSTR(wide.as_ptr()), 0, &v, 0).map_err(|e| format!("{name}: {}", wmi_error(&e)))?;
+            }
+            self.services.PutInstance(&inst, windows::Win32::System::Wmi::WBEM_GENERIC_FLAG_TYPE(WBEM_FLAG_CREATE_ONLY.0), None, None).map_err(|e| wmi_error(&e))
+        }
+    }
+}
+
+/// A JSON value as the VARIANT WMI takes for it: a boolean, a whole number
+/// that fits 32 bits, a larger whole number as text (how WMI carries uint64),
+/// or a string.
+pub fn variant_from_json(value: &Value) -> Option<VARIANT> {
+    unsafe {
+        let mut v = VARIANT::default();
+        let inner = &mut *v.Anonymous.Anonymous;
+        match value {
+            Value::Bool(b) => {
+                inner.vt = VT_BOOL;
+                inner.Anonymous.boolVal = (*b).into();
+            }
+            Value::Number(n) => match n.as_i64() {
+                Some(i) if i >= i32::MIN as i64 && i <= i32::MAX as i64 => {
+                    inner.vt = VT_I4;
+                    inner.Anonymous.lVal = i as i32;
+                }
+                _ => {
+                    inner.vt = VT_BSTR;
+                    inner.Anonymous.bstrVal = std::mem::ManuallyDrop::new(BSTR::from(n.to_string()));
+                }
+            },
+            Value::String(s) => {
+                inner.vt = VT_BSTR;
+                inner.Anonymous.bstrVal = std::mem::ManuallyDrop::new(BSTR::from(s.as_str()));
+            }
+            _ => return None,
+        }
+        Some(v)
     }
 }
 

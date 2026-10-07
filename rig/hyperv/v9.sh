@@ -105,7 +105,11 @@ arm-harness)
 convert)
     L=$(stick_letter); [ -n "$L" ] || { echo "v9: no UPGV0 volume" >&2; exit 1; }
     guest "Remove-Item -Recurse -Force '$GUEST_STATE' -ErrorAction SilentlyContinue"
-    guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Start -StickDrive ${L}: -EraseConsent '$ERASE_SENTENCE'" | tee "$A/convert-${2:-x}.log"
+    if [ "${PROLOGUE:-ps}" = rust ]; then
+        guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --erase-consent '$ERASE_SENTENCE'" | tee "$A/convert-${2:-x}.log"
+    else
+        guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Start -StickDrive ${L}: -EraseConsent '$ERASE_SENTENCE'" | tee "$A/convert-${2:-x}.log"
+    fi
     grep -q 'restarting in 15 s' "$A/convert-${2:-x}.log" || { echo "v9: the prologue did not reach a restart - read $A/convert-${2:-x}.log" >&2; exit 1; }
     ;;
 watch)

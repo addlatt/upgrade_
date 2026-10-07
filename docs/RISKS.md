@@ -3366,8 +3366,12 @@ roadmap).
   the R18 guardrails, the re-validation, the fork, the ladder's consents,
   R25, the erase path, the records; 161 cases and 228 calls match the
   script word for word, and every realistic stopped outcome passes the
-  contract); its rig and physical rows, the rollback's and the handoff's
-  are written and `owed`. Two differences kept on purpose, both stricter: the
+  contract), and its live half is built: every read and every reversible
+  write of the script, with every tool call kept with its raw output from
+  the first line (what the PowerShell never did), and the rollback with
+  it. Its reads match `Get-PrologueFacts` on the G16. Its rig and physical
+  rows, the rollback's and the handoff's are written and `owed`: the rig
+  with `PROLOGUE=rust` is the next step, the Aspire after it. Two differences kept on purpose, both stricter: the
   online scan's Windows 11 names now count as errors found (the PowerShell
   judged them clean), and a typed pair whose bytes differ is refused even
   where PowerShell's culture-aware comparison accepted it. Each is held by

@@ -12,9 +12,22 @@
 //! It reads no machine and writes no file. `tests/parity.rs` holds every
 //! function to the PowerShell's answers, word for word.
 
+pub mod compare;
+#[cfg(windows)]
+pub mod flow;
 pub mod judge;
+#[cfg(windows)]
+pub mod live;
+pub mod random;
+pub mod rollback;
 pub mod state;
+pub mod tools;
 pub mod val;
+
+/// What this program calls itself.
+pub fn flow_version() -> String {
+    format!("upgrade-prologue {} (Rust; follows Invoke-Prologue.ps1 {FOLLOWS_PROLOGUE})", env!("CARGO_PKG_VERSION"))
+}
 
 /// The PowerShell prologue this port follows.
 pub const FOLLOWS_PROLOGUE: &str = "0.12.0";
