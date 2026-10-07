@@ -1362,9 +1362,9 @@ half writes the folder map (`upgrade-harvest folder-map`, side by side
 with `-FolderMapOut` on the G16: SAME field for field,
 `harvest-folder-map.csv` line 5). The job writer's live half is built
 (`upgrade-job write`; `upgrade-job facts` beside the script's own
-`Get-JobFacts` on the G16, not elevated: SAME but for the elevated-only
-reads and two non-removable Store apps; `v13-rust-job.csv` line 2; the
-elevated run and a `job.json` side by side are owed). The differences
+`Get-JobFacts` on the G16, elevated and not: SAME but for two
+non-removable Store apps; `v13-rust-job.csv` lines 2 and 3; a `job.json`
+side by side is owed). The differences
 kept on purpose are in `docs/RUST-PORT.md`.
 
 The scanner's rig and physical rows are not all found yet. Before step 3

@@ -3362,8 +3362,7 @@ roadmap).
   profiles with their keys through the Native Wifi API, the licence facts,
   the Store packages through the deployment API) and writes `job.json`
   only as a document the contract accepted; its facts match the script's
-  on the G16 but for the elevated-only reads, which still need the
-  elevated run. The prologue's judging half is ported (`upgrade_/prologue`:
+  on the G16, elevated and not. The prologue's judging half is ported (`upgrade_/prologue`:
   the R18 guardrails, the re-validation, the fork, the ladder's consents,
   R25, the erase path, the records; 161 cases and 228 calls match the
   script word for word, and every realistic stopped outcome passes the

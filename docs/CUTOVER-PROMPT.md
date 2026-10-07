@@ -8,9 +8,9 @@ this work before. Written 2026-10-07; the facts in it are as of commit
 **Progress (2026-10-07, commit 3b10ae2 on `rust-port`):** items 1 to 6
 below are done or built; `docs/RUST-PORT.md`'s status table (rows 3f, 3g,
 4c, 4d, 5a) and `docs/validation-results/port-parity.csv` say exactly
-what each one proved. Still owed from them: the elevated side-by-side runs
-of the harvester and the job writer on the G16 (their UAC prompts were
-cancelled), and a `job.json` written beside the PowerShell's (needs the
+what each one proved. Still owed from them: the elevated side-by-side run
+of the harvester on the G16 (its UAC prompt was cancelled; the job
+writer's ran, SAME), and a `job.json` written beside the PowerShell's (needs the
 kit stick in the G16). The next session starts at item 7.
 
 ---
