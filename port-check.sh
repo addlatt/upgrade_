@@ -8,12 +8,12 @@
 #                              PowerShell and Python sources, then check
 #
 # What it runs, in order:
-#   1. the two PowerShell self-tests and schemas/check.py (the originals)
+#   1. the PowerShell self-tests and schemas/check.py (the originals)
 #   2. the recorded files are fresh: data/tables.json (from data/*.ps1),
 #      schemas/rust/tests/refused-cases.json (from check.py),
 #      evaluate/scan/tests/golden.json (from the PowerShell scanner),
-#      and the golden.json of the harvester, the job writer and the
-#      kickstart generator (each from its own script)
+#      and the golden.json of the harvester, the job writer, the password
+#      hasher and the kickstart generator (each from its own script)
 #   3. every PowerShell self-test case has a Rust case under the same name
 #   4. cargo test in every Rust crate of the port, and the differential
 #      run against check.py
@@ -59,8 +59,10 @@ fi
 if [ "$HAVE_PS" = 1 ]; then
     ps evaluate/windows/New-Job.ps1 -SelfTest > "$TMP/job-selftest.txt" || true
     if grep -q 'all checks passed' "$TMP/job-selftest.txt"; then pass "New-Job.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/job-selftest.txt") cases)"; else fail "New-Job.ps1 -SelfTest"; fi
+    ps evaluate/windows/Read-Password.ps1 -SelfTest > "$TMP/password-selftest.txt" || true
+    if grep -q 'all checks passed' "$TMP/password-selftest.txt"; then pass "Read-Password.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/password-selftest.txt") cases)"; else fail "Read-Password.ps1 -SelfTest"; fi
 else
-    skip "New-Job.ps1 -SelfTest"
+    skip "New-Job.ps1 -SelfTest"; skip "Read-Password.ps1 -SelfTest"
 fi
 if python3 schemas/check.py --dump-cases "$TMP/refused-cases.json" --dump-mutations "$TMP/mutations.jsonl" > "$TMP/check.txt" 2>&1; then
     pass "schemas/check.py ($(grep -c '  PASS  ' "$TMP/check.txt") checks)"
@@ -79,6 +81,8 @@ if [ "$HAVE_PS" = 1 ]; then
     fresh evaluate/harvest/tests/golden.json "$TMP/harvest-golden.json"
     ps evaluate/job/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\job-golden.json" > /dev/null
     fresh evaluate/job/tests/golden.json "$TMP/job-golden.json"
+    ps evaluate/job/tests/password-golden.ps1 -Out "$(wslpath -w "$TMP")\\password-golden.json" > /dev/null
+    fresh evaluate/job/tests/password-golden.json "$TMP/password-golden.json"
 else
     skip "upgrade_/kickstart/tests/golden.json against New-Kickstart.ps1"
     skip "data/tables.json against data/*.ps1"; skip "evaluate/scan/tests/golden.json against the PowerShell scanner"
@@ -108,6 +112,7 @@ if [ "$HAVE_PS" = 1 ]; then
     same_names "$TMP/ks-selftest.txt" upgrade_/kickstart/tests/cases.json "kickstart"
     same_names "$TMP/harvest-selftest.txt" evaluate/harvest/tests/cases.json "harvester" evaluate/harvest/tests/windows-selftest.txt
     same_names "$TMP/job-selftest.txt" evaluate/job/tests/cases.json "job writer"
+    same_names "$TMP/password-selftest.txt" evaluate/job/tests/password-cases.json "password hasher"
 else
     skip "self-test case names against cases.json"
 fi

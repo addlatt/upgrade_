@@ -29,6 +29,9 @@ mod win;
 #[cfg(windows)]
 mod wmi;
 
+#[cfg(windows)]
+pub use win::utc_to_local;
+
 /// What one run of the collectors produced: the facts, as the PowerShell
 /// recorder shapes them, and the names of the facts this build cannot read
 /// yet.
@@ -71,6 +74,61 @@ pub fn collect(kit_root: Option<&std::path::Path>) -> Collected {
     {
         let _ = kit_root;
         Collected { not_read: FACT_NAMES.to_vec(), errors: vec!["not running on Windows".into()], ..Default::default() }
+    }
+}
+
+/// Only the system facts and the device list (what `-DumpMachine` reads).
+pub fn collect_hardware() -> Collected {
+    #[cfg(windows)]
+    {
+        system::collect_hardware()
+    }
+    #[cfg(not(windows))]
+    {
+        Collected { not_read: FACT_NAMES.to_vec(), errors: vec!["not running on Windows".into()], ..Default::default() }
+    }
+}
+
+/// Seconds since 1970 as a UTC stamp.
+pub fn utc_from_seconds(secs: i64) -> crate::ps::Stamp {
+    let (days, rem) = (secs.div_euclid(86400), secs.rem_euclid(86400));
+    // civil date from days (Howard Hinnant's algorithm)
+    let z = days + 719468;
+    let era = z.div_euclid(146097);
+    let doe = z.rem_euclid(146097);
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let month = (if mp < 10 { mp + 3 } else { mp - 9 }) as u32;
+    let year = (yoe + era * 400 + if month <= 2 { 1 } else { 0 }) as i32;
+    crate::ps::Stamp { year, month, day, hour: (rem / 3600) as u32, minute: (rem % 3600 / 60) as u32, second: (rem % 60) as u32 }
+}
+
+/// The clock now: this machine's local time (what `Get-Date` shows, and
+/// what the report's header and file names carry), and the same moment in
+/// UTC written as .NET's round-trip form (`2026-10-07T18:22:33.1234567Z`,
+/// what `ScannedUtc` carries). Off Windows, local time is UTC.
+pub fn now() -> (crate::ps::Stamp, String) {
+    let d = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    let utc = utc_from_seconds(d.as_secs() as i64);
+    let utc_text = format!("{}.{:07}Z", utc.iso(), d.subsec_nanos() / 100);
+    #[cfg(windows)]
+    let local = win::utc_to_local(utc);
+    #[cfg(not(windows))]
+    let local = utc;
+    (local, utc_text)
+}
+
+/// This account's Desktop folder, the report's default home.
+pub fn desktop_folder() -> Option<std::path::PathBuf> {
+    #[cfg(windows)]
+    {
+        win::desktop_folder()
+    }
+    #[cfg(not(windows))]
+    {
+        None
     }
 }
 

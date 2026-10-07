@@ -94,6 +94,31 @@ fn installed_apps() -> Vec<String> {
     names
 }
 
+/// Only the system facts and the device list: what `-DumpMachine` reads.
+/// No privilege needed, nothing slow.
+pub fn collect_hardware() -> Collected {
+    let mut c = Collected::default();
+    match Wmi::connect(CIMV2) {
+        Ok(wmi) => {
+            match system(&wmi) {
+                Ok(v) => {
+                    c.facts.insert("Sys".into(), v);
+                }
+                Err(e) => c.errors.push(format!("Sys: {e}")),
+            }
+            match pnp(&wmi) {
+                Ok(v) => {
+                    c.facts.insert("Pnp".into(), v);
+                }
+                Err(e) => c.errors.push(format!("Pnp: {e}")),
+            }
+        }
+        Err(e) => c.errors.push(format!("WMI: {e}")),
+    }
+    c.not_read = super::FACT_NAMES.iter().copied().filter(|n| !matches!(*n, "Sys" | "Pnp")).collect();
+    c
+}
+
 /// Every collector, in the scanner's order, with its gates. `kit_root`:
 /// where the kit's boot files sit (the stick's root), if the scanner runs
 /// from one.

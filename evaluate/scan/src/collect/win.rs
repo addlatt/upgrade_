@@ -62,17 +62,7 @@ pub fn firmware_variable(name: &str, guid: &str) -> Option<Vec<u8>> {
 }
 
 fn civil_from_seconds(secs: i64) -> Stamp {
-    let (days, rem) = (secs.div_euclid(86400), secs.rem_euclid(86400));
-    let z = days + 719468;
-    let era = z.div_euclid(146097);
-    let doe = z.rem_euclid(146097);
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let month = (if mp < 10 { mp + 3 } else { mp - 9 }) as u32;
-    let year = (yoe + era * 400 + if month <= 2 { 1 } else { 0 }) as i32;
-    Stamp { year, month, day, hour: (rem / 3600) as u32, minute: (rem % 3600 / 60) as u32, second: (rem % 60) as u32 }
+    super::utc_from_seconds(secs)
 }
 
 /// A UTC moment as this machine's local time, as PowerShell shows every
@@ -98,6 +88,16 @@ pub fn now_utc_seconds() -> i64 {
 /// Local time now.
 pub fn now_local() -> Stamp {
     utc_to_local(civil_from_seconds(now_utc_seconds()))
+}
+
+/// This account's Desktop folder (`[Environment]::GetFolderPath('Desktop')`).
+pub fn desktop_folder() -> Option<std::path::PathBuf> {
+    use windows::Win32::System::Com::CoTaskMemFree;
+    use windows::Win32::UI::Shell::{FOLDERID_Desktop, SHGetKnownFolderPath, KNOWN_FOLDER_FLAG};
+    let p = unsafe { SHGetKnownFolderPath(&FOLDERID_Desktop, KNOWN_FOLDER_FLAG(0), None) }.ok()?;
+    let path = unsafe { p.to_string() }.ok();
+    unsafe { CoTaskMemFree(Some(p.0 as *const std::ffi::c_void)) };
+    path.map(std::path::PathBuf::from)
 }
 
 /// Run a Windows tool and return what it printed (both streams), as lines.

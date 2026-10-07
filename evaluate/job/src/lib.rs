@@ -12,6 +12,7 @@ pub mod decide;
 pub mod document;
 pub mod harvest;
 pub mod maps;
+pub mod password;
 pub mod records;
 pub mod val;
 pub mod wifi;

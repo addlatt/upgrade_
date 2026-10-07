@@ -1,38 +1,137 @@
-//! upgrade-scan (Rust): judges a recording of a machine and prints the
-//! report. It cannot read a live machine yet; that is step 3 of
-//! docs/RUST-PORT.md. Until then `evaluate/windows/upgrade-scan.ps1` is
-//! the scanner, and this program is for comparing the two.
+//! upgrade-scan (Rust): the scanner, following `evaluate/windows/upgrade-scan.ps1`.
+//!
+//! The product command (what the launchers run; Windows):
+//!
+//!   upgrade-scan scan [--json] [--out <folder>] [--kit <stick root>] [--no-file]
+//!       read this machine, print the report, write upgrade-report-<model>-<stamp>.txt
+//!       (and .json) where upgrade-scan.ps1 -Json -OutDir writes them
+//!   upgrade-scan dump-machine <file>
+//!       the hardware-only capture upgrade-scan.ps1 -DumpMachine writes
+//!
+//! The comparison commands (how the port is proven side by side):
 //!
 //!   upgrade-scan --replay machine.json [--now 2026-10-04T10:00:00] [--json] [--against powershell.json]
 //!   upgrade-scan --record [--out <folder>] [--kit <stick root>]   (Windows: read this machine, write a capture)
 //!   upgrade-scan --compare-facts rust.json powershell.json
+//!   upgrade-scan compare-reports rust-report.json powershell-report.json
 //!
 //! A capture made by tools/Record-Machine.ps1 also holds what the PowerShell
 //! scanner concluded from the same facts. Then the replay compares the two
 //! and says whether they are the same, line for line (exit 1 if not).
 //!
-//! Read-only: it opens the one file it is given and writes to the screen.
+//! Read-only on the machine: it reads, and writes only its report files.
 
 use serde_json::{json, Value};
 use std::process::ExitCode;
 use upgrade_scan::facts::Machine;
 use upgrade_scan::ps::Stamp;
-use upgrade_scan::{report, run, FOLLOWS_SCANNER};
+use upgrade_scan::{collect, product, report, run, FOLLOWS_SCANNER};
 
 fn utc_now() -> Stamp {
-    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-    let (days, rem) = (secs.div_euclid(86400), secs.rem_euclid(86400));
-    // civil date from days (Howard Hinnant's algorithm)
-    let z = days + 719468;
-    let era = z.div_euclid(146097);
-    let doe = z.rem_euclid(146097);
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let month = (if mp < 10 { mp + 3 } else { mp - 9 }) as u32;
-    let year = (yoe + era * 400 + if month <= 2 { 1 } else { 0 }) as i32;
-    Stamp { year, month, day, hour: (rem / 3600) as u32, minute: (rem % 3600 / 60) as u32, second: (rem % 60) as u32 }
+    collect::utc_from_seconds(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0))
+}
+
+/// `scan`: the scanner as the launchers run it.
+fn scan(args: &[String]) -> ExitCode {
+    let value_of = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned();
+    let json = args.iter().any(|a| a == "--json");
+    let no_file = args.iter().any(|a| a == "--no-file");
+    // the kit's boot files sit beside the scanner, as $PSScriptRoot
+    let kit = value_of("--kit").map(std::path::PathBuf::from).or_else(|| std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf())));
+    println!();
+    println!("  scanning...");
+    let r = match product::scan_this_machine(kit.as_deref()) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("upgrade-scan: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    println!();
+    for line in &r.lines {
+        println!("{line}");
+    }
+    for e in &r.read_errors {
+        eprintln!("  read error: {e}");
+    }
+    if !no_file {
+        let out = match value_of("--out").map(std::path::PathBuf::from).or_else(collect::desktop_folder) {
+            Some(d) => d,
+            None => {
+                eprintln!("upgrade-scan: give --out <folder> (no Desktop folder to default to here)");
+                return ExitCode::from(2);
+            }
+        };
+        match product::write_report(&r, &out, json) {
+            Ok((txt, js)) => {
+                println!();
+                println!("  Report saved: {}", txt.display());
+                if let Some(p) = js {
+                    println!("  JSON saved:   {}", p.display());
+                }
+            }
+            Err(e) => {
+                eprintln!("upgrade-scan: {e}");
+                return ExitCode::from(2);
+            }
+        }
+    }
+    println!();
+    ExitCode::SUCCESS
+}
+
+/// `dump-machine <file>`: the hardware-only capture for the corpus.
+fn dump_machine(path: Option<&String>) -> ExitCode {
+    let Some(path) = path else {
+        eprintln!("usage: upgrade-scan dump-machine <file>");
+        return ExitCode::from(2);
+    };
+    println!();
+    println!("  capturing hardware enumeration...");
+    let c = collect::collect_hardware();
+    if c.facts.get("Sys").is_none() || c.facts.get("Pnp").is_none() {
+        eprintln!("upgrade-scan: could not read this machine: {}", c.errors.join("; "));
+        return ExitCode::from(2);
+    }
+    let (now, _) = collect::now();
+    let doc = product::machine_capture(&c, &format!("{:04}-{:02}-{:02}", now.year, now.month, now.day));
+    if let Err(e) = std::fs::write(path, serde_json::to_string_pretty(&doc).unwrap_or_default() + "\n") {
+        eprintln!("upgrade-scan: cannot write {path}: {e}");
+        return ExitCode::from(2);
+    }
+    println!("  machine capture written to {path}");
+    println!("  review it, fill Expected, and add it to evaluate/windows/corpus/ to make it a permanent test.");
+    ExitCode::SUCCESS
+}
+
+/// `compare-reports`: the Rust's JSON report against the PowerShell's, from
+/// the same machine in the same minute.
+fn compare_reports(rust_path: &str, ps_path: &str) -> ExitCode {
+    let load = |p: &str| -> Result<Value, String> { serde_json::from_str(std::fs::read_to_string(p).map_err(|e| format!("{p}: {e}"))?.trim_start_matches('\u{feff}')).map_err(|e| format!("{p}: {e}")) };
+    let (rust, ps) = match (load(rust_path), load(ps_path)) {
+        (Ok(a), Ok(b)) => (a, b),
+        (Err(e), _) | (_, Err(e)) => {
+            eprintln!("upgrade-scan: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    println!();
+    println!("  Rust:       {rust_path}   ({})", rust["ScannedUtc"].as_str().unwrap_or(""));
+    println!("  PowerShell: {ps_path}   ({})", ps["ScannedUtc"].as_str().unwrap_or(""));
+    println!();
+    let differences = product::report_differences(&rust, &ps);
+    let checks = rust["Checks"].as_array().map_or(0, Vec::len);
+    if differences.is_empty() {
+        println!("  SAME: verdict {}, {checks} checks, the releases, the recommendation and the system facts, field for field.", rust["Verdict"]["Level"].as_str().unwrap_or(""));
+        println!();
+        return ExitCode::SUCCESS;
+    }
+    println!("  DIFFERENT in {} places:", differences.len());
+    for d in &differences {
+        println!("  {d}");
+    }
+    println!();
+    ExitCode::from(1)
 }
 
 /// The PowerShell scanner's own conclusions, from the same facts, against
@@ -260,8 +359,13 @@ fn fact_differences(name: &str, rust: &Value, ps: &Value) -> Vec<String> {
 }
 
 fn usage() -> ExitCode {
-    eprintln!("upgrade-scan {} (Rust; follows scanner {FOLLOWS_SCANNER}; replays recordings, reads no live machine yet)", env!("CARGO_PKG_VERSION"));
-    eprintln!("usage: upgrade-scan --replay <machine.json> [--now YYYY-MM-DDTHH:MM:SS] [--json]");
+    eprintln!("upgrade-scan {} (Rust; follows scanner {FOLLOWS_SCANNER})", env!("CARGO_PKG_VERSION"));
+    eprintln!("usage: upgrade-scan scan [--json] [--out <folder>] [--kit <stick root>] [--no-file]");
+    eprintln!("       upgrade-scan dump-machine <file>");
+    eprintln!("       upgrade-scan --replay <machine.json> [--now YYYY-MM-DDTHH:MM:SS] [--json] [--against <powershell.json>]");
+    eprintln!("       upgrade-scan --record [--out <folder>] [--kit <stick root>]");
+    eprintln!("       upgrade-scan --compare-facts <rust.json> <powershell.json>");
+    eprintln!("       upgrade-scan compare-reports <rust-report.json> <powershell-report.json>");
     ExitCode::from(2)
 }
 
@@ -271,6 +375,15 @@ fn main() -> ExitCode {
     if args.iter().any(|a| a == "--version") {
         println!("upgrade-scan {} (Rust; follows scanner {FOLLOWS_SCANNER})", env!("CARGO_PKG_VERSION"));
         return ExitCode::SUCCESS;
+    }
+    match args.first().map(String::as_str) {
+        Some("scan") => return scan(&args[1..]),
+        Some("dump-machine") => return dump_machine(args.get(1)),
+        Some("compare-reports") => {
+            let (Some(a), Some(b)) = (args.get(1), args.get(2)) else { return usage() };
+            return compare_reports(a, b);
+        }
+        _ => {}
     }
     if let Some(i) = args.iter().position(|a| a == "--try-wmi") {
         for line in upgrade_scan::collect::try_wmi(args.get(i + 1).map(String::as_str)) {

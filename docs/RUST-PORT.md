@@ -32,9 +32,11 @@ Three docs already cover parts of this, and this page does not repeat them:
 | 3c | the live reads: unprivileged half (system facts, device list, registry, installed programs) | `[####]` the G16, side by side: every fact Rust read equals what PowerShell read | `upgrade-scan --record` and `--compare-facts`, 2026-10-06 |
 | 3d | the live reads: elevated half (disks, shrink room, volume health with the online scan, physical disk, BitLocker, boot partition, firmware variables and trusted keys, event log, SMART, the stick's boot files) | `[####]` the G16 and the Aspire, elevated, side by side: every fact equal | 2026-10-06; `v13-rust-scanner.csv` |
 | 3e | the whole scanner in Rust, end to end: Rust reads the machine, Rust judges, the report is PowerShell's | `[####]` the G16 (SAME, 218 lines, 25 checks, YELLOW) and the Aspire (SAME, 166 lines, 26 checks, RED), both elevated | `upgrade-scan --replay rust.json --against powershell.json`, 2026-10-06 |
+| 3f | the scanner as the product command: `upgrade-scan scan --json --out <dir>` writes the report files where `upgrade-scan.ps1 -Json -OutDir` writes them; `upgrade-scan dump-machine` writes the `-DumpMachine` capture | `[####]` the G16, both scanners back to back, elevated and not: the JSON reports SAME field for field, the text reports byte-identical | `upgrade-scan compare-reports`, 2026-10-07; `v13-rust-scanner.csv` line 7. The one difference kept on purpose in the judgment (the Windows 11 scan names) is below |
 | 4a | the kickstart generator (`upgrade_/kickstart`) | `[##..]` built, no program uses it yet | 22 of 22 self-test lines `pass`; its rig and physical rows `owed` |
 | 4b | the job writer's judging half (`evaluate/job`) | `[##..]` built, no program uses it yet | 126 of 126 self-test lines `pass`; rig and physical rows `owed` |
 | 4c | the job writer's live half (the reads, the files it writes), the stick writer | `[#...]` planned | ledger lines not written |
+| 4d | the password hasher (`evaluate/job/src/password.rs`; `upgrade-job password`) | `[##..]` built; the prompt not yet run on a stick | 12 of 12 self-test lines `pass`, 34 recorded calls match, the specification's vectors held directly; its 3 physical rows `owed` |
 | 5 | the prologue, handoff, rollback | `[#...]` planned | ledger lines not written |
 
 Nothing has been switched over. The stick still runs the PowerShell, and
@@ -144,7 +146,7 @@ on 2026-10-04.
 | `New-Job.ps1` | 1,451 | `evaluate/job` (crate `upgrade-job`) | 4 | `-SelfTest`, 126 cases |
 | `New-Kickstart.ps1` | 226 | part of the job writer crate | 4 | rig rows |
 | `Write-UpgradeStick.ps1` | 514 | a stick writer (shares ideas with `settle-in/src/stickwrite.rs`) | 4 | `r16-stick-writer.csv` |
-| `Read-Password.ps1` | 201 | part of the window | 4 | none |
+| `Read-Password.ps1` | 201 | `evaluate/job/src/password.rs`, run as `upgrade-job password` until the window takes the prompt | 4 | `-SelfTest`, 12 cases |
 | `Invoke-Prologue.ps1` | 2,124 | the converter's Windows half | 5 | rig and physical rows (`r18-prologue.csv`) |
 | `Invoke-Rollback.ps1` | 238 | the converter's Windows half | 5 | `r21-rollback.csv` |
 | `Test-Handoff.ps1` | 809 | the converter's Windows half | 5 | `v0-handoff.csv` |
@@ -438,6 +440,8 @@ Each one is stricter than the original, or changes no decision.
 | installed programs in a job | sorted by the machine's language rules (PowerShell's `Sort-Object`) | sorted by the lower-cased name, the same on every machine | the list is an inventory; nothing decides on its order. Past the 2,000 cap the two could keep different entries |
 | a job's `evaluate.version` | `0.18.0` | given by the program that writes the job | a record should say what wrote it |
 | `Disk N` detail line | printed with the machine's own number format (`931,5 GB` on a German Windows) | always a dot (`931.5 GB`) | a display line only; no decision reads it |
+| the password typed twice (2026-10-07) | `-cne`, which compares by the culture's rules: `é` and `e` + a combining accent count as the same, and the pair is accepted | the two entries are compared byte for byte; that pair is refused with "the two entries are not the same" | stricter, and right: Fedora's sign-in compares bytes, so the accepted pair would have locked the person out. `tests/password.rs` holds it by name |
+| the JSON report's form (2026-10-07) | `ConvertTo-Json`: a byte order mark, CRLF, .NET dates (`\/Date(...)\/`), a one-item array written as the item | plain UTF-8, LF, dates as `2025-05-19T20:00:00` local time, arrays always arrays; two fields more: `Scanner` (what wrote it) and, only when a read failed, `ReadErrors` | the same values in a plainer form. Every reader (`New-Job.ps1`, the window, the Rust) accepts both; nothing decides on `System.BiosDate`. The text report is byte-identical, mark and line ends included |
 | "Volume health", the online scan's result (2026-10-07) | judged under Windows 10's names only (`ErrorsFound`, `ErrorsNotFixed`); on Windows 11 a scan that found errors (`ScanErrorsFoundNeedSpotFix`, `ScanErrorsFixedOnlineAlsoNeedSpotFix`, `ScanErrorsFoundAndFixedOnline`) read as ok, the word left in the note | both sets of names mean errors found: WARN, "online scan reported: ..."; and `ScanNoErrorsFound` gets the "its own log contradicts" clause like `NoErrorsFound` | stricter. `storage::SCAN_FOUND_ERRORS`; `tests/parity.rs` holds the four cases by name, and fails the day the PowerShell says the same, so the exception cannot outlive its reason |
 
 ## The data tables
@@ -478,6 +482,16 @@ Reproducible builds (R14) are owed before any Rust `.exe` replaces a
 script: the bytes on the stick must be matched to the source by someone
 else.
 
+## The cut-over sessions (from 2026-10-07)
+
+`docs/CUTOVER-PROMPT.md` is the brief for the sessions that cut the whole
+active path over, in this order: the scanner's product command (done, 3f),
+the password hasher (done, 4d), the harvester's live half, the job writer's
+live half, the prologue's judging half, the prologue's live half with the
+handoff and the rollback, the launchers as flows in `UPGRADE.exe`, the kit,
+the docs. The Windows 11 scan names are fixed in the Rust (above); the fix
+to `upgrade-scan.ps1` on `main` is still owed there.
+
 ## What comes next
 
 In order. The first three need no decision.
@@ -485,9 +499,9 @@ In order. The first three need no decision.
 1. **Put the schema library to work.** `settle-in` and the window read
    `job.json` and `outcome.json` through `upgrade-schema`.
 2. **Make the PowerShell prologue keep raw tool output** (on `main`), and
-   fix the scan-result names for Windows 11 (above). Owed
-   since 2026-09-27. Every physical run made without it is one the Rust
-   cannot replay later.
+   fix the scan-result names for Windows 11 in `upgrade-scan.ps1` (the Rust
+   already judges them, above). Owed since 2026-09-27. Every physical run
+   made without it is one the Rust cannot replay later.
 3. **The prologue's judging half** (its guardrails and its fork), the same
    way as the job writer's.
 4. The job writer's live half, then the stick writer, then the prologue's live half, handoff and rollback (step 5).

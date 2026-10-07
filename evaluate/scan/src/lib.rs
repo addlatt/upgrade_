@@ -1,7 +1,7 @@
-//! The scanner's judging half, ported from `evaluate/windows/upgrade-scan.ps1`
-//! (scanner 0.5.0). Every function here takes facts and says what they mean.
-//! None of them reads the machine: the readers (the collectors) are step 3 of
-//! `docs/RUST-PORT.md`, and until then the PowerShell scanner is the one in use.
+//! The scanner, ported from `evaluate/windows/upgrade-scan.ps1` (scanner
+//! 0.5.0). The judging functions take facts and say what they mean; the
+//! collectors (`collect`, Windows only) read the machine; `product` strings
+//! them together and writes the report as the launchers expect it.
 //!
 //! The port is held to the PowerShell word for word. `tests/cases.json` is one
 //! list of inputs, `tests/golden.json` is what the PowerShell says for each
@@ -14,6 +14,7 @@ pub mod data;
 pub mod facts;
 pub mod hardware;
 pub mod parse;
+pub mod product;
 pub mod ps;
 pub mod report;
 pub mod run;

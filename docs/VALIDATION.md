@@ -1347,6 +1347,15 @@ name, and the Rust tests.
 | `Harvest-UpgradeState.ps1` | 49 | 47 | 2 (`v8-materialize.csv`; `harvest-folder-map.csv`) |
 | `New-Job.ps1` (judging half) | 130 | 126 | 4 (the rig and physical rows that ran its jobs) |
 | `New-Kickstart.ps1` (step 4, first piece) | 26 | 22 | 4 (the rig and physical rows whose installs ran its kickstart: `v1-live-boot.csv`, `v2-install.csv`, `v9-erase.csv`) |
+| `Read-Password.ps1` (2026-10-07) | 15 | 12 | 3 (`v9-erase.csv` lines 11, 22, 30: the Aspire's runs where the person typed the password through it; one physical run with `upgrade-job password` re-earns them) |
+
+**2026-10-07, the cut-over sessions** (`docs/CUTOVER-PROMPT.md`): the
+scanner is a product command (`upgrade-scan scan --json --out`, proven on
+the G16 against `upgrade-scan.ps1 -Json -OutDir` in the same minute,
+elevated and not: JSON SAME field for field, text byte-identical;
+`v13-rust-scanner.csv` line 7), and the password hasher is ported (34
+recorded calls, the specification's vectors). Two differences kept on
+purpose, both stricter, in `docs/RUST-PORT.md`.
 
 The scanner's rig and physical rows are not all found yet. Before step 3
 starts, every results file is read again for rows the scanner had a part

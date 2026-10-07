@@ -3350,6 +3350,16 @@ roadmap).
   of `data/*.ps1`. A table edited in one and not the other would make the
   two scanners disagree. `port-check.sh` fails when the copy is stale;
   nothing runs it automatically yet (the same gap as R9).
+- **2026-10-07, the cut-over begins** (`docs/CUTOVER-PROMPT.md`). The
+  scanner is a product command that writes the report files where the
+  launchers expect them, proven on the G16 side by side with the
+  PowerShell (JSON SAME, text byte-identical, elevated and not). The
+  password hasher is ported and held to the specification's vectors and 34
+  recorded answers. Two differences kept on purpose, both stricter: the
+  online scan's Windows 11 names now count as errors found (the PowerShell
+  judged them clean), and a typed pair whose bytes differ is refused even
+  where PowerShell's culture-aware comparison accepted it. Each is held by
+  name in a test that fails the day the PowerShell catches up.
 
 **Closes when.** Per piece: its lines in
 `docs/validation-results/port-parity.csv` all read `pass` (self-tests and

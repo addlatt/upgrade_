@@ -1,18 +1,24 @@
 [package]
 name = "upgrade-job"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "GPL-3.0-only"
 
-# The job writer's judging half in Rust (RISKS R32, docs/RUST-PORT.md step 4).
-# Facts go in; a job document or the refusals come out. It reads no machine
-# and writes no file yet. New-Job.ps1 stays the job writer in use until its
-# ledger lines all read `pass`.
+# The job writer in Rust (RISKS R32, docs/RUST-PORT.md step 4): its judging
+# half (facts go in; a job document or the refusals come out) and, piece by
+# piece, its live half. The binary `upgrade-job` is what the launchers run.
+# New-Job.ps1 and Read-Password.ps1 stay in use until their ledger lines all
+# read `pass`.
 [dependencies]
 serde_json = { version = "1", features = ["preserve_order"] }
 roxmltree = "0.21"
 regress = "0.10"
+sha2 = "0.10"
 upgrade-scan = { path = "../scan" }
+
+# the console and the OS random source (src/password.rs): Windows only
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Console", "Win32_Security_Cryptography"] }
 
 [dev-dependencies]
 upgrade-schema = { path = "../../schemas/rust" }

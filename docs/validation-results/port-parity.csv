@@ -425,3 +425,18 @@ upgrade-scan.ps1,"v13-rust-scanner.csv:3 (the Aspire, not elevated: every fact e
 upgrade-scan.ps1,"v13-rust-scanner.csv:4 (the G16, elevated: every fact equal; end to end SAME, 218 lines, 25 checks)",physical,"evaluate/scan --compare-facts, --replay --against",pass,2026-10-06
 upgrade-scan.ps1,"v13-rust-scanner.csv:5 (the Aspire, elevated: every fact equal; end to end SAME, 166 lines, 26 checks, RED)",physical,"evaluate/scan --compare-facts, --replay --against",pass,2026-10-06
 upgrade-scan.ps1,"v13-rust-scanner.csv:6 (the G16, elevated: the online scan of C: says NoErrorsFound both ways)",physical,evaluate/scan --try-wmi scan,pass,2026-10-06
+Read-Password.ps1,"spec vector 1: ""Hello world!"", salt saltstring, default rounds",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"spec vector 2: rounds=10000, a salt over 16 characters is cut to 16",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"spec vector 3: rounds=5000 written out, ""This is just a test""",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"spec vector 4: a password longer than 64 bytes (rounds=1400)",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"spec vector 5: rounds below 1000 are raised to 1000",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"non-ASCII password hashes its UTF-8 bytes, as glibc and openssl do",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"a fresh salt is 16 characters from the crypt alphabet",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"a fresh hash has the $6$ shape the schema requires",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"refuse: empty",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"refuse: two different entries",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"refuse: case matters",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"a matching pair is accepted",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"v9-erase.csv:11 (the Aspire's run 9: the password typed through the hasher signed in to Fedora; re-earned by one physical run with upgrade-job password)",physical,,owed,2026-10-07
+Read-Password.ps1,"v9-erase.csv:22 (the Aspire's run 10: the password typed through the hasher signed in to Fedora; re-earned by one physical run with upgrade-job password)",physical,,owed,2026-10-07
+Read-Password.ps1,"v9-erase.csv:30 (the Aspire's run 11: the password typed through the hasher signed in to Fedora; re-earned by one physical run with upgrade-job password)",physical,,owed,2026-10-07
