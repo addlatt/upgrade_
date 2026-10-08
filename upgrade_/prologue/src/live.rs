@@ -713,13 +713,12 @@ pub fn live_resume_context() -> Value {
     judge::resume_context(&user_name(), interactive, session as i64, explorer)
 }
 
+/// `[Security.Principal.WindowsIdentity]::GetCurrent().Name`, as the script
+/// reads it. The first rig run (2026-10-07) used `GetUserNameExW`, which names
+/// SYSTEM as the machine account, so the record said `run_as: user` for a
+/// resume that ran as SYSTEM in session 0.
 fn user_name() -> String {
-    use windows::core::PWSTR;
-    use windows::Win32::Security::Authentication::Identity::{GetUserNameExW, NameSamCompatible};
-    let mut size: u32 = 0;
-    let _ = unsafe { GetUserNameExW(NameSamCompatible, None, &mut size) };
-    let mut buf: Vec<u16> = vec![0; size as usize + 1];
-    if unsafe { GetUserNameExW(NameSamCompatible, Some(PWSTR(buf.as_mut_ptr())), &mut size) } { String::from_utf16_lossy(&buf[..size as usize]) } else { String::new() }
+    upgrade_scan::collect::win::account_name()
 }
 
 /// Seconds since the machine started.

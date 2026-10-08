@@ -1369,9 +1369,15 @@ side by side is owed). The prologue's judging half is ported
 (`upgrade-prologue`; every tool call kept with its raw output; its reads
 beside `Get-PrologueFacts` on the G16, elevated and not: SAME but for
 `Test-Path`'s answer on the locked memory files, `v13-rust-prologue.csv`
-lines 2 and 3); the rig rows are the next step
-(`PROLOGUE=rust rig/hyperv/prologue.sh run`). The differences kept on
-purpose are in `docs/RUST-PORT.md`.
+lines 2 and 3). Its first rig row is in (2026-10-07, `PROLOGUE=rust
+rig/hyperv/prologue.sh run`): the keep-Windows path front to back,
+unattended, Fedora 44 KDE installed beside Windows, both booting twice
+(`v2-install.csv` line 7 `pass-plumbing`; `r18-prologue.csv` line 13
+`flag-not-confirmed`, because the R25 update restart dropped the bench's
+dirty flag before the check; the harness now clears a pending update
+first). Owed on the rig: the R18 arm with the check running, the rollback,
+the probe and the erase arms. The differences kept on purpose and the
+run's findings are in `docs/RUST-PORT.md`.
 
 The scanner's rig and physical rows are not all found yet. Before step 3
 starts, every results file is read again for rows the scanner had a part

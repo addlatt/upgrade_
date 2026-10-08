@@ -28,6 +28,42 @@ pub fn is_admin() -> bool {
     }
 }
 
+/// `[Security.Principal.WindowsIdentity]::GetCurrent().Name`: the account
+/// this process runs as, named from its token's user SID (`DOMAIN\Name`).
+/// For the SYSTEM account that is `NT AUTHORITY\SYSTEM`; `GetUserNameExW`
+/// would give the machine account (`WORKGROUP\PC$`) instead, which is what
+/// the Rust prologue's first rig run recorded (2026-10-07). Empty when the
+/// token cannot be read.
+pub fn account_name() -> String {
+    use windows::core::PWSTR;
+    use windows::Win32::Security::{GetTokenInformation, LookupAccountSidW, TokenUser, SID_NAME_USE, TOKEN_USER};
+    unsafe {
+        let mut token = HANDLE::default();
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).is_err() {
+            return String::new();
+        }
+        let mut size: u32 = 0;
+        let _ = GetTokenInformation(token, TokenUser, None, 0, &mut size);
+        let mut buf = vec![0u8; size.max(1) as usize];
+        let got = GetTokenInformation(token, TokenUser, Some(buf.as_mut_ptr() as *mut _), size, &mut size).is_ok();
+        let _ = CloseHandle(token);
+        if !got {
+            return String::new();
+        }
+        let user = &*(buf.as_ptr() as *const TOKEN_USER);
+        let (mut name_len, mut domain_len): (u32, u32) = (0, 0);
+        let mut kind = SID_NAME_USE::default();
+        let _ = LookupAccountSidW(None, user.User.Sid, None, &mut name_len, None, &mut domain_len, &mut kind);
+        let mut name: Vec<u16> = vec![0; name_len.max(1) as usize];
+        let mut domain: Vec<u16> = vec![0; domain_len.max(1) as usize];
+        if LookupAccountSidW(None, user.User.Sid, Some(PWSTR(name.as_mut_ptr())), &mut name_len, Some(PWSTR(domain.as_mut_ptr())), &mut domain_len, &mut kind).is_err() {
+            return String::new();
+        }
+        let (n, d) = (String::from_utf16_lossy(&name[..name_len as usize]), String::from_utf16_lossy(&domain[..domain_len as usize]));
+        if d.is_empty() { n } else { format!("{d}\\{n}") }
+    }
+}
+
 /// Turn one privilege on for this process (`SeSystemEnvironmentPrivilege`
 /// for the firmware's variables). False when it could not be.
 pub fn enable_privilege(name: PCWSTR) -> bool {

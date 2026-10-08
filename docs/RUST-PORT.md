@@ -39,7 +39,7 @@ Three docs already cover parts of this, and this page does not repeat them:
 | 4c | the job writer's live half (`evaluate/job/src/live.rs`; `upgrade-job write`): every read of `Get-JobFacts`, the Wi-Fi export, `job.json` written only as a document that passed the contract, the password files, `ks.cfg` through the kickstart crate | `[####]` the G16, `upgrade-job facts` beside the script's `Get-JobFacts`, elevated and not: SAME field for field, the elevated-only reads and the Wi-Fi block with its keys included; the only difference is the two Store-signed non-removable apps, kept on purpose. A `job.json` beside the PowerShell's (needs the kit stick) is owed | `upgrade-job compare-facts`, 2026-10-07; `v13-rust-job.csv` lines 2 and 3. The stick writer is not started |
 | 4d | the password hasher (`evaluate/job/src/password.rs`; `upgrade-job password`) | `[##..]` built; the prompt not yet run on a stick | 12 of 12 self-test lines `pass`, 34 recorded calls match, the specification's vectors held directly; its 3 physical rows `owed` |
 | 5a | the prologue's judging half (`upgrade_/prologue`, crate `upgrade-prologue`): the R18 guardrails, the re-validation, the shrink plan and the fork, the ladder's rungs and consents, R25's update step, the erase path's start and return, the handoff classifier, the resume context, the state, the `prologue` block and a stopped outcome | `[##..]` built, no program uses it yet | 143 of 144 self-test lines `pass` (the 144th is the Wi-Fi scrub, a live action); 161 cases, 228 calls match word for word; every realistic stopped outcome passes `outcome.schema.json`; its 36 rig and 12 physical rows `owed` |
-| 5b | the prologue's live half (`upgrade_/prologue/src/live.rs`, `flow.rs`; the program `upgrade-prologue start|resume|notify|abort|probe`): every read and every reversible write of the script, each tool call kept with its raw output (`tools.jsonl` in the state directory and in `upgrade_/report/` on the stick), the SYSTEM startup task as `schtasks` XML, the state directory locked with `icacls`; and the rollback (`rollback.rs`; `upgrade-prologue rollback`) | `[##..]` built; its reads proven beside `Get-PrologueFacts` on the G16, elevated and not (`v13-rust-prologue.csv` lines 2 and 3); no rig row yet. The rig harnesses take `PROLOGUE=rust`; `make-kit.sh` ships the binaries | the handoff harness (`Test-Handoff.ps1`) is not ported: the prologue arms the handoff itself, and the window's verify flow still runs the script |
+| 5b | the prologue's live half (`upgrade_/prologue/src/live.rs`, `flow.rs`; the program `upgrade-prologue start|resume|notify|abort|probe`): every read and every reversible write of the script, each tool call kept with its raw output (`tools.jsonl` in the state directory and in `upgrade_/report/` on the stick), the SYSTEM startup task as `schtasks` XML, the state directory locked with `icacls`; and the rollback (`rollback.rs`; `upgrade-prologue rollback`) | `[###.]` rig: the second rig run (2026-10-07, kit of commit 2174a97) went front to back with nobody at the keyboard: re-validation, the R25 update restart, 57.5 GB re-measured by both paths, 25 GB freed (the partition table agrees), the handoff fired, Fedora 44 KDE installed beside Windows, Windows and Linux each booted twice, the return record written. `v2-install.csv` line 7 `pass-plumbing`; `r18-prologue.csv` line 13 `flag-not-confirmed` (the update restart dropped the bench's dirty flag before the check could run; see the finding below). Its reads were proven beside `Get-PrologueFacts` on the G16, elevated and not (`v13-rust-prologue.csv` lines 2 and 3). One Rust defect found and fixed: `run_as` named the machine account. Owed: the R18 arm with the check running, the rollback, the probe and the erase arms, then the Aspire. The rig harnesses take `PROLOGUE=rust`; `make-kit.sh` ships the binaries | the handoff harness (`Test-Handoff.ps1`) is not ported: the prologue arms the handoff itself, and the window's verify flow still runs the script |
 
 Nothing has been switched over. The stick still runs the PowerShell, and
 every result in `docs/validation-results/` still belongs to the PowerShell
@@ -521,6 +521,39 @@ the volume's status and event 98 as the product's job writer does. The
 same PowerShell run then met R25 (the fresh rig disk has a Windows update
 waiting), which the Rust run exercises next. A stop at re-validation is
 the prologue doing its job (rule #1); it was recorded, not softened.
+
+**The rig's second Rust run (2026-10-07, later the same evening, kit of
+commit 2174a97):** the whole keep-Windows path ran with nobody at the
+keyboard, and three things came out of it.
+
+- *The update restart undid the bench's fault.* The fresh rig disk has a
+  Windows update waiting for a restart (CBS `RebootPending`; the
+  PowerShell prologue read the same minutes earlier). The R25 gate let it
+  finish before anything changed, exactly as designed. But the bench's
+  dirty flag (`fsutil dirty set C:`) did not survive that clean restart:
+  the guest's System log shows NTFS event 98 "Volume C: is healthy" at the
+  next mount and no autochk (no Wininit 1001) at that boot. The prologue
+  then read a clean volume with no repair queued and judged the check not
+  needed, as the script would have. The row is honest
+  (`flag-not-confirmed`), and the harness now lets a pending update finish
+  before it injects the flag (`prologue.sh update-clear`), so the R18 arm
+  tests the check again. Every earlier rig row predates the gate (0.9.0,
+  2026-09-26), which is why nobody had met this.
+- *`run_as` was wrong.* The Rust named the account with `GetUserNameExW`,
+  which calls SYSTEM `WORKGROUP\UPGRIGHV$`; the script's
+  `WindowsIdentity.GetCurrent().Name` says `NT AUTHORITY\SYSTEM`. So the
+  record's two resumes read `run_as: user` for a SYSTEM task in session 0.
+  Fixed: `upgrade_scan::collect::win::account_name` names the token's own
+  SID, as .NET does. The row's raw notes keep the machine account as it
+  was read.
+- *The verdict's `record` test could not pass after a return.* The record
+  on the stick carries every resume, including the one the return adds
+  after the install, while `outcome.json` carries the block as it was at
+  the arm. Since 4908fdf (2026-09-13 20:03Z, four hours after the last
+  rig return) plain equality had been impossible; `prologue-verdict.py`
+  now asks that every other key be equal and that the outcome's resumes
+  be the first of the record's. Run 2 re-judged: `record=y`. A harness
+  defect, not a prologue one.
 
 **A finding from 5a for `main`:** `Get-PrologueRepairMethod` knows only
 Windows 10's scan names. On Windows 11 a scan that found errors

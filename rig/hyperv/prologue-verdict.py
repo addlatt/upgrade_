@@ -94,10 +94,21 @@ if outcome:
     except ImportError: notes.append("jsonschema not installed; outcome.json not validated")
     install_done = yn(outcome.get("status") == "completed")
     if outcome.get("status") != "completed": stopped_at = outcome.get("stopped_at"); notes.append(f"outcome stopped at {stopped_at}: {str(outcome.get('reason'))[:160]}")
-    record_in_outcome = yn(rec is not None and outcome.get("prologue") == P)
-    if rec and outcome.get("prologue") != P:
-        diff = [k for k in set(list(P) + list(outcome.get("prologue", {}))) if P.get(k) != outcome.get("prologue", {}).get(k)]
+    # outcome.json carries the record as it was at the arm. The prologue writes the
+    # record again when Windows is back (the return is one more resume), so the
+    # resumes in outcome.json must be the first ones in the record, and every other
+    # key must be equal. (Since 4908fdf, 2026-09-13, the block carries resumes; the
+    # first rig return after it, the Rust prologue's on 2026-10-07, showed the plain
+    # equality could no longer pass.)
+    O = outcome.get("prologue") or {}
+    same_keys = all(P.get(k) == O.get(k) for k in set(list(P) + list(O)) if k != "resumes")
+    resumes_prefix = (P.get("resumes") or [])[:len(O.get("resumes") or [])] == (O.get("resumes") or [])
+    record_in_outcome = yn(rec is not None and same_keys and resumes_prefix)
+    if rec and not (same_keys and resumes_prefix):
+        diff = [k for k in set(list(P) + list(O)) if P.get(k) != O.get(k) and (k != "resumes" or not resumes_prefix)]
         notes.append("outcome.prologue differs from the record in: " + ",".join(sorted(diff)))
+    elif rec and len(P.get("resumes") or []) > len(O.get("resumes") or []):
+        notes.append(f"record carries {len(P['resumes']) - len(O.get('resumes') or [])} resume(s) logged after the install (the return)")
 else:
     notes.append("no outcome.json on the stick")
 

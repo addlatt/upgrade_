@@ -18,6 +18,8 @@
 #   prologue.sh stick         MODE=prologue v1.sh stick (bench + autoshutdown markers; NO boot-install -
 #                             the prologue writes that itself when it arms)
 #   prologue.sh windows       power on, wait for PS Direct (no GRUB on this disk)
+#   prologue.sh update-clear  let a Windows update that waits for a restart finish first (else the
+#                             prologue's R25 restart drops the injected flag; 2026-10-07), record it
 #   prologue.sh dirty         fsutil dirty set C: (the fault), record fsutil's answer
 #   prologue.sh autologon off|on   the guest's AutoAdminLogon (the rig template signs itself in;
 #                             the walk-away row needs NOBODY signed in when the resume fires -
@@ -122,6 +124,25 @@ windows)
     # system resources", storage-mode runs 1 and 6): evict before every start
     for f in "$HV/vm/v1-stick.vhdx" "$PRO_VHDX" artifacts/v1-stick.img ../../dist/kit/stick/upgrade_/LiveOS/*.squashfs ../../dist/kit/stick/images/install.img; do evict "$f" 2>/dev/null || true; done
     PS start; wait_windows 900 ;;
+update-clear)
+    # The fresh rig disk carries a Windows update waiting for a restart (CBS
+    # RebootPending; first met 2026-10-07, the first run with the prologue's R25
+    # gate, 0.9.0+). The gate restarts before the disk check, and a clean restart
+    # drops a dirty bit set by fsutil: the guest's System log showed NTFS 98
+    # "healthy" at the next mount and no autochk (run 2, r18-prologue.csv line
+    # 13, flag-not-confirmed). So the bench lets the update finish first, and
+    # records what it read before and after in update-before.txt.
+    mkdir -p "$A"
+    rd="\$c = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Component Based Servicing\\RebootPending'; \$w = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired'; 'cbs=' + \$c + ' wu=' + \$w"
+    guest "'before: ' + ($rd)" | tee "$A/update-before.txt"
+    if grep -q 'True' "$A/update-before.txt"; then
+        echo "prologue: an update waits for a restart; restarting the guest once before the flag is injected"
+        guest 'shutdown /r /t 0' >/dev/null 2>&1 || true
+        sleep 45; wait_windows 900
+        guest "'after: ' + ($rd)" | tee -a "$A/update-before.txt"
+        grep -q 'after: cbs=False wu=False' "$A/update-before.txt" || { echo "prologue: the update is still waiting after a restart - read $A/update-before.txt" >&2; exit 1; }
+    fi
+    ;;
 dirty)
     mkdir -p "$A"
     guest 'fsutil dirty set C:; fsutil dirty query C:' | tee "$A/dirty.txt"
@@ -335,7 +356,7 @@ restore)
     PS disk list
     ;;
 run)
-    "$SELF" prepare; "$SELF" stick; "$SELF" inspect pre-install; "$SELF" windows; "$SELF" dirty; "$SELF" autologon off; "$SELF" convert
+    "$SELF" prepare; "$SELF" stick; "$SELF" inspect pre-install; "$SELF" windows; "$SELF" update-clear; "$SELF" dirty; "$SELF" autologon off; "$SELF" convert
     "$SELF" wait-off 5400; "$SELF" inspect post-install
     "$SELF" cycle windows w1; "$SELF" cycle linux l1; "$SELF" cycle windows w2; "$SELF" cycle linux l2
     "$SELF" inspect post-cycles; "$SELF" verdict

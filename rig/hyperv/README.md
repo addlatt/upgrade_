@@ -176,7 +176,14 @@ That is the **unshrunk** install-day disk, because the prologue's job is the
 shrink and `pre-install.vhdx` already carries the V1b bench's 32 GiB gap.
 `prologue.sh dirty` injects the flag (`fsutil dirty set C:`). The guest
 then restarts itself twice (disk check, then the installer) and the bench
-waits for the autoshutdown after the first Linux boot. `v1.sh stick`
+waits for the autoshutdown after the first Linux boot. **Since 2026-10-07
+the bench first lets a waiting Windows update finish** (`prologue.sh
+update-clear`, recorded in `update-before.txt`): the fresh disk carries a
+CBS `RebootPending`, the prologue's R25 gate (0.9.0+) restarts for it
+before the disk check, and a clean restart drops the injected bit without
+any autochk (the guest's System log: NTFS 98 "healthy" at the next mount,
+no Wininit 1001). Run 2 of the Rust prologue found this
+(`r18-prologue.csv` line 13, `flag-not-confirmed`). `v1.sh stick`
 gained `MODE=prologue` (bench + autoshutdown markers only; the prologue
 writes `boot-install` itself when it arms). Rows: `r18-prologue.csv` and,
 for the install part of the same run, `v2-install.csv` (`v2-verdict.py`
