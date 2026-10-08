@@ -22,7 +22,8 @@ use std::process::ExitCode;
 fn usage() -> ExitCode {
     eprintln!("{}", upgrade_prologue::flow_version());
     eprintln!("usage: upgrade-prologue start --stick <X:> [--job <path>] [--confirm-word CONVERT] [--acknowledge-data-loss <s>] [--erase-consent <s>] [--state-dir <dir>]");
-    eprintln!("       upgrade-prologue resume|notify|abort [--state-dir <dir>]");
+    eprintln!("       upgrade-prologue resume|notify [--state-dir <dir>]");
+    eprintln!("       upgrade-prologue abort [--stick <X:>] [--state-dir <dir>]   (--stick: the before-cancel capture onto the stick first)");
     eprintln!("       upgrade-prologue probe --stick <X:> [--state-dir <dir>]");
     eprintln!("       upgrade-prologue rollback --stick <X:>");
     eprintln!("       upgrade-prologue verify-arm --stick <X:> [--payload shim|shell] [--auto] [--suspend-bitlocker] [--fail-mode NoFile|SecureBootUnsigned|NoSuspend] [--state-dir <dir>] [--results-csv <file>]");
@@ -93,6 +94,13 @@ fn run(args: &[String]) -> ExitCode {
             None => Err("give --stick <X:>".into()),
         },
         "abort" => {
+            // CANCEL-CONVERSION.cmd: the evidence first, read-only, onto the stick when one is given
+            if let Some(d) = value_of("--stick") {
+                match upgrade_prologue::judge::drive_root(&d).and_then(|root| live::before_cancel_capture(&mut ctx.rec, &root, &ctx.state_dir.clone())) {
+                    Ok(f) => println!("  saved the firmware boot list to {f}"),
+                    Err(e) => println!("  the before-cancel capture could not be written ({e}); going on"),
+                }
+            }
             flow::abort(&mut ctx);
             Ok(())
         }

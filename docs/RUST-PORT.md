@@ -151,9 +151,9 @@ on 2026-10-04.
 | `Write-UpgradeStick.ps1` | 514 | a stick writer (shares ideas with `settle-in/src/stickwrite.rs`) | 4 | `r16-stick-writer.csv` |
 | `Read-Password.ps1` | 201 | `evaluate/job/src/password.rs`, run as `upgrade-job password` until the window takes the prompt | 4 | `-SelfTest`, 12 cases |
 | `Invoke-Prologue.ps1` | 2,124 | `upgrade_/prologue` (crate `upgrade-prologue`), then the converter's Windows half | 5 | `-SelfTest`, 144 cases; rig and physical rows (`r18-prologue.csv`, `v2-install.csv`, `v9-erase.csv`, `walkaway-probe.csv`) |
-| `Invoke-Rollback.ps1` | 238 | `upgrade_/prologue/src/rollback.rs` (`upgrade-prologue rollback`) | 5 | `-SelfTest`, 14 cases; `r21-rollback.csv` |
+| `Invoke-Rollback.ps1` | 238 | `upgrade_/prologue/src/rollback.rs` (`upgrade-prologue rollback`); its rig row passed 2026-10-08 (`r21-rollback.csv` line 4) | 5 | `-SelfTest`, 14 cases; `r21-rollback.csv` |
 | `Test-Handoff.ps1` | 809 | `upgrade_/prologue/src/verify.rs` (`upgrade-prologue verify-arm` and `verify-check`), the verify flow's handoff | 5 | `-SelfTest`, 33 cases; `v0-handoff.csv`, `v1-live-boot.csv` rows |
-| the `.cmd` launchers | about 1,200 | flows inside `UPGRADE.exe`: the verify and convert flows are in (2026-10-08, untried on the rig); the erase, rollback, probe and cancel flows are owed | 5 | V12 |
+| the `.cmd` launchers | about 1,200 | flows inside `UPGRADE.exe`: all six are in (2026-10-08: verify, convert, erase, roll back, the walk-away probe, cancel; the data-loss variants behind `UPGRADE-ACCEPTING-DATA-LOSS.cmd`), untried on the rig in this form | 5 | V12 |
 | `data/*.ps1` | 379 | stays the edit surface for now (see "The data tables") | 2 | checked by the self-test |
 
 Not on the list, and staying as they are: the rig scripts under `rig/`

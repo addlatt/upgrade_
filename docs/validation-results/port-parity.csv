@@ -648,8 +648,8 @@ Invoke-Rollback.ps1,"identity: same disk, no mismatch; other disk, two",selftest
 Invoke-Rollback.ps1,"displayorder: parsed from bcdedit text, continuation lines included",selftest,,owed,2026-10-07
 Invoke-Rollback.ps1,"windows first: true only when {bootmgr} leads",selftest,,owed,2026-10-07
 Invoke-Rollback.ps1,"drive: e normalizes to E:\, a path is refused",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"r21-rollback.csv:2 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
-Invoke-Rollback.ps1,"r21-rollback.csv:3 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Rollback.ps1,"r21-rollback.csv:2 (Hyper-V UEFI Release v4.1)",rig,"r21-rollback.csv:4 (PROLOGUE=rust prologue.sh rollback after run 3: pass-plumbing)",pass,2026-10-08
+Invoke-Rollback.ps1,"r21-rollback.csv:3 (Hyper-V UEFI Release v4.1)",rig,"r21-rollback.csv:4 (PROLOGUE=rust prologue.sh rollback after run 3: pass-plumbing)",pass,2026-10-08
 Test-Handoff.ps1,"classify: fired + cleared + order intact is fired-once",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
 Test-Handoff.ps1,"classify: fired but one-shot not cleared is persisted",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
 Test-Handoff.ps1,"classify: not fired, order intact is ignored (fail-safe)",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07

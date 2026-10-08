@@ -162,3 +162,85 @@ pub const CONVERT_RESTARTING_LINES: [&str; 3] = [
 pub const CONVERT_STOPPED_HEADING: &str = "The conversion stopped";
 pub const CONVERT_STOPPED_FOOT: &str = "Windows is as it was. The record is in upgrade_\\outcome.json on this stick.";
 pub const LINUX_NAME_UNKNOWN: &str = "The Linux account name could not be worked out. Nothing was changed.";
+
+// ---------------------------------------------------------------- erase: the words of RUN-ERASE-AND-INSTALL.cmd (2026-10-08)
+
+pub const CHOOSE_ERASE: &str = "Erase this computer and install Fedora";
+pub const CHOOSE_ERASE_LINE: &str = "Everything on this computer is deleted; nothing is kept. You type one sentence before anything changes.";
+pub const CHOOSE_ERASE_ACK: &str = "Erase this computer and install Fedora, ACCEPTING DATA LOSS";
+pub const ERASE_HEADING: &str = "Erase this computer and install Fedora";
+pub const ERASE_READ_FIRST: &str = "Read this first";
+pub const ERASE_LINES: [&str; 5] = [
+    "This deletes EVERYTHING on this computer's drives: Windows, every program, every setting and every file. Nothing is kept and nothing is copied anywhere. Fedora Linux is installed in its place.",
+    "Before you type anything, copy every file you want to keep OFF this computer.",
+    "Nothing changes until the very end: the computer restarts into the installer, and a 2-minute countdown appears on the screen. Press any key during the countdown to cancel: Windows comes back untouched. When the countdown ends, the drives are erased. You can walk away.",
+    "If you change your mind later, you can put Windows back, but it will be a new, empty Windows: nothing on this computer today comes back. On many older computers that means Windows 10, which no longer gets free security updates.",
+    "Your saved Wi-Fi networks and their passwords are copied onto this stick, so Fedora can connect to them on its own. They are removed from the stick at the end of the install and from Fedora once it has set them up.",
+];
+pub const ERASE_TYPE: &str = "To erase everything on this computer and install Fedora, type the following sentence exactly. Anything else stops here.";
+pub const ERASE_STEPS: [&str; 5] = [
+    "Check the USB stick",
+    "Look at this computer",
+    "Write the plan: it names every drive that will be erased",
+    "Your decision",
+    "The prologue: the one-time restart into the installer",
+];
+pub const ERASE_RUNNING_HEADING: &str = "Preparing to erase this computer";
+pub const ERASE_DECIDE_HEADING: &str = "Restarting into the installer";
+pub const ERASE_DECIDE_LINES: [&str; 2] = [
+    "Leave the USB stick in. After the restart a 2-minute countdown appears: press any key during it to cancel and come back to Windows, untouched.",
+    "If Windows has an update waiting, the computer restarts first to let it finish, then carries on by itself.",
+];
+pub const ERASE_GO: &str = "Restart into the installer";
+pub const ERASE_RESTARTING_HEADING: &str = "Restarting into the installer in about 15 seconds";
+pub const ERASE_RESTARTING_LINES: [&str; 2] = [
+    "Leave the USB stick in. The 2-minute countdown comes first: press any key during it to cancel and come back to Windows, untouched.",
+    "When the countdown ends, the drives are erased and Fedora is installed. You can walk away.",
+];
+
+// ---------------------------------------------------------------- roll back (ROLLBACK.cmd)
+
+pub const CHOOSE_ROLLBACK: &str = "Roll back: Windows first again";
+pub const CHOOSE_ROLLBACK_LINE: &str = "For a computer converted with Windows kept. Puts Windows Boot Manager first and its fallback boot file back. Deletes nothing.";
+pub const ROLLBACK_HEADING: &str = "Roll back to Windows first";
+pub const ROLLBACK_LINES: [&str; 2] = [
+    "For a computer converted with Windows kept. It puts Windows Boot Manager first in the firmware's boot order and puts Windows' own fallback boot file back from the copy this stick took before the conversion.",
+    "It deletes NOTHING: Linux stays on the disk and in the firmware's boot menu; its space is only returned when you ask for that separately.",
+];
+pub const ROLLBACK_NO_SNAPSHOT: &str = "This stick holds no copy of the boot files (upgrade_\\esp-snapshot): it was not the stick this computer was converted with. Nothing was changed.";
+pub const ROLLBACK_TYPE: &str = "Type ROLLBACK (in capitals) to continue. Anything else stops.";
+pub const ROLLBACK_RUNNING: &str = "Rolling back";
+pub const ROLLBACK_DONE_HEADING: &str = "Done";
+pub const ROLLBACK_DONE_LINE: &str = "Restart the computer; it boots Windows directly.";
+pub const ROLLBACK_FAILED_HEADING: &str = "The rollback did not complete";
+
+// ---------------------------------------------------------------- the walk-away probe (RUN-PROBE.cmd)
+
+pub const CHOOSE_PROBE: &str = "Walk-away probe (read-only, one restart)";
+pub const CHOOSE_PROBE_LINE: &str = "Tests that the conversion can continue after a restart with nobody signed in. Nothing on the disk is changed.";
+pub const PROBE_HEADING: &str = "Walk-away probe";
+pub const PROBE_LINES: [&str; 3] = [
+    "This tests one thing: that the conversion can continue after a restart with NOBODY signed in. It registers the same startup task the conversion uses, restarts, and on the way back records who ran it, whether anyone was signed in, and how long this USB stick took to appear. Then it removes the task. Nothing on the disk is changed.",
+    "When Windows comes back, DO NOT SIGN IN for two minutes. Leave it at the sign-in screen with the stick in. Then sign in as usual: a window shows the result, and the row is on this stick (upgrade_\\walkaway-probe.csv). Never edit that file.",
+    "This restarts the computer once.",
+];
+pub const PROBE_GO: &str = "Restart now";
+pub const PROBE_RUNNING: &str = "Setting up the probe";
+pub const PROBE_RESTARTING_HEADING: &str = "Restarting in about 15 seconds";
+pub const PROBE_RESTARTING_LINE: &str = "Leave the stick in. When Windows comes back, do not sign in for two minutes.";
+
+// ---------------------------------------------------------------- cancel (CANCEL-CONVERSION.cmd)
+
+pub const CHOOSE_CANCEL: &str = "Cancel a conversion in progress";
+pub const CHOOSE_CANCEL_LINE: &str = "For a computer back in Windows with a conversion still marked as in progress. Nothing is erased; Windows stays as it is.";
+pub const CANCEL_HEADING: &str = "Cancel the conversion";
+pub const CANCEL_LINES: [&str; 3] = [
+    "This is the safe direction: it only undoes what the prologue did on the Windows side. It removes the one-time boot entry to the stick, turns BitLocker protection back on if it was paused, puts the pagefile and hibernation back, deletes the Wi-Fi passwords from the stick and moves the state aside. Nothing is erased.",
+    "A shrink already made stays (Disk Management can extend C: again).",
+    "Before it changes anything, it copies the firmware's boot list and the prologue's state onto this stick.",
+];
+pub const CANCEL_GO: &str = "Cancel the conversion";
+pub const CANCEL_RUNNING: &str = "Cancelling";
+pub const CANCEL_DONE_HEADING: &str = "The conversion is cancelled";
+pub const CANCEL_DONE_LINE: &str = "Windows is as it is. The record of what was undone is in upgrade_\\convert.log on this stick.";
+pub const CANCEL_FAILED_HEADING: &str = "The cancel did not complete";

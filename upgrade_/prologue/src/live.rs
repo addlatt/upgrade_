@@ -838,6 +838,49 @@ pub fn remove_wifi_secrets(root: &str) -> i64 {
     n
 }
 
+/// CANCEL-CONVERSION.cmd's evidence, before the abort removes anything
+/// (rule 5): the firmware's boot list, the resume task, the state directory,
+/// the state, the prologue's log and the last six hours of boots, into
+/// `upgrade_/report/before-cancel-<utc>.txt` on the stick. Every tool's raw
+/// output is also in tools.jsonl.
+pub fn before_cancel_capture(rec: &mut Recorder, root: &str, state: &str) -> Result<String, String> {
+    let utc = now_z();
+    let mut out = String::new();
+    out.push_str(&format!("== utc {}\n", now_o()));
+    out.push_str("== bcdedit {fwbootmgr}\n");
+    out.push_str(&rec.run("bcdedit", &["/enum", "{fwbootmgr}"]).text());
+    out.push_str("\n== bcdedit firmware\n");
+    out.push_str(&rec.run("bcdedit", &["/enum", "firmware"]).text());
+    out.push_str("\n== resume task\n");
+    out.push_str(&rec.run("schtasks", &["/Query", "/TN", TASK_NAME, "/V", "/FO", "LIST"]).text());
+    out.push_str("\n== state dir\n");
+    let base = Path::new(state).parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from(state));
+    let mut stack = vec![base.clone()];
+    while let Some(d) = stack.pop() {
+        if let Ok(rd) = std::fs::read_dir(&d) {
+            for e in rd.flatten() {
+                let p = e.path();
+                let m = e.metadata().ok();
+                out.push_str(&format!("{}  {}  {}\n", p.display(), m.as_ref().map(|m| m.len()).unwrap_or(0), m.and_then(|m| m.modified().ok()).map(|t| format!("{:?}", t)).unwrap_or_default()));
+                if p.is_dir() {
+                    stack.push(p);
+                }
+            }
+        }
+    }
+    out.push_str("== state.json\n");
+    out.push_str(&std::fs::read_to_string(Path::new(state).join("state.json")).unwrap_or_default());
+    out.push_str("\n== prologue.log (C:)\n");
+    out.push_str(&std::fs::read_to_string(Path::new(state).join("prologue.log")).unwrap_or_default());
+    out.push_str("\n== boots, last 6 h\n");
+    out.push_str(&rec.run("wevtutil", &["qe", "System", "/q:*[System[(EventID=12 or EventID=13 or EventID=41 or EventID=1074 or EventID=6008) and TimeCreated[timediff(@SystemTime) <= 21600000]]]", "/f:text", "/c:60"]).text());
+    let dir = Path::new(root).join("upgrade_").join("report");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let file = dir.join(format!("before-cancel-{}.txt", utc.replace([':', '-'], "")));
+    std::fs::write(&file, out).map_err(|e| format!("{}: {e}", file.display()))?;
+    Ok(file.to_string_lossy().to_string())
+}
+
 /// Get-PrologueFacts: what the live machine says, in the script's names.
 pub fn facts(rec: &mut Recorder, root: &str) -> Result<Value, String> {
     let cimv2 = Wmi::connect(CIMV2).ok();

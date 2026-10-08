@@ -10,12 +10,14 @@
 //! came back. Every line a program prints goes to upgrade_\convert.log on
 //! the stick, as Invoke-Logged.ps1 did for the scripts.
 //!
-//! Two flows (2026-10-08): the verify flow (RUN-VERIFY.cmd: nothing is
-//! installed and nothing on the internal drive is changed) and the convert
-//! flow (RUN-CONVERT.cmd: keep Windows, install Linux beside it; its
-//! data-loss variant, RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd, is reached only
-//! by starting the window with --accepting-data-loss, its own launcher, as
-//! rule #1 asks). The .cmd launchers stay on the stick as the fallback.
+//! The launchers as flows (2026-10-08): verify (RUN-VERIFY.cmd: nothing is
+//! installed and nothing on the internal drive is changed), convert
+//! (RUN-CONVERT.cmd: keep Windows, install Linux beside it), erase
+//! (RUN-ERASE-AND-INSTALL.cmd), roll back (ROLLBACK.cmd), the walk-away
+//! probe (RUN-PROBE.cmd) and cancel (CANCEL-CONVERSION.cmd). The data-loss
+//! variants of convert and erase are reached only by starting the window
+//! with --accepting-data-loss, its own launcher, as rule #1 asks. The .cmd
+//! launchers stay on the stick as the fallback.
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod flow;
@@ -94,6 +96,8 @@ enum Msg {
     Decide(String),
     /// the prologue armed the handoff: the computer restarts in 15 s
     ConvertArmed,
+    /// a one-call flow (roll back, probe, cancel) finished: its exit code and lines
+    Done(i32, Vec<String>),
 }
 
 /// Shared between the window and the runner, so closing the window and
@@ -277,13 +281,16 @@ struct ConvertInputs {
     password: String,
     /// the acknowledgement sentence as typed on the data-loss path, else empty
     ack: String,
+    /// the erase sentence as typed (RUN-ERASE-AND-INSTALL.cmd), else empty: the convert flow
+    erase: String,
 }
 
-/// RUN-CONVERT.cmd (and its data-loss variant), as a thread. Everything up
-/// to the typed word leaves the computer as it was; the prologue's own
-/// refusals come before anything it changes, and it says STOPPED when it
-/// stops. `word_rx` brings the typed word from the window once the job is
-/// written and the sign-in name is on the screen.
+/// RUN-CONVERT.cmd and RUN-ERASE-AND-INSTALL.cmd (and their data-loss
+/// variants), as a thread. Everything up to the person's decision leaves
+/// the computer as it was; the prologue's own refusals come before anything
+/// it changes, and it says STOPPED when it stops. `word_rx` brings the
+/// typed word (convert) or the button press (erase) from the window once
+/// the job is written and the sign-in name is on the screen.
 fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Shared, word_rx: Receiver<String>) {
     let root = stick_root(&stick);
     let stop = |s: Stop| {
@@ -296,7 +303,7 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
         return stop(Stop::Kit(missing.iter().map(|s| s.to_string()).collect()));
     }
     let computer = std::env::var("COMPUTERNAME").unwrap_or_default();
-    let which = if inputs.ack.is_empty() { "the convert flow" } else { "the convert flow, ACCEPTING DATA LOSS" };
+    let which = format!("the {} flow{}", if inputs.erase.is_empty() { "convert" } else { "erase" }, if inputs.ack.is_empty() { "" } else { ", ACCEPTING DATA LOSS" });
     log_line(&root, &format!("======== {} on {} (stick {})", which, computer, stick));
     let _ = std::fs::create_dir_all(root.join("upgrade_").join("reports"));
     let (d, s) = inputs.desktop.job_args();
@@ -312,7 +319,7 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
     };
     let hash_text = format!("{}\n", hash);
     let hash_file_text = hash_file.to_string_lossy().to_string();
-    let calls = flow::convert_calls(&stick, inputs.desktop, &hash_file_text, &inputs.ack);
+    let calls = if inputs.erase.is_empty() { flow::convert_calls(&stick, inputs.desktop, &hash_file_text, &inputs.ack) } else { flow::erase_calls(&stick, inputs.desktop, &hash_file_text, &inputs.erase, &inputs.ack) };
     let wifi_dir = root.join("upgrade_").join("artifacts").join("credentials").join("wifi");
     let mut linux_name = String::new();
 
@@ -373,7 +380,8 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
     }
     let _ = tx.send(Msg::Arming);
     let _ = tx.send(Msg::Step(4));
-    let res = run(&flow::prologue_start_call(&stick, &word, &ack), &root, &tx, &guard);
+    let prologue = if inputs.erase.is_empty() { flow::prologue_start_call(&stick, &word, &ack) } else { flow::erase_prologue_call(&stick, &inputs.erase, &ack) };
+    let res = run(&prologue, &root, &tx, &guard);
     guard.lock().unwrap().arming = false;
     match res {
         Some((0, _)) => {
@@ -385,6 +393,32 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
             stop(Stop::Prologue(flow::prologue_stop_lines(&lines)));
         }
         None => {}
+    }
+}
+
+/// ROLLBACK.cmd, RUN-PROBE.cmd and CANCEL-CONVERSION.cmd are one call each;
+/// the probe restarts the computer itself, so the window cannot close while
+/// it runs.
+fn one_call(stick: String, c: flow::Call, restarts: bool, tx: Sender<Msg>, guard: Shared) {
+    let root = stick_root(&stick);
+    let computer = std::env::var("COMPUTERNAME").unwrap_or_default();
+    log_line(&root, &format!("======== {} on {} (stick {})", c.args.first().map(String::as_str).unwrap_or(""), computer, stick));
+    if restarts {
+        {
+            let mut g = guard.lock().unwrap();
+            if g.cancelled {
+                return;
+            }
+            g.arming = true;
+        }
+        let _ = tx.send(Msg::Arming);
+    }
+    let _ = tx.send(Msg::Step(1));
+    let res = run(&c, &root, &tx, &guard);
+    guard.lock().unwrap().arming = false;
+    if let Some((code, lines)) = res {
+        log_line(&root, &format!("{} finished (exit {})", c.args.first().map(String::as_str).unwrap_or(""), code));
+        let _ = tx.send(Msg::Done(code, lines));
     }
 }
 
@@ -429,17 +463,26 @@ fn after_restart(state: Value, tx: Sender<Msg>) {
 enum Flow {
     Verify,
     Convert,
+    Erase,
+    Rollback,
+    Probe,
+    Cancel,
 }
 
 enum Screen {
     Choose,
     Welcome,
+    /// the convert and erase set-up: the desktop, the sentences, the password
     ConvertSetup,
     Running { step: usize },
     Decide { linux_name: String },
     Stopped(Stop),
     Restarting,
     ConvertRestarting,
+    /// roll back, probe, cancel: the words and the one button (or the word)
+    Ask,
+    /// a one-call flow finished well: its heading and line
+    Done(String, String),
     Waiting,
     Result(flow::ResultView),
 }
@@ -451,6 +494,7 @@ struct Setup {
     password: String,
     again: String,
     ack: String,
+    erase: String,
     error: String,
 }
 
@@ -505,11 +549,22 @@ impl App {
         let (stick, guard) = (self.stick.clone(), self.guard.clone());
         let (wtx, wrx) = mpsc::channel::<String>();
         self.word_tx = Some(wtx);
-        let inputs = ConvertInputs { desktop: self.setup.desktop.unwrap_or(Desktop::Kde), password: std::mem::take(&mut self.setup.password), ack: if self.accepting_data_loss { self.setup.ack.clone() } else { String::new() } };
+        let inputs = ConvertInputs {
+            desktop: self.setup.desktop.unwrap_or(Desktop::Kde),
+            password: std::mem::take(&mut self.setup.password),
+            ack: if self.accepting_data_loss { self.setup.ack.clone() } else { String::new() },
+            erase: if self.flow == Flow::Erase { self.setup.erase.clone() } else { String::new() },
+        };
         flow::wipe(&mut self.setup.again);
         std::thread::spawn(move || convert(stick, inputs, ptx, guard, wrx));
-        self.flow = Flow::Convert;
         self.screen = Screen::Running { step: 0 };
+    }
+
+    fn start_one(&mut self, ctx: &egui::Context, c: flow::Call, restarts: bool) {
+        let ptx = self.channel(ctx);
+        let (stick, guard) = (self.stick.clone(), self.guard.clone());
+        std::thread::spawn(move || one_call(stick, c, restarts, ptx, guard));
+        self.screen = Screen::Running { step: 1 };
     }
 
     fn pump(&mut self) {
@@ -533,6 +588,15 @@ impl App {
                     self.screen = Screen::Stopped(s);
                 }
                 Msg::Result(v) => self.screen = Screen::Result(v),
+                Msg::Done(code, lines) => {
+                    self.arming = false;
+                    self.screen = match (self.flow, code) {
+                        (Flow::Rollback, 0) => Screen::Done(words::ROLLBACK_DONE_HEADING.into(), words::ROLLBACK_DONE_LINE.into()),
+                        (Flow::Probe, 0) => Screen::Done(words::PROBE_RESTARTING_HEADING.into(), words::PROBE_RESTARTING_LINE.into()),
+                        (Flow::Cancel, 0) => Screen::Done(words::CANCEL_DONE_HEADING.into(), words::CANCEL_DONE_LINE.into()),
+                        (_, _) => Screen::Stopped(Stop::Refused(flow::refusal_lines(&lines))),
+                    };
+                }
             }
         }
     }
@@ -575,6 +639,9 @@ impl App {
         }
         if self.accepting_data_loss && !flow::ack_ok(&self.setup.ack) {
             return Some(format!("{} {}", words::ACK_TYPE, upgrade_job::RISK_STATEMENT));
+        }
+        if self.flow == Flow::Erase && !flow::erase_ok(&self.setup.erase) {
+            return Some(words::ERASE_TYPE.into());
         }
         flow::password_refusal(&self.setup.password, &self.setup.again).map(|why| format!("{}: {}.", words::PASSWORD_NOT_SET, why))
     }
@@ -631,6 +698,8 @@ enum Press {
     StartVerify,
     StartConvert,
     Word,
+    /// the one button of the erase decision, the probe and the cancel screens
+    Go,
     Close,
 }
 
@@ -643,8 +712,7 @@ impl eframe::App for App {
             ctx.request_repaint_after(Duration::from_millis(300));
         }
         let mut press = Press::None;
-        let mut go_verify = false;
-        let mut go_convert = false;
+        let mut go: Option<Flow> = None;
         egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 ui.add_space(6.0);
@@ -654,15 +722,23 @@ impl eframe::App for App {
                 match &self.screen {
                     Screen::Choose => {
                         heading(ui, words::CHOOSE_HEADING);
+                        let mut choice = |ui: &mut egui::Ui, label: &str, line: &str, f: Flow| {
+                            if ui.add(egui::Button::new(egui::RichText::new(label).size(17.0))).clicked() {
+                                go = Some(f);
+                            }
+                            para(ui, line);
+                            ui.add_space(8.0);
+                        };
                         if !self.accepting_data_loss {
-                            go_verify = ui.add(egui::Button::new(egui::RichText::new(words::CHOOSE_VERIFY).size(17.0))).clicked();
-                            para(ui, words::CHOOSE_VERIFY_LINE);
-                            ui.add_space(10.0);
-                            go_convert = ui.add(egui::Button::new(egui::RichText::new(words::CHOOSE_CONVERT).size(17.0))).clicked();
-                            para(ui, words::CHOOSE_CONVERT_LINE);
+                            choice(ui, words::CHOOSE_VERIFY, words::CHOOSE_VERIFY_LINE, Flow::Verify);
+                            choice(ui, words::CHOOSE_CONVERT, words::CHOOSE_CONVERT_LINE, Flow::Convert);
+                            choice(ui, words::CHOOSE_ERASE, words::CHOOSE_ERASE_LINE, Flow::Erase);
+                            choice(ui, words::CHOOSE_ROLLBACK, words::CHOOSE_ROLLBACK_LINE, Flow::Rollback);
+                            choice(ui, words::CHOOSE_PROBE, words::CHOOSE_PROBE_LINE, Flow::Probe);
+                            choice(ui, words::CHOOSE_CANCEL, words::CHOOSE_CANCEL_LINE, Flow::Cancel);
                         } else {
-                            go_convert = ui.add(egui::Button::new(egui::RichText::new(words::CHOOSE_CONVERT_ACK).size(17.0))).clicked();
-                            para(ui, words::CHOOSE_CONVERT_ACK_LINE);
+                            choice(ui, words::CHOOSE_CONVERT_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Convert);
+                            choice(ui, words::CHOOSE_ERASE_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Erase);
                         }
                         ui.add_space(12.0);
                         if ui.button(words::CLOSE).clicked() {
@@ -700,13 +776,21 @@ impl eframe::App for App {
                             }
                             ui.add_space(8.0);
                         }
-                        heading(ui, words::CONVERT_HEADING);
-                        para(ui, words::CONVERT_LEAD);
-                        ui.label(egui::RichText::new(words::WELCOME_STEPS_HEADING).strong());
-                        for (i, s) in words::CONVERT_ORDER.iter().enumerate() {
-                            para(ui, &format!("{}.  {}", i + 1, s));
+                        if self.flow == Flow::Erase {
+                            heading(ui, words::ERASE_HEADING);
+                            ui.label(egui::RichText::new(words::ERASE_READ_FIRST).strong().size(17.0));
+                            for l in words::ERASE_LINES {
+                                para(ui, l);
+                            }
+                        } else {
+                            heading(ui, words::CONVERT_HEADING);
+                            para(ui, words::CONVERT_LEAD);
+                            ui.label(egui::RichText::new(words::WELCOME_STEPS_HEADING).strong());
+                            for (i, s) in words::CONVERT_ORDER.iter().enumerate() {
+                                para(ui, &format!("{}.  {}", i + 1, s));
+                            }
+                            para(ui, words::CONVERT_WIFI);
                         }
-                        para(ui, words::CONVERT_WIFI);
                         ui.add_space(10.0);
                         ui.label(egui::RichText::new(words::DESKTOP_HEADING).strong().size(17.0));
                         ui.radio_value(&mut self.setup.desktop, Some(Desktop::Kde), words::DESKTOP_KDE);
@@ -721,6 +805,13 @@ impl eframe::App for App {
                             ui.label(egui::RichText::new(words::ACK_TYPE).strong().size(17.0));
                             ui.monospace(upgrade_job::RISK_STATEMENT);
                             ui.add(egui::TextEdit::singleline(&mut self.setup.ack).desired_width(f32::INFINITY));
+                        }
+                        if self.flow == Flow::Erase {
+                            ui.add_space(10.0);
+                            ui.label(egui::RichText::new(words::DECIDE_HEADING).strong().size(17.0));
+                            para(ui, words::ERASE_TYPE);
+                            ui.monospace(upgrade_job::ERASE_STATEMENT);
+                            ui.add(egui::TextEdit::singleline(&mut self.setup.erase).desired_width(f32::INFINITY));
                         }
                         ui.add_space(10.0);
                         ui.label(egui::RichText::new(words::PASSWORD_HEADING).strong().size(17.0));
@@ -751,15 +842,26 @@ impl eframe::App for App {
                         let (h, names): (&str, &[&str]) = match self.flow {
                             Flow::Verify => (words::RUNNING_HEADING, &words::STEPS),
                             Flow::Convert => (words::CONVERT_RUNNING_HEADING, &words::CONVERT_STEPS),
+                            Flow::Erase => (words::ERASE_RUNNING_HEADING, &words::ERASE_STEPS),
+                            Flow::Rollback => (words::ROLLBACK_RUNNING, &[]),
+                            Flow::Probe => (words::PROBE_RUNNING, &[]),
+                            Flow::Cancel => (words::CANCEL_RUNNING, &[]),
                         };
                         heading(ui, h);
-                        steps(ui, names, *step);
+                        if names.is_empty() {
+                            ui.horizontal(|ui| {
+                                ui.spinner();
+                                ui.label(h);
+                            });
+                        } else {
+                            steps(ui, names, *step);
+                        }
                         ui.add_space(10.0);
                         para(
                             ui,
                             match (self.flow, self.arming) {
-                                (Flow::Verify, true) => words::RUNNING_ARMING,
-                                (Flow::Convert, true) => words::CONVERT_RUNNING_PROLOGUE,
+                                (Flow::Verify, true) | (Flow::Probe, true) => words::RUNNING_ARMING,
+                                (_, true) => words::CONVERT_RUNNING_PROLOGUE,
                                 (_, false) => words::RUNNING_CANCEL,
                             },
                         );
@@ -774,22 +876,38 @@ impl eframe::App for App {
                         });
                         para(ui, words::SIGN_IN_PASSWORD);
                         ui.add_space(10.0);
-                        heading(ui, words::DECIDE_HEADING);
-                        for l in words::DECIDE_LINES {
-                            para(ui, l);
+                        if self.flow == Flow::Erase {
+                            heading(ui, words::ERASE_DECIDE_HEADING);
+                            for l in words::ERASE_DECIDE_LINES {
+                                para(ui, l);
+                            }
+                            ui.add_space(12.0);
+                            ui.horizontal(|ui| {
+                                if ui.add(egui::Button::new(egui::RichText::new(words::ERASE_GO).size(17.0))).clicked() {
+                                    press = Press::Go;
+                                }
+                                if ui.button(words::CLOSE).clicked() {
+                                    press = Press::Close;
+                                }
+                            });
+                        } else {
+                            heading(ui, words::DECIDE_HEADING);
+                            for l in words::DECIDE_LINES {
+                                para(ui, l);
+                            }
+                            ui.add_space(6.0);
+                            ui.label(egui::RichText::new(words::DECIDE_TYPE).strong());
+                            ui.add(egui::TextEdit::singleline(&mut self.word).desired_width(200.0));
+                            ui.add_space(12.0);
+                            ui.horizontal(|ui| {
+                                if ui.add(egui::Button::new(egui::RichText::new(words::CONVERT_CONTINUE).size(17.0))).clicked() {
+                                    press = Press::Word;
+                                }
+                                if ui.button(words::CLOSE).clicked() {
+                                    press = Press::Close;
+                                }
+                            });
                         }
-                        ui.add_space(6.0);
-                        ui.label(egui::RichText::new(words::DECIDE_TYPE).strong());
-                        ui.add(egui::TextEdit::singleline(&mut self.word).desired_width(200.0));
-                        ui.add_space(12.0);
-                        ui.horizontal(|ui| {
-                            if ui.add(egui::Button::new(egui::RichText::new(words::CONVERT_CONTINUE).size(17.0))).clicked() {
-                                press = Press::Word;
-                            }
-                            if ui.button(words::CLOSE).clicked() {
-                                press = Press::Close;
-                            }
-                        });
                         details(ui, &self.log);
                     }
                     Screen::Stopped(s) => {
@@ -819,7 +937,15 @@ impl eframe::App for App {
                                 para(ui, words::NOTHING_CHANGED);
                             }
                             Stop::Refused(lines) => {
-                                heading(ui, if self.flow == Flow::Convert { words::CONVERT_STOPPED_HEADING } else { words::STOPPED_HEADING });
+                                heading(
+                                    ui,
+                                    match self.flow {
+                                        Flow::Convert | Flow::Erase => words::CONVERT_STOPPED_HEADING,
+                                        Flow::Rollback => words::ROLLBACK_FAILED_HEADING,
+                                        Flow::Cancel => words::CANCEL_FAILED_HEADING,
+                                        _ => words::STOPPED_HEADING,
+                                    },
+                                );
                                 for l in lines {
                                     para(ui, l);
                                 }
@@ -850,11 +976,46 @@ impl eframe::App for App {
                         details(ui, &self.log);
                     }
                     Screen::ConvertRestarting => {
-                        heading(ui, words::CONVERT_RESTARTING_HEADING);
-                        for l in words::CONVERT_RESTARTING_LINES {
+                        let (h, lines): (&str, &[&str]) = if self.flow == Flow::Erase { (words::ERASE_RESTARTING_HEADING, &words::ERASE_RESTARTING_LINES) } else { (words::CONVERT_RESTARTING_HEADING, &words::CONVERT_RESTARTING_LINES) };
+                        heading(ui, h);
+                        for l in lines {
                             para(ui, l);
                         }
                         details(ui, &self.log);
+                    }
+                    Screen::Ask => {
+                        let (h, lines, button): (&str, &[&str], &str) = match self.flow {
+                            Flow::Rollback => (words::ROLLBACK_HEADING, &words::ROLLBACK_LINES, words::CONVERT_CONTINUE),
+                            Flow::Probe => (words::PROBE_HEADING, &words::PROBE_LINES, words::PROBE_GO),
+                            _ => (words::CANCEL_HEADING, &words::CANCEL_LINES, words::CANCEL_GO),
+                        };
+                        heading(ui, h);
+                        for l in lines {
+                            para(ui, l);
+                        }
+                        ui.add_space(8.0);
+                        if self.flow == Flow::Rollback {
+                            ui.label(egui::RichText::new(words::ROLLBACK_TYPE).strong());
+                            ui.add(egui::TextEdit::singleline(&mut self.word).desired_width(200.0));
+                            ui.add_space(8.0);
+                        }
+                        ui.horizontal(|ui| {
+                            if ui.add(egui::Button::new(egui::RichText::new(button).size(17.0))).clicked() {
+                                press = if self.flow == Flow::Rollback { Press::Word } else { Press::Go };
+                            }
+                            if ui.button(words::CLOSE).clicked() {
+                                press = Press::Close;
+                            }
+                        });
+                    }
+                    Screen::Done(h, line) => {
+                        heading(ui, h);
+                        para(ui, line);
+                        details(ui, &self.log);
+                        ui.add_space(10.0);
+                        if ui.button(words::CLOSE).clicked() {
+                            press = Press::Close;
+                        }
                     }
                     Screen::Waiting => {
                         heading(ui, words::BACK_HEADING);
@@ -886,13 +1047,14 @@ impl eframe::App for App {
                 }
             });
         });
-        if go_verify {
-            self.flow = Flow::Verify;
-            self.screen = Screen::Welcome;
-        }
-        if go_convert {
-            self.flow = Flow::Convert;
-            self.screen = Screen::ConvertSetup;
+        if let Some(f) = go {
+            self.flow = f;
+            self.screen = match f {
+                Flow::Verify => Screen::Welcome,
+                Flow::Convert | Flow::Erase => Screen::ConvertSetup,
+                Flow::Rollback if !flow::rollback_snapshot_present(&stick_root(&self.stick)) => Screen::Stopped(Stop::Refused(vec![words::ROLLBACK_NO_SNAPSHOT.into()])),
+                Flow::Rollback | Flow::Probe | Flow::Cancel => Screen::Ask,
+            };
         }
         match press {
             Press::StartVerify => {
@@ -907,6 +1069,17 @@ impl eframe::App for App {
                     self.start_convert(&ctx);
                 }
             },
+            Press::Word if self.flow == Flow::Rollback => {
+                let root = stick_root(&self.stick);
+                if flow::rollback_ok(&self.word) {
+                    log_line(&root, "the rollback word was typed");
+                    let c = flow::rollback_call(&self.stick);
+                    self.start_one(&ctx, c, false);
+                } else {
+                    log_line(&root, "the rollback word was not typed; stopped");
+                    self.screen = Screen::Stopped(Stop::Refused(vec![words::DECIDE_NOT_CONFIRMED.into()]));
+                }
+            }
             Press::Word => {
                 let root = stick_root(&self.stick);
                 if flow::confirm_ok(&self.word) {
@@ -921,6 +1094,24 @@ impl eframe::App for App {
                     self.screen = Screen::Stopped(Stop::Refused(vec![words::DECIDE_NOT_CONFIRMED.into()]));
                 }
             }
+            Press::Go => match self.flow {
+                Flow::Erase => {
+                    log_line(&stick_root(&self.stick), "the person pressed Restart into the installer");
+                    if let Some(tx) = self.word_tx.take() {
+                        let _ = tx.send(String::new());
+                    }
+                    self.screen = Screen::Running { step: 4 };
+                }
+                Flow::Probe => {
+                    let c = flow::probe_call(&self.stick);
+                    self.start_one(&ctx, c, true);
+                }
+                Flow::Cancel => {
+                    let c = flow::abort_call(&self.stick);
+                    self.start_one(&ctx, c, false);
+                }
+                _ => {}
+            },
             Press::Close => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             Press::None => {}
         }
@@ -958,6 +1149,13 @@ fn preview(name: &str) -> (Screen, Flow, bool) {
         "convert-running" => (Screen::Running { step: 2 }, Flow::Convert, false),
         "decide" => (Screen::Decide { linux_name: "ann".into() }, Flow::Convert, false),
         "convert-restarting" => (Screen::ConvertRestarting, Flow::Convert, false),
+        "erase" => (Screen::ConvertSetup, Flow::Erase, false),
+        "erase-decide" => (Screen::Decide { linux_name: "ann".into() }, Flow::Erase, false),
+        "erase-restarting" => (Screen::ConvertRestarting, Flow::Erase, false),
+        "rollback" => (Screen::Ask, Flow::Rollback, false),
+        "rollback-done" => (Screen::Done(words::ROLLBACK_DONE_HEADING.into(), words::ROLLBACK_DONE_LINE.into()), Flow::Rollback, false),
+        "probe" => (Screen::Ask, Flow::Probe, false),
+        "cancel" => (Screen::Ask, Flow::Cancel, false),
         "convert-stopped" => (Screen::Stopped(Stop::Prologue(vec!["STOPPED at revalidate: job.json no longer matches this machine: volume_health.repair_queued: job says 'False', machine says 'True'".into(), "outcome.json (stopped) written to the stick".into()])), Flow::Convert, false),
         _ => (Screen::Welcome, Flow::Verify, false),
     }

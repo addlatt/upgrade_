@@ -199,6 +199,64 @@ pub fn prologue_stop_lines(output: &[String]) -> Vec<String> {
     refusal_lines(output)
 }
 
+// ---------------------------------------------------------------- erase, roll back, probe, cancel
+
+/// The erase sentence (RISKS R27), byte for byte: the job writer's own.
+pub fn erase_ok(typed: &str) -> bool {
+    typed == upgrade_job::ERASE_STATEMENT
+}
+
+/// RUN-ERASE-AND-INSTALL.cmd's steps 1 and 5-6 as calls: the scan, then the
+/// job that names every drive it will erase (-EraseEverything with the
+/// sentence as typed; -AcknowledgeDataLoss on the data-loss variant).
+pub fn erase_calls(stick: &str, desktop: Desktop, hash_file: &str, erase: &str, ack: &str) -> Vec<Call> {
+    let (d, s) = desktop.job_args();
+    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--erase-everything", erase, "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS"];
+    if !ack.is_empty() {
+        job.push("--acknowledge-data-loss");
+        job.push(ack);
+    }
+    vec![
+        call(1, false, stick, "upgrade-scan.exe", &["scan", "--json", "--out", "{root}upgrade_\\reports", "--kit", "{root}"]),
+        call(1, true, stick, "upgrade-scan.exe", &["dump-machine", "{root}machine-capture.json"]),
+        call(2, false, stick, "upgrade-job.exe", &job),
+    ]
+}
+
+/// Step 6 of the erase launcher: the prologue with the sentence as typed
+/// (-EraseConsent), the acknowledgement too on the data-loss variant.
+pub fn erase_prologue_call(stick: &str, erase: &str, ack: &str) -> Call {
+    let mut a = vec!["start", "--stick", "{stick}", "--erase-consent", erase];
+    if !ack.is_empty() {
+        a.push("--acknowledge-data-loss");
+        a.push(ack);
+    }
+    call(4, false, stick, "upgrade-prologue.exe", &a)
+}
+
+/// ROLLBACK.cmd: the word, the snapshot the stick must hold, the call.
+pub const ROLLBACK_WORD: &str = "ROLLBACK";
+pub fn rollback_ok(typed: &str) -> bool {
+    typed == ROLLBACK_WORD
+}
+pub fn rollback_snapshot_present(root: &Path) -> bool {
+    root.join("upgrade_").join("esp-snapshot").join("SHA256SUMS").exists()
+}
+pub fn rollback_call(stick: &str) -> Call {
+    call(1, false, stick, "upgrade-prologue.exe", &["rollback", "--stick", "{stick}"])
+}
+
+/// RUN-PROBE.cmd: the walk-away probe (it restarts the computer itself).
+pub fn probe_call(stick: &str) -> Call {
+    call(1, false, stick, "upgrade-prologue.exe", &["probe", "--stick", "{stick}"])
+}
+
+/// CANCEL-CONVERSION.cmd: the abort, with the stick so the prologue writes
+/// its before-cancel capture there first.
+pub fn abort_call(stick: &str) -> Call {
+    call(1, false, stick, "upgrade-prologue.exe", &["abort", "--stick", "{stick}"])
+}
+
 /// The window's own temporary file for the hash, in %TEMP% as the launcher
 /// puts it (never on the stick, never logged).
 pub fn hash_file_path() -> PathBuf {
@@ -561,6 +619,42 @@ mod tests {
             assert!(KIT_FILES_CONVERT.contains(&f), "{f}");
         }
         assert!(hash_file_path().to_string_lossy().contains("upgrade-pw-"));
+    }
+
+    #[test]
+    fn erase_calls_match_run_erase_and_install_cmd() {
+        // RUN-ERASE-AND-INSTALL.cmd line 155: -IfCannotKeep stop -EraseEverything "%ERASE%" -PasswordHashFile; line 189: -EraseConsent "%ERASE%"
+        let e = upgrade_job::ERASE_STATEMENT;
+        let v = erase_calls("E:", Desktop::Kde, "h", e, "");
+        assert_eq!(
+            command_line(&v[2]),
+            format!(r#"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop kde --start-at desktop --if-cannot-keep stop --erase-everything "{e}" --password-hash-file h --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS"#)
+        );
+        assert_eq!(command_line(&erase_prologue_call("E:", e, "")), format!(r#"E:\upgrade-prologue.exe start --stick E: --erase-consent "{e}""#));
+        // the data-loss variant (line 181, 215): -AcknowledgeDataLoss on both
+        let s = upgrade_job::RISK_STATEMENT;
+        let v = erase_calls("E:", Desktop::Kde, "h", e, s);
+        assert_eq!(v[2].args[v[2].args.len() - 2..], ["--acknowledge-data-loss".to_string(), s.to_string()]);
+        assert!(erase_prologue_call("E:", e, s).args.contains(&"--acknowledge-data-loss".to_string()));
+        assert!(erase_ok(e));
+        assert!(!erase_ok(&e.replace("nothing", "Nothing")));
+    }
+
+    #[test]
+    fn rollback_probe_and_cancel_calls() {
+        assert_eq!(command_line(&rollback_call("E:")), r"E:\upgrade-prologue.exe rollback --stick E:");
+        assert_eq!(command_line(&probe_call("E:")), r"E:\upgrade-prologue.exe probe --stick E:");
+        assert_eq!(command_line(&abort_call("E:")), r"E:\upgrade-prologue.exe abort --stick E:");
+        assert!(rollback_ok("ROLLBACK"));
+        assert!(!rollback_ok("rollback"));
+        let d = std::env::temp_dir().join(format!("upg-window-rb-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        assert!(!rollback_snapshot_present(&d));
+        std::fs::create_dir_all(d.join("upgrade_").join("esp-snapshot")).unwrap();
+        std::fs::write(d.join("upgrade_").join("esp-snapshot").join("SHA256SUMS"), "x").unwrap();
+        assert!(rollback_snapshot_present(&d));
+        let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]
