@@ -1369,15 +1369,19 @@ side by side is owed). The prologue's judging half is ported
 (`upgrade-prologue`; every tool call kept with its raw output; its reads
 beside `Get-PrologueFacts` on the G16, elevated and not: SAME but for
 `Test-Path`'s answer on the locked memory files, `v13-rust-prologue.csv`
-lines 2 and 3). Its first rig row is in (2026-10-07, `PROLOGUE=rust
-rig/hyperv/prologue.sh run`): the keep-Windows path front to back,
-unattended, Fedora 44 KDE installed beside Windows, both booting twice
-(`v2-install.csv` line 7 `pass-plumbing`; `r18-prologue.csv` line 13
-`flag-not-confirmed`, because the R25 update restart dropped the bench's
-dirty flag before the check; the harness now clears a pending update
-first). Owed on the rig: the R18 arm with the check running, the rollback,
-the probe and the erase arms. The differences kept on purpose and the
-run's findings are in `docs/RUST-PORT.md`.
+lines 2 and 3). Its rig rows are in (`PROLOGUE=rust
+rig/hyperv/prologue.sh run`): run 2 on 2026-10-07, the keep-Windows path
+front to back, unattended (`v2-install.csv` line 7 `pass-plumbing`;
+`r18-prologue.csv` line 13 `flag-not-confirmed`, because the R25 update
+restart dropped the bench's dirty flag before the check; the harness now
+clears a pending update first), and run 3 on 2026-10-08 with the disk
+check in the path: the flag read, `chkdsk /f` run at a restart, both
+resumes as SYSTEM, the shrink, the handoff, the install, the return
+(`r18-prologue.csv` line 14 and `v2-install.csv` line 8, both
+`pass-plumbing`). Owed on the rig: the rollback, the probe and the erase
+arms. The differences kept on purpose and the runs' findings (the
+`run_as` account, the volume status `0xD00F`) are in
+`docs/RUST-PORT.md`.
 
 The scanner's rig and physical rows are not all found yet. Before step 3
 starts, every results file is read again for rows the scanner had a part

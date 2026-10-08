@@ -142,6 +142,13 @@ pub fn operational_status(v: &Value, volume: bool) -> String {
             (0xD00C, false) => "Transient Error".into(),
             (0xD00D, false) => "Starting Maintenance Mode".into(),
             (0xD00E, false) => "Stopping Maintenance Mode".into(),
+            // A volume with `fsutil dirty set` on the rig's Windows 10 19045 reports
+            // 53263 (0xD00F) here, which Get-Volume shows as "Full Repair Needed"
+            // (r18-prologue.csv lines 6 and 14, the same image and fault, 2026-10-08).
+            // The prologue's repair-queued trigger looks for the word "repair", so an
+            // unmapped number would have hidden it. Scan Needed and Spot Fix Needed
+            // have not been seen as raw codes yet: an unknown code stays a number.
+            (0xD00F, true) => "Full Repair Needed".into(),
             (c, _) => c.to_string(),
         }
     };
