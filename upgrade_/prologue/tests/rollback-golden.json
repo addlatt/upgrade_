@@ -1,0 +1,175 @@
+{
+    "recorder":  "rollback-golden.ps1 (Invoke-Rollback.ps1 0.1.0)",
+    "rollback_version":  "0.1.0",
+    "calls":  [
+                  {
+                      "name":  "sums: paths keyed lower-case with forward slashes, ./ stripped",
+                      "fn":  "sums",
+                      "result":  {
+                                     "efi/boot/bootx64.efi":  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                                     "efi/microsoft/boot/bootmgfw.efi":  "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                                 }
+                  },
+                  {
+                      "name":  "sums: an EFI\\BOOT backslash upper-case line keys the same",
+                      "fn":  "sums",
+                      "result":  {
+                                     "efi/boot/bootx64.efi":  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                 }
+                  },
+                  {
+                      "name":  "plan: shim in the slot -\u003e restore",
+                      "fn":  "plan",
+                      "result":  {
+                                     "Refusals":  [
+
+                                                  ],
+                                     "Restore":  true,
+                                     "WantSha":  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                 }
+                  },
+                  {
+                      "name":  "plan: Windows already in the slot -\u003e nothing to restore, still allowed (order only)",
+                      "fn":  "plan",
+                      "result":  {
+                                     "Refusals":  [
+
+                                                  ],
+                                     "Restore":  false,
+                                     "WantSha":  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                 }
+                  },
+                  {
+                      "name":  "refuse: no outcome",
+                      "fn":  "plan",
+                      "result":  {
+                                     "Refusals":  [
+                                                      "no outcome.json on the stick - nothing says a conversion happened here"
+                                                  ],
+                                     "Restore":  false,
+                                     "WantSha":  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                 }
+                  },
+                  {
+                      "name":  "refuse: clean-slate outcome has no kept Windows",
+                      "fn":  "plan",
+                      "result":  {
+                                     "Refusals":  [
+                                                      "the conversion\u0027s path was \u0027clean-slate\u0027, not keep-windows - there is no kept Windows to roll back to"
+                                                  ],
+                                     "Restore":  false,
+                                     "WantSha":  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                 }
+                  },
+                  {
+                      "name":  "refuse: outcome without a snapshot",
+                      "fn":  "plan",
+                      "result":  {
+                                     "Refusals":  [
+                                                      "the outcome names no ESP snapshot"
+                                                  ],
+                                     "Restore":  false,
+                                     "WantSha":  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                 }
+                  },
+                  {
+                      "name":  "refuse: unknown outcome schema",
+                      "fn":  "plan",
+                      "result":  {
+                                     "Refusals":  [
+                                                      "outcome schema \u0027outcome/2\u0027 is not outcome/1"
+                                                  ],
+                                     "Restore":  false,
+                                     "WantSha":  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                 }
+                  },
+                  {
+                      "name":  "refuse: snapshot manifest lacks the fallback loader",
+                      "fn":  "plan",
+                      "result":  {
+                                     "Refusals":  [
+                                                      "the snapshot has no checksum for EFI/Boot/bootx64.efi - nothing to restore from"
+                                                  ],
+                                     "Restore":  false,
+                                     "WantSha":  null
+                                 }
+                  },
+                  {
+                      "name":  "refuse: an identity mismatch (moved stick) refuses everything",
+                      "fn":  "plan",
+                      "result":  {
+                                     "Refusals":  [
+                                                      "identity: system disk unique id: x"
+                                                  ],
+                                     "Restore":  false,
+                                     "WantSha":  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                 }
+                  },
+                  {
+                      "name":  "port: a sha in upper case compares the same as the slot\u0027s",
+                      "fn":  "plan",
+                      "result":  {
+                                     "Refusals":  [
+
+                                                  ],
+                                     "Restore":  false,
+                                     "WantSha":  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                 }
+                  },
+                  {
+                      "name":  "identity: same disk, no mismatch; other disk, two",
+                      "fn":  "identity",
+                      "result":  [
+                                     [
+
+                                     ],
+                                     [
+                                         "system disk unique id: job \u0027eui.1\u0027, machine \u0027eui.2\u0027",
+                                         "system disk size: job 100, machine 1"
+                                     ]
+                                 ]
+                  },
+                  {
+                      "name":  "port: a disk id differing only in case is the same disk",
+                      "fn":  "identity",
+                      "result":  [
+                                     [
+
+                                     ]
+                                 ]
+                  },
+                  {
+                      "name":  "displayorder: parsed from bcdedit text, continuation lines included",
+                      "fn":  "displayorder",
+                      "result":  [
+                                     "{a1b2c3d4-0000-0000-0000-000000000001}",
+                                     "{bootmgr}",
+                                     "{a1b2c3d4-0000-0000-0000-000000000002}"
+                                 ]
+                  },
+                  {
+                      "name":  "port: no displayorder line gives no tokens",
+                      "fn":  "displayorder",
+                      "result":  [
+
+                                 ]
+                  },
+                  {
+                      "name":  "windows first: true only when {bootmgr} leads",
+                      "fn":  "windows_first",
+                      "result":  [
+                                     true,
+                                     false,
+                                     false
+                                 ]
+                  },
+                  {
+                      "name":  "drive: e normalizes to E:\\, a path is refused",
+                      "fn":  "drive",
+                      "result":  [
+                                     "E:\\",
+                                     "refused"
+                                 ]
+                  }
+              ]
+}

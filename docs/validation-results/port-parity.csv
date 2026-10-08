@@ -634,20 +634,20 @@ Invoke-Prologue.ps1,"v9-erase.csv:30 (InsydeH2O V1.21 (Acer Aspire A515-51G))",p
 Invoke-Prologue.ps1,"v9-erase.csv:31 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
 Invoke-Prologue.ps1,"walkaway-probe.csv:2 (Microsoft Corporation)",rig,,owed,2026-10-07
 Invoke-Prologue.ps1,"walkaway-probe.csv:3 (Acer)",physical,,owed,2026-10-07
-Invoke-Rollback.ps1,"sums: paths keyed lower-case with forward slashes, ./ stripped",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"sums: an EFI\BOOT backslash upper-case line keys the same",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"plan: shim in the slot -> restore",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"plan: Windows already in the slot -> nothing to restore, still allowed (order only)",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"refuse: no outcome",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"refuse: clean-slate outcome has no kept Windows",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"refuse: outcome without a snapshot",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"refuse: unknown outcome schema",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"refuse: snapshot manifest lacks the fallback loader",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"refuse: an identity mismatch (moved stick) refuses everything",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"identity: same disk, no mismatch; other disk, two",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"displayorder: parsed from bcdedit text, continuation lines included",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"windows first: true only when {bootmgr} leads",selftest,,owed,2026-10-07
-Invoke-Rollback.ps1,"drive: e normalizes to E:\, a path is refused",selftest,,owed,2026-10-07
+Invoke-Rollback.ps1,"sums: paths keyed lower-case with forward slashes, ./ stripped",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"sums: an EFI\BOOT backslash upper-case line keys the same",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"plan: shim in the slot -> restore",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"plan: Windows already in the slot -> nothing to restore, still allowed (order only)",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"refuse: no outcome",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"refuse: clean-slate outcome has no kept Windows",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"refuse: outcome without a snapshot",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"refuse: unknown outcome schema",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"refuse: snapshot manifest lacks the fallback loader",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"refuse: an identity mismatch (moved stick) refuses everything",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"identity: same disk, no mismatch; other disk, two",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"displayorder: parsed from bcdedit text, continuation lines included",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"windows first: true only when {bootmgr} leads",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"drive: e normalizes to E:\, a path is refused",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
 Invoke-Rollback.ps1,"r21-rollback.csv:2 (Hyper-V UEFI Release v4.1)",rig,"r21-rollback.csv:4 (PROLOGUE=rust prologue.sh rollback after run 3: pass-plumbing)",pass,2026-10-08
 Invoke-Rollback.ps1,"r21-rollback.csv:3 (Hyper-V UEFI Release v4.1)",rig,"r21-rollback.csv:4 (PROLOGUE=rust prologue.sh rollback after run 3: pass-plumbing)",pass,2026-10-08
 Test-Handoff.ps1,"classify: fired + cleared + order intact is fired-once",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07

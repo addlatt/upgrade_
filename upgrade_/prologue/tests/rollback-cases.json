@@ -1,0 +1,19 @@
+[
+  {"name": "sums: paths keyed lower-case with forward slashes, ./ stripped", "origin": "selftest", "fn": "sums", "args": ["fixture"]},
+  {"name": "sums: an EFI\\BOOT backslash upper-case line keys the same", "origin": "selftest", "fn": "sums", "args": [["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  EFI\\BOOT\\BOOTX64.EFI"]]},
+  {"name": "plan: shim in the slot -> restore", "origin": "selftest", "fn": "plan", "args": ["fixture", "fixture", "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", []]},
+  {"name": "plan: Windows already in the slot -> nothing to restore, still allowed (order only)", "origin": "selftest", "fn": "plan", "args": ["fixture", "fixture", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", []]},
+  {"name": "refuse: no outcome", "origin": "selftest", "fn": "plan", "args": [null, "fixture", "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", []]},
+  {"name": "refuse: clean-slate outcome has no kept Windows", "origin": "selftest", "fn": "plan", "args": [{"path_taken": "clean-slate"}, "fixture", "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", []]},
+  {"name": "refuse: outcome without a snapshot", "origin": "selftest", "fn": "plan", "args": [{"cutover.esp_snapshot": null}, "fixture", "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", []]},
+  {"name": "refuse: unknown outcome schema", "origin": "selftest", "fn": "plan", "args": [{"schema": "outcome/2"}, "fixture", "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", []]},
+  {"name": "refuse: snapshot manifest lacks the fallback loader", "origin": "selftest", "fn": "plan", "args": ["fixture", ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  ./EFI/Microsoft/Boot/bootmgfw.efi"], "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", []]},
+  {"name": "refuse: an identity mismatch (moved stick) refuses everything", "origin": "selftest", "fn": "plan", "args": ["fixture", "fixture", "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", ["system disk unique id: x"]]},
+  {"name": "port: a sha in upper case compares the same as the slot's", "origin": "port", "fn": "plan", "args": ["fixture", "fixture", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", []]},
+  {"name": "identity: same disk, no mismatch; other disk, two", "origin": "selftest", "fn": "identity", "args": [[{"UniqueId": "eui.1", "Size": 100}, {"UniqueId": "eui.2", "Size": 1}]]},
+  {"name": "port: a disk id differing only in case is the same disk", "origin": "port", "fn": "identity", "args": [[{"UniqueId": "EUI.1", "Size": 100}]]},
+  {"name": "displayorder: parsed from bcdedit text, continuation lines included", "origin": "selftest", "fn": "displayorder", "args": ["Firmware Boot Manager\n---------------------\nidentifier              {fwbootmgr}\ndisplayorder            {a1b2c3d4-0000-0000-0000-000000000001}\n                        {bootmgr}\n                        {a1b2c3d4-0000-0000-0000-000000000002}\ntimeout                 0"]},
+  {"name": "port: no displayorder line gives no tokens", "origin": "port", "fn": "displayorder", "args": ["identifier              {fwbootmgr}\ntimeout                 0"]},
+  {"name": "windows first: true only when {bootmgr} leads", "origin": "selftest", "fn": "windows_first", "args": [[["{bootmgr}", "{x}"], ["{x}", "{bootmgr}"], []]]},
+  {"name": "drive: e normalizes to E:\\, a path is refused", "origin": "selftest", "fn": "drive", "args": [["e", "E:\\x"]]}
+]
