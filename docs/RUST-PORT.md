@@ -24,7 +24,7 @@ Three docs already cover parts of this, and this page does not repeat them:
 
 | Step | What | Status | Evidence |
 |---|---|---|---|
-| 0 | the window, `UPGRADE.exe` | `[###.]` stop path, `[##..]` reopen; **since 2026-10-07 its verify flow runs the kit's Rust programs** (`upgrade-scan scan`, `upgrade-job write --verify-only --kickstart`, `upgrade-prologue verify-arm`), every line they print kept in `upgrade_\convert.log`; untried on the rig in that form (the next `v12.sh` run) | V12, `v12-window.csv` |
+| 0 | the window, `UPGRADE.exe` | `[###.]` stop path, `[##..]` reopen; **since 2026-10-07 its verify flow runs the kit's Rust programs** (`upgrade-scan scan`, `upgrade-job write --verify-only --kickstart`, `upgrade-prologue verify-arm`), every line they print kept in `upgrade_\convert.log`; **2026-10-08: the convert flow is in it** (RUN-CONVERT.cmd's steps: the desktop choice, the Linux password hashed in the window with the job crate's own hasher, the job with its kickstart, the sign-in name, the typed `CONVERT` byte for byte, then `upgrade-prologue start`; the data-loss variant only when started with `--accepting-data-loss`, its own launcher, the sentence typed byte for byte, DATA LOSS ACCEPTED on every screen). Neither flow has run on the rig in this form yet (the next `v12.sh` run; a convert bench for the window is owed) | V12, `v12-window.csv` |
 | 1 | the schema library (`schemas/rust`) | `[##..]` built, no program uses it yet | 103 of 103 ledger lines `pass` |
 | 2 | the scanner's judging half (`evaluate/scan`) | `[##..]` built, no program uses it yet | 103 of 103 self-test and corpus lines `pass`; 10 rig and physical lines `owed` |
 | 3a | the scanner's whole-scan order, its text report, a program that replays recordings | `[##..]` built | 6 whole scans match the PowerShell scanner's own main section, report line for line |
@@ -153,7 +153,7 @@ on 2026-10-04.
 | `Invoke-Prologue.ps1` | 2,124 | `upgrade_/prologue` (crate `upgrade-prologue`), then the converter's Windows half | 5 | `-SelfTest`, 144 cases; rig and physical rows (`r18-prologue.csv`, `v2-install.csv`, `v9-erase.csv`, `walkaway-probe.csv`) |
 | `Invoke-Rollback.ps1` | 238 | `upgrade_/prologue/src/rollback.rs` (`upgrade-prologue rollback`) | 5 | `-SelfTest`, 14 cases; `r21-rollback.csv` |
 | `Test-Handoff.ps1` | 809 | `upgrade_/prologue/src/verify.rs` (`upgrade-prologue verify-arm` and `verify-check`), the verify flow's handoff | 5 | `-SelfTest`, 33 cases; `v0-handoff.csv`, `v1-live-boot.csv` rows |
-| the `.cmd` launchers | about 1,200 | flows inside `UPGRADE.exe` | 5 | V12 |
+| the `.cmd` launchers | about 1,200 | flows inside `UPGRADE.exe`: the verify and convert flows are in (2026-10-08, untried on the rig); the erase, rollback, probe and cancel flows are owed | 5 | V12 |
 | `data/*.ps1` | 379 | stays the edit surface for now (see "The data tables") | 2 | checked by the self-test |
 
 Not on the list, and staying as they are: the rig scripts under `rig/`

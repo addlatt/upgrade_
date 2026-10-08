@@ -79,3 +79,86 @@ pub const HANDOFF_PERSISTED: &str = "the computer kept the setting after using i
 pub const HANDOFF_REORDERED: &str = "the computer changed its start-up order; the one-time entry has been removed";
 
 pub const NO_WINDOW: &str = "The upgrade_ window could not open on this computer (its graphics could not draw it).\n\nNothing was changed. Double-click RUN-VERIFY.cmd on the USB stick instead: it does the same test in a text window.";
+
+// ---------------------------------------------------------------- the chooser
+
+pub const CHOOSE_HEADING: &str = "What would you like to do?";
+pub const CHOOSE_VERIFY: &str = "Test this computer with Linux";
+pub const CHOOSE_VERIFY_LINE: &str = "Nothing is installed and nothing on this computer's drive is changed.";
+pub const CHOOSE_CONVERT: &str = "Convert this computer: keep Windows, install Linux beside it";
+pub const CHOOSE_CONVERT_LINE: &str = "This changes the internal drive. You type one word before anything changes.";
+pub const CHOOSE_CONVERT_ACK: &str = "Convert this computer, ACCEPTING DATA LOSS";
+pub const CHOOSE_CONVERT_ACK_LINE: &str = "For a computer the scanner refused because its drive is failing. Read the next screen first.";
+
+// ---------------------------------------------------------------- convert: the words of RUN-CONVERT.cmd (2026-10-07)
+
+pub const CONVERT_HEADING: &str = "Convert this computer";
+pub const CONVERT_LEAD: &str = "This is the converter. It changes the internal drive: it may run Windows' own disk check (with a restart), it shrinks the Windows partition to make room, and it restarts into the Linux installer from this stick. Windows is kept and stays bootable from the boot menu until you choose to reclaim it later, in Linux.";
+pub const CONVERT_ORDER: [&str; 6] = [
+    "It looks at this computer (nothing is changed).",
+    "You choose what the computer shows when it starts, and the password for your Linux account.",
+    "It writes the plan for this computer and the instructions for Linux. It refuses on a RED scan, legacy BIOS, an unknown BitLocker state or an unmapped locale.",
+    "It asks you to type CONVERT.",
+    "The prologue: it re-checks the plan against this computer, runs the disk check if Windows flagged C: (restart), re-measures the room, shrinks C:, pauses BitLocker for one restart, sets up the one-time restart onto the stick and restarts.",
+    "Every refusal happens before anything is changed. A restart in the middle is normal: leave the stick in and walk away, it continues by itself before anyone signs in. If it stops, a window says so at your next sign-in.",
+];
+pub const CONVERT_WIFI: &str = "Your saved Wi-Fi networks and their passwords are copied onto this stick, so Fedora can connect to them on its own. They are removed from the stick at the end of the install and from Fedora once it has set them up.";
+
+pub const ACK_HEADING: &str = "Read this first";
+pub const ACK_LEAD: &str = "The scanner refuses computers whose drive is failing or whose Windows volume needs a repair, because converting them can silently lose files. This path lets you go ahead anyway.";
+pub const ACK_BEFORE: [&str; 3] = [
+    "copy every file you care about OFF this computer, now;",
+    "assume anything still on it may be gone afterwards;",
+    "know that a failing drive can stop working at any point, including in the middle of the conversion.",
+];
+pub const ACK_BEFORE_HEADING: &str = "Before you type anything:";
+pub const ACK_TYPE: &str = "Type the following sentence exactly:";
+pub const ACK_BANNER: &str = "DATA LOSS ACCEPTED";
+
+pub const DESKTOP_HEADING: &str = "What this computer shows when it starts";
+pub const DESKTOP_KDE: &str = "KDE Plasma desktop";
+pub const DESKTOP_KDE_LINE: &str = "Looks and works most like Windows: a taskbar along the bottom, a start menu in the corner, windows you drag, snap and minimise. The easiest choice if you are used to Windows.";
+pub const DESKTOP_GNOME: &str = "GNOME desktop";
+pub const DESKTOP_GNOME_LINE: &str = "Simpler and calmer: one bar along the top, and a single button that shows all your open windows and apps at once. Fewer settings to think about, but it works a little differently from Windows, so expect a short getting-used-to.";
+pub const DESKTOP_CONSOLE: &str = "Text console only";
+pub const DESKTOP_CONSOLE_LINE: &str = "No desktop: a black screen where you type commands. Only for people who already use Linux. The KDE desktop is still installed and can be switched on later.";
+pub const DESKTOP_UNSURE: &str = "Not sure? Choose KDE Plasma.";
+
+pub const PASSWORD_HEADING: &str = "Your Linux account and its password";
+pub const PASSWORD_LEAD: &str = "You sign in to Linux with the password you choose now. Write it down if you need to: nothing else stores it.";
+pub const PASSWORD_LABEL: &str = "Password";
+pub const PASSWORD_AGAIN: &str = "Type it again";
+pub const PASSWORD_NOT_SET: &str = "Not set";
+
+pub const CONVERT_CONTINUE: &str = "Continue";
+pub const CONVERT_STEPS: [&str; 5] = [
+    "Check the USB stick",
+    "Look at this computer",
+    "Write the plan for this computer and the instructions for Linux",
+    "Your decision",
+    "The prologue: the disk check, the shrink, the one-time restart",
+];
+pub const CONVERT_RUNNING_HEADING: &str = "Converting this computer";
+pub const CONVERT_RUNNING_PROLOGUE: &str = "The prologue is running. It stops by itself if anything is not as it should be, and nothing is changed until it says so. The window cannot be closed now.";
+
+pub const SIGN_IN_HEADING: &str = "Your Fedora sign-in";
+pub const SIGN_IN_USER: &str = "user";
+pub const SIGN_IN_PASSWORD: &str = "password: the one you just chose";
+pub const DECIDE_HEADING: &str = "Your decision";
+pub const DECIDE_LINES: [&str; 3] = [
+    "This will change the internal disk of this computer: Windows' disk check may run (with a restart), the Windows partition will be shrunk, and Linux will be installed beside it. Windows stays bootable from the boot menu until you reclaim it later. If the disk check runs it may be slow: do not switch the computer off while it runs. If Windows has an update waiting to finish, the computer restarts first to let it finish, then carries on by itself.",
+    "If Windows' restore points are what stops the partition shrinking, they will be deleted. Restore points are Windows' own undo history for system changes, not your files, and deleting them cannot be undone. The same goes for Windows' change journal, its running list of which files changed recently: if it is what stops the shrinking, it is deleted and started again empty. Your files are not touched, but search and sync programs will look through them again afterwards.",
+    "Nothing else is deleted before Linux is installed.",
+];
+pub const DECIDE_TYPE: &str = "Type CONVERT (in capitals) to continue. Anything else stops.";
+pub const DECIDE_NOT_CONFIRMED: &str = "Not confirmed. Nothing was changed.";
+
+pub const CONVERT_RESTARTING_HEADING: &str = "Restarting into the installer in about 15 seconds";
+pub const CONVERT_RESTARTING_LINES: [&str; 3] = [
+    "Leave the USB stick in.",
+    "Windows is still here and still bootable; it stays that way until you reclaim it in Linux.",
+    "You can walk away. The conversion continues by itself; if it stops, a window says so at your next sign-in, and the record is in upgrade_\\outcome.json on the stick.",
+];
+pub const CONVERT_STOPPED_HEADING: &str = "The conversion stopped";
+pub const CONVERT_STOPPED_FOOT: &str = "Windows is as it was. The record is in upgrade_\\outcome.json on this stick.";
+pub const LINUX_NAME_UNKNOWN: &str = "The Linux account name could not be worked out. Nothing was changed.";

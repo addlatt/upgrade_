@@ -10,6 +10,9 @@ path = "src/main.rs"
 [dependencies]
 eframe = { version = "=0.35.0", default-features = false, features = ["glow", "wgpu", "default_fonts", "accesskit"] }
 serde_json = "1"
+# the Linux password is hashed in the window (Read-Password.ps1's rules and the
+# job writer's sha512-crypt), and the typed sentences are the job writer's own
+upgrade-job = { path = "../../../evaluate/job" }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }

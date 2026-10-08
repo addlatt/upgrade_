@@ -80,6 +80,133 @@ pub fn arm_call(stick: &str) -> Call {
     call(4, false, stick, "upgrade-prologue.exe", &["verify-arm", "--stick", "{stick}", "--auto", "--payload", "shim", "--suspend-bitlocker"])
 }
 
+// ---------------------------------------------------------------- the convert flow (RUN-CONVERT.cmd, RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd)
+
+/// The files RUN-CONVERT.cmd refuses to start without, with the Rust
+/// programs in place of the scripts.
+pub const KIT_FILES_CONVERT: [&str; 10] = [
+    "upgrade-scan.exe",
+    "upgrade-job.exe",
+    "upgrade-prologue.exe",
+    "EFI\\BOOT\\BOOTX64.EFI",
+    "images\\install.img",
+    "upgrade_\\verify.sh",
+    "upgrade_\\outcome.sh",
+    "upgrade_\\LiveOS\\kde.squashfs",
+    "upgrade_\\LiveOS\\gnome.squashfs",
+    "SHA256SUMS",
+];
+
+pub fn missing_kit_files_convert(root: &Path) -> Vec<&'static str> {
+    KIT_FILES_CONVERT.iter().copied().filter(|f| !root.join(win_rel(f)).exists()).collect()
+}
+
+/// The launcher's three choices, as the job writer takes them.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Desktop {
+    Kde,
+    Gnome,
+    Console,
+}
+
+impl Desktop {
+    /// (--desktop, --start-at): the text console still installs KDE.
+    pub fn job_args(self) -> (&'static str, &'static str) {
+        match self {
+            Desktop::Kde => ("kde", "desktop"),
+            Desktop::Gnome => ("gnome", "desktop"),
+            Desktop::Console => ("kde", "console"),
+        }
+    }
+}
+
+/// The acknowledgement sentence (RISKS R23), byte for byte; `ok` only when
+/// the typed text is exactly the job writer's own.
+pub fn ack_ok(typed: &str) -> bool {
+    typed == upgrade_job::RISK_STATEMENT
+}
+
+/// The confirmation word, byte for byte (`CONVERT`, nothing else).
+pub const CONFIRM_WORD: &str = "CONVERT";
+pub fn confirm_ok(typed: &str) -> bool {
+    typed == CONFIRM_WORD
+}
+
+/// Read-Password.ps1's rules, through the job crate: None when the pair is
+/// acceptable, else why not (its words).
+pub fn password_refusal(first: &str, second: &str) -> Option<&'static str> {
+    upgrade_job::password::pair_refusal(first, second)
+}
+
+/// The hash the job writer takes (`--password-hash-file`), from the password
+/// and a fresh salt from the OS. The password bytes are the caller's to wipe.
+pub fn password_hash(password: &str) -> Result<String, String> {
+    let salt = upgrade_job::password::new_salt()?;
+    Ok(upgrade_job::password::sha512_crypt(password, &salt, None))
+}
+
+pub fn wipe(s: &mut String) {
+    upgrade_job::password::wipe(s)
+}
+
+/// `upgrade-job linux-name`: the Linux account name from the Windows one
+/// (New-Job.ps1 -PrintLinuxName). Its one line of output is the name.
+pub fn linux_name_call(stick: &str) -> Call {
+    call(2, false, stick, "upgrade-job.exe", &["linux-name"])
+}
+
+/// The name from the program's output: its last non-empty line, or None.
+pub fn linux_name_from(output: &[String]) -> Option<String> {
+    output.iter().map(|l| l.trim()).filter(|l| !l.is_empty()).last().map(String::from)
+}
+
+/// RUN-CONVERT.cmd's steps 1 and 3-4 as calls: the scan (and the capture),
+/// then the job with its kickstart. `hash_file` is where the window wrote
+/// the password hash (deleted after the call); `ack` is the acknowledgement
+/// sentence when the person typed it on the data-loss path, else empty.
+pub fn convert_calls(stick: &str, desktop: Desktop, hash_file: &str, ack: &str) -> Vec<Call> {
+    let (d, s) = desktop.job_args();
+    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS"];
+    if !ack.is_empty() {
+        job.push("--acknowledge-data-loss");
+        job.push(ack);
+    }
+    vec![
+        call(1, false, stick, "upgrade-scan.exe", &["scan", "--json", "--out", "{root}upgrade_\\reports", "--kit", "{root}"]),
+        call(1, true, stick, "upgrade-scan.exe", &["dump-machine", "{root}machine-capture.json"]),
+        call(2, false, stick, "upgrade-job.exe", &job),
+    ]
+}
+
+/// Step 6: the prologue (`upgrade-prologue start`, following Invoke-Prologue.ps1
+/// -Start), with the word as typed. It restarts the computer itself when it
+/// has armed; a stop leaves Windows as it was and exits non-zero.
+pub fn prologue_start_call(stick: &str, word: &str, ack: &str) -> Call {
+    let mut a = vec!["start", "--stick", "{stick}", "--confirm-word", word];
+    if !ack.is_empty() {
+        a.push("--acknowledge-data-loss");
+        a.push(ack);
+    }
+    call(4, false, stick, "upgrade-prologue.exe", &a)
+}
+
+/// The prologue's own stop, for the screen: its "STOPPED at ..." line and
+/// what follows it (the reason), else its last lines.
+pub fn prologue_stop_lines(output: &[String]) -> Vec<String> {
+    if let Some(i) = output.iter().position(|l| l.trim_start().starts_with("STOPPED")) {
+        return output[i..].iter().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect();
+    }
+    refusal_lines(output)
+}
+
+/// The window's own temporary file for the hash, in %TEMP% as the launcher
+/// puts it (never on the stick, never logged).
+pub fn hash_file_path() -> PathBuf {
+    let mut n = [0u8; 8];
+    let _ = upgrade_job::password::os_random(&mut n);
+    std::env::temp_dir().join(format!("upgrade-pw-{}.txt", n.iter().map(|b| format!("{:02x}", b)).collect::<String>()))
+}
+
 /// Windows PowerShell's Out-File -Encoding UTF8 writes a byte-order mark.
 pub fn parse_json(bytes: &[u8]) -> Option<Value> {
     let b = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes);
@@ -362,6 +489,78 @@ mod tests {
         assert_eq!(v.iter().filter(|c| c.may_fail).count(), 1);
         assert!(v[1].args.iter().any(|a| a == "dump-machine"));
         assert!(!arm_call("E:").may_fail);
+    }
+
+    #[test]
+    fn convert_calls_match_run_convert_cmd() {
+        // RUN-CONVERT.cmd lines 61-62 (the scan), 102 (the name), 124 (the job, -IfCannotKeep stop -PasswordHashFile), 137 (the kickstart)
+        let v = convert_calls("E:", Desktop::Gnome, r"C:\Users\a\AppData\Local\Temp\upgrade-pw-1.txt", "");
+        assert_eq!(command_line(&v[0]), r"E:\upgrade-scan.exe scan --json --out E:\upgrade_\reports --kit E:\");
+        assert!(v[1].may_fail);
+        assert_eq!(
+            command_line(&v[2]),
+            r"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop gnome --start-at desktop --if-cannot-keep stop --password-hash-file C:\Users\a\AppData\Local\Temp\upgrade-pw-1.txt --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS"
+        );
+        assert_eq!(command_line(&linux_name_call("E:")), r"E:\upgrade-job.exe linux-name");
+        // line 187: the prologue with the word as typed
+        assert_eq!(command_line(&prologue_start_call("E:", "CONVERT", "")), r"E:\upgrade-prologue.exe start --stick E: --confirm-word CONVERT");
+    }
+
+    #[test]
+    fn the_data_loss_path_carries_the_sentence_to_the_job_and_the_prologue() {
+        // RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd: -AcknowledgeDataLoss "%ACK%" on both
+        let s = upgrade_job::RISK_STATEMENT;
+        let v = convert_calls("E:", Desktop::Kde, "h", s);
+        assert_eq!(v[2].args[v[2].args.len() - 2..], ["--acknowledge-data-loss".to_string(), s.to_string()]);
+        assert_eq!(command_line(&prologue_start_call("E:", "CONVERT", s)), format!(r#"E:\upgrade-prologue.exe start --stick E: --confirm-word CONVERT --acknowledge-data-loss "{}""#, s));
+        assert!(ack_ok(s));
+        assert!(!ack_ok(&s.to_lowercase()));
+        assert!(!ack_ok(&format!("{} ", s)));
+    }
+
+    #[test]
+    fn the_word_is_compared_byte_for_byte() {
+        assert!(confirm_ok("CONVERT"));
+        assert!(!confirm_ok("convert"));
+        assert!(!confirm_ok("CONVERT "));
+        assert!(!confirm_ok(""));
+    }
+
+    #[test]
+    fn the_console_choice_still_installs_kde() {
+        assert_eq!(Desktop::Console.job_args(), ("kde", "console"));
+        assert_eq!(Desktop::Kde.job_args(), ("kde", "desktop"));
+        assert_eq!(Desktop::Gnome.job_args(), ("gnome", "desktop"));
+    }
+
+    #[test]
+    fn the_password_rules_are_the_scripts() {
+        assert_eq!(password_refusal("", ""), Some("the password is empty"));
+        assert_eq!(password_refusal("a", "b"), Some("the two entries are not the same"));
+        assert_eq!(password_refusal("a\tb", "a\tb"), Some("the password contains a control character"));
+        assert_eq!(password_refusal("correct horse", "correct horse"), None);
+        let h = password_hash("x").unwrap();
+        assert!(h.starts_with("$6$"), "{h}");
+    }
+
+    #[test]
+    fn the_linux_name_is_the_programs_last_line() {
+        assert_eq!(linux_name_from(&["".into(), "ann".into(), "".into()]), Some("ann".into()));
+        assert_eq!(linux_name_from(&["".into()]), None);
+    }
+
+    #[test]
+    fn a_prologue_stop_shows_its_own_words() {
+        let out: Vec<String> = ["  1.  re-validating job.json...", "      ! disk identity differs", "", "  STOPPED at revalidate: job.json no longer matches this machine", "  outcome.json (stopped) written to the stick"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(prologue_stop_lines(&out), vec!["STOPPED at revalidate: job.json no longer matches this machine", "outcome.json (stopped) written to the stick"]);
+    }
+
+    #[test]
+    fn the_convert_kit_list_adds_what_the_install_needs() {
+        for f in ["upgrade_\\outcome.sh", "upgrade_\\LiveOS\\gnome.squashfs", "upgrade-prologue.exe"] {
+            assert!(KIT_FILES_CONVERT.contains(&f), "{f}");
+        }
+        assert!(hash_file_path().to_string_lossy().contains("upgrade-pw-"));
     }
 
     #[test]
