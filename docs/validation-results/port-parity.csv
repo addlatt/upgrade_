@@ -605,7 +605,7 @@ Invoke-Prologue.ps1,"v2-install.csv:6 (Hyper-V UEFI Release v4.1)",rig,"v2-insta
 Invoke-Prologue.ps1,"v9-erase.csv:2 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
 Invoke-Prologue.ps1,"v9-erase.csv:3 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:4 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
-Invoke-Prologue.ps1,"v9-erase.csv:5 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:5 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:34 (PROLOGUE=rust v9.sh arm B: a key during the countdown, cancelled-untouched, the return wrote the stopped outcome)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:6 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:7 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:8 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
@@ -616,8 +616,8 @@ Invoke-Prologue.ps1,"v9-erase.csv:12 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.
 Invoke-Prologue.ps1,"v9-erase.csv:13 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:14 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
 Invoke-Prologue.ps1,"v9-erase.csv:15 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:16 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
-Invoke-Prologue.ps1,"v9-erase.csv:17 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:16 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:34 (PROLOGUE=rust v9.sh arm B: a key during the countdown, cancelled-untouched, the return wrote the stopped outcome)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:17 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:34 (PROLOGUE=rust v9.sh arm B: a key during the countdown, cancelled-untouched, the return wrote the stopped outcome)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:18 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:19 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:20 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
