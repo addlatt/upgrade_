@@ -391,6 +391,15 @@ dist/              built single-file scanner (rebuild with ./build.sh)
   to Rust, one piece at a time (RISKS R32, VALIDATION V13). A script
   keeps these rules, and stays in use, until every line of its evidence
   in `docs/validation-results/port-parity.csv` reads `pass` in Rust.
+  **Where that stands (2026-10-08, branch `rust-port`):** the whole
+  active path is in Rust (`upgrade-scan`, `upgrade-harvest`,
+  `upgrade-job`, `upgrade-prologue` with the verify handoff and the
+  rollback, and the launchers as flows in `UPGRADE.exe`), and the rig has
+  run it end to end (`docs/RUST-PORT.md`). The scripts stay on the stick
+  as the way back until the physical rows are in; new Windows-side work
+  goes into the Rust, not the scripts. Build with `./build-rust.sh`; the
+  toolchain is pinned (`rust-toolchain.toml`) and `rebuild-check.sh`
+  proves the bytes.
   The roadmap is `docs/RUST-PORT.md`. Built 2026-10-04: the schema library
   and the scanner's judging half, beside the scripts, nothing switched over.
   **Decided (2026-10-04, the owner):** the whole port is built on the branch

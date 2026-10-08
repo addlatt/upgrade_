@@ -1378,9 +1378,15 @@ clears a pending update first), and run 3 on 2026-10-08 with the disk
 check in the path: the flag read, `chkdsk /f` run at a restart, both
 resumes as SYSTEM, the shrink, the handoff, the install, the return
 (`r18-prologue.csv` line 14 and `v2-install.csv` line 8, both
-`pass-plumbing`). Owed on the rig: the rollback, the probe and the erase
-arms. The differences kept on purpose and the runs' findings (the
-`run_as` account, the volume status `0xD00F`) are in
+`pass-plumbing`); the same day the rollback (`r21-rollback.csv` line 4,
+`pass-plumbing`) and the walk-away probe (`walkaway-probe.csv` line 4,
+`resumed-unattended`) with the Rust prologue, and the window's verify
+flow over the Rust programs (`v12-window.csv` line 3,
+`stopped-before-arm` at the job writer's R16 refusal of the rig's SCSI
+stick, where the script's row stopped too). `Test-Handoff.ps1` and
+`Invoke-Rollback.ps1`'s judging halves are replayed (39 and 17 calls).
+Owed on the rig: the erase arms. The differences kept on purpose and the
+runs' findings (the `run_as` account, the volume status `0xD00F`) are in
 `docs/RUST-PORT.md`.
 
 The scanner's rig and physical rows are not all found yet. Before step 3
