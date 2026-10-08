@@ -77,7 +77,10 @@ start)
     # went nowhere); AppActivate from inside the same session brings it to the front
     guest "schtasks /Create /TN 'upgrade_ v12 focus' /TR 'powershell.exe -NoProfile -WindowStyle Hidden -Command (New-Object -ComObject WScript.Shell).AppActivate(''upgrade_'')' /SC ONCE /ST 23:59 /RU rig /IT /F | Out-Null; schtasks /Run /TN 'upgrade_ v12 focus' | Out-Null; Start-Sleep 4; schtasks /Delete /TN 'upgrade_ v12 focus' /F | Out-Null; 'focused'"
     PS key 9; sleep 1; shot 2-focused
-    PS key 13; sleep 8; shot 3-running
+    # since 2026-10-08 the window opens on a chooser (verify, convert, erase, roll back, probe,
+    # cancel): Tab + Enter picks the first choice, the verify flow, then its welcome screen
+    PS key 13; sleep 2; shot 2b-welcome
+    PS key 9; sleep 1; PS key 13; sleep 8; shot 3-running
     ;;
 wait)
     limit=${2:-3600}; t0=$(date +%s)

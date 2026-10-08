@@ -17,9 +17,11 @@ upgrade-job = { path = "../../../evaluate/job" }
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
+# the same bytes from any machine (RISKS R14): symbols out, one codegen unit
 [profile.release]
 opt-level = "s"
 strip = true
+codegen-units = 1
 
 # off Windows (tests on the Linux side): winit needs a display backend to build
 [target.'cfg(not(windows))'.dependencies]

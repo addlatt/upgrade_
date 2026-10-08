@@ -20,3 +20,9 @@ windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Storage_Fil
 
 [dev-dependencies]
 regress = "0.10"
+
+# the same bytes from any machine (RISKS R14): symbols out, one codegen unit;
+# build-rust.sh remaps the source paths and pins the toolchain (rust-toolchain.toml)
+[profile.release]
+strip = true
+codegen-units = 1

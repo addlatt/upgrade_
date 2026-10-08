@@ -1,0 +1,7 @@
+# The one toolchain every Rust piece of the kit is built with (RISKS R14:
+# a second person must get the same bytes). rustup reads this file and
+# uses exactly this rustc; `rebuild-check.sh` proves the bytes match.
+[toolchain]
+channel = "1.93.1"
+targets = ["x86_64-pc-windows-gnu", "x86_64-unknown-linux-musl"]
+profile = "minimal"

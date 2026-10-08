@@ -486,9 +486,28 @@ window. Both build for `x86_64-pc-windows-gnu` (checked 2026-10-04). The
 tests run on Linux, so a session without Windows can still run them; only
 recording the golden files needs `powershell.exe`.
 
-Reproducible builds (R14) are owed before any Rust `.exe` replaces a
-script: the bytes on the stick must be matched to the source by someone
-else.
+**Rebuilding the same bytes (R14; built 2026-10-08).** The bytes on the
+stick must be matched to the source by someone else, so the build is
+pinned and checked:
+
+- `rust-toolchain.toml` at the root names the one rustc (1.93.1) and the
+  two targets; rustup picks it up by itself.
+- zig 0.13.0 (sha256 in `upgrade_/windows/window/build.sh`) and
+  cargo-zigbuild 0.23.4 link the Windows target; `--locked` holds every
+  crate to its `Cargo.lock`.
+- Every program's release profile strips symbols and uses one codegen
+  unit, and `build-rust.sh` and the window's `build.sh` remap the source
+  and registry paths that rustc would otherwise write into the binary
+  (`--remap-path-prefix`), so a build from any directory gives the same
+  bytes.
+- `KIT-MANIFEST.txt` names the five programs' sha256 and the toolchain
+  line (`build-rust.sh --toolchain`).
+- `./rebuild-check.sh` is the proof: it clones HEAD into a fresh
+  directory, builds the five programs there and compares their sha256
+  with this checkout's, one row per program in
+  `docs/validation-results/r14-rebuild.csv`. A second person runs the
+  same script on their machine; a `same=n` row is a finding, not a
+  rounding error. First run: owed (the rig was busy when this was built).
 
 ## The cut-over sessions (from 2026-10-07)
 

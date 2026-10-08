@@ -638,6 +638,15 @@ machine that runs it.
 **Closes when.** Releases are reproducible, signed and checksummed, and the
 release process does not depend on a single unprotected credential.
 
+**Decided (2026-10-08, the cut-over): the Rust programs on the stick are
+built reproducibly.** One pinned toolchain (`rust-toolchain.toml`: rustc
+1.93.1; zig 0.13.0 and cargo-zigbuild 0.23.4 for the Windows link),
+`--locked`, symbols stripped, one codegen unit, source paths remapped. The
+kit's manifest carries each program's sha256 and the toolchain line, and
+`rebuild-check.sh` rebuilds from a fresh clone and compares, one row per
+program in `docs/validation-results/r14-rebuild.csv`. Signing and the
+release credential are still open; the first rebuild row is owed.
+
 ---
 
 # USB-only redesign · added 2026-08-19

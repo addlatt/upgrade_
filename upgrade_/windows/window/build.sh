@@ -15,6 +15,9 @@ ZIG_DIR="$HOME/.local/opt/zig-linux-x86_64-0.13.0"
 [ -x "$ZIG_DIR/zig" ] && export PATH="$ZIG_DIR:$PATH"
 command -v zig >/dev/null || { echo "build.sh: zig not found (see the header of this file)" >&2; exit 1; }
 command -v cargo-zigbuild >/dev/null || { echo "build.sh: cargo-zigbuild not found (see the header of this file)" >&2; exit 1; }
+ROOT="$(cd ../../.. && pwd)"
+# the same bytes from any checkout (RISKS R14): see build-rust.sh
+export RUSTFLAGS="--remap-path-prefix=$ROOT=/upgrade_ --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo ${RUSTFLAGS:-}"
 cargo test --locked --quiet >/dev/null 2>&1 || { echo "build.sh: the window's tests fail (cargo test)" >&2; exit 1; }
 cargo zigbuild --locked --release --quiet --target x86_64-pc-windows-gnu
 echo "$PWD/target/x86_64-pc-windows-gnu/release/UPGRADE.exe"

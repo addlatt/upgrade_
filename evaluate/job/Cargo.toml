@@ -23,3 +23,9 @@ upgrade-kickstart = { path = "../../upgrade_/kickstart" }
 # (src/live.rs): Windows only
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Console", "Win32_Security_Cryptography", "Win32_NetworkManagement_WiFi", "Win32_System_Time", "Win32_Globalization", "Management_Deployment", "ApplicationModel", "Foundation_Collections"] }
+
+# the same bytes from any machine (RISKS R14): symbols out, one codegen unit;
+# build-rust.sh remaps the source paths and pins the toolchain (rust-toolchain.toml)
+[profile.release]
+strip = true
+codegen-units = 1
