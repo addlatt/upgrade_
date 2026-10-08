@@ -624,12 +624,12 @@ Invoke-Prologue.ps1,"v9-erase.csv:20 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.
 Invoke-Prologue.ps1,"v9-erase.csv:21 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:22 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
 Invoke-Prologue.ps1,"v9-erase.csv:23 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:24 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:24 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:33 (arm D after the Rust prologue's arm C: not-installed-again)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:25 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
 Invoke-Prologue.ps1,"v9-erase.csv:26 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:27 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:27 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:33 (arm D after the Rust prologue's arm C: not-installed-again)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:28 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:29 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:29 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:33 (arm D after the Rust prologue's arm C: not-installed-again)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:30 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
 Invoke-Prologue.ps1,"v9-erase.csv:31 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
 Invoke-Prologue.ps1,"walkaway-probe.csv:2 (Microsoft Corporation)",rig,"walkaway-probe.csv:4 (PROLOGUE=rust prologue.sh probe: resumed-unattended, SYSTEM session 0, stick after 4 s)",pass,2026-10-08
