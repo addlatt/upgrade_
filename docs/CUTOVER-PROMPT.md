@@ -5,16 +5,25 @@ Paste everything below the line into a new Claude Code session opened in
 this work before. Written 2026-10-07; the facts in it are as of commit
 `97476be` on `rust-port`.
 
-**Progress (2026-10-07, commit 3b10ae2 on `rust-port`):** items 1 to 6
-below are done or built; `docs/RUST-PORT.md`'s status table (rows 3f, 3g,
-4c, 4d, 5a) and `docs/validation-results/port-parity.csv` say exactly
-what each one proved. Still owed from them: the elevated side-by-side run
-of the harvester on the G16 (its UAC prompt was cancelled; the job
-writer's ran, SAME), and a `job.json` written beside the PowerShell's (needs the
-kit stick in the G16). Item 7 is built (`upgrade-prologue`, the rollback
-with it; `rig/hyperv/prologue.sh` and `v9.sh` take `PROLOGUE=rust`;
-`make-kit.sh` ships the binaries through `build-rust.sh`) and waits for
-its rig rows, then the Aspire. The next session starts there, or at item 8.
+**Progress (2026-10-08, branch `cutover`, commit 38fd388 and after):**
+items 1 to 7 are done and proven on the rig, 8 and 9 are built, 10 is
+under way. `docs/RUST-PORT.md`'s status table (rows 3f, 3g, 4c, 4d, 5a,
+5b, 5c, 0) and `docs/validation-results/port-parity.csv` say exactly what
+each one proved. Item 7's rig rows: the keep-Windows path with the disk
+check (`r18-prologue.csv` line 14, `v2-install.csv` line 8), the rollback
+(`r21-rollback.csv` line 4), all `pass-plumbing`; the probe arm is the
+next; the erase arms (`v9.sh`) and the Aspire are owed. `Test-Handoff.ps1`
+is ported too (`upgrade-prologue verify-arm|verify-check`, 5c). Item 8:
+all six launchers are flows in `UPGRADE.exe` (the data-loss variants
+behind `--accepting-data-loss` from `UPGRADE-ACCEPTING-DATA-LOSS.cmd`),
+untried on the rig (`v12.sh` next). Item 9: the toolchain is pinned,
+the builds stripped and remapped, `rebuild-check.sh` is the proof (its
+first row owed). Still owed from earlier: the harvester's elevated
+side-by-side on the G16, a `job.json` beside the PowerShell's (needs the
+kit stick in the G16). Traps met since: the rig's VM will not start
+while WSL holds a lot of page cache (evict the build outputs first, see
+`rig/hyperv/README.md`); the fresh rig disk carries a pending Windows
+update (the bench clears it first).
 
 ---
 

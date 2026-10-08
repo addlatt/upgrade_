@@ -152,6 +152,15 @@ to the host on its own. `posix_fadvise(DONTNEED)` on the big files (the
 same `evict` helper the 9p trap uses) gave 9.4 GB back at once. `v1.sh
 stick` evicts what it wrote. `UPGRIGHV` runs at **4 GB** startup memory
 now (was 8), enough for Windows 10 and Anaconda's stage2 in text mode.
+**Seen again 2026-10-07 and 2026-10-08 with the Rust builds:** `cargo`
+output (`*/target`, `~/.cargo/registry`, `~/.rustup`) and `make-kit.sh`
+fill the cache the same way, and `Start-VM` fails with "Unable to allocate
+4096 MB of RAM: Insufficient system resources" even with 7 GB shown free
+on the host. Do not build while a bench is about to start the VM, and
+before a start after a build sweep those directories with the same
+`posix_fadvise` (a 100,000-file sweep gave 4 GB back at once). Each bench
+has a retry step that skips the disk copy (`prologue.sh probe-run`; the
+step chain for `run`).
 
 **State after the install runs (2026-09-10):** `v2.sh restore` put the
 main `UPGRIGHV.vhdx` back at SCSI 0:0. `UPGRIGHV.install.vhdx` (the
