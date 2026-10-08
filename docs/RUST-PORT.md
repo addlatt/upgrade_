@@ -442,6 +442,7 @@ Each one is stricter than the original, or changes no decision.
 | installed programs in a job | sorted by the machine's language rules (PowerShell's `Sort-Object`) | sorted by the lower-cased name, the same on every machine | the list is an inventory; nothing decides on its order. Past the 2,000 cap the two could keep different entries |
 | Store apps marked non-removable (2026-10-07) | `Get-AppxPackage`'s `NonRemovable` flag, whose source Windows does not expose; dropped from the inventory | read as membership of Windows' inbox-application list in the registry, which covers 44 of the 46 on the G16; the two Store-signed ones (Windows Security, App Installer) are listed | an inventory, nothing decides on it; two Microsoft apps more is the whole difference |
 | the prologue's facts `Hiberfil` and `Pagefile` (2026-10-07) | `Test-Path C:\hiberfil.sys`: False even elevated, because the provider cannot open a file locked to SYSTEM | whether the file is there (`GetFileAttributes`): True when hibernation and the pagefile are on | the Rust answers the question asked; a record in the state (`Facts.hiberfil`), nothing decides on it |
+| the prologue's evidence times (2026-10-07) | NTFS event 98 and the last check are carried with the event's full precision (`2026-10-08T07:38:46.3872739Z`) | to the second (`2026-10-08T07:38:46.0000000Z`): the shared event reader keeps seconds | the same instant to the second; the freshness comparison and every decision are unchanged. The words of `RepairQueuedWhy` differ in the fraction |
 | the prologue's "is NTFS's request fresh" (2026-10-07) | `[DateTime]::Parse` of the evidence's round-trip text, then `ToUniversalTime()`: a time with no zone is read as this machine's local time | a time with no zone is read as UTC | the prologue's evidence always carries the `Z`; the self-test's one naked date gives the same answer either way. A text that is not a time makes the script throw; the Rust takes the request as standing (never a skip) |
 | the job writer's refusals at the door | a missing stick or scan folder, a wrong `-Desktop`, or a failed read makes the script throw (a traceback, exit 1) | the same words as a plain refusal, exit 2; a job is written only after `upgrade_schema::Job` accepted it | stricter and plainer; the script wrote without checking the contract |
 | a job's `evaluate.version` | `0.18.0` | given by the program that writes the job | a record should say what wrote it |
@@ -505,6 +506,21 @@ is kept with its command line, exit code and both output streams, in
 The PowerShell never did this, and its physical runs cannot be replayed
 (R32). A later port, or a later reader, can replay the Rust's decisions
 against what the tools really printed.
+
+**The rig's first Rust run (2026-10-07 evening, `PROLOGUE=rust
+rig/hyperv/prologue.sh run`, kit of commit 2174a97):** the Rust prologue
+stopped at re-validation, `volume_health.repair_queued: job says 'False',
+machine says 'True'`. Windows was right and so was the Rust: on this
+guest (Windows 10 Pro 19045) `fsutil dirty set C:` logs NTFS event 98 at
+once and `Get-Volume` reports `Full Repair Needed`; the rig's stand-in
+job (`rig/hyperv/v1-job.py`) wrote `repair_queued: false` without
+looking. The PowerShell prologue, run on the same guest state minutes
+later, read the same repair-queued state word for word and would have
+stopped on the same job. Fixed in the harness: the stand-in now reads
+the volume's status and event 98 as the product's job writer does. The
+same PowerShell run then met R25 (the fresh rig disk has a Windows update
+waiting), which the Rust run exercises next. A stop at re-validation is
+the prologue doing its job (rule #1); it was recorded, not softened.
 
 **A finding from 5a for `main`:** `Get-PrologueRepairMethod` knows only
 Windows 10's scan names. On Windows 11 a scan that found errors
