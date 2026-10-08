@@ -1348,9 +1348,9 @@ name, and the Rust tests.
 | `New-Job.ps1` (judging half) | 130 | 126 | 4 (the rig and physical rows that ran its jobs) |
 | `New-Kickstart.ps1` (step 4, first piece) | 26 | 22 | 4 (the rig and physical rows whose installs ran its kickstart: `v1-live-boot.csv`, `v2-install.csv`, `v9-erase.csv`) |
 | `Read-Password.ps1` (2026-10-07) | 15 | 12 | 3 (`v9-erase.csv` lines 11, 22, 30: the Aspire's runs where the person typed the password through it; one physical run with `upgrade-job password` re-earns them) |
-| `Invoke-Prologue.ps1` (2026-10-07) | 192 | 143 | 49 (the Wi-Fi scrub, a live action; 36 rig rows in `r18-prologue.csv`, `v2-install.csv`, `v9-erase.csv`, `walkaway-probe.csv`; 12 physical rows, the Aspire's). The judging half is `upgrade_/prologue`: 161 cases, 228 calls word for word |
+| `Invoke-Prologue.ps1` (2026-10-07) | 192 | 145 | 47 (the Wi-Fi scrub, a live action; 34 rig rows (`v2-install.csv` lines 5 and 6 passed with the Rust prologue's rig row, line 7) in `r18-prologue.csv`, `v2-install.csv`, `v9-erase.csv`, `walkaway-probe.csv`; 12 physical rows, the Aspire's). The judging half is `upgrade_/prologue`: 161 cases, 228 calls word for word |
 | `Invoke-Rollback.ps1` (lines written 2026-10-07) | 16 | 0 | 16 (14 self-test cases; `r21-rollback.csv` lines 2 and 3) |
-| `Test-Handoff.ps1` (lines written 2026-10-07) | 60 | 0 | 60 (45 self-test cases; `v0-handoff.csv` lines 2 to 12, `v1-live-boot.csv` lines 2 to 5) |
+| `Test-Handoff.ps1` (2026-10-07) | 48 | 33 | 15 (`v0-handoff.csv` lines 2 to 12, `v1-live-boot.csv` lines 2 to 5: the rows the Rust verify handoff, `upgrade-prologue verify-arm`, has to earn on the rig and the Aspire). The 33 are its self-test cases, replayed in `upgrade_/prologue/tests/verify.rs`; 12 lines written on 2026-10-07 that were not cases were removed |
 
 **2026-10-07, the cut-over sessions** (`docs/CUTOVER-PROMPT.md`): the
 scanner is a product command (`upgrade-scan scan --json --out`, proven on

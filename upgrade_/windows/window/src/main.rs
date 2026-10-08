@@ -1,10 +1,13 @@
-//! UPGRADE.exe: the window in front of the kit's scripts (decided 2026-09-27,
-//! the owner: a Rust window that calls the scripts from the stick). It
-//! decides nothing the scripts decide. It runs them with RUN-VERIFY.cmd's
-//! arguments, shows their progress in plain words, stops where they stop,
-//! and adds two things of its own: a stop on a RED scan before the job
-//! writer runs (more cautious, never less), and a one-shot sign-in task
-//! that opens it again after the restart to show what came back.
+//! UPGRADE.exe: the window in front of the kit's programs (decided 2026-09-27,
+//! the owner: a Rust window that calls the kit from the stick). It decides
+//! nothing the programs decide. It runs the kit's Rust programs
+//! (`upgrade-scan`, `upgrade-job`, `upgrade-prologue`; the cut-over, RISKS
+//! R32) with RUN-VERIFY.cmd's steps, shows their progress in plain words,
+//! stops where they stop, and adds two things of its own: a stop on a RED
+//! scan before the job writer runs (more cautious, never less), and a
+//! one-shot sign-in task that opens it again after the restart to show what
+//! came back. Every line a program prints goes to upgrade_\convert.log on
+//! the stick, as Invoke-Logged.ps1 did for the scripts.
 //!
 //! This first slice is the verify flow only: nothing is installed and
 //! nothing on the internal drive is changed. RUN-VERIFY.cmd stays on the
@@ -38,6 +41,16 @@ fn log_line(root: &Path, text: &str) {
     }
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(p) {
         let _ = writeln!(f, "{}  window {}: {}\r", flow::now_utc(), WINDOW_VERSION, text);
+    }
+}
+
+/// A program's own line, kept as it was printed (Invoke-Logged.ps1 did this
+/// for the scripts).
+fn log_raw(root: &Path, text: &str) {
+    use std::io::Write;
+    let p = root.join("upgrade_").join("convert.log");
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(p) {
+        let _ = writeln!(f, "{}\r", text);
     }
 }
 
@@ -80,13 +93,14 @@ struct Guard {
 
 type Shared = Arc<Mutex<Guard>>;
 
-/// Run one powershell.exe call, sending each line as it comes. None if it
-/// could not start or the window was closed first.
-fn run(args: &[String], root: &Path, tx: &Sender<Msg>, guard: &Shared) -> Option<(i32, Vec<String>)> {
+/// Run one kit program, sending each line as it comes and keeping it in the
+/// stick's log. None if it could not start or the window was closed first.
+fn run(c: &flow::Call, root: &Path, tx: &Sender<Msg>, guard: &Shared) -> Option<(i32, Vec<String>)> {
     #[cfg(windows)]
     use std::os::windows::process::CommandExt;
-    let mut cmd = Command::new("powershell.exe");
-    cmd.args(args).current_dir(root).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    log_raw(root, &format!("==== {}  {}", flow::now_utc(), flow::command_line(c)));
+    let mut cmd = Command::new(&c.program);
+    cmd.args(&c.args).current_dir(root).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     #[cfg(windows)]
     cmd.creation_flags(win::CREATE_NO_WINDOW);
     let (out, err) = {
@@ -97,8 +111,10 @@ fn run(args: &[String], root: &Path, tx: &Sender<Msg>, guard: &Shared) -> Option
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {
-                let _ = tx.send(Msg::Line(format!("could not start powershell.exe: {}", e)));
-                return Some((1, vec![format!("could not start powershell.exe: {}", e)]));
+                let line = format!("could not start {}: {}", c.program, e);
+                log_raw(root, &line);
+                let _ = tx.send(Msg::Line(line.clone()));
+                return Some((1, vec![line]));
             }
         };
         let io = (child.stdout.take(), child.stderr.take());
@@ -106,11 +122,13 @@ fn run(args: &[String], root: &Path, tx: &Sender<Msg>, guard: &Shared) -> Option
         io
     };
     let etx = tx.clone();
+    let eroot = root.to_path_buf();
     let err_thread = std::thread::spawn(move || {
         let mut v = vec![];
         if let Some(e) = err {
             for l in BufReader::new(e).split(b'\n').map_while(Result::ok) {
                 let s = String::from_utf8_lossy(&l).trim_end_matches('\r').to_string();
+                log_raw(&eroot, &s);
                 let _ = etx.send(Msg::Line(s.clone()));
                 v.push(s);
             }
@@ -121,6 +139,7 @@ fn run(args: &[String], root: &Path, tx: &Sender<Msg>, guard: &Shared) -> Option
     if let Some(o) = out {
         for l in BufReader::new(o).split(b'\n').map_while(Result::ok) {
             let s = String::from_utf8_lossy(&l).trim_end_matches('\r').to_string();
+            log_raw(root, &s);
             let _ = tx.send(Msg::Line(s.clone()));
             lines.push(s);
         }
@@ -128,12 +147,14 @@ fn run(args: &[String], root: &Path, tx: &Sender<Msg>, guard: &Shared) -> Option
     lines.extend(err_thread.join().unwrap_or_default());
     let child = guard.lock().unwrap().child.take();
     let code = child.and_then(|mut c| c.wait().ok()).and_then(|s| s.code()).unwrap_or(1);
+    log_raw(root, &format!("==== exit {}", code));
     Some((code, lines))
 }
 
 /// RUN-VERIFY.cmd, as a thread. Every stop before step 4 leaves the
-/// computer as it was; step 4 is Test-Handoff's own arm, which removes its
-/// boot entry again if it cannot finish.
+/// computer as it was; step 4 is the verify arm's own (`upgrade-prologue
+/// verify-arm`, following Test-Handoff.ps1), which removes its boot entry
+/// again if it cannot finish.
 fn verify(stick: String, tx: Sender<Msg>, guard: Shared) {
     let root = PathBuf::from(format!("{}\\", stick));
     let stop = |s: Stop| {
@@ -150,7 +171,7 @@ fn verify(stick: String, tx: Sender<Msg>, guard: Shared) {
 
     for (i, call) in flow::verify_calls(&stick).iter().enumerate() {
         let _ = tx.send(Msg::Step(call.step));
-        let Some((code, lines)) = run(&call.args, &root, &tx, &guard) else { return };
+        let Some((code, lines)) = run(call, &root, &tx, &guard) else { return };
         if code != 0 && !call.may_fail {
             log_line(&root, &format!("stopped at step {} (exit {})", call.step, code));
             return stop(Stop::Refused(flow::refusal_lines(&lines)));
@@ -166,6 +187,8 @@ fn verify(stick: String, tx: Sender<Msg>, guard: Shared) {
         }
     }
 
+    // the kickstart came out of the job writer's call (step 3 of the .cmd is inside step 2 here)
+    let _ = tx.send(Msg::Step(3));
     // RUN-VERIFY.cmd's markers: this boot is a verify, and the old report goes
     let u = root.join("upgrade_");
     if let Err(e) = std::fs::write(u.join("boot-verify"), "v1\r\n") {
@@ -209,7 +232,7 @@ fn verify(stick: String, tx: Sender<Msg>, guard: Shared) {
     let _ = tx.send(Msg::Arming);
     let _ = tx.send(Msg::Step(4));
     let arm = flow::arm_call(&stick);
-    let res = run(&arm.args, &root, &tx, &guard);
+    let res = run(&arm, &root, &tx, &guard);
     guard.lock().unwrap().arming = false;
     match res {
         Some((0, _)) => {

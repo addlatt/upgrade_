@@ -23,6 +23,7 @@ pub mod rollback;
 pub mod state;
 pub mod tools;
 pub mod val;
+pub mod verify;
 
 /// What this program calls itself.
 pub fn flow_version() -> String {

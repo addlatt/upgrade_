@@ -63,8 +63,10 @@ if [ "$HAVE_PS" = 1 ]; then
     if grep -q 'all checks passed' "$TMP/password-selftest.txt"; then pass "Read-Password.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/password-selftest.txt") cases)"; else fail "Read-Password.ps1 -SelfTest"; fi
     ps upgrade_/windows/Invoke-Prologue.ps1 -SelfTest > "$TMP/prologue-selftest.txt" || true
     if grep -q 'all checks passed' "$TMP/prologue-selftest.txt"; then pass "Invoke-Prologue.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/prologue-selftest.txt") cases)"; else fail "Invoke-Prologue.ps1 -SelfTest"; fi
+    ps upgrade_/windows/Test-Handoff.ps1 -SelfTest > "$TMP/handoff-selftest.txt" || true
+    if grep -q 'all checks passed' "$TMP/handoff-selftest.txt"; then pass "Test-Handoff.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/handoff-selftest.txt") cases)"; else fail "Test-Handoff.ps1 -SelfTest"; fi
 else
-    skip "New-Job.ps1 -SelfTest"; skip "Read-Password.ps1 -SelfTest"; skip "Invoke-Prologue.ps1 -SelfTest"
+    skip "New-Job.ps1 -SelfTest"; skip "Read-Password.ps1 -SelfTest"; skip "Invoke-Prologue.ps1 -SelfTest"; skip "Test-Handoff.ps1 -SelfTest"
 fi
 if python3 schemas/check.py --dump-cases "$TMP/refused-cases.json" --dump-mutations "$TMP/mutations.jsonl" > "$TMP/check.txt" 2>&1; then
     pass "schemas/check.py ($(grep -c '  PASS  ' "$TMP/check.txt") checks)"
@@ -87,6 +89,8 @@ if [ "$HAVE_PS" = 1 ]; then
     fresh evaluate/job/tests/password-golden.json "$TMP/password-golden.json"
     ps upgrade_/prologue/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\prologue-golden.json" > /dev/null
     fresh upgrade_/prologue/tests/golden.json "$TMP/prologue-golden.json"
+    ps upgrade_/prologue/tests/verify-golden.ps1 -Out "$(wslpath -w "$TMP")\\verify-golden.json" > /dev/null
+    fresh upgrade_/prologue/tests/verify-golden.json "$TMP/verify-golden.json"
 else
     skip "upgrade_/kickstart/tests/golden.json against New-Kickstart.ps1"
     skip "data/tables.json against data/*.ps1"; skip "evaluate/scan/tests/golden.json against the PowerShell scanner"
@@ -118,6 +122,7 @@ if [ "$HAVE_PS" = 1 ]; then
     same_names "$TMP/job-selftest.txt" evaluate/job/tests/cases.json "job writer"
     same_names "$TMP/password-selftest.txt" evaluate/job/tests/password-cases.json "password hasher"
     same_names "$TMP/prologue-selftest.txt" upgrade_/prologue/tests/cases.json "prologue"
+    same_names "$TMP/handoff-selftest.txt" upgrade_/prologue/tests/verify-cases.json "verify handoff (Test-Handoff.ps1)"
 else
     skip "self-test case names against cases.json"
 fi

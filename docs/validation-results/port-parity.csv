@@ -650,51 +650,39 @@ Invoke-Rollback.ps1,"windows first: true only when {bootmgr} leads",selftest,,ow
 Invoke-Rollback.ps1,"drive: e normalizes to E:\, a path is refused",selftest,,owed,2026-10-07
 Invoke-Rollback.ps1,"r21-rollback.csv:2 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
 Invoke-Rollback.ps1,"r21-rollback.csv:3 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
-Test-Handoff.ps1,"Check",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"Arm",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"Arm",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"Arm",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"Arm",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"Check",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"Arm",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"Arm",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"Check",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"Check",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"SelfTest",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"upgrade_ V0 handoff return check",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"classify: fired + cleared + order intact is fired-once",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"classify: fired but one-shot not cleared is persisted",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"classify: not fired, order intact is ignored (fail-safe)",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"classify: fired, cleared, but order changed is reordered",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"classify: not fired and order changed is reordered",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"classify: NoSuspend is a baseline-shaped row (fired-once)",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"classify: NoFile not fired, order intact is ignored (the pass)",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"classify: SecureBootUnsigned that fired is persisted (loud)",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"classify: SecureBootUnsigned not fired but order changed is reordered",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"manage-bde: Protection On parses as on",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"manage-bde: Protection Off parses as off",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"manage-bde: encrypted but suspended (Protection Off) is off - no TPM prompt",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"manage-bde: an access-denied error is unknown, not off",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"manage-bde: localized output is unknown, not a guess",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"manage-bde: empty output is unknown",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"grubenv: a clean block is exactly 1024 bytes with the GRUB header",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"grubenv: a clean block is not fired",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"grubenv: upg_fired=1 written by save_env is fired",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"grubenv: upg_fired=0 is not fired",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"grubenv: an unrelated variable is not fired",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"grubenv: empty file is not fired",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"payload: shim points at EFI\BOOT\BOOTX64.EFI",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"payload: shell points at EFI\SHELL\SHELLX64.EFI",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"payload: NoFile points at a missing file whatever the payload",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"payload: an unknown name is refused",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"stick: found again under a new letter by volume id",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"stick: absent stick is null, never a guess",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"stick: a matching volume with no letter does not count",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"csv: a freshly created header has no byte-order mark",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"csv: the created header matches the column list exactly",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"drive: E: normalizes to E:\",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"drive: lowercase e normalizes to E:\",selftest,,owed,2026-10-07
-Test-Handoff.ps1,"drive: a path is refused",selftest,,owed,2026-10-07
+Test-Handoff.ps1,"classify: fired + cleared + order intact is fired-once",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: fired but one-shot not cleared is persisted",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: not fired, order intact is ignored (fail-safe)",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: fired, cleared, but order changed is reordered",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: not fired and order changed is reordered",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: NoSuspend is a baseline-shaped row (fired-once)",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: NoFile not fired, order intact is ignored (the pass)",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: SecureBootUnsigned that fired is persisted (loud)",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: SecureBootUnsigned not fired but order changed is reordered",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"manage-bde: Protection On parses as on",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"manage-bde: Protection Off parses as off",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"manage-bde: encrypted but suspended (Protection Off) is off - no TPM prompt",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"manage-bde: an access-denied error is unknown, not off",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"manage-bde: localized output is unknown, not a guess",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"manage-bde: empty output is unknown",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"grubenv: a clean block is exactly 1024 bytes with the GRUB header",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"grubenv: a clean block is not fired",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"grubenv: upg_fired=1 written by save_env is fired",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"grubenv: upg_fired=0 is not fired",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"grubenv: an unrelated variable is not fired",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"grubenv: empty file is not fired",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"payload: shim points at EFI\BOOT\BOOTX64.EFI",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"payload: shell points at EFI\SHELL\SHELLX64.EFI",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"payload: NoFile points at a missing file whatever the payload",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"payload: an unknown name is refused",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"stick: found again under a new letter by volume id",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"stick: absent stick is null, never a guess",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"stick: a matching volume with no letter does not count",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"csv: a freshly created header has no byte-order mark",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"csv: the created header matches the column list exactly",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"drive: E: normalizes to E:\",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"drive: lowercase e normalizes to E:\",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"drive: a path is refused",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
 Test-Handoff.ps1,"v0-handoff.csv:2 (QEMU)",rig,,owed,2026-10-07
 Test-Handoff.ps1,"v0-handoff.csv:3 (QEMU)",rig,,owed,2026-10-07
 Test-Handoff.ps1,"v0-handoff.csv:4 (QEMU)",rig,,owed,2026-10-07

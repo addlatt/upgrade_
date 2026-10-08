@@ -133,13 +133,13 @@ update-clear)
     # 13, flag-not-confirmed). So the bench lets the update finish first, and
     # records what it read before and after in update-before.txt.
     mkdir -p "$A"
-    rd="\$c = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Component Based Servicing\\RebootPending'; \$w = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired'; 'cbs=' + \$c + ' wu=' + \$w"
-    guest "'before: ' + ($rd)" | tee "$A/update-before.txt"
+    rd() { echo "\$c = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Component Based Servicing\\RebootPending'; \$w = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired'; '$1: cbs=' + \$c + ' wu=' + \$w"; }
+    guest "$(rd before)" | tee "$A/update-before.txt"
     if grep -q 'True' "$A/update-before.txt"; then
         echo "prologue: an update waits for a restart; restarting the guest once before the flag is injected"
         guest 'shutdown /r /t 0' >/dev/null 2>&1 || true
         sleep 45; wait_windows 900
-        guest "'after: ' + ($rd)" | tee -a "$A/update-before.txt"
+        guest "$(rd after)" | tee -a "$A/update-before.txt"
         grep -q 'after: cbs=False wu=False' "$A/update-before.txt" || { echo "prologue: the update is still waiting after a restart - read $A/update-before.txt" >&2; exit 1; }
     fi
     ;;

@@ -24,7 +24,7 @@ Three docs already cover parts of this, and this page does not repeat them:
 
 | Step | What | Status | Evidence |
 |---|---|---|---|
-| 0 | the window, `UPGRADE.exe` | `[###.]` stop path, `[##..]` reopen | V12, `v12-window.csv` |
+| 0 | the window, `UPGRADE.exe` | `[###.]` stop path, `[##..]` reopen; **since 2026-10-07 its verify flow runs the kit's Rust programs** (`upgrade-scan scan`, `upgrade-job write --verify-only --kickstart`, `upgrade-prologue verify-arm`), every line they print kept in `upgrade_\convert.log`; untried on the rig in that form (the next `v12.sh` run) | V12, `v12-window.csv` |
 | 1 | the schema library (`schemas/rust`) | `[##..]` built, no program uses it yet | 103 of 103 ledger lines `pass` |
 | 2 | the scanner's judging half (`evaluate/scan`) | `[##..]` built, no program uses it yet | 103 of 103 self-test and corpus lines `pass`; 10 rig and physical lines `owed` |
 | 3a | the scanner's whole-scan order, its text report, a program that replays recordings | `[##..]` built | 6 whole scans match the PowerShell scanner's own main section, report line for line |
@@ -39,7 +39,8 @@ Three docs already cover parts of this, and this page does not repeat them:
 | 4c | the job writer's live half (`evaluate/job/src/live.rs`; `upgrade-job write`): every read of `Get-JobFacts`, the Wi-Fi export, `job.json` written only as a document that passed the contract, the password files, `ks.cfg` through the kickstart crate | `[####]` the G16, `upgrade-job facts` beside the script's `Get-JobFacts`, elevated and not: SAME field for field, the elevated-only reads and the Wi-Fi block with its keys included; the only difference is the two Store-signed non-removable apps, kept on purpose. A `job.json` beside the PowerShell's (needs the kit stick) is owed | `upgrade-job compare-facts`, 2026-10-07; `v13-rust-job.csv` lines 2 and 3. The stick writer is not started |
 | 4d | the password hasher (`evaluate/job/src/password.rs`; `upgrade-job password`) | `[##..]` built; the prompt not yet run on a stick | 12 of 12 self-test lines `pass`, 34 recorded calls match, the specification's vectors held directly; its 3 physical rows `owed` |
 | 5a | the prologue's judging half (`upgrade_/prologue`, crate `upgrade-prologue`): the R18 guardrails, the re-validation, the shrink plan and the fork, the ladder's rungs and consents, R25's update step, the erase path's start and return, the handoff classifier, the resume context, the state, the `prologue` block and a stopped outcome | `[##..]` built, no program uses it yet | 143 of 144 self-test lines `pass` (the 144th is the Wi-Fi scrub, a live action); 161 cases, 228 calls match word for word; every realistic stopped outcome passes `outcome.schema.json`; its 36 rig and 12 physical rows `owed` |
-| 5b | the prologue's live half (`upgrade_/prologue/src/live.rs`, `flow.rs`; the program `upgrade-prologue start|resume|notify|abort|probe`): every read and every reversible write of the script, each tool call kept with its raw output (`tools.jsonl` in the state directory and in `upgrade_/report/` on the stick), the SYSTEM startup task as `schtasks` XML, the state directory locked with `icacls`; and the rollback (`rollback.rs`; `upgrade-prologue rollback`) | `[###.]` rig: the second rig run (2026-10-07, kit of commit 2174a97) went front to back with nobody at the keyboard: re-validation, the R25 update restart, 57.5 GB re-measured by both paths, 25 GB freed (the partition table agrees), the handoff fired, Fedora 44 KDE installed beside Windows, Windows and Linux each booted twice, the return record written. `v2-install.csv` line 7 `pass-plumbing`; `r18-prologue.csv` line 13 `flag-not-confirmed` (the update restart dropped the bench's dirty flag before the check could run; see the finding below). Its reads were proven beside `Get-PrologueFacts` on the G16, elevated and not (`v13-rust-prologue.csv` lines 2 and 3). One Rust defect found and fixed: `run_as` named the machine account. Owed: the R18 arm with the check running, the rollback, the probe and the erase arms, then the Aspire. The rig harnesses take `PROLOGUE=rust`; `make-kit.sh` ships the binaries | the handoff harness (`Test-Handoff.ps1`) is not ported: the prologue arms the handoff itself, and the window's verify flow still runs the script |
+| 5b | the prologue's live half (`upgrade_/prologue/src/live.rs`, `flow.rs`; the program `upgrade-prologue start|resume|notify|abort|probe`): every read and every reversible write of the script, each tool call kept with its raw output (`tools.jsonl` in the state directory and in `upgrade_/report/` on the stick), the SYSTEM startup task as `schtasks` XML, the state directory locked with `icacls`; and the rollback (`rollback.rs`; `upgrade-prologue rollback`) | `[###.]` rig: the second rig run (2026-10-07, kit of commit 2174a97) went front to back with nobody at the keyboard: re-validation, the R25 update restart, 57.5 GB re-measured by both paths, 25 GB freed (the partition table agrees), the handoff fired, Fedora 44 KDE installed beside Windows, Windows and Linux each booted twice, the return record written. `v2-install.csv` line 7 `pass-plumbing`; `r18-prologue.csv` line 13 `flag-not-confirmed` (the update restart dropped the bench's dirty flag before the check could run; see the finding below). Its reads were proven beside `Get-PrologueFacts` on the G16, elevated and not (`v13-rust-prologue.csv` lines 2 and 3). One Rust defect found and fixed: `run_as` named the machine account. Owed: the R18 arm with the check running, the rollback, the probe and the erase arms, then the Aspire. The rig harnesses take `PROLOGUE=rust`; `make-kit.sh` ships the binaries |
+| 5c | the verify flow's handoff (`upgrade_/prologue/src/verify.rs`; `upgrade-prologue verify-arm|verify-check`, following `Test-Handoff.ps1` 0.3.1) | `[##..]` built; 39 of 39 recorded calls match, 33 of 33 self-test lines `pass`; no rig row yet (`PROLOGUE=rust rig/hyperv/v1.sh`, and the window's verify flow) | the rows: `v0-handoff.csv` lines 2 to 12, `v1-live-boot.csv` lines 2 to 5 | the handoff harness (`Test-Handoff.ps1`) is not ported: the prologue arms the handoff itself, and the window's verify flow still runs the script |
 
 Nothing has been switched over. The stick still runs the PowerShell, and
 every result in `docs/validation-results/` still belongs to the PowerShell
@@ -151,7 +152,7 @@ on 2026-10-04.
 | `Read-Password.ps1` | 201 | `evaluate/job/src/password.rs`, run as `upgrade-job password` until the window takes the prompt | 4 | `-SelfTest`, 12 cases |
 | `Invoke-Prologue.ps1` | 2,124 | `upgrade_/prologue` (crate `upgrade-prologue`), then the converter's Windows half | 5 | `-SelfTest`, 144 cases; rig and physical rows (`r18-prologue.csv`, `v2-install.csv`, `v9-erase.csv`, `walkaway-probe.csv`) |
 | `Invoke-Rollback.ps1` | 238 | `upgrade_/prologue/src/rollback.rs` (`upgrade-prologue rollback`) | 5 | `-SelfTest`, 14 cases; `r21-rollback.csv` |
-| `Test-Handoff.ps1` | 809 | the converter's Windows half | 5 | `v0-handoff.csv` |
+| `Test-Handoff.ps1` | 809 | `upgrade_/prologue/src/verify.rs` (`upgrade-prologue verify-arm` and `verify-check`), the verify flow's handoff | 5 | `-SelfTest`, 33 cases; `v0-handoff.csv`, `v1-live-boot.csv` rows |
 | the `.cmd` launchers | about 1,200 | flows inside `UPGRADE.exe` | 5 | V12 |
 | `data/*.ps1` | 379 | stays the edit surface for now (see "The data tables") | 2 | checked by the self-test |
 
@@ -499,6 +500,22 @@ live half with the handoff and the rollback (their ledger lines written),
 the launchers as flows in `UPGRADE.exe`, the kit, the docs. The prologue's
 live half is built (5b): what it needs next is the rig (`PROLOGUE=rust
 rig/hyperv/prologue.sh run`, then `v9.sh`), and only then the Aspire.
+
+**The verify flow's handoff (5c, 2026-10-07):** `Test-Handoff.ps1`, the V0
+harness that RUN-VERIFY.cmd and the window arm the one-shot boot with, is
+`upgrade_/prologue/src/verify.rs`: the fail modes, the payload table, the
+evidence row and the logon task for the return check on top of the
+prologue's own classifier, manage-bde parse, GRUB block and stick lookup.
+Its 33 self-test cases and 6 port cases are replayed against the script
+(`tests/verify.rs`, `verify-golden.json`: 39 of 39 match). The live half
+(`upgrade-prologue verify-arm --stick X: --auto --payload shim
+--suspend-bitlocker`, and `verify-check`, which the arm registers as a
+logon task for the person) follows Invoke-Arm and Invoke-Check step for
+step, every tool call recorded. Built, not yet run: the rig's `v1.sh arm`
+takes `PROLOGUE=rust`, and the window's verify flow calls it. The ledger
+had 12 lines for this script that were not cases (`Arm`, `Check`,
+`SelfTest`, the task name, caught by a loose pattern on 2026-10-07); they
+were removed, so the script's 48 lines are its 33 cases and 15 rows.
 
 **Built in from the first line (5b):** every tool the Rust prologue calls
 is kept with its command line, exit code and both output streams, in

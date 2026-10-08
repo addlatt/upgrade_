@@ -1,20 +1,20 @@
 //! What the window runs and how it reads the answers. Pure: nothing here
 //! touches the machine, so all of it is tested on any OS (rule #5, the logic
-//! level). The scripts decide; this file only mirrors RUN-VERIFY.cmd's calls
-//! argument for argument, and reads what the scripts and verify.sh wrote.
+//! level). The programs decide; this file only mirrors RUN-VERIFY.cmd's
+//! steps as calls to the kit's Rust programs (the cut-over, RISKS R32:
+//! `upgrade-scan`, `upgrade-job`, `upgrade-prologue`), and reads what they
+//! and verify.sh wrote.
 
 use crate::words;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
-/// The files RUN-VERIFY.cmd refuses to start without, in its own order.
-pub const KIT_FILES_VERIFY: [&str; 11] = [
-    "Invoke-Logged.ps1",
-    "Test-Handoff.ps1",
-    "upgrade-scan.ps1",
-    "New-Job.ps1",
-    "Harvest-UpgradeState.ps1",
-    "New-Kickstart.ps1",
+/// The files the verify flow refuses to start without (RUN-VERIFY.cmd's
+/// list, with the Rust programs in place of the scripts).
+pub const KIT_FILES_VERIFY: [&str; 8] = [
+    "upgrade-scan.exe",
+    "upgrade-job.exe",
+    "upgrade-prologue.exe",
     "EFI\\BOOT\\BOOTX64.EFI",
     "images\\install.img",
     "upgrade_\\verify.sh",
@@ -31,52 +31,53 @@ fn win_rel(rel: &str) -> PathBuf {
     rel.split('\\').collect()
 }
 
-/// One PowerShell call: which step it belongs to and the full argument list
-/// for powershell.exe.
+/// One call of a kit program: which step it belongs to, the program on the
+/// stick and its arguments.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Call {
     pub step: usize,
+    pub program: String,
     pub args: Vec<String>,
-    /// the scanner's -DumpMachine capture: its exit code does not stop the run
+    /// the scanner's machine capture: its exit code does not stop the run
     /// (RUN-VERIFY.cmd sends it to nul and does not check it)
     pub may_fail: bool,
 }
 
 /// `stick` is the drive, e.g. "E:"; every path is built from it as the .cmd
 /// builds them from %~dp0 and %~d0.
-pub fn logged(stick: &str, script: &str, rest: &[&str]) -> Vec<String> {
+pub fn call(step: usize, may_fail: bool, stick: &str, program: &str, rest: &[&str]) -> Call {
     let root = format!("{}\\", stick);
-    let mut a: Vec<String> = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"].iter().map(|s| s.to_string()).collect();
-    a.push(format!("{}Invoke-Logged.ps1", root));
-    a.push("-Log".into());
-    a.push(format!("{}upgrade_\\convert.log", root));
-    a.push("-Script".into());
-    a.push(format!("{}{}", root, script));
-    a.extend(rest.iter().map(|s| s.replace("{root}", &root).replace("{stick}", stick)));
-    a
+    Call { step, may_fail, program: format!("{}{}", root, program), args: rest.iter().map(|s| s.replace("{root}", &root).replace("{stick}", stick)).collect() }
 }
 
-/// RUN-VERIFY.cmd, steps 1-4, as calls. Step 0 (the kit check) is not a call.
+/// What a call looks like on one line (for the log and the Details pane).
+pub fn command_line(c: &Call) -> String {
+    let q = |s: &str| if s.contains(' ') { format!("\"{}\"", s) } else { s.to_string() };
+    std::iter::once(q(&c.program)).chain(c.args.iter().map(|a| q(a))).collect::<Vec<_>>().join(" ")
+}
+
+/// RUN-VERIFY.cmd, steps 1-3, as calls to the Rust programs. Step 0 (the kit
+/// check) is not a call. The job writer writes the kickstart too (step 3),
+/// as `upgrade-job write --kickstart` does what New-Kickstart.ps1 did.
 pub fn verify_calls(stick: &str) -> Vec<Call> {
     vec![
-        Call { step: 1, may_fail: false, args: logged(stick, "upgrade-scan.ps1", &["-Json", "-OutDir", "{root}upgrade_\\reports"]) },
-        Call { step: 1, may_fail: true, args: logged(stick, "upgrade-scan.ps1", &["-DumpMachine", "{root}machine-capture.json"]) },
-        Call {
-            step: 2,
-            may_fail: false,
-            args: logged(stick, "New-Job.ps1", &["-StickDrive", "{stick}", "-OutDir", "{root}upgrade_", "-ScanDir", "{root}upgrade_\\reports", "-Desktop", "kde", "-StartAt", "desktop", "-VerifyOnly"]),
-        },
-        Call {
-            step: 3,
-            may_fail: false,
-            args: logged(stick, "New-Kickstart.ps1", &["-JobPath", "{root}upgrade_\\job.json", "-OutFile", "{root}upgrade_\\ks.cfg", "-StickLabel", "UPGV0", "-Manifest", "{root}SHA256SUMS"]),
-        },
+        call(1, false, stick, "upgrade-scan.exe", &["scan", "--json", "--out", "{root}upgrade_\\reports", "--kit", "{root}"]),
+        call(1, true, stick, "upgrade-scan.exe", &["dump-machine", "{root}machine-capture.json"]),
+        call(
+            2,
+            false,
+            stick,
+            "upgrade-job.exe",
+            &["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", "kde", "--start-at", "desktop", "--verify-only", "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS"],
+        ),
     ]
 }
 
-/// Step 4: arm the handoff. It restarts the computer 20 s after it succeeds.
+/// Step 4: arm the handoff (`upgrade-prologue verify-arm`, following
+/// Test-Handoff.ps1 -Arm -Auto). It restarts the computer 20 s after it
+/// succeeds; its return check runs itself at the next sign-in.
 pub fn arm_call(stick: &str) -> Call {
-    Call { step: 4, may_fail: false, args: logged(stick, "Test-Handoff.ps1", &["-Arm", "-Auto", "-Payload", "shim", "-PayloadDrive", "{stick}", "-SuspendBitLocker"]) }
+    call(4, false, stick, "upgrade-prologue.exe", &["verify-arm", "--stick", "{stick}", "--auto", "--payload", "shim", "--suspend-bitlocker"])
 }
 
 /// Windows PowerShell's Out-File -Encoding UTF8 writes a byte-order mark.
@@ -332,42 +333,41 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn scan_call_matches_run_verify_cmd() {
-        // RUN-VERIFY.cmd line 51, with %~dp0 = E:\
+    fn scan_call_matches_run_verify_cmd_step_1() {
+        // RUN-VERIFY.cmd line 51 (upgrade-scan.ps1 -Json -OutDir), with %~dp0 = E:\, as the Rust scanner takes it
         let c = &verify_calls("E:")[0];
-        assert_eq!(
-            c.args.join(" "),
-            r"-NoProfile -ExecutionPolicy Bypass -File E:\Invoke-Logged.ps1 -Log E:\upgrade_\convert.log -Script E:\upgrade-scan.ps1 -Json -OutDir E:\upgrade_\reports"
-        );
+        assert_eq!(command_line(c), r"E:\upgrade-scan.exe scan --json --out E:\upgrade_\reports --kit E:\");
     }
 
     #[test]
-    fn job_call_matches_run_verify_cmd() {
-        // RUN-VERIFY.cmd line 57
+    fn job_call_matches_run_verify_cmd_steps_2_and_3() {
+        // RUN-VERIFY.cmd lines 57 and 68: the job (-VerifyOnly) and the kickstart from it, in one call
         let c = &verify_calls("E:")[2];
         assert_eq!(
-            c.args[8..].join(" "),
-            r"E:\New-Job.ps1 -StickDrive E: -OutDir E:\upgrade_ -ScanDir E:\upgrade_\reports -Desktop kde -StartAt desktop -VerifyOnly"
+            command_line(c),
+            r"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop kde --start-at desktop --verify-only --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS"
         );
         assert!(!c.may_fail);
     }
 
     #[test]
-    fn kickstart_and_arm_calls_match_run_verify_cmd() {
-        // lines 68 and 82
-        assert_eq!(
-            verify_calls("E:")[3].args[8..].join(" "),
-            r"E:\New-Kickstart.ps1 -JobPath E:\upgrade_\job.json -OutFile E:\upgrade_\ks.cfg -StickLabel UPGV0 -Manifest E:\SHA256SUMS"
-        );
-        assert_eq!(arm_call("E:").args[8..].join(" "), r"E:\Test-Handoff.ps1 -Arm -Auto -Payload shim -PayloadDrive E: -SuspendBitLocker");
+    fn arm_call_matches_run_verify_cmd_step_4() {
+        // line 82: Test-Handoff.ps1 -Arm -Auto -Payload shim -PayloadDrive E: -SuspendBitLocker
+        assert_eq!(command_line(&arm_call("E:")), r"E:\upgrade-prologue.exe verify-arm --stick E: --auto --payload shim --suspend-bitlocker");
     }
 
     #[test]
     fn only_the_machine_capture_may_fail() {
         let v = verify_calls("E:");
         assert_eq!(v.iter().filter(|c| c.may_fail).count(), 1);
-        assert!(v[1].args.iter().any(|a| a == "-DumpMachine"));
+        assert!(v[1].args.iter().any(|a| a == "dump-machine"));
         assert!(!arm_call("E:").may_fail);
+    }
+
+    #[test]
+    fn a_path_with_a_space_is_quoted_on_the_log_line() {
+        let c = Call { step: 1, program: r"E:\upgrade-scan.exe".into(), args: vec!["--out".into(), r"E:\my reports".into()], may_fail: false };
+        assert_eq!(command_line(&c), r#"E:\upgrade-scan.exe --out "E:\my reports""#);
     }
 
     #[test]

@@ -25,6 +25,8 @@ fn usage() -> ExitCode {
     eprintln!("       upgrade-prologue resume|notify|abort [--state-dir <dir>]");
     eprintln!("       upgrade-prologue probe --stick <X:> [--state-dir <dir>]");
     eprintln!("       upgrade-prologue rollback --stick <X:>");
+    eprintln!("       upgrade-prologue verify-arm --stick <X:> [--payload shim|shell] [--auto] [--suspend-bitlocker] [--fail-mode NoFile|SecureBootUnsigned|NoSuspend] [--state-dir <dir>] [--results-csv <file>]");
+    eprintln!("       upgrade-prologue verify-check [--auto] [--restore-bcd] [--state-dir <dir>] [--results-csv <file>]");
     eprintln!("       upgrade-prologue facts --stick <X:> [--out <file>]");
     eprintln!("       upgrade-prologue compare-facts <rust.json> <powershell.json>");
     ExitCode::from(2)
@@ -71,7 +73,9 @@ fn run(args: &[String]) -> ExitCode {
         flow::notify(&state_dir);
         return ExitCode::SUCCESS;
     }
-    let mut ctx = Ctx::new(&state_dir, mode == "start");
+    // the verify flow's handoff (Test-Handoff.ps1) keeps its own state directory, %ProgramData%\upgrade_\v0
+    let verify_state = value_of("--state-dir").unwrap_or_else(upgrade_prologue::verify::live::default_state_dir);
+    let mut ctx = Ctx::new(if mode.starts_with("verify-") { &verify_state } else { &state_dir }, mode == "start");
     if !live::is_elevated() {
         eprintln!("the prologue needs Administrator: it reads and changes the disk and the boot configuration");
         return ExitCode::from(1);
@@ -111,6 +115,30 @@ fn run(args: &[String]) -> ExitCode {
             None => Err("give --stick <X:>".into()),
         },
         "resume" => flow::resume(&mut ctx),
+        "verify-arm" => match value_of("--stick").or_else(|| value_of("--payload-drive")) {
+            Some(d) => {
+                let has = |flag: &str| args.iter().any(|a| a == flag);
+                let a = upgrade_prologue::verify::live::ArmArgs {
+                    payload_drive: d,
+                    payload: value_of("--payload").unwrap_or_else(|| "shim".into()),
+                    auto: has("--auto"),
+                    suspend_bitlocker: has("--suspend-bitlocker"),
+                    fail_mode: value_of("--fail-mode").unwrap_or_default(),
+                    state_dir: verify_state.clone(),
+                    results_csv: value_of("--results-csv"),
+                };
+                if !a.fail_mode.is_empty() && !upgrade_prologue::verify::FAIL_MODES.iter().any(|m| m.eq_ignore_ascii_case(&a.fail_mode)) {
+                    Err(format!("--fail-mode must be one of {}", upgrade_prologue::verify::FAIL_MODES.join(", ")))
+                } else {
+                    upgrade_prologue::verify::live::arm(&mut ctx.rec, &a, &upgrade_prologue::flow_version())
+                }
+            }
+            None => Err("give --stick <X:>".into()),
+        },
+        "verify-check" => {
+            let has = |flag: &str| args.iter().any(|a| a == flag);
+            upgrade_prologue::verify::live::check(&mut ctx.rec, has("--auto"), has("--restore-bcd"), &verify_state, value_of("--results-csv").as_deref(), &upgrade_prologue::flow_version()).map(|_| ())
+        }
         _ => return usage(),
     };
     match r {

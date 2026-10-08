@@ -157,7 +157,12 @@ $rq=[bool](($vs -match "repair") -or ($n98 -gt 0))
 arm)
     L=$(stick_letter); [ -n "$L" ] || { echo "v1: no UPGV0 volume in the guest" >&2; exit 1; }
     guest 'New-Item -ItemType Directory -Force -Path C:\upgrade_\v1 | Out-Null; Remove-Item C:\upgrade_\v1\v0-handoff.csv -Force -ErrorAction SilentlyContinue; if (Test-Path C:\ProgramData\upgrade_\v0\handoff-state.json) { "stale armed state present - run -Check first" }'
-    guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Test-Handoff.ps1 -Arm -Auto -Payload shim -PayloadDrive ${L}: -SuspendBitLocker -ResultsCsv $GUEST_CSV"
+    # PROLOGUE=rust arms with the Rust verify handoff (upgrade-prologue verify-arm, following Test-Handoff.ps1; RISKS R32)
+    if [ "${PROLOGUE:-ps}" = rust ]; then
+        guest "& ${L}:\\upgrade-prologue.exe verify-arm --stick ${L}: --auto --payload shim --suspend-bitlocker --results-csv $GUEST_CSV"
+    else
+        guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Test-Handoff.ps1 -Arm -Auto -Payload shim -PayloadDrive ${L}: -SuspendBitLocker -ResultsCsv $GUEST_CSV"
+    fi
     echo "v1: armed; the guest reboots itself in ~20 s"
     ;;
 wait)
