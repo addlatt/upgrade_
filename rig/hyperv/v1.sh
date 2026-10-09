@@ -111,6 +111,7 @@ stick)
     echo "v1: built and attached $STICK_VHDX"
     ;;
 windows)
+    python3 evict-builds.py --wait   # WSL's cache starves Hyper-V (rig README): sweep, wait for room
     PS start; sleep 10
     PS key 40; sleep 1; PS key 40; sleep 1; PS key 40; sleep 1
     PS shot "C:\\upgrade-rig\\hv\\shots\\v1-grub-selected.png" >/dev/null 2>&1 || true; cp "$HV/shots/v1-grub-selected.png" "$A/" 2>/dev/null || true

@@ -77,9 +77,10 @@ pub fn csv_row(fields: &[&str]) -> String {
 
 /// The harness-written part of the notes: what the machine was and how the
 /// marker was read, independent of the operator.
-pub fn harness_note(os_caption: &str, os_build: &str, bitlocker_source: &str, fired_via: &[String], auto: bool, payload: &str) -> String {
+pub fn harness_note(os_caption: &str, os_build: &str, bitlocker_source: &str, fired_via: &[String], auto: bool, payload: &str, program: &str) -> String {
     let via = if fired_via.is_empty() { "none".to_string() } else { fired_via.join("+") };
-    format!("[harness: os={os_caption} {os_build}; bitlocker-via={bitlocker_source}; fired-via={via}; mode={}; payload={payload}]", if auto { "auto" } else { "manual" })
+    // `program=` is the Rust's own addition: a row it wrote says so (the script's rows have no such field)
+    format!("[harness: os={os_caption} {os_build}; bitlocker-via={bitlocker_source}; fired-via={via}; mode={}; payload={payload}; program={program}]", if auto { "auto" } else { "manual" })
 }
 
 /// The notes column: the harness's facts first, the operator's words after.
@@ -323,9 +324,7 @@ pub mod live {
         let registered = (|| -> Result<(), String> {
             let me = std::env::current_exe().map_err(|e| e.to_string())?;
             let exe = state.join("upgrade-prologue.exe");
-            if std::fs::canonicalize(&me).ok() != std::fs::canonicalize(&exe).ok() {
-                std::fs::copy(&me, &exe).map_err(|e| format!("copying the program to the state directory: {e}"))?;
-            }
+            plive::place_program(&me, &exe)?;
             let user = upgrade_scan::collect::win::account_name();
             if user.is_empty() {
                 return Err("could not name the signed-in account for the logon task".into());
@@ -482,7 +481,7 @@ pub mod live {
             let n = read_line("  Notes (recovery prompt? vendor logo hang? blank = none) ");
             (k, w, n)
         };
-        let notes = notes_with(&harness_note(&s(&r["OsCaption"]), &s(&r["OsBuild"]), &s(&r["BitLockerSource"]), &fired_via, is_auto, &s(&r["Payload"])), &notes);
+        let notes = notes_with(&harness_note(&s(&r["OsCaption"]), &s(&r["OsBuild"]), &s(&r["BitLockerSource"]), &fired_via, is_auto, &s(&r["Payload"]), version_line), &notes);
         // the evidence row: -Auto without an explicit file writes to the stick itself
         let mut csv_arg = results_csv.map(String::from);
         if csv_arg.is_none() && !s(&r["ResultsCsvArg"]).is_empty() {
@@ -535,11 +534,11 @@ mod tests {
 
     #[test]
     fn the_notes_lead_with_the_harness() {
-        let h = harness_note("Microsoft Windows 10 Pro", "19045", "cmdlet", &["grubenv".into()], true, "shim");
-        assert_eq!(h, "[harness: os=Microsoft Windows 10 Pro 19045; bitlocker-via=cmdlet; fired-via=grubenv; mode=auto; payload=shim]");
+        let h = harness_note("Microsoft Windows 10 Pro", "19045", "cmdlet", &["grubenv".into()], true, "shim", "upgrade-prologue 0.1.0");
+        assert_eq!(h, "[harness: os=Microsoft Windows 10 Pro 19045; bitlocker-via=cmdlet; fired-via=grubenv; mode=auto; payload=shim; program=upgrade-prologue 0.1.0]");
         assert_eq!(notes_with(&h, "  "), h);
         assert_eq!(notes_with(&h, "logo hang"), format!("{h} logo hang"));
-        assert!(harness_note("w", "1", "none", &[], false, "shell").contains("fired-via=none; mode=manual"));
+        assert!(harness_note("w", "1", "none", &[], false, "shell", "p").contains("fired-via=none; mode=manual"));
     }
 
     #[test]

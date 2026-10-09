@@ -686,9 +686,9 @@ Test-Handoff.ps1,"drive: a path is refused",selftest,"upgrade_/prologue/tests/ve
 Test-Handoff.ps1,"v0-handoff.csv:2 (QEMU)",rig,,owed,2026-10-07
 Test-Handoff.ps1,"v0-handoff.csv:3 (QEMU)",rig,,owed,2026-10-07
 Test-Handoff.ps1,"v0-handoff.csv:4 (QEMU)",rig,,owed,2026-10-07
-Test-Handoff.ps1,"v0-handoff.csv:5 (Microsoft Corporation)",rig,,owed,2026-10-07
-Test-Handoff.ps1,"v0-handoff.csv:6 (Microsoft Corporation)",rig,,owed,2026-10-07
-Test-Handoff.ps1,"v0-handoff.csv:7 (Microsoft Corporation)",rig,,owed,2026-10-07
+Test-Handoff.ps1,"v0-handoff.csv:5 (Microsoft Corporation)",rig,"v0-handoff.csv:13 (upgrade-prologue verify-arm --auto on the rig, erase arm A: fired-once, the Rust return check at the sign-in wrote the row; its state record names the program)",pass,2026-10-09
+Test-Handoff.ps1,"v0-handoff.csv:6 (Microsoft Corporation)",rig,"v0-handoff.csv:13 (upgrade-prologue verify-arm --auto on the rig, erase arm A: fired-once, the Rust return check at the sign-in wrote the row; its state record names the program)",pass,2026-10-09
+Test-Handoff.ps1,"v0-handoff.csv:7 (Microsoft Corporation)",rig,"v0-handoff.csv:13 (upgrade-prologue verify-arm --auto on the rig, erase arm A: fired-once, the Rust return check at the sign-in wrote the row; its state record names the program)",pass,2026-10-09
 Test-Handoff.ps1,"v0-handoff.csv:8 (QEMU)",rig,,owed,2026-10-07
 Test-Handoff.ps1,"v0-handoff.csv:9 (QEMU)",rig,,owed,2026-10-07
 Test-Handoff.ps1,"v0-handoff.csv:10 (QEMU)",rig,,owed,2026-10-07

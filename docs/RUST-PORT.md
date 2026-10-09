@@ -606,6 +606,26 @@ cautious side. Mapped now (`collect::storage::operational_status`), with
 the run as its source; the neighbouring codes (Scan Needed, Spot Fix
 Needed) have not been seen raw and stay numbers until they are.
 
+**The erase bench's arm A with the Rust verify handoff (2026-10-08 and
+2026-10-09):** `upgrade-prologue verify-arm --auto` armed the one-shot on
+the rig, the stick booted, and the Rust return check ran at the autologon
+sign-in and wrote its row (`v0-handoff.csv` line 13: `fired-once`, the
+popup's answer `unknown` as on every rig row, `windows_returned=y`). Two
+things came out of it. First, the live boot of the first attempt hung at
+the installer's early systemd (the SELinux relabel line) for a whole day
+with the bench session gone; its frames are kept in
+`rig/hyperv/artifacts/v9/A-hung-2026-10-08/`, the cause is unknown, and
+the second attempt booted. Second, a real defect: the re-arm refused with
+"copying the program to the state directory: being used by another
+process", because the previous return check was still showing its
+two-minute "done" popup from that same copy of the program. The script
+never met this (it copies a `.ps1`, which Windows does not lock). The arm
+backed out as it should ("the boot entry was removed again. Nothing is
+armed."). Fixed: a copy that already holds the same bytes is left alone
+(`live::place_program`, used by the SYSTEM resume task and the verify
+return task alike). Rows the Rust writes now say `program=upgrade-prologue
+...` in their notes, so they can be told from the script's.
+
 **A finding from 5a for `main`:** `Get-PrologueRepairMethod` knows only
 Windows 10's scan names. On Windows 11 a scan that found errors
 (`ScanErrorsFoundNeedSpotFix`) with no other evidence makes the prologue

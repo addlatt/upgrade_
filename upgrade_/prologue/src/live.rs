@@ -652,9 +652,7 @@ pub fn protect_state_dir(rec: &mut Recorder, state: &str) -> Result<Vec<String>,
 pub fn register_resume_task(rec: &mut Recorder, state: &str) -> Result<Vec<String>, String> {
     let me = std::env::current_exe().map_err(|e| e.to_string())?;
     let copy = Path::new(state).join("upgrade-prologue.exe");
-    if !same_file(&me, &copy) {
-        std::fs::copy(&me, &copy).map_err(|e| format!("copying the program to the state directory: {e}"))?;
-    }
+    place_program(&me, &copy)?;
     let acl = protect_state_dir(rec, state)?;
     let xml_path = Path::new(state).join("resume-task.xml");
     let xml = resume_task_xml(&copy.to_string_lossy(), state);
@@ -677,6 +675,35 @@ pub fn register_resume_task(rec: &mut Recorder, state: &str) -> Result<Vec<Strin
         return Err("the resume task did not register as SYSTEM; removed again".to_string());
     }
     Ok(acl)
+}
+
+/// The program's copy in a state directory, from which a task runs it. A
+/// copy that already holds the same bytes is left alone: the previous
+/// check or resume may still be running from it (its last popup, up to two
+/// minutes), and Windows refuses to overwrite a running program. The rig's
+/// erase arm A found this on 2026-10-09: a re-arm within those minutes
+/// failed with "being used by another process" and backed out.
+pub fn place_program(me: &Path, copy: &Path) -> Result<(), String> {
+    if same_file(me, copy) {
+        return Ok(());
+    }
+    let same_bytes = || -> bool {
+        match (std::fs::read(me), std::fs::read(copy)) {
+            (Ok(a), Ok(b)) => Sha256::digest(&a) == Sha256::digest(&b),
+            _ => false,
+        }
+    };
+    if copy.exists() && same_bytes() {
+        return Ok(());
+    }
+    match std::fs::copy(me, copy) {
+        Ok(_) => Ok(()),
+        Err(e) if copy.exists() && same_bytes() => {
+            let _ = e;
+            Ok(())
+        }
+        Err(e) => Err(format!("copying the program to the state directory: {e}")),
+    }
 }
 
 fn same_file(a: &Path, b: &Path) -> bool {

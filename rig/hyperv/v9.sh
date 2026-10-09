@@ -82,6 +82,7 @@ prepare)
 stick) MODE=prologue ./v1.sh stick ;;
 windows)
     for f in "$STICK_VHDX" "$ERA_VHDX" "$HOME_VHDX" artifacts/v1/stick.img ../../dist/kit/stick/upgrade_/LiveOS/*.squashfs ../../dist/kit/stick/images/install.img; do evict "$f" 2>/dev/null || true; done
+    python3 evict-builds.py --wait   # and the build outputs, then wait for room (rig README, 2026-10-08)
     PS start; wait_windows 900 ;;
 job)
     mkdir -p "$A"
