@@ -694,7 +694,7 @@ Test-Handoff.ps1,"v0-handoff.csv:9 (QEMU)",rig,,owed,2026-10-07
 Test-Handoff.ps1,"v0-handoff.csv:10 (QEMU)",rig,,owed,2026-10-07
 Test-Handoff.ps1,"v0-handoff.csv:11 (Acer)",physical,,owed,2026-10-07
 Test-Handoff.ps1,"v0-handoff.csv:12 (Acer)",physical,,owed,2026-10-07
-Test-Handoff.ps1,"v1-live-boot.csv:2 (the handoff that booted the stick; Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
-Test-Handoff.ps1,"v1-live-boot.csv:3 (the handoff that booted the stick; Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
-Test-Handoff.ps1,"v1-live-boot.csv:4 (the handoff that booted the stick; Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Test-Handoff.ps1,"v1-live-boot.csv:2 (the handoff that booted the stick; Hyper-V UEFI Release v4.1)",rig,"v1-live-boot.csv:6 (PROLOGUE=rust v1.sh run: upgrade-prologue verify-arm booted the stick, fired-once, the Rust return check wrote v0-handoff.csv:15)",pass,2026-10-09
+Test-Handoff.ps1,"v1-live-boot.csv:3 (the handoff that booted the stick; Hyper-V UEFI Release v4.1)",rig,"v1-live-boot.csv:6 (PROLOGUE=rust v1.sh run: upgrade-prologue verify-arm booted the stick, fired-once, the Rust return check wrote v0-handoff.csv:15)",pass,2026-10-09
+Test-Handoff.ps1,"v1-live-boot.csv:4 (the handoff that booted the stick; Hyper-V UEFI Release v4.1)",rig,"v1-live-boot.csv:6 (PROLOGUE=rust v1.sh run: upgrade-prologue verify-arm booted the stick, fired-once, the Rust return check wrote v0-handoff.csv:15)",pass,2026-10-09
 Test-Handoff.ps1,"v1-live-boot.csv:5 (the handoff that booted the stick; Acer Aspire A515-51G, InsydeH2O BIOS V1.21)",physical,,owed,2026-10-07

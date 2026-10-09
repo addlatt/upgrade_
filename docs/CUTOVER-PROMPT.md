@@ -5,25 +5,26 @@ Paste everything below the line into a new Claude Code session opened in
 this work before. Written 2026-10-07; the facts in it are as of commit
 `97476be` on `rust-port`.
 
-**Progress (2026-10-08, branch `cutover`, commit 38fd388 and after):**
-items 1 to 7 are done and proven on the rig, 8 and 9 are built, 10 is
-under way. `docs/RUST-PORT.md`'s status table (rows 3f, 3g, 4c, 4d, 5a,
-5b, 5c, 0) and `docs/validation-results/port-parity.csv` say exactly what
-each one proved. Item 7's rig rows: the keep-Windows path with the disk
-check (`r18-prologue.csv` line 14, `v2-install.csv` line 8), the rollback
-(`r21-rollback.csv` line 4), all `pass-plumbing`; the probe arm is the
-next; the erase arms (`v9.sh`) and the Aspire are owed. `Test-Handoff.ps1`
-is ported too (`upgrade-prologue verify-arm|verify-check`, 5c). Item 8:
-all six launchers are flows in `UPGRADE.exe` (the data-loss variants
-behind `--accepting-data-loss` from `UPGRADE-ACCEPTING-DATA-LOSS.cmd`),
-untried on the rig (`v12.sh` next). Item 9: the toolchain is pinned,
-the builds stripped and remapped, `rebuild-check.sh` is the proof (its
-first row owed). Still owed from earlier: the harvester's elevated
-side-by-side on the G16, a `job.json` beside the PowerShell's (needs the
-kit stick in the G16). Traps met since: the rig's VM will not start
-while WSL holds a lot of page cache (evict the build outputs first, see
-`rig/hyperv/README.md`); the fresh rig disk carries a pending Windows
-update (the bench clears it first).
+**Progress (2026-10-09, branch `cutover`, fast-forwarded into
+`rust-port`):** items 1 to 9 are done; 10 is current. Every rig arm the
+PowerShell had rows for has now run with the Rust and passed: the
+keep-Windows path with the disk check (`r18-prologue.csv` 14,
+`v2-install.csv` 8), the rollback (`r21-rollback.csv` 4), the walk-away
+probe (`walkaway-probe.csv` 4), the erase's four arms (`v9-erase.csv` 32
+to 35), the verify handoff and its return check (`v0-handoff.csv` 13 to
+15, `v1-live-boot.csv` 6), and the window's verify flow up to the rig's
+own USB limit (`v12-window.csv` 3). The five programs rebuild to the same
+bytes from a fresh clone (`r14-rebuild.csv` 22 to 26; one Cargo
+workspace at the root, `rebuild-check.sh`). `docs/RUST-PORT.md`'s status
+table and `port-parity.csv` (648 pass, 51 owed) say exactly what each one
+proved; what is owed is the Aspire's physical rows (the owner at the
+keyboard), the QEMU rig's old handoff rows, the stand-in jobs the rig
+benches still write with the scripts, the harvester's elevated
+side-by-side on the G16 and a `job.json` beside the PowerShell's. Traps
+met: the rig's VM will not start while WSL holds build output in its
+page cache (every bench now runs `rig/hyperv/evict-builds.py --wait`
+first); the fresh rig disk carries a pending Windows update (the bench
+clears it first); a re-arm within the return check's popups.
 
 ---
 
