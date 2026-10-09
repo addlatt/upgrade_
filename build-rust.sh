@@ -15,6 +15,10 @@ command -v cargo-zigbuild >/dev/null || { echo "build-rust.sh: cargo-zigbuild no
 # rustc would write into the binary are remapped to fixed names; the toolchain is
 # pinned by rust-toolchain.toml at the root; Cargo.lock is honoured (--locked)
 export RUSTFLAGS="--remap-path-prefix=$ROOT=/upgrade_ --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo ${RUSTFLAGS:-}"
+# the one byte that still differed between two clean builds was the PE header's link
+# timestamp (rebuild-check, 2026-10-09); zig's linker takes it from SOURCE_DATE_EPOCH, so
+# it is the commit's own time (or 0 outside git)
+export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT" log -1 --format=%ct 2>/dev/null || echo 0)}"
 if [ "${1:-}" = --toolchain ]; then
     echo "rustc $(rustc --version | cut -d' ' -f2-) ($(cat "$ROOT/rust-toolchain.toml" | grep channel | cut -d'"' -f2) pinned); $(cargo-zigbuild --version); zig $(zig version); target x86_64-pc-windows-gnu; cargo --locked; paths remapped"
     exit 0

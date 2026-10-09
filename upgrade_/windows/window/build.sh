@@ -18,6 +18,7 @@ command -v cargo-zigbuild >/dev/null || { echo "build.sh: cargo-zigbuild not fou
 ROOT="$(cd ../../.. && pwd)"
 # the same bytes from any checkout (RISKS R14): see build-rust.sh
 export RUSTFLAGS="--remap-path-prefix=$ROOT=/upgrade_ --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo ${RUSTFLAGS:-}"
+export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT" log -1 --format=%ct 2>/dev/null || echo 0)}"   # the PE timestamp (see build-rust.sh)
 cargo test --locked --quiet >/dev/null 2>&1 || { echo "build.sh: the window's tests fail (cargo test)" >&2; exit 1; }
 cargo zigbuild --locked --release --quiet --target x86_64-pc-windows-gnu
 echo "$PWD/target/x86_64-pc-windows-gnu/release/UPGRADE.exe"
