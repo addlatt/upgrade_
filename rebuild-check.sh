@@ -17,6 +17,9 @@ if [ "${1:-}" = --kit ]; then
     KIT="$2"; here=()
     for e in "${EXES[@]}"; do here+=("$KIT/$(basename "$e")"); done
 else
+    # cargo does not count SOURCE_DATE_EPOCH or RUSTFLAGS-only changes as a reason to relink
+    # (run 2, 2026-10-09: this tree's old binaries were compared), so the outputs go first
+    for e in "${EXES[@]}"; do rm -f "${ROOT:?}/$e"; done
     "$ROOT/build-rust.sh" >/dev/null; "$ROOT/upgrade_/windows/window/build.sh" >/dev/null
     here=(); for e in "${EXES[@]}"; do here+=("$ROOT/$e"); done
 fi
