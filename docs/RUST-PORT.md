@@ -481,8 +481,18 @@ data/tables.json     the data tables as JSON (written by a tool)
 port-check.sh        the one command
 ```
 
-Each crate stands alone with its own `Cargo.lock`, like `settle-in` and the
-window. Both build for `x86_64-pc-windows-gnu` (checked 2026-10-04). The
+**Since 2026-10-09 the Windows-side crates are one Cargo workspace** (the
+`Cargo.toml` at the repo root: the schema library, the kickstart, the
+scanner, the harvester, the job writer, the prologue and the window), with
+one `Cargo.lock` and one `target/` at the root; the release profile lives
+there too. `settle-in` and its two crates stay on their own. The reason is
+R14: a path dependency outside a workspace is hashed by its absolute path
+into every symbol name (cargo's `-C metadata`), so two checkouts could never
+give the same bytes (`r14-rebuild.csv` lines 17 to 21: the scanner, which
+has no path dependencies, matched; the four that have them did not, and the
+`-C metadata` of `upgrade-scan` as a dependency read `806e31c6…` in one
+clone and `1838d06d…` in the other). Members of a workspace are hashed
+relative to its root. All of it builds for `x86_64-pc-windows-gnu`; the
 tests run on Linux, so a session without Windows can still run them; only
 recording the golden files needs `powershell.exe`.
 
@@ -507,7 +517,12 @@ pinned and checked:
   with this checkout's, one row per program in
   `docs/validation-results/r14-rebuild.csv`. A second person runs the
   same script on their machine; a `same=n` row is a finding, not a
-  rounding error. First run: owed (the rig was busy when this was built).
+  rounding error. Its first four runs (2026-10-09) were findings: the PE
+  header's link timestamp (one byte; now the commit's time through
+  `SOURCE_DATE_EPOCH`), this tree not being relinked (the check now
+  cleans each package first), and the path dependencies' absolute paths
+  in the symbol names (now a workspace, above). The fifth run is the one
+  to read.
 
 ## The cut-over sessions (from 2026-10-07)
 

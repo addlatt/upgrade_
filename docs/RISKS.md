@@ -644,8 +644,11 @@ built reproducibly.** One pinned toolchain (`rust-toolchain.toml`: rustc
 `--locked`, symbols stripped, one codegen unit, source paths remapped. The
 kit's manifest carries each program's sha256 and the toolchain line, and
 `rebuild-check.sh` rebuilds from a fresh clone and compares, one row per
-program in `docs/validation-results/r14-rebuild.csv`. Signing and the
-release credential are still open; the first rebuild row is owed.
+program in `docs/validation-results/r14-rebuild.csv`. Its first four runs
+(2026-10-09) each found one more thing that leaked into the bytes: the PE
+link timestamp (now the commit's time), a stale relink, and path
+dependencies hashed by their absolute path (now one Cargo workspace at
+the root). Signing and the release credential are still open.
 
 ---
 

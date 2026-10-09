@@ -17,9 +17,3 @@ roxmltree = "0.21"
 # the live reads (src/collect): Windows only, through Microsoft's own bindings
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Com", "Win32_System_Wmi", "Win32_System_Ole", "Win32_System_Variant", "Win32_System_Registry", "Win32_System_Rpc", "Win32_System_Time", "Win32_System_EventLog", "Win32_System_Threading", "Win32_System_SystemServices", "Win32_System_WindowsProgramming", "Win32_Storage_FileSystem", "Win32_Security", "Win32_UI_Shell"] }
-
-# the same bytes from any machine (RISKS R14): symbols out, one codegen unit;
-# build-rust.sh remaps the source paths and pins the toolchain (rust-toolchain.toml)
-[profile.release]
-strip = true
-codegen-units = 1

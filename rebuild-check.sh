@@ -12,7 +12,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REV=$(git -C "$ROOT" rev-parse --short HEAD)
 [ -z "$(git -C "$ROOT" status --porcelain -- evaluate upgrade_ schemas settle-in Cargo.lock 2>/dev/null | grep -v '^??')" ] || { echo "rebuild-check: commit first (the clone builds HEAD, this tree has edits)" >&2; exit 1; }
-EXES=(evaluate/scan/target/x86_64-pc-windows-gnu/release/upgrade-scan.exe evaluate/harvest/target/x86_64-pc-windows-gnu/release/upgrade-harvest.exe evaluate/job/target/x86_64-pc-windows-gnu/release/upgrade-job.exe upgrade_/prologue/target/x86_64-pc-windows-gnu/release/upgrade-prologue.exe upgrade_/windows/window/target/x86_64-pc-windows-gnu/release/UPGRADE.exe)
+EXES=(target/x86_64-pc-windows-gnu/release/upgrade-scan.exe target/x86_64-pc-windows-gnu/release/upgrade-harvest.exe target/x86_64-pc-windows-gnu/release/upgrade-job.exe target/x86_64-pc-windows-gnu/release/upgrade-prologue.exe target/x86_64-pc-windows-gnu/release/UPGRADE.exe)
 if [ "${1:-}" = --kit ]; then
     KIT="$2"; here=()
     for e in "${EXES[@]}"; do here+=("$KIT/$(basename "$e")"); done
@@ -20,8 +20,8 @@ else
     # cargo does not count SOURCE_DATE_EPOCH as a reason to relink, and a deleted final exe
     # is only copied again from deps/ (runs 2 and 3, 2026-10-09: this tree's old binaries
     # were compared), so each package is cleaned for the Windows target first
-    for c in evaluate/scan:upgrade-scan evaluate/harvest:upgrade-harvest evaluate/job:upgrade-job upgrade_/prologue:upgrade-prologue upgrade_/windows/window:upgrade-window; do
-        (cd "$ROOT/${c%%:*}" && cargo clean -p "${c##*:}" --release --target x86_64-pc-windows-gnu --quiet)
+    for c in upgrade-scan upgrade-harvest upgrade-job upgrade-prologue upgrade-window; do
+        (cd "$ROOT" && cargo clean -p "$c" --release --target x86_64-pc-windows-gnu --quiet)
     done
     "$ROOT/build-rust.sh" >/dev/null; "$ROOT/upgrade_/windows/window/build.sh" >/dev/null
     here=(); for e in "${EXES[@]}"; do here+=("$ROOT/$e"); done

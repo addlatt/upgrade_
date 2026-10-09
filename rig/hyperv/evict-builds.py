@@ -10,7 +10,7 @@ root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 home = os.path.expanduser('~')
 wait = '--wait' in sys.argv
 args = [a for a in sys.argv[1:] if a != '--wait']
-dirs = [os.path.join(root, d) for d in ('evaluate/scan/target', 'evaluate/harvest/target', 'evaluate/job/target', 'upgrade_/prologue/target', 'upgrade_/kickstart/target', 'schemas/rust/target', 'upgrade_/windows/window/target', 'settle-in/target', 'settle-in/window/target', 'settle-in/gate/target', 'dist/kit', 'rig/hyperv/artifacts')] + [os.path.join(home, '.cargo/registry'), os.path.join(home, '.rustup'), '/mnt/c/upgrade-rig/hv/vm'] + args
+dirs = [os.path.join(root, d) for d in ('target', 'evaluate/scan/target', 'evaluate/harvest/target', 'evaluate/job/target', 'upgrade_/prologue/target', 'upgrade_/kickstart/target', 'schemas/rust/target', 'upgrade_/windows/window/target', 'settle-in/target', 'settle-in/window/target', 'settle-in/gate/target', 'dist/kit', 'rig/hyperv/artifacts')] + [os.path.join(home, '.cargo/registry'), os.path.join(home, '.rustup'), '/mnt/c/upgrade-rig/hv/vm'] + args
 n = b = 0
 for top in dirs:
     for d, _, fs in os.walk(top):
