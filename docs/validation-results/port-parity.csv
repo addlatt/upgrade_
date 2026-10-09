@@ -602,7 +602,7 @@ Invoke-Prologue.ps1,"v2-install.csv:3 (Hyper-V UEFI Release v4.1)",rig,,owed,202
 Invoke-Prologue.ps1,"v2-install.csv:4 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
 Invoke-Prologue.ps1,"v2-install.csv:5 (Hyper-V UEFI Release v4.1)",rig,"v2-install.csv:7 (PROLOGUE=rust prologue.sh run: keep-windows, kde, pass-plumbing)",pass,2026-10-07
 Invoke-Prologue.ps1,"v2-install.csv:6 (Hyper-V UEFI Release v4.1)",rig,"v2-install.csv:7 (PROLOGUE=rust prologue.sh run: keep-windows, kde, pass-plumbing)",pass,2026-10-07
-Invoke-Prologue.ps1,"v9-erase.csv:2 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:2 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:35 (arm A armed by upgrade-prologue verify-arm: refused-before-countdown)",pass,2026-10-09
 Invoke-Prologue.ps1,"v9-erase.csv:3 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:4 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
 Invoke-Prologue.ps1,"v9-erase.csv:5 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:34 (PROLOGUE=rust v9.sh arm B: a key during the countdown, cancelled-untouched, the return wrote the stopped outcome)",pass,2026-10-08
@@ -614,7 +614,7 @@ Invoke-Prologue.ps1,"v9-erase.csv:10 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.
 Invoke-Prologue.ps1,"v9-erase.csv:11 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
 Invoke-Prologue.ps1,"v9-erase.csv:12 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:13 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:14 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:14 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:35 (arm A armed by upgrade-prologue verify-arm: refused-before-countdown)",pass,2026-10-09
 Invoke-Prologue.ps1,"v9-erase.csv:15 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:16 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:34 (PROLOGUE=rust v9.sh arm B: a key during the countdown, cancelled-untouched, the return wrote the stopped outcome)",pass,2026-10-08
 Invoke-Prologue.ps1,"v9-erase.csv:17 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:34 (PROLOGUE=rust v9.sh arm B: a key during the countdown, cancelled-untouched, the return wrote the stopped outcome)",pass,2026-10-08
