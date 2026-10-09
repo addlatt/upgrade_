@@ -648,7 +648,9 @@ program in `docs/validation-results/r14-rebuild.csv`. Its first four runs
 (2026-10-09) each found one more thing that leaked into the bytes: the PE
 link timestamp (now the commit's time), a stale relink, and path
 dependencies hashed by their absolute path (now one Cargo workspace at
-the root). Signing and the release credential are still open.
+the root). The fifth run, commit `4b21dc3`: all five programs the same
+bytes from a fresh clone (`r14-rebuild.csv` lines 22 to 26). Signing and
+the release credential are still open.
 
 ---
 

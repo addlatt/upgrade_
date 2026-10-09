@@ -521,8 +521,10 @@ pinned and checked:
   header's link timestamp (one byte; now the commit's time through
   `SOURCE_DATE_EPOCH`), this tree not being relinked (the check now
   cleans each package first), and the path dependencies' absolute paths
-  in the symbol names (now a workspace, above). The fifth run is the one
-  to read.
+  in the symbol names (now a workspace, above). The fifth run (commit
+  `4b21dc3`, `r14-rebuild.csv` lines 22 to 26): all five programs the same
+  bytes from a fresh clone. `[####]` for the bytes; signing is R14's
+  remaining half.
 
 ## The cut-over sessions (from 2026-10-07)
 
