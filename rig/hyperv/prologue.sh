@@ -123,6 +123,8 @@ windows)
     # page cache and Hyper-V then cannot allocate the guest's RAM ("Insufficient
     # system resources", storage-mode runs 1 and 6): evict before every start
     for f in "$HV/vm/v1-stick.vhdx" "$PRO_VHDX" artifacts/v1-stick.img ../../dist/kit/stick/upgrade_/LiveOS/*.squashfs ../../dist/kit/stick/images/install.img; do evict "$f" 2>/dev/null || true; done
+    # and the build outputs (2026-10-08: cargo's target dirs starved three starts), then wait for room
+    python3 evict-builds.py --wait
     PS start; wait_windows 900 ;;
 update-clear)
     # The fresh rig disk carries a Windows update waiting for a restart (CBS

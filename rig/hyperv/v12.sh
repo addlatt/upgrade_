@@ -63,6 +63,8 @@ stick)
     MODE=window ./v1.sh stick
     ;;
 windows)
+    # WSL's page cache starves Hyper-V (rig README): sweep it and wait for room first
+    python3 evict-builds.py --wait
     PS start; wait_windows 900; wait_session
     ;;
 start)
