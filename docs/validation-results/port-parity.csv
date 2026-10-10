@@ -633,7 +633,7 @@ Invoke-Prologue.ps1,"v9-erase.csv:29 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.
 Invoke-Prologue.ps1,"v9-erase.csv:30 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
 Invoke-Prologue.ps1,"v9-erase.csv:31 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
 Invoke-Prologue.ps1,"walkaway-probe.csv:2 (Microsoft Corporation)",rig,"walkaway-probe.csv:4 (PROLOGUE=rust prologue.sh probe: resumed-unattended, SYSTEM session 0, stick after 4 s)",pass,2026-10-08
-Invoke-Prologue.ps1,"walkaway-probe.csv:3 (Acer)",physical,,owed,2026-10-07
+Invoke-Prologue.ps1,"walkaway-probe.csv:3 (Acer)",physical,"walkaway-probe.csv:5 (the Aspire, 2026-10-10: upgrade-prologue probe from UPGRADE.exe, Secure Boot on, resumed-unattended as SYSTEM 12 s after boot, stick after 1 s)",pass,2026-10-10
 Invoke-Rollback.ps1,"sums: paths keyed lower-case with forward slashes, ./ stripped",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
 Invoke-Rollback.ps1,"sums: an EFI\BOOT backslash upper-case line keys the same",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
 Invoke-Rollback.ps1,"plan: shim in the slot -> restore",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
