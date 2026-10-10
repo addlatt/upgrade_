@@ -197,7 +197,7 @@ pub mod live {
             }
             // shim in Windows' slot (architecture step 12): Windows' loader back under its own name first
             let mut slot_lines = Vec::new();
-            let slot_undone = crate::windows_slot::live::undo(rec, state_dir, &mut |l| slot_lines.push(l))?;
+            let slot_undone = crate::windows_slot::live::undo_at(rec, &esp, state_dir, &mut |l| slot_lines.push(l))?;
             for l in &slot_lines {
                 println!("{l}");
             }

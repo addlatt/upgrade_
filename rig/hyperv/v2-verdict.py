@@ -156,10 +156,12 @@ if (A / "boots.log").exists():
             if o is not None: clock_offsets.append(o)
 notes.append(f"boots after install-done: windows={wb} linux={lb}")
 if from_record: notes.append(f"{from_record} Windows boot(s) known only from the return's own record: the return applied shim in Windows' slot and restarted before the bench saw Windows")
-# R36: what must not happen is a Linux boot moving Windows' clock; the baseline is Windows' clock before the conversion
-clock_moves = [o - clock_before for o in clock_offsets] if clock_before is not None else []
+# R36: what must not happen is a Linux boot leaving Windows' clock further from the host's than it was before
+# the conversion (the rig's guest starts hours off: Hyper-V hands it a UTC hardware clock that Windows reads as
+# local time, R36's own failure mode; a Linux boot that brings it nearer is the fix at work, not a fault)
+clock_worse = [abs(o) - abs(clock_before) for o in clock_offsets] if clock_before is not None else []
 if clock_offsets:
-    notes.append("Windows' clock against the host's: before the conversion " + (f"{clock_before:+d} s" if clock_before is not None else "not recorded") + "; at each Windows boot " + ", ".join(f"{o:+d} s" for o in clock_offsets) + (" (moved by " + ", ".join(f"{d:+d} s" for d in clock_moves) + ")" if clock_moves else "") + " (R36)")
+    notes.append("Windows' clock against the host's: before the conversion " + (f"{clock_before:+d} s" if clock_before is not None else "not recorded") + "; at each Windows boot " + ", ".join(f"{o:+d} s" for o in clock_offsets) + (" (further off by " + ", ".join(f"{d:+d} s" for d in clock_worse) + ")" if clock_worse else "") + " (R36)")
 _hist = [h for h in (_slot.get("history") or []) if isinstance(h, dict)]
 if _hist: notes.append("the guard re-applied the slot " + str(len([h for h in _hist if h.get("action") == "reapplied"])) + " time(s) (R22 under step 12; the bench's service step)")
 if v0: notes.append("v0 row: " + v0["notes"][:120])
@@ -180,7 +182,7 @@ elif wb < 1 or grub_win != "y": result = "windows-unbootable-via-grub"
 elif lb < 1: result = "linux-unbootable"
 elif fallback not in ("shim", "shim-in-windows-slot") or snap_files < 1: result = "fallback-loader-unrecorded"
 elif wb < 2 or lb < 2: result = "cycles-incomplete"
-elif any(abs(d) > 300 for d in clock_moves) or (clock_before is None and any(abs(o) > 300 for o in clock_offsets)): result = "windows-clock-wrong"   # R36: a Linux boot moved the kept Windows' clock
+elif any(d > 300 for d in clock_worse) or (clock_before is None and any(abs(o) > 300 for o in clock_offsets)): result = "windows-clock-wrong"   # R36: a Linux boot left the kept Windows' clock further off
 else: result = PASS
 
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), HARNESS, FIRMWARE, sb, path, desktop, handoff,
