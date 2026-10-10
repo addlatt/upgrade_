@@ -386,6 +386,8 @@ rollback)
     ;;
 verdict)
     mkdir -p "$A"
+    # a run that never started leaves no convert.log; a verdict on an empty folder is noise, not evidence (2026-10-10)
+    [ -s "$A/convert.log" ] || { echo "prologue: no convert.log in $A: the flow did not run here, so no row is written" >&2; exit 1; }
     python3 prologue-verdict.py "$A" "$CSV" "$HARNESS_VERSION" "$FIRMWARE" || true
     python3 v2-verdict.py "$A" "$CSV_V2" "$HARNESS_VERSION-prologue" "$FIRMWARE"
     ;;
