@@ -93,6 +93,15 @@ wait_off() {
     echo "prologue: Off after $(( $(date +%s) - t0 )) s"
 }
 wait_windows() { t0=$(date +%s); while :; do guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV' && { echo "prologue: Windows up after $(( $(date +%s) - t0 )) s"; return 0; }; [ $(( $(date +%s) - t0 )) -ge "${1:-600}" ] && { shot win-stuck; echo "prologue: no Windows within ${1:-600} s" >&2; return 2; }; sleep 10; done; }
+slot_applied_utc() { [ -s "$1" ] && python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("windows_slot") or {}).get("applied_utc",""))' "$1" 2>/dev/null || true; }
+stick_offline() {
+    # the guest is Off: read the stick's records from its VHDX (converted to a raw image; shell values never interpolated into Python)
+    local raw="${A:?}/stick-${1:?}.raw"; rm -f "$raw"
+    qemu-img convert -f vhdx -O raw "$HV/vm/v1-stick.vhdx" "$raw" || { echo "prologue: could not read the stick image" >&2; return 2; }
+    for f in prologue.json prologue-return.json outcome.json boots.log job.json ks.cfg; do mtype -i "$raw@@1M" "::/upgrade_/$f" > "$A/$f" 2>/dev/null || rm -f "${A:?}/${f:?}"; done
+    for f in prologue.log verify.json verify.log outcome.log efibootmgr-after.txt windows-slot.json tools.jsonl; do mtype -i "$raw@@1M" "::/upgrade_/report/$f" > "$A/$f" 2>/dev/null || rm -f "${A:?}/${f:?}"; done
+    rm -f "$raw"; echo "prologue: stick read offline ($1)"
+}
 pull() {  # $1 guest path, $2 local name
     guest "Get-Content '$1' -Raw -ErrorAction SilentlyContinue" > "$A/$2" 2>/dev/null || true
     if [ ! -s "$A/$2" ] || grep -q "Cannot find path" "$A/$2"; then rm -f "$A/$2"; fi
@@ -289,6 +298,10 @@ convert)
     # runs it. The typed word is the launcher's; here it is passed straight.
     ./v1.sh job
     # PROLOGUE=rust runs the Rust build from the stick (the cut-over, RISKS R32); the records it writes have the same names
+    # RISKS R36: Windows' clock against the host's BEFORE any Linux boot, the baseline the verdict
+    # compares every later Windows boot with (the rig's guest reads the host's UTC as local time, so
+    # it is hours off from the start; what must not happen is a Linux boot moving it further)
+    guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-clock-before,' + (Get-Date).ToUniversalTime().ToString('o') + ',host-utc=$(date -u +%FT%TZ)')" >/dev/null 2>&1 || true
     if [ "${PROLOGUE:-ps}" = rust ]; then
         guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --confirm-word CONVERT" | tee "$A/convert.log"
     else
@@ -306,22 +319,46 @@ cycle)
     if [ "$which" = windows ]; then
         for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; sleep 1; done
         shot "grub-selected-$tag"; PS key 13
-        wait_windows 600
-        L=$(stick_letter)
-        # the boot line first, with the host's clock beside the guest's (RISKS R36: a kept Windows that
-        # reads a UTC hardware clock as local time shows up here as hours of difference)
-        guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-boot,' + (Get-Date).ToUniversalTime().ToString('o') + ',via-grub,host-utc=$(date -u +%FT%TZ),BootCurrent=' + ((bcdedit /enum '{fwbootmgr}' | Select-String 'bootsequence|displayorder' | Select-Object -First 1) -replace '\\s+',' '))" >/dev/null 2>&1 || true
-        # the prologue's return check runs as SYSTEM at startup and leaves its record on the stick
-        t0=$(date +%s)
-        until guest "Test-Path ${L}:\\upgrade_\\prologue-return.json" 2>/dev/null | grep -q True; do [ $(( $(date +%s) - t0 )) -ge 420 ] && break; sleep 15; done
-        pull_all "$tag"
-        if [ -s "$A/prologue-return.json" ] && grep -q '"slot_sha_after"' "$A/prologue-return.json"; then
-            # architecture step 12: the return applied shim in Windows' slot (here forced by the bench marker)
-            # and restarts the guest itself; GRUB's default then boots Linux, which the bench marker shuts down
-            echo "prologue: the return applied shim in Windows' slot; the guest restarts itself into GRUB"
-            wait_off 900
+        applied_before=$(slot_applied_utc "$A/prologue-return.json")
+        # Windows answers, or the guest powers itself off first: when the return applies shim in Windows'
+        # slot (architecture step 12; here forced by the bench marker) it restarts within a minute, before
+        # PS Direct answers, GRUB's default boots Linux and the bench marker shuts the guest down (run b, 2026-10-10)
+        t0=$(date +%s); up=""
+        while :; do
+            guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV' && { up=1; echo "prologue: Windows up after $(( $(date +%s) - t0 )) s"; break; }
+            [ "$(vm_state)" = Off ] && { echo "prologue: the guest powered itself off after $(( $(date +%s) - t0 )) s, before Windows answered"; break; }
+            [ $(( $(date +%s) - t0 )) -ge 900 ] && { shot "win-stuck-$tag"; echo "prologue: neither Windows nor a power-off within 900 s" >&2; return 2; }
+            sleep 10
+        done
+        if [ -z "$up" ]; then
+            stick_offline "$tag"
+            applied_now=$(slot_applied_utc "$A/prologue-return.json")
+            if [ -n "$applied_now" ] && [ "$applied_now" != "$applied_before" ]; then
+                echo "prologue: the return applied shim in Windows' slot at $applied_now (guest clock) and restarted; Linux booted through GRUB's default and shut down"
+                # this Windows boot's line, from the return's own record, written to the stick at the next Windows start
+                echo "windows-boot,$applied_now,via-grub,from-return-record,slot-applied-by-return,host-utc=$(date -u +%FT%TZ)" >> "$A/deferred-boot-lines"
+            else
+                echo "prologue: the guest powered off without Windows answering and without a new slot record - read $A" >&2; return 2
+            fi
         else
-            PS stop; wait_off 300
+            L=$(stick_letter)
+            if [ -s "$A/deferred-boot-lines" ]; then
+                while IFS= read -r line; do guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value '$line'" >/dev/null 2>&1 || true; done < "$A/deferred-boot-lines"
+                rm -f "${A:?}/deferred-boot-lines"
+            fi
+            # the boot line first, with the host's clock beside the guest's (RISKS R36)
+            guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-boot,' + (Get-Date).ToUniversalTime().ToString('o') + ',via-grub,host-utc=$(date -u +%FT%TZ),BootCurrent=' + ((bcdedit /enum '{fwbootmgr}' | Select-String 'bootsequence|displayorder' | Select-Object -First 1) -replace '\\s+',' '))" >/dev/null 2>&1 || true
+            # the prologue's return check runs as SYSTEM at startup and leaves its record on the stick
+            t0=$(date +%s)
+            until guest "Test-Path ${L}:\\upgrade_\\prologue-return.json" 2>/dev/null | grep -q True; do [ $(( $(date +%s) - t0 )) -ge 420 ] && break; sleep 15; done
+            pull_all "$tag"
+            applied_now=$(slot_applied_utc "$A/prologue-return.json")
+            if [ -n "$applied_now" ] && [ "$applied_now" != "$applied_before" ]; then
+                echo "prologue: the return applied shim in Windows' slot at $applied_now (guest clock); the guest restarts itself into GRUB"
+                wait_off 900
+            else
+                PS stop; wait_off 300
+            fi
         fi
     else
         shot "grub-default-$tag"; wait_off 900

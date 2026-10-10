@@ -121,26 +121,34 @@ if other_changed: notes.append("pre-existing non-Microsoft ESP files changed: " 
 notes.append(f"install added {len([k for k in m1 if k not in m0])} files / {added} B to the ESP")
 
 # --- boots ----------------------------------------------------------------------
-wb = lb = 0; clock_offsets = []
+wb = lb = 0; clock_offsets = []; clock_before = None; from_record = 0
+def _offset(line):
+    m = re.search(r"host-utc=(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)Z", line)
+    if not m: return None
+    try:
+        g = datetime.datetime.fromisoformat(line.split(",")[1][:19]); h = datetime.datetime.fromisoformat(m.group(1))
+        return int((g - h).total_seconds())
+    except ValueError: return None
 if (A / "boots.log").exists():
     seen_done = False
     for line in open(A / "boots.log", encoding="utf-8-sig", errors="replace"):
         line = line.strip()
+        if line.startswith("windows-clock-before,"): clock_before = _offset(line); continue   # R36: the baseline, before any Linux boot
         if line.startswith("source,"): notes.append("boot log " + line[7:].strip()[:220]); continue   # a physical run says where its boot lines came from
         if line.startswith("install-done"): seen_done = True; continue
         if not seen_done: continue
         if line.startswith("linux-boot"): lb += 1
         if line.startswith("windows-boot"):
             wb += 1
-            # RISKS R36: the guest's clock beside the host's (the bench writes host-utc=...)
-            m = re.search(r"host-utc=(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)Z", line)
-            if m:
-                try:
-                    g = datetime.datetime.fromisoformat(line.split(",")[1][:19]); h = datetime.datetime.fromisoformat(m.group(1))
-                    clock_offsets.append(int((g - h).total_seconds()))
-                except ValueError: pass
+            if "from-return-record" in line: from_record += 1; continue   # the bench never saw this Windows session: its clock is not a reading
+            o = _offset(line)   # RISKS R36: the guest's clock beside the host's (the bench writes host-utc=...)
+            if o is not None: clock_offsets.append(o)
 notes.append(f"boots after install-done: windows={wb} linux={lb}")
-if clock_offsets: notes.append("Windows' clock against the host's at each Windows boot: " + ", ".join(f"{o:+d} s" for o in clock_offsets) + " (R36)")
+if from_record: notes.append(f"{from_record} Windows boot(s) known only from the return's own record: the return applied shim in Windows' slot and restarted before the bench saw Windows")
+# R36: what must not happen is a Linux boot moving Windows' clock; the baseline is Windows' clock before the conversion
+clock_moves = [o - clock_before for o in clock_offsets] if clock_before is not None else []
+if clock_offsets:
+    notes.append("Windows' clock against the host's: before the conversion " + (f"{clock_before:+d} s" if clock_before is not None else "not recorded") + "; at each Windows boot " + ", ".join(f"{o:+d} s" for o in clock_offsets) + (" (moved by " + ", ".join(f"{d:+d} s" for d in clock_moves) + ")" if clock_moves else "") + " (R36)")
 _hist = [h for h in (_slot.get("history") or []) if isinstance(h, dict)]
 if _hist: notes.append("the guard re-applied the slot " + str(len([h for h in _hist if h.get("action") == "reapplied"])) + " time(s) (R22 under step 12; the bench's service step)")
 if v0: notes.append("v0 row: " + v0["notes"][:120])
@@ -161,7 +169,7 @@ elif wb < 1 or grub_win != "y": result = "windows-unbootable-via-grub"
 elif lb < 1: result = "linux-unbootable"
 elif fallback not in ("shim", "shim-in-windows-slot") or snap_files < 1: result = "fallback-loader-unrecorded"
 elif wb < 2 or lb < 2: result = "cycles-incomplete"
-elif any(abs(o) > 300 for o in clock_offsets): result = "windows-clock-wrong"   # R36: the kept Windows read a UTC hardware clock as local time
+elif any(abs(d) > 300 for d in clock_moves) or (clock_before is None and any(abs(o) > 300 for o in clock_offsets)): result = "windows-clock-wrong"   # R36: a Linux boot moved the kept Windows' clock
 else: result = PASS
 
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), HARNESS, FIRMWARE, sb, path, desktop, handoff,
