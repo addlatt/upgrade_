@@ -41,7 +41,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$KsGenVersion = '0.7.0'   # 0.7.0 (2026-10-10, RISKS R36, the owner): a keep-windows job whose Windows keeps the hardware clock in local time gets 'timezone X' with no --utc, so the installed system reads that clock as local time too; 0.6.0 (2026-10-10): GRUB's own Windows entry, os-prober off; 0.5.0 (2026-10-03): no first-run wizard over a made account (Plasma Setup, Fedora 44 KDE)
+$KsGenVersion = '0.8.0'   # 0.8.0 (2026-10-10, the rig): the Windows entry is /etc/grub.d/25_windows_kept, so it sits right under Fedora, above GRUB's own 'UEFI Firmware Settings' (as 40_custom it came fourth, and a person counting down the menu lands in the firmware); 0.7.0 (2026-10-10, RISKS R36, the owner): a keep-windows job whose Windows keeps the hardware clock in local time gets 'timezone X' with no --utc, so the installed system reads that clock as local time too; 0.6.0 (2026-10-10): GRUB's own Windows entry, os-prober off; 0.5.0 (2026-10-03): no first-run wizard over a made account (Plasma Setup, Fedora 44 KDE)
 
 function Test-KsJob {
     # The shape checks a PS 5.1 host can do without a JSON Schema validator:
@@ -135,7 +135,7 @@ function New-Kickstart {
         $L.Add("if grep -q '^GRUB_DISABLE_OS_PROBER=' /etc/default/grub; then sed -i 's/^GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=true/' /etc/default/grub; else echo 'GRUB_DISABLE_OS_PROBER=true' >> /etc/default/grub; fi")
         $L.Add('# the entry chainloads Windows'' loader under its kept name when shim sits in Windows'' slot (architecture step 12, decided 2026-10-10)')
         $L.Add('espuuid=$(findmnt -no UUID /boot/efi 2>/dev/null)')
-        $L.Add("cat > /etc/grub.d/40_custom <<'UPGEOF'")
+        $L.Add("cat > /etc/grub.d/25_windows_kept <<'UPGEOF'")
         $L.Add('#!/bin/sh')
         $L.Add('exec tail -n +3 $0')
         $L.Add("menuentry 'Windows (kept)' --class windows --class os {")
@@ -146,8 +146,8 @@ function New-Kickstart {
         $L.Add('    if [ -f /EFI/Microsoft/Boot/bootmgfw-kept.efi ]; then chainloader /EFI/Microsoft/Boot/bootmgfw-kept.efi; else chainloader /EFI/Microsoft/Boot/bootmgfw.efi; fi')
         $L.Add('}')
         $L.Add('UPGEOF')
-        $L.Add('sed -i "s/ESPUUID/$espuuid/" /etc/grub.d/40_custom')
-        $L.Add('chmod +x /etc/grub.d/40_custom')
+        $L.Add('sed -i "s/ESPUUID/$espuuid/" /etc/grub.d/25_windows_kept')
+        $L.Add('chmod +x /etc/grub.d/25_windows_kept')
         $L.Add('grub2-mkconfig -o /boot/grub2/grub.cfg')
         $L.Add("grep -c -i windows /boot/grub2/grub.cfg > /root/upgrade_-grub-windows-entries.txt || true")
     }
@@ -193,8 +193,8 @@ function Invoke-SelfTest {
            Run = { ($ksK -match '(?m)^%include /tmp/upgrade_-storage\.ks$') -and ($ksK -notmatch '(?m)^(part|clearpart|ignoredisk|autopart) ') }; Expect = $true }
         @{ Name = '%pre runs verify.sh with the job and the stick label, erroring on failure'
            Run = { ($ksK -match '(?m)^%pre --log=/tmp/upgrade_-pre\.log --erroronfail$') -and ($ksK -match '(?m)verify\.sh /run/install/repo/upgrade_/job\.json UPGV0$') }; Expect = $true }
-        @{ Name = 'keep-windows %post turns os-prober off and writes its own Windows entry, chainloading the kept name when it exists; clean-slate does neither'
-           Run = { ($ksK -match 'GRUB_DISABLE_OS_PROBER=true') -and ($ksK -match "menuentry 'Windows \(kept\)'") -and ($ksK -match 'bootmgfw-kept\.efi; else chainloader /EFI/Microsoft/Boot/bootmgfw\.efi') -and ($ksC -notmatch 'OS_PROBER') -and ($ksC -notmatch '40_custom') }; Expect = $true }
+        @{ Name = 'keep-windows %post turns os-prober off and writes its own Windows entry right under Fedora (25_windows_kept, above the firmware-settings entry), chainloading the kept name when it exists; clean-slate does neither'
+           Run = { ($ksK -match 'GRUB_DISABLE_OS_PROBER=true') -and ($ksK -match '/etc/grub\.d/25_windows_kept') -and ($ksK -notmatch '40_custom') -and ($ksK -match "menuentry 'Windows \(kept\)'") -and ($ksK -match 'bootmgfw-kept\.efi; else chainloader /EFI/Microsoft/Boot/bootmgfw\.efi') -and ($ksC -notmatch 'OS_PROBER') -and ($ksC -notmatch '40_custom') }; Expect = $true }
         @{ Name = 'a full name becomes --gecos, quoted'
            Run = { $ksK -match '--gecos="Addison Example"' }; Expect = $true }
         @{ Name = 'no full name, no --gecos'

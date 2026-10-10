@@ -219,7 +219,7 @@
   ]
  },
  {
-  "name": "keep-windows %post turns os-prober off and writes its own Windows entry, chainloading the kept name when it exists; clean-slate does neither",
+  "name": "keep-windows %post turns os-prober off and writes its own Windows entry right under Fedora (25_windows_kept, above the firmware-settings entry), chainloading the kept name when it exists; clean-slate does neither",
   "origin": "selftest",
   "parts": [
    {
@@ -231,6 +231,14 @@
      [
       "contains",
       "GRUB_DISABLE_OS_PROBER=true"
+     ],
+     [
+      "contains",
+      "/etc/grub.d/25_windows_kept"
+     ],
+     [
+      "not_contains",
+      "40_custom"
      ],
      [
       "contains",
