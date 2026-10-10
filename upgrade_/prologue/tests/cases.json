@@ -2468,6 +2468,22 @@
   ]
  },
  {
+  "name": "shrink plan (0.12.1, the Aspire 2026-10-06): with files the request is a whole MiB, never below the target",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueShrinkPlan",
+    "args": {
+     "PartSize": 255727763456,
+     "SizeMin": 55000000000,
+     "FreeBytes": 201807372288,
+     "LinuxMinGB": 25,
+     "FilesBytes": 64424509
+    }
+   }
+  ]
+ },
+ {
   "name": "plan: immovable files cap it below Linux -> does not fit, no request",
   "origin": "selftest",
   "calls": [

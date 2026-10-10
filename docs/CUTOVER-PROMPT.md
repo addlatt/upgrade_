@@ -30,13 +30,13 @@ clears it first); a re-arm within the return check's popups.
 prologue):** three runs through the window's data-loss path. Run 1
 stopped at the shrink 170 bytes short (the plan is now rounded up to a
 mebibyte, PowerShell 0.12.2 and Rust alike). Run 2 installed Fedora KDE
-beside Windows (`r18-prologue.csv` line 16, `v2-install.csv` line 9), and
+beside Windows (`r18-prologue.csv` line 16, `v2-install.csv` line 10), and
 the firmware then started Windows with no menu: Acer's InsydeH2O boots
 only its own list, never the Linux entry (RISKS R21, the Acer finding).
 Decided and built the same day: shim in Windows' slot
 (`upgrade-prologue windows-slot|guard`, `architecture.md` step 12),
 applied by hand on the Aspire, then four boot cycles with no key pressed
-(`v2-install.csv` line 10, `pass-plumbing`,
+(`v2-install.csv` line 11, `pass-plumbing`,
 `fallback_loader = shim-in-windows-slot`). Found there: the kept Windows'
 clock runs 7 h fast after each Linux boot (RISKS R36, the owner's
 decision owed). Next: the return applying the slot by itself, the rig arm
@@ -123,7 +123,7 @@ one session; commit after every piece and push `rust-port`.
 | The kickstart generator | `upgrade_/kickstart` (crate `upgrade-kickstart`) | 48 recorded inputs, byte for byte from line 2 |
 | The window, verify flow only | `upgrade_/windows/window` (`UPGRADE.exe`) | rig row; it still runs the scripts as child processes |
 
-The ledger stands at 406 `pass`, 20 `owed`.
+The ledger stands at 656 `pass`, 45 `owed` (2026-10-10).
 
 ## The active path today, exactly
 

@@ -160,6 +160,17 @@ vendors, the old-entry button on real firmware (the firmware had left
 nothing named Windows to remove), and a stale "upgrade_ go back to
 Windows" entry that nothing removes. Next toward carrying files: the
 harvest's staging on the exFAT partition, then `settle-in`'s file pull.
+**2026-10-05/06: the cancels, and the first real alongside install.** The
+way back's first real cancel (`v11-walkaway.csv` line 4) found gate 0.3.0
+losing its writes silently; gate 0.3.1 reads every write back and refuses
+to count down or cross without a record. The erase path's clean cancel
+(`v9-erase.csv`, physical `cancelled-untouched`). Then **keep-Windows on
+the Aspire (option C, the owner's call):** the first attempt stopped at the
+shrink on a 170-byte rounding (prologue 0.12.1 fixes it); the second
+installed Fedora 44 beside Windows with Windows intact (R21's checklist all
+true), but the firmware starts Windows with no menu. Paused there by the
+owner; no row; the order question is next (R21, R22). Evidence tools for a
+real machine live in `rig/hyperv/physical/`.
 **Decided (2026-09-27, the owner): there is always a way back to
 Windows,** a new and empty one, and it says its cost first (most of these
 machines can only go back to Windows 10). Its own "Go back to Windows"

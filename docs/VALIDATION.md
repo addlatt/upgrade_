@@ -65,7 +65,7 @@ A few words used all through this file:
 |---|---|---|
 | V0 boot handoff | `[####]` 1 vendor | Acer fired once, SB on. Dell, Lenovo, HP and the real-firmware fail-safe rows owed |
 | V1 unattended install | live boot `[####]`, install `[###.]` | physical live boot SB on (row 4); the physical install is owed |
-| V1b alongside install | `[###.]` | rig passes, SB off; physical SB-on install needs a machine other than the Aspire |
+| V1b alongside install | rig `[###.]`; real: installed 2026-10-06 on the Aspire (dying drive, R23), Windows intact, but the machine starts Windows with no menu; paused before the boot cycles, no row | the firmware's boot order question (R21, R22); then the healthy-drive row on another machine |
 | V2 amp firmware | `[....]` | experiment on the G16 not run |
 | V3 BitLocker read | `[###.]` | all three configs byte-identical via ntfs-3g; real disks owed |
 | V4 disks shrink | `[####]` 1 disk | the Aspire's answer is no (best 9.5 of 25 GB); the population count needs ~20 elevated reports |
@@ -313,7 +313,7 @@ arrangement applied by hand through the same code, Secure Boot on. Then,
 with no key pressed: Fedora, Windows through GRUB's "Windows (kept)"
 entry, Fedora again from a plain Windows restart, Windows again, the
 guard task running at each Windows start with nothing to re-apply
-(`v2-install.csv` line 10, `pass-plumbing`,
+(`v2-install.csv` line 11, `pass-plumbing`,
 `fallback_loader = shim-in-windows-slot`). The boot log was assembled
 from the host's observations, since a physical run has no bench marker,
 and its first line says so. The firmware's own path surprised: it booted
@@ -371,6 +371,44 @@ prologue's own run (`v2-install.csv` row 4, `pass-plumbing`;
 `r18-prologue.csv` row 4). That is the conversion end to end from the one
 typed word: disk check → shrink → handoff → install → cycles. The restore
 half of the snapshot also fired (`r21-rollback.csv` row 1).
+
+**2026-10-04: re-proven on the rig with today's kit, before the Aspire's
+own attempt.** The keep-Windows path had last run end to end on 2026-09-13,
+on Fedora 42 and prologue 0.3.0. Kit aba09ec (Fedora 44, prologue 0.12.0,
+`verify.sh` 0.6.0) ran it again: shrink, handoff, install beside Windows,
+Windows through GRUB twice, Fedora twice, `bootmgfw.efi` unchanged
+(`v2-install.csv`, `pass-plumbing`, Secure Boot off). Two things came out
+of getting there:
+
+- The rig's stand-in job always said "no repair queued". With the dirty
+  flag injected, Windows queued a repair, and the prologue rightly refused
+  the job. The stand-in now reads the guest's real state.
+- Two rig runs overlapped on one VM by a mistake in the driving shell, and
+  wrote four rows that could not be trusted. They were dropped before any
+  commit, and the run was repeated with one driver. Only that row is kept.
+
+**Decided (2026-10-04, the owner): try keep-Windows on the Aspire itself
+(option C).** Its SSD is dying, so it runs under R23, and a pass is evidence
+for the mechanism on real firmware with Secure Boot on. It is not the
+healthy-drive row, which still needs another machine. The Windows the way
+back installs is new, so its disk may shrink where the old one could not
+(R18); only a re-measure says. A real machine has no bench marker, so the
+evidence comes from `rig/hyperv/physical/`: the collectors' boot lines, and
+the offline inspector run on an image assembled from the drive's first MiB
+and its ESP. `v2-verdict.py --physical` writes `pass` for such a row.
+
+**2026-10-06: the first alongside install on a real machine, paused.** On
+the Aspire (its new Windows 11 Home, dying SSD under R23, Secure Boot on):
+the shrink, the handoff, the install beside Windows and the R21 checklist
+all passed, Windows is intact and its boot file unchanged, the owner's test
+file came through. But the firmware starts Windows with no menu (Fedora
+had been left first; Windows was first again at the next boot). The owner
+paused before the boot cycles, so there is no `v2-install.csv` row: the
+verdict's words need the cycles. The records are in
+`rig/hyperv/artifacts/v1b-aspire-2026-10-06/` (the before and after
+pictures from `rig/hyperv/physical/`, the stick's records, the stopped
+first attempt). Next: a one-time start to Fedora's entry and the F12 list,
+to tell "demoted" from "refused"; then the fix, then the cycles. RISKS R21.
 
 **VM leg fired (2026-08-27).** On the QEMU+OVMF rig (`rig/vm/v1b.sh`, SB
 off, the only mode this host can run): C: shrunk by 32 GiB, Fedora 42
@@ -1379,7 +1417,7 @@ name, and the Rust tests.
 | `New-Job.ps1` (judging half) | 130 | 126 | 4 (the rig and physical rows that ran its jobs) |
 | `New-Kickstart.ps1` (step 4, first piece) | 26 | 22 | 4 (the rig and physical rows whose installs ran its kickstart: `v1-live-boot.csv`, `v2-install.csv`, `v9-erase.csv`) |
 | `Read-Password.ps1` (2026-10-07) | 15 | 12 | 3 (`v9-erase.csv` lines 11, 22, 30: the Aspire's runs where the person typed the password through it; one physical run with `upgrade-job password` re-earns them) |
-| `Invoke-Prologue.ps1` (2026-10-07) | 192 | 145 | 47 (the Wi-Fi scrub, a live action; 34 rig rows (`v2-install.csv` lines 5 and 6 passed with the Rust prologue's rig row, line 7) in `r18-prologue.csv`, `v2-install.csv`, `v9-erase.csv`, `walkaway-probe.csv`; 12 physical rows, the Aspire's). The judging half is `upgrade_/prologue`: 161 cases, 228 calls word for word |
+| `Invoke-Prologue.ps1` (2026-10-07) | 192 | 145 | 47 (the Wi-Fi scrub, a live action; 34 rig rows (`v2-install.csv` lines 5 and 6 passed with the Rust prologue's rig row, line 8) in `r18-prologue.csv`, `v2-install.csv`, `v9-erase.csv`, `walkaway-probe.csv`; 12 physical rows, the Aspire's). The judging half is `upgrade_/prologue`: 161 cases, 228 calls word for word |
 | `Invoke-Rollback.ps1` (lines written 2026-10-07) | 16 | 0 | 16 (14 self-test cases; `r21-rollback.csv` lines 2 and 3) |
 | `Test-Handoff.ps1` (2026-10-07) | 48 | 33 | 15 (`v0-handoff.csv` lines 2 to 12, `v1-live-boot.csv` lines 2 to 5: the rows the Rust verify handoff, `upgrade-prologue verify-arm`, has to earn on the rig and the Aspire). The 33 are its self-test cases, replayed in `upgrade_/prologue/tests/verify.rs`; 12 lines written on 2026-10-07 that were not cases were removed |
 
@@ -1402,13 +1440,13 @@ beside `Get-PrologueFacts` on the G16, elevated and not: SAME but for
 `Test-Path`'s answer on the locked memory files, `v13-rust-prologue.csv`
 lines 2 and 3). Its rig rows are in (`PROLOGUE=rust
 rig/hyperv/prologue.sh run`): run 2 on 2026-10-07, the keep-Windows path
-front to back, unattended (`v2-install.csv` line 7 `pass-plumbing`;
+front to back, unattended (`v2-install.csv` line 8 `pass-plumbing`;
 `r18-prologue.csv` line 13 `flag-not-confirmed`, because the R25 update
 restart dropped the bench's dirty flag before the check; the harness now
 clears a pending update first), and run 3 on 2026-10-08 with the disk
 check in the path: the flag read, `chkdsk /f` run at a restart, both
 resumes as SYSTEM, the shrink, the handoff, the install, the return
-(`r18-prologue.csv` line 14 and `v2-install.csv` line 8, both
+(`r18-prologue.csv` line 14 and `v2-install.csv` line 9, both
 `pass-plumbing`); the same day the rollback (`r21-rollback.csv` line 4,
 `pass-plumbing`) and the walk-away probe (`walkaway-probe.csv` line 4,
 `resumed-unattended`) with the Rust prologue, and the window's verify

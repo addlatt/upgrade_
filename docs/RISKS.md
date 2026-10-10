@@ -2022,7 +2022,7 @@ of failure, in the feature most people will check first.
 browser and version pair, and `evaluate`'s claims are narrowed to what the
 evidence supports.
 
-## R21: Installing alongside a shrunk Windows may not leave Windows bootable · critical · open (VM leg fired 2026-08-27; the converter's own install fired 2026-09-10; the Aspire's first physical boot cycles 2026-10-10, shim in Windows' slot, `[####]` for the arrangement by hand)
+## R21: Installing alongside a shrunk Windows may not leave Windows bootable · critical · open (VM leg fired 2026-08-27; the converter's own install fired 2026-09-10; first real install 2026-10-06 on the Aspire: Windows intact, but the firmware starts Windows with no menu; answered 2026-10-10, the Acer finding, and the first physical boot cycles the same day with shim in Windows' slot, `[####]` for the arrangement by hand; a servicing pass under the guard still owed)
 
 **What.** The keep-Windows path (now the **default**) installs Linux into
 the freed space. It must leave the shrunk Windows fully bootable, because
@@ -2299,6 +2299,48 @@ loader back byte for byte, `{bootmgr}` first, a keyless start reached
 Windows, GPT and `EFI/fedora` untouched. The Linux-side twin comes with
 `settle-in`.
 
+**The first alongside install on a real machine (2026-10-06, the Aspire,
+Windows 11 Home 26200 on the dying SSD under R23, kit aba09ec with
+prologue 0.12.1, Secure Boot on). Paused by the owner before the boot
+cycles; no row yet.** What held, from the records
+(`rig/hyperv/artifacts/v1b-aspire-2026-10-06/`):
+
+- The prologue: no disk check needed, 187.9 GB shrinkable by both paths,
+  the shrink freed exactly the 25,600 MiB asked for, the handoff fired.
+- The installer: identity by serial, the ESP snapshot (149 files), Fedora
+  44 KDE installed into the gap, the ESP reused unformatted (+17 files,
+  19.9 MB, 244 MiB still free), `outcome.json` completed with the R21
+  checklist: Windows entry present, Fedora first in the boot order, GRUB
+  lists Windows, `bootmgfw.efi` byte for byte as before (checked again
+  from Windows afterwards with the offline inspector: only the three files
+  Windows rewrites itself changed), settle-in installed, the stick disarmed.
+- Windows afterwards: intact, 228.9 GB, the owner's test file on the
+  Desktop with the same checksum, Fedora's two partitions visible to it.
+
+What did not hold: **the computer starts Windows, with no menu.** The
+installer left Fedora first in the firmware's order; by the time Windows
+ran the prologue's return check, Windows Boot Manager was first again and
+Fedora fifth. A plain restart with the stick in went straight to Windows:
+no menu, and the stick was not started either. The person would never see
+Fedora. Who moved Windows back up is not known: the Insyde firmware or
+Windows' own boot manager (R22's question, now on real hardware). Not
+tried yet: a one-time start to Fedora's entry (the handoff's own
+mechanism) and the firmware's F12 list, which tell apart "demoted" from
+"refused". The owner paused there: the install is not a failure of the
+mechanism, and the next session picks up the order question.
+**Answered 2026-10-10, below:** the firmware's own list never holds the
+Linux entry; nothing "moved" Windows back up.
+
+Also found on the way: the first attempt stopped at the shrink because the
+plan asked for an odd byte count (the files' margin) and Windows rounded
+the resize down by 170 bytes; the prologue put C: back and nothing was
+installed. Fixed the same hour (prologue 0.12.1: the request is a whole
+MiB). And this Windows reads "fully encrypted, protection off" (automatic
+device encryption waiting for a Microsoft account); the scanner calls that
+"BitLocker not enabled", which is true of protection and false of the
+bytes. The install did not touch C:, so it did not matter here; the file
+pull will have to know.
+
 **The Acer finding (2026-10-06 and 2026-10-10, the Aspire A515-51G,
 InsydeH2O V1.21).** Two alongside installs left Fedora first in
 `BootOrder`, and both times the very next power-on ran Windows with no
@@ -2364,7 +2406,7 @@ starting GRUB with no key after the arrangement, Windows reached from
 GRUB, Fedora reached, and a servicing pass survived by the guard. The rig
 exercises the mechanism with a bench-only switch that forces it.
 
-**Proven on the Aspire (2026-10-10; `v2-install.csv` line 10, the ninth
+**Proven on the Aspire (2026-10-10; `v2-install.csv` line 11, the tenth
 row, `pass-plumbing`, `fallback_loader = shim-in-windows-slot`).** The
 arrangement was applied by hand through `upgrade-prologue windows-slot` on
 that morning's install, Secure Boot on. Then, with nobody pressing a key:
@@ -3807,6 +3849,64 @@ What it found:
 and nobody at the keyboard, ending at the Windows sign-in; then one real
 machine (the Aspire, run under R23 on its dying SSD first), with a physical
 cancel before the erase. VALIDATION V11, step 4.
+
+**The first real cancel (2026-10-05, `v11-walkaway.csv` line 4,
+`cancelled-untouched`).** From Fedora 44 KDE, gate 0.3.1: the countdown, the
+owner's key at 23 s, "CANCELLED. Nothing was erased.", Fedora back by itself,
+both drives' partition tables byte for byte as before, the record on the
+stick, the Wi-Fi file gone from it. It took two attempts, and the first one
+found a hole:
+
+- **Gate 0.3.0 lost its writes and said nothing.** The first attempt showed
+  the same countdown, cancelled on a key, and came back to Fedora untouched.
+  But the stick held no record of it, and the Wi-Fi password was still on
+  it. The stick was healthy and writable; no second copy of the files
+  existed. The gate's `save` ignored every error, so nothing on screen said
+  so. The same save records the crossing: had it been lost there, the stick
+  would not have known it had erased, and could have erased twice. The cause
+  of the lost writes is not found. **Fixed (gate 0.3.1, the same day):** every
+  write is read back; the record is written and checked before the countdown
+  (a stick that keeps nothing is refused); the line is never crossed on a
+  stick that did not keep the record; a cancel says on screen whether the
+  record and the Wi-Fi removal took, and waits for a key when they did not.
+  Evidence: `rig/hyperv/artifacts/aspire-r33-2026-10-05-cancel/`.
+- **The firmware did not see the stick once more.** After the second
+  Prepare the program's own one-time USB start met "no bootable device" and
+  fell through to Fedora; the stick's files were complete. The second
+  inconsistency with this no-serial "General UDisk" family. The row's start
+  was then a tester step: the program's own command (`BootNext` to the
+  firmware's USB entry), run by hand over SSH.
+- **One stale firmware entry per Prepare.** Each Prepare adds an "upgrade_
+  go back to Windows" entry and nothing removes the old ones: three now.
+- **The gate's clock reads 8 h ahead** (WinPE takes the hardware clock as
+  local), as known; the record's times are off by that.
+
+Still owed: a cancel started by the program's own restart, and the
+never-twice path on real firmware.
+
+**The computer can fall asleep while the program works (found 2026-10-04,
+backlog).** During the Aspire's second way back the computer suspended in
+the middle of Prepare: GNOME's 15-minute idle sleep, and nothing held it
+awake. The same gap exists on the Windows side: the launchers and the
+prologue hold nothing either (R27, R18). On both trips since, the session
+at the bench held it awake by hand. **Decided (2026-10-05, the owner): the
+product keeps the computer awake while it works, on both sides. In the
+backlog, not built.** The plan:
+
+- **Linux** (`settle-in`'s window and "Go back to Windows"): a logind
+  inhibitor (the system's own "do not sleep" request) for sleep, idle and
+  the lid switch, held while work is running and released when it ends.
+- **Windows** (the launchers, the prologue, `UPGRADE.exe`):
+  `SetThreadExecutionState`, the Windows call that says the system is
+  needed, held for the life of the process. It stops idle sleep. It cannot
+  stop a closed lid, which follows the power plan, so the launcher says
+  "keep the lid open".
+- The installer and the countdown run from the stick with no power manager
+  and do not idle-sleep. Not confirmed by a test.
+
+It changes `settle-in` and the Windows scripts, so it needs a kit rebuild
+and a rig re-proof. Proof owed: a rig row with a 1-minute idle sleep set,
+and a real machine left alone through Prepare.
 
 ## R34: Secure Boot revokes the kit's boot files · critical · open (found 2026-10-03 on the Aspire, run 10; the scanner check and the release table built; the kit moved to Fedora 44; its closing clause met on the Aspire 2026-10-04; kept open for the next level, `grub,6`)
 

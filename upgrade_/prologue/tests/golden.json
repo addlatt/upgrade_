@@ -86,6 +86,7 @@
 "manage-bde: Protection On / Off / localized": ["on","off","unknown"],
 "plan: 85.8 GB C:, 65 GB free, SizeMin 30 GB, Linux 25 GB fits, requests exactly 25 GB": [{"Fits":true,"MaxByFreeBytes":61203283968,"Reason":"fits","RequestedBytes":26843545600,"ShrinkableBytes":53563359232,"TargetBytes":26843545600}],
 "plan: a target with files is rounded up to a whole mebibyte, the partition alignment (the Aspire, 2026-10-10)": [{"Fits":true,"MaxByFreeBytes":179774582784,"Reason":"fits","RequestedBytes":26844594176,"ShrinkableBytes":175644848128,"TargetBytes":26844594176}],
+"shrink plan (0.12.1, the Aspire 2026-10-06): with files the request is a whole MiB, never below the target": [{"Fits":true,"MaxByFreeBytes":193217437696,"Reason":"fits","RequestedBytes":26921140224,"ShrinkableBytes":200727763456,"TargetBytes":26921140224}],
 "plan: immovable files cap it below Linux -\u003e does not fit, no request": [{"Fits":false,"MaxByFreeBytes":61203283968,"Reason":"immovable files cap the shrink below what Linux needs","RequestedBytes":null,"ShrinkableBytes":15775613952,"TargetBytes":26843545600}],
 "plan: Windows kept with too little free space -\u003e does not fit": [{"Fits":false,"MaxByFreeBytes":23622320128,"Reason":"Windows would be left with too little free space","RequestedBytes":null,"ShrinkableBytes":75038195712,"TargetBytes":26843545600}],
 "plan: harvested files raise the target by 1.2x": [{"Fits":true,"MaxByFreeBytes":313532612608,"Reason":"fits","RequestedBytes":155692564480,"ShrinkableBytes":429496729600,"TargetBytes":155692564480}],
