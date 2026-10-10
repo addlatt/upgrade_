@@ -65,7 +65,7 @@ A few words used all through this file:
 |---|---|---|
 | V0 boot handoff | `[####]` 1 vendor | Acer fired once, SB on. Dell, Lenovo, HP and the real-firmware fail-safe rows owed |
 | V1 unattended install | live boot `[####]`, install `[###.]` | physical live boot SB on (row 4); the physical install is owed |
-| V1b alongside install | rig `[###.]`; real: installed 2026-10-06 on the Aspire (dying drive, R23), Windows intact, but the machine starts Windows with no menu; paused before the boot cycles, no row | the firmware's boot order question (R21, R22); then the healthy-drive row on another machine |
+| V1b alongside install | rig `[###.]`; real `[####]` for the arrangement by hand (2026-10-10, the Aspire, dying drive, R23): Fedora beside an intact Windows, shim in Windows' slot, Fedora and Windows reached twice each with no key pressed, `v2-install.csv` line 11 | the return applying the slot by itself, the rig arm, a Windows update under the guard (R22), the rollback on this machine, the kept Windows' clock (R36); then the healthy-drive row on another machine |
 | V2 amp firmware | `[....]` | experiment on the G16 not run |
 | V3 BitLocker read | `[###.]` | all three configs byte-identical via ntfs-3g; real disks owed |
 | V4 disks shrink | `[####]` 1 disk | the Aspire's answer is no (best 9.5 of 25 GB); the population count needs ~20 elevated reports |
@@ -296,8 +296,8 @@ with `inst.ks=` on the stick itself instead of an OEMDRV volume.)
 **The Acer finding and its proof (2026-10-10).** Two alongside installs
 on the Aspire (InsydeH2O V1.21) left Fedora first in `BootOrder` and the
 firmware started Windows with no menu both times: its own list never holds
-the Linux entry (RISKS R21, the Acer finding). Decided the same day:
-shim in Windows' slot on such firmware, applied by the prologue's return
+the Linux entry (RISKS R21, the Acer finding). Decided (2026-10-10, the
+owner): shim in Windows' slot on such firmware, applied by the prologue's return
 on the evidence, with a guard for servicing. What proves it, in order:
 the rig with the bench-only switch (the arrangement applied, GRUB from
 the firmware's Windows entry, both systems reached twice, a simulated
@@ -730,8 +730,8 @@ one data point, not a rate.
 
 **2026-09-17, the Aspire again (R18):** its dirty bit was now clear but the
 repair was still queued. The Storage API answered 0 GB shrinkable, no
-error, 33.6 GB free, and the job writer forced clean slate. Decided the
-same day: a queued repair makes the number "unmeasured" in the job, and is
+error, 33.6 GB free, and the job writer forced clean slate. Decided
+(2026-09-17): a queued repair makes the number "unmeasured" in the job, and is
 a second trigger for the prologue's check. The launchers log every step to
 the stick. The physical keep-Windows row is still owed.
 
@@ -792,7 +792,7 @@ in the tail that run 4's mitigation had emptied.
   real machine in runs 6 and 7.
 - No new mitigated number: the mitigation never ran.
 
-**Decided and built the same day:** the change journal joins the ladder
+**Decided and built (2026-09-22):** the change journal joins the ladder
 (deleted with consent, created again afterwards; prologue 0.8.0). What it
 frees is the next row's question.
 
