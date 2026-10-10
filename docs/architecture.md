@@ -694,6 +694,24 @@ at all:
     destructive, so a check that cannot be satisfied does not abort. It is
     written down for `settle-in` to show, and Windows stays reachable from
     the GRUB menu either way.
+    GRUB's Windows entry is the installer's own, not os-prober's: it
+    chainloads `bootmgfw-kept.efi` when that file exists and
+    `bootmgfw.efi` otherwise (step 12 is why).
+12. **On firmware that ignores operating-system entries, shim goes into
+    Windows' slot** (decided 2026-10-10, the owner; RISKS R21, the Acer
+    finding). Some firmware (Acer's InsydeH2O) boots only from its own
+    priority list, where the one operating-system entry is "Windows Boot
+    Manager"; the `Fedora` entry is never on it, and the machine starts
+    Windows with no menu. The prologue's return on the kept Windows is the
+    detector: the install completed, Fedora was left first, and yet
+    Windows booted with nobody pressing a key. On that evidence it moves
+    `bootmgfw.efi` one name aside (`bootmgfw-kept.efi`, same folder, so
+    Windows' boot manager still finds its BCD), copies Fedora's signed shim
+    to `bootmgfw.efi`, registers a `guard` startup task in the kept Windows
+    (Windows' servicing puts its own file back; the guard re-applies the
+    arrangement, so an update costs one Windows boot), and restarts once
+    into GRUB. Firmware that honours the entry never gets this. The
+    rollback and the way back put Windows' file back and remove the guard.
 
 **The user's files are not touched here.** No NTFS read, no BitLocker
 unlock, no copy. Windows is left whole. The files come across in

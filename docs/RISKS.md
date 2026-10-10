@@ -2299,6 +2299,57 @@ loader back byte for byte, `{bootmgr}` first, a keyless start reached
 Windows, GPT and `EFI/fedora` untouched. The Linux-side twin comes with
 `settle-in`.
 
+**The Acer finding (2026-10-06 and 2026-10-10, the Aspire A515-51G,
+InsydeH2O V1.21).** Two alongside installs left Fedora first in
+`BootOrder`, and both times the very next power-on ran Windows with no
+menu, before any Windows session could have touched the order. The
+firmware's own setup screen says why: its boot priority list holds one
+operating-system entry, "Windows Boot Manager" (the path
+`\EFI\Microsoft\Boot\bootmgfw.efi`), plus device entries, and the
+`Fedora` entry that Anaconda and `efibootmgr` write into NVRAM is never on
+that list. A one-time `BootNext` is honoured (the handoff fired on this
+firmware four times), and the firmware re-targets entries whose device is
+gone (an old way-back-stick entry became `Unknown Device:
+\EFI\fedora\shim.efi`, a file that does not exist). Acer's own way to add
+a loader to the list is the setup item "Select an UEFI file as trusted for
+executing": a human in the firmware's setup, which is not one click.
+
+**Decided (2026-10-10, the owner): shim in Windows' slot on firmware that
+ignores operating-system entries.** On such firmware the only path it
+boots on its own is Windows Boot Manager's, so the install takes that
+path: Windows' `bootmgfw.efi` is moved one name aside
+(`bootmgfw-kept.efi`, in the same folder, so Windows' boot manager still
+finds its BCD) and Fedora's signed shim is copied to `bootmgfw.efi`. The
+firmware boots "Windows Boot Manager" and gets GRUB, which lists Fedora and
+Windows; GRUB's Windows entry, written by the installer for every
+keep-Windows install, chainloads the kept name when it exists and the
+usual one when it does not. Nobody is asked to do anything. The rules:
+
+- **Only when needed, decided by evidence.** The firmwares that honour
+  the entry (the Hyper-V and QEMU rigs) keep Windows' file untouched. The
+  detector is the prologue's return on the kept Windows: the install
+  completed, the installer left Fedora first, and yet Windows booted with
+  nobody pressing a key. On that evidence it applies the arrangement from
+  Windows (the ESP mounted, the snapshot checked first) and restarts once
+  into GRUB. One extra restart, no human.
+- **Reversible, and the undo already exists.** The ESP snapshot and the
+  kept copy hold Windows' file; the rollback and the way back put it back
+  and remove the guard.
+- **R22's servicing is expected, not a surprise.** A `guard` startup task
+  in the kept Windows re-applies the arrangement when Windows' servicing
+  has put its own file back, so an update costs one Windows boot, not
+  Linux. After reclaim there is no Windows to service.
+- **Secure Boot stays on.** shim is the same Microsoft-signed file the
+  stick boots with.
+
+What it costs: R21's "bootmgfw.efi byte for byte" holds for the file's
+bytes (kept, checksummed, restorable) but not for its name, on this class
+of firmware only. The `v2-install.csv` row for such a machine says so in
+its `fallback_loader` and notes. Evidence that closes it: the Aspire
+starting GRUB with no key after the arrangement, Windows reached from
+GRUB, Fedora reached, and a servicing pass survived by the guard. The rig
+exercises the mechanism with a bench-only switch that forces it.
+
 ## R22: Windows servicing re-takes the firmware boot order · medium · open
 
 **What.** On the keep-Windows path Windows stays installed. Windows Update's
@@ -2329,6 +2380,14 @@ is followed by a Linux boot with no action from the person. And the physical
 matrix shows whether any vendor firmware ignores the re-assertion (some
 firmware pins its own order; that would move this to "press one key", like
 V0's fallback).
+
+**The Acer answer (2026-10-10).** The Aspire's firmware does ignore the
+re-assertion: its own list never holds the Linux entry (R21, the Acer
+finding). There the arrangement decided under R21 (shim in Windows' slot)
+is what keeps Linux reachable, and this risk becomes "Windows' servicing
+puts its own file back": the kept Windows runs a `guard` startup task that
+re-applies the arrangement, so an update costs one Windows boot. On
+firmware that honours the entry, `settle-in`'s unit is still the answer.
 
 ---
 

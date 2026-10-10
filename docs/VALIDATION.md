@@ -293,6 +293,22 @@ with `inst.ks=` on the stick itself instead of an OEMDRV volume.)
 
 ## V1b: Installing alongside a shrunk Windows leaves Windows bootable · kills: the default path's safety net · RISKS R21
 
+**The Acer finding and its proof (2026-10-10).** Two alongside installs
+on the Aspire (InsydeH2O V1.21) left Fedora first in `BootOrder` and the
+firmware started Windows with no menu both times: its own list never holds
+the Linux entry (RISKS R21, the Acer finding). Decided the same day:
+shim in Windows' slot on such firmware, applied by the prologue's return
+on the evidence, with a guard for servicing. What proves it, in order:
+the rig with the bench-only switch (the arrangement applied, GRUB from
+the firmware's Windows entry, both systems reached twice, a simulated
+servicing pass survived by the guard, the rollback putting the file back:
+`v2-install.csv` rows with `fallback_loader = shim-in-windows-slot`); then
+the Aspire, where today's install is the exact starting state (Fedora
+installed, Windows first): the arrangement applied by hand through the
+same code, a keyless start reaching GRUB, Fedora and Windows each
+reached, and a Windows update followed by a Linux boot. Until then V1b's
+default path is proven only on firmware that honours the entry.
+
 **Why it has its own gate.** The default keep-Windows path installs Linux
 into space freed from Windows, and **must leave the shrunk Windows fully
 bootable**. Windows is both the way back and the source of the person's
