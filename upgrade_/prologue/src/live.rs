@@ -1,5 +1,5 @@
 //! The prologue's live half, Windows only: every read of the machine and
-//! every reversible write, following `Invoke-Prologue.ps1` 0.12.0 function
+//! every reversible write, following `Invoke-Prologue.ps1` 0.12.2 function
 //! for function. Every tool runs through [`Recorder`] so its raw output is
 //! kept. Nothing here decides: the judging half (`judge`, `state`) does.
 

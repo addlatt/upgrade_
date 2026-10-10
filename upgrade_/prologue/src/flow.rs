@@ -1,4 +1,4 @@
-//! The stages, following `Invoke-Prologue.ps1` 0.12.0: start, the disk
+//! The stages, following `Invoke-Prologue.ps1` 0.12.2: start, the disk
 //! check and its return, the re-measure and the fork, the shrink or the
 //! staging, the arm, the return to Windows, the walk-away probe, the notice,
 //! the abort, and the stop that undoes what it can. Every decision is the

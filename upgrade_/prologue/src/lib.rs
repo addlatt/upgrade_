@@ -1,5 +1,5 @@
 //! The prologue's judging half, ported from
-//! `upgrade_/windows/Invoke-Prologue.ps1` 0.12.0: everything that decides,
+//! `upgrade_/windows/Invoke-Prologue.ps1` 0.12.2: everything that decides,
 //! taken apart from everything that acts. The R18 guardrails (the volume
 //! trigger, the repair rung, the disk-health gate), the re-validation of
 //! the job against the live machine, the shrink plan and the fork, the
@@ -31,7 +31,7 @@ pub fn flow_version() -> String {
 }
 
 /// The PowerShell prologue this port follows.
-pub const FOLLOWS_PROLOGUE: &str = "0.12.0";
+pub const FOLLOWS_PROLOGUE: &str = "0.12.2";
 pub const CONFIRM_EXPECTED: &str = "CONVERT";
 /// RISKS R23: typed verbatim; lifts exactly the disk-health gate and the volume-health stop.
 pub const RISK_STATEMENT: &str = "I confirm that I understand the risks and could lose data";

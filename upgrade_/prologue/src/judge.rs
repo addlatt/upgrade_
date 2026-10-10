@@ -6,6 +6,7 @@ use crate::{CONFIRM_EXPECTED, ERASE_STATEMENT, FILES_MARGIN, GRUB_FIRED_VAR, UPD
 use serde_json::{json, Value};
 use upgrade_scan::ps::{capture, matches, round1, Stamp};
 
+const MIB: f64 = 1048576.0;
 const GB: f64 = 1073741824.0;
 
 /// ConvertFrom-PrologueManageBde: `on`, `off` or `unknown`.
@@ -219,7 +220,9 @@ pub fn erase_return(countdown: &Value, verify: &Value) -> Value {
 /// Get-PrologueShrinkPlan: the keep-windows shrink's arithmetic.
 pub fn shrink_plan(part_size: i64, size_min: i64, free_bytes: i64, linux_min_gb: f64, files_bytes: i64) -> Value {
     let shrinkable = (part_size - size_min).max(0);
-    let target = (linux_min_gb * GB + files_bytes as f64 * FILES_MARGIN).ceil() as i64;
+    // rounded up to a whole mebibyte, the partition alignment: Resize-Partition frees whole
+    // sectors, so a byte-exact target came back 170 bytes short on the Aspire (2026-10-10)
+    let target = ((linux_min_gb * GB + files_bytes as f64 * FILES_MARGIN) / MIB).ceil() as i64 * MIB as i64;
     let by_free = free_bytes - WINDOWS_KEEP_FREE_BYTES;
     let fits = target <= shrinkable && target <= by_free;
     let reason = if fits { "fits" } else if target > shrinkable { "immovable files cap the shrink below what Linux needs" } else { "Windows would be left with too little free space" };

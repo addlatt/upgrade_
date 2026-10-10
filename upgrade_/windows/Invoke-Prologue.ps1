@@ -107,7 +107,7 @@ param(
     [string]$StateDir
 )
 $ErrorActionPreference = 'Stop'
-$PrologueVersion = '0.12.0'   # 0.12.0 (2026-10-04, R35): arming clears the stick's 'converted' marker; 0.11.0 (2026-09-27): every stop and every return to Windows removes the stick's Wi-Fi passwords (the owner); 0.10.0 (2026-09-26): the erase-and-install path (RISKS R27); 0.9.1: only the no-folders stop message
+$PrologueVersion = '0.12.2'   # 0.12.0 (2026-10-04, R35): arming clears the stick's 'converted' marker; 0.11.0 (2026-09-27): every stop and every return to Windows removes the stick's Wi-Fi passwords (the owner); 0.10.0 (2026-09-26): the erase-and-install path (RISKS R27); 0.9.1: only the no-folders stop message
 $TaskName = 'upgrade_ prologue resume'
 $NoticeRunOnceName = 'upgrade_ prologue notice'
 $ProbeCsvHeader = @('timestamp', 'prologue_version', 'vendor', 'model', 'bios', 'os', 'secure_boot', 'stick_bus', 'run_as', 'session_id', 'interactive', 'explorer_running', 'uptime_s', 'stick_wait_s', 'notice', 'task_removed', 'result', 'notes')
@@ -374,7 +374,10 @@ function Get-PrologueShrinkPlan {
     # when all three hold; the request is exactly the target, never more.
     param([long]$PartSize, [long]$SizeMin, [long]$FreeBytes, [double]$LinuxMinGB, [long]$FilesBytes)
     $shrinkable = [long]($PartSize - $SizeMin); if ($shrinkable -lt 0) { $shrinkable = 0 }
-    $target = [long]([math]::Ceiling($LinuxMinGB * 1GB + $FilesBytes * $FilesMargin))
+    # rounded up to a whole mebibyte, the partition alignment: Resize-Partition frees whole
+    # sectors, so a byte-exact target came back a few bytes short and the shrink was refused
+    # (the Aspire, 2026-10-10: planned 26843548842, freed 26843548672)
+    $target = [long]([math]::Ceiling(($LinuxMinGB * 1GB + $FilesBytes * $FilesMargin) / 1MB) * 1MB)
     $byFree = [long]($FreeBytes - $WindowsKeepFreeBytes)
     $fits = ($target -le $shrinkable) -and ($target -le $byFree)
     $reason = if ($fits) { 'fits' } elseif ($target -gt $shrinkable) { 'immovable files cap the shrink below what Linux needs' } else { 'Windows would be left with too little free space' }
@@ -1989,6 +1992,8 @@ function Invoke-SelfTest {
         # the shrink plan and the fork
         @{ Name = 'plan: 85.8 GB C:, 65 GB free, SizeMin 30 GB, Linux 25 GB fits, requests exactly 25 GB'
            Run = { $p = Get-PrologueShrinkPlan -PartSize 85775613952 -SizeMin 32212254720 -FreeBytes 69793218560 -LinuxMinGB 25 -FilesBytes 0; "$($p.Fits):$($p.RequestedBytes -eq 25GB):$($p.ShrinkableBytes -eq (85775613952-32212254720))" }; Expect = 'True:True:True' }
+        @{ Name = 'plan: a target with files is rounded up to a whole mebibyte, the partition alignment (the Aspire, 2026-10-10)'
+           Run = { $p = Get-PrologueShrinkPlan -PartSize 228883169280 -SizeMin 53238321152 -FreeBytes 188364517376 -LinuxMinGB 25 -FilesBytes 2702; "$($p.Fits):$($p.RequestedBytes):$($p.RequestedBytes % 1MB)" }; Expect = 'True:26844594176:0' }
         @{ Name = 'plan: immovable files cap it below Linux -> does not fit, no request'
            Run = { $p = Get-PrologueShrinkPlan -PartSize 85775613952 -SizeMin 70000000000 -FreeBytes 69793218560 -LinuxMinGB 25 -FilesBytes 0; "$($p.Fits):$($null -eq $p.RequestedBytes):$($p.Reason)" }; Expect = 'False:True:immovable files cap the shrink below what Linux needs' }
         @{ Name = 'plan: Windows kept with too little free space -> does not fit'
