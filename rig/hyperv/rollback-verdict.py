@@ -22,6 +22,13 @@ rec, pre, cyc, post = load("rollback.json"), load("pre-install.json"), load("pos
 notes = []
 fb = (rec or {}).get("fallback_loader") or {}; bo = (rec or {}).get("boot_order") or {}
 restored = yn(fb.get("restored")); win_first = yn(bo.get("windows_first"))
+# a loader that already matched the snapshot had nothing to restore (the rig, 2026-10-10: the first rollback
+# attempt restored it and then refused at the slot's second mount; the second attempt found it in place)
+if restored != "y" and fb.get("sha_before") and fb.get("sha_before") == fb.get("snapshot_sha") and fb.get("sha_after") == fb.get("snapshot_sha"):
+    restored = "y"; notes.append("fallback loader already matched the snapshot; nothing to restore")
+# shim in Windows' slot (architecture step 12): the rollback puts Windows' loader back under its own name and removes the guard
+_ws = rec.get("windows_slot") if rec else None
+if _ws: notes.append("slot undone: Windows' loader back in its slot (" + str(_ws.get("slot_sha_after"))[:12] + "), guard removed: " + str(_ws.get("guard_removed")))
 if rec: notes.append(f"rollback {rec.get('rollback_version')}: sha {str(fb.get('sha_before'))[:12]} -> {str(fb.get('sha_after'))[:12]} (snapshot {str(fb.get('snapshot_sha'))[:12]}); order {' '.join(bo.get('before', []))} -> {' '.join(bo.get('after', []))}")
 def man(r): return ((r or {}).get("esp") or {}).get("manifest") or {}
 def fbkey(m):

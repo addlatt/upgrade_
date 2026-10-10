@@ -2439,6 +2439,29 @@ the menu would too. Fixed the same hour: the entry is
 `/etc/grub.d/25_windows_kept` (kickstart 0.8.0), right under Fedora. The
 Aspire's by-hand entry is still a `40_custom`; its install predates both.
 
+**The rig arm held (2026-10-10, kit 631c581, `BENCH_FORCE_WINDOWS_SLOT=1
+PROLOGUE=rust`):** the whole keep-Windows flow with the Rust prologue
+(`r18-prologue.csv` line 17, `pass-plumbing`), then **the return applied
+the slot by itself** (the bench marker standing in for the firmware's
+evidence), registered the guard and restarted within a minute; GRUB's
+"Windows (kept)" entry chainloaded the kept name; Fedora and Windows each
+came up twice more (`v2-install.csv` line 12, `pass-plumbing`,
+`fallback_loader = shim-in-windows-slot`: the slot holds shim, Windows'
+loader lives on as `bootmgfw-kept.efi` byte for byte). Then **servicing
+simulated**: Windows' own file put back over the slot, a restart, and the
+guard re-applied the arrangement at the next Windows start (history 0 to
+1; `v2-install.csv` line 13). Then **the rollback**: Windows' loader back
+under its own name, the kept name and the guard removed, Windows first,
+and a keyless start reached Windows directly (`r21-rollback.csv` line
+5, `pass-plumbing`). Found and fixed on the way, all the same evening:
+the bench never saw the Windows session the return restarts (it now
+reads the stick offline and keeps that boot's line from the return's
+record), the GRUB countdown race on the bench's key presses, and a real
+defect in the rollback: its slot undo mounted the ESP a second time,
+which Windows refuses ("The parameter is incorrect"); the undo now works
+on the mount the rollback already holds. What the rig cannot answer
+stays with the Aspire: the detector's own line, "and yet Windows booted".
+
 ## R22: Windows servicing re-takes the firmware boot order · medium · open
 
 **What.** On the keep-Windows path Windows stays installed. Windows Update's
@@ -2479,8 +2502,11 @@ re-applies the arrangement, so an update costs one Windows boot. On
 firmware that honours the entry, `settle-in`'s unit is still the answer.
 The guard ran on the Aspire at both Windows starts of 2026-10-10 (result
 0, the slot still held shim, nothing to re-apply; recorded in its own
-`windows-slot.json`). A real Windows update under it is still owed, and
-it is the only thing that proves this risk's new shape.
+`windows-slot.json`). **On the rig the same evening it re-applied the
+arrangement** after the bench put Windows' own file back over the slot
+and restarted (`v2-install.csv` line 13: history 0 to 1, the slot
+holding shim again). A real Windows update under it on the Aspire is
+still owed: it is what proves the trigger, not only the response.
 
 ---
 
@@ -4185,6 +4211,19 @@ Built the same day:
   Hyper-V the host's time sync keeps the guest right whatever the hardware
   clock says, so the rig can only show the plumbing; the Aspire shows the
   fix.
+
+**What the rig showed (2026-10-10, `v2-install.csv` line 13).** The
+rig's guest starts in R36's own failure state: Hyper-V hands it a UTC
+hardware clock, Windows reads it as local time, and Windows' clock read
+7 h 00 min fast against the host's before the conversion. After the
+keep-Windows install made with kickstart 0.7.0 (the hardware clock read
+as local time), the second Windows cycle still read 7 h fast, and the
+Windows boot after the servicing step read +2 s. So on this rig the fix
+brought Windows' clock right, not wrong; which Linux boot wrote the
+hardware clock in local time is not recorded (the bench's Linux boots
+last 30 s). `v2-verdict` judges the clock as "no further off than before
+the conversion", because a baseline that is itself wrong must not turn a
+correction into a fault.
 
 **Closes when** the Aspire does a Linux boot followed by a Windows boot
 with Windows' clock within a minute of the host's, read the way it was

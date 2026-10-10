@@ -89,6 +89,10 @@ bootmgfw_ok = "n"
 # what "bootmgfw.efi byte for byte" means below
 _ret = load("prologue-return.json") or {}
 _slot = (_ret.get("windows_slot") or {}) or (load("windows-slot.json") or {})
+# the guard writes its history into the kept Windows' own copy of the record (the state directory,
+# pulled as guest-windows-slot.json); take whichever copy carries more history
+for _cand in (load("guest-windows-slot.json") or {}, load("windows-slot.json") or {}):
+    if len(_cand.get("history") or []) > len(_slot.get("history") or []): _slot = dict(_slot, history=_cand["history"])
 shas = {rec.get("esp", {}).get("bootmgfw_sha256") for rec in (pre, post, cyc) if rec}
 shas.discard(None)
 if _slot.get("slot_sha_after") and cyc:

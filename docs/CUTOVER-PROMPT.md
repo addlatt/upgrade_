@@ -39,8 +39,13 @@ applied by hand on the Aspire, then four boot cycles with no key pressed
 (`v2-install.csv` line 11, `pass-plumbing`,
 `fallback_loader = shim-in-windows-slot`). Found there: the kept Windows'
 clock runs 7 h fast after each Linux boot (RISKS R36, the owner's
-decision owed). Next: the return applying the slot by itself, the rig arm
-(`BENCH_FORCE_WINDOWS_SLOT=1`), a Windows update under the guard, R36.
+decision owed). The rig arm held the same evening (`v2-install.csv` lines 12 and 13,
+`r21-rollback.csv` line 5): the return applied the slot by itself,
+the guard survived a simulated servicing pass, the rollback undid it.
+R36 decided (Linux adapts) and built: kickstart 0.7.0, `settle-in`'s
+`left-local`. Next: the Aspire, from a fresh Windows (the way back), for
+the detector's own evidence, a real Windows update under the guard, and
+R36's two boots.
 
 ---
 
