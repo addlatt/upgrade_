@@ -19,8 +19,8 @@ workspace at the root, `rebuild-check.sh`). `docs/RUST-PORT.md`'s status
 table and `port-parity.csv` (648 pass, 51 owed) say exactly what each one
 proved; what is owed is the Aspire's physical rows (the owner at the
 keyboard), the QEMU rig's old handoff rows, the stand-in jobs the rig
-benches still write with the scripts, a `job.json` beside the PowerShell's (the harvester's elevated
-side-by-side on the G16 is done: SAME, 2026-10-09). Traps
+benches still write with the scripts, nothing on the G16: the harvester's elevated side-by-side and the
+`job.json` beside the PowerShell's are both done (SAME, 2026-10-09). Traps
 met: the rig's VM will not start while WSL holds build output in its
 page cache (every bench now runs `rig/hyperv/evict-builds.py --wait`
 first); the fresh rig disk carries a pending Windows update (the bench
