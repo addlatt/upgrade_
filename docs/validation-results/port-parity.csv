@@ -592,11 +592,11 @@ Invoke-Prologue.ps1,"r18-prologue.csv:4 (Hyper-V UEFI Release v4.1)",rig,"r18-pr
 Invoke-Prologue.ps1,"r18-prologue.csv:5 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
 Invoke-Prologue.ps1,"r18-prologue.csv:6 (Hyper-V UEFI Release v4.1)",rig,"r18-prologue.csv:14 (PROLOGUE=rust prologue.sh run 3: injected flag, chkdsk /f at the restart, SYSTEM resumes, shrink, handoff, install, return; pass-plumbing)",pass,2026-10-08
 Invoke-Prologue.ps1,"r18-prologue.csv:7 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
-Invoke-Prologue.ps1,"r18-prologue.csv:8 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
-Invoke-Prologue.ps1,"r18-prologue.csv:9 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
-Invoke-Prologue.ps1,"r18-prologue.csv:10 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
-Invoke-Prologue.ps1,"r18-prologue.csv:11 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
-Invoke-Prologue.ps1,"r18-prologue.csv:12 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
+Invoke-Prologue.ps1,"r18-prologue.csv:8 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,"r18-prologue.csv:15 (the Aspire, 2026-10-10: upgrade-prologue from UPGRADE.exe with the sentence; re-validation, R25, the re-measure by both paths, Resize-Partition, the grow-back and the stop record on real hardware; stopped-shrink on the mebibyte rounding, not on immovable files)",pass,2026-10-10
+Invoke-Prologue.ps1,"r18-prologue.csv:9 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,"r18-prologue.csv:15 (the Aspire, 2026-10-10: upgrade-prologue from UPGRADE.exe with the sentence; re-validation, R25, the re-measure by both paths, Resize-Partition, the grow-back and the stop record on real hardware; stopped-shrink on the mebibyte rounding, not on immovable files)",pass,2026-10-10
+Invoke-Prologue.ps1,"r18-prologue.csv:10 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,"r18-prologue.csv:15 (the Aspire, 2026-10-10: upgrade-prologue from UPGRADE.exe with the sentence; re-validation, R25, the re-measure by both paths, Resize-Partition, the grow-back and the stop record on real hardware; stopped-shrink on the mebibyte rounding, not on immovable files)",pass,2026-10-10
+Invoke-Prologue.ps1,"r18-prologue.csv:11 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,"r18-prologue.csv:15 (the Aspire, 2026-10-10: upgrade-prologue from UPGRADE.exe with the sentence; re-validation, R25, the re-measure by both paths, Resize-Partition, the grow-back and the stop record on real hardware; stopped-shrink on the mebibyte rounding, not on immovable files)",pass,2026-10-10
+Invoke-Prologue.ps1,"r18-prologue.csv:12 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,"r18-prologue.csv:15 (the Aspire, 2026-10-10: upgrade-prologue from UPGRADE.exe with the sentence; re-validation, R25, the re-measure by both paths, Resize-Partition, the grow-back and the stop record on real hardware; stopped-shrink on the mebibyte rounding, not on immovable files)",pass,2026-10-10
 Invoke-Prologue.ps1,"v2-install.csv:2 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
 Invoke-Prologue.ps1,"v2-install.csv:3 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
 Invoke-Prologue.ps1,"v2-install.csv:4 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
