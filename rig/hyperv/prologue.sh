@@ -93,6 +93,10 @@ wait_off() {
     echo "prologue: Off after $(( $(date +%s) - t0 )) s"
 }
 wait_windows() { t0=$(date +%s); while :; do guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV' && { echo "prologue: Windows up after $(( $(date +%s) - t0 )) s"; return 0; }; [ $(( $(date +%s) - t0 )) -ge "${1:-600}" ] && { shot win-stuck; echo "prologue: no Windows within ${1:-600} s" >&2; return 2; }; sleep 10; done; }
+# GRUB's bench timeout is 10 s from the menu, which appears about 10 s after the start: the first key
+# must land inside that window and it stops the countdown. Downs first, no pauses, the screenshot after
+# (the service step of 2026-10-10 lost the race with a screenshot and paced keys: Fedora booted instead)
+pick_windows() { for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; done; shot "grub-selected-${1:?tag}"; }
 slot_applied_utc() { [ -s "$1" ] && python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("windows_slot") or {}).get("applied_utc",""))' "$1" 2>/dev/null || true; }
 stick_offline() {
     # the guest is Off: read the stick's records from its VHDX (converted to a raw image; shell values never interpolated into Python)
@@ -315,10 +319,9 @@ inspect)
     ;;
 cycle)
     need_off; which=${2:?linux|windows}; tag=${3:?tag}
-    PS start; sleep 10; shot "grub-$tag"
+    PS start; sleep 10
     if [ "$which" = windows ]; then
-        for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; sleep 1; done
-        shot "grub-selected-$tag"; PS key 13
+        pick_windows "$tag"; PS key 13
         applied_before=$(slot_applied_utc "$A/prologue-return.json")
         # Windows answers, or the guest powers itself off first: when the return applies shim in Windows'
         # slot (architecture step 12; here forced by the bench marker) it restarts within a minute, before
@@ -371,15 +374,13 @@ service)
     # must re-apply the arrangement at the next Windows start, and say so in its record's history.
     # VM off, after the cycles with the slot applied: Windows via GRUB, the kept copy put back over
     # the slot (what servicing does), restart, Windows via GRUB again, wait for the guard's entry.
-    need_off; PS start; sleep 10; shot grub-service
-    for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; sleep 1; done; PS key 13
+    need_off; PS start; sleep 10; pick_windows service; PS key 13
     wait_windows 600; L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume" >&2; exit 1; }
     before=$(guest "@((Get-Content '$GUEST_STATE\\windows-slot.json' -Raw | ConvertFrom-Json).history).Count" | tr -d ' \n'); before=${before:-0}
     guest "mountvol S: /S; Copy-Item S:\\EFI\\Microsoft\\Boot\\bootmgfw-kept.efi S:\\EFI\\Microsoft\\Boot\\bootmgfw.efi -Force; 'slot now (servicing simulated): ' + (Get-FileHash S:\\EFI\\Microsoft\\Boot\\bootmgfw.efi -Algorithm SHA256).Hash; mountvol S: /D" | tee "$A/service.log"
     echo "prologue: guard history before: $before; restarting the guest"
     guest "Restart-Computer -Force" >/dev/null 2>&1 || true
-    sleep 40; shot grub-service-2
-    for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; sleep 1; done; PS key 13
+    sleep 40; pick_windows service-2; PS key 13
     wait_windows 600; t0=$(date +%s)
     until after=$(guest "@((Get-Content '$GUEST_STATE\\windows-slot.json' -Raw | ConvertFrom-Json).history).Count" 2>/dev/null | tr -d ' \n'); [ -n "$after" ] && [ "$after" -gt "$before" ]; do
         [ $(( $(date +%s) - t0 )) -ge 420 ] && { echo "prologue: the guard wrote no history entry within 420 s" >&2; break; }; sleep 15
@@ -395,8 +396,7 @@ rollback)
     # GRUB, run the stick's ROLLBACK.cmd (ROLLBACK on stdin), pull its record, power off;
     # inspect the ESP offline; then start with NO key pressed - the firmware must bring
     # Windows up by itself - mark it, power off; verdict -> r21-rollback.csv
-    need_off; PS start; sleep 10; shot grub-rollback
-    for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; sleep 1; done; PS key 13
+    need_off; PS start; sleep 10; pick_windows rollback; PS key 13
     wait_windows 600; L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume" >&2; exit 1; }
     if [ "${PROLOGUE:-ps}" = rust ]; then
         guest "& ${L}:\\upgrade-prologue.exe rollback --stick ${L}:" | tee "$A/rollback.log"

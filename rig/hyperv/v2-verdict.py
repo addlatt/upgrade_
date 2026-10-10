@@ -84,9 +84,23 @@ esp_size = e0.get("size_mib", "")
 free_b, free_a = e0.get("fat_bytes_free", ""), e1.get("fat_bytes_free", "")
 m0, m1 = e0.get("manifest", {}), e1.get("manifest", {})
 bootmgfw_ok = "n"
+# shim in Windows' slot (architecture step 12): applied by the prologue's return, recorded in prologue-return.json
+# (or, by hand on a physical run, in upgrade_/report/windows-slot.json on the stick); read first because it changes
+# what "bootmgfw.efi byte for byte" means below
+_ret = load("prologue-return.json") or {}
+_slot = (_ret.get("windows_slot") or {}) or (load("windows-slot.json") or {})
 shas = {rec.get("esp", {}).get("bootmgfw_sha256") for rec in (pre, post, cyc) if rec}
 shas.discard(None)
-if e0.get("bootmgfw_sha256") and len(shas) == 1: bootmgfw_ok = "y"
+if _slot.get("slot_sha_after") and cyc:
+    # R21's clause holds for the bytes, under the kept name: the slot must hold shim as recorded, and
+    # Windows' own loader must live on as bootmgfw-kept.efi with the sha the ESP had before the install
+    kept = (esp(cyc).get("manifest") or {}).get("/EFI/Microsoft/Boot/bootmgfw-kept.efi") or {}
+    slot_now = esp(cyc).get("bootmgfw_sha256")
+    if e0.get("bootmgfw_sha256") and kept.get("sha256") == e0.get("bootmgfw_sha256") and slot_now == _slot.get("slot_sha_after"):
+        bootmgfw_ok = "y"; notes.append("after the cycles the slot holds shim (" + str(slot_now)[:12] + ") and Windows' loader lives on as bootmgfw-kept.efi, byte for byte as before the install")
+    else:
+        notes.append("slot arrangement not as recorded: slot=" + str(slot_now)[:12] + " kept=" + str(kept.get("sha256"))[:12] + " expected kept=" + str(e0.get("bootmgfw_sha256"))[:12] + " slot=" + str(_slot.get("slot_sha_after"))[:12])
+elif e0.get("bootmgfw_sha256") and len(shas) == 1: bootmgfw_ok = "y"
 if not pre and not post:
     # a physical run has no offline disk inspection: the ESP before is the stick's own snapshot
     # (upgrade_/esp-snapshot/SHA256SUMS, taken by %pre) and the ESP after is the installer's
@@ -111,9 +125,6 @@ ms_changed = sorted(k for k in m0 if k.startswith("/EFI/Microsoft/") and not win
                     and (k not in m1 or m1[k]["sha256"] != m0[k]["sha256"]))
 other_changed = sorted(k for k in m0 if not k.startswith("/EFI/Microsoft/") and (k not in m1 or m1[k]["sha256"] != m0[k]["sha256"]))
 fallback = bc.get("fallback_loader", "unreported")
-# shim in Windows' slot (architecture step 12): applied by the prologue's return, recorded in prologue-return.json
-_ret = load("prologue-return.json") or {}
-_slot = (_ret.get("windows_slot") or {}) or (load("windows-slot.json") or {})   # by hand: upgrade_/report/windows-slot.json on the stick
 if _slot.get("slot_sha_after"):
     fallback = "shim-in-windows-slot"; notes.append("shim in Windows' slot: " + str(_slot.get("reason"))[:140])
 snap_files = ((verify or {}).get("esp_snapshot") or {}).get("files", 0)
