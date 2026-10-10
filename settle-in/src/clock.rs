@@ -8,6 +8,13 @@
 //! alone and says why: a wrong "correction" would move a right clock by
 //! hours, and once online the time service corrects a wrong clock anyway.
 //!
+//! **Keep-Windows (RISKS R36, decided 2026-10-10, the owner): Linux adapts.**
+//! The kept Windows still reads the hardware clock as local time, so on that
+//! path settle-in never writes the hardware clock and keeps `/etc/adjtime`
+//! at LOCAL (the kickstart writes it so since 0.7.0), which makes the
+//! kernel and systemd read and write the clock as local time too. Both
+//! systems then agree. Reclaim, which removes Windows, may switch to UTC.
+//!
 //! The evidence:
 //!   - harvest.clock (Windows): the zone, whether the hardware clock held
 //!     local time, and the offset Windows was using (H). That offset is the
@@ -168,10 +175,33 @@ pub fn adjtime_to_utc(text: &str) -> Option<String> {
     None
 }
 
+/// /etc/adjtime for a system that must read the hardware clock as local
+/// time (the keep-Windows path, R36). Returns the new text when it has to
+/// change, None when it already says LOCAL. An absent file (None) means
+/// UTC to systemd, so one is written.
+pub fn adjtime_to_local(text: Option<&str>) -> Option<String> {
+    match text {
+        None => Some("0.0 0 0.0\n0\nLOCAL\n".to_string()),
+        Some(t) => {
+            let mut lines: Vec<&str> = t.lines().collect();
+            if lines.len() >= 3 && lines[2].trim() == "LOCAL" {
+                return None;
+            }
+            while lines.len() < 2 {
+                lines.push(if lines.is_empty() { "0.0 0 0.0" } else { "0" });
+            }
+            lines.truncate(2);
+            lines.push("LOCAL");
+            Some(lines.join("\n") + "\n")
+        }
+    }
+}
+
 /// The whole step. Returns the report block. `created_utc` is when Windows
 /// wrote the job, with Windows' own (network-set) clock: a lower bound on
-/// the true time now.
-pub fn run(m: &mut dyn Machine, root: &str, e: &Evidence, zone: Option<&Zone>, created_utc: i64, recorded: &Value) -> Value {
+/// the true time now. `keep_windows`: Windows stays on this computer and
+/// keeps reading the hardware clock as local time (R36).
+pub fn run(m: &mut dyn Machine, root: &str, e: &Evidence, zone: Option<&Zone>, created_utc: i64, recorded: &Value, keep_windows: bool) -> Value {
     let decision = decide(e, zone);
     let mut r = json!({ "decision": format!("{:?}", decision) });
     let (baked, installer_error) = match decision {
@@ -179,6 +209,53 @@ pub fn run(m: &mut dyn Machine, root: &str, e: &Evidence, zone: Option<&Zone>, c
         Decision::Refuse(why) => return json!({ "result": "left-alone", "why": why }),
         Decision::Fix { baked, installer_error } => (baked, installer_error),
     };
+    if keep_windows {
+        // R36 (decided 2026-10-10, the owner): the hardware clock stays local time, as the kept
+        // Windows expects; this system is told to read it so. The hardware clock is never written here.
+        let adj = format!("{}/etc/adjtime", root.trim_end_matches('/'));
+        let text = std::fs::read_to_string(&adj).ok();
+        let adjtime = match adjtime_to_local(text.as_deref()) {
+            None => "already LOCAL".to_string(),
+            Some(n) => match std::fs::write(&adj, n) {
+                Ok(()) => if text.is_some() { "changed to LOCAL".to_string() } else { "written, LOCAL (it was absent)".to_string() },
+                Err(x) => format!("still not LOCAL, could not write it ({})", x),
+            },
+        };
+        // the system clock: when the installer wrote LOCAL, systemd already set it from the
+        // hardware clock at this startup; when it did not, set it once, from the clock read as local
+        let system_clock = if m.kernel_synchronized() {
+            json!("a time service already set it")
+        } else {
+            match m.rtc_read() {
+                Ok(c) if c.valid() => {
+                    let utc = c.as_unix() - baked;
+                    let now = m.system_now();
+                    if (now - utc).abs() <= TOLERANCE {
+                        json!("already right")
+                    } else if utc < created_utc - TOLERANCE {
+                        json!({ "left-alone": format!("the corrected time {} would be before Windows wrote the job ({})", iso_utc(utc), iso_utc(created_utc)) })
+                    } else {
+                        match m.set_system_clock(utc) {
+                            Ok(()) => json!({ "before_utc": iso_utc(now), "after_utc": iso_utc(utc) }),
+                            Err(x) => json!({ "failed": x }),
+                        }
+                    }
+                }
+                Ok(c) => json!({ "left-alone": format!("the hardware clock holds an impossible date ({})", c.iso()) }),
+                Err(x) => json!({ "left-alone": x }),
+            }
+        };
+        return json!({
+            "result": "left-local",
+            "why": "the kept Windows reads the hardware clock as local time, so this system does too (R36, decided 2026-10-10); the hardware clock is not written",
+            "hardware_clock": "local time, untouched",
+            "offset_it_holds": hm(baked),
+            "adjtime": adjtime,
+            "system_clock": system_clock,
+            "install_records": install_records(recorded, installer_error),
+            "decision": r["decision"],
+        });
+    }
     if m.kernel_synchronized() {
         return json!({ "result": "left-alone",
             "why": "a time service already set the clock during this startup; the hardware clock may already hold UTC" });
@@ -364,7 +441,7 @@ mod tests {
         let mut m = Fake { rtc: Civil::from_unix(truth + H), sys: truth + H, synced: false, wrote_rtc: None };
         let local_as_utc = TRUE_INSTALL + H;
         let outcome = json!({ "created_utc": iso_utc(local_as_utc), "commit_line": { "crossed_utc": iso_utc(local_as_utc - 600) } });
-        let r = run(&mut m, "/nonexistent", &ev(Some(local_as_utc), local_as_utc, Some(false)), Some(&ny()), 1790509000, &outcome);
+        let r = run(&mut m, "/nonexistent", &ev(Some(local_as_utc), local_as_utc, Some(false)), Some(&ny()), 1790509000, &outcome, false);
         assert_eq!(r["result"], "corrected");
         assert_eq!(m.sys, truth);
         assert_eq!(m.wrote_rtc, Some(Civil::from_unix(truth)));
@@ -373,9 +450,42 @@ mod tests {
     }
 
     #[test]
+    fn adjtime_becomes_local_for_a_kept_windows() {
+        assert_eq!(adjtime_to_local(Some("0.0 0 0.0\n0\nUTC\n")).unwrap(), "0.0 0 0.0\n0\nLOCAL\n");
+        assert_eq!(adjtime_to_local(Some("0.0 0 0.0\n0\nLOCAL\n")), None);
+        assert_eq!(adjtime_to_local(None).unwrap(), "0.0 0 0.0\n0\nLOCAL\n");
+    }
+
+    #[test]
+    fn keep_windows_leaves_the_hardware_clock_local_and_tells_the_system_so() {
+        // R36 (2026-10-10): the Aspire's kept Windows ran 7 h fast after a Linux boot wrote UTC into the clock
+        let truth = TRUE_INSTALL + 86400;
+        let root = std::env::temp_dir().join(format!("settle-in-adj-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("etc")).unwrap();
+        std::fs::write(root.join("etc/adjtime"), "0.0 0 0.0\n0\nUTC\n").unwrap();
+        // the system read the local-time clock as UTC at boot (an install from before kickstart 0.7.0): 4 h behind
+        let mut m = Fake { rtc: Civil::from_unix(truth + H), sys: truth + H, synced: false, wrote_rtc: None };
+        let local_as_utc = TRUE_INSTALL + H;
+        let r = run(&mut m, root.to_str().unwrap(), &ev(Some(local_as_utc), local_as_utc, Some(false)), Some(&ny()), 1790509000, &json!({}), true);
+        assert_eq!(r["result"], "left-local");
+        assert_eq!(m.wrote_rtc, None, "the hardware clock is never written on the keep-Windows path");
+        assert_eq!(m.sys, truth, "the system clock is set once, from the clock read as local time");
+        assert_eq!(r["adjtime"], "changed to LOCAL");
+        assert_eq!(std::fs::read_to_string(root.join("etc/adjtime")).unwrap(), "0.0 0 0.0\n0\nLOCAL\n");
+        assert_eq!(r["install_records"]["installer_clock_error_seconds"], H);
+        // the next startup: adjtime LOCAL, systemd has set the system clock already
+        let mut m = Fake { rtc: Civil::from_unix(truth + H), sys: truth, synced: false, wrote_rtc: None };
+        let r = run(&mut m, root.to_str().unwrap(), &ev(Some(local_as_utc), local_as_utc, Some(false)), Some(&ny()), 1790509000, &json!({}), true);
+        assert_eq!(r["adjtime"], "already LOCAL");
+        assert_eq!(r["system_clock"], "already right");
+        assert_eq!(m.wrote_rtc, None);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
     fn run_leaves_the_clock_when_a_time_service_already_ran() {
         let mut m = Fake { rtc: Civil::from_unix(TRUE_INSTALL), sys: TRUE_INSTALL, synced: true, wrote_rtc: None };
-        let r = run(&mut m, "/nonexistent", &ev(Some(TRUE_INSTALL + H), TRUE_INSTALL, Some(false)), Some(&ny()), 1790509000, &json!({}));
+        let r = run(&mut m, "/nonexistent", &ev(Some(TRUE_INSTALL + H), TRUE_INSTALL, Some(false)), Some(&ny()), 1790509000, &json!({}), false);
         assert_eq!(r["result"], "left-alone");
         assert_eq!(m.wrote_rtc, None);
     }
@@ -383,7 +493,7 @@ mod tests {
     #[test]
     fn run_refuses_a_time_before_the_job() {
         let mut m = Fake { rtc: Civil::from_unix(1700000000), sys: 1700000000, synced: false, wrote_rtc: None };
-        let r = run(&mut m, "/nonexistent", &ev(Some(TRUE_INSTALL + H), TRUE_INSTALL, Some(false)), Some(&ny()), 1790509000, &json!({}));
+        let r = run(&mut m, "/nonexistent", &ev(Some(TRUE_INSTALL + H), TRUE_INSTALL, Some(false)), Some(&ny()), 1790509000, &json!({}), false);
         assert_eq!(r["result"], "left-alone");
         assert_eq!(m.wrote_rtc, None);
     }

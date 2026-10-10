@@ -18,7 +18,7 @@ use serde_json::Value;
 use upgrade_schema::Job;
 
 /// The PowerShell generator this port follows.
-pub const FOLLOWS_GENERATOR: &str = "0.6.0";
+pub const FOLLOWS_GENERATOR: &str = "0.7.0";
 
 /// A value inside a PowerShell "..." string.
 fn text(v: Option<&Value>) -> String {
@@ -117,7 +117,15 @@ pub fn kickstart(job: &Value, label: &str, manifest: &[String]) -> Result<String
     add("text");
     add(&format!("lang {}", at("/intent/locale/lang")));
     add(&format!("keyboard --xlayouts='{}'", at("/intent/locale/keymap")));
-    add(&format!("timezone {} --utc", at("/intent/locale/timezone")));
+    // RISKS R36 (decided 2026-10-10, the owner): the kept Windows reads the hardware clock as
+    // local time, so a keep-windows install reads it so too (no --utc: Anaconda writes
+    // /etc/adjtime LOCAL). An erase, or a Windows that already kept UTC, says --utc.
+    let rtc_local = job.pointer("/harvest/clock/rtc_is_local").and_then(Value::as_bool) != Some(false);
+    if eq_ci(&path, "keep-windows") && rtc_local {
+        add(&format!("timezone {}", at("/intent/locale/timezone")));
+    } else {
+        add(&format!("timezone {} --utc", at("/intent/locale/timezone")));
+    }
     add("rootpw --lock");
     let full_name = at("/intent/account/full_name");
     let gecos = if full_name.is_empty() { String::new() } else { format!(" --gecos=\"{}\"", full_name.replace('"', "\\\"")) };

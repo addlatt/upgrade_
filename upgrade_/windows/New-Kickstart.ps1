@@ -41,7 +41,7 @@ param(
     [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
-$KsGenVersion = '0.6.0'   # 0.5.0 (2026-10-03): no first-run wizard over a made account (Plasma Setup, Fedora 44 KDE)
+$KsGenVersion = '0.7.0'   # 0.7.0 (2026-10-10, RISKS R36, the owner): a keep-windows job whose Windows keeps the hardware clock in local time gets 'timezone X' with no --utc, so the installed system reads that clock as local time too; 0.6.0 (2026-10-10): GRUB's own Windows entry, os-prober off; 0.5.0 (2026-10-03): no first-run wizard over a made account (Plasma Setup, Fedora 44 KDE)
 
 function Test-KsJob {
     # The shape checks a PS 5.1 host can do without a JSON Schema validator:
@@ -94,7 +94,11 @@ function New-Kickstart {
     $L.Add('text')
     $L.Add("lang $($i.locale.lang)")
     $L.Add("keyboard --xlayouts='$($i.locale.keymap)'")
-    $L.Add("timezone $($i.locale.timezone) --utc")
+    # RISKS R36 (decided 2026-10-10, the owner): the kept Windows reads the hardware clock as local time, so a
+    # keep-windows install reads it so too (without --utc, Anaconda writes /etc/adjtime LOCAL). An erase, or a
+    # Windows that already kept UTC (harvest.clock.rtc_is_local false), says --utc as before.
+    $rtcLocal = -not ($Job.harvest -and $Job.harvest.clock -and $Job.harvest.clock.rtc_is_local -eq $false)
+    if ($i.path -eq 'keep-windows' -and $rtcLocal) { $L.Add("timezone $($i.locale.timezone)") } else { $L.Add("timezone $($i.locale.timezone) --utc") }
     $L.Add('rootpw --lock')
     $gecos = if ($i.account.full_name) { " --gecos=$(ConvertTo-KsQuoted $i.account.full_name)" } else { '' }
     $L.Add("user --name=$($i.account.linux_name)$gecos --iscrypted --password=$($i.account.password_hash) --groups=wheel")
@@ -177,7 +181,10 @@ function Invoke-SelfTest {
         @{ Name = 'keep-windows example generates'; Run = { [bool]$ksK }; Expect = $true }
         @{ Name = 'clean-slate example generates'; Run = { [bool]$ksC }; Expect = $true }
         @{ Name = 'lang, keymap, timezone come from intent.locale'
-           Run = { ($ksK -match "(?m)^lang en_US\.UTF-8$") -and ($ksK -match "(?m)^keyboard --xlayouts='us'$") -and ($ksK -match "(?m)^timezone America/New_York --utc$") }; Expect = $true }
+           Run = { ($ksK -match "(?m)^lang en_US\.UTF-8$") -and ($ksK -match "(?m)^keyboard --xlayouts='us'$") -and ($ksK -match "(?m)^timezone America/New_York$") }; Expect = $true }
+        @{ Name = 'keep-windows leaves the hardware clock in local time, as the kept Windows expects (no --utc; RISKS R36, decided 2026-10-10); clean-slate, or a Windows that kept UTC, says --utc'
+           Run = { $j = $keep | ConvertTo-Json -Depth 10 | ConvertFrom-Json; $j.harvest.clock.rtc_is_local = $false; $ksU = New-Kickstart -Job $j -Label 'UPGV0'
+                   ($ksK -match '(?m)^timezone America/New_York$') -and ($ksK -notmatch '(?m)^timezone .* --utc$') -and ($ksC -match '(?m)^timezone \S+ --utc$') -and ($ksU -match '(?m)^timezone America/New_York --utc$') }; Expect = $true }
         @{ Name = 'the password hash passes through untouched and root is locked'
            Run = { ($ksK -match [regex]::Escape("--iscrypted --password=$($keep.intent.account.password_hash) --groups=wheel")) -and ($ksK -match '(?m)^rootpw --lock$') }; Expect = $true }
         @{ Name = 'the desktop selects the squashfs'

@@ -237,6 +237,7 @@ New-Kickstart.ps1,"the account is made by the kickstart, so Plasma Setup (Fedora
 New-Kickstart.ps1,"console chosen: no graphical login, the text console is the default target",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
 New-Kickstart.ps1,refuse: a job with no choice of what the computer starts at,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
 New-Kickstart.ps1,a manifest without the image adds no checksum (never a guess),selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,"keep-windows leaves the hardware clock in local time, as the kept Windows expects (no --utc; RISKS R36, decided 2026-10-10); clean-slate, or a Windows that kept UTC, says --utc",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-10
 New-Kickstart.ps1,v1-live-boot.csv:2-5 (the kickstart each row booted; split per row when re-run),rig,,owed,2026-10-04
 New-Kickstart.ps1,v1-live-boot.csv:5,physical,,owed,2026-10-04
 New-Kickstart.ps1,v2-install.csv:2-6 (the kickstart each install ran),rig,,owed,2026-10-04

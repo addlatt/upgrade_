@@ -2422,7 +2422,14 @@ first line. Still owed: the return applying the slot by itself (the
 detector, not a hand), a servicing pass survived by the guard, the
 rollback putting the file back on this machine, and the rig arm with the
 bench switch. Found on the same cycles: the kept Windows' clock 7 h fast
-after each Linux boot (R36).
+after each Linux boot (R36). **Decided (2026-10-10, the owner): the rig
+first, then the Aspire.** The rig arm (`BENCH_FORCE_WINDOWS_SLOT=1
+PROLOGUE=rust rig/hyperv/prologue.sh run`, then `service`, then
+`rollback`) proves the plumbing: the return applying the slot on its own,
+the extra restart, both systems reached twice, a simulated servicing pass
+survived by the guard, the rollback putting Windows' file back. The one
+line only an Acer can answer, "and yet Windows booted", stays with the
+Aspire, which needs a fresh Windows first.
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · open
 
@@ -4103,7 +4110,7 @@ at every boot while it is in, and it only ever hands over.
 install with the stick left in and comes up in Fedora once. **Met
 2026-10-04 (run 11).** Kept open for the list above.
 
-## R36: The kept Windows' clock runs hours wrong after every Linux boot · medium · open (found 2026-10-10 on the Aspire, the first keep-Windows boot cycles; decision owed)
+## R36: The kept Windows' clock runs hours wrong after every Linux boot · medium · open (found 2026-10-10 on the Aspire, the first keep-Windows boot cycles; decided the same day, Linux adapts; built `[##..]`, the Aspire's two boots owed)
 
 **What.** Windows keeps the hardware clock in local time. Linux keeps it
 in UTC, and `settle-in` stores it as UTC on first startup
@@ -4145,7 +4152,36 @@ a safety net that looks broken is not trusted. Medium.
   Windows versions have mishandled daylight saving under it.
 
 Either way reclaim, which removes Windows, returns the machine to plain
-UTC. Neither is built.
+UTC.
+
+**Decided (2026-10-10, the owner): Linux adapts.** The kept Windows is not
+touched (rule #4), and reclaim returns the machine to UTC later anyway.
+Built the same day:
+
+- The kickstart (`New-Kickstart.ps1` 0.7.0; the Rust generator follows
+  it): a keep-windows job whose Windows keeps the hardware clock in local
+  time (`harvest.clock.rtc_is_local`, the harvester's reading) gets
+  `timezone <zone>` with no `--utc`, so Anaconda writes `/etc/adjtime` as
+  LOCAL and the installed system reads and writes the clock as local time
+  from its first boot. An erase, or a Windows that already kept UTC, says
+  `--utc` as before.
+- `settle-in`'s clock step on the keep-Windows path (`clock.rs`,
+  `left-local`): the hardware clock is never written; `/etc/adjtime` is
+  made LOCAL if an older kickstart left it UTC; the system clock is set
+  once from the clock read as local time if nothing has set it yet; the
+  install records are still corrected by the installer's error. The erase
+  path is unchanged (the clock becomes UTC, for good).
+- The rig's bench writes the host's clock beside the guest's at every
+  Windows boot (`host-utc=` in `boots.log`), and `v2-verdict` says
+  `windows-clock-wrong` when they differ by more than five minutes. On
+  Hyper-V the host's time sync keeps the guest right whatever the hardware
+  clock says, so the rig can only show the plumbing; the Aspire shows the
+  fix.
+
+**Closes when** the Aspire does a Linux boot followed by a Windows boot
+with Windows' clock within a minute of the host's, read the way it was
+read here, on an install made with kickstart 0.7.0 or a `settle-in` first
+start that wrote LOCAL. Owed.
 
 **Closes when.** Decided and built, then the Aspire does a Linux boot
 followed by a Windows boot with Windows' clock within a minute of the

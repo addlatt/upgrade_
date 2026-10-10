@@ -14,7 +14,7 @@ collectors' boot lines, and inspections of images assembled from the drive's
 first MiB and its ESP). A row that passes every check then reads "pass", not
 "pass-plumbing": a rig pass closes plumbing only (rule #5).
 """
-import csv, json, sys, datetime, pathlib
+import csv, json, sys, datetime, pathlib, re
 A = pathlib.Path(sys.argv[1]); CSV = pathlib.Path(sys.argv[2]); HARNESS = sys.argv[3]; FIRMWARE = sys.argv[4]
 PHYSICAL = "--physical" in sys.argv[5:]; EXTRA = [x for x in sys.argv[5:] if x != "--physical"]
 PASS = "pass" if PHYSICAL else "pass-plumbing"
@@ -121,7 +121,7 @@ if other_changed: notes.append("pre-existing non-Microsoft ESP files changed: " 
 notes.append(f"install added {len([k for k in m1 if k not in m0])} files / {added} B to the ESP")
 
 # --- boots ----------------------------------------------------------------------
-wb = lb = 0
+wb = lb = 0; clock_offsets = []
 if (A / "boots.log").exists():
     seen_done = False
     for line in open(A / "boots.log", encoding="utf-8-sig", errors="replace"):
@@ -130,8 +130,19 @@ if (A / "boots.log").exists():
         if line.startswith("install-done"): seen_done = True; continue
         if not seen_done: continue
         if line.startswith("linux-boot"): lb += 1
-        if line.startswith("windows-boot"): wb += 1
+        if line.startswith("windows-boot"):
+            wb += 1
+            # RISKS R36: the guest's clock beside the host's (the bench writes host-utc=...)
+            m = re.search(r"host-utc=(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)Z", line)
+            if m:
+                try:
+                    g = datetime.datetime.fromisoformat(line.split(",")[1][:19]); h = datetime.datetime.fromisoformat(m.group(1))
+                    clock_offsets.append(int((g - h).total_seconds()))
+                except ValueError: pass
 notes.append(f"boots after install-done: windows={wb} linux={lb}")
+if clock_offsets: notes.append("Windows' clock against the host's at each Windows boot: " + ", ".join(f"{o:+d} s" for o in clock_offsets) + " (R36)")
+_hist = [h for h in (_slot.get("history") or []) if isinstance(h, dict)]
+if _hist: notes.append("the guard re-applied the slot " + str(len([h for h in _hist if h.get("action") == "reapplied"])) + " time(s) (R22 under step 12; the bench's service step)")
 if v0: notes.append("v0 row: " + v0["notes"][:120])
 
 def yn(b): return "y" if b else "n"
@@ -150,6 +161,7 @@ elif wb < 1 or grub_win != "y": result = "windows-unbootable-via-grub"
 elif lb < 1: result = "linux-unbootable"
 elif fallback not in ("shim", "shim-in-windows-slot") or snap_files < 1: result = "fallback-loader-unrecorded"
 elif wb < 2 or lb < 2: result = "cycles-incomplete"
+elif any(abs(o) > 300 for o in clock_offsets): result = "windows-clock-wrong"   # R36: the kept Windows read a UTC hardware clock as local time
 else: result = PASS
 
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), HARNESS, FIRMWARE, sb, path, desktop, handoff,

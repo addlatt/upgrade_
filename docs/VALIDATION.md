@@ -321,8 +321,12 @@ Fedora's entry (`BootCurrent 0004`), not the slot (RISKS R21, "What the
 Aspire actually did"). Owed: the rig arm, the return applying the slot by
 itself, a Windows update followed by a Linux boot, the rollback on this
 machine, and the kept Windows' clock, 7 h fast after each Linux boot
-(RISKS R36, decision owed). Until then V1b's default path on this
-firmware rests on one machine and one day.
+(RISKS R36; decided and built the same day, Linux adapts: the proof is
+Windows' clock within a minute of the host's after a Linux boot, which
+the bench now records at every Windows boot as `host-utc=` and
+`v2-verdict` judges as `windows-clock-wrong`). **Decided (2026-10-10, the
+owner): the rig first, then the Aspire.** Until then V1b's default path
+on this firmware rests on one machine and one day.
 
 **Why it has its own gate.** The default keep-Windows path installs Linux
 into space freed from Windows, and **must leave the shrunk Windows fully

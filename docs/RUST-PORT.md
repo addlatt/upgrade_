@@ -672,9 +672,22 @@ line 16, `pass-plumbing`; `v2-install.csv` line 10,
 Fedora first in its order: the Acer finding (RISKS R21). The slot (5d)
 was built that afternoon, applied by hand, and the four cycles followed
 (`v2-install.csv` line 11). Found on the cycles: the kept Windows'
-clock 7 h fast after each Linux boot (RISKS R36, decision owed). Nothing
-on the Windows side of it was PowerShell: a keep-Windows conversion has
-now run in Rust on a real machine, once.
+clock 7 h fast after each Linux boot (RISKS R36). Nothing on the Windows
+side of it was PowerShell: a keep-Windows conversion has now run in Rust
+on a real machine, once.
+
+**R36, decided and built the same evening (the owner: Linux adapts).**
+`New-Kickstart.ps1` 0.7.0 and the Rust generator with it: a keep-windows
+job whose Windows keeps the hardware clock in local time gets `timezone`
+with no `--utc` (one new self-test case, 49 recorded inputs, golden
+re-recorded). `settle-in`'s clock step gained the keep-Windows branch
+(`left-local`: the hardware clock never written, `/etc/adjtime` made
+LOCAL, the system clock set once if nothing has). The rig's bench writes
+`host-utc=` beside each Windows boot and `v2-verdict` judges
+`windows-clock-wrong` past five minutes; the bench also gained the
+`service` step (servicing simulated, the guard's re-application awaited)
+and lets the return restart the guest when it applies the slot. The owner
+decided the order: the rig first, then the Aspire.
 
 **A finding from 5a for `main`:** `Get-PrologueRepairMethod` knows only
 Windows 10's scan names. On Windows 11 a scan that found errors
