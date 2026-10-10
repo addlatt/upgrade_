@@ -310,6 +310,19 @@ pub fn verdict_allows(v: Option<&Verdict>) -> bool {
     matches!(v.map(|v| v.level.as_str()), Some("GREEN") | Some("YELLOW"))
 }
 
+/// Whether the window's own stop after the scan applies. On the data-loss
+/// path (the sentence typed, RISKS R23) a RED verdict goes on to the job
+/// writer, which lifts exactly the two health refusals the sentence covers
+/// and refuses every other RED; the window stopping first made the sentence
+/// unusable through the window (the Aspire, 2026-10-10). A missing verdict
+/// stops on every path.
+pub fn scan_stops(v: Option<&Verdict>, acknowledged: bool) -> bool {
+    if verdict_allows(v) {
+        return false;
+    }
+    !(acknowledged && v.map(|v| v.level.as_str()) == Some("RED"))
+}
+
 /// The newest scanner JSON in the reports folder (names carry the time).
 pub fn newest_report(dir: &Path) -> Option<PathBuf> {
     let mut best: Option<(std::time::SystemTime, PathBuf)> = None;
@@ -694,6 +707,17 @@ mod tests {
         assert_eq!(v.groups, vec![("Blocks".to_string(), vec!["Disk: bad blocks".to_string()])]);
         assert!(verdict_allows(verdict(&json!({"Verdict":{"Level":"GREEN"}})).as_ref()));
         assert!(verdict_allows(verdict(&json!({"Verdict":{"Level":"YELLOW"}})).as_ref()));
+    }
+
+    #[test]
+    fn the_sentence_hands_a_red_verdict_to_the_job_writer_and_nothing_else() {
+        let red = verdict(&json!({"Verdict":{"Level":"RED"}}));
+        let yellow = verdict(&json!({"Verdict":{"Level":"YELLOW"}}));
+        assert!(scan_stops(red.as_ref(), false), "RED without the sentence stops");
+        assert!(!scan_stops(red.as_ref(), true), "RED with the sentence goes to the job writer");
+        assert!(!scan_stops(yellow.as_ref(), false));
+        assert!(scan_stops(None, true), "no verdict stops even with the sentence");
+        assert!(scan_stops(verdict(&json!({"Verdict":{"Level":"red"}})).as_ref(), true), "an unknown word stops even with the sentence");
     }
 
     #[test]

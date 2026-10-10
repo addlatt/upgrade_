@@ -170,11 +170,16 @@ fn run(c: &flow::Call, root: &Path, tx: &Sender<Msg>, guard: &Shared) -> Option<
     Some((code, lines))
 }
 
-/// The scan's own stop: RED goes no further (the job writer would refuse it too).
-fn scan_stop(root: &Path) -> Option<Stop> {
+/// The scan's own stop: RED goes no further (the job writer would refuse it
+/// too), except on the data-loss path, where the job writer judges the RED
+/// with the sentence (flow::scan_stops).
+fn scan_stop(root: &Path, acknowledged: bool) -> Option<Stop> {
     let report = flow::newest_report(&root.join("upgrade_").join("reports"));
     let v = report.and_then(|p| std::fs::read(p).ok()).and_then(|b| flow::parse_json(&b)).and_then(|j| flow::verdict(&j));
-    if flow::verdict_allows(v.as_ref()) {
+    if !flow::scan_stops(v.as_ref(), acknowledged) {
+        if !flow::verdict_allows(v.as_ref()) {
+            log_line(root, "verdict RED handed to the job writer with the acknowledgement (RISKS R23)");
+        }
         return None;
     }
     log_line(root, &format!("stopped after the scan: verdict {}", v.as_ref().map(|v| v.level.as_str()).unwrap_or("missing")));
@@ -207,7 +212,7 @@ fn verify(stick: String, tx: Sender<Msg>, guard: Shared) {
             return stop(Stop::Refused(flow::refusal_lines(&lines)));
         }
         if i == 0 {
-            if let Some(s) = scan_stop(&root) {
+            if let Some(s) = scan_stop(&root, false) {
                 return stop(s);
             }
         }
@@ -343,7 +348,7 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
             return stop(Stop::Refused(flow::refusal_lines(&lines)));
         }
         if i == 0 {
-            if let Some(s) = scan_stop(&root) {
+            if let Some(s) = scan_stop(&root, !inputs.ack.is_empty()) {
                 return stop(s);
             }
             // the Linux account name, as the launcher asks it before the password (RUN-CONVERT.cmd line 102)

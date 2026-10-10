@@ -643,6 +643,17 @@ armed."). Fixed: a copy that already holds the same bytes is left alone
 return task alike). Rows the Rust writes now say `program=upgrade-prologue
 ...` in their notes, so they can be told from the script's.
 
+**The window on the Aspire (2026-10-10):** the first physical use of
+the data-loss path through `UPGRADE-ACCEPTING-DATA-LOSS.cmd`. The Rust
+scanner ran under the window on the real machine and the window then
+stopped on its own RED stop ("This computer cannot be converted as it
+is"), before the job writer could apply the typed sentence. The `.cmd`
+launcher never had that stop (the job writer decides, and with the
+sentence it lifts exactly the two health refusals, R23). Fixed:
+`flow::scan_stops`: on the data-loss path a RED verdict goes on to the
+job writer; a missing verdict, or RED without the sentence, still stops.
+The verify flow is unchanged (no sentence, so RED stops).
+
 **A finding from 5a for `main`:** `Get-PrologueRepairMethod` knows only
 Windows 10's scan names. On Windows 11 a scan that found errors
 (`ScanErrorsFoundNeedSpotFix`) with no other evidence makes the prologue
