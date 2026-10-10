@@ -687,7 +687,10 @@ LOCAL, the system clock set once if nothing has). The rig's bench writes
 `windows-clock-wrong` past five minutes; the bench also gained the
 `service` step (servicing simulated, the guard's re-application awaited)
 and lets the return restart the guest when it applies the slot. The owner
-decided the order: the rig first, then the Aspire.
+decided the order: the rig first, then the Aspire. The rig's first slot
+run stopped on GRUB's menu order, not the slot ("UEFI Firmware Settings"
+above "Windows (kept)"; RISKS R21): the entry is `25_windows_kept` since
+kickstart 0.8.0, right under Fedora.
 
 **A finding from 5a for `main`:** `Get-PrologueRepairMethod` knows only
 Windows 10's scan names. On Windows 11 a scan that found errors

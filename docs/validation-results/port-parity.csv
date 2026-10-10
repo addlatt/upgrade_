@@ -222,7 +222,7 @@ New-Kickstart.ps1,the password hash passes through untouched and root is locked,
 New-Kickstart.ps1,the desktop selects the squashfs,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
 New-Kickstart.ps1,"storage is a %include the verifier writes, never inline",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
 New-Kickstart.ps1,"%pre runs verify.sh with the job and the stick label, erroring on failure",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
-New-Kickstart.ps1,keep-windows %post turns os-prober on; clean-slate does not,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,"keep-windows %post turns os-prober off and writes its own Windows entry right under Fedora (25_windows_kept, above the firmware-settings entry), chainloading the kept name when it exists; clean-slate does neither",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
 New-Kickstart.ps1,"a full name becomes --gecos, quoted",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
 New-Kickstart.ps1,"no full name, no --gecos",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
 New-Kickstart.ps1,refuse: schema job/2,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04

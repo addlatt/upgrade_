@@ -2430,6 +2430,14 @@ the extra restart, both systems reached twice, a simulated servicing pass
 survived by the guard, the rollback putting Windows' file back. The one
 line only an Acer can answer, "and yet Windows booted", stays with the
 Aspire, which needs a fresh Windows first.
+**The rig's first slot run (2026-10-10, kit f94bca8) stopped at the
+first Windows cycle, on the menu, not the slot:** with os-prober off,
+GRUB's own "UEFI Firmware Settings" entry came third and "Windows
+(kept)" fourth (`40_custom` sorts after `30_uefi-firmware`), and the
+bench's two key presses landed in the firmware. A person counting down
+the menu would too. Fixed the same hour: the entry is
+`/etc/grub.d/25_windows_kept` (kickstart 0.8.0), right under Fedora. The
+Aspire's by-hand entry is still a `40_custom`; its install predates both.
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · open
 
