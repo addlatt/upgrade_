@@ -84,12 +84,12 @@ stick)
     # timeout, boot-marker unit) + autoshutdown after the first Linux boot.
     if [ "${MODE:-verify}" = install ]; then
         printf 'v2\n' > "$A/marker"; mcopy -o -i "$P" "$A/marker" ::/upgrade_/boot-install
-        mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench; mcopy -o -i "$P" "$A/marker" ::/upgrade_/autoshutdown
+        mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench; mcopy -o -i "$P" "$A/marker" ::/upgrade_/autoshutdown; [ -n "${BENCH_FORCE_WINDOWS_SLOT:-}" ] && mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench-force-windows-slot
     elif [ "${MODE:-verify}" = prologue ]; then
         # the prologue (product code) writes boot-install itself when it arms;
         # the bench only asks for the GRUB timeout, the boot marker and the shutdown
         printf 'prologue\n' > "$A/marker"
-        mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench; mcopy -o -i "$P" "$A/marker" ::/upgrade_/autoshutdown
+        mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench; mcopy -o -i "$P" "$A/marker" ::/upgrade_/autoshutdown; [ -n "${BENCH_FORCE_WINDOWS_SLOT:-}" ] && mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench-force-windows-slot
     elif [ "${MODE:-verify}" = window ]; then
         # V12 (v12.sh): UPGRADE.exe writes boot-verify itself before it arms, as RUN-VERIFY.cmd does
         :
@@ -111,6 +111,7 @@ stick)
     echo "v1: built and attached $STICK_VHDX"
     ;;
 windows)
+    python3 evict-builds.py --wait   # WSL's cache starves Hyper-V (rig README): sweep, wait for room
     PS start; sleep 10
     PS key 40; sleep 1; PS key 40; sleep 1; PS key 40; sleep 1
     PS shot "C:\\upgrade-rig\\hv\\shots\\v1-grub-selected.png" >/dev/null 2>&1 || true; cp "$HV/shots/v1-grub-selected.png" "$A/" 2>/dev/null || true
@@ -131,9 +132,10 @@ $stick=Get-Volume -FileSystemLabel UPGV0 -ErrorAction SilentlyContinue | Get-Par
 $dirty="unknown"; $dq=(fsutil dirty query C: 2>&1) -join " "; if ($dq -match "is NOT Dirty") { $dirty="clean" } elseif ($dq -match "is Dirty") { $dirty="dirty" }
 # a repair Windows has queued (R18, the second trigger, 2026-09-17): the status of the volume, or a recent NTFS event 98 asking for a full chkdsk.
 # The prologue re-reads this and refuses a job that says otherwise (seen 2026-10-04: the injected dirty flag made Windows queue one)
+$vs=""; try { $vs=(@((Get-Volume -DriveLetter C -ErrorAction SilentlyContinue).OperationalStatus) -join ",") } catch { }
 $rq=$false; try { if ((@((Get-Volume -DriveLetter C).OperationalStatus) -join ",") -match "Full Repair Needed") { $rq=$true } } catch { }
 try { if (@(Get-WinEvent -FilterHashtable @{ LogName="System"; Id=98; StartTime=(Get-Date).AddDays(-30) } -ErrorAction SilentlyContinue | Where-Object { "$($_.ProviderName)" -match "Ntfs" -and "$($_.Message)" -match "(?i)Full Chkdsk" -and "$($_.Message)" -match "(?i)Volume C:" }).Count) { $rq=$true } } catch { }
-[pscustomobject]@{vendor=$cs.Manufacturer; model=$cs.Model; uuid="$($sys.UUID)"; bios_serial="$($bios.SerialNumber)"; bios_version="$($bios.SMBIOSBIOSVersion)"; os=$os.Caption; build=[int]$os.BuildNumber; sb=$sb; bitlocker=$bl; shrink_gb=$shrink; repair_queued=$rq; health="$($pd.HealthStatus)"; dirty=$dirty
+[pscustomobject]@{vendor=$cs.Manufacturer; model=$cs.Model; uuid="$($sys.UUID)"; bios_serial="$($bios.SerialNumber)"; bios_version="$($bios.SMBIOSBIOSVersion)"; os=$os.Caption; build=[int]$os.BuildNumber; sb=$sb; bitlocker=$bl; shrink_gb=$shrink; repair_queued=$rq; volume_status=$vs; health="$($pd.HealthStatus)"; dirty=$dirty
   disk=@{number=$d.Number; serial=("$($d.SerialNumber)" -replace "\s",""); unique_id="$($d.UniqueId)"; size=[long]$d.Size; style="$($d.PartitionStyle)"; name="$($d.FriendlyName)"}
   esp=@{size=[long]$esp.Size; free=[long]$(if ($espVol) { $espVol.SizeRemaining } else { 0 })}
   stick=@{unique_id="$($stick.UniqueId)"; size=[long]$stick.Size}} | ConvertTo-Json -Depth 4' > "$A/facts.json"
@@ -159,7 +161,12 @@ try { if (@(Get-WinEvent -FilterHashtable @{ LogName="System"; Id=98; StartTime=
 arm)
     L=$(stick_letter); [ -n "$L" ] || { echo "v1: no UPGV0 volume in the guest" >&2; exit 1; }
     guest 'New-Item -ItemType Directory -Force -Path C:\upgrade_\v1 | Out-Null; Remove-Item C:\upgrade_\v1\v0-handoff.csv -Force -ErrorAction SilentlyContinue; if (Test-Path C:\ProgramData\upgrade_\v0\handoff-state.json) { "stale armed state present - run -Check first" }'
-    guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Test-Handoff.ps1 -Arm -Auto -Payload shim -PayloadDrive ${L}: -SuspendBitLocker -ResultsCsv $GUEST_CSV"
+    # PROLOGUE=rust arms with the Rust verify handoff (upgrade-prologue verify-arm, following Test-Handoff.ps1; RISKS R32)
+    if [ "${PROLOGUE:-ps}" = rust ]; then
+        guest "& ${L}:\\upgrade-prologue.exe verify-arm --stick ${L}: --auto --payload shim --suspend-bitlocker --results-csv $GUEST_CSV"
+    else
+        guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Test-Handoff.ps1 -Arm -Auto -Payload shim -PayloadDrive ${L}: -SuspendBitLocker -ResultsCsv $GUEST_CSV"
+    fi
     echo "v1: armed; the guest reboots itself in ~20 s"
     ;;
 wait)

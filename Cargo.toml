@@ -1,0 +1,26 @@
+# The Windows side's Rust crates as one workspace (RISKS R14, 2026-10-09).
+# A path dependency outside a workspace is hashed by its absolute path into
+# every symbol name (cargo's -C metadata), so two checkouts could never give
+# the same bytes; members of a workspace are hashed relative to this root.
+# settle-in (the Linux side) keeps its own crates and locks.
+[workspace]
+resolver = "2"
+members = [
+    "schemas/rust",
+    "upgrade_/kickstart",
+    "evaluate/scan",
+    "evaluate/harvest",
+    "evaluate/job",
+    "upgrade_/prologue",
+    "upgrade_/windows/window",
+]
+exclude = ["settle-in", "settle-in/window", "settle-in/gate"]
+
+# the same bytes from any machine: symbols out, one codegen unit; the window
+# is built for size as before
+[profile.release]
+strip = true
+codegen-units = 1
+
+[profile.release.package.upgrade-window]
+opt-level = "s"

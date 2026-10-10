@@ -1,1 +1,702 @@
 piece,evidence,kind,rust_test,result,date
+schemas/check.py,example validates: job.acknowledged-data-loss.json,selftest,schemas/rust contract::every_example_validates,pass,2026-10-04
+schemas/check.py,example validates: job.clean-slate.json,selftest,schemas/rust contract::every_example_validates,pass,2026-10-04
+schemas/check.py,example validates: job.erase-and-install.json,selftest,schemas/rust contract::every_example_validates,pass,2026-10-04
+schemas/check.py,example validates: job.keep-windows.json,selftest,schemas/rust contract::every_example_validates,pass,2026-10-04
+schemas/check.py,example validates: outcome.acknowledged-data-loss.json,selftest,schemas/rust contract::every_example_validates,pass,2026-10-04
+schemas/check.py,example validates: outcome.clean-slate.json,selftest,schemas/rust contract::every_example_validates,pass,2026-10-04
+schemas/check.py,example validates: outcome.erase-and-install.json,selftest,schemas/rust contract::every_example_validates,pass,2026-10-04
+schemas/check.py,example validates: outcome.keep-windows.json,selftest,schemas/rust contract::every_example_validates,pass,2026-10-04
+schemas/check.py,example validates: outcome.stopped-unhealthy-disk.json,selftest,schemas/rust contract::every_example_validates,pass,2026-10-04
+schemas/check.py,example pair: keep-windows job and outcome share job_id,selftest,schemas/rust contract::example_pairs_share_job_id,pass,2026-10-04
+schemas/check.py,example pair: clean-slate job and outcome share job_id,selftest,schemas/rust contract::example_pairs_share_job_id,pass,2026-10-04
+schemas/check.py,example pair: acknowledged-data-loss job and outcome share job_id,selftest,schemas/rust contract::example_pairs_share_job_id,pass,2026-10-04
+schemas/check.py,refused: RED verdict without the acknowledgement is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: acknowledgement with a paraphrased statement is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: acknowledgement with no overrides is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: acknowledgement that names identity as an override is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: keep-windows on a Warning disk without disk-health acknowledged is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a repair on a Warning disk without the acknowledgement is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: an acknowledgement in the outcome with an unknown override is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a resume run_as outside SYSTEM|user is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a resume without unattended is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a windows_update record with a negative restart count is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a windows_update record with an unknown field is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: unknown schema version is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: unknown outcome version is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: RED verdict is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: unelevated run is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: legacy BIOS is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: missing fork is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: fork with an unknown branch is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: flagged volume without consent to the disk check is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: restore_points_consented that is not a boolean is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: usn_journal_consented that is not a boolean is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: volume_health without repair_queued is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: last_unmovable_file that is not a string or null is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a queued repair without consent to the disk check is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: keep-windows on a Warning disk is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: keep-windows with a full ESP is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: cloud files with failures is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: cloud files 'refused' is not a writable result,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: an erase job that also stages files is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: clean-slate with neither staged files nor the erase consent is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: an erase consent with a paraphrased sentence is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: an erase consent on a keep-windows job is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a fresh-start reason without the erase consent is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: an erase consent under another reason is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a home drive that is not Healthy is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a third drive to erase is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a first drive that is not the system drive is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a drive to erase without a unique id is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a job without the stick fit is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: clean-slate whose folders do not fit the stick is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a negative gap is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: truncated folder sizing is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: unknown BitLocker state is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: BitLocker on without a recovery key file is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a non-sha512-crypt password field is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a path that escapes the job directory is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: an absolute path is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: clean-slate without staged files is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a software entry without a name is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a job without the software inventory is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: an unknown top-level field is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: keep-windows claiming the line was crossed is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: keep-windows with Windows not kept is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: keep-windows scrubbing credentials before the pull is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: completed without a cutover block is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: stopped without a reason is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a stopped run that crossed the line is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: clean-slate completed without crossing the line is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a repair on a non-Healthy disk is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a repair that names no method is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a repair that took no restart is not refused by shape but a negative restart count is,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a remeasurement from an unknown path is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a staged block without the measured write speed is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a completed erase with neither a countdown nor restored files is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a completed erase whose countdown was cancelled is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a cancelled countdown that claims the line was crossed is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,"refused: a completed conversion that boots to a text console is refused (2026-09-26, Aspire run 9)",selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a text console the person did not choose is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a desktop when the person chose the console is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a job without the person's choice of what the computer starts at is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a start_at that is neither desktop nor console is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a completed conversion without the Wi-Fi hand-over record is refused (2026-09-27),selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a completed conversion that left the Wi-Fi passwords on the stick is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a completed conversion without the end-of-install clock record is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a completed conversion without settle-in installed is refused (2026-09-27),selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a handoff folder other than the one settle-in reads is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a job without the Windows licence facts is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a product key as its own field is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a product key hidden in the firmware key's description is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a product key in the reason is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,"refused: a Windows version other than 10, 11 or unknown is refused",selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a job without the clock facts is refused (2026-09-27),selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,"refused: a real_time_is_universal other than 0, 1 or absent is refused, never guessed",selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a Wi-Fi network with a password but no password file is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: an unsupported Wi-Fi network without the reason in plain words is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: an unsupported Wi-Fi network that claims a password file is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,"refused: a Wi-Fi password as a field is refused (secrets are files, R13)",selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: the old single secrets_file shape is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: a completed conversion that does not say what it boots to is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: an erase consent with another sentence is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+schemas/check.py,refused: an unknown stage name is refused,selftest,schemas/rust contract::every_refused_case_is_refused,pass,2026-10-04
+upgrade-scan.ps1,ARM laptop is an outright no,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,Intel VMD blocks the install,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,A failing drive is an outright no (Disk health fail is RED),selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"Adobe is a software problem, not a hardware one",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,Broadcom Wi-Fi is a hardware blocker,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,Old clean ThinkPad passes,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,Kernel requirement is the max across all checks,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,storage: VMD PCI ID fires (Tiger Lake 9a0b),selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,storage: VMD managed child fires (09ab),selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,storage: unknown VMD ID still fires via iaStorVD service,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,storage: pre-VMD RST RAID class fires via CC_0104 (iaStorAVC era),selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"storage: RST driver on AHCI-class controller warns, not fails",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,storage: standard NVMe passes (the G16 as seen 2026-08-22),selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: Secure Boot enabled is ok with distro note,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: Secure Boot disabled is ok,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: Secure Boot unreadable is info, not a guess",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"sbat: the Aspire (level 2025051000, grub,5) refuses the Fedora 42 GRUB (grub,3)",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"sbat: the same level allows the Fedora 44 GRUB (grub,5) and shim 16.1",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"sbat: the strictest source wins (Windows recorded 2024010900, the firmware holds 2025051000)",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"sbat: an older level (2024010900, grub,3) allows the Fedora 42 GRUB, as on 2026-09-26",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,sbat: an installed-system GRUB below the level fails even when the stick passes,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,sbat: a boot file with no SBAT data is treated as refused,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,sbat: Secure Boot off turns a refusal into a warning,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,sbat: Secure Boot unreadable is judged as on,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"releases: on the Aspire (grub,5; db 2011 only) Fedora 44 starts and Fedora 42 does not",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,releases: only Fedora 42 in the table on the Aspire is a fail (nothing can start),selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,releases: a shim signed only under the 2023 authority does not start where db holds only 2011,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"releases: a release without an unattended installer is listed, never eligible",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"releases: an unreadable key list is unknown, not a pass",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,releases: with Secure Boot off every release with an installer starts,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,sbat: without the kit beside the scanner only the level is reported,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: resume - a personal machine with the scheduler running is ok,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: resume - a policy prohibiting task creation is warn,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: resume - a managed device is info, not a refusal",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: resume - unreadable is info,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: disk with shrink headroom keeps Windows,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: too little shrink room warns toward clean slate,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam (R18): 0 GB with a repair queued is info saying the number is not trusted - never a warn toward clean slate,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam (R18): a number that already fits is trusted even with a repair queued,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam (R18, 2026-09-20): 0 GB pinned by hiberfil.sys is info naming the file - never a warn toward clean slate",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam (R18, 2026-09-20): 0 GB pinned by anything else still warns",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"pure (R18, 2026-09-20): defrag 259 parses; only hiberfil/pagefile/swapfile are mitigable; a 98 older than the last check is not fresh",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"volume health (R18, 2026-09-20): a clean volume whose 98 predates a completed check is ok, and says so",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,repair queued (R18): Full Repair Needed / NTFS 98 / neither / no data,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: unelevated shrink query says re-run as Administrator,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: elevated but unmeasurable shrink is info, not fail",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,diskpart: the real querymax line parses to the MB figure (17417 MB -> 17.0 GB),selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"diskpart: thousands separators in the MB figure are handled (1,234,567 MB)",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"diskpart: an error or localized output parses to null, never a number",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: a diskpart-sourced number is labelled and keeps the Storage API reason,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: both measurement paths failing carries both reasons,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,fsutil: the real NOT Dirty line parses clean,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,fsutil: the flagged line parses dirty,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"fsutil: an error or localized line is unknown, never clean",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: a Healthy physical disk is ok,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: a Warning disk warns and steers to clean slate,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: an Unhealthy disk fails (refuse; no override),selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: disk health that could not be read is unknown, not ok",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: an unrecognised health string is unknown, never ok",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: reliability counters ride along as facts, not verdicts",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: a dirty volume warns and names chkdsk,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: a clean volume with a clean scan is ok,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: a clean flag but a scan that found errors still warns,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: unelevated volume health is info,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: unreadable volume flag is unknown, not ok",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: Get-Volume ""Full Repair Needed"" warns and names real damage, flag clear and cmdlet NoErrorsFound notwithstanding",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: the Chkdsk log's 'found problems' outranks the cmdlet's NoErrorsFound, and says so",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: NTFS event 98 (needs a Full Chkdsk) warns on its own,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"chkdsk event: ""found problems"" with queued items parses; ""found no problems"" parses clean; localized is unknown",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"disk events: only the C: disk counts, Harddisk1 does not match Harddisk10, ids 7/51 tallied, others ignored",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: bad-block events make a Healthy drive a fail (RED), naming the count",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: SMART uncorrectable reads make a Healthy drive a fail even with no events,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: CRC errors alone are a warn that names the connector, not the flash",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: paging errors on the C: disk are a warn,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: a Healthy drive with an empty error log and clean SMART is ok,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,smart: the 12-byte attribute layout parses ids and low-16 raw values,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: a shrink refused for volume errors points at Volume health,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: an unmeasurable shrink carries Windows own reason, not a guess",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: an unmeasurable shrink never blames Fast Startup,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: unreadable C: is unknown and stops there,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: MBR at the four-partition limit warns,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: Fast Startup enabled warns,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: Fast Startup disabled is ok,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: Fast Startup unreadable stays silent,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: BitLocker without Administrator is unknown,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: encrypted volume warns with the recovery-key remedy,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: no encrypted volumes is ok,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: failed BitLocker query is unknown - possibly encrypted,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: ESP with room and the boot entry on it is ok,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: full ESP warns toward clean slate (the R21 gate),selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: boot entry on a different volume warns,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: unresolvable Windows boot entry is unknown, not a guess",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: unelevated ESP check says re-run as Administrator,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: failed ESP query is unknown - promise nothing,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: F4 regression - real VS Community install must match,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: VS Code must NOT trip the Visual Studio rule,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,"seam: Adobe is a blocker, Steam is info",selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: empty app enumeration is unknown,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,seam: Windows 10 build gets the end-of-support note,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,corpus: Acer Aspire A515-51G (acer-aspire-a515-51g.json),corpus,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,corpus: ASUSTeK COMPUTER INC. ROG Zephyrus G16 GA605WV_GA605WV (asus-rog-zephyrus-g16-ga605wv.json),corpus,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,corpus: VM: QEMU q35 + spoofed Intel VMD 9a0b (synthetic) (vm-qemu-q35-vmd-spoof-9a0b.json),corpus,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,distro table: every kernel parses,selftest,evaluate/scan parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:2,physical,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:3,rig,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:4,rig,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:5,rig,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:6,rig,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:7,physical,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:8,physical,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:9,physical,,owed,2026-10-04
+upgrade-scan.ps1,v5-controller-mode.csv:10,physical,,owed,2026-10-04
+upgrade-scan.ps1,v1-live-boot.csv:4,physical,,owed,2026-10-04
+New-Kickstart.ps1,keep-windows example generates,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,clean-slate example generates,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,"lang, keymap, timezone come from intent.locale",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,the password hash passes through untouched and root is locked,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,the desktop selects the squashfs,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,"storage is a %include the verifier writes, never inline",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,"%pre runs verify.sh with the job and the stick label, erroring on failure",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,keep-windows %post turns os-prober on; clean-slate does not,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,"a full name becomes --gecos, quoted",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,"no full name, no --gecos",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,refuse: schema job/2,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,refuse: cleartext password,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,refuse: a login name with a space,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,refuse: a distro with no generator,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,output uses LF line endings only (the installer reads it on Linux),selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,the nochroot %post runs outcome.sh after the chroot %post,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,a manifest adds --checksum for the chosen desktop image,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,"the installed system boots to the graphical sign-in (xconfig, and %post sets the target) - never a text console",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,"the account is made by the kickstart, so Plasma Setup (Fedora 44 KDE) is marked done and disabled",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,"console chosen: no graphical login, the text console is the default target",selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,refuse: a job with no choice of what the computer starts at,selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,a manifest without the image adds no checksum (never a guess),selftest,upgrade_/kickstart parity::every_case_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+New-Kickstart.ps1,v1-live-boot.csv:2-5 (the kickstart each row booted; split per row when re-run),rig,,owed,2026-10-04
+New-Kickstart.ps1,v1-live-boot.csv:5,physical,,owed,2026-10-04
+New-Kickstart.ps1,v2-install.csv:2-6 (the kickstart each install ran),rig,,owed,2026-10-04
+New-Kickstart.ps1,v9-erase.csv:2-31 (rig arms and the Aspire's rows; split per row when re-run),rig,,owed,2026-10-04
+Harvest-UpgradeState.ps1,folder stats: counts files and bytes recursively,selftest,"evaluate/harvest tests/filesystem.rs (Windows only; ./windows-tests.sh, the G16 2026-10-06)",pass,2026-10-06
+Harvest-UpgradeState.ps1,folder stats: file cap truncates and says so (F1/R6),selftest,"evaluate/harvest tests/filesystem.rs (Windows only; ./windows-tests.sh, the G16 2026-10-06)",pass,2026-10-06
+Harvest-UpgradeState.ps1,folder stats: on-stick size = clusters + directories + manifest lines,selftest,"evaluate/harvest tests/filesystem.rs (Windows only; ./windows-tests.sh, the G16 2026-10-06)",pass,2026-10-06
+Harvest-UpgradeState.ps1,"folder stats: no cluster size, no on-stick size",selftest,"evaluate/harvest tests/filesystem.rs (Windows only; ./windows-tests.sh, the G16 2026-10-06)",pass,2026-10-06
+Harvest-UpgradeState.ps1,folder stats: a junction is not followed,selftest,"evaluate/harvest tests/filesystem.rs (Windows only; ./windows-tests.sh, the G16 2026-10-06)",pass,2026-10-06
+Harvest-UpgradeState.ps1,folder stats: a directory Windows will not list is counted as unreadable (R6),selftest,"evaluate/harvest tests/filesystem.rs (Windows only; ./windows-tests.sh, the G16 2026-10-06)",pass,2026-10-06
+Harvest-UpgradeState.ps1,stick fit: 1 GB of folders on 2 GB free fits; a missing folder counts nothing,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,"stick fit: too big says so, with the gap in bytes and a plain reason",selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,stick fit: large files - the prologue's 2% rule is the floor of what is needed,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,"stick fit: a file over 4 GB never fits a FAT32 stick, whatever the space",selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,stick fit: the same file fits exFAT,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,"stick fit: a filesystem this version does not size is not a fit (refuse, not guess)",selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,stick fit: an unread cluster size is not a fit,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,stick fit: no folders needs only the reserve,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,folder stats: offline-attribute file counts as cloud-only (R8),selftest,"evaluate/harvest tests/filesystem.rs (Windows only; ./windows-tests.sh, the G16 2026-10-06)",pass,2026-10-06
+Harvest-UpgradeState.ps1,materialize: recall-on-data-access bit is a placeholder,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,materialize: offline bit is a placeholder,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,materialize: pinned alone is not a placeholder (V8: pin bits are not detection),selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,materialize: bits cleared + every byte read + allocated is materialized,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,"materialize: recall bit still set is NOT materialized, whatever was read",selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,materialize: a short read is NOT materialized,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,materialize: zero bytes allocated for a non-empty file is NOT materialized,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,materialize: an empty file needs no allocation,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,materialize: a real 10-byte file reports allocated bytes > 0,selftest,"evaluate/harvest tests/filesystem.rs (Windows only; ./windows-tests.sh, the G16 2026-10-06)",pass,2026-10-06
+Harvest-UpgradeState.ps1,materialize: an ordinary file passes through as materialized,selftest,"evaluate/harvest tests/filesystem.rs (Windows only; ./windows-tests.sh, the G16 2026-10-06)",pass,2026-10-06
+Harvest-UpgradeState.ps1,"materialize: a vanished file is a failure with the reason, not a crash",selftest,"evaluate/harvest tests/filesystem.rs (Windows only; ./windows-tests.sh, the G16 2026-10-06)",pass,2026-10-06
+Harvest-UpgradeState.ps1,materialize: a stub no provider will fill is reported failed (refuse arm),selftest,"evaluate/harvest tests/filesystem.rs (Windows only; ./windows-tests.sh, the G16 2026-10-06)",pass,2026-10-06
+Harvest-UpgradeState.ps1,"materialize: summary counts the stub as found and failed, result refused",selftest,"evaluate/harvest tests/filesystem.rs (Windows only; ./windows-tests.sh, the G16 2026-10-06)",pass,2026-10-06
+Harvest-UpgradeState.ps1,wlan: curly-quote SSID survives byte-for-byte (F3),selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,"wlan: WPA2PSK maps to wpa-psk, supported, autoconnect",selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,wlan: secrets stay out of the output unless asked for,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,wlan: -IncludeWifiSecrets carries the key through,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,"wlan: accented + emoji SSID survives, WPA3 maps to sae",selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,"wlan: open network - no secret, manual connect, supported",selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,"wlan: enterprise 802.1X is flagged unsupported, not guessed",selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,wlan: DPAPI-protected key does not count as a usable secret,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,account: simple name lowercases and stays safe,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,account: space in name is stripped,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,account: leading digit falls back to user,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,account: fully non-latin name falls back to user,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,account: dash and underscore survive,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,locale: known Windows timezone maps to IANA,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,locale: unknown timezone returns nothing rather than a guess,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,capacity: needed = 1.1x windows + user + browser data,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,capacity: picks the largest drive and calls it sufficient,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,capacity: a too-small drive is not sufficient,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,capacity: no external drive is reported plainly,selftest,evaluate/harvest parity::every_call_matches_powershell + parity::the_self_test_expectations_hold,pass,2026-10-04
+Harvest-UpgradeState.ps1,v8-materialize.csv:2-5 (the materializer's rig and G16 rows; split per row when re-run),rig,,owed,2026-10-04
+Harvest-UpgradeState.ps1,"harvest-folder-map.csv:2 (the G16's folder map)",physical,"upgrade-harvest folder-map beside -FolderMapOut on the G16 in the same minute, not elevated (the elevated run's UAC prompt was cancelled): SAME field for field (harvest-folder-map.csv:5)",pass,2026-10-07
+Harvest-UpgradeState.ps1,"harvest-folder-map.csv:3 (the Aspire's folder map over SSH)",physical,,owed,2026-10-07
+Harvest-UpgradeState.ps1,"harvest-folder-map.csv:4 (the Aspire's folder map in the real launcher)",physical,,owed,2026-10-07
+New-Job.ps1,clock: RealTimeIsUniversal absent = the hardware clock holds local time (Windows default),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"clock: RealTimeIsUniversal 1 = UTC, 0 = local",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,clock: refuse a RealTimeIsUniversal value that is neither 0 nor 1 (not guessed),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"clock: ""adjust for daylight saving automatically"" turned off is recorded",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,clock: the job carries harvest.clock with the IANA name,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,clock: a bad RealTimeIsUniversal refuses the job,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"wifi: WPA2-personal with its password -> wpa-psk, joined automatically",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: WPA3 in transition mode -> wpa-psk (the router also takes WPA2); WPA3 only -> sae,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: an open network needs no password; manual connect and hidden are kept,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"wifi: enterprise is listed, not set up",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"wifi: WEP and ad-hoc are listed, not set up",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"wifi: a password Windows kept encrypted (protected) is not a password - listed, not set up",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: an XML that is not a network profile is skipped,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: the SSID bytes are computed when Windows gives no hex,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"wifi: the row carries no password, only the file it is in",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: only networks with a password get a file; the result is exported,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: refuse when Windows stores more networks than could be read (one would go missing),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: the same network saved on two adapters is set up once,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: no Wi-Fi service and nothing stored = no-wireless; stored but unreadable = refusal; an API error = refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"wifi: a Wi-Fi adapter with nothing saved = none-saved, no directory",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,wifi: the job writes not-harvested until main exports (a verify-only job never exports),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"mitigable (R18): 0 GB with hiberfil.sys named as the last unmovable file is a keep-windows job, the cold number kept as measured",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"mitigable (R18): 0 GB pinned by anything else, fork clean-slate, is no room (clean slate, forced - the person allowed it)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"fork stop (R18, 2026-09-22): 0 GB pinned by anything else is keep-windows - the prologue re-measures and stops; never a wipe the person declined",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"fork stop (R18, 2026-09-22): the Aspire run 5 as scanned - RED on Disk health acknowledged, 3.2 GB pinned by $UsnJrnl - is keep-windows, no staged block",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,mitigable (R18): it never buys a path the disk gate or the ESP refuses,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"mitigable (R18): hiberfil, pagefile and swapfile only",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,defrag 259: the Aspire's real text parses to \hiberfil.sys,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,defrag 259: text without the line parses to null,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"repair queued (R18, 2026-09-20): an event 98 older than the last completed check is history, not a queued repair",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"repair queued (R18, 2026-09-20): an event 98 newer than the last completed check still counts",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"repair queued (R18, 2026-09-20): the volume's own status counts whatever the history says",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"repair queued (R18): 0 GB with a clean bit and a queued full chkdsk is a keep-windows job, shrinkable unmeasured",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,repair queued (R18): the untrusted number and its reason are carried in shrink_error,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"repair queued (R18): 0 GB with a clean bit and NO repair queued, fork clean-slate, is no room (clean slate, forced)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,repair queued (R18): a measured number that already fits is kept as measured,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"repair queued (R18): the Aspire as scanned - RED on Disk health, acknowledged, healthy status, 0 GB, repair queued - is a keep-windows job",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,repair queued: Get-Volume Full Repair Needed counts,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,repair queued: NTFS event 98 counts on its own,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,repair queued: OK and no event is not queued,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,consents (R18): every job carries the launcher's restore-point and change-journal consent,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,a healthy machine with room gets a keep-windows job,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"too little shrink room, fork clean-slate, forces clean slate, with staged block",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"too little shrink room, fork stop, is keep-windows with no staged block (R18, 2026-09-22)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"an unmeasured shrink (null) on a clean volume: clean slate under fork clean-slate, keep-windows under fork stop",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"an unmeasured shrink on a FLAGGED volume, Healthy disk, is a keep-windows job with the fork pending (R18)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,a flagged volume on a Warning disk still forces clean slate (fork clean-slate),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,a Warning disk forces clean slate (fork clean-slate),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,a full ESP forces clean slate (fork clean-slate),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"refuse (R18, 2026-09-22): a Warning disk under fork stop is no job, never a wipe - named",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"refuse (R18, 2026-09-22): a full ESP under fork stop is no job, never a wipe - named",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"fork stop never yields a clean-slate job, over every disk state (R18, 2026-09-22)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,refuse: RED verdict,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"R23: RED for Disk health with the statement typed verbatim is a job carrying the acknowledgement (RED kept, overrides named)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,R23: a paraphrased statement lifts nothing,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"R23: the statement never lifts a RED from another check (CPU architecture, VMD)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,R23: the statement typed on a YELLOW machine adds no acknowledgement block,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"R23: with disk-health acknowledged, keep-windows is offered on a Warning disk that has room",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,refuse: no verdict,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,refuse: legacy BIOS,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,refuse: unknown BitLocker state,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"refuse: unmapped time zone, not a guess",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,refuse: a stick that is not on USB,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,BitLocker on names the key file; off names none,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"software: updates, hidden system components and nameless entries are dropped; duplicates merged; sorted",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"software: Store frameworks and system packages are dropped, ms-resource names fall back to the package name",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,software: a list over the cap is cut and truncated=true,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"software: the job carries the block, and an empty inventory is an empty block, not a refusal",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"folder map: the job carries the folders, the OneDrive result, the stick fit and the harvester version",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"folder map: refuse when there is no map, with the reason",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map: refuse a harvester version this writer does not read (a mixed kit),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map: refuse when another account is signed in on this screen (UAC with someone else's password),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map: refuse when no desktop owner can be found (who these folders belong to is unknown),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map (R6): refuse a folder that hit the file cap,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"folder map (R6): refuse a folder with parts Windows would not list, naming the first",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"folder map (R8, decided 2026-09-26): online-only files not downloaded are a job recording them as left-in-cloud, not a refusal",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map (R8): a download that failed is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map (R8): files online-only again after the download are a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map (R8): a clean download is a job recording what was online-only before it,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map: a stick whose free space cannot be read is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"stick fit: keep-windows whose folders do not fit the stick is still a job - it records fits=false (no discard offer later, R26)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"stick fit: clean slate whose folders do not fit is no job, with the gap (a stick of at least N GB)",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,stick fit (R5): clean slate on a computer with another account is no job - naming it,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"stick fit: clean slate that fits, one account, is a job with the staged block",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,folder map (R5): another account on a keep-windows machine is not a refusal (their files stay in the kept Windows),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"erase: the sentence verbatim + a chosen password is a clean-slate fresh-start job naming the system drive, nothing staged",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase (Aspire layout): a second Healthy internal drive becomes home; the USB stick is left out,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase (rig): a stick on the same bus as the internal drive is left out by its unique id,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: a paraphrased sentence is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: no chosen password (the verify-only placeholder) is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: a third internal drive is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: a second drive that is not Healthy never takes the home folder,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"erase: a drive on a bus this version does not know is a refusal, not a guess",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"erase: an SD card is left alone, not a refusal",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: a RED machine still needs the R23 sentence too - the erase sentence does not lift it,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase (the Aspire): RED on disk health with both sentences is a job carrying both blocks,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: the folder map's refusals do not apply (nothing is kept) - another account signed in is still a job,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,erase: with no folder map at all it refuses (it lists what will be deleted),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,start_at: the person's choice is carried into the job (desktop / console),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,no erase sentence: nothing changes - a plain job carries no erase consent,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,locale: en-US + 0409 + Eastern -> en_US.UTF-8 / us / America/New_York,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,licence (R30): Windows 11 from the build although the registry says Windows 10; activated OEM:DM with a firmware key,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"licence: build 19045 is Windows 10; not activated is recorded, not refused",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,licence: an add-on licence (Windows 10 extended updates) is not taken for Windows itself,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,licence: the licensed product is chosen when there are several,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"ssh (2026-10-04): on, with a key in the administrators file, is carried, keys only",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,ssh: the same key in both files is carried once,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"ssh: installed but Manual is off, nothing carried",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,ssh: no OpenSSH server is not-installed,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,ssh: on with no key (passwords only) carries nothing,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,ssh: a key line with options in front is not carried (its restriction would be lost),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,ssh: an unreadable key file carries nothing (never half),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,ssh: the job carries harvest.ssh and validates as written (facts without Ssh = not-harvested),selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,release (R34): the job carries the release the stick names,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"release (R34): a release this computer cannot start is a refusal, with the scan's reason",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,release (R34): a stick without release.json is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,release (R34): a release the scan did not judge is a refusal,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"release (R34): unknown (key list not read) is a refusal, not a pass",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"licence: a failed read is unreadable with its reason, and the job is still written",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"licence: no Windows licence reported is unreadable, not a guess",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,licence (R13): a value shaped like a product key never reaches the job,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,licence: the job carries harvest.windows_license,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,keymap: German KLID maps to de; unknown maps to null,selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"linux name: spaces stripped, lowercased, 32 max",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"json: LF only, schema string first",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,"fsutil: NOT Dirty parses clean, localized parses unknown",selftest,evaluate/job parity::every_call_matches_powershell,pass,2026-10-04
+New-Job.ps1,v1-live-boot.csv:5 (the Aspire's first job),physical,,owed,2026-10-04
+New-Job.ps1,r18-prologue.csv:2-12 (the jobs the prologue ran from; split per row when re-run),rig,,owed,2026-10-04
+New-Job.ps1,v9-erase.csv:2-31 (the erase jobs; split per row when re-run),rig,,owed,2026-10-04
+New-Job.ps1,harvest-folder-map.csv:2-4 (the folder map in a job),physical,,owed,2026-10-04
+upgrade-scan.ps1,"v13-rust-scanner.csv:2 (the G16, not elevated: every fact Rust read equals PowerShell's)",physical,evaluate/scan --compare-facts,pass,2026-10-06
+upgrade-scan.ps1,"v13-rust-scanner.csv:3 (the Aspire, not elevated: every fact equal)",physical,evaluate/scan --compare-facts,pass,2026-10-06
+upgrade-scan.ps1,"v13-rust-scanner.csv:4 (the G16, elevated: every fact equal; end to end SAME, 218 lines, 25 checks)",physical,"evaluate/scan --compare-facts, --replay --against",pass,2026-10-06
+upgrade-scan.ps1,"v13-rust-scanner.csv:5 (the Aspire, elevated: every fact equal; end to end SAME, 166 lines, 26 checks, RED)",physical,"evaluate/scan --compare-facts, --replay --against",pass,2026-10-06
+upgrade-scan.ps1,"v13-rust-scanner.csv:6 (the G16, elevated: the online scan of C: says NoErrorsFound both ways)",physical,evaluate/scan --try-wmi scan,pass,2026-10-06
+Read-Password.ps1,"spec vector 1: ""Hello world!"", salt saltstring, default rounds",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"spec vector 2: rounds=10000, a salt over 16 characters is cut to 16",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"spec vector 3: rounds=5000 written out, ""This is just a test""",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"spec vector 4: a password longer than 64 bytes (rounds=1400)",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"spec vector 5: rounds below 1000 are raised to 1000",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"non-ASCII password hashes its UTF-8 bytes, as glibc and openssl do",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"a fresh salt is 16 characters from the crypt alphabet",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"a fresh hash has the $6$ shape the schema requires",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"refuse: empty",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"refuse: two different entries",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"refuse: case matters",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"a matching pair is accepted",selftest,evaluate/job password::every_call_matches_powershell,pass,2026-10-07
+Read-Password.ps1,"v9-erase.csv:11 (the Aspire's run 9: the password typed through the hasher signed in to Fedora; re-earned by one physical run with upgrade-job password)",physical,,owed,2026-10-07
+Read-Password.ps1,"v9-erase.csv:22 (the Aspire's run 10: the password typed through the hasher signed in to Fedora; re-earned by one physical run with upgrade-job password)",physical,,owed,2026-10-07
+Read-Password.ps1,"v9-erase.csv:30 (the Aspire's run 11: the password typed through the hasher signed in to Fedora; re-earned by one physical run with upgrade-job password)",physical,,owed,2026-10-07
+Invoke-Prologue.ps1,"update pending: any one marker counts; none, or a record with none of them, is clear",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"update step: nothing pending is clear, wherever it is asked",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"update step: pending before anything changes or before the shrink takes a restart of ours, up to the limit, then stops",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"update step (R25): pending right before the arm never restarts - it stops, whatever the count",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"update record: the outcome block counts checks, what was seen and the restarts; a state from before 0.9.0 has none",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore-point verdict: all, some, none, none there, unreadable",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore-point line: the Aspire run 6 record (0.8.0 kept no exit code) says NONE, never ""deleted""",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore-point line: vssadmin exit and each WMI answer are carried",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore-point line: all deleted by vssadmin alone",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore-point line: an unreadable count never claims a deletion",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal (R18): the Aspire",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal (R18): named, consented, not done this boot -> delete",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal (R18): no consent in the job (a 0.8.0-or-older job) -> never deleted",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal (R18): not twice in one boot",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal (R18): a number that fits, or another file in the way, deletes nothing",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal: the Aspire",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"change journal: no active journal parses to Active=False",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): a deleted journal that was active comes back, on a stop and on the return; once created, not again",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): a journal that was not active, or a delete that failed, is not created",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): the Aspire",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): named, consented, not yet done -> delete",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): no consent in the job -> never deleted",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): never twice",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): a number that fits deletes nothing, consent or not",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): another file in the way deletes nothing",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore points (R18): a job written before the consent existed reads as no consent",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): both off, both were on -> both come back",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): nothing was turned off -> nothing to do",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): hibernation was already off -> it stays off; custom pagefile settings go back as they were",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): a machine that had no pagefile is not given one",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): no record of before (a 0.5.0 state) -> pagefile to automatic, hibernation named as left off",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): the return after an install keeps hibernation off and brings the pagefile back",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"restore (R18): one custom pagefile setting survives the state round trip across the restart",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stop sentence (R18): nothing changed -> as it was",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stop sentence (R18): a pagefile pending a restart is said",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stop sentence (R18): a failed restore never reads ""as it was""",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: an identical machine has no mismatches",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: a different system disk id is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: a different disk size is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: a different stick is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: an unreadable stick is a mismatch, not a pass",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: BitLocker turned off since evaluate is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate (R18): a repair queued since evaluate is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"trigger (R18): the dirty flag runs the check",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"trigger (R18): a clean bit with a queued repair runs it too",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"trigger (R18): clean with nothing queued skips it",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"trigger (R18): an unreadable bit never skips, queued or not",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"repair queued (R18): Full Repair Needed / NTFS 98 alone / neither",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"repair queued (R18): the reason names the source",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"repair queued (R18, 2026-09-20): an event 98 older than the last completed check is history",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"repair queued (R18, 2026-09-20): an event 98 after the last check still counts; with no check on record it counts",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"repair queued (R18, 2026-09-20): the volume",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"ntfs98 fresh: DateTimes and round-trip strings compare alike; none is not fresh",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"the Aspire on 2026-09-20: clean bit, volume OK, stale 98 -> step 1b does not run",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"defrag 259: the Aspire",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"method (R18): a queued repair picks chkdsk-f even when the cmdlet says NoErrorsFound",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: the flag cleared since evaluate is a change, and a change stops",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: a disk health that changed is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"revalidate: Secure Boot toggled is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: NoErrorsFound with no other evidence chooses the spot-fix",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: ErrorsFound / ErrorsNotFixed choose chkdsk /f",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: the Chkdsk log's found-problems outranks the cmdlet's NoErrorsFound (the Aspire)",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: Get-Volume ""Full Repair Needed"" chooses chkdsk /f",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: NTFS event 98 chooses chkdsk /f",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: a failed scan with no evidence refuses, never a guess",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: a failed scan but the log found problems still goes to chkdsk /f",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"rung: an empty answer refuses",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"chkdsk event: found problems with records and queued items; found no problems; localized unknown",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"disk events: only \Device\Harddisk1\ counts (not Harddisk10), 7 and 51 tallied",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"health gate: Healthy with no bad blocks passes",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"health gate: Healthy with bad-block events refuses and names the count",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"health gate: Warning refuses; Unknown refuses; empty refuses",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"health gate (R23): the acknowledgement lifts it and the reason says DATA LOSS ACCEPTED",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"health gate (R23): acknowledged on a clean disk says nothing about data loss",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"scan string: cmdlet and evidence in one line",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stopped outcome (R23): carries the job",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"chkntfs: ""is dirty"" means a check runs at the restart",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"chkntfs: ""is not dirty"" means nothing will run",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"chkntfs: a manual schedule is scheduled",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"chkntfs: chkdsk's own Y answer is scheduled",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"chkntfs: localized output is unknown",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fsutil: NOT Dirty is clean, Dirty is dirty, else unknown",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"diskpart: the rig line parses to the MB figure",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"diskpart: a refusal parses to null",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"manage-bde: Protection On / Off / localized",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"plan: 85.8 GB C:, 65 GB free, SizeMin 30 GB, Linux 25 GB fits, requests exactly 25 GB",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"plan: immovable files cap it below Linux -> does not fit, no request",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"plan: Windows kept with too little free space -> does not fit",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"plan: harvested files raise the target by 1.2x",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"plan: a SizeMin above the partition size is zero shrinkable, never negative",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork: keep-windows job that fits keeps Windows",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork: keep-windows job that does not fit takes if_cannot_keep=clean-slate",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork: keep-windows job that does not fit takes if_cannot_keep=stop",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork: an unknown if_cannot_keep stops, never guesses",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork: a clean-slate job the person chose is clean slate whatever the number",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork (R18, 2026-09-22): a forced clean-slate job under if_cannot_keep=stop stops - the Aspire run 5 job",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"fork: a forced clean-slate job the person allowed (if_cannot_keep=clean-slate) is clean slate",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase start: an erase job starts with the erase sentence and no CONVERT word",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase start: CONVERT alone does not start an erase job",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase start: a paraphrase does not start it",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase start: a job whose sentence differs from this prologue",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase start: the erase sentence never starts a keep-windows job",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase start: a keep-windows job still needs CONVERT",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase disks: both drives present at their sizes is no mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase disks: a home drive that is gone, or a different size, is a mismatch (never erase a stranger",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase disks: a first drive that is not the C: drive is a mismatch",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase return: a key in the countdown is stopped_at countdown, nothing erased",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase return: the installer refusing on identity is stopped_at identity",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase return: a countdown that elapsed and still came back says the drives may be partly erased - never ""nothing""",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"erase: a stopped outcome carries the erase consent",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stage (R18, 2026-09-22): no folders in the job refuses before anything is staged, and says why",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stage (R18, 2026-09-22): folders listed but 0 files staged refuses",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stage: folders listed, before staging, and files staged, after, are not refusals",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"estimate: 20 GB at 20 MB/s is 1000 s, shown as about 17 minutes",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"estimate: no measurement gives null, shown as unknown",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"estimate: hours when it is hours",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"classify: fired + cleared + intact is fired-once",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"classify: fired but not cleared is persisted",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"classify: order changed is reordered",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"classify: not fired, intact is ignored",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"grubenv: clean block is 1024 bytes and not fired; upg_fired=1 is fired",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stick: found again under a new letter by volume id; absent is null",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: a fresh state makes a schema-shaped block (needed false, method none, freed 0)",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: a check that ran carries Healthy, its method, the scan and one restart",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: an unrecognised health reading is written as Unknown, never Healthy",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: mismatches make revalidated false",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: the JSON round-trips through the state file as hashtables with the same block",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stopped outcome: status stopped, the stage, the reason, line not crossed, credentials scrubbed",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"stopped outcome: a stop after the keep-windows fork keeps scrub_after settle-in-pull",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"json: LF only, schema string present",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"resume context: SYSTEM in session 0 is unattended",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"resume context: a signed-in person in session 1 is attended",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"resume context: session 0 is unattended even if the flag says interactive",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"notice: the RunOnce command is hidden, unelevated -Notify from the state copy",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"state: a fresh state carries an empty resume log; an old state without one round-trips",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: resumes carry SYSTEM/user, the session, unattended and the stick wait - never the raw account",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"record: no resumes yet means no resumes key (the field is optional in the contract)",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"probe: SYSTEM, stick found, task removed is resumed-unattended",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"probe: a session present is resumed-attended",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"probe: no stick names that first, whatever else",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"probe: a task left behind is task-not-removed",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"probe csv: fields quoted, quotes doubled, newlines flattened, header has 18 columns",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"wifi secrets: every file in the stick",selftest,"not a judgment: the scrub of the stick's Wi-Fi files is the live half's (Remove-PrologueWifiSecrets)",owed,2026-10-07
+Invoke-Prologue.ps1,"drive: e normalizes to E:\, a path is refused",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-07
+Invoke-Prologue.ps1,"plan: a target with files is rounded up to a whole mebibyte, the partition alignment (the Aspire, 2026-10-10)",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-10
+Invoke-Prologue.ps1,"shrink plan (0.12.1, the Aspire 2026-10-06): with files the request is a whole MiB, never below the target",selftest,upgrade_/prologue parity::every_call_matches_powershell,pass,2026-10-10
+Invoke-Prologue.ps1,"r18-prologue.csv:2 (Hyper-V UEFI Release v4.1)",rig,"r18-prologue.csv:14 (PROLOGUE=rust prologue.sh run 3: injected flag, chkdsk /f at the restart, SYSTEM resumes, shrink, handoff, install, return; pass-plumbing)",pass,2026-10-08
+Invoke-Prologue.ps1,"r18-prologue.csv:3 (Hyper-V UEFI Release v4.1)",rig,"r18-prologue.csv:14 (PROLOGUE=rust prologue.sh run 3: injected flag, chkdsk /f at the restart, SYSTEM resumes, shrink, handoff, install, return; pass-plumbing)",pass,2026-10-08
+Invoke-Prologue.ps1,"r18-prologue.csv:4 (Hyper-V UEFI Release v4.1)",rig,"r18-prologue.csv:14 (PROLOGUE=rust prologue.sh run 3: injected flag, chkdsk /f at the restart, SYSTEM resumes, shrink, handoff, install, return; pass-plumbing)",pass,2026-10-08
+Invoke-Prologue.ps1,"r18-prologue.csv:5 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
+Invoke-Prologue.ps1,"r18-prologue.csv:6 (Hyper-V UEFI Release v4.1)",rig,"r18-prologue.csv:14 (PROLOGUE=rust prologue.sh run 3: injected flag, chkdsk /f at the restart, SYSTEM resumes, shrink, handoff, install, return; pass-plumbing)",pass,2026-10-08
+Invoke-Prologue.ps1,"r18-prologue.csv:7 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
+Invoke-Prologue.ps1,"r18-prologue.csv:8 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,"r18-prologue.csv:15 (the Aspire, 2026-10-10: upgrade-prologue from UPGRADE.exe with the sentence; re-validation, R25, the re-measure by both paths, Resize-Partition, the grow-back and the stop record on real hardware; stopped-shrink on the mebibyte rounding, not on immovable files)",pass,2026-10-10
+Invoke-Prologue.ps1,"r18-prologue.csv:9 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,"r18-prologue.csv:15 (the Aspire, 2026-10-10: upgrade-prologue from UPGRADE.exe with the sentence; re-validation, R25, the re-measure by both paths, Resize-Partition, the grow-back and the stop record on real hardware; stopped-shrink on the mebibyte rounding, not on immovable files)",pass,2026-10-10
+Invoke-Prologue.ps1,"r18-prologue.csv:10 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,"r18-prologue.csv:15 (the Aspire, 2026-10-10: upgrade-prologue from UPGRADE.exe with the sentence; re-validation, R25, the re-measure by both paths, Resize-Partition, the grow-back and the stop record on real hardware; stopped-shrink on the mebibyte rounding, not on immovable files)",pass,2026-10-10
+Invoke-Prologue.ps1,"r18-prologue.csv:11 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,"r18-prologue.csv:15 (the Aspire, 2026-10-10: upgrade-prologue from UPGRADE.exe with the sentence; re-validation, R25, the re-measure by both paths, Resize-Partition, the grow-back and the stop record on real hardware; stopped-shrink on the mebibyte rounding, not on immovable files)",pass,2026-10-10
+Invoke-Prologue.ps1,"r18-prologue.csv:12 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,"r18-prologue.csv:15 (the Aspire, 2026-10-10: upgrade-prologue from UPGRADE.exe with the sentence; re-validation, R25, the re-measure by both paths, Resize-Partition, the grow-back and the stop record on real hardware; stopped-shrink on the mebibyte rounding, not on immovable files)",pass,2026-10-10
+Invoke-Prologue.ps1,"v2-install.csv:2 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Prologue.ps1,"v2-install.csv:3 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Prologue.ps1,"v2-install.csv:4 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Prologue.ps1,"v2-install.csv:5 (Hyper-V UEFI Release v4.1)",rig,"v2-install.csv:7 (PROLOGUE=rust prologue.sh run: keep-windows, kde, pass-plumbing)",pass,2026-10-07
+Invoke-Prologue.ps1,"v2-install.csv:6 (Hyper-V UEFI Release v4.1)",rig,"v2-install.csv:7 (PROLOGUE=rust prologue.sh run: keep-windows, kde, pass-plumbing)",pass,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:2 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:35 (arm A armed by upgrade-prologue verify-arm: refused-before-countdown)",pass,2026-10-09
+Invoke-Prologue.ps1,"v9-erase.csv:3 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:4 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:5 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:34 (PROLOGUE=rust v9.sh arm B: a key during the countdown, cancelled-untouched, the return wrote the stopped outcome)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:6 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:7 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:8 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:9 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:10 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:11 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:12 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:13 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:14 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:35 (arm A armed by upgrade-prologue verify-arm: refused-before-countdown)",pass,2026-10-09
+Invoke-Prologue.ps1,"v9-erase.csv:15 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:16 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:34 (PROLOGUE=rust v9.sh arm B: a key during the countdown, cancelled-untouched, the return wrote the stopped outcome)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:17 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:34 (PROLOGUE=rust v9.sh arm B: a key during the countdown, cancelled-untouched, the return wrote the stopped outcome)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:18 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:19 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:20 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:21 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:22 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:23 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:24 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:33 (arm D after the Rust prologue's arm C: not-installed-again)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:25 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:26 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:27 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:33 (arm D after the Rust prologue's arm C: not-installed-again)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:28 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:29 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:33 (arm D after the Rust prologue's arm C: not-installed-again)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:30 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
+Invoke-Prologue.ps1,"v9-erase.csv:31 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
+Invoke-Prologue.ps1,"walkaway-probe.csv:2 (Microsoft Corporation)",rig,"walkaway-probe.csv:4 (PROLOGUE=rust prologue.sh probe: resumed-unattended, SYSTEM session 0, stick after 4 s)",pass,2026-10-08
+Invoke-Prologue.ps1,"walkaway-probe.csv:3 (Acer)",physical,"walkaway-probe.csv:5 (the Aspire, 2026-10-10: upgrade-prologue probe from UPGRADE.exe, Secure Boot on, resumed-unattended as SYSTEM 12 s after boot, stick after 1 s)",pass,2026-10-10
+Invoke-Rollback.ps1,"sums: paths keyed lower-case with forward slashes, ./ stripped",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"sums: an EFI\BOOT backslash upper-case line keys the same",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"plan: shim in the slot -> restore",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"plan: Windows already in the slot -> nothing to restore, still allowed (order only)",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"refuse: no outcome",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"refuse: clean-slate outcome has no kept Windows",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"refuse: outcome without a snapshot",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"refuse: unknown outcome schema",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"refuse: snapshot manifest lacks the fallback loader",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"refuse: an identity mismatch (moved stick) refuses everything",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"identity: same disk, no mismatch; other disk, two",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"displayorder: parsed from bcdedit text, continuation lines included",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"windows first: true only when {bootmgr} leads",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"drive: e normalizes to E:\, a path is refused",selftest,"upgrade_/prologue/tests/rollback.rs (rollback-golden.json: 17 calls match Invoke-Rollback.ps1 0.1.0)",pass,2026-10-08
+Invoke-Rollback.ps1,"r21-rollback.csv:2 (Hyper-V UEFI Release v4.1)",rig,"r21-rollback.csv:4 (PROLOGUE=rust prologue.sh rollback after run 3: pass-plumbing)",pass,2026-10-08
+Invoke-Rollback.ps1,"r21-rollback.csv:3 (Hyper-V UEFI Release v4.1)",rig,"r21-rollback.csv:4 (PROLOGUE=rust prologue.sh rollback after run 3: pass-plumbing)",pass,2026-10-08
+Test-Handoff.ps1,"classify: fired + cleared + order intact is fired-once",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: fired but one-shot not cleared is persisted",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: not fired, order intact is ignored (fail-safe)",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: fired, cleared, but order changed is reordered",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: not fired and order changed is reordered",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: NoSuspend is a baseline-shaped row (fired-once)",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: NoFile not fired, order intact is ignored (the pass)",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: SecureBootUnsigned that fired is persisted (loud)",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"classify: SecureBootUnsigned not fired but order changed is reordered",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"manage-bde: Protection On parses as on",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"manage-bde: Protection Off parses as off",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"manage-bde: encrypted but suspended (Protection Off) is off - no TPM prompt",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"manage-bde: an access-denied error is unknown, not off",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"manage-bde: localized output is unknown, not a guess",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"manage-bde: empty output is unknown",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"grubenv: a clean block is exactly 1024 bytes with the GRUB header",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"grubenv: a clean block is not fired",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"grubenv: upg_fired=1 written by save_env is fired",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"grubenv: upg_fired=0 is not fired",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"grubenv: an unrelated variable is not fired",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"grubenv: empty file is not fired",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"payload: shim points at EFI\BOOT\BOOTX64.EFI",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"payload: shell points at EFI\SHELL\SHELLX64.EFI",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"payload: NoFile points at a missing file whatever the payload",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"payload: an unknown name is refused",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"stick: found again under a new letter by volume id",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"stick: absent stick is null, never a guess",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"stick: a matching volume with no letter does not count",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"csv: a freshly created header has no byte-order mark",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"csv: the created header matches the column list exactly",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"drive: E: normalizes to E:\",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"drive: lowercase e normalizes to E:\",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"drive: a path is refused",selftest,"upgrade_/prologue/tests/verify.rs (verify-golden.json: 39 calls match Test-Handoff.ps1 0.3.1)",pass,2026-10-07
+Test-Handoff.ps1,"v0-handoff.csv:2 (QEMU)",rig,,owed,2026-10-07
+Test-Handoff.ps1,"v0-handoff.csv:3 (QEMU)",rig,,owed,2026-10-07
+Test-Handoff.ps1,"v0-handoff.csv:4 (QEMU)",rig,,owed,2026-10-07
+Test-Handoff.ps1,"v0-handoff.csv:5 (Microsoft Corporation)",rig,"v0-handoff.csv:13 (upgrade-prologue verify-arm --auto on the rig, erase arm A: fired-once, the Rust return check at the sign-in wrote the row; its state record names the program)",pass,2026-10-09
+Test-Handoff.ps1,"v0-handoff.csv:6 (Microsoft Corporation)",rig,"v0-handoff.csv:13 (upgrade-prologue verify-arm --auto on the rig, erase arm A: fired-once, the Rust return check at the sign-in wrote the row; its state record names the program)",pass,2026-10-09
+Test-Handoff.ps1,"v0-handoff.csv:7 (Microsoft Corporation)",rig,"v0-handoff.csv:13 (upgrade-prologue verify-arm --auto on the rig, erase arm A: fired-once, the Rust return check at the sign-in wrote the row; its state record names the program)",pass,2026-10-09
+Test-Handoff.ps1,"v0-handoff.csv:8 (QEMU)",rig,,owed,2026-10-07
+Test-Handoff.ps1,"v0-handoff.csv:9 (QEMU)",rig,,owed,2026-10-07
+Test-Handoff.ps1,"v0-handoff.csv:10 (QEMU)",rig,,owed,2026-10-07
+Test-Handoff.ps1,"v0-handoff.csv:11 (Acer)",physical,,owed,2026-10-07
+Test-Handoff.ps1,"v0-handoff.csv:12 (Acer)",physical,,owed,2026-10-07
+Test-Handoff.ps1,"v1-live-boot.csv:2 (the handoff that booted the stick; Hyper-V UEFI Release v4.1)",rig,"v1-live-boot.csv:6 (PROLOGUE=rust v1.sh run: upgrade-prologue verify-arm booted the stick, fired-once, the Rust return check wrote v0-handoff.csv:15)",pass,2026-10-09
+Test-Handoff.ps1,"v1-live-boot.csv:3 (the handoff that booted the stick; Hyper-V UEFI Release v4.1)",rig,"v1-live-boot.csv:6 (PROLOGUE=rust v1.sh run: upgrade-prologue verify-arm booted the stick, fired-once, the Rust return check wrote v0-handoff.csv:15)",pass,2026-10-09
+Test-Handoff.ps1,"v1-live-boot.csv:4 (the handoff that booted the stick; Hyper-V UEFI Release v4.1)",rig,"v1-live-boot.csv:6 (PROLOGUE=rust v1.sh run: upgrade-prologue verify-arm booted the stick, fired-once, the Rust return check wrote v0-handoff.csv:15)",pass,2026-10-09
+Test-Handoff.ps1,"v1-live-boot.csv:5 (the handoff that booted the stick; Acer Aspire A515-51G, InsydeH2O BIOS V1.21)",physical,,owed,2026-10-07

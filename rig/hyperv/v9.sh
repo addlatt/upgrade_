@@ -82,6 +82,7 @@ prepare)
 stick) MODE=prologue ./v1.sh stick ;;
 windows)
     for f in "$STICK_VHDX" "$ERA_VHDX" "$HOME_VHDX" artifacts/v1/stick.img ../../dist/kit/stick/upgrade_/LiveOS/*.squashfs ../../dist/kit/stick/images/install.img; do evict "$f" 2>/dev/null || true; done
+    python3 evict-builds.py --wait   # and the build outputs, then wait for room (rig README, 2026-10-08)
     PS start; wait_windows 900 ;;
 job)
     mkdir -p "$A"
@@ -105,7 +106,11 @@ arm-harness)
 convert)
     L=$(stick_letter); [ -n "$L" ] || { echo "v9: no UPGV0 volume" >&2; exit 1; }
     guest "Remove-Item -Recurse -Force '$GUEST_STATE' -ErrorAction SilentlyContinue"
-    guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Start -StickDrive ${L}: -EraseConsent '$ERASE_SENTENCE'" | tee "$A/convert-${2:-x}.log"
+    if [ "${PROLOGUE:-ps}" = rust ]; then
+        guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --erase-consent '$ERASE_SENTENCE'" | tee "$A/convert-${2:-x}.log"
+    else
+        guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Start -StickDrive ${L}: -EraseConsent '$ERASE_SENTENCE'" | tee "$A/convert-${2:-x}.log"
+    fi
     grep -q 'restarting in 15 s' "$A/convert-${2:-x}.log" || { echo "v9: the prologue did not reach a restart - read $A/convert-${2:-x}.log" >&2; exit 1; }
     ;;
 watch)

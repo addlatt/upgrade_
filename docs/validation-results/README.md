@@ -1022,7 +1022,19 @@ only what happened. Before a PowerShell piece is ported, every piece of
 evidence it earned gets a line here with `result` = `owed`. The line turns
 `pass` only when a Rust test or a re-run row matches it. The columns are
 described in [../VALIDATION.md](../VALIDATION.md), V13. Header only on
-2026-09-27: nothing ported yet.
+2026-09-27. By 2026-10-06, 406 lines `pass` and 20 `owed` (the rig and
+physical rows of the pieces whose Rust does not run on a machine yet).
+
+## `v13-rust-scanner.csv`: the Rust scanner on real machines (gate V13, risk R32)
+
+One row per run of the Rust scanner beside the PowerShell scanner on a
+real Windows machine. `facts_equal`: `upgrade-scan --compare-facts` found
+every fact the Rust read equal to what the PowerShell read in the same
+minute. `end_to_end`: `upgrade-scan --replay <Rust capture> --against
+<PowerShell capture>` found the report Rust prints from its own reads equal
+to PowerShell's, line for line (`SAME`), with the count of lines and
+checks. The captures themselves hold the machine's hardware, disk facts and
+program list and are never committed; the row is the record.
 
 ## `v11-walkaway.csv`: the walk-away way back to Windows (gate V11 step 4, risk R33)
 

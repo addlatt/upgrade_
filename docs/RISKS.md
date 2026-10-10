@@ -638,6 +638,20 @@ machine that runs it.
 **Closes when.** Releases are reproducible, signed and checksummed, and the
 release process does not depend on a single unprotected credential.
 
+**Decided (2026-10-08, the cut-over): the Rust programs on the stick are
+built reproducibly.** One pinned toolchain (`rust-toolchain.toml`: rustc
+1.93.1; zig 0.13.0 and cargo-zigbuild 0.23.4 for the Windows link),
+`--locked`, symbols stripped, one codegen unit, source paths remapped. The
+kit's manifest carries each program's sha256 and the toolchain line, and
+`rebuild-check.sh` rebuilds from a fresh clone and compares, one row per
+program in `docs/validation-results/r14-rebuild.csv`. Its first four runs
+(2026-10-09) each found one more thing that leaked into the bytes: the PE
+link timestamp (now the commit's time), a stale relink, and path
+dependencies hashed by their absolute path (now one Cargo workspace at
+the root). The fifth run, commit `4b21dc3`: all five programs the same
+bytes from a fresh clone (`r14-rebuild.csv` lines 22 to 26). Signing and
+the release credential are still open.
+
 ---
 
 # USB-only redesign · added 2026-08-19
@@ -2008,7 +2022,7 @@ of failure, in the feature most people will check first.
 browser and version pair, and `evaluate`'s claims are narrowed to what the
 evidence supports.
 
-## R21: Installing alongside a shrunk Windows may not leave Windows bootable · critical · open (VM leg fired 2026-08-27; the converter's own install fired 2026-09-10; first real install 2026-10-06 on the Aspire: Windows intact, but the firmware starts Windows with no menu; paused)
+## R21: Installing alongside a shrunk Windows may not leave Windows bootable · critical · open (VM leg fired 2026-08-27; the converter's own install fired 2026-09-10; first real install 2026-10-06 on the Aspire: Windows intact, but the firmware starts Windows with no menu; answered 2026-10-10, the Acer finding, and the first physical boot cycles the same day with shim in Windows' slot, `[####]` for the arrangement by hand; a servicing pass under the guard still owed)
 
 **What.** The keep-Windows path (now the **default**) installs Linux into
 the freed space. It must leave the shrunk Windows fully bootable, because
@@ -2314,6 +2328,8 @@ tried yet: a one-time start to Fedora's entry (the handoff's own
 mechanism) and the firmware's F12 list, which tell apart "demoted" from
 "refused". The owner paused there: the install is not a failure of the
 mechanism, and the next session picks up the order question.
+**Answered 2026-10-10, below:** the firmware's own list never holds the
+Linux entry; nothing "moved" Windows back up.
 
 Also found on the way: the first attempt stopped at the shrink because the
 plan asked for an odd byte count (the files' margin) and Windows rounded
@@ -2324,6 +2340,89 @@ device encryption waiting for a Microsoft account); the scanner calls that
 "BitLocker not enabled", which is true of protection and false of the
 bytes. The install did not touch C:, so it did not matter here; the file
 pull will have to know.
+
+**The Acer finding (2026-10-06 and 2026-10-10, the Aspire A515-51G,
+InsydeH2O V1.21).** Two alongside installs left Fedora first in
+`BootOrder`, and both times the very next power-on ran Windows with no
+menu, before any Windows session could have touched the order. The
+firmware's own setup screen says why: its boot priority list holds one
+operating-system entry, "Windows Boot Manager" (the path
+`\EFI\Microsoft\Boot\bootmgfw.efi`), plus device entries, and the
+`Fedora` entry that Anaconda and `efibootmgr` write into NVRAM is never on
+that list. A one-time `BootNext` is honoured (the handoff fired on this
+firmware four times), and the firmware re-targets entries whose device is
+gone (an old way-back-stick entry became `Unknown Device:
+\EFI\fedora\shim.efi`, a file that does not exist). Acer's own way to add
+a loader to the list is the setup item "Select an UEFI file as trusted for
+executing": a human in the firmware's setup, which is not one click.
+
+**Decided (2026-10-10, the owner): shim in Windows' slot on firmware that
+ignores operating-system entries.** On such firmware the only path it
+boots on its own is Windows Boot Manager's, so the install takes that
+path: Windows' `bootmgfw.efi` is moved one name aside
+(`bootmgfw-kept.efi`, in the same folder, so Windows' boot manager still
+finds its BCD) and Fedora's signed shim is copied to `bootmgfw.efi`.
+GRUB's Windows entry, written by the installer for every keep-Windows
+install, chainloads the kept name when it exists and the usual one when
+it does not. Nobody is asked to do anything.
+
+**What the Aspire actually did with it (2026-10-10, the first physical
+run):** applied by hand through `upgrade-prologue windows-slot` on the
+install of that morning, then a restart with no key: Fedora came up,
+Secure Boot on. Fedora's own records say how: `BootCurrent` was `0004`,
+the Fedora entry itself, not the Windows one, and the firmware's order
+read `0004, 0006, 0002, …` with Fedora first, which nothing on the Linux
+side had set (`settle-in`'s report has no order action). So this firmware
+does not chainload through the slot as the design assumed: once
+Microsoft's boot manager is no longer at its path, the firmware stops
+preferring that entry and follows the order it holds, where Fedora sits.
+The outcome is the one decided (Linux first, nobody at the keyboard,
+Windows a menu choice); the path to it is the firmware's own. The guard's
+logic is unchanged: Windows' servicing puts its file back, the firmware
+prefers Windows again, the guard re-applies. The rules:
+
+- **Only when needed, decided by evidence.** The firmwares that honour
+  the entry (the Hyper-V and QEMU rigs) keep Windows' file untouched. The
+  detector is the prologue's return on the kept Windows: the install
+  completed, the installer left Fedora first, and yet Windows booted with
+  nobody pressing a key. On that evidence it applies the arrangement from
+  Windows (the ESP mounted, the snapshot checked first) and restarts once
+  into GRUB. One extra restart, no human.
+- **Reversible, and the undo already exists.** The ESP snapshot and the
+  kept copy hold Windows' file; the rollback and the way back put it back
+  and remove the guard.
+- **R22's servicing is expected, not a surprise.** A `guard` startup task
+  in the kept Windows re-applies the arrangement when Windows' servicing
+  has put its own file back, so an update costs one Windows boot, not
+  Linux. After reclaim there is no Windows to service.
+- **Secure Boot stays on.** shim is the same Microsoft-signed file the
+  stick boots with.
+
+What it costs: R21's "bootmgfw.efi byte for byte" holds for the file's
+bytes (kept, checksummed, restorable) but not for its name, on this class
+of firmware only. The `v2-install.csv` row for such a machine says so in
+its `fallback_loader` and notes. Evidence that closes it: the Aspire
+starting GRUB with no key after the arrangement, Windows reached from
+GRUB, Fedora reached, and a servicing pass survived by the guard. The rig
+exercises the mechanism with a bench-only switch that forces it.
+
+**Proven on the Aspire (2026-10-10; `v2-install.csv` line 11, the tenth
+row, `pass-plumbing`, `fallback_loader = shim-in-windows-slot`).** The
+arrangement was applied by hand through `upgrade-prologue windows-slot` on
+that morning's install, Secure Boot on. Then, with nobody pressing a key:
+Fedora (`BootCurrent 0004`), Windows through GRUB's "Windows (kept)" entry
+(back in 64 s; the guard task ran, result 0, nothing to re-apply), Fedora
+again from a plain Windows restart (`BootOrder` 0004 first), and Windows
+again through GRUB (58 s; the guard again, nothing to re-apply). Windows'
+boot files were unchanged against the stick's 155-file snapshot, and
+`bootmgfw.efi`'s bytes live on as `bootmgfw-kept.efi`. A physical run has
+no bench marker, so the boot log was assembled from the host's own
+observations (ssh reachable, each system's records) and says so in its
+first line. Still owed: the return applying the slot by itself (the
+detector, not a hand), a servicing pass survived by the guard, the
+rollback putting the file back on this machine, and the rig arm with the
+bench switch. Found on the same cycles: the kept Windows' clock 7 h fast
+after each Linux boot (R36).
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · open
 
@@ -2355,6 +2454,18 @@ is followed by a Linux boot with no action from the person. And the physical
 matrix shows whether any vendor firmware ignores the re-assertion (some
 firmware pins its own order; that would move this to "press one key", like
 V0's fallback).
+
+**The Acer answer (2026-10-10).** The Aspire's firmware does ignore the
+re-assertion: its own list never holds the Linux entry (R21, the Acer
+finding). There the arrangement decided under R21 (shim in Windows' slot)
+is what keeps Linux reachable, and this risk becomes "Windows' servicing
+puts its own file back": the kept Windows runs a `guard` startup task that
+re-applies the arrangement, so an update costs one Windows boot. On
+firmware that honours the entry, `settle-in`'s unit is still the answer.
+The guard ran on the Aspire at both Windows starts of 2026-10-10 (result
+0, the slot still held shim, nothing to re-apply; recorded in its own
+`windows-slot.json`). A real Windows update under it is still owed, and
+it is the only thing that proves this risk's new shape.
 
 ---
 
@@ -3289,7 +3400,7 @@ the basic display driver.
 
 ---
 
-## R32: The port from PowerShell to Rust · critical · open (decided 2026-09-27; nothing ported yet)
+## R32: The port from PowerShell to Rust · critical · open (decided 2026-09-27; steps 1 and 2 built 2026-10-04 and held to the originals by tests; nothing switched over)
 
 **What.** The Windows side (about 10,600 lines of PowerShell: the scanner,
 harvester, job writer, stick writer, kickstart generator, prologue,
@@ -3333,6 +3444,89 @@ the parity ledger (V13) has a Rust pass beside every line it earned, and
 the `.cmd` launchers stay on the stick until then. Builds are made
 reproducible. From now on every physical run keeps the raw output of the
 Windows tools it calls, so later decisions can be replayed (rule #5).
+
+**Decided (2026-10-04, the owner): build the whole port now, cut over
+after one success.** The port is built on the branch `rust-port`, beside
+the scripts, without waiting for V0's vendors or V9's re-run. `main` keeps
+validating the process in PowerShell, and as soon as that has one success
+the project cuts over to Rust. This replaces the 2026-09-27 wait. What it
+changes for this risk:
+
+- The stakes move to one moment. At the cut-over the Rust becomes the thing
+  under test, with every rig and physical line in the ledger still `owed`.
+  Parity tests close the deciding and the wording. They close nothing a
+  disk or a firmware does (rule #2, rule #5).
+- So everything that can be closed without hardware is closed before the
+  cut-over, on the branch, and the rig is re-run with the Rust build before
+  a physical machine is (`docs/RUST-PORT.md`, "The cut-over"). The scripts
+  stay on the stick as the way back until the Rust has its own rig rows.
+- A second branch can fall behind. `./port-check.sh` fails when a script on
+  `main` changes what it says and the Rust has not followed.
+
+**Where it stands (2026-10-04).** Steps 1 and 2 are built, beside the
+scripts, and nothing the stick runs has changed (`docs/RUST-PORT.md` is the
+roadmap).
+
+- **Step 1, the schema library** (`schemas/rust`). It carries the two
+  schema files inside itself, so there is no second copy of the rules. All
+  103 checks of `schemas/check.py` are replayed in Rust, and both checkers
+  gave the same answer on 4,943 one-edit documents. Rust refused 54 more,
+  all for a date that is not a date, which the Python skips on this machine.
+- **Step 2, the scanner's judging half** (`evaluate/scan`, following scanner
+  0.5.0). 167 cases are compared word for word with what the PowerShell
+  answers: its 100 self-test cases, the 3 recordings, and 64 more that reach
+  wording the self-test misses. The first risk above (a port that decides
+  differently) is what this comparison is for. It caught two PowerShell
+  habits a reading would have missed: equal entries come out of
+  `Sort-Object -Descending` in reverse order, and halves round to the even
+  digit.
+- **Step 3, first half** (same day). The scanner's main section and its
+  text report, as `run::scan` and `report::lines`, and a program that
+  replays a recording (`upgrade-scan --replay`). Six whole scans match the
+  PowerShell scanner's own main section, run as written with only its reads
+  replaced, report line for line.
+- **The harvester's pure half, the kickstart generator, the job writer's
+  judging half** (same day; `evaluate/harvest`, `upgrade_/kickstart`,
+  `evaluate/job`). Each is held to its script the same way. The job writer
+  is the one that matters most here: its refusals are rule #1 in code (the
+  RED verdict, the typed statements, the drive list of an erase). 965 calls
+  match, word for word and field for field.
+- **What none of this is yet:** Rust that reads a live Windows or writes to
+  a disk. Every piece so far decides from facts handed to it.
+- **Still open for step 2:** 10 ledger lines, the scanner's rig and physical
+  rows. They were earned by reading real machines, and the Rust does not
+  read a machine yet. A word-for-word match on made-up inputs and three
+  recordings closes the judging, never the reading (rule #5).
+- **A new risk the port brings:** `data/tables.json` is a written-out copy
+  of `data/*.ps1`. A table edited in one and not the other would make the
+  two scanners disagree. `port-check.sh` fails when the copy is stale;
+  nothing runs it automatically yet (the same gap as R9).
+- **2026-10-07, the cut-over begins** (`docs/CUTOVER-PROMPT.md`). The
+  scanner is a product command that writes the report files where the
+  launchers expect them, proven on the G16 side by side with the
+  PowerShell (JSON SAME, text byte-identical, elevated and not). The
+  password hasher is ported and held to the specification's vectors and 34
+  recorded answers. The harvester's live half (the known folders, whose
+  desktop this is, the stick's volume, the browsers) writes the folder map
+  the job writer reads, proven side by side on the G16 the same day. The
+  job writer's live half reads everything `Get-JobFacts` reads (the Wi-Fi
+  profiles with their keys through the Native Wifi API, the licence facts,
+  the Store packages through the deployment API) and writes `job.json`
+  only as a document the contract accepted; its facts match the script's
+  on the G16, elevated and not. The prologue's judging half is ported (`upgrade_/prologue`:
+  the R18 guardrails, the re-validation, the fork, the ladder's consents,
+  R25, the erase path, the records; 161 cases and 228 calls match the
+  script word for word, and every realistic stopped outcome passes the
+  contract), and its live half is built: every read and every reversible
+  write of the script, with every tool call kept with its raw output from
+  the first line (what the PowerShell never did), and the rollback with
+  it. Its reads match `Get-PrologueFacts` on the G16. Its rig and physical
+  rows, the rollback's and the handoff's are written and `owed`: the rig
+  with `PROLOGUE=rust` is the next step, the Aspire after it. Two differences kept on purpose, both stricter: the
+  online scan's Windows 11 names now count as errors found (the PowerShell
+  judged them clean), and a typed pair whose bytes differ is refused even
+  where PowerShell's culture-aware comparison accepted it. Each is held by
+  name in a test that fails the day the PowerShell catches up.
 
 **Closes when.** Per piece: its lines in
 `docs/validation-results/port-parity.csv` all read `pass` (self-tests and
@@ -3908,3 +4102,52 @@ at every boot while it is in, and it only ever hands over.
 **Closes when.** Arm D passes on the rig, and the Aspire finishes an
 install with the stick left in and comes up in Fedora once. **Met
 2026-10-04 (run 11).** Kept open for the list above.
+
+## R36: The kept Windows' clock runs hours wrong after every Linux boot · medium · open (found 2026-10-10 on the Aspire, the first keep-Windows boot cycles; decision owed)
+
+**What.** Windows keeps the hardware clock in local time. Linux keeps it
+in UTC, and `settle-in` stores it as UTC on first startup
+(`architecture.md`, "The clock"), which is right when Windows is gone. On
+the keep-Windows path, the default, Windows is not gone. It reads the UTC
+the Linux side wrote as if it were local time, so after every Linux boot
+the kept Windows runs fast by the zone's whole offset.
+
+Seen on the Aspire (2026-10-10, the shim-in-slot cycles under R21):
+Windows' own stamp `2026-10-11T00:30:42Z` against the host's
+`2026-10-10T17:30:41Z`, 7 h fast in Pacific time; `RealTimeIsUniversal`
+absent; the Windows time service stopped (Windows corrects its clock on a
+weekly schedule, not at startup). Fedora was right throughout (chrony
+synchronized, "RTC in local TZ: no"), and `settle-in`'s first-start
+service had already run and will not run again, so nothing on the Linux
+side moves it back. The prologue's own recorder shows the jump: its
+stamps read `17:15Z` before the first Fedora boot and `00:23Z` the next
+day after it.
+
+**If real** (it is). Every person on the default path who restarts into
+the kept Windows finds its clock hours wrong. A wrong clock breaks
+websites (certificate dates), sign-in codes, mail order, and the stamps
+on any file they edit there before it is pulled across. Nothing is lost,
+but the kept Windows is the safety net and the source of the files, and
+a safety net that looks broken is not trusted. Medium.
+
+**Two ways to fix it, one decision owed from the owner.**
+
+- **Linux adapts.** On the keep-Windows path `settle-in` leaves the
+  hardware clock in local time and tells Linux so (`/etc/adjtime` says
+  `LOCAL`; `timedatectl set-local-rtc 1`). The kept Windows is not
+  touched (rule #4). Cost: Linux on a local-time hardware clock is an
+  hour off at each daylight-saving change until its time service
+  corrects it, and systemd warns about the mode.
+- **Windows adapts.** The prologue writes `RealTimeIsUniversal = 1` (a
+  documented Windows setting) into the kept Windows before the handoff,
+  so both systems read the clock as UTC; the rollback and the way back
+  remove it. Cost: one more write into Windows' registry, and some
+  Windows versions have mishandled daylight saving under it.
+
+Either way reclaim, which removes Windows, returns the machine to plain
+UTC. Neither is built.
+
+**Closes when.** Decided and built, then the Aspire does a Linux boot
+followed by a Windows boot with Windows' clock within a minute of the
+host's, read the way it was read here (Windows' UTC against the host's on
+the same line). The rig repeats the two boots on the keep-Windows arm.

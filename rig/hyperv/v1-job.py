@@ -54,7 +54,8 @@ job["storage"]["shrinkable_gb"] = float(facts.get("shrink_gb") or 0) or None
 job["storage"]["shrink_source"] = "storage-api" if job["storage"]["shrinkable_gb"] else None
 job["storage"]["shrink_error"] = None
 # the real flag: the prologue re-validates it against fsutil and stops on a change (2026-09-12)
-job["storage"]["volume_health"] = {"dirty": facts.get("dirty", "unknown"), "repair_queued": bool(facts.get("repair_queued", False)), "scan": None}  # required since 2026-09-17 (R18); read from the guest since 2026-10-04
+# required since 2026-09-17 (R18). repair_queued is what the guest's own Windows says (Get-Volume's status or NTFS event 98), as the product's job writer reads it: on Windows 10 19045 `fsutil dirty set` logs event 98 and the volume reports Full Repair Needed at once (the rig, 2026-10-07), and a job that says False stops the prologue at re-validation
+job["storage"]["volume_health"] = {"dirty": facts.get("dirty", "unknown"), "repair_queued": bool(facts.get("repair_queued", False)), "scan": None}
 job["storage"]["physical_disk"] = {"health_status": facts.get("health", "Healthy"), "operational_status": "OK"}
 job["storage"]["esp"] = {"size_bytes": int(facts["esp"]["size"]), "free_bytes": int(facts["esp"]["free"]),
                          "fits_alongside_install": int(facts["esp"]["free"]) >= 32 * 1024 * 1024}

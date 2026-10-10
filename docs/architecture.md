@@ -694,6 +694,29 @@ at all:
     destructive, so a check that cannot be satisfied does not abort. It is
     written down for `settle-in` to show, and Windows stays reachable from
     the GRUB menu either way.
+    GRUB's Windows entry is the installer's own, not os-prober's: it
+    chainloads `bootmgfw-kept.efi` when that file exists and
+    `bootmgfw.efi` otherwise (step 12 is why).
+12. **On firmware that ignores operating-system entries, shim goes into
+    Windows' slot** (decided 2026-10-10, the owner; RISKS R21, the Acer
+    finding). Some firmware (Acer's InsydeH2O) boots only from its own
+    priority list, where the one operating-system entry is "Windows Boot
+    Manager"; the `Fedora` entry is never on it, and the machine starts
+    Windows with no menu. The prologue's return on the kept Windows is the
+    detector: the install completed, Fedora was left first, and yet
+    Windows booted with nobody pressing a key. On that evidence it moves
+    `bootmgfw.efi` one name aside (`bootmgfw-kept.efi`, same folder, so
+    Windows' boot manager still finds its BCD), copies Fedora's signed shim
+    to `bootmgfw.efi`, registers a `guard` startup task in the kept Windows
+    (Windows' servicing puts its own file back; the guard re-applies the
+    arrangement, so an update costs one Windows boot), and restarts once.
+    What the Aspire's firmware then did (2026-10-10): with Microsoft's
+    boot manager gone from its path it stopped preferring that entry and
+    followed its order, booting Fedora's own entry (`BootCurrent 0004`),
+    rather than chainloading through the slot. Either way GRUB comes up
+    with both systems. Firmware that honours the entry never gets this.
+    The rollback and the way back put Windows' file back and remove the
+    guard.
 
 **The user's files are not touched here.** No NTFS read, no BitLocker
 unlock, no copy. Windows is left whole. The files come across in
@@ -1088,6 +1111,12 @@ automatic.**
   On first startup `settle-in` reads the hardware clock as the local time
   it is, converts it to UTC, sets the system clock, and stores the
   hardware clock as UTC from then on.
+  **Found on the Aspire (2026-10-10), decision owed:** on the keep-Windows
+  path this leaves the kept Windows reading the clock hours fast after
+  every Linux boot (7 h on the Aspire), because Windows still reads the
+  hardware clock as local time. RISKS R36 holds the two ways to fix it
+  (Linux keeps the clock local, or Windows is told it is UTC); neither is
+  built.
   **Corrected (2026-09-27, found while building it):** the conversion uses
   the offset Windows was using when it last ran (harvested), not the zone's
   rules at first startup. The hardware clock holds whatever offset Windows
@@ -1517,13 +1546,26 @@ VALIDATION V13):
 4. the job writer, the stick writer and the kickstart generator;
 5. the prologue, the handoff and the rollback, last.
 
-Steps 3 to 5 wait for V0's three more vendors and V9's physical re-run.
-Until then, and for each piece until its lines in
+**Decided (2026-10-04, the owner):** all five steps are built now, on the
+branch `rust-port`, beside the scripts, and the project cuts over to Rust
+after one success of the PowerShell process on `main`. (The 2026-09-27 plan
+had steps 3 to 5 wait for V0's three more vendors and V9's physical re-run.)
+Until the cut-over, and for each piece until its lines in
 `docs/validation-results/port-parity.csv` all read `pass`, the window
 keeps calling that piece's script as described above, and the `.cmd`
 launchers stay on the stick. So today the scripts are still the thing
 under test. Builds are made reproducible, so the `.exe` on the stick can
 be matched to the open source (R14).
+
+**Built (2026-10-04): steps 1 and 2, beside the scripts.** `schemas/rust`
+(crate `upgrade-schema`) carries the two schema files inside itself and
+only hands out a `Job` or an `Outcome` that passed them. `evaluate/scan`
+(crate `upgrade-scan`) is the scanner's judging half: facts go in, checks
+and a verdict come out, and it reads nothing from the machine. Both are
+held to the originals by tests that compare full answers (`port-parity.csv`,
+`./port-check.sh`). No program uses either crate yet. The device tables
+stay in `data/*.ps1`; a tool writes them to `data/tables.json` for the
+Rust. The plan from here is `docs/RUST-PORT.md`.
 
 ### Code signing is the gating item
 

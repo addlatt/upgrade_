@@ -18,6 +18,8 @@
 #   prologue.sh stick         MODE=prologue v1.sh stick (bench + autoshutdown markers; NO boot-install -
 #                             the prologue writes that itself when it arms)
 #   prologue.sh windows       power on, wait for PS Direct (no GRUB on this disk)
+#   prologue.sh update-clear  let a Windows update that waits for a restart finish first (else the
+#                             prologue's R25 restart drops the injected flag; 2026-10-07), record it
 #   prologue.sh dirty         fsutil dirty set C: (the fault), record fsutil's answer
 #   prologue.sh autologon off|on   the guest's AutoAdminLogon (the rig template signs itself in;
 #                             the walk-away row needs NOBODY signed in when the resume fires -
@@ -121,7 +123,28 @@ windows)
     # page cache and Hyper-V then cannot allocate the guest's RAM ("Insufficient
     # system resources", storage-mode runs 1 and 6): evict before every start
     for f in "$HV/vm/v1-stick.vhdx" "$PRO_VHDX" artifacts/v1-stick.img ../../dist/kit/stick/upgrade_/LiveOS/*.squashfs ../../dist/kit/stick/images/install.img; do evict "$f" 2>/dev/null || true; done
+    # and the build outputs (2026-10-08: cargo's target dirs starved three starts), then wait for room
+    python3 evict-builds.py --wait
     PS start; wait_windows 900 ;;
+update-clear)
+    # The fresh rig disk carries a Windows update waiting for a restart (CBS
+    # RebootPending; first met 2026-10-07, the first run with the prologue's R25
+    # gate, 0.9.0+). The gate restarts before the disk check, and a clean restart
+    # drops a dirty bit set by fsutil: the guest's System log showed NTFS 98
+    # "healthy" at the next mount and no autochk (run 2, r18-prologue.csv line
+    # 13, flag-not-confirmed). So the bench lets the update finish first, and
+    # records what it read before and after in update-before.txt.
+    mkdir -p "$A"
+    rd() { echo "\$c = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Component Based Servicing\\RebootPending'; \$w = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired'; '$1: cbs=' + \$c + ' wu=' + \$w"; }
+    guest "$(rd before)" | tee "$A/update-before.txt"
+    if grep -q 'True' "$A/update-before.txt"; then
+        echo "prologue: an update waits for a restart; restarting the guest once before the flag is injected"
+        guest 'shutdown /r /t 0' >/dev/null 2>&1 || true
+        sleep 45; wait_windows 900
+        guest "$(rd after)" | tee -a "$A/update-before.txt"
+        grep -q 'after: cbs=False wu=False' "$A/update-before.txt" || { echo "prologue: the update is still waiting after a restart - read $A/update-before.txt" >&2; exit 1; }
+    fi
+    ;;
 dirty)
     mkdir -p "$A"
     guest 'fsutil dirty set C:; fsutil dirty query C:' | tee "$A/dirty.txt"
@@ -140,7 +163,11 @@ probe-run)
     "$SELF" windows; "$SELF" autologon off
     L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume in the guest" >&2; exit 1; }
     guest "Remove-Item -Recurse -Force '$GUEST_STATE' -ErrorAction SilentlyContinue; Remove-Item ${L}:\\upgrade_\\probe.json,${L}:\\upgrade_\\walkaway-probe.csv -Force -ErrorAction SilentlyContinue"
-    guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Probe -ProbeStickDrive ${L}:" | tee "$A/probe-start.log"
+    if [ "${PROLOGUE:-ps}" = rust ]; then
+        guest "& ${L}:\\upgrade-prologue.exe probe --stick ${L}:" | tee "$A/probe-start.log"
+    else
+        guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Probe -ProbeStickDrive ${L}:" | tee "$A/probe-start.log"
+    fi
     grep -q 'restarting in 15 s' "$A/probe-start.log" || { echo "prologue: the probe did not reach a restart - read $A/probe-start.log" >&2; exit 1; }
     # the guest can take longer than its 15 s to actually go down: wait for a NEW boot
     # (LastBootUpTime changes), not merely for PS Direct to answer (run 1: it answered
@@ -259,7 +286,12 @@ convert)
     # step 5 - the prologue, the code under test - runs exactly as the launcher
     # runs it. The typed word is the launcher's; here it is passed straight.
     ./v1.sh job
-    guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Start -StickDrive ${L}: -ConfirmWord CONVERT" | tee "$A/convert.log"
+    # PROLOGUE=rust runs the Rust build from the stick (the cut-over, RISKS R32); the records it writes have the same names
+    if [ "${PROLOGUE:-ps}" = rust ]; then
+        guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --confirm-word CONVERT" | tee "$A/convert.log"
+    else
+        guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Start -StickDrive ${L}: -ConfirmWord CONVERT" | tee "$A/convert.log"
+    fi
     grep -q 'restarting in 15 s' "$A/convert.log" || { echo "prologue: the prologue did not reach a restart - read $A/convert.log" >&2; exit 1; }
     ;;
 wait-off) wait_off "${2:-5400}" ;;
@@ -292,7 +324,11 @@ rollback)
     need_off; PS start; sleep 10; shot grub-rollback
     for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; sleep 1; done; PS key 13
     wait_windows 600; L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume" >&2; exit 1; }
-    guest "cmd /c \"echo ROLLBACK| ${L}:\\ROLLBACK.cmd\"" | tee "$A/rollback.log"
+    if [ "${PROLOGUE:-ps}" = rust ]; then
+        guest "& ${L}:\\upgrade-prologue.exe rollback --stick ${L}:" | tee "$A/rollback.log"
+    else
+        guest "cmd /c \"echo ROLLBACK| ${L}:\\ROLLBACK.cmd\"" | tee "$A/rollback.log"
+    fi
     pull "${L}:\\upgrade_\\rollback.json" rollback.json
     guest "bcdedit /enum '{fwbootmgr}'" > "$A/bcd-fwbootmgr-after-rollback.txt" 2>/dev/null || true
     PS stop; wait_off 300
@@ -322,7 +358,7 @@ restore)
     PS disk list
     ;;
 run)
-    "$SELF" prepare; "$SELF" stick; "$SELF" inspect pre-install; "$SELF" windows; "$SELF" dirty; "$SELF" autologon off; "$SELF" convert
+    "$SELF" prepare; "$SELF" stick; "$SELF" inspect pre-install; "$SELF" windows; "$SELF" update-clear; "$SELF" dirty; "$SELF" autologon off; "$SELF" convert
     "$SELF" wait-off 5400; "$SELF" inspect post-install
     "$SELF" cycle windows w1; "$SELF" cycle linux l1; "$SELF" cycle windows w2; "$SELF" cycle linux l2
     "$SELF" inspect post-cycles; "$SELF" verdict

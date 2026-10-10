@@ -76,7 +76,7 @@ A few words used all through this file:
 | V6 code signing | `[....]` | calendar-bound, not started |
 | V7 scanner generalizes | `[....]` | needs the public release and reports |
 | V12 the window | verify flow: stop path `[###.]`, restart and reopen `[##..]` | rig line 2: draws via wgpu, shows the job writer's refusal, leaves nothing; the rig has no USB, so the reopen after the restart needs the Aspire |
-| V13 the Rust port | `[#...]` | decided 2026-09-27; nothing ported; the parity ledger has its header only |
+| V13 the Rust port | steps 1 and 2 `[##..]`, steps 3 to 5 `[#...]` | 2026-10-04: the schema library and the scanner's judging half are built; 406 ledger lines `pass`, 20 `owed` (rig and physical rows); nothing switched over |
 
 ---
 
@@ -292,6 +292,37 @@ that rather than fighting. (2026-09-08: this is the shape the vertical uses,
 with `inst.ks=` on the stick itself instead of an OEMDRV volume.)
 
 ## V1b: Installing alongside a shrunk Windows leaves Windows bootable · kills: the default path's safety net · RISKS R21
+
+**The Acer finding and its proof (2026-10-10).** Two alongside installs
+on the Aspire (InsydeH2O V1.21) left Fedora first in `BootOrder` and the
+firmware started Windows with no menu both times: its own list never holds
+the Linux entry (RISKS R21, the Acer finding). Decided the same day:
+shim in Windows' slot on such firmware, applied by the prologue's return
+on the evidence, with a guard for servicing. What proves it, in order:
+the rig with the bench-only switch (the arrangement applied, GRUB from
+the firmware's Windows entry, both systems reached twice, a simulated
+servicing pass survived by the guard, the rollback putting the file back:
+`v2-install.csv` rows with `fallback_loader = shim-in-windows-slot`); then
+the Aspire, where today's install is the exact starting state (Fedora
+installed, Windows first): the arrangement applied by hand through the
+same code, a keyless start reaching GRUB, Fedora and Windows each
+reached, and a Windows update followed by a Linux boot.
+
+**The Aspire went first (2026-10-10, later the same day).** The
+arrangement applied by hand through the same code, Secure Boot on. Then,
+with no key pressed: Fedora, Windows through GRUB's "Windows (kept)"
+entry, Fedora again from a plain Windows restart, Windows again, the
+guard task running at each Windows start with nothing to re-apply
+(`v2-install.csv` line 11, `pass-plumbing`,
+`fallback_loader = shim-in-windows-slot`). The boot log was assembled
+from the host's observations, since a physical run has no bench marker,
+and its first line says so. The firmware's own path surprised: it booted
+Fedora's entry (`BootCurrent 0004`), not the slot (RISKS R21, "What the
+Aspire actually did"). Owed: the rig arm, the return applying the slot by
+itself, a Windows update followed by a Linux boot, the rollback on this
+machine, and the kept Windows' clock, 7 h fast after each Linux boot
+(RISKS R36, decision owed). Until then V1b's default path on this
+firmware rests on one machine and one day.
 
 **Why it has its own gate.** The default keep-Windows path installs Linux
 into space freed from Windows, and **must leave the shrunk Windows fully
@@ -1362,7 +1393,74 @@ is plumbing.
 ## V13: The port from PowerShell to Rust · kills: trust in every row the Windows side earned · RISKS R32
 
 Decided 2026-09-27 (the owner): Rust becomes the conversion's one
-language, piece by piece (`architecture.md`, "Stack"). `[#...]` planned.
+language, piece by piece (`architecture.md`, "Stack"). The roadmap is
+`docs/RUST-PORT.md`. Steps 1 and 2 `[##..]` built (2026-10-04), with the
+replay half of step 3; the rest `[#...]` planned.
+
+**Decided (2026-10-04, the owner):** the whole port is built now on the
+branch `rust-port`, and the project cuts over to Rust after one success of
+the PowerShell process on `main`. This gate's order at the cut-over: every
+`selftest`, `corpus` and differential line `pass` first (on the branch),
+then the `rig` lines re-run with the Rust build, then the `physical` ones.
+A line is never marked `pass` because its PowerShell row passed.
+
+**Where it stands (2026-10-04).** `./port-check.sh` runs the whole check:
+the two PowerShell self-tests and `schemas/check.py`, that the recorded
+files are fresh, that every self-test case has a Rust case under the same
+name, and the Rust tests.
+
+| Piece | Ledger lines | `pass` | `owed` |
+|---|---|---|---|
+| `schemas/check.py` (step 1) | 103 | 103 | 0 |
+| `upgrade-scan.ps1` | 118 | 108 | 10 (`v5-controller-mode.csv` lines 2 to 10, `v1-live-boot.csv` line 4: the storage-mode rows need the rig's both-modes harness run with the Rust build, and the Aspire's RST driver is gone with its fresh Windows). Its own rows: `v13-rust-scanner.csv` |
+| `Harvest-UpgradeState.ps1` | 51 | 48 | 3 (`v8-materialize.csv`, the materializer's rig rows; `harvest-folder-map.csv` lines 3 and 4, the Aspire's folder maps). Line 2, the G16's, re-earned 2026-10-07 by `upgrade-harvest folder-map` side by side (line 5) |
+| `New-Job.ps1` (judging half) | 130 | 126 | 4 (the rig and physical rows that ran its jobs) |
+| `New-Kickstart.ps1` (step 4, first piece) | 26 | 22 | 4 (the rig and physical rows whose installs ran its kickstart: `v1-live-boot.csv`, `v2-install.csv`, `v9-erase.csv`) |
+| `Read-Password.ps1` (2026-10-07) | 15 | 12 | 3 (`v9-erase.csv` lines 11, 22, 30: the Aspire's runs where the person typed the password through it; one physical run with `upgrade-job password` re-earns them) |
+| `Invoke-Prologue.ps1` (2026-10-07) | 192 | 145 | 47 (the Wi-Fi scrub, a live action; 34 rig rows (`v2-install.csv` lines 5 and 6 passed with the Rust prologue's rig row, line 8) in `r18-prologue.csv`, `v2-install.csv`, `v9-erase.csv`, `walkaway-probe.csv`; 12 physical rows, the Aspire's). The judging half is `upgrade_/prologue`: 161 cases, 228 calls word for word |
+| `Invoke-Rollback.ps1` (lines written 2026-10-07) | 16 | 0 | 16 (14 self-test cases; `r21-rollback.csv` lines 2 and 3) |
+| `Test-Handoff.ps1` (2026-10-07) | 48 | 33 | 15 (`v0-handoff.csv` lines 2 to 12, `v1-live-boot.csv` lines 2 to 5: the rows the Rust verify handoff, `upgrade-prologue verify-arm`, has to earn on the rig and the Aspire). The 33 are its self-test cases, replayed in `upgrade_/prologue/tests/verify.rs`; 12 lines written on 2026-10-07 that were not cases were removed |
+
+**2026-10-07, the cut-over sessions** (`docs/CUTOVER-PROMPT.md`): the
+scanner is a product command (`upgrade-scan scan --json --out`, proven on
+the G16 against `upgrade-scan.ps1 -Json -OutDir` in the same minute,
+elevated and not: JSON SAME field for field, text byte-identical;
+`v13-rust-scanner.csv` line 7), the password hasher is ported (34
+recorded calls, the specification's vectors), and the harvester's live
+half writes the folder map (`upgrade-harvest folder-map`, side by side
+with `-FolderMapOut` on the G16: SAME field for field,
+`harvest-folder-map.csv` line 5). The job writer's live half is built
+(`upgrade-job write`; `upgrade-job facts` beside the script's own
+`Get-JobFacts` on the G16, elevated and not: SAME but for two
+non-removable Store apps; `v13-rust-job.csv` lines 2 and 3; a `job.json`
+side by side is owed). The prologue's judging half is ported
+(`upgrade_/prologue`: 161 cases, 228 calls) and its live half is built
+(`upgrade-prologue`; every tool call kept with its raw output; its reads
+beside `Get-PrologueFacts` on the G16, elevated and not: SAME but for
+`Test-Path`'s answer on the locked memory files, `v13-rust-prologue.csv`
+lines 2 and 3). Its rig rows are in (`PROLOGUE=rust
+rig/hyperv/prologue.sh run`): run 2 on 2026-10-07, the keep-Windows path
+front to back, unattended (`v2-install.csv` line 8 `pass-plumbing`;
+`r18-prologue.csv` line 13 `flag-not-confirmed`, because the R25 update
+restart dropped the bench's dirty flag before the check; the harness now
+clears a pending update first), and run 3 on 2026-10-08 with the disk
+check in the path: the flag read, `chkdsk /f` run at a restart, both
+resumes as SYSTEM, the shrink, the handoff, the install, the return
+(`r18-prologue.csv` line 14 and `v2-install.csv` line 9, both
+`pass-plumbing`); the same day the rollback (`r21-rollback.csv` line 4,
+`pass-plumbing`) and the walk-away probe (`walkaway-probe.csv` line 4,
+`resumed-unattended`) with the Rust prologue, and the window's verify
+flow over the Rust programs (`v12-window.csv` line 3,
+`stopped-before-arm` at the job writer's R16 refusal of the rig's SCSI
+stick, where the script's row stopped too). `Test-Handoff.ps1` and
+`Invoke-Rollback.ps1`'s judging halves are replayed (39 and 17 calls).
+Owed on the rig: the erase arms. The differences kept on purpose and the
+runs' findings (the `run_as` account, the volume status `0xD00F`) are in
+`docs/RUST-PORT.md`.
+
+The scanner's rig and physical rows are not all found yet. Before step 3
+starts, every results file is read again for rows the scanner had a part
+in, and each gets its `owed` line.
 
 **The parity ledger.** `docs/validation-results/port-parity.csv` lists
 every piece of evidence a PowerShell piece has earned, one line each, and
@@ -1427,7 +1525,7 @@ Real, but they degrade rather than kill, or only touch the fallback path:
 | V8 | the settle-in file pull's integrity guarantee; `settle-in` never copying a stub as the file (online-only files stay in OneDrive, decided 2026-09-26) |
 | V11 | the "Go back to Windows" program (walk-away since 2026-09-29); until it passes, the launchers' line promises only what is proven |
 | V14 | every kit build (its release must be one the target machines can start); the Aspire's run 10 re-run (done 2026-10-04, run 11) |
-| V13 | retiring each PowerShell piece; the ported writers (steps 3 to 5 also wait on V0's vendors and V9's re-run) |
+| V13 | retiring each PowerShell piece; the cut-over to Rust (decided 2026-10-04: after one success of the PowerShell process on `main`) |
 | V5 | nothing: do it this week regardless |
 | V6 | nothing: start the clock now; blocks only the eventual release |
 | V7 | table confidence; multi-distro ambitions |

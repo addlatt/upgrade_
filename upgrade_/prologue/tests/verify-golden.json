@@ -1,0 +1,208 @@
+{
+    "recorder":  "verify-golden.ps1 (Test-Handoff.ps1 0.3.1)",
+    "harness_version":  "0.3.1",
+    "calls":  [
+                  {
+                      "name":  "classify: fired + cleared + order intact is fired-once",
+                      "fn":  "handoff_result",
+                      "result":  "fired-once"
+                  },
+                  {
+                      "name":  "classify: fired but one-shot not cleared is persisted",
+                      "fn":  "handoff_result",
+                      "result":  "persisted"
+                  },
+                  {
+                      "name":  "classify: not fired, order intact is ignored (fail-safe)",
+                      "fn":  "handoff_result",
+                      "result":  "ignored"
+                  },
+                  {
+                      "name":  "classify: fired, cleared, but order changed is reordered",
+                      "fn":  "handoff_result",
+                      "result":  "reordered"
+                  },
+                  {
+                      "name":  "classify: not fired and order changed is reordered",
+                      "fn":  "handoff_result",
+                      "result":  "reordered"
+                  },
+                  {
+                      "name":  "classify: NoSuspend is a baseline-shaped row (fired-once)",
+                      "fn":  "handoff_result",
+                      "result":  "fired-once"
+                  },
+                  {
+                      "name":  "classify: NoFile not fired, order intact is ignored (the pass)",
+                      "fn":  "handoff_result",
+                      "result":  "ignored"
+                  },
+                  {
+                      "name":  "classify: SecureBootUnsigned that fired is persisted (loud)",
+                      "fn":  "handoff_result",
+                      "result":  "persisted"
+                  },
+                  {
+                      "name":  "classify: SecureBootUnsigned not fired but order changed is reordered",
+                      "fn":  "handoff_result",
+                      "result":  "reordered"
+                  },
+                  {
+                      "name":  "port: NoFile that fired anyway is persisted",
+                      "fn":  "handoff_result",
+                      "result":  "persisted"
+                  },
+                  {
+                      "name":  "port: NoFile, nothing fired, order changed is reordered",
+                      "fn":  "handoff_result",
+                      "result":  "reordered"
+                  },
+                  {
+                      "name":  "port: a fail mode compares without case, as -eq does",
+                      "fn":  "handoff_result",
+                      "result":  "ignored"
+                  },
+                  {
+                      "name":  "manage-bde: Protection On parses as on",
+                      "fn":  "manage_bde",
+                      "result":  "on"
+                  },
+                  {
+                      "name":  "manage-bde: Protection Off parses as off",
+                      "fn":  "manage_bde",
+                      "result":  "off"
+                  },
+                  {
+                      "name":  "manage-bde: encrypted but suspended (Protection Off) is off - no TPM prompt",
+                      "fn":  "manage_bde",
+                      "result":  "off"
+                  },
+                  {
+                      "name":  "manage-bde: an access-denied error is unknown, not off",
+                      "fn":  "manage_bde",
+                      "result":  "unknown"
+                  },
+                  {
+                      "name":  "manage-bde: localized output is unknown, not a guess",
+                      "fn":  "manage_bde",
+                      "result":  "unknown"
+                  },
+                  {
+                      "name":  "manage-bde: empty output is unknown",
+                      "fn":  "manage_bde",
+                      "result":  "unknown"
+                  },
+                  {
+                      "name":  "grubenv: a clean block is exactly 1024 bytes with the GRUB header",
+                      "fn":  "grubenv_clean",
+                      "result":  "ok"
+                  },
+                  {
+                      "name":  "grubenv: a clean block is not fired",
+                      "fn":  "grubenv_fired_clean",
+                      "result":  false
+                  },
+                  {
+                      "name":  "grubenv: upg_fired=1 written by save_env is fired",
+                      "fn":  "grubenv_fired_text",
+                      "result":  true
+                  },
+                  {
+                      "name":  "grubenv: upg_fired=0 is not fired",
+                      "fn":  "grubenv_fired_text",
+                      "result":  false
+                  },
+                  {
+                      "name":  "grubenv: an unrelated variable is not fired",
+                      "fn":  "grubenv_fired_text",
+                      "result":  false
+                  },
+                  {
+                      "name":  "grubenv: empty file is not fired",
+                      "fn":  "grubenv_fired_text",
+                      "result":  false
+                  },
+                  {
+                      "name":  "payload: shim points at EFI\\BOOT\\BOOTX64.EFI",
+                      "fn":  "payload_path",
+                      "result":  "\\EFI\\BOOT\\BOOTX64.EFI"
+                  },
+                  {
+                      "name":  "payload: shell points at EFI\\SHELL\\SHELLX64.EFI",
+                      "fn":  "payload_path",
+                      "result":  "\\EFI\\SHELL\\SHELLX64.EFI"
+                  },
+                  {
+                      "name":  "payload: NoFile points at a missing file whatever the payload",
+                      "fn":  "payload_path",
+                      "result":  "\\EFI\\BOOT\\DOES-NOT-EXIST.EFI"
+                  },
+                  {
+                      "name":  "payload: an unknown name is refused",
+                      "fn":  "payload_path",
+                      "result":  "refused"
+                  },
+                  {
+                      "name":  "port: the payload name compares without case, as a hashtable key does",
+                      "fn":  "payload_path",
+                      "result":  "\\EFI\\SHELL\\SHELLX64.EFI"
+                  },
+                  {
+                      "name":  "stick: found again under a new letter by volume id",
+                      "fn":  "find_stick_root",
+                      "result":  "F:\\"
+                  },
+                  {
+                      "name":  "stick: absent stick is null, never a guess",
+                      "fn":  "find_stick_root",
+                      "result":  "null"
+                  },
+                  {
+                      "name":  "stick: a matching volume with no letter does not count",
+                      "fn":  "find_stick_root",
+                      "result":  "null"
+                  },
+                  {
+                      "name":  "csv: a freshly created header has no byte-order mark",
+                      "fn":  "csv_header_bom",
+                      "result":  "no-bom"
+                  },
+                  {
+                      "name":  "csv: the created header matches the column list exactly",
+                      "fn":  "csv_header_text",
+                      "result":  "ok"
+                  },
+                  {
+                      "name":  "drive: E: normalizes to E:\\",
+                      "fn":  "drive_root",
+                      "result":  "E:\\"
+                  },
+                  {
+                      "name":  "drive: lowercase e normalizes to E:\\",
+                      "fn":  "drive_root",
+                      "result":  "E:\\"
+                  },
+                  {
+                      "name":  "drive: a path is refused",
+                      "fn":  "drive_root",
+                      "result":  "refused"
+                  },
+                  {
+                      "name":  "port: an empty drive is refused",
+                      "fn":  "drive_root",
+                      "result":  "refused"
+                  },
+                  {
+                      "name":  "port: the shell payload\u0027s arm points at the shell",
+                      "fn":  "payload_path",
+                      "result":  "\\EFI\\SHELL\\SHELLX64.EFI"
+                  }
+              ],
+    "csv_header":  "timestamp,harness,vendor,model,firmware_version,secureboot,bitlocker,payload,failmode,result,keypress_free,windows_returned,notes",
+    "payload_paths":  {
+                          "shim":  "\\EFI\\BOOT\\BOOTX64.EFI",
+                          "shell":  "\\EFI\\SHELL\\SHELLX64.EFI"
+                      },
+    "return_task_name":  "upgrade_ V0 handoff return check",
+    "fired_marker":  "fired.txt"
+}

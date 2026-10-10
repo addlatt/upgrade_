@@ -1,0 +1,4286 @@
+[
+ {
+  "name": "update pending: any one marker counts; none, or a record with none of them, is clear",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueUpdatePending",
+    "args": {
+     "U": {
+      "CbsRebootPending": true,
+      "CbsRebootInProgress": false,
+      "WuRebootRequired": false
+     }
+    }
+   },
+   {
+    "fn": "Test-PrologueUpdatePending",
+    "args": {
+     "U": {
+      "CbsRebootPending": false,
+      "CbsRebootInProgress": true,
+      "WuRebootRequired": false
+     }
+    }
+   },
+   {
+    "fn": "Test-PrologueUpdatePending",
+    "args": {
+     "U": {
+      "CbsRebootPending": false,
+      "CbsRebootInProgress": false,
+      "WuRebootRequired": true
+     }
+    }
+   },
+   {
+    "fn": "Test-PrologueUpdatePending",
+    "args": {
+     "U": {
+      "CbsRebootPending": false,
+      "CbsRebootInProgress": false,
+      "WuRebootRequired": false
+     }
+    }
+   },
+   {
+    "fn": "Test-PrologueUpdatePending",
+    "args": {
+     "U": {}
+    }
+   }
+  ]
+ },
+ {
+  "name": "update step: nothing pending is clear, wherever it is asked",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueUpdateStep",
+    "args": {
+     "Pending": false,
+     "Restarts": 0,
+     "Where": "before-changes"
+    }
+   },
+   {
+    "fn": "Get-PrologueUpdateStep",
+    "args": {
+     "Pending": false,
+     "Restarts": 5,
+     "Where": "before-arm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "update step: pending before anything changes or before the shrink takes a restart of ours, up to the limit, then stops",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueUpdateStep",
+    "args": {
+     "Pending": true,
+     "Restarts": 0,
+     "Where": "before-changes"
+    }
+   },
+   {
+    "fn": "Get-PrologueUpdateStep",
+    "args": {
+     "Pending": true,
+     "Restarts": 2,
+     "Where": "before-shrink"
+    }
+   },
+   {
+    "fn": "Get-PrologueUpdateStep",
+    "args": {
+     "Pending": true,
+     "Restarts": 3,
+     "Where": "after-update-restart"
+    }
+   }
+  ]
+ },
+ {
+  "name": "update step (R25): pending right before the arm never restarts - it stops, whatever the count",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueUpdateStep",
+    "args": {
+     "Pending": true,
+     "Restarts": 0,
+     "Where": "before-arm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "update record: the outcome block counts checks, what was seen and the restarts; a state from before 0.9.0 has none",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "block",
+    "args": {
+     "State": {}
+    }
+   },
+   {
+    "fn": "block",
+    "args": {
+     "State": {
+      "Update": {
+       "Checks": [
+        {
+         "Where": "before-changes",
+         "Pending": true
+        },
+        {
+         "Where": "after-update-restart",
+         "Pending": false
+        }
+       ],
+       "Restarts": 1,
+       "ResumeTo": null
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore-point verdict: all, some, none, none there, unreadable",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePointVerdict",
+    "args": {
+     "Before": 2,
+     "After": 0
+    }
+   },
+   {
+    "fn": "Get-PrologueRestorePointVerdict",
+    "args": {
+     "Before": 3,
+     "After": 1
+    }
+   },
+   {
+    "fn": "Get-PrologueRestorePointVerdict",
+    "args": {
+     "Before": 2,
+     "After": 2
+    }
+   },
+   {
+    "fn": "Get-PrologueRestorePointVerdict",
+    "args": {
+     "Before": 0,
+     "After": 0
+    }
+   },
+   {
+    "fn": "Get-PrologueRestorePointVerdict",
+    "args": {
+     "Before": null,
+     "After": 2
+    }
+   },
+   {
+    "fn": "Get-PrologueRestorePointVerdict",
+    "args": {
+     "Before": 2,
+     "After": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore-point line: the Aspire run 6 record (0.8.0 kept no exit code) says NONE, never \"deleted\"",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Format-PrologueRestorePoints",
+    "args": {
+     "R": {
+      "Before": 2,
+      "After": 2,
+      "Deleted": 0,
+      "Text": "",
+      "Utc": "2026-09-23T20:30:18Z",
+      "Verdict": "deleted-none"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore-point line: vssadmin exit and each WMI answer are carried",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Format-PrologueRestorePoints",
+    "args": {
+     "R": {
+      "Before": 2,
+      "After": 1,
+      "Deleted": 1,
+      "Verdict": "deleted-some",
+      "VssadminExit": 2,
+      "Text": "line one\nError: Snapshots were found, but they were outside of your allowed context.",
+      "Wmi": [
+       "{A}: removed",
+       "{B}: Access denied"
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore-point line: all deleted by vssadmin alone",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Format-PrologueRestorePoints",
+    "args": {
+     "R": {
+      "Before": 3,
+      "After": 0,
+      "Deleted": 3,
+      "Verdict": "deleted-all",
+      "VssadminExit": 0,
+      "Text": "",
+      "Wmi": []
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore-point line: an unreadable count never claims a deletion",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Format-PrologueRestorePoints",
+    "args": {
+     "R": {
+      "Before": null,
+      "After": null,
+      "Verdict": "unknown",
+      "VssadminExit": 0
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "change journal (R18): the Aspire's name is recognised; \\$Extend\\$ObjId, \\$MFT, hiberfil and a person's file named UsnJrnl are not",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueUsnJournalFile",
+    "args": {
+     "LastUnmovable": "\\$Extend\\$UsnJrnl:$J:$DATA"
+    }
+   },
+   {
+    "fn": "Test-PrologueUsnJournalFile",
+    "args": {
+     "LastUnmovable": "\\$Extend\\$UsnJrnl"
+    }
+   },
+   {
+    "fn": "Test-PrologueUsnJournalFile",
+    "args": {
+     "LastUnmovable": "\\$Extend\\$ObjId:$O:$INDEX_ALLOCATION"
+    }
+   },
+   {
+    "fn": "Test-PrologueUsnJournalFile",
+    "args": {
+     "LastUnmovable": "\\$Mft"
+    }
+   },
+   {
+    "fn": "Test-PrologueUsnJournalFile",
+    "args": {
+     "LastUnmovable": "\\hiberfil.sys"
+    }
+   },
+   {
+    "fn": "Test-PrologueUsnJournalFile",
+    "args": {
+     "LastUnmovable": "\\Users\\a\\$UsnJrnl"
+    }
+   },
+   {
+    "fn": "Test-PrologueUsnJournalFile",
+    "args": {
+     "LastUnmovable": ""
+    }
+   }
+  ]
+ },
+ {
+  "name": "change journal (R18): named, consented, not done this boot -> delete",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueUsnJournalStep",
+    "args": {
+     "Fits": false,
+     "LastUnmovable": "\\$Extend\\$UsnJrnl:$J:$DATA",
+     "Consented": true,
+     "DoneThisBoot": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "change journal (R18): no consent in the job (a 0.8.0-or-older job) -> never deleted",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueUsnJournalStep",
+    "args": {
+     "Fits": false,
+     "LastUnmovable": "\\$Extend\\$UsnJrnl:$J:$DATA",
+     "Consented": false,
+     "DoneThisBoot": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "change journal (R18): not twice in one boot",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueUsnJournalStep",
+    "args": {
+     "Fits": false,
+     "LastUnmovable": "\\$Extend\\$UsnJrnl:$J:$DATA",
+     "Consented": true,
+     "DoneThisBoot": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "change journal (R18): a number that fits, or another file in the way, deletes nothing",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueUsnJournalStep",
+    "args": {
+     "Fits": true,
+     "LastUnmovable": "\\$Extend\\$UsnJrnl:$J:$DATA",
+     "Consented": true,
+     "DoneThisBoot": false
+    }
+   },
+   {
+    "fn": "Get-PrologueUsnJournalStep",
+    "args": {
+     "Fits": false,
+     "LastUnmovable": "\\System Volume Information\\{1d038256-b528-11f1-af8c-00f48d7649b6}{3808876b-c176-4e48-b7ae-04046e6cc752}",
+     "Consented": true,
+     "DoneThisBoot": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "change journal: the Aspire's queryjournal text parses to 32 MB max, 8 MB delta",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueUsnQuery",
+    "args": {
+     "Lines": [
+      "Usn Journal ID   : 0x01d47af5555868d0",
+      "First Usn        : 0x00000007db660000",
+      "Maximum Size     : 0x0000000002000000 (32.0 MB)",
+      "Allocation Delta : 0x0000000000800000 ( 8.0 MB)",
+      "Minimum record version supported : 2"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "change journal: no active journal parses to Active=False",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueUsnQuery",
+    "args": {
+     "Lines": [
+      "Error:  The volume change journal is not active."
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore (R18): a deleted journal that was active comes back, on a stop and on the return; once created, not again",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePlan",
+    "args": {
+     "Shrink": {
+      "HibernationDisabled": false,
+      "PagefileDisabled": false,
+      "Before": {
+       "HibernateEnabled": true,
+       "AutoPagefile": true,
+       "PagefileSettings": []
+      },
+      "UsnJournal": {
+       "Before": {
+        "Active": true,
+        "MaxBytes": 33554432,
+        "DeltaBytes": 8388608
+       },
+       "Deletions": 1,
+       "Recreated": false
+      }
+     }
+    }
+   },
+   {
+    "fn": "Get-PrologueRestorePlan",
+    "args": {
+     "Shrink": {
+      "HibernationDisabled": false,
+      "PagefileDisabled": false,
+      "Before": {
+       "HibernateEnabled": true,
+       "AutoPagefile": true,
+       "PagefileSettings": []
+      },
+      "UsnJournal": {
+       "Before": {
+        "Active": true,
+        "MaxBytes": 33554432,
+        "DeltaBytes": 8388608
+       },
+       "Deletions": 1,
+       "Recreated": false
+      }
+     },
+     "KeepHibernationOff": true
+    }
+   },
+   {
+    "fn": "Get-PrologueRestorePlan",
+    "args": {
+     "Shrink": {
+      "HibernationDisabled": false,
+      "PagefileDisabled": false,
+      "Before": {
+       "HibernateEnabled": true,
+       "AutoPagefile": true,
+       "PagefileSettings": []
+      },
+      "UsnJournal": {
+       "Before": {
+        "Active": true,
+        "MaxBytes": 33554432,
+        "DeltaBytes": 8388608
+       },
+       "Deletions": 1,
+       "Recreated": true
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore (R18): a journal that was not active, or a delete that failed, is not created",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePlan",
+    "args": {
+     "Shrink": {
+      "HibernationDisabled": false,
+      "PagefileDisabled": false,
+      "Before": {
+       "HibernateEnabled": true,
+       "AutoPagefile": true,
+       "PagefileSettings": []
+      },
+      "UsnJournal": {
+       "Before": {
+        "Active": false
+       },
+       "Deletions": 1,
+       "Recreated": false
+      }
+     }
+    }
+   },
+   {
+    "fn": "Get-PrologueRestorePlan",
+    "args": {
+     "Shrink": {
+      "HibernationDisabled": false,
+      "PagefileDisabled": false,
+      "Before": {
+       "HibernateEnabled": true,
+       "AutoPagefile": true,
+       "PagefileSettings": []
+      },
+      "UsnJournal": {
+       "Before": {
+        "Active": true,
+        "MaxBytes": 1,
+        "DeltaBytes": 1
+       },
+       "Deletions": 0,
+       "Recreated": false
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore points (R18): the Aspire's shadow-storage file is recognised; other System Volume Information files, hiberfil and a person's file are not",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueShadowStorageFile",
+    "args": {
+     "LastUnmovable": "\\System Volume Information\\{1d038256-b528-11f1-af8c-00f48d7649b6}{3808876b-c176-4e48-b7ae-04046e6cc752}"
+    }
+   },
+   {
+    "fn": "Test-PrologueShadowStorageFile",
+    "args": {
+     "LastUnmovable": "\\System Volume Information\\tracking.log"
+    }
+   },
+   {
+    "fn": "Test-PrologueShadowStorageFile",
+    "args": {
+     "LastUnmovable": "\\hiberfil.sys"
+    }
+   },
+   {
+    "fn": "Test-PrologueShadowStorageFile",
+    "args": {
+     "LastUnmovable": "\\Users\\a\\{3808876b-c176-4e48-b7ae-04046e6cc752}"
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore points (R18): named, consented, not yet done -> delete",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePointStep",
+    "args": {
+     "Fits": false,
+     "LastUnmovable": "\\System Volume Information\\{1d038256-b528-11f1-af8c-00f48d7649b6}{3808876b-c176-4e48-b7ae-04046e6cc752}",
+     "Consented": true,
+     "AlreadyDone": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore points (R18): no consent in the job -> never deleted",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePointStep",
+    "args": {
+     "Fits": false,
+     "LastUnmovable": "\\System Volume Information\\{1d038256-b528-11f1-af8c-00f48d7649b6}{3808876b-c176-4e48-b7ae-04046e6cc752}",
+     "Consented": false,
+     "AlreadyDone": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore points (R18): never twice",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePointStep",
+    "args": {
+     "Fits": false,
+     "LastUnmovable": "\\System Volume Information\\{1d038256-b528-11f1-af8c-00f48d7649b6}{3808876b-c176-4e48-b7ae-04046e6cc752}",
+     "Consented": true,
+     "AlreadyDone": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore points (R18): a number that fits deletes nothing, consent or not",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePointStep",
+    "args": {
+     "Fits": true,
+     "LastUnmovable": "\\System Volume Information\\{1d038256-b528-11f1-af8c-00f48d7649b6}{3808876b-c176-4e48-b7ae-04046e6cc752}",
+     "Consented": true,
+     "AlreadyDone": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore points (R18): another file in the way deletes nothing",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePointStep",
+    "args": {
+     "Fits": false,
+     "LastUnmovable": "\\$Mft::$DATA",
+     "Consented": true,
+     "AlreadyDone": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore points (R18): a job written before the consent existed reads as no consent",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePointStep",
+    "args": {
+     "Fits": false,
+     "LastUnmovable": "\\System Volume Information\\{1d038256-b528-11f1-af8c-00f48d7649b6}{3808876b-c176-4e48-b7ae-04046e6cc752}",
+     "Consented": false,
+     "AlreadyDone": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore (R18): both off, both were on -> both come back",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePlan",
+    "args": {
+     "Shrink": {
+      "HibernationDisabled": true,
+      "PagefileDisabled": true,
+      "Before": {
+       "HibernateEnabled": true,
+       "AutoPagefile": true,
+       "PagefileSettings": []
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore (R18): nothing was turned off -> nothing to do",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePlan",
+    "args": {
+     "Shrink": {
+      "HibernationDisabled": false,
+      "PagefileDisabled": false,
+      "Before": {
+       "HibernateEnabled": true,
+       "AutoPagefile": true,
+       "PagefileSettings": []
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore (R18): hibernation was already off -> it stays off; custom pagefile settings go back as they were",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePlan",
+    "args": {
+     "Shrink": {
+      "HibernationDisabled": true,
+      "PagefileDisabled": true,
+      "Before": {
+       "HibernateEnabled": false,
+       "AutoPagefile": false,
+       "PagefileSettings": [
+        {
+         "Name": "C:\\pagefile.sys",
+         "InitialSize": 2048,
+         "MaximumSize": 4096
+        }
+       ]
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore (R18): a machine that had no pagefile is not given one",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePlan",
+    "args": {
+     "Shrink": {
+      "HibernationDisabled": true,
+      "PagefileDisabled": true,
+      "Before": {
+       "HibernateEnabled": true,
+       "AutoPagefile": false,
+       "PagefileSettings": []
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore (R18): no record of before (a 0.5.0 state) -> pagefile to automatic, hibernation named as left off",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePlan",
+    "args": {
+     "Shrink": {
+      "HibernationDisabled": true,
+      "PagefileDisabled": true,
+      "Before": null
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore (R18): the return after an install keeps hibernation off and brings the pagefile back",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePlan",
+    "args": {
+     "Shrink": {
+      "HibernationDisabled": true,
+      "PagefileDisabled": true,
+      "Before": {
+       "HibernateEnabled": true,
+       "AutoPagefile": true,
+       "PagefileSettings": []
+      }
+     },
+     "KeepHibernationOff": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "restore (R18): one custom pagefile setting survives the state round trip across the restart",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRestorePlan",
+    "args": {
+     "Shrink": {
+      "HibernationDisabled": true,
+      "PagefileDisabled": true,
+      "Before": {
+       "HibernateEnabled": false,
+       "AutoPagefile": false,
+       "PagefileSettings": [
+        {
+         "Name": "C:\\pagefile.sys",
+         "InitialSize": 2048,
+         "MaximumSize": 4096
+        }
+       ]
+      }
+     },
+     "RoundTrip": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "stop sentence (R18): nothing changed -> as it was",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueStopSentence",
+    "args": {
+     "Restored": []
+    }
+   }
+  ]
+ },
+ {
+  "name": "stop sentence (R18): a pagefile pending a restart is said",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueStopSentence",
+    "args": {
+     "Restored": [
+      "hibernation back on",
+      "pagefile back to automatic (returns at the next restart)"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "stop sentence (R18): a failed restore never reads \"as it was\"",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueStopSentence",
+    "args": {
+     "Restored": [
+      "! hibernation could not be turned back on (powercfg exit 1)"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "revalidate: an identical machine has no mismatches",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueJob",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "F": {
+      "BiosSerial": "S1",
+      "Uuid": "U1",
+      "Firmware": "UEFI",
+      "SecureBoot": "on",
+      "OsBuild": 19045,
+      "Disk": {
+       "Number": 0,
+       "UniqueId": "eui.1",
+       "Serial": "SER",
+       "Size": 250059350016
+      },
+      "Stick": {
+       "UniqueId": "USBSTOR\\X",
+       "Size": 8053063680
+      },
+      "StickError": null,
+      "BitLocker": "on",
+      "Dirty": "dirty",
+      "Health": "Healthy",
+      "RepairQueued": false,
+      "RepairQueuedWhy": ""
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "revalidate: a different system disk id is a mismatch",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueJob",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "F": {
+      "BiosSerial": "S1",
+      "Uuid": "U1",
+      "Firmware": "UEFI",
+      "SecureBoot": "on",
+      "OsBuild": 19045,
+      "Disk": {
+       "Number": 0,
+       "UniqueId": "eui.2",
+       "Serial": "SER",
+       "Size": 250059350016
+      },
+      "Stick": {
+       "UniqueId": "USBSTOR\\X",
+       "Size": 8053063680
+      },
+      "StickError": null,
+      "BitLocker": "on",
+      "Dirty": "dirty",
+      "Health": "Healthy",
+      "RepairQueued": false,
+      "RepairQueuedWhy": ""
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "revalidate: a different disk size is a mismatch",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueJob",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "F": {
+      "BiosSerial": "S1",
+      "Uuid": "U1",
+      "Firmware": "UEFI",
+      "SecureBoot": "on",
+      "OsBuild": 19045,
+      "Disk": {
+       "Number": 0,
+       "UniqueId": "eui.1",
+       "Serial": "SER",
+       "Size": 1
+      },
+      "Stick": {
+       "UniqueId": "USBSTOR\\X",
+       "Size": 8053063680
+      },
+      "StickError": null,
+      "BitLocker": "on",
+      "Dirty": "dirty",
+      "Health": "Healthy",
+      "RepairQueued": false,
+      "RepairQueuedWhy": ""
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "revalidate: a different stick is a mismatch",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueJob",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "F": {
+      "BiosSerial": "S1",
+      "Uuid": "U1",
+      "Firmware": "UEFI",
+      "SecureBoot": "on",
+      "OsBuild": 19045,
+      "Disk": {
+       "Number": 0,
+       "UniqueId": "eui.1",
+       "Serial": "SER",
+       "Size": 250059350016
+      },
+      "Stick": {
+       "UniqueId": "OTHER",
+       "Size": 1
+      },
+      "StickError": null,
+      "BitLocker": "on",
+      "Dirty": "dirty",
+      "Health": "Healthy",
+      "RepairQueued": false,
+      "RepairQueuedWhy": ""
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "revalidate: an unreadable stick is a mismatch, not a pass",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueJob",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "F": {
+      "BiosSerial": "S1",
+      "Uuid": "U1",
+      "Firmware": "UEFI",
+      "SecureBoot": "on",
+      "OsBuild": 19045,
+      "Disk": {
+       "Number": 0,
+       "UniqueId": "eui.1",
+       "Serial": "SER",
+       "Size": 250059350016
+      },
+      "Stick": null,
+      "StickError": "gone",
+      "BitLocker": "on",
+      "Dirty": "dirty",
+      "Health": "Healthy",
+      "RepairQueued": false,
+      "RepairQueuedWhy": ""
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "revalidate: BitLocker turned off since evaluate is a mismatch",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueJob",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "F": {
+      "BiosSerial": "S1",
+      "Uuid": "U1",
+      "Firmware": "UEFI",
+      "SecureBoot": "on",
+      "OsBuild": 19045,
+      "Disk": {
+       "Number": 0,
+       "UniqueId": "eui.1",
+       "Serial": "SER",
+       "Size": 250059350016
+      },
+      "Stick": {
+       "UniqueId": "USBSTOR\\X",
+       "Size": 8053063680
+      },
+      "StickError": null,
+      "BitLocker": "off",
+      "Dirty": "dirty",
+      "Health": "Healthy",
+      "RepairQueued": false,
+      "RepairQueuedWhy": ""
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "revalidate (R18): a repair queued since evaluate is a mismatch",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueJob",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "F": {
+      "BiosSerial": "S1",
+      "Uuid": "U1",
+      "Firmware": "UEFI",
+      "SecureBoot": "on",
+      "OsBuild": 19045,
+      "Disk": {
+       "Number": 0,
+       "UniqueId": "eui.1",
+       "Serial": "SER",
+       "Size": 250059350016
+      },
+      "Stick": {
+       "UniqueId": "USBSTOR\\X",
+       "Size": 8053063680
+      },
+      "StickError": null,
+      "BitLocker": "on",
+      "Dirty": "dirty",
+      "Health": "Healthy",
+      "RepairQueued": true,
+      "RepairQueuedWhy": ""
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "trigger (R18): the dirty flag runs the check",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueVolumeTrigger",
+    "args": {
+     "Dirty": "dirty",
+     "RepairQueued": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "trigger (R18): a clean bit with a queued repair runs it too",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueVolumeTrigger",
+    "args": {
+     "Dirty": "clean",
+     "RepairQueued": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "trigger (R18): clean with nothing queued skips it",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueVolumeTrigger",
+    "args": {
+     "Dirty": "clean",
+     "RepairQueued": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "trigger (R18): an unreadable bit never skips, queued or not",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueVolumeTrigger",
+    "args": {
+     "Dirty": "unknown",
+     "RepairQueued": false
+    }
+   },
+   {
+    "fn": "Get-PrologueVolumeTrigger",
+    "args": {
+     "Dirty": "unknown",
+     "RepairQueued": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair queued (R18): Full Repair Needed / NTFS 98 alone / neither",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueRepairQueued",
+    "args": {
+     "VolumeStatus": "Full Repair Needed",
+     "NtfsFullChkdsk": null,
+     "LastCheck": null
+    }
+   },
+   {
+    "fn": "Test-PrologueRepairQueued",
+    "args": {
+     "VolumeStatus": "OK",
+     "NtfsFullChkdsk": "2026-09-13T15:16:48Z",
+     "LastCheck": null
+    }
+   },
+   {
+    "fn": "Test-PrologueRepairQueued",
+    "args": {
+     "VolumeStatus": "OK",
+     "NtfsFullChkdsk": null,
+     "LastCheck": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair queued (R18): the reason names the source",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueRepairQueued",
+    "args": {
+     "VolumeStatus": "Full Repair Needed",
+     "NtfsFullChkdsk": null,
+     "LastCheck": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair queued (R18, 2026-09-20): an event 98 older than the last completed check is history",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueRepairQueued",
+    "args": {
+     "VolumeStatus": "OK",
+     "NtfsFullChkdsk": "2026-09-13T19:16:48.1962215Z",
+     "LastCheck": "2026-09-15T22:02:32.0000000Z"
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair queued (R18, 2026-09-20): an event 98 after the last check still counts; with no check on record it counts",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueRepairQueued",
+    "args": {
+     "VolumeStatus": "OK",
+     "NtfsFullChkdsk": "2026-09-16T09:00:00.0000000Z",
+     "LastCheck": "2026-09-15T22:02:32.0000000Z"
+    }
+   },
+   {
+    "fn": "Test-PrologueRepairQueued",
+    "args": {
+     "VolumeStatus": "OK",
+     "NtfsFullChkdsk": "2026-09-13T19:16:48.1962215Z",
+     "LastCheck": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "repair queued (R18, 2026-09-20): the volume's own status counts whatever the history says",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueRepairQueued",
+    "args": {
+     "VolumeStatus": "Full Repair Needed",
+     "NtfsFullChkdsk": "2026-09-13T19:16:48.1962215Z",
+     "LastCheck": "2026-09-15T22:02:32.0000000Z"
+    }
+   }
+  ]
+ },
+ {
+  "name": "ntfs98 fresh: DateTimes and round-trip strings compare alike; none is not fresh",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueNtfs98Fresh",
+    "args": {
+     "Ntfs98": {
+      "date": "2026-09-16T00:00:00"
+     },
+     "LastCheck": "2026-09-15T22:02:32.0000000Z"
+    }
+   },
+   {
+    "fn": "Test-PrologueNtfs98Fresh",
+    "args": {
+     "Ntfs98": null,
+     "LastCheck": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "the Aspire on 2026-09-20: clean bit, volume OK, stale 98 -> step 1b does not run",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueRepairQueued",
+    "args": {
+     "VolumeStatus": "OK",
+     "NtfsFullChkdsk": "2026-09-13T19:16:48.1962215Z",
+     "LastCheck": "2026-09-15T22:01:15.0000000Z"
+    }
+   },
+   {
+    "fn": "trigger-of-queued",
+    "args": {
+     "VolumeStatus": "OK",
+     "NtfsFullChkdsk": "2026-09-13T19:16:48.1962215Z",
+     "LastCheck": "2026-09-15T22:01:15.0000000Z",
+     "Dirty": "clean"
+    }
+   }
+  ]
+ },
+ {
+  "name": "defrag 259: the Aspire's real text parses to \\hiberfil.sys; other text to null",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueDefrag259",
+    "args": {
+     "Message": " - The last unmovable file appears to be: \\hiberfil.sys::$DATA\n - The last cluster of the file is: 0x3b562fe"
+    }
+   },
+   {
+    "fn": "ConvertFrom-PrologueDefrag259",
+    "args": {
+     "Message": "shrink estimation completed"
+    }
+   }
+  ]
+ },
+ {
+  "name": "method (R18): a queued repair picks chkdsk-f even when the cmdlet says NoErrorsFound",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": "NoErrorsFound",
+     "LogVerdict": "unknown",
+     "RepairNeeded": true,
+     "NtfsFullChkdsk": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "revalidate: the flag cleared since evaluate is a change, and a change stops",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueJob",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "F": {
+      "BiosSerial": "S1",
+      "Uuid": "U1",
+      "Firmware": "UEFI",
+      "SecureBoot": "on",
+      "OsBuild": 19045,
+      "Disk": {
+       "Number": 0,
+       "UniqueId": "eui.1",
+       "Serial": "SER",
+       "Size": 250059350016
+      },
+      "Stick": {
+       "UniqueId": "USBSTOR\\X",
+       "Size": 8053063680
+      },
+      "StickError": null,
+      "BitLocker": "on",
+      "Dirty": "clean",
+      "Health": "Healthy",
+      "RepairQueued": false,
+      "RepairQueuedWhy": ""
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "revalidate: a disk health that changed is a mismatch",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueJob",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "F": {
+      "BiosSerial": "S1",
+      "Uuid": "U1",
+      "Firmware": "UEFI",
+      "SecureBoot": "on",
+      "OsBuild": 19045,
+      "Disk": {
+       "Number": 0,
+       "UniqueId": "eui.1",
+       "Serial": "SER",
+       "Size": 250059350016
+      },
+      "Stick": {
+       "UniqueId": "USBSTOR\\X",
+       "Size": 8053063680
+      },
+      "StickError": null,
+      "BitLocker": "on",
+      "Dirty": "dirty",
+      "Health": "Warning",
+      "RepairQueued": false,
+      "RepairQueuedWhy": ""
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "revalidate: Secure Boot toggled is a mismatch",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueJob",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "F": {
+      "BiosSerial": "S1",
+      "Uuid": "U1",
+      "Firmware": "UEFI",
+      "SecureBoot": "off",
+      "OsBuild": 19045,
+      "Disk": {
+       "Number": 0,
+       "UniqueId": "eui.1",
+       "Serial": "SER",
+       "Size": 250059350016
+      },
+      "Stick": {
+       "UniqueId": "USBSTOR\\X",
+       "Size": 8053063680
+      },
+      "StickError": null,
+      "BitLocker": "on",
+      "Dirty": "dirty",
+      "Health": "Healthy",
+      "RepairQueued": false,
+      "RepairQueuedWhy": ""
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "rung: NoErrorsFound with no other evidence chooses the spot-fix",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": "NoErrorsFound",
+     "LogVerdict": "",
+     "RepairNeeded": false,
+     "NtfsFullChkdsk": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "rung: ErrorsFound / ErrorsNotFixed choose chkdsk /f",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": "ErrorsFound",
+     "LogVerdict": "",
+     "RepairNeeded": false,
+     "NtfsFullChkdsk": false
+    }
+   },
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": " ErrorsNotFixed ",
+     "LogVerdict": "",
+     "RepairNeeded": false,
+     "NtfsFullChkdsk": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "rung: the Chkdsk log's found-problems outranks the cmdlet's NoErrorsFound (the Aspire)",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": "NoErrorsFound",
+     "LogVerdict": "found-problems",
+     "RepairNeeded": false,
+     "NtfsFullChkdsk": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "rung: Get-Volume \"Full Repair Needed\" chooses chkdsk /f",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": "NoErrorsFound",
+     "LogVerdict": "",
+     "RepairNeeded": true,
+     "NtfsFullChkdsk": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "rung: NTFS event 98 chooses chkdsk /f",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": "NoErrorsFound",
+     "LogVerdict": "",
+     "RepairNeeded": false,
+     "NtfsFullChkdsk": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "rung: a failed scan with no evidence refuses, never a guess",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": "scan failed: Access denied",
+     "LogVerdict": "",
+     "RepairNeeded": false,
+     "NtfsFullChkdsk": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "rung: a failed scan but the log found problems still goes to chkdsk /f",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": "scan failed: x",
+     "LogVerdict": "found-problems",
+     "RepairNeeded": false,
+     "NtfsFullChkdsk": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "rung: an empty answer refuses",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": "",
+     "LogVerdict": "",
+     "RepairNeeded": false,
+     "NtfsFullChkdsk": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "chkdsk event: found problems with records and queued items; found no problems; localized unknown",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueChkdskEvent",
+    "args": {
+     "Message": "Examining 18 corruption records ...\n ... queued for offline repair.\nWindows has examined the list of previously identified potential issues and found problems."
+    }
+   },
+   {
+    "fn": "ConvertFrom-PrologueChkdskEvent",
+    "args": {
+     "Message": "Windows has scanned the file system and found no problems."
+    }
+   },
+   {
+    "fn": "ConvertFrom-PrologueChkdskEvent",
+    "args": {
+     "Message": "keine Probleme gefunden"
+    }
+   }
+  ]
+ },
+ {
+  "name": "disk events: only \\Device\\Harddisk1\\ counts (not Harddisk10), 7 and 51 tallied",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueDiskEvents",
+    "args": {
+     "DiskNumber": 1,
+     "Events": [
+      {
+       "Id": 7,
+       "TimeCreated": {
+        "date": "2026-10-07T10:00:00"
+       },
+       "Message": "The device, \\Device\\Harddisk1\\DR1, has a bad block."
+      },
+      {
+       "Id": 7,
+       "TimeCreated": {
+        "date": "2026-10-07T10:00:00"
+       },
+       "Message": "The device, \\Device\\Harddisk10\\DR9, has a bad block."
+      },
+      {
+       "Id": 51,
+       "TimeCreated": {
+        "date": "2026-10-07T10:00:00"
+       },
+       "Message": "An error was detected on device \\Device\\Harddisk1\\DR1 during a paging operation."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "health gate: Healthy with no bad blocks passes",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueDiskHealthGate",
+    "args": {
+     "Health": "Healthy",
+     "BadBlocks": 0,
+     "Acknowledged": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "health gate: Healthy with bad-block events refuses and names the count",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueDiskHealthGate",
+    "args": {
+     "Health": "Healthy",
+     "BadBlocks": 261,
+     "Acknowledged": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "health gate: Warning refuses; Unknown refuses; empty refuses",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueDiskHealthGate",
+    "args": {
+     "Health": "Warning",
+     "BadBlocks": 0,
+     "Acknowledged": false
+    }
+   },
+   {
+    "fn": "Test-PrologueDiskHealthGate",
+    "args": {
+     "Health": "Unknown",
+     "BadBlocks": 0,
+     "Acknowledged": false
+    }
+   },
+   {
+    "fn": "Test-PrologueDiskHealthGate",
+    "args": {
+     "Health": "",
+     "BadBlocks": 0,
+     "Acknowledged": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "health gate (R23): the acknowledgement lifts it and the reason says DATA LOSS ACCEPTED",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueDiskHealthGate",
+    "args": {
+     "Health": "Healthy",
+     "BadBlocks": 261,
+     "Acknowledged": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "health gate (R23): acknowledged on a clean disk says nothing about data loss",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Test-PrologueDiskHealthGate",
+    "args": {
+     "Health": "Healthy",
+     "BadBlocks": 0,
+     "Acknowledged": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "scan string: cmdlet and evidence in one line",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Format-PrologueScan",
+    "args": {
+     "Cmdlet": "NoErrorsFound",
+     "Ev": {
+      "LogVerdict": "found-problems",
+      "LogRecords": 18,
+      "LogQueued": 12,
+      "VolumeStatus": "Full Repair Needed",
+      "NtfsFullChkdsk": "2026-09-13T14:10:04Z"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "stopped outcome (R23): carries the job's acknowledgement when present, none otherwise",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "stopped",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      },
+      "risk_acknowledgement": {
+       "statement": "I confirm that I understand the risks and could lose data",
+       "accepted_utc": "2026-09-13T15:00:00Z",
+       "overrides": [
+        "disk-health"
+       ]
+      }
+     },
+     "State": {},
+     "StoppedAt": "shrink",
+     "Reason": "x",
+     "WindowsPartition": null
+    }
+   },
+   {
+    "fn": "stopped",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "State": {},
+     "StoppedAt": "shrink",
+     "Reason": "x",
+     "WindowsPartition": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "chkntfs: \"is dirty\" means a check runs at the restart",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueChkntfs",
+    "args": {
+     "Lines": [
+      "The type of the file system is NTFS.",
+      "C: is dirty."
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "chkntfs: \"is not dirty\" means nothing will run",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueChkntfs",
+    "args": {
+     "Lines": [
+      "The type of the file system is NTFS.",
+      "C: is not dirty."
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "chkntfs: a manual schedule is scheduled",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueChkntfs",
+    "args": {
+     "Lines": [
+      "The type of the file system is NTFS.",
+      "Chkdsk has been scheduled manually to run on next reboot on C:."
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "chkntfs: chkdsk's own Y answer is scheduled",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueChkntfs",
+    "args": {
+     "Lines": [
+      "Chkdsk cannot run because the volume is in use by another process.",
+      "Would you like to schedule this volume to be checked the next time the system restarts? (Y/N) Y",
+      "This volume will be checked the next time the system restarts."
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "chkntfs: localized output is unknown",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueChkntfs",
+    "args": {
+     "Lines": [
+      "Der Typ des Dateisystems ist NTFS.",
+      "C: ist nicht fehlerhaft."
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "fsutil: NOT Dirty is clean, Dirty is dirty, else unknown",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueFsutilDirty",
+    "args": {
+     "Lines": [
+      "Volume - C: is NOT Dirty"
+     ]
+    }
+   },
+   {
+    "fn": "ConvertFrom-PrologueFsutilDirty",
+    "args": {
+     "Lines": [
+      "Volume - C: is Dirty"
+     ]
+    }
+   },
+   {
+    "fn": "ConvertFrom-PrologueFsutilDirty",
+    "args": {
+     "Lines": [
+      "Error: Access is denied."
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "diskpart: the rig line parses to the MB figure",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueDiskpartQueryMax",
+    "args": {
+     "Lines": [
+      "The maximum number of reclaimable bytes is:   17 GB (17417 MB)"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "diskpart: a refusal parses to null",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueDiskpartQueryMax",
+    "args": {
+     "Lines": [
+      "Use Chkdsk to fix the corruption problem, and then try to shrink the volume again."
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "manage-bde: Protection On / Off / localized",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueManageBde",
+    "args": {
+     "Lines": [
+      "    Protection Status:    Protection On"
+     ]
+    }
+   },
+   {
+    "fn": "ConvertFrom-PrologueManageBde",
+    "args": {
+     "Lines": [
+      "    Protection Status:    Protection Off"
+     ]
+    }
+   },
+   {
+    "fn": "ConvertFrom-PrologueManageBde",
+    "args": {
+     "Lines": [
+      "    Schutzstatus: aktiviert"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "plan: 85.8 GB C:, 65 GB free, SizeMin 30 GB, Linux 25 GB fits, requests exactly 25 GB",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueShrinkPlan",
+    "args": {
+     "PartSize": 85775613952,
+     "SizeMin": 32212254720,
+     "FreeBytes": 69793218560,
+     "LinuxMinGB": 25,
+     "FilesBytes": 0
+    }
+   }
+  ]
+ },
+ {
+  "name": "plan: a target with files is rounded up to a whole mebibyte, the partition alignment (the Aspire, 2026-10-10)",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueShrinkPlan",
+    "args": {
+     "PartSize": 228883169280,
+     "SizeMin": 53238321152,
+     "FreeBytes": 188364517376,
+     "LinuxMinGB": 25,
+     "FilesBytes": 2702
+    }
+   }
+  ]
+ },
+ {
+  "name": "shrink plan (0.12.1, the Aspire 2026-10-06): with files the request is a whole MiB, never below the target",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueShrinkPlan",
+    "args": {
+     "PartSize": 255727763456,
+     "SizeMin": 55000000000,
+     "FreeBytes": 201807372288,
+     "LinuxMinGB": 25,
+     "FilesBytes": 64424509
+    }
+   }
+  ]
+ },
+ {
+  "name": "plan: immovable files cap it below Linux -> does not fit, no request",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueShrinkPlan",
+    "args": {
+     "PartSize": 85775613952,
+     "SizeMin": 70000000000,
+     "FreeBytes": 69793218560,
+     "LinuxMinGB": 25,
+     "FilesBytes": 0
+    }
+   }
+  ]
+ },
+ {
+  "name": "plan: Windows kept with too little free space -> does not fit",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueShrinkPlan",
+    "args": {
+     "PartSize": 85775613952,
+     "SizeMin": 10737418240,
+     "FreeBytes": 32212254720,
+     "LinuxMinGB": 25,
+     "FilesBytes": 0
+    }
+   }
+  ]
+ },
+ {
+  "name": "plan: harvested files raise the target by 1.2x",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueShrinkPlan",
+    "args": {
+     "PartSize": 536870912000,
+     "SizeMin": 107374182400,
+     "FreeBytes": 322122547200,
+     "LinuxMinGB": 25,
+     "FilesBytes": 107374182400
+    }
+   }
+  ]
+ },
+ {
+  "name": "plan: a SizeMin above the partition size is zero shrinkable, never negative",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueShrinkPlan",
+    "args": {
+     "PartSize": 10737418240,
+     "SizeMin": 21474836480,
+     "FreeBytes": 1073741824,
+     "LinuxMinGB": 25,
+     "FilesBytes": 0
+    }
+   }
+  ]
+ },
+ {
+  "name": "fork: keep-windows job that fits keeps Windows",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueFork",
+    "args": {
+     "JobPath": "keep-windows",
+     "Fits": true,
+     "IfCannotKeep": "stop",
+     "PathReason": ""
+    }
+   }
+  ]
+ },
+ {
+  "name": "fork: keep-windows job that does not fit takes if_cannot_keep=clean-slate",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueFork",
+    "args": {
+     "JobPath": "keep-windows",
+     "Fits": false,
+     "IfCannotKeep": "clean-slate",
+     "PathReason": ""
+    }
+   }
+  ]
+ },
+ {
+  "name": "fork: keep-windows job that does not fit takes if_cannot_keep=stop",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueFork",
+    "args": {
+     "JobPath": "keep-windows",
+     "Fits": false,
+     "IfCannotKeep": "stop",
+     "PathReason": ""
+    }
+   }
+  ]
+ },
+ {
+  "name": "fork: an unknown if_cannot_keep stops, never guesses",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueFork",
+    "args": {
+     "JobPath": "keep-windows",
+     "Fits": false,
+     "IfCannotKeep": "ask",
+     "PathReason": ""
+    }
+   }
+  ]
+ },
+ {
+  "name": "fork: a clean-slate job the person chose is clean slate whatever the number",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueFork",
+    "args": {
+     "JobPath": "clean-slate",
+     "Fits": true,
+     "IfCannotKeep": "stop",
+     "PathReason": "user-chose-clean-slate"
+    }
+   }
+  ]
+ },
+ {
+  "name": "fork (R18, 2026-09-22): a forced clean-slate job under if_cannot_keep=stop stops - the Aspire run 5 job",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueFork",
+    "args": {
+     "JobPath": "clean-slate",
+     "Fits": false,
+     "IfCannotKeep": "stop",
+     "PathReason": "forced-no-room"
+    }
+   },
+   {
+    "fn": "Get-PrologueFork",
+    "args": {
+     "JobPath": "clean-slate",
+     "Fits": false,
+     "IfCannotKeep": "ask",
+     "PathReason": "forced-no-room"
+    }
+   }
+  ]
+ },
+ {
+  "name": "fork: a forced clean-slate job the person allowed (if_cannot_keep=clean-slate) is clean slate",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueFork",
+    "args": {
+     "JobPath": "clean-slate",
+     "Fits": false,
+     "IfCannotKeep": "clean-slate",
+     "PathReason": "forced-no-room"
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase start: an erase job starts with the erase sentence and no CONVERT word",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueEraseStartRefusal",
+    "args": {
+     "Job": {
+      "erase_consent": {
+       "statement": "I confirm that everything on this computer will be deleted and nothing will be kept"
+      }
+     },
+     "ConfirmWord": "",
+     "EraseConsent": "I confirm that everything on this computer will be deleted and nothing will be kept"
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase start: CONVERT alone does not start an erase job",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueEraseStartRefusal",
+    "args": {
+     "Job": {
+      "erase_consent": {
+       "statement": "I confirm that everything on this computer will be deleted and nothing will be kept"
+      }
+     },
+     "ConfirmWord": "CONVERT",
+     "EraseConsent": ""
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase start: a paraphrase does not start it",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueEraseStartRefusal",
+    "args": {
+     "Job": {
+      "erase_consent": {
+       "statement": "I confirm that everything on this computer will be deleted and nothing will be kept"
+      }
+     },
+     "ConfirmWord": "",
+     "EraseConsent": "I confirm everything will be deleted"
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase start: a job whose sentence differs from this prologue's is refused",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueEraseStartRefusal",
+    "args": {
+     "Job": {
+      "erase_consent": {
+       "statement": "delete it all"
+      }
+     },
+     "ConfirmWord": "",
+     "EraseConsent": "delete it all"
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase start: the erase sentence never starts a keep-windows job",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueEraseStartRefusal",
+    "args": {
+     "Job": {
+      "job_id": "x"
+     },
+     "ConfirmWord": "CONVERT",
+     "EraseConsent": "I confirm that everything on this computer will be deleted and nothing will be kept"
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase start: a keep-windows job still needs CONVERT",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueEraseStartRefusal",
+    "args": {
+     "Job": {
+      "job_id": "x"
+     },
+     "ConfirmWord": "CONVERT",
+     "EraseConsent": ""
+    }
+   },
+   {
+    "fn": "Get-PrologueEraseStartRefusal",
+    "args": {
+     "Job": {
+      "job_id": "x"
+     },
+     "ConfirmWord": "convert",
+     "EraseConsent": ""
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase disks: both drives present at their sizes is no mismatch",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueEraseDisks",
+    "args": {
+     "Job": {
+      "erase_consent": {
+       "disks": [
+        {
+         "role": "system",
+         "unique_id": "ssd",
+         "size_bytes": 256,
+         "friendly_name": "SSD"
+        },
+        {
+         "role": "home",
+         "unique_id": "hdd",
+         "size_bytes": 1000,
+         "friendly_name": "HDD"
+        }
+       ]
+      }
+     },
+     "F": {
+      "Disk": {
+       "UniqueId": "ssd",
+       "Size": 256
+      },
+      "AllDisks": [
+       {
+        "UniqueId": "ssd",
+        "Size": 256
+       },
+       {
+        "UniqueId": "hdd",
+        "Size": 1000
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase disks: a home drive that is gone, or a different size, is a mismatch (never erase a stranger's drive)",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueEraseDisks",
+    "args": {
+     "Job": {
+      "erase_consent": {
+       "disks": [
+        {
+         "role": "system",
+         "unique_id": "ssd",
+         "size_bytes": 256,
+         "friendly_name": "SSD"
+        },
+        {
+         "role": "home",
+         "unique_id": "hdd",
+         "size_bytes": 1000,
+         "friendly_name": "HDD"
+        }
+       ]
+      }
+     },
+     "F": {
+      "Disk": {
+       "UniqueId": "ssd",
+       "Size": 256
+      },
+      "AllDisks": [
+       {
+        "UniqueId": "ssd",
+        "Size": 256
+       }
+      ]
+     }
+    }
+   },
+   {
+    "fn": "Compare-PrologueEraseDisks",
+    "args": {
+     "Job": {
+      "erase_consent": {
+       "disks": [
+        {
+         "role": "system",
+         "unique_id": "ssd",
+         "size_bytes": 256,
+         "friendly_name": "SSD"
+        },
+        {
+         "role": "home",
+         "unique_id": "hdd",
+         "size_bytes": 1000,
+         "friendly_name": "HDD"
+        }
+       ]
+      }
+     },
+     "F": {
+      "Disk": {
+       "UniqueId": "ssd",
+       "Size": 256
+      },
+      "AllDisks": [
+       {
+        "UniqueId": "ssd",
+        "Size": 256
+       },
+       {
+        "UniqueId": "hdd",
+        "Size": 999
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase disks: a first drive that is not the C: drive is a mismatch",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Compare-PrologueEraseDisks",
+    "args": {
+     "Job": {
+      "erase_consent": {
+       "disks": [
+        {
+         "role": "system",
+         "unique_id": "other",
+         "size_bytes": 256,
+         "friendly_name": "X"
+        }
+       ]
+      }
+     },
+     "F": {
+      "Disk": {
+       "UniqueId": "ssd",
+       "Size": 256
+      },
+      "AllDisks": []
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase return: a key in the countdown is stopped_at countdown, nothing erased",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueEraseReturn",
+    "args": {
+     "Countdown": {
+      "result": "cancelled",
+      "ended_utc": "2026-09-26T22:00:00Z"
+     },
+     "Verify": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase return: the installer refusing on identity is stopped_at identity",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueEraseReturn",
+    "args": {
+     "Countdown": null,
+     "Verify": {
+      "identity": {
+       "result": "fail"
+      },
+      "payload": {
+       "result": "pass"
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase return: a countdown that elapsed and still came back says the drives may be partly erased - never \"nothing\"",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueEraseReturn",
+    "args": {
+     "Countdown": {
+      "result": "elapsed",
+      "ended_utc": "t"
+     },
+     "Verify": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "erase: a stopped outcome carries the erase consent",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "stopped",
+    "args": {
+     "Job": {
+      "job_id": "j",
+      "erase_consent": {
+       "statement": "I confirm that everything on this computer will be deleted and nothing will be kept",
+       "accepted_utc": "t",
+       "disks": []
+      }
+     },
+     "State": {},
+     "StoppedAt": "countdown",
+     "Reason": "r",
+     "WindowsPartition": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "stage (R18, 2026-09-22): no folders in the job refuses before anything is staged, and says why",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueStageRefusal",
+    "args": {
+     "Folders": 0,
+     "StagedFiles": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "stage (R18, 2026-09-22): folders listed but 0 files staged refuses",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueStageRefusal",
+    "args": {
+     "Folders": 3,
+     "StagedFiles": 0
+    }
+   }
+  ]
+ },
+ {
+  "name": "stage: folders listed, before staging, and files staged, after, are not refusals",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueStageRefusal",
+    "args": {
+     "Folders": 3,
+     "StagedFiles": null
+    }
+   },
+   {
+    "fn": "Get-PrologueStageRefusal",
+    "args": {
+     "Folders": 3,
+     "StagedFiles": 1204
+    }
+   }
+  ]
+ },
+ {
+  "name": "estimate: 20 GB at 20 MB/s is 1000 s, shown as about 17 minutes",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueTimeEstimate",
+    "args": {
+     "Bytes": 20000000000,
+     "Mbps": 20
+    }
+   },
+   {
+    "fn": "Format-PrologueDuration",
+    "args": {
+     "Seconds": 1000
+    }
+   }
+  ]
+ },
+ {
+  "name": "estimate: no measurement gives null, shown as unknown",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-PrologueTimeEstimate",
+    "args": {
+     "Bytes": 1,
+     "Mbps": null
+    }
+   },
+   {
+    "fn": "Format-PrologueDuration",
+    "args": {
+     "Seconds": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "estimate: hours when it is hours",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Format-PrologueDuration",
+    "args": {
+     "Seconds": 7200
+    }
+   }
+  ]
+ },
+ {
+  "name": "classify: fired + cleared + intact is fired-once",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-HandoffResult",
+    "args": {
+     "Fired": true,
+     "SequenceCleared": true,
+     "OrderUnchanged": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "classify: fired but not cleared is persisted",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-HandoffResult",
+    "args": {
+     "Fired": true,
+     "SequenceCleared": false,
+     "OrderUnchanged": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "classify: order changed is reordered",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-HandoffResult",
+    "args": {
+     "Fired": true,
+     "SequenceCleared": true,
+     "OrderUnchanged": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "classify: not fired, intact is ignored",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-HandoffResult",
+    "args": {
+     "Fired": false,
+     "SequenceCleared": true,
+     "OrderUnchanged": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "grubenv: clean block is 1024 bytes and not fired; upg_fired=1 is fired",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "grubenv-clean",
+    "args": {}
+   },
+   {
+    "fn": "Test-GrubEnvFired",
+    "args": {
+     "Text": "# GRUB Environment Block\nupg_fired=1\n##############################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################"
+    }
+   }
+  ]
+ },
+ {
+  "name": "stick: found again under a new letter by volume id; absent is null",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Find-StickRoot",
+    "args": {
+     "UniqueId": "S",
+     "Volumes": [
+      {
+       "DriveLetter": "F",
+       "UniqueId": "S"
+      }
+     ]
+    }
+   },
+   {
+    "fn": "Find-StickRoot",
+    "args": {
+     "UniqueId": "S",
+     "Volumes": [
+      {
+       "DriveLetter": "C",
+       "UniqueId": "X"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "record: a fresh state makes a schema-shaped block (needed false, method none, freed 0)",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "block",
+    "args": {
+     "State": {}
+    }
+   }
+  ]
+ },
+ {
+  "name": "record: a check that ran carries Healthy, its method, the scan and one restart",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "block",
+    "args": {
+     "State": {
+      "VolumeCheck": {
+       "Needed": true,
+       "Ran": true,
+       "DiskHealthAtCheck": "Healthy",
+       "Method": "spot-fix",
+       "Scan": "NoErrorsFound",
+       "Restarts": 1,
+       "DirtyAfter": "clean"
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "record: an unrecognised health reading is written as Unknown, never Healthy",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "block",
+    "args": {
+     "State": {
+      "VolumeCheck": {
+       "DiskHealthAtCheck": "Degraded"
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "record: mismatches make revalidated false",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "block",
+    "args": {
+     "State": {
+      "Mismatches": [
+       "x"
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "record: the JSON round-trips through the state file as hashtables with the same block",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "block",
+    "args": {
+     "State": {
+      "Shrink": {
+       "RemeasuredGB": 61.4,
+       "RemeasuredBy": "storage-api",
+       "FreedBytes": 34359738368
+      }
+     },
+     "RoundTrip": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "stopped outcome: status stopped, the stage, the reason, line not crossed, credentials scrubbed",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "stopped",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "State": {
+      "VolumeCheck": {
+       "Needed": true,
+       "DiskHealthAtCheck": "Warning"
+      }
+     },
+     "StoppedAt": "volume-check",
+     "Reason": "Warning disk",
+     "WindowsPartition": {
+      "number": 3,
+      "guid": "g",
+      "size_bytes": 1
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "stopped outcome: a stop after the keep-windows fork keeps scrub_after settle-in-pull",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "stopped",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "State": {
+      "Shrink": {
+       "ForkTaken": "keep-windows"
+      }
+     },
+     "StoppedAt": "arm-handoff",
+     "Reason": "x",
+     "WindowsPartition": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "json: LF only, schema string present",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "stopped",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "State": {},
+     "StoppedAt": "revalidate",
+     "Reason": "r",
+     "WindowsPartition": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "resume context: SYSTEM in session 0 is unattended",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-ResumeContext",
+    "args": {
+     "UserName": "NT AUTHORITY\\SYSTEM",
+     "UserInteractive": false,
+     "SessionId": 0,
+     "ExplorerRunning": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "resume context: a signed-in person in session 1 is attended",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-ResumeContext",
+    "args": {
+     "UserName": "PC\\rig",
+     "UserInteractive": true,
+     "SessionId": 1,
+     "ExplorerRunning": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "resume context: session 0 is unattended even if the flag says interactive",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-ResumeContext",
+    "args": {
+     "UserName": "NT AUTHORITY\\SYSTEM",
+     "UserInteractive": true,
+     "SessionId": 0,
+     "ExplorerRunning": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "notice: the RunOnce command is hidden, unelevated -Notify from the state copy",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "New-NoticeCommand",
+    "args": {
+     "ScriptPath": "C:\\ProgramData\\upgrade_\\prologue\\Invoke-Prologue.ps1",
+     "State": "C:\\ProgramData\\upgrade_\\prologue"
+    }
+   }
+  ]
+ },
+ {
+  "name": "state: a fresh state carries an empty resume log; an old state without one round-trips",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "state",
+    "args": {}
+   }
+  ]
+ },
+ {
+  "name": "record: resumes carry SYSTEM/user, the session, unattended and the stick wait - never the raw account",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "block",
+    "args": {
+     "State": {
+      "Resumes": [
+       {
+        "Utc": "2026-09-13T23:33:45Z",
+        "RunAs": "NT AUTHORITY\\SYSTEM",
+        "SessionId": 0,
+        "Unattended": true,
+        "StickWaitSeconds": 4
+       },
+       {
+        "Utc": "2026-09-13T23:40:00Z",
+        "RunAs": "PC\\rig",
+        "SessionId": 1,
+        "Unattended": false,
+        "StickWaitSeconds": null
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "record: no resumes yet means no resumes key (the field is optional in the contract)",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "block",
+    "args": {
+     "State": {}
+    }
+   }
+  ]
+ },
+ {
+  "name": "probe: SYSTEM, stick found, task removed is resumed-unattended",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-ProbeResult",
+    "args": {
+     "Unattended": true,
+     "StickFound": true,
+     "TaskRemoved": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "probe: a session present is resumed-attended",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-ProbeResult",
+    "args": {
+     "Unattended": false,
+     "StickFound": true,
+     "TaskRemoved": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "probe: no stick names that first, whatever else",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-ProbeResult",
+    "args": {
+     "Unattended": false,
+     "StickFound": false,
+     "TaskRemoved": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "probe: a task left behind is task-not-removed",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-ProbeResult",
+    "args": {
+     "Unattended": true,
+     "StickFound": true,
+     "TaskRemoved": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "probe csv: fields quoted, quotes doubled, newlines flattened, header has 18 columns",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "ConvertTo-ProbeCsvLine",
+    "args": {
+     "Fields": [
+      "a",
+      "say \"hi\"",
+      "x\r\ny",
+      3,
+      true
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "wifi secrets: every file in the stick's Wi-Fi folder goes, and the folder; none is 0; no root is 0",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "filesystem-only",
+    "args": {}
+   }
+  ]
+ },
+ {
+  "name": "drive: e normalizes to E:\\, a path is refused",
+  "origin": "selftest",
+  "calls": [
+   {
+    "fn": "Get-DriveRoot",
+    "args": {
+     "Letter": "e"
+    }
+   },
+   {
+    "fn": "Get-DriveRoot",
+    "args": {
+     "Letter": "E:\\x"
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: repair method - Windows 11 scan names are neither rung (refuse, the safe side; a finding for main)",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": "ScanErrorsFoundNeedSpotFix",
+     "LogVerdict": "",
+     "RepairNeeded": false,
+     "NtfsFullChkdsk": false
+    }
+   },
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": "ScanNoErrorsFound",
+     "LogVerdict": "",
+     "RepairNeeded": false,
+     "NtfsFullChkdsk": false
+    }
+   },
+   {
+    "fn": "Get-PrologueRepairMethod",
+    "args": {
+     "Scan": "ScanNoErrorsFound",
+     "LogVerdict": "",
+     "RepairNeeded": false,
+     "NtfsFullChkdsk": true
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: revalidate - every mismatch at once, in the script's order",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Compare-PrologueJob",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "F": {
+      "BiosSerial": "x",
+      "Uuid": "x",
+      "Firmware": "BIOS",
+      "SecureBoot": "off",
+      "OsBuild": 1,
+      "Disk": {
+       "UniqueId": "a",
+       "Serial": "b",
+       "Size": 2
+      },
+      "Stick": {
+       "UniqueId": "c",
+       "Size": 3
+      },
+      "BitLocker": "off",
+      "Dirty": "clean",
+      "Health": "Warning",
+      "RepairQueued": true
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: revalidate - case does not matter to the script's comparisons",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Compare-PrologueJob",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "F": {
+      "BiosSerial": "S1",
+      "Uuid": "U1",
+      "Firmware": "UEFI",
+      "SecureBoot": "ON",
+      "OsBuild": 19045,
+      "Disk": {
+       "Number": 0,
+       "UniqueId": "EUI.1",
+       "Serial": "SER",
+       "Size": 250059350016
+      },
+      "Stick": {
+       "UniqueId": "USBSTOR\\X",
+       "Size": 8053063680
+      },
+      "StickError": null,
+      "BitLocker": "on",
+      "Dirty": "dirty",
+      "Health": "Healthy",
+      "RepairQueued": false,
+      "RepairQueuedWhy": ""
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: erase disks - no drives named",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Compare-PrologueEraseDisks",
+    "args": {
+     "Job": {
+      "erase_consent": {
+       "disks": []
+      }
+     },
+     "F": {
+      "Disk": {
+       "UniqueId": "ssd",
+       "Size": 256
+      },
+      "AllDisks": []
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: erase return - the stick image refused, and nothing at all",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Get-PrologueEraseReturn",
+    "args": {
+     "Countdown": null,
+     "Verify": {
+      "identity": {
+       "result": "pass"
+      },
+      "payload": {
+       "result": "fail",
+       "detail": "short read"
+      }
+     }
+    }
+   },
+   {
+    "fn": "Get-PrologueEraseReturn",
+    "args": {
+     "Countdown": null,
+     "Verify": null
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: duration edges - 89 s, 90 s, 5399 s, 5400 s, 9000 s",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Format-PrologueDuration",
+    "args": {
+     "Seconds": 89
+    }
+   },
+   {
+    "fn": "Format-PrologueDuration",
+    "args": {
+     "Seconds": 90
+    }
+   },
+   {
+    "fn": "Format-PrologueDuration",
+    "args": {
+     "Seconds": 5399
+    }
+   },
+   {
+    "fn": "Format-PrologueDuration",
+    "args": {
+     "Seconds": 5400
+    }
+   },
+   {
+    "fn": "Format-PrologueDuration",
+    "args": {
+     "Seconds": 9000
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: estimate - zero and negative speeds give nothing",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Get-PrologueTimeEstimate",
+    "args": {
+     "Bytes": 5,
+     "Mbps": 0
+    }
+   },
+   {
+    "fn": "Get-PrologueTimeEstimate",
+    "args": {
+     "Bytes": 5,
+     "Mbps": -1
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: classify - the error cell (not fired, not cleared, order unchanged is ignored; fired, cleared, reordered)",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Get-HandoffResult",
+    "args": {
+     "Fired": false,
+     "SequenceCleared": false,
+     "OrderUnchanged": true
+    }
+   },
+   {
+    "fn": "Get-HandoffResult",
+    "args": {
+     "Fired": false,
+     "SequenceCleared": true,
+     "OrderUnchanged": false
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: update step - the limit is three, and a fourth stops",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Get-PrologueUpdateStep",
+    "args": {
+     "Pending": true,
+     "Restarts": 3,
+     "Where": "before-changes"
+    }
+   },
+   {
+    "fn": "Get-PrologueUpdateStep",
+    "args": {
+     "Pending": true,
+     "Restarts": 2,
+     "Where": "after-update-restart"
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: restore-point line - a text with several lines keeps only the last",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Format-PrologueRestorePoints",
+    "args": {
+     "R": {
+      "Before": 1,
+      "After": 1,
+      "Deleted": 0,
+      "Verdict": "deleted-none",
+      "VssadminExit": 1,
+      "Text": "a\nb\n  c  ",
+      "Wmi": [
+       "",
+       "{X}: gone"
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: stop sentence - several failures are joined; a next-restart line among them is not said",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Get-PrologueStopSentence",
+    "args": {
+     "Restored": [
+      "! a failed",
+      "pagefile back to automatic (returns at the next restart)",
+      "! b failed"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: scan string - no evidence, and evidence with records but nothing queued",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Format-PrologueScan",
+    "args": {
+     "Cmdlet": "x",
+     "Ev": null
+    }
+   },
+   {
+    "fn": "Format-PrologueScan",
+    "args": {
+     "Cmdlet": "NoErrorsFound",
+     "Ev": {
+      "LogVerdict": "no-problems",
+      "LogRecords": 2,
+      "LogQueued": 0,
+      "VolumeStatus": "",
+      "NtfsFullChkdsk": null
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: the block - every optional part at once (staged, resumes, update), and a stopped outcome with the lot",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "block",
+    "args": {
+     "State": {
+      "Staged": {
+       "Files": 3,
+       "Bytes": 99,
+       "Failed": 1,
+       "WriteMbps": 12.5,
+       "EstimatedSeconds": 7,
+       "Manifest": "m"
+      },
+      "Resumes": [
+       {
+        "Utc": "u",
+        "RunAs": "PC\\x",
+        "SessionId": 2,
+        "Unattended": false,
+        "StickWaitSeconds": 1
+       }
+      ],
+      "Update": {
+       "Checks": [
+        {
+         "Where": "w",
+         "Pending": false
+        }
+       ],
+       "Restarts": 0
+      },
+      "BitLocker": {
+       "StatusBefore": "on",
+       "Suspended": true,
+       "RebootCount": 1
+      },
+      "Handoff": {
+       "Armed": true,
+       "Marker": "m",
+       "EntryGuid": "{g}",
+       "ArmedUtc": "t",
+       "BcdBackup": "b"
+      },
+      "Shrink": {
+       "RestorePoints": {
+        "Deleted": 2
+       },
+       "UsnJournal": {
+        "Deletions": 1
+       }
+      }
+     }
+    }
+   },
+   {
+    "fn": "stopped",
+    "args": {
+     "Job": {
+      "job_id": "3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b",
+      "identity": {
+       "bios_serial": "S1",
+       "system_uuid": "U1",
+       "firmware_mode": "UEFI",
+       "secure_boot": "on",
+       "os_build": 19045,
+       "system_disk": {
+        "number": 0,
+        "unique_id": "eui.1",
+        "serial_number": "SER",
+        "size_bytes": 250059350016
+       }
+      },
+      "intent": {
+       "path": "keep-windows"
+      },
+      "fork": {
+       "if_cannot_keep": "stop",
+       "volume_check_consented": true
+      },
+      "storage": {
+       "linux_min_gb": 25,
+       "volume_health": {
+        "dirty": "dirty",
+        "repair_queued": false
+       },
+       "physical_disk": {
+        "health_status": "Healthy"
+       }
+      },
+      "harvest": {
+       "bitlocker": {
+        "status": "on"
+       },
+       "folders": []
+      },
+      "stick": {
+       "unique_id": "USBSTOR\\X",
+       "size_bytes": 8053063680
+      }
+     },
+     "State": {
+      "Shrink": {
+       "ForkTaken": "clean-slate"
+      }
+     },
+     "StoppedAt": "stage-files",
+     "Reason": "r",
+     "WindowsPartition": {
+      "number": 1,
+      "guid": "g",
+      "size_bytes": 2
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: drive root - a colon, a backslash, lower case; two letters refused",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Get-DriveRoot",
+    "args": {
+     "Letter": "f:"
+    }
+   },
+   {
+    "fn": "Get-DriveRoot",
+    "args": {
+     "Letter": "g:\\"
+    }
+   },
+   {
+    "fn": "Get-DriveRoot",
+    "args": {
+     "Letter": "ab"
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: probe csv - an empty field and a null",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "ConvertTo-ProbeCsvLine",
+    "args": {
+     "Fields": [
+      "",
+      null,
+      "q\"q"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: usn query - only one of the two sizes is not active",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueUsnQuery",
+    "args": {
+     "Lines": [
+      "Maximum Size     : 0x0000000002000000 (32.0 MB)"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "port: chkntfs - a lower-case letter and a dirty line later in the text",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "ConvertFrom-PrologueChkntfs",
+    "args": {
+     "Lines": [
+      "The type of the file system is NTFS.",
+      "d: is dirty."
+     ]
+    }
+   },
+   {
+    "fn": "ConvertFrom-PrologueChkntfs",
+    "args": {
+     "Lines": [
+      "x",
+      "This volume will be checked the next time the system restarts."
+     ]
+    }
+   }
+  ]
+ }
+]

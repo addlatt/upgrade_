@@ -142,6 +142,11 @@ cp "$UPGRADE_EXE" "$(wslpath "$WINTMP")upgrade-window-probe.exe" || fail "could 
 timeout 60 powershell.exe -NoProfile -Command "\$p = Start-Process -FilePath '${WINTMP}upgrade-window-probe.exe' -ArgumentList '--version' -Wait -PassThru -WindowStyle Hidden; exit \$p.ExitCode" >/dev/null 2>&1 || fail "UPGRADE.exe does not start on Windows (--version)"
 rm -f "$(wslpath "$WINTMP")upgrade-window-probe.exe"
 step "UPGRADE.exe built, tests pass, starts on Windows"
+# the Rust port's binaries (RISKS R32, the cut-over): beside the scripts on
+# the stick until their ledger lines all read pass; the rig can be pointed at
+# them with PROLOGUE=rust (rig/hyperv/prologue.sh, v9.sh)
+RUST_EXES=$("$ROOT/build-rust.sh") || fail "the Rust binaries do not build (build-rust.sh)"
+step "Rust binaries built: $(echo "$RUST_EXES" | xargs -n1 basename | tr '\n' ' ')"
 
 # --- 4. parse-check under the PS 5.1 parser ----------------------------------
 parsecheck() {
@@ -212,9 +217,11 @@ crlf "$PAYLOAD/CHECK-HANDOFF.cmd"   "$D/CHECK-HANDOFF.cmd"
 crlf "$PAYLOAD/README-STICK.txt"    "$D/README-STICK.txt"
 crlf "$PAYLOAD/RUN-VERIFY.cmd"      "$D/RUN-VERIFY.cmd"
 cp "$UPGRADE_EXE"                   "$D/UPGRADE.exe"
+for exe in $RUST_EXES; do cp "$exe" "$D/$(basename "$exe")"; done
 crlf "$PAYLOAD/RUN-CONVERT.cmd"     "$D/RUN-CONVERT.cmd"
 crlf "$PAYLOAD/RUN-PROBE.cmd"       "$D/RUN-PROBE.cmd"
 crlf "$PAYLOAD/RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd" "$D/RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd"
+crlf "$PAYLOAD/UPGRADE-ACCEPTING-DATA-LOSS.cmd" "$D/UPGRADE-ACCEPTING-DATA-LOSS.cmd"
 crlf "$PAYLOAD/RUN-ERASE-AND-INSTALL.cmd" "$D/RUN-ERASE-AND-INSTALL.cmd"
 crlf "$PAYLOAD/RUN-ERASE-AND-INSTALL-ACCEPTING-DATA-LOSS.cmd" "$D/RUN-ERASE-AND-INSTALL-ACCEPTING-DATA-LOSS.cmd"
 cp "$ROOT/evaluate/windows/Read-Password.ps1" "$D/Read-Password.ps1"
@@ -300,6 +307,8 @@ commit:           $GIT_REV ($GIT_STATE)
 harness:          Test-Handoff.ps1 $HARNESS_VERSION
 window:           UPGRADE.exe $(grep -m1 '^version' "$ROOT/upgrade_/windows/window/Cargo.toml" | cut -d'"' -f2)  $(sha256sum "$UPGRADE_EXE" | cut -c1-64)   (verify flow; RUN-VERIFY.cmd stays as the fallback)
 settle-in:        $SETTLE_IN_VERSION  $(sha256sum "$SETTLE_IN_BIN" | cut -c1-64)   -> upgrade_/settle-in/settle-in
+rust programs:    $(for e in upgrade-scan upgrade-harvest upgrade-job upgrade-prologue; do printf '%s %s  ' "$e.exe" "$(sha256sum "$D/$e.exe" | cut -c1-64)"; done)
+toolchain:        $("$ROOT/build-rust.sh" --toolchain)   (RISKS R14: rebuild-check.sh proves a second checkout gives these bytes)
 scanner:          upgrade-scan.ps1 $SCANNER_VERSION (single-file build of evaluate/windows + data/)
 release:          $RELEASE ($(rq "j['Name']"), measured $(rq "j['Measured']")) - data/releases.ps1; release.json on this stick
   Shell.efi       $(sha256sum "$BITS/Shell.efi" | cut -c1-64)   -> EFI/SHELL/SHELLX64.EFI

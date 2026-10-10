@@ -1,0 +1,196 @@
+//! The kickstart generator: a `job.json` goes in, the text Fedora's
+//! installer runs from comes out. Ported from
+//! `upgrade_/windows/New-Kickstart.ps1` 0.5.0.
+//!
+//! It reads no hardware and decides nothing. The one thing it cannot know is
+//! the Linux name of the disk the job names, so the storage section is an
+//! `%include` that `upgrade_/linux/verify.sh` writes at boot, after it has
+//! matched the machine's disk against the job and refused on a mismatch.
+//!
+//! Two ways in:
+//! - [`kickstart`] takes any JSON and refuses with the PowerShell's own
+//!   words. `tests/parity.rs` holds it to the PowerShell, text for text.
+//! - [`kickstart_for`] takes a [`Job`], which only exists after the whole
+//!   contract passed. This is the one for the converter to call.
+
+use regress::Regex;
+use serde_json::Value;
+use upgrade_schema::Job;
+
+/// The PowerShell generator this port follows.
+pub const FOLLOWS_GENERATOR: &str = "0.6.0";
+
+/// A value inside a PowerShell "..." string.
+fn text(v: Option<&Value>) -> String {
+    match v {
+        None | Some(Value::Null) => String::new(),
+        Some(Value::String(s)) => s.clone(),
+        Some(Value::Bool(b)) => if *b { "True" } else { "False" }.to_string(),
+        Some(other) => other.to_string(),
+    }
+}
+
+fn eq_ci(a: &str, b: &str) -> bool {
+    a.to_lowercase() == b.to_lowercase()
+}
+
+fn re(pattern: &str) -> Regex {
+    // PowerShell's -match does not care about case
+    Regex::with_flags(pattern, "i").expect("a fixed pattern")
+}
+
+/// Test-KsJob: the refusal at the point of use, in its order and words.
+fn check(job: &Value) -> Result<(), String> {
+    let schema = text(job.get("schema"));
+    if !eq_ci(&schema, "job/1") {
+        return Err(format!("job schema '{schema}' is not job/1; refusing to generate"));
+    }
+    for k in ["job_id", "identity", "intent", "fork", "storage", "harvest", "stick"] {
+        if job.get(k).is_none() {
+            return Err(format!("job.json lacks '{k}'; refusing"));
+        }
+    }
+    let at = |pointer: &str| text(job.pointer(pointer));
+    let path = at("/intent/path");
+    if !["keep-windows", "clean-slate"].iter().any(|p| eq_ci(p, &path)) {
+        return Err(format!("intent.path '{path}' is not a path"));
+    }
+    let desktop = at("/intent/desktop");
+    if !["kde", "gnome"].iter().any(|d| eq_ci(d, &desktop)) {
+        return Err(format!("intent.desktop '{desktop}' is not kde or gnome"));
+    }
+    let start_at = at("/intent/start_at");
+    if !["desktop", "console"].iter().any(|x| eq_ci(x, &start_at)) {
+        return Err(format!("intent.start_at '{start_at}' is not desktop or console - what the computer starts at is the person's choice, never a default"));
+    }
+    if re(r"^\$6\$").find(&at("/intent/account/password_hash")).is_none() {
+        return Err("account.password_hash is not SHA-512 crypt; refusing".to_string());
+    }
+    let name = at("/intent/account/linux_name");
+    if re("^[a-z_][a-z0-9_-]{0,31}$").find(&name).is_none() {
+        return Err(format!("linux_name '{name}' is not a login name"));
+    }
+    if at("/intent/locale/lang").is_empty() || at("/intent/locale/timezone").is_empty() || at("/intent/locale/keymap").is_empty() {
+        return Err("locale is incomplete".to_string());
+    }
+    let distro = at("/intent/distro/name");
+    if !eq_ci(&distro, "fedora") {
+        return Err(format!("distro '{distro}' has no generator"));
+    }
+    Ok(())
+}
+
+/// The sha256 a `sha256sum`-style manifest records for a path (forward
+/// slashes, an optional leading `./`), in lower case. Nothing when the
+/// manifest does not name the path: a checksum is never guessed.
+pub fn image_checksum(lines: &[String], rel_path: &str) -> Option<String> {
+    let line = re(r"^([0-9a-fA-F]{64})\s[\s*]([^\n]+)$");
+    for l in lines {
+        let Some(m) = line.find(l) else { continue };
+        let (Some(hash), Some(path)) = (m.group(1), m.group(2)) else { continue };
+        let p = l[path].trim();
+        let p = p.strip_prefix("./").unwrap_or(p);
+        if eq_ci(p, rel_path) {
+            return Some(l[hash].to_lowercase());
+        }
+    }
+    None
+}
+
+/// New-Kickstart. `label` is the volume label of the stick the installer
+/// boots from; `manifest` is the stick's SHA256SUMS, line by line. Every
+/// line but the first is the PowerShell generator's, byte for byte; the
+/// first names this generator, because a file should say what wrote it.
+pub fn kickstart(job: &Value, label: &str, manifest: &[String]) -> Result<String, String> {
+    check(job)?;
+    let at = |pointer: &str| text(job.pointer(pointer));
+    let (path, desktop, start_at) = (at("/intent/path"), at("/intent/desktop"), at("/intent/start_at"));
+    let console = eq_ci(&start_at, "console");
+    let mut l: Vec<String> = Vec::new();
+    let mut add = |line: &str| l.push(line.to_string());
+
+    add(&format!("# upgrade_ kickstart - generated by upgrade-kickstart {} (Rust; follows New-Kickstart.ps1 {FOLLOWS_GENERATOR})", env!("CARGO_PKG_VERSION")));
+    add(&format!("# job: {}   path: {path}   desktop: {desktop}   machine: {} {}", at("/job_id"), at("/identity/vendor"), at("/identity/model")));
+    add("# Do not edit: the converter regenerates this from job.json. The storage");
+    add("# section is written at boot by upgrade_/linux/verify.sh after it has");
+    add("# matched this machine's disk against the identity in the job.");
+    add("text");
+    add(&format!("lang {}", at("/intent/locale/lang")));
+    add(&format!("keyboard --xlayouts='{}'", at("/intent/locale/keymap")));
+    add(&format!("timezone {} --utc", at("/intent/locale/timezone")));
+    add("rootpw --lock");
+    let full_name = at("/intent/account/full_name");
+    let gecos = if full_name.is_empty() { String::new() } else { format!(" --gecos=\"{}\"", full_name.replace('"', "\\\"")) };
+    add(&format!("user --name={}{gecos} --iscrypted --password={} --groups=wheel", at("/intent/account/linux_name"), at("/intent/account/password_hash")));
+    add("network --bootproto=dhcp --device=link --activate --hostname=fedora");
+    add("selinux --enforcing");
+    add("firewall --enabled");
+    add("services --enabled=NetworkManager");
+    // What the computer starts at is the person's choice (2026-09-26, the
+    // Aspire's run 9): desktop = graphical sign-in, console = text.
+    let target = if console { "multi-user.target" } else { "graphical.target" };
+    if !console {
+        add("xconfig --startxonboot");
+    }
+    add("");
+    add("# identity + hardware verification, then the storage %include. With");
+    add("# upg.mode=verify on the command line this reports and reboots - no install.");
+    add("%pre --log=/tmp/upgrade_-pre.log --erroronfail");
+    add(&format!("exec /bin/bash /run/install/repo/upgrade_/verify.sh /run/install/repo/upgrade_/job.json {label}"));
+    add("%end");
+    add("");
+    add("%include /tmp/upgrade_-storage.ks");
+    add("");
+    add("# offline: the desktop image travels on the stick (architecture.md, \"Design constraint: offline\")");
+    let image = format!("upgrade_/LiveOS/{desktop}.squashfs");
+    // one empty line is no manifest, as in PowerShell
+    let has_manifest = !(manifest.is_empty() || (manifest.len() == 1 && manifest[0].is_empty()));
+    let sum = if has_manifest { image_checksum(manifest, &image) } else { None };
+    add(&format!("liveimg --url=file:///run/install/repo/{image}{}", sum.map(|s| format!(" --checksum={s}")).unwrap_or_default()));
+    add("");
+    add("reboot");
+    add("");
+    add("%post --log=/root/upgrade_-post.log");
+    add("set -x");
+    if eq_ci(&path, "keep-windows") {
+        add("# keep-windows: Windows appears in the menu by our doing, not by luck (RISKS R21): os-prober off, our own entry");
+        add("if grep -q '^GRUB_DISABLE_OS_PROBER=' /etc/default/grub; then sed -i 's/^GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=true/' /etc/default/grub; else echo 'GRUB_DISABLE_OS_PROBER=true' >> /etc/default/grub; fi");
+        add("# the entry chainloads Windows' loader under its kept name when shim sits in Windows' slot (architecture step 12, decided 2026-10-10)");
+        add("espuuid=$(findmnt -no UUID /boot/efi 2>/dev/null)");
+        add("cat > /etc/grub.d/40_custom <<'UPGEOF'");
+        add("#!/bin/sh");
+        add("exec tail -n +3 $0");
+        add("menuentry 'Windows (kept)' --class windows --class os {");
+        add("    insmod part_gpt");
+        add("    insmod fat");
+        add("    insmod chain");
+        add("    search --no-floppy --fs-uuid --set=root ESPUUID");
+        add("    if [ -f /EFI/Microsoft/Boot/bootmgfw-kept.efi ]; then chainloader /EFI/Microsoft/Boot/bootmgfw-kept.efi; else chainloader /EFI/Microsoft/Boot/bootmgfw.efi; fi");
+        add("}");
+        add("UPGEOF");
+        add("sed -i \"s/ESPUUID/$espuuid/\" /etc/grub.d/40_custom");
+        add("chmod +x /etc/grub.d/40_custom");
+        add("grub2-mkconfig -o /boot/grub2/grub.cfg");
+        add("grep -c -i windows /boot/grub2/grub.cfg > /root/upgrade_-grub-windows-entries.txt || true");
+    }
+    // The account is made here, so no desktop's first-run wizard may ask for
+    // one (Fedora 44 KDE's Plasma Setup, the rig, 2026-10-03).
+    add("touch /etc/plasma-setup-done");
+    add("systemctl disable plasma-setup.service 2>/dev/null || true");
+    add(&format!("systemctl set-default {target}"));
+    add("systemctl get-default > /root/upgrade_-default-target.txt 2>&1 || true");
+    add("efibootmgr -v > /root/upgrade_-efibootmgr.txt 2>&1 || true");
+    add("%end");
+    add("");
+    add("# the boot-chain checklist, then outcome.json and the logs onto the stick (stage 2, step 11)");
+    add("%post --nochroot --log=/tmp/upgrade_-outcome-post.log");
+    add("exec /bin/bash /run/install/repo/upgrade_/outcome.sh /run/install/repo/upgrade_/job.json");
+    add("%end");
+    Ok(l.join("\n") + "\n")
+}
+
+/// The generator for the converter: the job has already passed the whole
+/// contract (`upgrade_schema::Job`), which is more than the checks above.
+pub fn kickstart_for(job: &Job, label: &str, manifest: &[String]) -> Result<String, String> {
+    kickstart(job.as_value(), label, manifest)
+}

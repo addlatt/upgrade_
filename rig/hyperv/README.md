@@ -152,6 +152,15 @@ to the host on its own. `posix_fadvise(DONTNEED)` on the big files (the
 same `evict` helper the 9p trap uses) gave 9.4 GB back at once. `v1.sh
 stick` evicts what it wrote. `UPGRIGHV` runs at **4 GB** startup memory
 now (was 8), enough for Windows 10 and Anaconda's stage2 in text mode.
+**Seen again 2026-10-07 and 2026-10-08 with the Rust builds:** `cargo`
+output (`*/target`, `~/.cargo/registry`, `~/.rustup`) and `make-kit.sh`
+fill the cache the same way, and `Start-VM` fails with "Unable to allocate
+4096 MB of RAM: Insufficient system resources" even with 7 GB shown free
+on the host. Do not build while a bench is about to start the VM, and
+before a start after a build sweep those directories with the same
+`posix_fadvise` (a 100,000-file sweep gave 4 GB back at once). Each bench
+has a retry step that skips the disk copy (`prologue.sh probe-run`; the
+step chain for `run`).
 
 **State after the install runs (2026-09-10):** `v2.sh restore` put the
 main `UPGRIGHV.vhdx` back at SCSI 0:0. `UPGRIGHV.install.vhdx` (the
@@ -176,7 +185,14 @@ That is the **unshrunk** install-day disk, because the prologue's job is the
 shrink and `pre-install.vhdx` already carries the V1b bench's 32 GiB gap.
 `prologue.sh dirty` injects the flag (`fsutil dirty set C:`). The guest
 then restarts itself twice (disk check, then the installer) and the bench
-waits for the autoshutdown after the first Linux boot. `v1.sh stick`
+waits for the autoshutdown after the first Linux boot. **Since 2026-10-07
+the bench first lets a waiting Windows update finish** (`prologue.sh
+update-clear`, recorded in `update-before.txt`): the fresh disk carries a
+CBS `RebootPending`, the prologue's R25 gate (0.9.0+) restarts for it
+before the disk check, and a clean restart drops the injected bit without
+any autochk (the guest's System log: NTFS 98 "healthy" at the next mount,
+no Wininit 1001). Run 2 of the Rust prologue found this
+(`r18-prologue.csv` line 13, `flag-not-confirmed`). `v1.sh stick`
 gained `MODE=prologue` (bench + autoshutdown markers only; the prologue
 writes `boot-install` itself when it arms). Rows: `r18-prologue.csv` and,
 for the install part of the same run, `v2-install.csv` (`v2-verdict.py`

@@ -1,0 +1,536 @@
+{
+    "Wifi":  {
+                 "10ec:8821":  {
+                                   "Driver":  "rtw88",
+                                   "MinKernel":  "5.8",
+                                   "Name":  "Realtek RTL8821CE",
+                                   "Note":  "Known for unstable throughput and suspend/resume drops on some models.",
+                                   "Status":  "warn"
+                               },
+                 "10ec:8852":  {
+                                   "Driver":  "rtw89",
+                                   "MinKernel":  "5.16",
+                                   "Name":  "Realtek RTL8852AE",
+                                   "Status":  "ok"
+                               },
+                 "10ec:b852":  {
+                                   "Driver":  "rtw89",
+                                   "MinKernel":  "6.1",
+                                   "Name":  "Realtek RTL8852BE",
+                                   "Status":  "ok"
+                               },
+                 "10ec:c821":  {
+                                   "Driver":  "rtw88",
+                                   "MinKernel":  "5.8",
+                                   "Name":  "Realtek RTL8821CE",
+                                   "Note":  "Known for unstable throughput and suspend/resume drops on some models.",
+                                   "Status":  "warn"
+                               },
+                 "10ec:c852":  {
+                                   "Driver":  "rtw89",
+                                   "MinKernel":  "6.1",
+                                   "Name":  "Realtek RTL8852CE",
+                                   "Status":  "ok"
+                               },
+                 "14c3:0616":  {
+                                   "Driver":  "mt7921e",
+                                   "MinKernel":  "5.19",
+                                   "Name":  "MediaTek MT7922",
+                                   "Status":  "ok"
+                               },
+                 "14c3:7922":  {
+                                   "Driver":  "mt7921e",
+                                   "MinKernel":  "5.19",
+                                   "Name":  "MediaTek MT7922",
+                                   "Status":  "ok"
+                               },
+                 "14c3:7925":  {
+                                   "Driver":  "mt7925e",
+                                   "MinKernel":  "6.7",
+                                   "Name":  "MediaTek MT7925",
+                                   "Note":  "Wi-Fi 7 card, supported from kernel 6.7. On older kernels there is no driver at all - you will boot with no wireless.",
+                                   "Status":  "warn"
+                               },
+                 "14c3:7961":  {
+                                   "Driver":  "mt7921e",
+                                   "MinKernel":  "5.15",
+                                   "Name":  "MediaTek MT7921",
+                                   "Status":  "ok"
+                               },
+                 "14e4:4365":  {
+                                   "Driver":  "broadcom-wl",
+                                   "MinKernel":  "",
+                                   "Name":  "Broadcom BCM43142",
+                                   "Note":  "Broadcom. Poorly supported even with the out-of-tree driver. Replacing the M.2 card with an Intel AX200 (~$20) is the standard fix.",
+                                   "Status":  "fail"
+                               },
+                 "14e4:43a3":  {
+                                   "Driver":  "broadcom-wl",
+                                   "MinKernel":  "",
+                                   "Name":  "Broadcom BCM4350",
+                                   "Note":  "Broadcom. No working in-tree driver. Needs the out-of-tree wl module, which must be compiled - and you cannot download it without a network connection you do not yet have. Bring a USB Ethernet adapter or a phone for USB tethering.",
+                                   "Status":  "fail"
+                               },
+                 "14e4:43b1":  {
+                                   "Driver":  "broadcom-wl",
+                                   "MinKernel":  "",
+                                   "Name":  "Broadcom BCM4352",
+                                   "Note":  "Broadcom. Same chicken-and-egg problem: the driver needs a network connection to install. Bring USB Ethernet or a tethered phone.",
+                                   "Status":  "fail"
+                               },
+                 "168c:0030":  {
+                                   "Driver":  "ath9k",
+                                   "MinKernel":  "",
+                                   "Name":  "Atheros AR9300",
+                                   "Status":  "ok"
+                               },
+                 "168c:003e":  {
+                                   "Driver":  "ath10k",
+                                   "MinKernel":  "",
+                                   "Name":  "Qualcomm QCA6174",
+                                   "Status":  "ok"
+                               },
+                 "17cb:1101":  {
+                                   "Driver":  "ath11k",
+                                   "MinKernel":  "5.13",
+                                   "Name":  "Qualcomm QCA6390",
+                                   "Note":  "Firmware is fussy; Bluetooth coexistence bugs are common. Usually works, occasionally does not.",
+                                   "Status":  "warn"
+                               },
+                 "17cb:1103":  {
+                                   "Driver":  "ath11k",
+                                   "MinKernel":  "5.16",
+                                   "Name":  "Qualcomm WCN6855",
+                                   "Note":  "Needs vendor firmware blobs that some distros ship late.",
+                                   "Status":  "warn"
+                               },
+                 "8086:24f3":  {
+                                   "Driver":  "iwlwifi",
+                                   "MinKernel":  "",
+                                   "Name":  "Intel 8260",
+                                   "Status":  "ok"
+                               },
+                 "8086:24fd":  {
+                                   "Driver":  "iwlwifi",
+                                   "MinKernel":  "",
+                                   "Name":  "Intel 8265",
+                                   "Status":  "ok"
+                               },
+                 "8086:2723":  {
+                                   "Driver":  "iwlwifi",
+                                   "MinKernel":  "5.1",
+                                   "Name":  "Intel AX200",
+                                   "Status":  "ok"
+                               },
+                 "8086:2725":  {
+                                   "Driver":  "iwlwifi",
+                                   "MinKernel":  "5.10",
+                                   "Name":  "Intel AX210",
+                                   "Status":  "ok"
+                               },
+                 "8086:272b":  {
+                                   "Driver":  "iwlwifi",
+                                   "MinKernel":  "6.7",
+                                   "Name":  "Intel BE200",
+                                   "Note":  "Wi-Fi 7 card. Needs a recent kernel; some vendors ship it on boards that only whitelist it under Windows.",
+                                   "Status":  "warn"
+                               },
+                 "8086:51f0":  {
+                                   "Driver":  "iwlwifi",
+                                   "MinKernel":  "5.16",
+                                   "Name":  "Intel AX211",
+                                   "Status":  "ok"
+                               },
+                 "8086:51f1":  {
+                                   "Driver":  "iwlwifi",
+                                   "MinKernel":  "5.16",
+                                   "Name":  "Intel AX211",
+                                   "Status":  "ok"
+                               },
+                 "8086:54f0":  {
+                                   "Driver":  "iwlwifi",
+                                   "MinKernel":  "5.16",
+                                   "Name":  "Intel AX211",
+                                   "Status":  "ok"
+                               }
+             },
+    "WifiVendorFallback":  {
+                               "10ec":  {
+                                            "Driver":  "rtw88/rtw89",
+                                            "Note":  "Unrecognised Realtek card. Support ranges from fine to flaky depending on the exact part.",
+                                            "Status":  "warn",
+                                            "Vendor":  "Realtek"
+                                        },
+                               "14c3":  {
+                                            "Driver":  "mt76",
+                                            "Note":  "Unrecognised MediaTek card. Recent MediaTek parts are supported but often only on very new kernels - prefer a current-release distro.",
+                                            "Status":  "warn",
+                                            "Vendor":  "MediaTek"
+                                        },
+                               "14e4":  {
+                                            "Driver":  "broadcom-wl",
+                                            "Note":  "Unrecognised Broadcom card. Broadcom wireless is the single most common cause of \"no internet after installing Linux\". Bring USB Ethernet or a tethered phone.",
+                                            "Status":  "fail",
+                                            "Vendor":  "Broadcom"
+                                        },
+                               "168c":  {
+                                            "Driver":  "ath9k/ath10k",
+                                            "Note":  "Unrecognised Atheros card. This family is generally well supported.",
+                                            "Status":  "ok",
+                                            "Vendor":  "Atheros"
+                                        },
+                               "17cb":  {
+                                            "Driver":  "ath11k/ath12k",
+                                            "Note":  "Unrecognised Qualcomm card. Newer ath12k parts need very recent kernels and firmware.",
+                                            "Status":  "warn",
+                                            "Vendor":  "Qualcomm"
+                                        },
+                               "8086":  {
+                                            "Driver":  "iwlwifi",
+                                            "Note":  "Unrecognised Intel card. Intel wireless is in-tree and near-universally supported; very likely fine.",
+                                            "Status":  "ok",
+                                            "Vendor":  "Intel"
+                                        }
+                           },
+    "Gpu":  {
+                "1002:150e":  {
+                                  "Driver":  "amdgpu",
+                                  "MinKernel":  "6.10",
+                                  "Name":  "AMD Radeon 890M (Strix Point)",
+                                  "Note":  "Strix Point graphics need kernel 6.10 or newer. On an older kernel you get software rendering or a black screen.",
+                                  "Status":  "warn"
+                              },
+                "1002:164e":  {
+                                  "Driver":  "amdgpu",
+                                  "MinKernel":  "6.1",
+                                  "Name":  "AMD Raphael iGPU",
+                                  "Status":  "ok"
+                              },
+                "1002:1900":  {
+                                  "Driver":  "amdgpu",
+                                  "MinKernel":  "6.4",
+                                  "Name":  "AMD Radeon 780M (Phoenix)",
+                                  "Status":  "ok"
+                              },
+                "10de:28e0":  {
+                                  "Driver":  "nvidia (proprietary)",
+                                  "MinKernel":  "",
+                                  "Name":  "NVIDIA GeForce RTX 4060 Laptop",
+                                  "Note":  "NVIDIA needs the proprietary driver for usable performance. Choose a distro that installs it for you - Linux Mint, Pop!_OS, and Fedora all do.",
+                                  "Status":  "warn"
+                              }
+            },
+    "GpuVendorRules":  {
+                           "1002":  {
+                                        "Driver":  "amdgpu",
+                                        "Note":  "AMD graphics are in-tree and generally work with zero configuration. Very recent APUs need a matching recent kernel.",
+                                        "Status":  "ok",
+                                        "Vendor":  "AMD"
+                                    },
+                           "10de":  {
+                                        "Driver":  "nvidia (proprietary)",
+                                        "Note":  "NVIDIA needs the proprietary driver for usable performance. Choose a distro that installs it for you - Linux Mint, Pop!_OS, and Fedora all do. Avoid distros that make you do it by hand.",
+                                        "Status":  "warn",
+                                        "Vendor":  "NVIDIA"
+                                    },
+                           "8086":  {
+                                        "Driver":  "i915 / xe",
+                                        "Note":  "Intel graphics are in-tree and generally work with zero configuration.",
+                                        "Status":  "ok",
+                                        "Vendor":  "Intel"
+                                    }
+                       },
+    "AudioQuirks":  [
+                        {
+                            "Match":  "CSC3551",
+                            "MinKernel":  "6.7",
+                            "Name":  "Cirrus Logic CS35L41 smart amplifier",
+                            "Note":  "Laptop speakers are driven by Cirrus smart amps. Headphones work immediately; internal speakers stay silent until kernel 6.7+ with the right firmware. Very common on ASUS, Dell and Lenovo 2023+ models.",
+                            "Status":  "warn"
+                        },
+                        {
+                            "Match":  "CSC3556",
+                            "MinKernel":  "6.7",
+                            "Name":  "Cirrus Logic CS35L56 smart amplifier",
+                            "Note":  "Laptop speakers are driven by Cirrus smart amps. Headphones work immediately; internal speakers may stay silent until kernel 6.7+ with vendor firmware extracted from Windows.",
+                            "Status":  "warn"
+                        },
+                        {
+                            "Match":  "TXNW2781",
+                            "MinKernel":  "6.6",
+                            "Name":  "TI TAS2781 smart amplifier",
+                            "Note":  "TI smart amps, common on Lenovo. Internal speakers need kernel 6.6+ and firmware; headphones are unaffected.",
+                            "Status":  "warn"
+                        },
+                        {
+                            "Match":  "INTC10",
+                            "MinKernel":  "6.0",
+                            "Name":  "Intel SST / SOF DSP audio",
+                            "Note":  "DSP-based audio. Needs the SOF firmware package, which most current distros ship - but audio may be silent on older or minimal installs.",
+                            "Status":  "warn"
+                        }
+                    ],
+    "VmdDeviceIds":  [
+                         "8086:201d",
+                         "8086:28c0",
+                         "8086:9a0b",
+                         "8086:4c3d",
+                         "8086:467f",
+                         "8086:a77f",
+                         "8086:7d0b",
+                         "8086:ad0b",
+                         "8086:b60b",
+                         "8086:b06f",
+                         "8086:b07f",
+                         "8086:09ab"
+                     ],
+    "VendorQuirks":  [
+                         {
+                             "Match":  "Microsoft Corporation|Surface",
+                             "Note":  "Surface hardware needs the linux-surface kernel and firmware for touch, cameras, sleep and sometimes Wi-Fi. Plan on following the linux-surface project setup, not a plain install.",
+                             "Status":  "warn"
+                         },
+                         {
+                             "Match":  "Apple Inc\\.|MacBook|iMac|Macmini",
+                             "Note":  "Apple hardware. Intel Macs with a T2 security chip need the t2linux project drivers for the keyboard, trackpad, audio and SSD - workable, but not a simple install. Apple Silicon Macs are well served by Asahi Linux (asahilinux.org), which handles them properly; use that rather than a generic installer. Pre-2018 Intel Macs install normally, with Broadcom Wi-Fi the usual snag.",
+                             "Status":  "warn"
+                         },
+                         {
+                             "Match":  "Framework",
+                             "Note":  "Framework laptops are explicitly Linux-supported by the manufacturer. This is about as smooth as it gets.",
+                             "Status":  "ok"
+                         }
+                     ],
+    "AppRisk":  [
+                    {
+                        "Match":  "Adobe (Photoshop|Illustrator|InDesign|Premiere|After Effects|Lightroom)",
+                        "Note":  "Adobe Creative Cloud does not run on Linux and Adobe has stated it will not. Alternatives (GIMP, Krita, Inkscape, DaVinci Resolve, Kdenlive) are capable but are not drop-in replacements, and none open .psd/.ai files with full fidelity. If you are paid to use these, do not convert this machine.",
+                        "Severity":  "blocker"
+                    },
+                    {
+                        "Match":  "Microsoft (Office|365)|Microsoft Word|Excel|PowerPoint",
+                        "Note":  "Desktop Office does not run on Linux. Office on the web works fine in a browser, and LibreOffice or OnlyOffice handle most documents - but complex Excel macros and heavily formatted Word files will break.",
+                        "Severity":  "friction"
+                    },
+                    {
+                        "Match":  "QuickBooks|Sage 50|TurboTax|H\u0026R Block",
+                        "Note":  "Accounting and tax software is Windows-only and rarely has a usable Linux equivalent. If you run a business on this, keep a Windows machine or a Windows VM.",
+                        "Severity":  "blocker"
+                    },
+                    {
+                        "Match":  "AutoCAD|SolidWorks|Fusion 360|Revit|Altium|ArcGIS",
+                        "Note":  "Professional CAD/EDA/GIS software is Windows-only. FreeCAD, KiCad and QGIS exist and are good, but file compatibility with commercial formats is imperfect.",
+                        "Severity":  "blocker"
+                    },
+                    {
+                        "Match":  "Valorant|Riot (Client|Vanguard)|Fortnite|Easy ?Anti ?Cheat|BattlEye|Call of Duty|Destiny 2|Apex Legends",
+                        "Note":  "Kernel-level anti-cheat blocks Linux by design. These specific games will not run, no matter what you do. Most other games work well through Steam Proton - check protondb.com for your library.",
+                        "Severity":  "blocker"
+                    },
+                    {
+                        "Match":  "Steam",
+                        "Note":  "Steam runs natively on Linux and Proton makes most Windows games work. Check protondb.com for your specific library before committing.",
+                        "Severity":  "info"
+                    },
+                    {
+                        "Match":  "iTunes|Apple Music",
+                        "Note":  "No Linux iTunes. iPhone sync and backup is limited; Apple Music works in a browser.",
+                        "Severity":  "friction"
+                    },
+                    {
+                        "Match":  "OneDrive",
+                        "Note":  "No official Linux OneDrive client. Third-party sync clients exist and work, but setup is manual.",
+                        "Severity":  "friction"
+                    },
+                    {
+                        "Match":  "Visual Studio (?!Code)",
+                        "Note":  "Visual Studio (the full IDE) is Windows-only. VS Code, JetBrains Rider and the .NET SDK all run natively on Linux.",
+                        "Severity":  "friction"
+                    }
+                ],
+    "DistroTableVerified":  "2026-08-16",
+    "Distros":  [
+                    {
+                        "Approx":  false,
+                        "Base":  "Ubuntu LTS",
+                        "Kernel":  "6.8",
+                        "Name":  "Linux Mint",
+                        "Newcomer":  5,
+                        "Note":  "The standard recommendation for someone leaving Windows. Familiar desktop, conservative, NVIDIA driver manager built in.",
+                        "NvidiaEasy":  true,
+                        "Policy":  "Pinned to the Ubuntu LTS kernel; newer kernels available in Update Manager but not installed by default."
+                    },
+                    {
+                        "Approx":  false,
+                        "Base":  "-",
+                        "Kernel":  "6.8",
+                        "Name":  "Ubuntu LTS",
+                        "Newcomer":  4,
+                        "Note":  "The default choice. Widest hardware certification and the most search results when something goes wrong.",
+                        "NvidiaEasy":  true,
+                        "Policy":  "LTS kernel at install; the HWE stack pulls in newer kernels over the release lifetime."
+                    },
+                    {
+                        "Approx":  true,
+                        "Base":  "-",
+                        "Kernel":  "6.14",
+                        "Name":  "Fedora Workstation",
+                        "Newcomer":  3,
+                        "Note":  "Newest kernels of the mainstream options, which is what recent laptops need. Slightly more churn; expect a major upgrade about every 6 months.",
+                        "NvidiaEasy":  true,
+                        "Policy":  "Tracks upstream closely and ships new kernels throughout the release. Best choice for recent hardware."
+                    },
+                    {
+                        "Approx":  true,
+                        "Base":  "Ubuntu",
+                        "Kernel":  "6.9",
+                        "Name":  "Pop!_OS",
+                        "Newcomer":  4,
+                        "Note":  "Ships a dedicated NVIDIA install image with the driver preinstalled - the least painful NVIDIA path there is.",
+                        "NvidiaEasy":  true,
+                        "Policy":  "Ships a newer kernel than Ubuntu LTS and maintains its own hardware enablement."
+                    },
+                    {
+                        "Approx":  false,
+                        "Base":  "-",
+                        "Kernel":  "6.12",
+                        "Name":  "Debian Stable",
+                        "Newcomer":  2,
+                        "Note":  "Rock solid on older hardware, actively unsuitable for very recent laptops. Non-free firmware is included in the installer since Debian 12.",
+                        "NvidiaEasy":  false,
+                        "Policy":  "Frozen for the life of the release (~2 years). Deliberately does not chase new hardware."
+                    },
+                    {
+                        "Approx":  false,
+                        "Base":  "-",
+                        "Kernel":  "rolling",
+                        "Name":  "openSUSE Tumbleweed",
+                        "Newcomer":  2,
+                        "Note":  "Always-current kernel with automatic filesystem snapshots for rollback. More moving parts than a first-time user usually wants.",
+                        "NvidiaEasy":  true,
+                        "Policy":  "Rolling release - always at or near the latest stable kernel."
+                    },
+                    {
+                        "Approx":  false,
+                        "Base":  "Arch",
+                        "Kernel":  "rolling",
+                        "Name":  "Arch / EndeavourOS",
+                        "Newcomer":  1,
+                        "Note":  "Newest possible hardware support, at the cost of expecting you to maintain it. Not a first Linux.",
+                        "NvidiaEasy":  true,
+                        "Policy":  "Rolling release - latest stable kernel, often within days of release."
+                    }
+                ],
+    "Releases":  [
+                     {
+                         "Boot":  [
+                                      {
+                                          "File":  "BOOTX64.EFI",
+                                          "Role":  "stick",
+                                          "Sbat":  "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\nshim,4,UEFI shim,shim,1,https://github.com/rhboot/shim\nshim.rh,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64\nshim.redhat,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64\nshim.fedora,3,The Fedora Project,shim,16.1-1,https://src.fedoraproject.org/rpms/shim-unsigned-x64",
+                                          "SbatLevel":  [
+                                                            "sbat,1,2024040900\nshim,4\ngrub,4\ngrub.peimage,2\n",
+                                                            "sbat,1,2025051000\nshim,4\ngrub,5\ngrub.proxmox,2\n"
+                                                        ],
+                                          "Sha256":  "571ea56b855dcf73bec6acb63c5ded44c2a191138bca0d8cfa5aa93f60f46fff",
+                                          "SignedBy":  [
+                                                           "Microsoft Corporation UEFI CA 2011",
+                                                           "Microsoft Corporation Third Party Marketplace Root"
+                                                       ]
+                                      },
+                                      {
+                                          "File":  "grubx64.efi",
+                                          "Role":  "stick",
+                                          "Sbat":  "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\ngrub,5,Free Software Foundation,grub,2.12,https//www.gnu.org/software/grub/\ngrub.rh,2,Red Hat,grub2,2.12-56.fc44,mailto:secalert@redhat.com",
+                                          "SbatLevel":  [
+
+                                                        ],
+                                          "Sha256":  "51d290821cd0df32de5c2462cd63252276b63ef8dfc53fda79855fe51c9d1e45",
+                                          "SignedBy":  [
+                                                           "fedoraca"
+                                                       ]
+                                      },
+                                      {
+                                          "File":  "shimx64.efi",
+                                          "Role":  "installed kde",
+                                          "Sbat":  "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\nshim,4,UEFI shim,shim,1,https://github.com/rhboot/shim\nshim.rh,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64\nshim.redhat,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64\nshim.fedora,3,The Fedora Project,shim,16.1-1,https://src.fedoraproject.org/rpms/shim-unsigned-x64",
+                                          "SbatLevel":  [
+                                                            "sbat,1,2024040900\nshim,4\ngrub,4\ngrub.peimage,2\n",
+                                                            "sbat,1,2025051000\nshim,4\ngrub,5\ngrub.proxmox,2\n"
+                                                        ],
+                                          "Sha256":  "571ea56b855dcf73bec6acb63c5ded44c2a191138bca0d8cfa5aa93f60f46fff",
+                                          "SignedBy":  [
+                                                           "Microsoft Corporation UEFI CA 2011",
+                                                           "Microsoft Corporation Third Party Marketplace Root"
+                                                       ]
+                                      },
+                                      {
+                                          "File":  "grubx64.efi",
+                                          "Role":  "installed kde",
+                                          "Sbat":  "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\ngrub,5,Free Software Foundation,grub,2.12,https//www.gnu.org/software/grub/\ngrub.rh,2,Red Hat,grub2,2.12-56.fc44,mailto:secalert@redhat.com",
+                                          "SbatLevel":  [
+
+                                                        ],
+                                          "Sha256":  "b8e335da604169cb5bf61cfe474a9ef9c4f88f3c3140f77d94cca50021b3882b",
+                                          "SignedBy":  [
+                                                           "fedoraca"
+                                                       ]
+                                      },
+                                      {
+                                          "File":  "shimx64.efi",
+                                          "Role":  "installed gnome",
+                                          "Sbat":  "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\nshim,4,UEFI shim,shim,1,https://github.com/rhboot/shim\nshim.rh,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64\nshim.redhat,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64\nshim.fedora,3,The Fedora Project,shim,16.1-1,https://src.fedoraproject.org/rpms/shim-unsigned-x64",
+                                          "SbatLevel":  [
+                                                            "sbat,1,2024040900\nshim,4\ngrub,4\ngrub.peimage,2\n",
+                                                            "sbat,1,2025051000\nshim,4\ngrub,5\ngrub.proxmox,2\n"
+                                                        ],
+                                          "Sha256":  "571ea56b855dcf73bec6acb63c5ded44c2a191138bca0d8cfa5aa93f60f46fff",
+                                          "SignedBy":  [
+                                                           "Microsoft Corporation UEFI CA 2011",
+                                                           "Microsoft Corporation Third Party Marketplace Root"
+                                                       ]
+                                      },
+                                      {
+                                          "File":  "grubx64.efi",
+                                          "Role":  "installed gnome",
+                                          "Sbat":  "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\ngrub,5,Free Software Foundation,grub,2.12,https//www.gnu.org/software/grub/\ngrub.rh,2,Red Hat,grub2,2.12-56.fc44,mailto:secalert@redhat.com",
+                                          "SbatLevel":  [
+
+                                                        ],
+                                          "Sha256":  "b8e335da604169cb5bf61cfe474a9ef9c4f88f3c3140f77d94cca50021b3882b",
+                                          "SignedBy":  [
+                                                           "fedoraca"
+                                                       ]
+                                      }
+                                  ],
+                         "Desktops":  [
+                                          {
+                                              "Id":  "kde",
+                                              "ImagePath":  "LiveOS/squashfs.img",
+                                              "ImageSha256":  "2b6c1d5727467be858481f16a9131f16fbcaf0cf77bf57139987446825a71330",
+                                              "IsoSha256":  "c8295961d4c41adbf785a31a17c21a971d3b7415fda72dcad0c11c49577bf03a",
+                                              "Label":  "KDE Plasma",
+                                              "Url":  "https://dl.fedoraproject.org/pub/fedora/linux/releases/44/KDE/x86_64/iso/Fedora-KDE-Desktop-Live-44-1.7.x86_64.iso"
+                                          },
+                                          {
+                                              "Id":  "gnome",
+                                              "ImagePath":  "LiveOS/squashfs.img",
+                                              "ImageSha256":  "e4303ff920701e7bb293b18b034de25fe6d046c6f011e56f0820d3bce692879c",
+                                              "IsoSha256":  "1620295f6a00c27c3208f0c00b8ece4eab1ec69b9002152d97488bf26a426ddf",
+                                              "Label":  "GNOME",
+                                              "Url":  "https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Workstation/x86_64/iso/Fedora-Workstation-Live-44-1.7.x86_64.iso"
+                                          }
+                                      ],
+                         "Family":  "fedora",
+                         "Id":  "fedora-44",
+                         "Installer":  "kickstart",
+                         "Measured":  "2026-10-03",
+                         "Name":  "Fedora 44",
+                         "Netinst":  {
+                                         "Sha256":  "ae20c06bea746913cadea7d80463e13f4bf55bee4df2918111c921c674b70283",
+                                         "Url":  "https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Server/x86_64/iso/Fedora-Server-netinst-x86_64-44-1.7.iso"
+                                     },
+                         "Note":  ""
+                     }
+                 ]
+}

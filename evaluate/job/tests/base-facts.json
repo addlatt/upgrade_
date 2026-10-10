@@ -1,0 +1,174 @@
+{
+ "Vendor": "Acer",
+ "Model": "Aspire",
+ "Uuid": "u",
+ "BiosSerial": "s",
+ "BiosVersion": "v",
+ "OsCaption": "Windows 10",
+ "OsBuild": 19045,
+ "Firmware": "UEFI",
+ "SecureBoot": "on",
+ "Disk": {
+  "Number": 0,
+  "Serial": "S1",
+  "UniqueId": "eui.1",
+  "Name": "SSD",
+  "Size": 250059350016,
+  "Style": "GPT"
+ },
+ "Health": "Healthy",
+ "Operational": "OK",
+ "MediaType": "SSD",
+ "ShrinkGB": 61.4,
+ "ShrinkError": null,
+ "Dirty": "clean",
+ "EspSize": 104857600,
+ "EspFree": 72219648,
+ "BitLocker": "on",
+ "Verdict": "YELLOW",
+ "RequiredKernel": "6.7",
+ "Report": "x",
+ "Stick": {
+  "UniqueId": "USBSTOR\\X",
+  "Serial": "",
+  "Size": 8053063680,
+  "Name": "General UDisk",
+  "Label": "UPGV0",
+  "Bus": "USB"
+ },
+ "WindowsTz": "Eastern Standard Time",
+ "Locale": "en-US",
+ "InputTip": "0409:00000409",
+ "UserName": "Addison",
+ "FullName": "Addison Example",
+ "FailedChecks": [],
+ "WarnChecks": [],
+ "RepairQueued": false,
+ "RepairQueuedWhy": "",
+ "RepairStale": "",
+ "LastUnmovable": null,
+ "Harvest": {
+  "HarvestVersion": "0.3.0",
+  "Owner": {
+   "ProcessSid": "S-1-5-21-9-1001",
+   "ProcessName": "PC\\a",
+   "SessionId": 1,
+   "DesktopOwnerSids": [
+    "S-1-5-21-9-1001"
+   ],
+   "OtherProfiles": []
+  },
+  "UserFolders": [
+   {
+    "Name": "Documents",
+    "Path": "C:\\Users\\a\\OneDrive\\Documents",
+    "Exists": true,
+    "IsOneDrive": true,
+    "Files": 473,
+    "Bytes": 1400000000,
+    "CloudOnlyFiles": 0,
+    "CloudOnlyNow": 0,
+    "Truncated": false,
+    "Unreadable": 0,
+    "UnreadableFirst": []
+   },
+   {
+    "Name": "Music",
+    "Path": "C:\\Users\\a\\Music",
+    "Exists": false,
+    "IsOneDrive": false,
+    "Files": 0,
+    "Bytes": 0,
+    "CloudOnlyFiles": 0,
+    "CloudOnlyNow": 0,
+    "Truncated": false,
+    "Unreadable": 0,
+    "UnreadableFirst": []
+   }
+  ],
+  "CloudFiles": {
+   "PlaceholdersFound": 0,
+   "Materialized": 0,
+   "Failed": 0,
+   "Result": "none-found"
+  },
+  "Stick": {
+   "Error": "the drive was removed"
+  },
+  "StickFit": {
+   "FileSystem": "FAT32",
+   "ClusterBytes": 4096,
+   "FreeBytes": 1833394176,
+   "FilesBytes": 1400000000,
+   "NeededBytes": 1500000000,
+   "FilesOver4GiB": 0,
+   "Fits": true,
+   "GapBytes": 0,
+   "Reason": null
+  }
+ },
+ "HarvestError": null,
+ "KitRelease": {
+  "id": "fedora-44",
+  "name": "Fedora 44",
+  "release": "44"
+ },
+ "Releases": [
+  {
+   "Id": "fedora-44",
+   "Name": "Fedora 44",
+   "Starts": "yes",
+   "Why": []
+  }
+ ],
+ "Clock": {
+  "WindowsZone": "Eastern Standard Time",
+  "RealTimeIsUniversal": null,
+  "DynamicDstDisabled": null,
+  "OffsetMinutes": -240,
+  "BaseOffsetMinutes": -300,
+  "DstActive": true,
+  "NowUtc": "2026-09-27T12:00:00Z"
+ },
+ "License": {
+  "Os": {
+   "ProductName": "Windows 10 Home",
+   "EditionId": "Core",
+   "DisplayVersion": "24H2",
+   "Build": "26100"
+  },
+  "Products": [
+   {
+    "LicenseStatus": 1,
+    "Channel": "OEM:DM",
+    "Addon": false
+   }
+  ],
+  "Firmware": {
+   "Present": true,
+   "Description": "[4.0] Core OEM:DM"
+  },
+  "Error": null,
+  "NowUtc": "2026-09-27T12:00:00Z"
+ },
+ "AllDisks": [
+  {
+   "Number": 0,
+   "Serial": "S1",
+   "UniqueId": "eui.1",
+   "Size": 250059350016,
+   "Name": "SSD",
+   "Bus": "NVMe",
+   "Health": "Healthy"
+  },
+  {
+   "Number": 2,
+   "Serial": "",
+   "UniqueId": "USBSTOR\\X",
+   "Size": 8053063680,
+   "Name": "General UDisk",
+   "Bus": "USB",
+   "Health": "Healthy"
+  }
+ ]
+}

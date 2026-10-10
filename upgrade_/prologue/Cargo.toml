@@ -1,0 +1,24 @@
+[package]
+name = "upgrade-prologue"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+
+# The prologue in Rust (RISKS R32, docs/RUST-PORT.md step 5): its judging
+# half (the R18 guardrails, the re-validation, the fork, the shrink
+# ladder's rungs and their consents, R25's waiting update, the stop
+# conditions, the records), held to Invoke-Prologue.ps1 by tests, and its
+# live half (every read and write, each tool call kept with its raw
+# output), proven on the rig and then the Aspire. The binary
+# `upgrade-prologue` is the converter's Windows half; Invoke-Prologue.ps1
+# stays in use until the prologue's ledger lines all read `pass`.
+[dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }
+regress = "0.10"
+sha2 = "0.10"
+upgrade-scan = { path = "../../evaluate/scan" }
+upgrade-schema = { path = "../../schemas/rust" }
+
+# the live half (src/live.rs, src/flow.rs): Windows only
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Com", "Win32_System_Threading", "Win32_System_RemoteDesktop", "Win32_System_StationsAndDesktops", "Win32_System_SystemInformation", "Win32_UI_WindowsAndMessaging", "Win32_Security_Authentication_Identity", "Win32_Storage_FileSystem", "Win32_Security_Cryptography", "Win32_System_Time"] }

@@ -382,10 +382,13 @@ data/            hardware + distro knowledge base; community PRs land here
   devices.ps1      Wi-Fi/GPU/audio/storage quirks by PCI ID
   distros.ps1      distro kernel table (goes stale; verify against release notes)
   releases.ps1     the Linux releases the kit can carry, and what Secure Boot needs of each (measured by tools/measure-release.py, never typed)
+  tables.json      the same three tables as JSON, for the Rust side (written by tools/export-tables.ps1, never edited)
 evaluate/windows/  scanner (upgrade-scan.ps1), harvester, job writer, stick writer
-upgrade_/          the converter: windows/ prologue, rollback, kickstart, launchers, the window (UPGRADE.exe, Rust), V0 handoff harness; linux/ %pre verify + outcome
+evaluate/scan/     the scanner's judging half in Rust (reads no machine yet; held to the PowerShell word for word)
+evaluate/harvest/  the harvester's pure half in Rust; evaluate/job/ the job writer's judging half in Rust (same rule)
+upgrade_/          the converter: kickstart/ the kickstart generator in Rust (held to New-Kickstart.ps1); windows/ prologue, rollback, kickstart, launchers, the window (UPGRADE.exe, Rust), V0 handoff harness; linux/ %pre verify + outcome
 settle-in/         first-boot verify + file pull + reclaim (nothing built)
-schemas/           job.json / outcome.json contracts (change rarely, review hard)
+schemas/           job.json / outcome.json contracts (change rarely, review hard); rust/ reads them in Rust
 docs/              architecture.md, RISKS.md, VALIDATION.md, validation-results/
 dist/              built single-file scanner (rebuild with ./build.sh)
 ```
@@ -399,6 +402,26 @@ dist/              built single-file scanner (rebuild with ./build.sh)
   to Rust, one piece at a time (RISKS R32, VALIDATION V13). A script
   keeps these rules, and stays in use, until every line of its evidence
   in `docs/validation-results/port-parity.csv` reads `pass` in Rust.
+  **Where that stands (2026-10-08, branch `rust-port`):** the whole
+  active path is in Rust (`upgrade-scan`, `upgrade-harvest`,
+  `upgrade-job`, `upgrade-prologue` with the verify handoff and the
+  rollback, and the launchers as flows in `UPGRADE.exe`), and the rig has
+  run it end to end (`docs/RUST-PORT.md`). The scripts stay on the stick
+  as the way back until the physical rows are in; new Windows-side work
+  goes into the Rust, not the scripts. Build with `./build-rust.sh`; the
+  toolchain is pinned (`rust-toolchain.toml`) and `rebuild-check.sh`
+  proves the bytes.
+  The roadmap is `docs/RUST-PORT.md`. Built 2026-10-04: the schema library
+  and the scanner's judging half, beside the scripts, nothing switched over.
+  **Decided (2026-10-04, the owner):** the whole port is built on the branch
+  `rust-port` now, and the project cuts over to Rust after one success of
+  the PowerShell process on `main`. Rig and physical rows do not carry
+  across: the Rust re-earns them, rig first.
+- **Run `./port-check.sh` when the scanner, `data/`, or `schemas/`
+  changes.** It fails when the Rust side no longer says what the PowerShell
+  says, or when a recorded file (`data/tables.json`,
+  `evaluate/scan/tests/golden.json`) is stale. `./port-check.sh --record`
+  writes them again; the Rust tests must then pass against the new answers.
 - **`data/*.ps1` is the contribution surface.** Adding a device is a
   one-line PR with a cited source ("it should work" is not a source). Keep
   it editable.
