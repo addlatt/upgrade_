@@ -709,9 +709,14 @@ at all:
     Windows' boot manager still finds its BCD), copies Fedora's signed shim
     to `bootmgfw.efi`, registers a `guard` startup task in the kept Windows
     (Windows' servicing puts its own file back; the guard re-applies the
-    arrangement, so an update costs one Windows boot), and restarts once
-    into GRUB. Firmware that honours the entry never gets this. The
-    rollback and the way back put Windows' file back and remove the guard.
+    arrangement, so an update costs one Windows boot), and restarts once.
+    What the Aspire's firmware then did (2026-10-10): with Microsoft's
+    boot manager gone from its path it stopped preferring that entry and
+    followed its order, booting Fedora's own entry (`BootCurrent 0004`),
+    rather than chainloading through the slot. Either way GRUB comes up
+    with both systems. Firmware that honours the entry never gets this.
+    The rollback and the way back put Windows' file back and remove the
+    guard.
 
 **The user's files are not touched here.** No NTFS read, no BitLocker
 unlock, no copy. Windows is left whole. The files come across in
@@ -1106,6 +1111,12 @@ automatic.**
   On first startup `settle-in` reads the hardware clock as the local time
   it is, converts it to UTC, sets the system clock, and stores the
   hardware clock as UTC from then on.
+  **Found on the Aspire (2026-10-10), decision owed:** on the keep-Windows
+  path this leaves the kept Windows reading the clock hours fast after
+  every Linux boot (7 h on the Aspire), because Windows still reads the
+  hardware clock as local time. RISKS R36 holds the two ways to fix it
+  (Linux keeps the clock local, or Windows is told it is UTC); neither is
+  built.
   **Corrected (2026-09-27, found while building it):** the conversion uses
   the offset Windows was using when it last ran (harvested), not the zone's
   rules at first startup. The hardware clock holds whatever offset Windows

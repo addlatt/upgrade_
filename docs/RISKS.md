@@ -2022,7 +2022,7 @@ of failure, in the feature most people will check first.
 browser and version pair, and `evaluate`'s claims are narrowed to what the
 evidence supports.
 
-## R21: Installing alongside a shrunk Windows may not leave Windows bootable · critical · open (VM leg fired 2026-08-27; the converter's own install fired 2026-09-10)
+## R21: Installing alongside a shrunk Windows may not leave Windows bootable · critical · open (VM leg fired 2026-08-27; the converter's own install fired 2026-09-10; the Aspire's first physical boot cycles 2026-10-10, shim in Windows' slot, `[####]` for the arrangement by hand)
 
 **What.** The keep-Windows path (now the **default**) installs Linux into
 the freed space. It must leave the shrunk Windows fully bootable, because
@@ -2319,11 +2319,25 @@ ignores operating-system entries.** On such firmware the only path it
 boots on its own is Windows Boot Manager's, so the install takes that
 path: Windows' `bootmgfw.efi` is moved one name aside
 (`bootmgfw-kept.efi`, in the same folder, so Windows' boot manager still
-finds its BCD) and Fedora's signed shim is copied to `bootmgfw.efi`. The
-firmware boots "Windows Boot Manager" and gets GRUB, which lists Fedora and
-Windows; GRUB's Windows entry, written by the installer for every
-keep-Windows install, chainloads the kept name when it exists and the
-usual one when it does not. Nobody is asked to do anything. The rules:
+finds its BCD) and Fedora's signed shim is copied to `bootmgfw.efi`.
+GRUB's Windows entry, written by the installer for every keep-Windows
+install, chainloads the kept name when it exists and the usual one when
+it does not. Nobody is asked to do anything.
+
+**What the Aspire actually did with it (2026-10-10, the first physical
+run):** applied by hand through `upgrade-prologue windows-slot` on the
+install of that morning, then a restart with no key: Fedora came up,
+Secure Boot on. Fedora's own records say how: `BootCurrent` was `0004`,
+the Fedora entry itself, not the Windows one, and the firmware's order
+read `0004, 0006, 0002, …` with Fedora first, which nothing on the Linux
+side had set (`settle-in`'s report has no order action). So this firmware
+does not chainload through the slot as the design assumed: once
+Microsoft's boot manager is no longer at its path, the firmware stops
+preferring that entry and follows the order it holds, where Fedora sits.
+The outcome is the one decided (Linux first, nobody at the keyboard,
+Windows a menu choice); the path to it is the firmware's own. The guard's
+logic is unchanged: Windows' servicing puts its file back, the firmware
+prefers Windows again, the guard re-applies. The rules:
 
 - **Only when needed, decided by evidence.** The firmwares that honour
   the entry (the Hyper-V and QEMU rigs) keep Windows' file untouched. The
@@ -2349,6 +2363,24 @@ its `fallback_loader` and notes. Evidence that closes it: the Aspire
 starting GRUB with no key after the arrangement, Windows reached from
 GRUB, Fedora reached, and a servicing pass survived by the guard. The rig
 exercises the mechanism with a bench-only switch that forces it.
+
+**Proven on the Aspire (2026-10-10; `v2-install.csv` line 10, the ninth
+row, `pass-plumbing`, `fallback_loader = shim-in-windows-slot`).** The
+arrangement was applied by hand through `upgrade-prologue windows-slot` on
+that morning's install, Secure Boot on. Then, with nobody pressing a key:
+Fedora (`BootCurrent 0004`), Windows through GRUB's "Windows (kept)" entry
+(back in 64 s; the guard task ran, result 0, nothing to re-apply), Fedora
+again from a plain Windows restart (`BootOrder` 0004 first), and Windows
+again through GRUB (58 s; the guard again, nothing to re-apply). Windows'
+boot files were unchanged against the stick's 155-file snapshot, and
+`bootmgfw.efi`'s bytes live on as `bootmgfw-kept.efi`. A physical run has
+no bench marker, so the boot log was assembled from the host's own
+observations (ssh reachable, each system's records) and says so in its
+first line. Still owed: the return applying the slot by itself (the
+detector, not a hand), a servicing pass survived by the guard, the
+rollback putting the file back on this machine, and the rig arm with the
+bench switch. Found on the same cycles: the kept Windows' clock 7 h fast
+after each Linux boot (R36).
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · open
 
@@ -2388,6 +2420,10 @@ is what keeps Linux reachable, and this risk becomes "Windows' servicing
 puts its own file back": the kept Windows runs a `guard` startup task that
 re-applies the arrangement, so an update costs one Windows boot. On
 firmware that honours the entry, `settle-in`'s unit is still the answer.
+The guard ran on the Aspire at both Windows starts of 2026-10-10 (result
+0, the slot still held shim, nothing to re-apply; recorded in its own
+`windows-slot.json`). A real Windows update under it is still owed, and
+it is the only thing that proves this risk's new shape.
 
 ---
 
@@ -3966,3 +4002,52 @@ at every boot while it is in, and it only ever hands over.
 **Closes when.** Arm D passes on the rig, and the Aspire finishes an
 install with the stick left in and comes up in Fedora once. **Met
 2026-10-04 (run 11).** Kept open for the list above.
+
+## R36: The kept Windows' clock runs hours wrong after every Linux boot · medium · open (found 2026-10-10 on the Aspire, the first keep-Windows boot cycles; decision owed)
+
+**What.** Windows keeps the hardware clock in local time. Linux keeps it
+in UTC, and `settle-in` stores it as UTC on first startup
+(`architecture.md`, "The clock"), which is right when Windows is gone. On
+the keep-Windows path, the default, Windows is not gone. It reads the UTC
+the Linux side wrote as if it were local time, so after every Linux boot
+the kept Windows runs fast by the zone's whole offset.
+
+Seen on the Aspire (2026-10-10, the shim-in-slot cycles under R21):
+Windows' own stamp `2026-10-11T00:30:42Z` against the host's
+`2026-10-10T17:30:41Z`, 7 h fast in Pacific time; `RealTimeIsUniversal`
+absent; the Windows time service stopped (Windows corrects its clock on a
+weekly schedule, not at startup). Fedora was right throughout (chrony
+synchronized, "RTC in local TZ: no"), and `settle-in`'s first-start
+service had already run and will not run again, so nothing on the Linux
+side moves it back. The prologue's own recorder shows the jump: its
+stamps read `17:15Z` before the first Fedora boot and `00:23Z` the next
+day after it.
+
+**If real** (it is). Every person on the default path who restarts into
+the kept Windows finds its clock hours wrong. A wrong clock breaks
+websites (certificate dates), sign-in codes, mail order, and the stamps
+on any file they edit there before it is pulled across. Nothing is lost,
+but the kept Windows is the safety net and the source of the files, and
+a safety net that looks broken is not trusted. Medium.
+
+**Two ways to fix it, one decision owed from the owner.**
+
+- **Linux adapts.** On the keep-Windows path `settle-in` leaves the
+  hardware clock in local time and tells Linux so (`/etc/adjtime` says
+  `LOCAL`; `timedatectl set-local-rtc 1`). The kept Windows is not
+  touched (rule #4). Cost: Linux on a local-time hardware clock is an
+  hour off at each daylight-saving change until its time service
+  corrects it, and systemd warns about the mode.
+- **Windows adapts.** The prologue writes `RealTimeIsUniversal = 1` (a
+  documented Windows setting) into the kept Windows before the handoff,
+  so both systems read the clock as UTC; the rollback and the way back
+  remove it. Cost: one more write into Windows' registry, and some
+  Windows versions have mishandled daylight saving under it.
+
+Either way reclaim, which removes Windows, returns the machine to plain
+UTC. Neither is built.
+
+**Closes when.** Decided and built, then the Aspire does a Linux boot
+followed by a Windows boot with Windows' clock within a minute of the
+host's, read the way it was read here (Windows' UTC against the host's on
+the same line). The rig repeats the two boots on the keep-Windows arm.

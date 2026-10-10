@@ -306,8 +306,23 @@ servicing pass survived by the guard, the rollback putting the file back:
 the Aspire, where today's install is the exact starting state (Fedora
 installed, Windows first): the arrangement applied by hand through the
 same code, a keyless start reaching GRUB, Fedora and Windows each
-reached, and a Windows update followed by a Linux boot. Until then V1b's
-default path is proven only on firmware that honours the entry.
+reached, and a Windows update followed by a Linux boot.
+
+**The Aspire went first (2026-10-10, later the same day).** The
+arrangement applied by hand through the same code, Secure Boot on. Then,
+with no key pressed: Fedora, Windows through GRUB's "Windows (kept)"
+entry, Fedora again from a plain Windows restart, Windows again, the
+guard task running at each Windows start with nothing to re-apply
+(`v2-install.csv` line 10, `pass-plumbing`,
+`fallback_loader = shim-in-windows-slot`). The boot log was assembled
+from the host's observations, since a physical run has no bench marker,
+and its first line says so. The firmware's own path surprised: it booted
+Fedora's entry (`BootCurrent 0004`), not the slot (RISKS R21, "What the
+Aspire actually did"). Owed: the rig arm, the return applying the slot by
+itself, a Windows update followed by a Linux boot, the rollback on this
+machine, and the kept Windows' clock, 7 h fast after each Linux boot
+(RISKS R36, decision owed). Until then V1b's default path on this
+firmware rests on one machine and one day.
 
 **Why it has its own gate.** The default keep-Windows path installs Linux
 into space freed from Windows, and **must leave the shrunk Windows fully

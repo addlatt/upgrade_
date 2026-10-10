@@ -106,8 +106,9 @@ other_changed = sorted(k for k in m0 if not k.startswith("/EFI/Microsoft/") and 
 fallback = bc.get("fallback_loader", "unreported")
 # shim in Windows' slot (architecture step 12): applied by the prologue's return, recorded in prologue-return.json
 _ret = load("prologue-return.json") or {}
-if (_ret.get("windows_slot") or {}).get("slot_sha_after"):
-    fallback = "shim-in-windows-slot"; notes.append("shim in Windows' slot: " + str((_ret["windows_slot"] or {}).get("reason"))[:140])
+_slot = (_ret.get("windows_slot") or {}) or (load("windows-slot.json") or {})   # by hand: upgrade_/report/windows-slot.json on the stick
+if _slot.get("slot_sha_after"):
+    fallback = "shim-in-windows-slot"; notes.append("shim in Windows' slot: " + str(_slot.get("reason"))[:140])
 snap_files = ((verify or {}).get("esp_snapshot") or {}).get("files", 0)
 if other_changed: notes.append("pre-existing non-Microsoft ESP files changed: " + ",".join(other_changed))
 notes.append(f"install added {len([k for k in m1 if k not in m0])} files / {added} B to the ESP")
@@ -118,6 +119,7 @@ if (A / "boots.log").exists():
     seen_done = False
     for line in open(A / "boots.log", encoding="utf-8-sig", errors="replace"):
         line = line.strip()
+        if line.startswith("source,"): notes.append("boot log " + line[7:].strip()[:220]); continue   # a physical run says where its boot lines came from
         if line.startswith("install-done"): seen_done = True; continue
         if not seen_done: continue
         if line.startswith("linux-boot"): lb += 1

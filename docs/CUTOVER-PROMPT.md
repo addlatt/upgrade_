@@ -26,6 +26,22 @@ page cache (every bench now runs `rig/hyperv/evict-builds.py --wait`
 first); the fresh rig disk carries a pending Windows update (the bench
 clears it first); a re-arm within the return check's popups.
 
+**Progress (2026-10-10, the Aspire's first physical runs of the Rust
+prologue):** three runs through the window's data-loss path. Run 1
+stopped at the shrink 170 bytes short (the plan is now rounded up to a
+mebibyte, PowerShell 0.12.2 and Rust alike). Run 2 installed Fedora KDE
+beside Windows (`r18-prologue.csv` line 16, `v2-install.csv` line 9), and
+the firmware then started Windows with no menu: Acer's InsydeH2O boots
+only its own list, never the Linux entry (RISKS R21, the Acer finding).
+Decided and built the same day: shim in Windows' slot
+(`upgrade-prologue windows-slot|guard`, `architecture.md` step 12),
+applied by hand on the Aspire, then four boot cycles with no key pressed
+(`v2-install.csv` line 10, `pass-plumbing`,
+`fallback_loader = shim-in-windows-slot`). Found there: the kept Windows'
+clock runs 7 h fast after each Linux boot (RISKS R36, the owner's
+decision owed). Next: the return applying the slot by itself, the rig arm
+(`BENCH_FORCE_WINDOWS_SLOT=1`), a Windows update under the guard, R36.
+
 ---
 
 ## The goal
