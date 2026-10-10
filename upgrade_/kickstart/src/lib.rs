@@ -18,7 +18,7 @@ use serde_json::Value;
 use upgrade_schema::Job;
 
 /// The PowerShell generator this port follows.
-pub const FOLLOWS_GENERATOR: &str = "0.5.0";
+pub const FOLLOWS_GENERATOR: &str = "0.6.0";
 
 /// A value inside a PowerShell "..." string.
 fn text(v: Option<&Value>) -> String {
@@ -153,8 +153,23 @@ pub fn kickstart(job: &Value, label: &str, manifest: &[String]) -> Result<String
     add("%post --log=/root/upgrade_-post.log");
     add("set -x");
     if eq_ci(&path, "keep-windows") {
-        add("# keep-windows: Windows appears in the menu by our doing, not by luck (RISKS R21)");
-        add("if grep -q '^GRUB_DISABLE_OS_PROBER=' /etc/default/grub; then sed -i 's/^GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/' /etc/default/grub; else echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub; fi");
+        add("# keep-windows: Windows appears in the menu by our doing, not by luck (RISKS R21): os-prober off, our own entry");
+        add("if grep -q '^GRUB_DISABLE_OS_PROBER=' /etc/default/grub; then sed -i 's/^GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=true/' /etc/default/grub; else echo 'GRUB_DISABLE_OS_PROBER=true' >> /etc/default/grub; fi");
+        add("# the entry chainloads Windows' loader under its kept name when shim sits in Windows' slot (architecture step 12, decided 2026-10-10)");
+        add("espuuid=$(findmnt -no UUID /boot/efi 2>/dev/null)");
+        add("cat > /etc/grub.d/40_custom <<'UPGEOF'");
+        add("#!/bin/sh");
+        add("exec tail -n +3 $0");
+        add("menuentry 'Windows (kept)' --class windows --class os {");
+        add("    insmod part_gpt");
+        add("    insmod fat");
+        add("    insmod chain");
+        add("    search --no-floppy --fs-uuid --set=root ESPUUID");
+        add("    if [ -f /EFI/Microsoft/Boot/bootmgfw-kept.efi ]; then chainloader /EFI/Microsoft/Boot/bootmgfw-kept.efi; else chainloader /EFI/Microsoft/Boot/bootmgfw.efi; fi");
+        add("}");
+        add("UPGEOF");
+        add("sed -i \"s/ESPUUID/$espuuid/\" /etc/grub.d/40_custom");
+        add("chmod +x /etc/grub.d/40_custom");
         add("grub2-mkconfig -o /boot/grub2/grub.cfg");
         add("grep -c -i windows /boot/grub2/grub.cfg > /root/upgrade_-grub-windows-entries.txt || true");
     }

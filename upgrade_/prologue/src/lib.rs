@@ -24,6 +24,7 @@ pub mod state;
 pub mod tools;
 pub mod val;
 pub mod verify;
+pub mod windows_slot;
 
 /// What this program calls itself.
 pub fn flow_version() -> String {

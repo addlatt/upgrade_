@@ -132,7 +132,7 @@ pub mod live {
     }
 
     /// Invoke-Rollback. Prints as the script prints; exit code as the script's.
-    pub fn rollback(rec: &mut Recorder, stick_drive: &str, version_line: &str) -> Result<i32, String> {
+    pub fn rollback(rec: &mut Recorder, stick_drive: &str, version_line: &str, state_dir: &str) -> Result<i32, String> {
         let root = judge::drive_root(stick_drive)?;
         if !Path::new(&root).exists() {
             return Err(format!("stick {root} not found"));
@@ -195,6 +195,12 @@ pub mod live {
             } else {
                 println!("  {}; nothing to restore", s(&p["Reason"]));
             }
+            // shim in Windows' slot (architecture step 12): Windows' loader back under its own name first
+            let mut slot_lines = Vec::new();
+            let slot_undone = crate::windows_slot::live::undo(rec, state_dir, &mut |l| slot_lines.push(l))?;
+            for l in &slot_lines {
+                println!("{l}");
+            }
             let _ = rec.run("bcdedit", &["/deletevalue", "{fwbootmgr}", "bootsequence"]);
             let setr = rec.run("bcdedit", &["/set", "{fwbootmgr}", "displayorder", "{bootmgr}", "/addfirst"]).clone();
             if !setr.ok() {
@@ -209,6 +215,7 @@ pub mod live {
                 "created_utc": crate::live::now_z(),
                 "fallback_loader": {"restored": restored, "sha_before": cur, "sha_after": sha(&fallback), "snapshot_sha": p["WantSha"], "backup": backup},
                 "boot_order": {"before": order_before, "after": order_after, "windows_first": win_first},
+                "windows_slot": slot_undone,
                 "linux_left_in_place": true,
             });
             std::fs::write(up.join("rollback.json"), serde_json::to_string_pretty(&record).unwrap_or_default() + "\n").map_err(|e| e.to_string())?;

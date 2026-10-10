@@ -28,6 +28,8 @@ fn usage() -> ExitCode {
     eprintln!("       upgrade-prologue rollback --stick <X:>");
     eprintln!("       upgrade-prologue verify-arm --stick <X:> [--payload shim|shell] [--auto] [--suspend-bitlocker] [--fail-mode NoFile|SecureBootUnsigned|NoSuspend] [--state-dir <dir>] [--results-csv <file>]");
     eprintln!("       upgrade-prologue verify-check [--auto] [--restore-bcd] [--state-dir <dir>] [--results-csv <file>]");
+    eprintln!("       upgrade-prologue windows-slot [--stick <X:>] [--state-dir <dir>]   (shim in Windows' slot, by hand; architecture step 12)");
+    eprintln!("       upgrade-prologue guard [--state-dir <dir>]                (the kept Windows' startup task: shim back after servicing)");
     eprintln!("       upgrade-prologue facts --stick <X:> [--out <file>]");
     eprintln!("       upgrade-prologue compare-facts <rust.json> <powershell.json>");
     ExitCode::from(2)
@@ -87,7 +89,7 @@ fn run(args: &[String]) -> ExitCode {
     }
     let r = match mode {
         "rollback" => match value_of("--stick") {
-            Some(d) => match upgrade_prologue::rollback::live::rollback(&mut ctx.rec, &d, &upgrade_prologue::flow_version()) {
+            Some(d) => match upgrade_prologue::rollback::live::rollback(&mut ctx.rec, &d, &upgrade_prologue::flow_version(), &ctx.state_dir.clone()) {
                 Ok(code) => return ExitCode::from(code as u8),
                 Err(e) => Err(e),
             },
@@ -143,6 +145,24 @@ fn run(args: &[String]) -> ExitCode {
             }
             None => Err("give --stick <X:>".into()),
         },
+        "windows-slot" => {
+            // by hand, on a machine already in the state the return detects (the Aspire, 2026-10-10)
+            let stick = value_of("--stick").and_then(|d| upgrade_prologue::judge::drive_root(&d).ok());
+            let mut lines = Vec::new();
+            let r = upgrade_prologue::windows_slot::live::apply(&mut ctx.rec, &ctx.state_dir, stick.as_deref(), "applied by hand: the firmware started Windows after the install though Fedora was left first", &upgrade_prologue::flow_version(), &mut |l| lines.push(l));
+            for l in &lines {
+                println!("{l}");
+            }
+            r.map(|rec| println!("  record: {}", serde_json::to_string(&rec).unwrap_or_default()))
+        }
+        "guard" => {
+            let mut lines = Vec::new();
+            let r = upgrade_prologue::windows_slot::live::guard(&mut ctx.rec, &ctx.state_dir, &mut |l| lines.push(l));
+            for l in &lines {
+                println!("{l}");
+            }
+            r.map(|a| println!("  guard: {a}"))
+        }
         "verify-check" => {
             let has = |flag: &str| args.iter().any(|a| a == flag);
             upgrade_prologue::verify::live::check(&mut ctx.rec, has("--auto"), has("--restore-bcd"), &verify_state, value_of("--results-csv").as_deref(), &upgrade_prologue::flow_version()).map(|_| ())

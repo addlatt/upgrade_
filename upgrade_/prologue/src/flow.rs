@@ -11,6 +11,7 @@ use crate::live;
 use crate::state;
 use crate::tools::Recorder;
 use crate::val::{at, int, items, s, truthy};
+use crate::windows_slot;
 use crate::{FILES_MARGIN, FOLLOWS_PROLOGUE, RISK_STATEMENT, UPDATE_MAX_RESTARTS, WINDOWS_KEEP_FREE_BYTES};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -726,6 +727,34 @@ fn return_stage(ctx: &mut Ctx, st: &mut Value, root: &str) {
         ctx.log(&format!("  STOPPED at {}: {}", s(&er["StoppedAt"]), s(&er["Reason"])));
         live::show_or_queue(&ctx.state_dir, "upgrade_ - nothing was erased", &format!("Windows is back and nothing was erased.\n\n{}.\n\nThe record is on the USB stick (upgrade_\\outcome.json).", s(&er["Reason"])), 300, 64);
         return;
+    }
+    // shim in Windows' slot (architecture step 12, decided 2026-10-10): the firmware chose
+    // Windows although the install left Fedora first - on that evidence, or the bench marker
+    let outcome_v = if root.is_empty() { Value::Null } else { read_json(&Path::new(root).join("upgrade_").join("outcome.json")).unwrap_or(Value::Null) };
+    let bench_force = !root.is_empty() && Path::new(root).join("upgrade_").join(windows_slot::BENCH_FORCE_MARKER).exists();
+    if let Some(reason) = windows_slot::needs_slot(&outcome_v, fired, bench_force) {
+        ctx.log(&format!("  windows slot: {reason}"));
+        let mut lines = Vec::new();
+        let applied = windows_slot::live::apply(&mut ctx.rec, &ctx.state_dir, if root.is_empty() { None } else { Some(root) }, &reason, &version_line(), &mut |l| lines.push(l));
+        for l in &lines {
+            ctx.log(l);
+        }
+        match applied {
+            Ok(r) => {
+                if !root.is_empty() {
+                    let _ = ctx.rec.write_all(&Path::new(root).join("upgrade_").join("report").join("tools.jsonl"));
+                    let mut ret = read_json(&Path::new(root).join("upgrade_").join("prologue-return.json")).unwrap_or(Value::Null);
+                    if ret.is_object() {
+                        ret["windows_slot"] = r.clone();
+                        let _ = write_json(&Path::new(root).join("upgrade_").join("prologue-return.json"), &ret);
+                    }
+                }
+                live::set_notice(&ctx.state_dir, "upgrade_ - Linux is the first choice now", "This computer's firmware starts Windows on its own and ignores the Linux entry, so Linux now starts through the firmware's Windows entry and shows a menu with both. Windows is still here; choose it in that menu.", 64);
+                live::restart_machine(&mut ctx.rec, "starting Linux through the firmware's Windows entry");
+                return;
+            }
+            Err(e) => ctx.log(&format!("  windows slot: not applied: {e}")),
+        }
     }
     live::show_or_queue(&ctx.state_dir, "upgrade_ - back in Windows", &format!("The one-time boot entry has been removed (handoff: {result}).\n\nIf the conversion completed, Linux is the first boot choice and Windows is in its menu. The record is on the USB stick."), 120, 64);
 }

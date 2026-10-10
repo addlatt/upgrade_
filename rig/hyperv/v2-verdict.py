@@ -104,6 +104,10 @@ ms_changed = sorted(k for k in m0 if k.startswith("/EFI/Microsoft/") and not win
                     and (k not in m1 or m1[k]["sha256"] != m0[k]["sha256"]))
 other_changed = sorted(k for k in m0 if not k.startswith("/EFI/Microsoft/") and (k not in m1 or m1[k]["sha256"] != m0[k]["sha256"]))
 fallback = bc.get("fallback_loader", "unreported")
+# shim in Windows' slot (architecture step 12): applied by the prologue's return, recorded in prologue-return.json
+_ret = load("prologue-return.json") or {}
+if (_ret.get("windows_slot") or {}).get("slot_sha_after"):
+    fallback = "shim-in-windows-slot"; notes.append("shim in Windows' slot: " + str((_ret["windows_slot"] or {}).get("reason"))[:140])
 snap_files = ((verify or {}).get("esp_snapshot") or {}).get("files", 0)
 if other_changed: notes.append("pre-existing non-Microsoft ESP files changed: " + ",".join(other_changed))
 notes.append(f"install added {len([k for k in m1 if k not in m0])} files / {added} B to the ESP")
@@ -135,7 +139,7 @@ elif e1 and free_a not in ("", None) and int(free_a) < 0: result = "esp-full"
 elif wb == 0 and lb == 0 and not (A / "boots.log").exists(): result = "installed-not-cycled"   # a physical run before its boot cycles
 elif wb < 1 or grub_win != "y": result = "windows-unbootable-via-grub"
 elif lb < 1: result = "linux-unbootable"
-elif fallback != "shim" or snap_files < 1: result = "fallback-loader-unrecorded"
+elif fallback not in ("shim", "shim-in-windows-slot") or snap_files < 1: result = "fallback-loader-unrecorded"
 elif wb < 2 or lb < 2: result = "cycles-incomplete"
 else: result = "pass-plumbing"
 

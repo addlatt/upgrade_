@@ -84,12 +84,12 @@ stick)
     # timeout, boot-marker unit) + autoshutdown after the first Linux boot.
     if [ "${MODE:-verify}" = install ]; then
         printf 'v2\n' > "$A/marker"; mcopy -o -i "$P" "$A/marker" ::/upgrade_/boot-install
-        mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench; mcopy -o -i "$P" "$A/marker" ::/upgrade_/autoshutdown
+        mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench; mcopy -o -i "$P" "$A/marker" ::/upgrade_/autoshutdown; [ -n "${BENCH_FORCE_WINDOWS_SLOT:-}" ] && mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench-force-windows-slot
     elif [ "${MODE:-verify}" = prologue ]; then
         # the prologue (product code) writes boot-install itself when it arms;
         # the bench only asks for the GRUB timeout, the boot marker and the shutdown
         printf 'prologue\n' > "$A/marker"
-        mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench; mcopy -o -i "$P" "$A/marker" ::/upgrade_/autoshutdown
+        mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench; mcopy -o -i "$P" "$A/marker" ::/upgrade_/autoshutdown; [ -n "${BENCH_FORCE_WINDOWS_SLOT:-}" ] && mcopy -o -i "$P" "$A/marker" ::/upgrade_/bench-force-windows-slot
     elif [ "${MODE:-verify}" = window ]; then
         # V12 (v12.sh): UPGRADE.exe writes boot-verify itself before it arms, as RUN-VERIFY.cmd does
         :
