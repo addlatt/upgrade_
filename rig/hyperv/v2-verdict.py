@@ -76,11 +76,30 @@ e0, e1, e2 = esp(pre), esp(post), esp(cyc)
 esp_size = e0.get("size_mib", "")
 free_b, free_a = e0.get("fat_bytes_free", ""), e1.get("fat_bytes_free", "")
 m0, m1 = e0.get("manifest", {}), e1.get("manifest", {})
-added = sum(v["size"] for k, v in m1.items() if k not in m0)
 bootmgfw_ok = "n"
 shas = {rec.get("esp", {}).get("bootmgfw_sha256") for rec in (pre, post, cyc) if rec}
 shas.discard(None)
 if e0.get("bootmgfw_sha256") and len(shas) == 1: bootmgfw_ok = "y"
+if not pre and not post:
+    # a physical run has no offline disk inspection: the ESP before is the stick's own snapshot
+    # (upgrade_/esp-snapshot/SHA256SUMS, taken by %pre) and the ESP after is the installer's
+    # esp-after.sha256 (the Aspire, 2026-10-10: without this the absence read as "changed")
+    import re as _re
+    def _sums(name):
+        d = {}
+        p = A / name
+        if not p.exists(): return d
+        for line in open(p, encoding="utf-8", errors="replace"):
+            m = _re.match(r"^([0-9a-f]{64})\s+\*?\.?/?(.+)$", line.strip())
+            if m: d["/" + m.group(2).replace("\\", "/").lstrip("/")] = {"sha256": m.group(1), "size": 0}
+        return d
+    s0, s1 = _sums("esp-snapshot-SHA256SUMS"), _sums("esp-after.sha256")
+    if s0 and s1:
+        m0, m1 = s0, s1
+        b0, b1 = m0.get("/EFI/Microsoft/Boot/bootmgfw.efi"), m1.get("/EFI/Microsoft/Boot/bootmgfw.efi")
+        bootmgfw_ok = "y" if b0 and b1 and b0["sha256"] == b1["sha256"] else "n"
+        notes.append(f"ESP judged from the stick's snapshot ({len(m0)} files) and the installer's esp-after.sha256 ({len(m1)} files): no offline inspection on a physical run")
+added = sum(v["size"] for k, v in m1.items() if k not in m0)
 ms_changed = sorted(k for k in m0 if k.startswith("/EFI/Microsoft/") and not windows_rewrites(k.split("/")[-1])
                     and (k not in m1 or m1[k]["sha256"] != m0[k]["sha256"]))
 other_changed = sorted(k for k in m0 if not k.startswith("/EFI/Microsoft/") and (k not in m1 or m1[k]["sha256"] != m0[k]["sha256"]))
@@ -113,6 +132,7 @@ elif not outcome or install_done != "y": result = "install-failed"
 elif outcome_valid != "y": result = "outcome-invalid"
 elif ms_changed or bootmgfw_ok != "y": result = "windows-files-changed"; notes.append("Microsoft files changed: " + ",".join(ms_changed))
 elif e1 and free_a not in ("", None) and int(free_a) < 0: result = "esp-full"
+elif wb == 0 and lb == 0 and not (A / "boots.log").exists(): result = "installed-not-cycled"   # a physical run before its boot cycles
 elif wb < 1 or grub_win != "y": result = "windows-unbootable-via-grub"
 elif lb < 1: result = "linux-unbootable"
 elif fallback != "shim" or snap_files < 1: result = "fallback-loader-unrecorded"
