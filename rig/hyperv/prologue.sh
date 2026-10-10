@@ -43,6 +43,8 @@
 #                             own return record (prologue-return.json) and pulls every record
 #   prologue.sh verdict       prologue-verdict.py -> docs/validation-results/r18-prologue.csv,
 #                             then v2-verdict.py -> v2-install.csv (the install row)
+#   prologue.sh service       (after run, slot applied) servicing simulated: Windows via GRUB, the kept copy put back
+#                             over the slot, restart, Windows via GRUB, the guard's history entry awaited (R22, step 12)
 #   prologue.sh rollback      VM off, after the cycles: Windows via GRUB, ROLLBACK.cmd, record pulled,
 #                             ESP inspected offline, then a keyless start must bring Windows up
 #                             directly -> rollback-verdict.py -> r21-rollback.csv
@@ -91,6 +93,19 @@ wait_off() {
     echo "prologue: Off after $(( $(date +%s) - t0 )) s"
 }
 wait_windows() { t0=$(date +%s); while :; do guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV' && { echo "prologue: Windows up after $(( $(date +%s) - t0 )) s"; return 0; }; [ $(( $(date +%s) - t0 )) -ge "${1:-600}" ] && { shot win-stuck; echo "prologue: no Windows within ${1:-600} s" >&2; return 2; }; sleep 10; done; }
+# GRUB's bench timeout is 10 s from the menu, which appears about 10 s after the start: the first key
+# must land inside that window and it stops the countdown. Downs first, no pauses, the screenshot after
+# (the service step of 2026-10-10 lost the race with a screenshot and paced keys: Fedora booted instead)
+pick_windows() { for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; done; shot "grub-selected-${1:?tag}"; }
+slot_applied_utc() { [ -s "$1" ] && python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("windows_slot") or {}).get("applied_utc",""))' "$1" 2>/dev/null || true; }
+stick_offline() {
+    # the guest is Off: read the stick's records from its VHDX (converted to a raw image; shell values never interpolated into Python)
+    local raw="${A:?}/stick-${1:?}.raw"; rm -f "$raw"
+    qemu-img convert -f vhdx -O raw "$HV/vm/v1-stick.vhdx" "$raw" || { echo "prologue: could not read the stick image" >&2; return 2; }
+    for f in prologue.json prologue-return.json outcome.json boots.log job.json ks.cfg; do mtype -i "$raw@@1M" "::/upgrade_/$f" > "$A/$f" 2>/dev/null || rm -f "${A:?}/${f:?}"; done
+    for f in prologue.log verify.json verify.log outcome.log efibootmgr-after.txt windows-slot.json tools.jsonl; do mtype -i "$raw@@1M" "::/upgrade_/report/$f" > "$A/$f" 2>/dev/null || rm -f "${A:?}/${f:?}"; done
+    rm -f "$raw"; echo "prologue: stick read offline ($1)"
+}
 pull() {  # $1 guest path, $2 local name
     guest "Get-Content '$1' -Raw -ErrorAction SilentlyContinue" > "$A/$2" 2>/dev/null || true
     if [ ! -s "$A/$2" ] || grep -q "Cannot find path" "$A/$2"; then rm -f "$A/$2"; fi
@@ -99,9 +114,9 @@ pull_all() {
     L=$(stick_letter)
     if [ -n "$L" ]; then
         for f in prologue.json prologue-return.json outcome.json boots.log job.json ks.cfg; do pull "${L}:\\upgrade_\\$f" "$f"; done
-        for f in prologue.log verify.json verify.log outcome.log efibootmgr-after.txt; do pull "${L}:\\upgrade_\\report\\$f" "$f"; done
+        for f in prologue.log verify.json verify.log outcome.log efibootmgr-after.txt windows-slot.json; do pull "${L}:\\upgrade_\\report\\$f" "$f"; done
     fi
-    for f in state.json state-stopped.json state-returned.json prologue.log; do pull "$GUEST_STATE\\$f" "guest-$f"; done
+    for f in state.json state-stopped.json state-returned.json prologue.log windows-slot.json; do pull "$GUEST_STATE\\$f" "guest-$f"; done
     guest "bcdedit /enum firmware | Select-String 'identifier|description|path'" > "$A/bcd-firmware-${1:-x}.txt" 2>/dev/null || true
 }
 
@@ -287,6 +302,10 @@ convert)
     # runs it. The typed word is the launcher's; here it is passed straight.
     ./v1.sh job
     # PROLOGUE=rust runs the Rust build from the stick (the cut-over, RISKS R32); the records it writes have the same names
+    # RISKS R36: Windows' clock against the host's BEFORE any Linux boot, the baseline the verdict
+    # compares every later Windows boot with (the rig's guest reads the host's UTC as local time, so
+    # it is hours off from the start; what must not happen is a Linux boot moving it further)
+    guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-clock-before,' + (Get-Date).ToUniversalTime().ToString('o') + ',host-utc=$(date -u +%FT%TZ)')" >/dev/null 2>&1 || true
     if [ "${PROLOGUE:-ps}" = rust ]; then
         guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --confirm-word CONVERT" | tee "$A/convert.log"
     else
@@ -300,29 +319,84 @@ inspect)
     ;;
 cycle)
     need_off; which=${2:?linux|windows}; tag=${3:?tag}
-    PS start; sleep 10; shot "grub-$tag"
+    PS start; sleep 10
     if [ "$which" = windows ]; then
-        for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; sleep 1; done
-        shot "grub-selected-$tag"; PS key 13
-        wait_windows 600
-        # the prologue's return check runs as SYSTEM at startup and leaves its record on the stick
-        L=$(stick_letter); t0=$(date +%s)
-        until guest "Test-Path ${L}:\\upgrade_\\prologue-return.json" 2>/dev/null | grep -q True; do [ $(( $(date +%s) - t0 )) -ge 420 ] && break; sleep 15; done
-        guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-boot,' + (Get-Date).ToUniversalTime().ToString('o') + ',via-grub,BootCurrent=' + ((bcdedit /enum '{fwbootmgr}' | Select-String 'bootsequence|displayorder' | Select-Object -First 1) -replace '\\s+',' '))" >/dev/null 2>&1 || true
-        pull_all "$tag"
-        PS stop; wait_off 300
+        pick_windows "$tag"; PS key 13
+        applied_before=$(slot_applied_utc "$A/prologue-return.json")
+        # Windows answers, or the guest powers itself off first: when the return applies shim in Windows'
+        # slot (architecture step 12; here forced by the bench marker) it restarts within a minute, before
+        # PS Direct answers, GRUB's default boots Linux and the bench marker shuts the guest down (run b, 2026-10-10)
+        t0=$(date +%s); up=""
+        while :; do
+            guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV' && { up=1; echo "prologue: Windows up after $(( $(date +%s) - t0 )) s"; break; }
+            [ "$(vm_state)" = Off ] && { echo "prologue: the guest powered itself off after $(( $(date +%s) - t0 )) s, before Windows answered"; break; }
+            [ $(( $(date +%s) - t0 )) -ge 900 ] && { shot "win-stuck-$tag"; echo "prologue: neither Windows nor a power-off within 900 s" >&2; return 2; }
+            sleep 10
+        done
+        if [ -z "$up" ]; then
+            stick_offline "$tag"
+            applied_now=$(slot_applied_utc "$A/prologue-return.json")
+            if [ -n "$applied_now" ] && [ "$applied_now" != "$applied_before" ]; then
+                echo "prologue: the return applied shim in Windows' slot at $applied_now (guest clock) and restarted; Linux booted through GRUB's default and shut down"
+                # this Windows boot's line, from the return's own record, written to the stick at the next Windows start
+                echo "windows-boot,$applied_now,via-grub,from-return-record,slot-applied-by-return,host-utc=$(date -u +%FT%TZ)" >> "$A/deferred-boot-lines"
+            else
+                echo "prologue: the guest powered off without Windows answering and without a new slot record - read $A" >&2; return 2
+            fi
+        else
+            L=$(stick_letter)
+            if [ -s "$A/deferred-boot-lines" ]; then
+                while IFS= read -r line; do guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value '$line'" >/dev/null 2>&1 || true; done < "$A/deferred-boot-lines"
+                rm -f "${A:?}/deferred-boot-lines"
+            fi
+            # the boot line first, with the host's clock beside the guest's (RISKS R36)
+            guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-boot,' + (Get-Date).ToUniversalTime().ToString('o') + ',via-grub,host-utc=$(date -u +%FT%TZ),BootCurrent=' + ((bcdedit /enum '{fwbootmgr}' | Select-String 'bootsequence|displayorder' | Select-Object -First 1) -replace '\\s+',' '))" >/dev/null 2>&1 || true
+            # the prologue's return check runs as SYSTEM at startup and leaves its record on the stick
+            t0=$(date +%s)
+            until guest "Test-Path ${L}:\\upgrade_\\prologue-return.json" 2>/dev/null | grep -q True; do [ $(( $(date +%s) - t0 )) -ge 420 ] && break; sleep 15; done
+            pull_all "$tag"
+            applied_now=$(slot_applied_utc "$A/prologue-return.json")
+            if [ -n "$applied_now" ] && [ "$applied_now" != "$applied_before" ]; then
+                echo "prologue: the return applied shim in Windows' slot at $applied_now (guest clock); the guest restarts itself into GRUB"
+                wait_off 900
+            else
+                PS stop; wait_off 300
+            fi
+        fi
     else
         shot "grub-default-$tag"; wait_off 900
     fi
     ;;
 pull) mkdir -p "$A"; pull_all "${2:-manual}"; ls -la "$A" ;;
+service)
+    # R22 on firmware that ignores the Linux entry, simulated (architecture step 12): Windows'
+    # servicing puts its own boot manager back in the slot. The guard task in the kept Windows
+    # must re-apply the arrangement at the next Windows start, and say so in its record's history.
+    # VM off, after the cycles with the slot applied: Windows via GRUB, the kept copy put back over
+    # the slot (what servicing does), restart, Windows via GRUB again, wait for the guard's entry.
+    need_off; PS start; sleep 10; pick_windows service; PS key 13
+    wait_windows 600; L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume" >&2; exit 1; }
+    before=$(guest "@((Get-Content '$GUEST_STATE\\windows-slot.json' -Raw | ConvertFrom-Json).history).Count" | tr -d ' \n'); before=${before:-0}
+    guest "mountvol S: /S; Copy-Item S:\\EFI\\Microsoft\\Boot\\bootmgfw-kept.efi S:\\EFI\\Microsoft\\Boot\\bootmgfw.efi -Force; 'slot now (servicing simulated): ' + (Get-FileHash S:\\EFI\\Microsoft\\Boot\\bootmgfw.efi -Algorithm SHA256).Hash; mountvol S: /D" | tee "$A/service.log"
+    echo "prologue: guard history before: $before; restarting the guest"
+    guest "Restart-Computer -Force" >/dev/null 2>&1 || true
+    sleep 40; pick_windows service-2; PS key 13
+    wait_windows 600; t0=$(date +%s)
+    until after=$(guest "@((Get-Content '$GUEST_STATE\\windows-slot.json' -Raw | ConvertFrom-Json).history).Count" 2>/dev/null | tr -d ' \n'); [ -n "$after" ] && [ "$after" -gt "$before" ]; do
+        [ $(( $(date +%s) - t0 )) -ge 420 ] && { echo "prologue: the guard wrote no history entry within 420 s" >&2; break; }; sleep 15
+    done
+    echo "prologue: guard history after: ${after:-?}" | tee -a "$A/service.log"
+    guest "mountvol S: /S; 'slot after the guard: ' + (Get-FileHash S:\\EFI\\Microsoft\\Boot\\bootmgfw.efi -Algorithm SHA256).Hash; 'shim: ' + (Get-FileHash S:\\EFI\\fedora\\shimx64.efi -Algorithm SHA256).Hash; mountvol S: /D" | tee -a "$A/service.log"
+    guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-boot,' + (Get-Date).ToUniversalTime().ToString('o') + ',via-grub-after-servicing,host-utc=$(date -u +%FT%TZ),guard_history=' + '${after:-?}')" >/dev/null 2>&1 || true
+    pull_all service
+    PS stop; wait_off 300
+    ;;
 rollback)
     # VM off with the converted disk in place (after the cycles): boot Windows through
     # GRUB, run the stick's ROLLBACK.cmd (ROLLBACK on stdin), pull its record, power off;
     # inspect the ESP offline; then start with NO key pressed - the firmware must bring
     # Windows up by itself - mark it, power off; verdict -> r21-rollback.csv
-    need_off; PS start; sleep 10; shot grub-rollback
-    for i in $(seq 1 "$WIN_DOWNS"); do PS key 40; sleep 1; done; PS key 13
+    need_off; PS start; sleep 10; pick_windows rollback; PS key 13
     wait_windows 600; L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume" >&2; exit 1; }
     if [ "${PROLOGUE:-ps}" = rust ]; then
         guest "& ${L}:\\upgrade-prologue.exe rollback --stick ${L}:" | tee "$A/rollback.log"
@@ -349,6 +423,8 @@ rollback)
     ;;
 verdict)
     mkdir -p "$A"
+    # a run that never started leaves no convert.log; a verdict on an empty folder is noise, not evidence (2026-10-10)
+    [ -s "$A/convert.log" ] || { echo "prologue: no convert.log in $A: the flow did not run here, so no row is written" >&2; exit 1; }
     python3 prologue-verdict.py "$A" "$CSV" "$HARNESS_VERSION" "$FIRMWARE" || true
     python3 v2-verdict.py "$A" "$CSV_V2" "$HARNESS_VERSION-prologue" "$FIRMWARE"
     ;;

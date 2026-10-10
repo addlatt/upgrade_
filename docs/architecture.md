@@ -1114,9 +1114,13 @@ automatic.**
   **Found on the Aspire (2026-10-10), decision owed:** on the keep-Windows
   path this leaves the kept Windows reading the clock hours fast after
   every Linux boot (7 h on the Aspire), because Windows still reads the
-  hardware clock as local time. RISKS R36 holds the two ways to fix it
-  (Linux keeps the clock local, or Windows is told it is UTC); neither is
-  built.
+  hardware clock as local time. **Decided (2026-10-10, the owner): Linux
+  adapts.** On the keep-Windows path the kickstart writes `timezone` with
+  no `--utc` (0.7.0), so the installed system reads and writes the
+  hardware clock as local time, and `settle-in` never writes that clock
+  there (`left-local`; it only makes `/etc/adjtime` say LOCAL and sets
+  the system clock once if nothing has). The erase path keeps the rule
+  above. Reclaim, which removes Windows, may switch to UTC. RISKS R36.
   **Corrected (2026-09-27, found while building it):** the conversion uses
   the offset Windows was using when it last ran (harvested), not the zone's
   rules at first startup. The hardware clock holds whatever offset Windows

@@ -14,7 +14,7 @@ collectors' boot lines, and inspections of images assembled from the drive's
 first MiB and its ESP). A row that passes every check then reads "pass", not
 "pass-plumbing": a rig pass closes plumbing only (rule #5).
 """
-import csv, json, sys, datetime, pathlib
+import csv, json, sys, datetime, pathlib, re
 A = pathlib.Path(sys.argv[1]); CSV = pathlib.Path(sys.argv[2]); HARNESS = sys.argv[3]; FIRMWARE = sys.argv[4]
 PHYSICAL = "--physical" in sys.argv[5:]; EXTRA = [x for x in sys.argv[5:] if x != "--physical"]
 PASS = "pass" if PHYSICAL else "pass-plumbing"
@@ -84,9 +84,27 @@ esp_size = e0.get("size_mib", "")
 free_b, free_a = e0.get("fat_bytes_free", ""), e1.get("fat_bytes_free", "")
 m0, m1 = e0.get("manifest", {}), e1.get("manifest", {})
 bootmgfw_ok = "n"
+# shim in Windows' slot (architecture step 12): applied by the prologue's return, recorded in prologue-return.json
+# (or, by hand on a physical run, in upgrade_/report/windows-slot.json on the stick); read first because it changes
+# what "bootmgfw.efi byte for byte" means below
+_ret = load("prologue-return.json") or {}
+_slot = (_ret.get("windows_slot") or {}) or (load("windows-slot.json") or {})
+# the guard writes its history into the kept Windows' own copy of the record (the state directory,
+# pulled as guest-windows-slot.json); take whichever copy carries more history
+for _cand in (load("guest-windows-slot.json") or {}, load("windows-slot.json") or {}):
+    if len(_cand.get("history") or []) > len(_slot.get("history") or []): _slot = dict(_slot, history=_cand["history"])
 shas = {rec.get("esp", {}).get("bootmgfw_sha256") for rec in (pre, post, cyc) if rec}
 shas.discard(None)
-if e0.get("bootmgfw_sha256") and len(shas) == 1: bootmgfw_ok = "y"
+if _slot.get("slot_sha_after") and cyc:
+    # R21's clause holds for the bytes, under the kept name: the slot must hold shim as recorded, and
+    # Windows' own loader must live on as bootmgfw-kept.efi with the sha the ESP had before the install
+    kept = (esp(cyc).get("manifest") or {}).get("/EFI/Microsoft/Boot/bootmgfw-kept.efi") or {}
+    slot_now = esp(cyc).get("bootmgfw_sha256")
+    if e0.get("bootmgfw_sha256") and kept.get("sha256") == e0.get("bootmgfw_sha256") and slot_now == _slot.get("slot_sha_after"):
+        bootmgfw_ok = "y"; notes.append("after the cycles the slot holds shim (" + str(slot_now)[:12] + ") and Windows' loader lives on as bootmgfw-kept.efi, byte for byte as before the install")
+    else:
+        notes.append("slot arrangement not as recorded: slot=" + str(slot_now)[:12] + " kept=" + str(kept.get("sha256"))[:12] + " expected kept=" + str(e0.get("bootmgfw_sha256"))[:12] + " slot=" + str(_slot.get("slot_sha_after"))[:12])
+elif e0.get("bootmgfw_sha256") and len(shas) == 1: bootmgfw_ok = "y"
 if not pre and not post:
     # a physical run has no offline disk inspection: the ESP before is the stick's own snapshot
     # (upgrade_/esp-snapshot/SHA256SUMS, taken by %pre) and the ESP after is the installer's
@@ -111,9 +129,6 @@ ms_changed = sorted(k for k in m0 if k.startswith("/EFI/Microsoft/") and not win
                     and (k not in m1 or m1[k]["sha256"] != m0[k]["sha256"]))
 other_changed = sorted(k for k in m0 if not k.startswith("/EFI/Microsoft/") and (k not in m1 or m1[k]["sha256"] != m0[k]["sha256"]))
 fallback = bc.get("fallback_loader", "unreported")
-# shim in Windows' slot (architecture step 12): applied by the prologue's return, recorded in prologue-return.json
-_ret = load("prologue-return.json") or {}
-_slot = (_ret.get("windows_slot") or {}) or (load("windows-slot.json") or {})   # by hand: upgrade_/report/windows-slot.json on the stick
 if _slot.get("slot_sha_after"):
     fallback = "shim-in-windows-slot"; notes.append("shim in Windows' slot: " + str(_slot.get("reason"))[:140])
 snap_files = ((verify or {}).get("esp_snapshot") or {}).get("files", 0)
@@ -121,17 +136,38 @@ if other_changed: notes.append("pre-existing non-Microsoft ESP files changed: " 
 notes.append(f"install added {len([k for k in m1 if k not in m0])} files / {added} B to the ESP")
 
 # --- boots ----------------------------------------------------------------------
-wb = lb = 0
+wb = lb = 0; clock_offsets = []; clock_before = None; from_record = 0
+def _offset(line):
+    m = re.search(r"host-utc=(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)Z", line)
+    if not m: return None
+    try:
+        g = datetime.datetime.fromisoformat(line.split(",")[1][:19]); h = datetime.datetime.fromisoformat(m.group(1))
+        return int((g - h).total_seconds())
+    except ValueError: return None
 if (A / "boots.log").exists():
     seen_done = False
     for line in open(A / "boots.log", encoding="utf-8-sig", errors="replace"):
         line = line.strip()
+        if line.startswith("windows-clock-before,"): clock_before = _offset(line); continue   # R36: the baseline, before any Linux boot
         if line.startswith("source,"): notes.append("boot log " + line[7:].strip()[:220]); continue   # a physical run says where its boot lines came from
         if line.startswith("install-done"): seen_done = True; continue
         if not seen_done: continue
         if line.startswith("linux-boot"): lb += 1
-        if line.startswith("windows-boot"): wb += 1
+        if line.startswith("windows-boot"):
+            wb += 1
+            if "from-return-record" in line: from_record += 1; continue   # the bench never saw this Windows session: its clock is not a reading
+            o = _offset(line)   # RISKS R36: the guest's clock beside the host's (the bench writes host-utc=...)
+            if o is not None: clock_offsets.append(o)
 notes.append(f"boots after install-done: windows={wb} linux={lb}")
+if from_record: notes.append(f"{from_record} Windows boot(s) known only from the return's own record: the return applied shim in Windows' slot and restarted before the bench saw Windows")
+# R36: what must not happen is a Linux boot leaving Windows' clock further from the host's than it was before
+# the conversion (the rig's guest starts hours off: Hyper-V hands it a UTC hardware clock that Windows reads as
+# local time, R36's own failure mode; a Linux boot that brings it nearer is the fix at work, not a fault)
+clock_worse = [abs(o) - abs(clock_before) for o in clock_offsets] if clock_before is not None else []
+if clock_offsets:
+    notes.append("Windows' clock against the host's: before the conversion " + (f"{clock_before:+d} s" if clock_before is not None else "not recorded") + "; at each Windows boot " + ", ".join(f"{o:+d} s" for o in clock_offsets) + (" (further off by " + ", ".join(f"{d:+d} s" for d in clock_worse) + ")" if clock_worse else "") + " (R36)")
+_hist = [h for h in (_slot.get("history") or []) if isinstance(h, dict)]
+if _hist: notes.append("the guard re-applied the slot " + str(len([h for h in _hist if h.get("action") == "reapplied"])) + " time(s) (R22 under step 12; the bench's service step)")
 if v0: notes.append("v0 row: " + v0["notes"][:120])
 
 def yn(b): return "y" if b else "n"
@@ -150,6 +186,7 @@ elif wb < 1 or grub_win != "y": result = "windows-unbootable-via-grub"
 elif lb < 1: result = "linux-unbootable"
 elif fallback not in ("shim", "shim-in-windows-slot") or snap_files < 1: result = "fallback-loader-unrecorded"
 elif wb < 2 or lb < 2: result = "cycles-incomplete"
+elif any(d > 300 for d in clock_worse) or (clock_before is None and any(abs(o) > 300 for o in clock_offsets)): result = "windows-clock-wrong"   # R36: a Linux boot left the kept Windows' clock further off
 else: result = PASS
 
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), HARNESS, FIRMWARE, sb, path, desktop, handoff,

@@ -19,3 +19,7 @@ windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Securit
 [profile.release]
 opt-level = "s"
 strip = true
+
+# its own workspace root: a checkout under another repository (a worktree under .claude/worktrees/)
+# must not fall into that repository's root workspace (cargo searches upward; 2026-10-10)
+[workspace]

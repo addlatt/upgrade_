@@ -199,7 +199,9 @@ fn first_start(root: &str, rtc: &str) -> i32 {
                 } else {
                     let created = job.get("created_utc").and_then(Value::as_str).and_then(civil::parse_iso_utc).unwrap_or(0);
                     let mut m = hw::Real { rtc_path: rtc.to_string() };
-                    clock::run(&mut m, root, &ev, zone.as_ref().ok(), created, &outcome)
+                    // R36 (decided 2026-10-10): on the keep-Windows path the hardware clock stays local time
+                    let keep_windows = job.pointer("/intent/path").and_then(Value::as_str) == Some("keep-windows");
+                    clock::run(&mut m, root, &ev, zone.as_ref().ok(), created, &outcome, keep_windows)
                 }
             }
         }
