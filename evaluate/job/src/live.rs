@@ -695,7 +695,7 @@ pub fn summary_lines(j: &Value, facts: &Value, job_path: &Path, verify_only: boo
         "none-saved" => l.push("  Wi-Fi: no saved networks".to_string()),
         _ => {}
     }
-    let rtc = if truthy(at(j, "harvest.clock.rtc_is_local")) { "local time (settle-in turns it to UTC on first startup)" } else { "UTC" };
+    let rtc = if truthy(at(j, "harvest.clock.rtc_is_local")) { "local time (kept so beside a kept Windows, R36; turned to UTC after an erase)" } else { "UTC" };
     l.push(format!("  clock: {}, hardware clock in {rtc}", st("harvest.clock.iana")));
     let wl = at(j, "harvest.windows_license");
     if s(at(wl, "result")) == "read" {
