@@ -12,7 +12,7 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let opt = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
     let (Some(job), Some(out), Some(label), Some(manifest)) = (opt("--job"), opt("--out"), opt("--label"), opt("--manifest")) else {
-        eprintln!("upgrade-kickstart {} (Rust; follows New-Kickstart.ps1 {})", env!("CARGO_PKG_VERSION"), upgrade_kickstart::FOLLOWS_GENERATOR);
+        eprintln!("upgrade-kickstart {} (Rust; generator {})", env!("CARGO_PKG_VERSION"), upgrade_kickstart::GENERATOR_VERSION);
         eprintln!("usage: upgrade-kickstart --job <job.json> --out <ks.cfg> --label <stick label> --manifest <SHA256SUMS>");
         return ExitCode::from(2);
     };

@@ -48,7 +48,7 @@ PS()  { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$VMPS1" "$@" -N
 PSC() { powershell.exe -NoProfile -Command "$1" < /dev/null; }
 # the kickstart generator on the host (upgrade_/kickstart, the same library the job writer embeds)
 KICKSTART="$(cd ../.. && pwd)/target/release/upgrade-kickstart"
-[ -x "$KICKSTART" ] || (cd ../.. && cargo build --release --quiet -p upgrade-kickstart) || { echo "v1: upgrade-kickstart does not build" >&2; exit 1; }
+(cd ../.. && cargo build --release --quiet -p upgrade-kickstart) || { echo "v1: upgrade-kickstart does not build" >&2; exit 1; }   # always: a stale binary made the rig install a kickstart without the GRUB flag (2026-10-11)
 vm_state() { PSC "(Get-VM $VMNAME).State" | tr -d '\r\n '; }
 need_off() { s=$(vm_state); [ "$s" = Off ] || { echo "v1: VM must be Off (state: $s)" >&2; exit 1; }; }
 guest() { PS ps "$1" 2>&1 | tr -d '\r'; }
