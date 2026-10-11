@@ -36,11 +36,11 @@ brands. Stands: see [STATUS.md](STATUS.md).
 ## 1. A real keep-Windows install with Secure Boot on
 
 Fedora beside a shrunk Windows, both systems reached with no key pressed.
-Proves: V1b, R21, R22, R36. The Aspire did it with the arrangement applied
-by hand (2026-10-10). Owed there: the return applying the slot by itself, a
-Windows update under the guard, the rollback, the clock fix fired. Waits
-on, for the healthy-drive row: a second laptop (the Aspire's drive is
-dying, R23). Stands: see [STATUS.md](STATUS.md).
+Proves: V1b, R21, R22, R36. The Aspire did it by hand (2026-10-10) and then
+by itself (2026-10-11: the return applied the slot from its own evidence,
+the clock held). Owed there: a Windows update under the guard, the
+rollback. Waits on, for the healthy-drive row: a second laptop (the
+Aspire's drive is dying, R23). Stands: see [STATUS.md](STATUS.md).
 
 ## 2. settle-in
 

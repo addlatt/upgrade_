@@ -573,9 +573,9 @@ elevated machines that can) is answered by more machines than one.
 Aspire's old Windows, runs 4 to 8 (`r18-prologue.csv` lines 8 to 12, all
 stopped), best 9.5 of 25 GB, three runs naming three different last unmovable
 files; keep-Windows was refused there, correctly. The fresh Windows 11 the way
-back installed shrank with room to spare (line 16, `pass-plumbing`,
-2026-10-10). Owed: V4's rate from more machines; the pagefile read back after
-a restart; whether `$Mft::$BITMAP` can be moved by a documented interface
+back installed shrank with room to spare (line 16, 2026-10-10; line 18,
+2026-10-11, 238.2 to 213.2 GB, both `pass-plumbing`). Owed: V4's rate from
+more machines; the pagefile read back; a documented way to move `$Mft::$BITMAP`
 ([log](log/2026-09.md#2026-09-26-the-aspires-eighth-run-the-first-physical-job-with-the-folder-map-row-12-r18-r25)).
 
 ## R19: cryptsetup BITLK read is a new trust dependency · medium · held-on-rig
@@ -660,15 +660,15 @@ vendors, Secure Boot on: Windows boots from the menu, GRUB lists it, the ESP
 had room, and `bootmgfw.efi` is intact (its bytes, on slot firmware). Firmware
 that cannot is steered to clean slate before committing.
 
-**Where it stands.** `[####]` one machine, the arrangement by hand:
-`v2-install.csv` line 11 (the Aspire, 2026-10-10, `pass-plumbing`,
-`shim-in-windows-slot`), four keyless boots, both systems reached twice. The
-rig held the return applying the slot by itself, a simulated servicing pass
-and the rollback (lines 12 and 13; `r21-rollback.csv` line 5). The first real
-install (2026-10-06) left Windows intact and no menu; the rig rows before it
-are in the log. Owed: the return applying the slot by itself on the Aspire,
-a real Windows update under the guard, the rollback there, other vendors
-([log](log/2026-10.md#2026-10-10-shim-in-windows-slot-on-the-aspire-r21-r22-v1b-found-r36)).
+**Where it stands.** `[####]` one machine, the product's own way:
+`v2-install.csv` line 15 (the Aspire, 2026-10-11, `pass`): the return, as
+SYSTEM, read its own evidence, moved Windows' loader to its kept name, put
+shim in the slot, and both systems were reached with nobody at the keyboard
+(four Windows boots, three Linux). Line 11 (2026-10-10) was the same by hand;
+the rig held the return, a simulated servicing pass and the rollback (lines
+12 and 13; `r21-rollback.csv` line 5). Owed: a real Windows update under the
+guard, the rollback on this machine, other vendors, a healthy drive
+([log](log/2026-10.md#2026-10-11-the-detector-fires-on-the-aspire-r36-the-product-way-r21-r22-r25-r36-v1b)).
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · held-on-rig
 
@@ -699,11 +699,11 @@ matrix says which firmware ignores the re-assertion.
 
 **Where it stands.** `[###.]` the guard re-applied the arrangement on the rig
 after the bench put Windows' file back over the slot (`v2-install.csv` line
-13, 2026-10-10, history 0 to 1). On the Aspire it ran at both Windows starts
-of 2026-10-10 with nothing to re-apply. `settle-in`'s order unit is not built.
-Owed: a real Windows update under the guard on the Aspire (the trigger, not
-only the response), the unit, the matrix
-([log](log/2026-10.md#2026-10-10-the-acer-answer-the-guard-replaces-the-re-assertion-on-this-firmware-r22)).
+13, 2026-10-10, history 0 to 1). On the Aspire it ran at every Windows start
+of 2026-10-10 and 2026-10-11 with nothing to re-apply (line 15).
+`settle-in`'s order unit is not built. Owed: a real Windows update under the
+guard on the Aspire (the trigger, not only the response), the unit, the
+matrix ([log](log/2026-10.md#2026-10-11-the-detector-fires-on-the-aspire-r36-the-product-way-r21-r22-r25-r36-v1b)).
 
 ## R23: The acknowledged-data-loss path exists · high · held-on-machine
 
@@ -806,11 +806,12 @@ row that injects the pending state.
 
 **Where it stands.** `[####]` the Aspire's run 11 (2026-10-04, `v9-erase.csv`
 line 30): a real update waiting (`WU RebootRequired` true), one restart as
-SYSTEM, nothing waiting, then armed. The rig read a real pending state on
-2026-09-26 and again on 2026-10-08 (`r18-prologue.csv` line 13, one
-update-restart, then armed). Not yet shown: a shrink held back (run 11 was an
-erase), the CBS markers on Windows 11, and the injected rig row
-([log](log/2026-10.md#2026-10-04-the-update-gates-first-firing-on-a-real-machine-run-11-r25)).
+SYSTEM, nothing waiting, then armed. And its keep-Windows conversion of
+2026-10-11 (`r18-prologue.csv` line 18, `pass-plumbing`): a fresh Windows
+with an update restart waiting; the prologue restarted first, resumed as
+SYSTEM, then shrank and armed. The rig read a real pending state on
+2026-09-26 and 2026-10-08 (line 13). Not yet shown: the CBS markers on
+Windows 11, and the injected rig row ([log](log/2026-10.md#2026-10-11-the-detector-fires-on-the-aspire-r36-the-product-way-r21-r22-r25-r36-v1b)).
 
 ## R26: The offer to discard Windows after a failed shrink · critical · planned
 
@@ -1055,11 +1056,11 @@ for byte from the source by someone else.
 Rust prologue has rig rows (`v9-erase.csv` lines 33 to 36; `r18-prologue.csv`
 lines 13, 14 and 17; `v0-handoff.csv` lines 14 and 15; `r21-rollback.csv`
 lines 4 and 5) and physical rows on the Aspire (`walkaway-probe.csv` line 5;
-`r18-prologue.csv` lines 15 and 16; `v2-install.csv` lines 10 and 11, all
-2026-10-10). The scanner matched the PowerShell on the G16 and the Aspire.
+`r18-prologue.csv` lines 15, 16 and 18; `v2-install.csv` lines 10, 11 and
+15: the whole keep-Windows conversion of 2026-10-11, driven as `UPGRADE.exe`
+drives it). The scanner matched the PowerShell on the G16 and the Aspire.
 Owed: the 45 ledger lines, the rebuild by someone else, `tables.json` kept
-in step (`port-check.sh` runs by hand only, R9)
-([log](log/2026-10.md#2026-10-07-the-cut-over-begins-the-scanner-the-harvester-the-job-writer-and-the-prologue-as-product-commands-r32-v13)).
+in step by hand (R9) ([log](log/2026-10.md#2026-10-11-the-detector-fires-on-the-aspire-r36-the-product-way-r21-r22-r25-r36-v1b)).
 
 ## R33: The walk-away way back to Windows · critical · held-on-machine
 
@@ -1094,11 +1095,12 @@ on four defects, all fixed that day: the start through the firmware's own USB
 entry, the password forced at first sign-in, Wi-Fi carried, progress shown),
 line 3 (2026-10-04, `windows-reached`, nobody at the keyboard, activated),
 line 4 (2026-10-05, `cancelled-untouched`; gate 0.3.0 had lost its writes
-silently, 0.3.1 reads every write back and never counts down without a
-record). Owed: a cancel started by the program's own restart; never-twice on
-real firmware (rig only); the sleep inhibitor; the program findable from the
-desktop and a no-serial stick refused (both the owner's call); the stale
-entry each Prepare leaves ([log](log/2026-10.md#2026-10-05-the-first-real-cancel-of-the-way-back-gate-031-r33-v11)).
+silently, 0.3.1 reads every write back), line 5 (2026-10-11,
+`windows-reached`, driven over ssh on a second stick, the carried Wi-Fi up
+30 min after the restart). Owed: a cancel started by the program's own
+restart; never-twice on real firmware; the sleep inhibitor; the program
+findable from the desktop and a no-serial stick refused (the owner's call);
+the stale entry each Prepare leaves ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
 
 ## R34: Secure Boot revokes the kit's boot files · critical · held-on-machine
 
@@ -1171,7 +1173,7 @@ plain-words screen; a cancelled stick on USB-first firmware may loop into
 first is unknown
 ([log](log/2026-10.md#2026-10-04-the-aspires-run-11-the-first-clean-conversion-r27-r35-v9)).
 
-## R36: The kept Windows' clock runs hours wrong after every Linux boot · medium · built
+## R36: The kept Windows' clock runs hours wrong after every Linux boot · medium · held-on-machine
 
 **What.** Windows keeps the hardware clock in local time. Linux keeps it in
 UTC, and `settle-in` stores it as UTC on first startup (`architecture.md`,
@@ -1202,11 +1204,14 @@ with Windows' clock within a minute of the host's, read the way it was read
 here, on an install made with kickstart 0.7.0 or a `settle-in` first start
 that wrote LOCAL; and the rig repeats the two boots on the keep-Windows arm.
 
-**Where it stands.** `[##..]` built, unfired on the Aspire. The rig
-(`v2-install.csv` line 13, 2026-10-10) starts in this failure state: Windows
-read 7 h fast before the conversion and +2 s after the servicing step, but
-which Linux boot wrote the clock is not recorded. Owed: the Aspire's two boots
-([log](log/2026-10.md#2026-10-10-what-the-rig-showed-of-the-clock-fix-v2-installcsv-line-13-r36)).
+**Where it stands.** `[####]` held on the Aspire both ways. By hand on
+2026-10-10 (`timedatectl set-local-rtc 1`; Windows +3 s and +3 s against the
+host after two Linux boots; `v2-install.csv` line 14, `pass`). On the product
+path on 2026-10-11 (kickstart 0.8.0, `settle-in` `left-local`; +1 s, +2 s and
++1 s after each Linux boot, nobody touching the clock; line 15, `pass`).
+Windows had also corrected its own clock within four hours on 2026-10-10, so
+the symptom lasts hours, not for good. Owed: the rig's two boots on the
+keep-Windows arm ([log](log/2026-10.md#2026-10-10-the-kept-windows-clock-by-hand-on-the-aspire-r36-v1b)).
 
 # Closed
 

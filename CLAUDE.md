@@ -87,9 +87,9 @@ anything that writes. Several things the whole project depends on exist only as
 argument, which by rule #2 counts for nothing, so no component that writes to a disk
 is built until the spine it depends on is proven on real hardware. The one current
 target (as of 2026-10-11) is the keep-Windows path on the Aspire with shim in
-Windows' slot: the prologue's return applying the slot by itself, a real Windows
-update under the guard, the rollback on this machine, and the kept Windows' clock
-fix (Linux adapts, decided 2026-10-10; R36) fired on the Aspire. Where every gate stands:
+Windows' slot. The return applied it by itself and the clock held on 2026-10-11
+(R21, R36); still owed there: a real Windows update under the guard (R22) and the
+rollback on this machine. Where every gate stands:
 `docs/STATUS.md`. What is next, and the decisions owed: `docs/ROADMAP.md`. What
 happened, run by run: `docs/log/`.
 

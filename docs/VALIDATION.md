@@ -220,16 +220,16 @@ install are steered to clean slate, and `evaluate` says so before anything
 is committed. The product still converts them, without the safety net.
 
 **Where it stands.** `[####]` held-on-machine, one machine with a dying
-drive (R23). The Aspire: Fedora beside an intact Windows, shim in Windows'
-slot, each system reached twice with no key pressed, Secure Boot on,
-`v2-install.csv` line 11, `pass-plumbing` (2026-10-10). The rig held the
-arrangement applied by the return, the guard surviving a servicing pass
-and the rollback (`v2-install.csv` lines 12 and 13, `r18-prologue.csv`
-line 17, `r21-rollback.csv` line 5, all `pass-plumbing`). Owed: the
-detector's own evidence line on the Aspire, a real Windows update under
-the guard (R22), the kept Windows' clock (R36), the healthy-drive row on
-another machine
-([log](log/2026-10.md#2026-10-10-the-acer-finding-and-its-proof-shim-in-windows-slot-v1b-r21-r22-r36)).
+drive (R23). The Aspire, 2026-10-11: the return applied shim in Windows'
+slot from its own evidence, then Fedora and Windows were each reached
+with nobody at the keyboard, Secure Boot on, the clock right
+(`v2-install.csv` line 15, `pass`). Line 11 (2026-10-10) was the same by
+hand. The rig held the return, the guard surviving a servicing pass and
+the rollback (lines 12 and 13, `r18-prologue.csv` line 17,
+`r21-rollback.csv` line 5, all `pass-plumbing`). Owed: a real Windows
+update under the guard (R22), the rollback on this machine, the
+healthy-drive row on another machine
+([log](log/2026-10.md#2026-10-11-the-detector-fires-on-the-aspire-r36-the-product-way-r21-r22-r25-r36-v1b)).
 
 # Tier 2: a core promise breaks (recoverable, but the default is broken)
 
@@ -355,12 +355,12 @@ designed, not built).
 **Where it stands.** `[####]` held-on-machine, one disk. The Aspire's
 answer is no: runs 4 to 8 stopped before anything irreversible, best 9.5
 of 25 GB, three different last unmovable files (`r18-prologue.csv` lines 8
-to 12, `stopped-shrink` but for line 9, `stopped-confirm`); its latest
-rows are lines 15 and 16 (2026-10-10, `stopped-shrink`, then
-`pass-plumbing` with the Rust prologue). The resume fired unattended on
-real firmware (`walkaway-probe.csv` lines 3 and 5, `resumed-unattended`).
-Owed: the population count (about 20 elevated reports) and a healthy
-drive
+to 12, `stopped-shrink` but for line 9, `stopped-confirm`). The fresh
+Windows 11 shrank with room to spare: lines 16 and 18 (2026-10-10 and
+2026-10-11, `pass-plumbing`, the Rust prologue; 238.2 to 213.2 GB). The
+resume fired unattended on real firmware (`walkaway-probe.csv` lines 3 and
+5, `resumed-unattended`). Owed: the population count (about 20 elevated
+reports) and a healthy drive
 ([log](log/2026-09.md#2026-09-26-the-aspires-run-7-stopped-shrink-v4-r18-r26)).
 
 ## V9: One-click erase and install · RISKS R27 · held-on-machine
@@ -509,11 +509,11 @@ real network at first start, a real firmware's USB entry.
 kind. The Aspire: `v11-walkaway.csv` line 2, `fail` (2026-10-03: Windows
 11 reached and activated by its digital licence, four defects, all fixed
 that day); line 3, `windows-reached` (2026-10-04); line 4,
-`cancelled-untouched` (2026-10-06). The guided stick: `v11-way-back.csv`
+`cancelled-untouched` (2026-10-06); line 5, `windows-reached` (2026-10-11,
+driven over ssh, a second stick). The guided stick: `v11-way-back.csv`
 line 3, `pass-plumbing` (rig, 2026-09-27). Owed: a second machine with a
 firmware key, the Windows 10 path on a machine that cannot run Windows 11,
-the licence harvest as a row
-([log](log/2026-10.md#2026-10-04-the-walk-away-reinstalls-time-remote-access-and-fourth-arms-on-the-rig-v11-r33)).
+the licence harvest as a row ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
 
 # Tier 3: silent data loss (the trust-ending class)
 
@@ -787,15 +787,13 @@ lines re-run with the Rust build, then the `physical` ones.
 45 `owed`, none `fail` (counted 2026-10-11). The Rust scanner's reads and
 report matched the PowerShell's on the G16 and the Aspire in the same
 minute (`v13-rust-scanner.csv` lines 4 and 5, `SAME`); the Rust prologue
-ran the Aspire's keep-Windows install (`v2-install.csv` line 11,
-`pass-plumbing`, 2026-10-10) and its resume (`walkaway-probe.csv` line 5,
-`resumed-unattended`); the rig has run the whole path. Fresh-clone
-rebuilds match (`r14-rebuild.csv` lines 22 to 26, `same` = `y`). Owed: the
-45 lines (the rig's erase arms and the Aspire's rows for each piece), and
-the second-person rebuild
-([log](log/2026-10.md#2026-10-07-the-cut-over-sessions-v13-r32)).
-
----
+ran the Aspire's keep-Windows conversions (`v2-install.csv` lines 11 and
+15; `r18-prologue.csv` line 18, the whole path on 2026-10-11, update
+restart, resume, shrink, handoff, return) and its resume
+(`walkaway-probe.csv` line 5). Fresh-clone rebuilds match
+(`r14-rebuild.csv` lines 22 to 26, `same` = `y`). Owed: the 45 lines (the
+rig's erase arms and the Aspire's rows for each piece), and the
+second-person rebuild ([log](log/2026-10.md#2026-10-11-the-detector-fires-on-the-aspire-r36-the-product-way-r21-r22-r25-r36-v1b)).
 
 # Lesser gates (validate when their component is built)
 
