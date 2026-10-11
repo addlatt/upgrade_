@@ -2387,7 +2387,11 @@ prefers Windows again, the guard re-applies. The rules:
   completed, the installer left Fedora first, and yet Windows booted with
   nobody pressing a key. On that evidence it applies the arrangement from
   Windows (the ESP mounted, the snapshot checked first) and restarts once
-  into GRUB. One extra restart, no human.
+  into GRUB. One extra restart, no human. **Amended (2026-10-11):** "with
+  nobody pressing a key" is GRUB's word, not a guess: the "Windows (kept)"
+  entry records the choice in GRUB's environment block on the ESP, and a
+  set flag stands the detector down. Found on the rig the same day, where
+  the bench's own menu choice had passed for a firmware that skipped GRUB.
 - **Reversible, and the undo already exists.** The ESP snapshot and the
   kept copy hold Windows' file; the rollback and the way back put it back
   and remove the guard.

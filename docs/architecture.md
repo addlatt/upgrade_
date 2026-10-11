@@ -715,6 +715,13 @@ at all:
     followed its order, booting Fedora's own entry (`BootCurrent 0004`),
     rather than chainloading through the slot. Either way GRUB comes up
     with both systems. Firmware that honours the entry never gets this.
+    **Amended (2026-10-11):** the return cannot tell a firmware that
+    skipped GRUB from a person who chose Windows in GRUB's menu, and on
+    the rig it applied the slot for the bench's own menu choice. So
+    GRUB's "Windows (kept)" entry now writes `upg_windows_chosen=1` into
+    GRUB's environment block on the ESP before it chainloads, and the
+    return reads and clears it: a set flag means the firmware does boot
+    the Linux entry, and nothing is arranged.
     The rollback and the way back put Windows' file back and remove the
     guard.
 
