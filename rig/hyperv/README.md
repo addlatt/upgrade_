@@ -236,7 +236,7 @@ clock fact, not a finding.
   path). The disk backup taken before the run had to be re-taken after the
   9p stale-cache hazard (below) was caught poisoning it.
 - **V1b, SB on: the MOK chainload experiment. `[###.]` DONE 2026-08-31**
-  (record: `docs/validation-results/v1b-mok-chainload-2026-08-31.md`). A
+  (record: `docs/log/2026-08.md`, the 2026-08-31 MOK entry). A
   second guest, `UPGRIGMOK`, on the `MicrosoftUEFICertificateAuthority`
   template (disk copied from `UPGRIGHV.pre-install.vhdx`). Fedora was
   alongside-installed under SB enforcing via `v1b.sh` with `VMNAME=UPGRIGMOK

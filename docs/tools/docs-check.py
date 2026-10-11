@@ -220,15 +220,31 @@ if not n: ok("all IDs resolve")
 # ---- 8. relative links --------------------------------------------------
 section("8. relative links point at files that exist")
 LINK = re.compile(r"\]\(([^)\s]+)\)")
+_slugs = {}
+def slugs(path):
+    """GitHub-style anchors of a file's headings (lowercase, punctuation out, spaces to hyphens)."""
+    if path not in _slugs:
+        found = set()
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("#"):
+                t = line.lstrip("#").strip().lower()
+                t = re.sub(r"[^\w\s-]", "", t).replace(" ", "-")
+                found.add(t)
+        _slugs[path] = found
+    return _slugs[path]
 n = 0
 for p in all_md:
     if kind(p) == "archive": continue
     for i, line in enumerate(texts[p], 1):
         for target in LINK.findall(line):
             if re.match(r"[a-z]+:", target) or target.startswith("#"): continue
-            path = target.split("#")[0]
-            if not (p.parent / path).exists():
+            path, _, anchor = target.partition("#")
+            dest = (p.parent / path) if path else p
+            if not dest.exists():
                 fail(f"{rel(p)}:{i}", f"link to {target} does not resolve"); n += 1
+            elif anchor and dest.suffix == ".md":
+                if anchor not in slugs(dest):
+                    fail(f"{rel(p)}:{i}", f"no heading '#{anchor}' in {path or rel(p)}"); n += 1
 if not n: ok("all relative links resolve")
 
 # ---- 9. expiry and archive ----------------------------------------------

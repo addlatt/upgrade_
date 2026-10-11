@@ -1,3 +1,5 @@
+Archived 2026-10-11: the cut-over sessions it was written for have run (see docs/RUST-PORT.md, "The cut-over sessions"). Nothing below this line changes.
+
 # Prompt for the cut-over sessions
 
 Paste everything below the line into a new Claude Code session opened in
