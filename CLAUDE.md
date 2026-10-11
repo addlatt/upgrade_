@@ -169,8 +169,18 @@ the Aspire (option C, the owner's call):** the first attempt stopped at the
 shrink on a 170-byte rounding (prologue 0.12.1 fixes it); the second
 installed Fedora 44 beside Windows with Windows intact (R21's checklist all
 true), but the firmware starts Windows with no menu. Paused there by the
-owner; no row; the order question is next (R21, R22). Evidence tools for a
-real machine live in `rig/hyperv/physical/`.
+owner. **2026-10-10: answered.** The firmware only ever starts its own
+list, never the Linux entry (R21, the Acer finding). **Decided
+(2026-10-10, the owner): shim in Windows' slot on such firmware,** applied
+by the prologue's return on the evidence, with a guard task at each
+Windows start (R22's new shape) and the rollback undoing it. Applied by
+hand on the Aspire on 2026-10-10: Fedora and Windows reached twice each
+with no key pressed, Windows' boot files unchanged (`v2-install.csv` line
+11, `pass-plumbing`). Found on those cycles: the kept Windows' clock 7 h
+fast after every Linux boot (R36, decision owed). Owed: the return
+applying the slot by itself, the rig arm, a real Windows update under the
+guard, the rollback on this machine. Evidence tools for a real machine
+live in `rig/hyperv/physical/`.
 **Decided (2026-09-27, the owner): there is always a way back to
 Windows,** a new and empty one, and it says its cost first (most of these
 machines can only go back to Windows 10). Its own "Go back to Windows"

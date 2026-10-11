@@ -1198,8 +1198,8 @@ window.
 On the keep-Windows path the way back already exists: step 5 above offers
 "keep, or roll back" until the person says yes to the reclaim. On the
 erase path, and after a reclaim, there is no Windows left to roll back to.
-**Decided: there is still a way back, and it is honest about what it
-costs.** "You can always go back" is what gets a nervous person to try
+**Decided (2026-09-27, the owner): there is still a way back, and it is
+honest about what it costs.** "You can always go back" is what gets a nervous person to try
 Linux at all, and someone who could not make a Windows stick is exactly who
 this project is for. If Linux does not suit them, they need the same help
 getting back. RISKS R30, VALIDATION V11.
