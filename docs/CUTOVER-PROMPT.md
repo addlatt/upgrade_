@@ -33,7 +33,7 @@ mebibyte, PowerShell 0.12.2 and Rust alike). Run 2 installed Fedora KDE
 beside Windows (`r18-prologue.csv` line 16, `v2-install.csv` line 10), and
 the firmware then started Windows with no menu: Acer's InsydeH2O boots
 only its own list, never the Linux entry (RISKS R21, the Acer finding).
-Decided and built the same day: shim in Windows' slot
+Decided and built (2026-10-10): shim in Windows' slot
 (`upgrade-prologue windows-slot|guard`, `architecture.md` step 12),
 applied by hand on the Aspire, then four boot cycles with no key pressed
 (`v2-install.csv` line 11, `pass-plumbing`,
