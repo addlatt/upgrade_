@@ -77,27 +77,5 @@ fn the_constants_are_the_scripts() {
     assert_eq!(s(&golden["fired_marker"]), verify::FIRED_MARKER);
 }
 
-/// Every name in the script's own self-test is a case here (the ledger's
-/// lines for Test-Handoff.ps1 are its self-test names).
-#[test]
-fn the_self_test_is_all_here() {
-    let script = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../windows/Test-Handoff.ps1")).expect("Test-Handoff.ps1 beside the crate");
-    let cases = load("verify-cases.json");
-    let names: Vec<String> = cases.as_array().unwrap().iter().map(|c| s(&c["name"])).collect();
-    let mut missing = vec![];
-    let mut count = 0;
-    for line in script.lines() {
-        let t = line.trim();
-        if let Some(rest) = t.strip_prefix("@{ Name = '") {
-            if let Some(end) = rest.find('\'') {
-                let n = rest[..end].replace("''", "'");
-                count += 1;
-                if !names.contains(&n) {
-                    missing.push(n);
-                }
-            }
-        }
-    }
-    assert!(count >= 33, "found only {count} self-test names in the script");
-    assert!(missing.is_empty(), "self-test cases without a replay here:\n  {}", missing.join("\n  "));
-}
+// `the_self_test_is_all_here` compared the cases with the script's own self-test; the script left the
+// product on 2026-10-11 and the cases file is the frozen list now (FROZEN-GOLDENS.sha256).

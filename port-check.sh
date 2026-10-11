@@ -1,26 +1,25 @@
 #!/usr/bin/env bash
 #
-# port-check.sh - is the Rust port still saying what the PowerShell says?
+# port-check.sh - the Rust product's own checks, in one command.
 # (RISKS R32, VALIDATION V13, docs/RUST-PORT.md)
 #
 #   ./port-check.sh            check everything, change nothing
-#   ./port-check.sh --record   write the recorded files again from the
-#                              PowerShell and Python sources, then check
+#   ./port-check.sh --record   write data/tables.json and the schema
+#                              refusal cases again from their sources, then check
+#
+# Decided (2026-10-11, the owner): the PowerShell scripts leave the product.
+# The goldens the Rust was held to (recorded from the scripts while they
+# existed) are frozen recordings now: their sha256 is in FROZEN-GOLDENS.sha256
+# and this script fails if one changes. New cases get their expected values
+# from the Rust's own tests, not from PowerShell.
 #
 # What it runs, in order:
-#   1. the PowerShell self-tests and schemas/check.py (the originals)
-#   2. the recorded files are fresh: data/tables.json (from data/*.ps1),
-#      schemas/rust/tests/refused-cases.json (from check.py),
-#      evaluate/scan/tests/golden.json (from the PowerShell scanner),
-#      and the golden.json of the harvester, the job writer, the password
-#      hasher, the kickstart generator and the prologue (each from its own script)
-#   3. every PowerShell self-test case has a Rust case under the same name
-#   4. cargo test in every Rust crate of the port, and the differential
-#      run against check.py
-#
-# powershell.exe is needed for the PowerShell parts (WSL on Windows). Without
-# it those parts are named as SKIPPED and the script exits 3: the Rust tests
-# still ran, against the files as recorded, but nothing proved they are fresh.
+#   1. the originals that remain: schemas/check.py (Python; the contract's
+#      oracle) and, until the data tables move to JSON, data/tables.json
+#      from data/*.ps1 (the one PowerShell call left; skipped without powershell.exe)
+#   2. the frozen goldens are unchanged
+#   3. cargo test in every crate of the product, the harvester's filesystem
+#      cases on Windows, and the schema differential against check.py
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
@@ -34,106 +33,35 @@ skip() { say "    SKIPPED (no powershell.exe)  $*"; SKIPPED=$((SKIPPED + 1)); }
 ps() { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(wslpath -w "$1")" "${@:2}" 2>&1 | tr -d '\r'; }
 HAVE_PS=0; command -v powershell.exe >/dev/null 2>&1 && HAVE_PS=1
 
-# written again and compared: $1 = the committed file, $2 = the fresh copy
-fresh() {
+fresh() {  # $1 = the committed file, $2 = the fresh copy
     if [ "$RECORD" = 1 ]; then cp "$2" "$1"; pass "recorded $1"
     elif cmp -s "$1" "$2"; then pass "$1 is fresh"
     else fail "$1 is stale: run ./port-check.sh --record and read the diff"; fi
 }
 
-say; say "  1. the originals"; say
-if [ "$HAVE_PS" = 1 ]; then
-    ps evaluate/windows/upgrade-scan.ps1 -SelfTest > "$TMP/scan-selftest.txt" || true
-    if grep -q 'all checks passed' "$TMP/scan-selftest.txt"; then pass "upgrade-scan.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/scan-selftest.txt") cases)"; else fail "upgrade-scan.ps1 -SelfTest"; fi
-    ps evaluate/windows/Harvest-UpgradeState.ps1 -SelfTest > "$TMP/harvest-selftest.txt" || true
-    if grep -q 'all checks passed' "$TMP/harvest-selftest.txt"; then pass "Harvest-UpgradeState.ps1 -SelfTest"; else fail "Harvest-UpgradeState.ps1 -SelfTest"; fi
-else
-    skip "upgrade-scan.ps1 -SelfTest"; skip "Harvest-UpgradeState.ps1 -SelfTest"
-fi
-if [ "$HAVE_PS" = 1 ]; then
-    ps upgrade_/windows/New-Kickstart.ps1 -SelfTest > "$TMP/ks-selftest.txt" || true
-    if grep -q 'all checks passed' "$TMP/ks-selftest.txt"; then pass "New-Kickstart.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/ks-selftest.txt") cases)"; else fail "New-Kickstart.ps1 -SelfTest"; fi
-else
-    skip "New-Kickstart.ps1 -SelfTest"
-fi
-if [ "$HAVE_PS" = 1 ]; then
-    ps evaluate/windows/New-Job.ps1 -SelfTest > "$TMP/job-selftest.txt" || true
-    if grep -q 'all checks passed' "$TMP/job-selftest.txt"; then pass "New-Job.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/job-selftest.txt") cases)"; else fail "New-Job.ps1 -SelfTest"; fi
-    ps evaluate/windows/Read-Password.ps1 -SelfTest > "$TMP/password-selftest.txt" || true
-    if grep -q 'all checks passed' "$TMP/password-selftest.txt"; then pass "Read-Password.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/password-selftest.txt") cases)"; else fail "Read-Password.ps1 -SelfTest"; fi
-    ps upgrade_/windows/Invoke-Prologue.ps1 -SelfTest > "$TMP/prologue-selftest.txt" || true
-    if grep -q 'all checks passed' "$TMP/prologue-selftest.txt"; then pass "Invoke-Prologue.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/prologue-selftest.txt") cases)"; else fail "Invoke-Prologue.ps1 -SelfTest"; fi
-    ps upgrade_/windows/Test-Handoff.ps1 -SelfTest > "$TMP/handoff-selftest.txt" || true
-    if grep -q 'all checks passed' "$TMP/handoff-selftest.txt"; then pass "Test-Handoff.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/handoff-selftest.txt") cases)"; else fail "Test-Handoff.ps1 -SelfTest"; fi
-    ps upgrade_/windows/Invoke-Rollback.ps1 -SelfTest > "$TMP/rollback-selftest.txt" || true
-    if grep -q 'all checks passed' "$TMP/rollback-selftest.txt"; then pass "Invoke-Rollback.ps1 -SelfTest ($(grep -c '  PASS  ' "$TMP/rollback-selftest.txt") cases)"; else fail "Invoke-Rollback.ps1 -SelfTest"; fi
-else
-    skip "New-Job.ps1 -SelfTest"; skip "Read-Password.ps1 -SelfTest"; skip "Invoke-Prologue.ps1 -SelfTest"; skip "Test-Handoff.ps1 -SelfTest"; skip "Invoke-Rollback.ps1 -SelfTest"
-fi
+say; say "  1. the originals that remain"; say
 if python3 schemas/check.py --dump-cases "$TMP/refused-cases.json" --dump-mutations "$TMP/mutations.jsonl" > "$TMP/check.txt" 2>&1; then
     pass "schemas/check.py ($(grep -c '  PASS  ' "$TMP/check.txt") checks)"
 else fail "schemas/check.py"; fi
-
-say; say "  2. the recorded files"; say
 [ -f "$TMP/refused-cases.json" ] && fresh schemas/rust/tests/refused-cases.json "$TMP/refused-cases.json"
-if [ "$HAVE_PS" = 1 ]; then
-    ps data/tools/export-tables.ps1 -Out "$(wslpath -w "$TMP")\\tables.json" > /dev/null
-    fresh data/tables.json "$TMP/tables.json"
-    ps evaluate/scan/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\golden.json" > /dev/null
-    fresh evaluate/scan/tests/golden.json "$TMP/golden.json"
-    ps upgrade_/kickstart/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\ks-golden.json" > /dev/null
-    fresh upgrade_/kickstart/tests/golden.json "$TMP/ks-golden.json"
-    ps evaluate/harvest/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\harvest-golden.json" > /dev/null
-    fresh evaluate/harvest/tests/golden.json "$TMP/harvest-golden.json"
-    ps evaluate/job/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\job-golden.json" > /dev/null
-    fresh evaluate/job/tests/golden.json "$TMP/job-golden.json"
-    ps evaluate/job/tests/password-golden.ps1 -Out "$(wslpath -w "$TMP")\\password-golden.json" > /dev/null
-    fresh evaluate/job/tests/password-golden.json "$TMP/password-golden.json"
-    ps upgrade_/prologue/tests/golden.ps1 -Out "$(wslpath -w "$TMP")\\prologue-golden.json" > /dev/null
-    fresh upgrade_/prologue/tests/golden.json "$TMP/prologue-golden.json"
-    ps upgrade_/prologue/tests/verify-golden.ps1 -Out "$(wslpath -w "$TMP")\\verify-golden.json" > /dev/null
-    fresh upgrade_/prologue/tests/verify-golden.json "$TMP/verify-golden.json"
-    ps upgrade_/prologue/tests/rollback-golden.ps1 -Out "$(wslpath -w "$TMP")\\rollback-golden.json" > /dev/null
-    fresh upgrade_/prologue/tests/rollback-golden.json "$TMP/rollback-golden.json"
-else
-    skip "upgrade_/kickstart/tests/golden.json against New-Kickstart.ps1"
-    skip "data/tables.json against data/*.ps1"; skip "evaluate/scan/tests/golden.json against the PowerShell scanner"
+if [ -f data/tools/export-tables.ps1 ]; then
+    if [ "$HAVE_PS" = 1 ]; then
+        ps data/tools/export-tables.ps1 -Out "$(wslpath -w "$TMP")\\tables.json" > /dev/null
+        fresh data/tables.json "$TMP/tables.json"
+    else skip "data/tables.json against data/*.ps1"; fi
 fi
 
-say; say "  3. every self-test case has a Rust case"; say
-same_names() {  # $1 = the self-test's output, $2 = the crate's cases.json, $3 = what to call it,
-                # $4 = (optional) a file naming the self-test cases not ported yet
-    if python3 - "$1" "$2" "${4:-}" <<'PY'
-import json, sys
-ran = {l.split('  PASS  ', 1)[1].rstrip('\n') for l in open(sys.argv[1], encoding='utf-8', errors='replace') if '  PASS  ' in l}
-ours = {c['name'] for c in json.load(open(sys.argv[2], encoding='utf-8')) if c['origin'] != 'port'} - {'distro table: every kernel parses'}
-if sys.argv[3]:
-    owed = {l.rstrip('\n') for l in open(sys.argv[3], encoding='utf-8') if l.strip() and not l.startswith('#')}
-    for n in sorted(owed & ours): print(f"          listed as not ported, but it is in cases.json: {n}")
-    if owed & ours: sys.exit(1)
-    ours |= owed
-for n in sorted(ran - ours): print(f"          in the PowerShell self-test, not in cases.json: {n}")
-for n in sorted(ours - ran): print(f"          in cases.json, not in the PowerShell self-test: {n}")
-sys.exit(1 if ran != ours else 0)
-PY
-    then pass "$3: the PowerShell self-test and $2 name the same cases"
-    else fail "$3: the PowerShell self-test and $2 disagree"; fi
-}
-if [ "$HAVE_PS" = 1 ]; then
-    same_names "$TMP/scan-selftest.txt" evaluate/scan/tests/cases.json "scanner"
-    same_names "$TMP/ks-selftest.txt" upgrade_/kickstart/tests/cases.json "kickstart"
-    same_names "$TMP/harvest-selftest.txt" evaluate/harvest/tests/cases.json "harvester" evaluate/harvest/tests/windows-selftest.txt
-    same_names "$TMP/job-selftest.txt" evaluate/job/tests/cases.json "job writer"
-    same_names "$TMP/password-selftest.txt" evaluate/job/tests/password-cases.json "password hasher"
-    same_names "$TMP/prologue-selftest.txt" upgrade_/prologue/tests/cases.json "prologue"
-    same_names "$TMP/handoff-selftest.txt" upgrade_/prologue/tests/verify-cases.json "verify handoff (Test-Handoff.ps1)"
-    same_names "$TMP/rollback-selftest.txt" upgrade_/prologue/tests/rollback-cases.json "rollback (Invoke-Rollback.ps1)"
-else
-    skip "self-test case names against cases.json"
-fi
+say; say "  2. the frozen goldens"; say
+if sha256sum -c --quiet FROZEN-GOLDENS.sha256 > "$TMP/frozen.txt" 2>&1; then
+    pass "every frozen golden is as recorded ($(wc -l < FROZEN-GOLDENS.sha256) files, FROZEN-GOLDENS.sha256)"
+else fail "a frozen golden changed (FROZEN-GOLDENS.sha256): a recording is ground truth; if a case was added on purpose, record the new sha256 there and say so in the commit"; sed 's/^/          /' "$TMP/frozen.txt"; fi
 
-say; say "  4. the Rust side"; say
-for crate in schemas/rust evaluate/scan evaluate/harvest evaluate/job upgrade_/kickstart upgrade_/prologue; do
+say; say "  3. the Rust side"; say
+for crate in schemas/rust evaluate/scan evaluate/harvest evaluate/job upgrade_/kickstart upgrade_/prologue upgrade_/windows/window; do
+    if (cd "$crate" && cargo test --locked --quiet) > "$TMP/cargo.txt" 2>&1; then pass "cargo test in $crate"
+    else fail "cargo test in $crate"; sed 's/^/          /' "$TMP/cargo.txt" | tail -40; fi
+done
+for crate in settle-in settle-in/gate; do
     if (cd "$crate" && cargo test --locked --quiet) > "$TMP/cargo.txt" 2>&1; then pass "cargo test in $crate"
     else fail "cargo test in $crate"; sed 's/^/          /' "$TMP/cargo.txt" | tail -40; fi
 done
@@ -149,5 +77,5 @@ else fail "schemas differential against check.py"; sed 's/^/          /' "$TMP/d
 
 say
 if [ "$FAILED" -gt 0 ]; then say "  $FAILED failed"; say; exit 1; fi
-if [ "$SKIPPED" -gt 0 ]; then say "  nothing failed, but $SKIPPED checks were SKIPPED: freshness is unproven on this machine"; say; exit 3; fi
+if [ "$SKIPPED" -gt 0 ]; then say "  nothing failed, but $SKIPPED checks were SKIPPED on this machine"; say; exit 3; fi
 say "  all checks passed"; say

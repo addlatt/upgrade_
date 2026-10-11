@@ -1199,7 +1199,7 @@ fn open(app: App) {
             }
         }
     }
-    log_line(&root, &format!("the window could not open ({}); pointed the person to RUN-VERIFY.cmd", e));
+    log_line(&root, &format!("the window could not open ({}); pointed the person to the programs on the stick", e));
     win::message_box(words::TITLE, &format!("{}\n\n({})", words::NO_WINDOW, e));
     std::process::exit(1);
 }

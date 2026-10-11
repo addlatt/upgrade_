@@ -78,7 +78,7 @@ pub const HANDOFF_IGNORED: &str = "the computer did not use it; nothing was chan
 pub const HANDOFF_PERSISTED: &str = "the computer kept the setting after using it; it has been removed now";
 pub const HANDOFF_REORDERED: &str = "the computer changed its start-up order; the one-time entry has been removed";
 
-pub const NO_WINDOW: &str = "The upgrade_ window could not open on this computer (its graphics could not draw it).\n\nNothing was changed. Double-click RUN-VERIFY.cmd on the USB stick instead: it does the same test in a text window.";
+pub const NO_WINDOW: &str = "The upgrade_ window could not open on this computer (its graphics could not draw it).\n\nNothing was changed. The programs on the USB stick (upgrade-scan.exe, upgrade-job.exe, upgrade-prologue.exe) can be run from a command prompt by someone who knows how; UPGRADE.exe runs them in the same order. Ask for help rather than guessing.";
 
 // ---------------------------------------------------------------- the chooser
 

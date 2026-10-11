@@ -46,6 +46,9 @@ ROOT=$(cd ../.. && pwd)
 VMPS1="$(wslpath -w vm.ps1)"
 PS()  { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$VMPS1" "$@" -Name "$VMNAME" < /dev/null; }
 PSC() { powershell.exe -NoProfile -Command "$1" < /dev/null; }
+# the kickstart generator on the host (upgrade_/kickstart, the same library the job writer embeds)
+KICKSTART="$(cd ../.. && pwd)/target/release/upgrade-kickstart"
+[ -x "$KICKSTART" ] || (cd ../.. && cargo build --release --quiet -p upgrade-kickstart) || { echo "v1: upgrade-kickstart does not build" >&2; exit 1; }
 vm_state() { PSC "(Get-VM $VMNAME).State" | tr -d '\r\n '; }
 need_off() { s=$(vm_state); [ "$s" = Off ] || { echo "v1: VM must be Off (state: $s)" >&2; exit 1; }; }
 guest() { PS ps "$1" 2>&1 | tr -d '\r'; }
@@ -146,11 +149,11 @@ try { if (@(Get-WinEvent -FilterHashtable @{ LogName="System"; Id=98; StartTime=
     # the clock and Wi-Fi come from the PRODUCT harvest, run in the guest from the stick (job writer 0.15.0);
     # its Wi-Fi password files land on the stick where the product puts them
     L=$(stick_letter); [ -n "$L" ] || { echo "v1: no UPGV0 volume in the guest" >&2; exit 1; }
-    guest "New-Item -ItemType Directory -Force -Path C:\\upgrade_\\v1 | Out-Null; powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\New-Job.ps1 -HarvestSettingsOut C:\\upgrade_\\v1\\settings.json -OutDir ${L}:\\upgrade_" | tee "$A/settings-harvest.log"
+    guest "New-Item -ItemType Directory -Force -Path C:\\upgrade_\\v1 | Out-Null; & ${L}:\\upgrade-job.exe harvest-settings --out C:\\upgrade_\\v1\\settings.json --out-dir ${L}:\\upgrade_" | tee "$A/settings-harvest.log"
     guest 'Get-Content C:\upgrade_\v1\settings.json -Raw' > "$A/settings.json"
     python3 -c 'import json,sys; json.load(open(sys.argv[1], encoding="utf-8-sig"))' "$A/settings.json" || { echo "v1: the guest's clock + Wi-Fi harvest gave no JSON - read $A/settings-harvest.log" >&2; exit 1; }
     python3 v1-job.py "$A/facts.json" "$HASH" "$A/job.json" "$SUID" "$SSIZE" "$A/settings.json"
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(wslpath -w ../../upgrade_/windows/New-Kickstart.ps1)" -JobPath "$(wslpath -w "$A/job.json")" -OutFile "$(wslpath -w "$A/ks.cfg")" -StickLabel UPGV0 -Manifest "$(wslpath -w "$KIT/SHA256SUMS")" < /dev/null | tr -d '\r'
+    "$KICKSTART" --job "$A/job.json" --out "$A/ks.cfg" --label UPGV0 --manifest "$KIT/SHA256SUMS" < /dev/null | tr -d '\r'
     L=$(stick_letter); [ -n "$L" ] || { echo "v1: no UPGV0 volume in the guest" >&2; exit 1; }
     PS copy "$(wslpath -w "$A/job.json")" "${L}:\\upgrade_\\job.json" | tr -d '\r'
     PS copy "$(wslpath -w "$A/ks.cfg")" "${L}:\\upgrade_\\ks.cfg" | tr -d '\r'
@@ -161,12 +164,8 @@ try { if (@(Get-WinEvent -FilterHashtable @{ LogName="System"; Id=98; StartTime=
 arm)
     L=$(stick_letter); [ -n "$L" ] || { echo "v1: no UPGV0 volume in the guest" >&2; exit 1; }
     guest 'New-Item -ItemType Directory -Force -Path C:\upgrade_\v1 | Out-Null; Remove-Item C:\upgrade_\v1\v0-handoff.csv -Force -ErrorAction SilentlyContinue; if (Test-Path C:\ProgramData\upgrade_\v0\handoff-state.json) { "stale armed state present - run -Check first" }'
-    # PROLOGUE=rust arms with the Rust verify handoff (upgrade-prologue verify-arm, following Test-Handoff.ps1; RISKS R32)
-    if [ "${PROLOGUE:-ps}" = rust ]; then
-        guest "& ${L}:\\upgrade-prologue.exe verify-arm --stick ${L}: --auto --payload shim --suspend-bitlocker --results-csv $GUEST_CSV"
-    else
-        guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Test-Handoff.ps1 -Arm -Auto -Payload shim -PayloadDrive ${L}: -SuspendBitLocker -ResultsCsv $GUEST_CSV"
-    fi
+    # the Rust verify handoff (upgrade-prologue verify-arm; the PowerShell harness left the product 2026-10-11)
+    guest "& ${L}:\\upgrade-prologue.exe verify-arm --stick ${L}: --auto --payload shim --suspend-bitlocker --results-csv $GUEST_CSV"
     echo "v1: armed; the guest reboots itself in ~20 s"
     ;;
 wait)

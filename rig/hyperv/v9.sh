@@ -90,7 +90,8 @@ job)
     guest 'Get-Disk | ForEach-Object { $n = $_.Number; $p = Get-PhysicalDisk | Where-Object { "$($_.DeviceId)" -eq "$n" } | Select-Object -First 1
   [pscustomobject]@{ number = $n; unique_id = "$($_.UniqueId)"; serial = ("$($_.SerialNumber)" -replace "\s",""); size = [long]$_.Size; name = "$($_.FriendlyName)"; bus = "$($_.BusType)"; health = "$($p.HealthStatus)" } } | ConvertTo-Json -Depth 3' > "$A/disks.json"
     python3 v9-job.py artifacts/v1/job.json "$A/disks.json" "$A/job.json" "${@:2}"
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(wslpath -w ../../upgrade_/windows/New-Kickstart.ps1)" -JobPath "$(wslpath -w "$A/job.json")" -OutFile "$(wslpath -w "$A/ks.cfg")" -StickLabel UPGV0 -Manifest "$(wslpath -w ../../dist/kit/stick/SHA256SUMS)" < /dev/null | tr -d '\r'
+    KICKSTART="$(cd ../.. && pwd)/target/release/upgrade-kickstart"; [ -x "$KICKSTART" ] || (cd ../.. && cargo build --release --quiet -p upgrade-kickstart)
+    "$KICKSTART" --job "$A/job.json" --out "$A/ks.cfg" --label UPGV0 --manifest ../../dist/kit/stick/SHA256SUMS
     L=$(stick_letter); [ -n "$L" ] || { echo "v9: no UPGV0 volume in the guest" >&2; exit 1; }
     PS copy "$(wslpath -w "$A/job.json")" "${L}:\\upgrade_\\job.json" | tr -d '\r'
     PS copy "$(wslpath -w "$A/ks.cfg")" "${L}:\\upgrade_\\ks.cfg" | tr -d '\r'
@@ -106,11 +107,7 @@ arm-harness)
 convert)
     L=$(stick_letter); [ -n "$L" ] || { echo "v9: no UPGV0 volume" >&2; exit 1; }
     guest "Remove-Item -Recurse -Force '$GUEST_STATE' -ErrorAction SilentlyContinue"
-    if [ "${PROLOGUE:-ps}" = rust ]; then
         guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --erase-consent '$ERASE_SENTENCE'" | tee "$A/convert-${2:-x}.log"
-    else
-        guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Start -StickDrive ${L}: -EraseConsent '$ERASE_SENTENCE'" | tee "$A/convert-${2:-x}.log"
-    fi
     grep -q 'restarting in 15 s' "$A/convert-${2:-x}.log" || { echo "v9: the prologue did not reach a restart - read $A/convert-${2:-x}.log" >&2; exit 1; }
     ;;
 watch)

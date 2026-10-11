@@ -178,11 +178,7 @@ probe-run)
     "$SELF" windows; "$SELF" autologon off
     L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume in the guest" >&2; exit 1; }
     guest "Remove-Item -Recurse -Force '$GUEST_STATE' -ErrorAction SilentlyContinue; Remove-Item ${L}:\\upgrade_\\probe.json,${L}:\\upgrade_\\walkaway-probe.csv -Force -ErrorAction SilentlyContinue"
-    if [ "${PROLOGUE:-ps}" = rust ]; then
         guest "& ${L}:\\upgrade-prologue.exe probe --stick ${L}:" | tee "$A/probe-start.log"
-    else
-        guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Probe -ProbeStickDrive ${L}:" | tee "$A/probe-start.log"
-    fi
     grep -q 'restarting in 15 s' "$A/probe-start.log" || { echo "prologue: the probe did not reach a restart - read $A/probe-start.log" >&2; exit 1; }
     # the guest can take longer than its 15 s to actually go down: wait for a NEW boot
     # (LastBootUpTime changes), not merely for PS Direct to answer (run 1: it answered
@@ -216,6 +212,7 @@ storage-mode-run)
     SM_STATE='C:\ProgramData\upgrade_\storage-mode'; SA="$A/storage-mode"; mkdir -p "$SA/progress"
     "$SELF" windows; "$SELF" autologon off
     L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume in the guest" >&2; exit 1; }
+    # Test-StorageMode.ps1 is the last PowerShell harness on the stick (V5); it leaves when the storage-mode flow is ported (RUST-PORT.md, phase 2)
     guest "Test-Path ${L}:\\Test-StorageMode.ps1" | grep -q True || { echo "prologue: Test-StorageMode.ps1 is not on the stick - rebuild the kit (make-kit.sh) and the stick" >&2; exit 1; }
     guest "Remove-Item -Recurse -Force '$SM_STATE' -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force ${L}:\\upgrade_\\storage-mode -ErrorAction SilentlyContinue"
     # The rig guest boots with its clock 7 h ahead (Hyper-V hands it the host's
@@ -297,20 +294,15 @@ convert)
     # Hyper-V has no USB: the product's job writer refuses this SCSI "stick" (bus
     # SAS) as it must (R16; seen 2026-09-12, artifacts/prologue/convert-runconvert-
     # refused.log). So steps 1-3 of RUN-CONVERT.cmd are the rig's schema-validated
-    # job stand-in (v1.sh job -> v1-job.py + New-Kickstart.ps1, as V1/V2 did) and
+    # job stand-in (v1.sh job -> v1-job.py + upgrade-kickstart, as V1/V2 did) and
     # step 5 - the prologue, the code under test - runs exactly as the launcher
     # runs it. The typed word is the launcher's; here it is passed straight.
     ./v1.sh job
-    # PROLOGUE=rust runs the Rust build from the stick (the cut-over, RISKS R32); the records it writes have the same names
     # RISKS R36: Windows' clock against the host's BEFORE any Linux boot, the baseline the verdict
     # compares every later Windows boot with (the rig's guest reads the host's UTC as local time, so
     # it is hours off from the start; what must not happen is a Linux boot moving it further)
     guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-clock-before,' + (Get-Date).ToUniversalTime().ToString('o') + ',host-utc=$(date -u +%FT%TZ)')" >/dev/null 2>&1 || true
-    if [ "${PROLOGUE:-ps}" = rust ]; then
         guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --confirm-word CONVERT" | tee "$A/convert.log"
-    else
-        guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Invoke-Prologue.ps1 -Start -StickDrive ${L}: -ConfirmWord CONVERT" | tee "$A/convert.log"
-    fi
     grep -q 'restarting in 15 s' "$A/convert.log" || { echo "prologue: the prologue did not reach a restart - read $A/convert.log" >&2; exit 1; }
     ;;
 wait-off) wait_off "${2:-5400}" ;;
@@ -398,11 +390,7 @@ rollback)
     # Windows up by itself - mark it, power off; verdict -> r21-rollback.csv
     need_off; PS start; sleep 10; pick_windows rollback; PS key 13
     wait_windows 600; L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume" >&2; exit 1; }
-    if [ "${PROLOGUE:-ps}" = rust ]; then
         guest "& ${L}:\\upgrade-prologue.exe rollback --stick ${L}:" | tee "$A/rollback.log"
-    else
-        guest "cmd /c \"echo ROLLBACK| ${L}:\\ROLLBACK.cmd\"" | tee "$A/rollback.log"
-    fi
     pull "${L}:\\upgrade_\\rollback.json" rollback.json
     guest "bcdedit /enum '{fwbootmgr}'" > "$A/bcd-fwbootmgr-after-rollback.txt" 2>/dev/null || true
     PS stop; wait_off 300

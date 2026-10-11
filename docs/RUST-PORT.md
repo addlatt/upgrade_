@@ -710,32 +710,48 @@ to `upgrade-scan.ps1` on `main` is still owed there.
 
 ## What comes next
 
-In order. The first three need no decision.
+**Decided (2026-10-11, the owner): the PowerShell leaves the product now,
+to one Rust product.** The per-script rule of 2026-09-27 (a script stays
+until every ledger line passes in Rust) is amended: the scripts go, and
+the ledger lines they still hold stay owed to the Rust programs that
+replaced them (`port-parity.csv` keeps them as `owed`). The goldens the
+Rust was held to are frozen recordings (`FROZEN-GOLDENS.sha256`,
+`port-check.sh`); from here the Rust is the reference and new cases get
+their expected values from its own tests.
 
-1. **Put the schema library to work.** `settle-in` and the window read
-   `job.json` and `outcome.json` through `upgrade-schema`.
-2. **Make the PowerShell prologue keep raw tool output** (on `main`), and
-   fix the scan-result names for Windows 11 in `upgrade-scan.ps1` (the Rust
-   already judges them, above). Owed since 2026-09-27. Every physical run
-   made without it is one the Rust cannot replay later.
-3. **The prologue's judging half** (its guardrails and its fork), the same
-   way as the job writer's.
-4. The job writer's live half, then the stick writer, then the prologue's live half, handoff and rollback (step 5).
+The phases, each its own pull request:
+
+1. **Phase 1 (2026-10-11): the product scripts out.** `port-check.sh`
+   Rust-only; the rig benches' PowerShell arms removed (the job stand-in
+   uses `upgrade-kickstart`, the generator as a host program); `make-kit.sh`
+   no longer checks, builds or copies a product script; the `RUN-*.cmd`
+   launchers replaced by `UPGRADE.cmd` and `UPGRADE-ACCEPTING-DATA-LOSS.cmd`;
+   deleted: `upgrade-scan.ps1`, `Harvest-UpgradeState.ps1`, `New-Job.ps1`,
+   `Read-Password.ps1`, `New-Kickstart.ps1`, `Invoke-Prologue.ps1`,
+   `Invoke-Rollback.ps1`, `Test-Handoff.ps1`, `Invoke-Logged.ps1`,
+   `Test-Materialize.ps1`, the golden recorders, the side-by-side
+   recorders, `build.sh`, `dist/upgrade-scan.ps1`.
+2. **Phase 2: the last PowerShell on the stick.** `Test-StorageMode.ps1`
+   (the V5 both-modes harness) to Rust; `Diag-*.ps1` to `upgrade-scan diag`;
+   `Write-UpgradeStick.ps1` and `Copy-Kit.ps1` to an `upgrade-stick` crate
+   (a disk writer: R16's rig and physical rows again, rule #4).
+3. **Phase 3: the data tables.** `data/*.ps1` and `export-tables.ps1` to a
+   JSON source that stays a one-line contribution (the owner's open
+   decision 2; JSON assumed, since `data/tables.json` already exists);
+   `make-kit.sh` and `fetch-release.sh` read it. Then `CLAUDE.md`'s
+   conventions ("Windows PowerShell 5.1 only", `build.sh`, the two
+   self-tests) are rewritten for the Rust product.
+
+What stays PowerShell on purpose: the rig's own Hyper-V scripts
+(`rig/hyperv/vm.ps1`, `setup.ps1`, `new-vm.ps1`) and its guest-side fault
+injection, which is how WSL drives Hyper-V and a Windows guest; they are
+the harness, not the product.
 
 ## Open decisions (the owner's)
 
-1. **Which run counts as the "one success"** that triggers the cut-over.
-   The owner names it when it happens; it gets a dated line here.
-   **Decided (2026-10-10, the owner):** the Aspire's keep-Windows
-   conversion with the Rust prologue and the four boot cycles that
-   followed (`v2-install.csv` line 11) is the success. The port goes to
-   `main` through a pull request from `rust-port`. Note
-   (2026-10-04): `main` now records the Aspire's run 11 as "the first clean
-   conversion". Whether that is the success meant is the owner's to say.
-   What the Rust has today is the deciding, not the doing: no Rust has read
-   a live machine or written to a disk yet.
-2. **The data tables' format** after the PowerShell scanner is retired.
-3. **Beyond the Windows side.** The decision covers the Windows side. The
-   Linux side still has shell (`upgrade_/linux/verify.sh`, `outcome.sh`,
-   `make-kit.sh`) and Python (`schemas/check.py`, `data/tools/`). Whether
-   those move to Rust too is not decided, and nothing here plans it.
+1. **The data tables' format** after the PowerShell scanner is retired
+   (phase 3 above assumes JSON).
+2. **Beyond the Windows side.** The Linux side still has shell
+   (`upgrade_/linux/verify.sh`, `outcome.sh`, `make-kit.sh`) and Python
+   (`schemas/check.py`, `data/tools/`). Whether those move to Rust too is
+   not decided, and nothing here plans it.

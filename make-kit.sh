@@ -15,20 +15,21 @@
 # One stick layout comes out, dist/kit/stick/ (copy its CONTENTS to the root
 # of a FAT32 stick). It carries BOTH payloads - Fedora's signed shim+grub at
 # EFI/BOOT/BOOTX64.EFI (the product path, Secure Boot on) and the unsigned
-# UEFI Shell at EFI/SHELL/SHELLX64.EFI (the matrix rows) - plus the one-click
-# RUN-TEST.cmd, the matrix launchers (RUN-SCANNER / ARM-HANDOFF /
-# CHECK-HANDOFF), the single-file scanner, the harness, README-STICK.txt,
-# SHA256SUMS and KIT-MANIFEST.txt naming the commit and versions.
+# UEFI Shell at EFI/SHELL/SHELLX64.EFI (the matrix rows) - plus the Windows
+# side as one Rust product (decided 2026-10-11, the owner): UPGRADE.exe, its
+# two .cmd starters, the four programs it runs, README-STICK.txt, SHA256SUMS
+# and KIT-MANIFEST.txt naming the commit and versions. The last PowerShell on
+# the stick is the storage-mode harness and the three diag tools (phase 2 of
+# docs/RUST-PORT.md, "What comes next").
 #
 # What is verified, in order - any failure stops the build:
 #   1. the tree is committed (a row must map to a commit; --allow-dirty to
 #      override, and the manifest then says so)
-#   2. ./build.sh reproduces the committed dist/upgrade-scan.ps1 (R9: the
-#      shipped scanner matches source)
-#   3. every self-test passes on Windows PowerShell 5.1 - scanner,
-#      harvester, handoff harness, materialization harness, stick writer,
-#      kickstart generator, job writer, prologue - and schemas/check.py
-#   4. every shipped .ps1 parses under the PS 5.1 parser
+#   2. the Rust product's tests pass (./port-check.sh is the full check;
+#      here: the Windows programs and the window build with their tests)
+#   3. the two PowerShell holdovers' self-tests pass on Windows PowerShell
+#      5.1 (the stick writer, the storage-mode harness) and schemas/check.py
+#   4. every shipped .ps1 (the holdovers) parses under the PS 5.1 parser
 #   5. the EFI payload bits exist and are the ones the rig fetched
 #      (rig/vm/fetch-payload-bits.sh; gitignored build inputs)
 #   6. the grubenv block is exactly 1024 bytes with GRUB's header
@@ -46,11 +47,6 @@ cd "$ROOT"
 OUT="$ROOT/dist/kit"
 BITS="$ROOT/rig/vm/artifacts/payload-bits"
 PAYLOAD="$ROOT/upgrade_/windows/handoff-payload"
-HARNESS="$ROOT/upgrade_/windows/Test-Handoff.ps1"
-SCANNER_SRC="$ROOT/evaluate/windows/upgrade-scan.ps1"
-HARVEST_SRC="$ROOT/evaluate/windows/Harvest-UpgradeState.ps1"
-SCANNER_DIST="$ROOT/dist/upgrade-scan.ps1"
-RUN_SCANNER="$ROOT/evaluate/windows/usb-kit/RUN-SCANNER.cmd"
 
 ALLOW_DIRTY=0 TO= RELEASE=fedora-44
 while [ $# -gt 0 ]; do
@@ -80,10 +76,12 @@ else
     GIT_STATE="clean"
 fi
 
-# --- 2. dist matches source -------------------------------------------------
-step "rebuilding dist/upgrade-scan.ps1"
-./build.sh >/dev/null
-git diff --quiet -- dist/upgrade-scan.ps1 || fail "dist/upgrade-scan.ps1 differs from a fresh build - commit the rebuilt dist first (R9)"
+# --- 2. the Rust product's tests ----------------------------------------------
+# (./port-check.sh is the whole check; the kit is never built from a tree whose crates fail)
+for crate in evaluate/scan evaluate/harvest evaluate/job upgrade_/kickstart upgrade_/prologue; do
+    (cd "$ROOT/$crate" && cargo test --locked --quiet >/dev/null 2>&1) || fail "cargo test fails in $crate (./port-check.sh)"
+done
+step "the Rust product's tests pass"
 
 # --- 3. self-tests on Windows PowerShell 5.1 ---------------------------------
 command -v powershell.exe >/dev/null || fail "powershell.exe not reachable - the kit must be verified against Windows PowerShell 5.1"
@@ -98,17 +96,8 @@ selftest() {  # $1 = label, $2 = script path (WSL)
         fail "self-test did not pass: $1"
     fi
 }
-selftest "scanner"   "$SCANNER_SRC"
-selftest "harvester" "$HARVEST_SRC"
-selftest "handoff harness" "$HARNESS"
-selftest "V8 materialization harness" "$ROOT/evaluate/windows/Test-Materialize.ps1"
 selftest "stick writer" "$ROOT/evaluate/windows/Write-UpgradeStick.ps1"
-selftest "kickstart generator" "$ROOT/upgrade_/windows/New-Kickstart.ps1"
-selftest "job writer" "$ROOT/evaluate/windows/New-Job.ps1"
-selftest "password hasher" "$ROOT/evaluate/windows/Read-Password.ps1"
 selftest "storage-mode harness (V5)" "$ROOT/evaluate/windows/Test-StorageMode.ps1"
-selftest "prologue" "$ROOT/upgrade_/windows/Invoke-Prologue.ps1"
-selftest "rollback" "$ROOT/upgrade_/windows/Invoke-Rollback.ps1"
 bash -n "$ROOT/upgrade_/linux/verify.sh" || fail "verify.sh does not parse"
 bash -n "$ROOT/upgrade_/linux/outcome.sh" || fail "outcome.sh does not parse"
 # settle-in: the first-startup program, one self-contained file (Rust, static,
@@ -155,14 +144,6 @@ parsecheck() {
     echo "$out" | grep -q 'parse-ok' || { echo "$out" >&2; fail "PS 5.1 parse error in $1"; }
     step "parses under PS 5.1: $(basename "$1")"
 }
-parsecheck "$SCANNER_DIST"
-parsecheck "$HARNESS"
-parsecheck "$ROOT/evaluate/windows/New-Job.ps1"
-parsecheck "$HARVEST_SRC"
-parsecheck "$ROOT/evaluate/windows/Read-Password.ps1"
-parsecheck "$ROOT/upgrade_/windows/New-Kickstart.ps1"
-parsecheck "$ROOT/upgrade_/windows/Invoke-Prologue.ps1"
-parsecheck "$ROOT/upgrade_/windows/Invoke-Logged.ps1"
 
 # --- .cmd launchers: an unescaped ( or ) in an echo inside an if-block closes
 # the block early in cmd, and the lines after it run unconditionally. The
@@ -172,7 +153,6 @@ for c in "$PAYLOAD"/*.cmd "$ROOT"/evaluate/windows/usb-kit/*.cmd; do
     bad=$(awk '/^if .*\(\r?$/ {inb=1; next} /^\)/ {inb=0} inb && /echo.*[()]/ && !/\^[()]/ {print FILENAME":"NR": "$0}' "$c")
     [ -z "$bad" ] || fail "unescaped parenthesis inside an if-block (write ^( and ^)): $bad"
 done
-parsecheck "$ROOT/upgrade_/windows/Invoke-Rollback.ps1"
 parsecheck "$ROOT/evaluate/windows/Test-StorageMode.ps1"
 (cd "$ROOT" && python3 schemas/check.py >/dev/null) || fail "schemas/check.py failed - the contracts the prologue and outcome.sh write against are broken"
 step "schemas check passed"
@@ -197,34 +177,21 @@ step "release $RELEASE ($(rq "j['Name']")): boot chain, installer and desktop im
 [ "$(head -c 25 "$PAYLOAD/grubenv")" = "# GRUB Environment Block" ] || fail "grubenv lacks the GRUB header"
 grep -q 'upg_fired' "$PAYLOAD/grub.cfg" || fail "grub.cfg does not set upg_fired"
 grep -q 'boot-verify' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the V1 boot-verify branch"
-grep -q "GrubFiredVar = 'upg_fired'" "$HARNESS" || fail "harness and grub.cfg disagree on the marker variable"
-grep -q "FiredMarker = 'fired.txt'" "$HARNESS" && grep -q 'fired.txt' "$PAYLOAD/startup.nsh" || fail "harness and startup.nsh disagree on the marker file"
+grep -q 'GRUB_FIRED_VAR: &str = "upg_fired"' "$ROOT/upgrade_/prologue/src/lib.rs" || fail "the prologue and grub.cfg disagree on the marker variable"
+grep -q 'fired.txt' "$ROOT/upgrade_/prologue/src/verify.rs" && grep -q 'fired.txt' "$PAYLOAD/startup.nsh" || fail "the verify handoff and startup.nsh disagree on the marker file"
 
-HARNESS_VERSION=$(grep -oP "^\\\$HarnessVersion = '\K[^']+" "$HARNESS")
-SCANNER_VERSION=$(grep -oP "^\\\$UpgVersion = '\K[^']+" "$SCANNER_SRC")
+PROLOGUE_VERSION=$(grep -m1 '^version' "$ROOT/upgrade_/prologue/Cargo.toml" | cut -d'"' -f2)
 
 # --- layout: ONE stick, both payloads --------------------------------------
 rm -rf "$OUT"
 D="$OUT/stick"
 mkdir -p "$D/EFI/BOOT" "$D/EFI/SHELL"
 crlf() { sed 's/\r$//; s/$/\r/' "$1" > "$2"; }
-cp "$HARNESS" "$D/Test-Handoff.ps1"
-cp "$SCANNER_DIST" "$D/upgrade-scan.ps1"
-crlf "$RUN_SCANNER"                 "$D/RUN-SCANNER.cmd"
-crlf "$PAYLOAD/RUN-TEST.cmd"        "$D/RUN-TEST.cmd"
-crlf "$PAYLOAD/ARM-HANDOFF.cmd"     "$D/ARM-HANDOFF.cmd"
-crlf "$PAYLOAD/CHECK-HANDOFF.cmd"   "$D/CHECK-HANDOFF.cmd"
 crlf "$PAYLOAD/README-STICK.txt"    "$D/README-STICK.txt"
-crlf "$PAYLOAD/RUN-VERIFY.cmd"      "$D/RUN-VERIFY.cmd"
 cp "$UPGRADE_EXE"                   "$D/UPGRADE.exe"
 for exe in $RUST_EXES; do cp "$exe" "$D/$(basename "$exe")"; done
-crlf "$PAYLOAD/RUN-CONVERT.cmd"     "$D/RUN-CONVERT.cmd"
-crlf "$PAYLOAD/RUN-PROBE.cmd"       "$D/RUN-PROBE.cmd"
-crlf "$PAYLOAD/RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd" "$D/RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd"
+crlf "$PAYLOAD/UPGRADE.cmd"         "$D/UPGRADE.cmd"
 crlf "$PAYLOAD/UPGRADE-ACCEPTING-DATA-LOSS.cmd" "$D/UPGRADE-ACCEPTING-DATA-LOSS.cmd"
-crlf "$PAYLOAD/RUN-ERASE-AND-INSTALL.cmd" "$D/RUN-ERASE-AND-INSTALL.cmd"
-crlf "$PAYLOAD/RUN-ERASE-AND-INSTALL-ACCEPTING-DATA-LOSS.cmd" "$D/RUN-ERASE-AND-INSTALL-ACCEPTING-DATA-LOSS.cmd"
-cp "$ROOT/evaluate/windows/Read-Password.ps1" "$D/Read-Password.ps1"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-VOLUME.cmd" "$D/DIAG-VOLUME.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SMART.cmd"  "$D/DIAG-SMART.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SECUREBOOT.cmd" "$D/DIAG-SECUREBOOT.cmd"
@@ -232,15 +199,7 @@ cp "$ROOT/evaluate/windows/usb-kit/Diag-SecureBoot.ps1" "$D/Diag-SecureBoot.ps1"
 crlf "$ROOT/evaluate/windows/usb-kit/RUN-STORAGE-MODE.cmd" "$D/RUN-STORAGE-MODE.cmd"
 cp "$ROOT/evaluate/windows/Test-StorageMode.ps1" "$D/Test-StorageMode.ps1"
 cp "$ROOT/evaluate/windows/usb-kit/Diag-Smart.ps1" "$D/Diag-Smart.ps1"
-cp "$ROOT/upgrade_/windows/Invoke-Prologue.ps1" "$D/Invoke-Prologue.ps1"
-cp "$ROOT/upgrade_/windows/Invoke-Logged.ps1"   "$D/Invoke-Logged.ps1"
-crlf "$PAYLOAD/ROLLBACK.cmd"        "$D/ROLLBACK.cmd"
-crlf "$PAYLOAD/CANCEL-CONVERSION.cmd" "$D/CANCEL-CONVERSION.cmd"
-cp "$ROOT/upgrade_/windows/Invoke-Rollback.ps1" "$D/Invoke-Rollback.ps1"
-cp "$ROOT/evaluate/windows/New-Job.ps1"        "$D/New-Job.ps1"
 # the folder map (0.10.0): the job writer runs the harvester beside it, in its own process
-cp "$HARVEST_SRC"                             "$D/Harvest-UpgradeState.ps1"
-cp "$ROOT/upgrade_/windows/New-Kickstart.ps1"  "$D/New-Kickstart.ps1"
 # signed payload: the product path, at the removable-media default location
 cp "$RBITS/EFI/BOOT/BOOTX64.EFI" "$D/EFI/BOOT/BOOTX64.EFI"
 cp "$RBITS/EFI/BOOT/grubx64.efi" "$D/EFI/BOOT/grubx64.efi"
@@ -301,15 +260,14 @@ PY
 # --- manifest + checksums -----------------------------------------------------
 (cd "$D" && find . -type f ! -name SHA256SUMS ! -name KIT-MANIFEST.txt | sort | xargs sha256sum > SHA256SUMS)
 crlf /dev/stdin "$D/KIT-MANIFEST.txt" <<MANIFEST
-upgrade_ live-test kit  -  V0 boot-handoff stick (both payloads)
+upgrade_ kit  -  one stick, both payloads, the Windows side in Rust
 built:            $(date -u +%Y-%m-%dT%H:%M:%SZ)
 commit:           $GIT_REV ($GIT_STATE)
-harness:          Test-Handoff.ps1 $HARNESS_VERSION
+prologue:         upgrade-prologue.exe $PROLOGUE_VERSION (the handoff, the resume, the return, the rollback)
 window:           UPGRADE.exe $(grep -m1 '^version' "$ROOT/upgrade_/windows/window/Cargo.toml" | cut -d'"' -f2)  $(sha256sum "$UPGRADE_EXE" | cut -c1-64)   (verify flow; RUN-VERIFY.cmd stays as the fallback)
 settle-in:        $SETTLE_IN_VERSION  $(sha256sum "$SETTLE_IN_BIN" | cut -c1-64)   -> upgrade_/settle-in/settle-in
 rust programs:    $(for e in upgrade-scan upgrade-harvest upgrade-job upgrade-prologue; do printf '%s %s  ' "$e.exe" "$(sha256sum "$D/$e.exe" | cut -c1-64)"; done)
 toolchain:        $("$ROOT/build-rust.sh" --toolchain)   (RISKS R14: rebuild-check.sh proves a second checkout gives these bytes)
-scanner:          upgrade-scan.ps1 $SCANNER_VERSION (single-file build of evaluate/windows + data/)
 release:          $RELEASE ($(rq "j['Name']"), measured $(rq "j['Measured']")) - data/releases.ps1; release.json on this stick
   Shell.efi       $(sha256sum "$BITS/Shell.efi" | cut -c1-64)   -> EFI/SHELL/SHELLX64.EFI
   shim            $(sha256sum "$RBITS/EFI/BOOT/BOOTX64.EFI" | cut -c1-64)   -> EFI/BOOT/BOOTX64.EFI
@@ -317,13 +275,13 @@ release:          $RELEASE ($(rq "j['Name']"), measured $(rq "j['Measured']")) -
   install.img     $(sha256sum "$RBITS/images/install.img" | cut -c1-64)   -> images/install.img (+ pxeboot vmlinuz, initrd.img)
   from installer: $NETINST_SRC
 $(rq "chr(10).join('  %-15s %s  <- %s' % (x['Id'] + ' image', x['ImageSha256'], x['Url']) for x in (j['Desktops'] if isinstance(j['Desktops'], list) else [j['Desktops']]))")
-verified at build: dist matches source; scanner/harvester/harness self-tests
-                  passed on Windows PowerShell 5.1; shipped .ps1 parse under
-                  the PS 5.1 parser; grubenv block 1024 B with GRUB header.
+verified at build: the Rust product's tests pass; the two PowerShell
+                  holdovers' self-tests passed on Windows PowerShell 5.1 and
+                  parse under its parser; grubenv block 1024 B with GRUB header.
 files (sha256):   SHA256SUMS in this folder - re-check with: sha256sum -c SHA256SUMS
 MANIFEST
 (cd "$D" && sha256sum -c --quiet SHA256SUMS) || fail "checksum re-verify failed in $D"
-step "wrote $D (commit $GIT_REV, harness $HARNESS_VERSION)"
+step "wrote $D (commit $GIT_REV, prologue $PROLOGUE_VERSION)"
 
 # --- optional copy to a directory (a mounted stick) ---------------------------
 if [ -n "$TO" ]; then
