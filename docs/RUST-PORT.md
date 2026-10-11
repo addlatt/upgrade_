@@ -1,5 +1,7 @@
 # The Rust port: roadmap
 
+Expires when: phases 2 and 3 of the leaving are done (no PowerShell on the stick or in data/), every line of docs/validation-results/port-parity.csv reads pass in Rust, and RISKS R32 closes. Then this file moves to docs/archive/.
+
 Decided (2026-09-27, the owner): Rust becomes the conversion's one language,
 from the window down to the code that touches the disk. This page is the
 plan for getting there: what exists, in what order it moves, and how each
@@ -533,7 +535,7 @@ pinned and checked:
 
 ## The cut-over sessions (from 2026-10-07)
 
-`docs/CUTOVER-PROMPT.md` is the brief for the sessions that cut the whole
+`docs/archive/CUTOVER-PROMPT.md` (archived 2026-10-11) is the brief for the sessions that cut the whole
 active path over, in this order: the scanner's product command (done, 3f),
 the password hasher (done, 4d), the harvester's live half (done, 3g), the
 job writer's live half (built, 4c; a `job.json` side by side owed), the prologue's judging half (built, 5a), the prologue's
