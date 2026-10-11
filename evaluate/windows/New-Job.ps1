@@ -1443,7 +1443,7 @@ if ($wf.result -eq 'exported') {
 } elseif ($wf.result -eq 'no-wireless') { Write-Host '  Wi-Fi: this computer has no Wi-Fi' -ForegroundColor DarkGray }
 elseif ($wf.result -eq 'none-saved') { Write-Host '  Wi-Fi: no saved networks' -ForegroundColor DarkGray }
 $ck = $j.harvest.clock
-Write-Host "  clock: $($ck.iana), hardware clock in $(if ($ck.rtc_is_local) { 'local time (settle-in turns it to UTC on first startup)' } else { 'UTC' })" -ForegroundColor DarkGray
+Write-Host "  clock: $($ck.iana), hardware clock in $(if ($ck.rtc_is_local) { 'local time (kept so beside a kept Windows, R36; turned to UTC after an erase)' } else { 'UTC' })" -ForegroundColor DarkGray
 $wl = $j.harvest.windows_license
 if ($wl.result -eq 'read') { Write-Host "  Windows: $(if ($wl.windows_version) { "Windows $($wl.windows_version)" } else { 'version unknown' }) $($wl.edition_id), $(if ($wl.activated) { 'activated' } else { "NOT activated (status $($wl.license_status))" }), channel $($wl.channel), $(if ($wl.firmware_key_present) { "a key in the firmware ($($wl.firmware_key_description))" } else { 'no key in the firmware' }) - kept for the way back to Windows; no key is copied" -ForegroundColor DarkGray }
 else { Write-Host "  Windows licence: not read ($($wl.reason)) - the way back to Windows will know less" -ForegroundColor Yellow }

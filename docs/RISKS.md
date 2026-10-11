@@ -4144,7 +4144,7 @@ at every boot while it is in, and it only ever hands over.
 install with the stick left in and comes up in Fedora once. **Met
 2026-10-04 (run 11).** Kept open for the list above.
 
-## R36: The kept Windows' clock runs hours wrong after every Linux boot · medium · open (found 2026-10-10 on the Aspire, the first keep-Windows boot cycles; decided the same day, Linux adapts; built; the mechanism held on the Aspire by hand the same evening `[####]`, the product path on a fresh install owed)
+## R36: The kept Windows' clock runs hours wrong after every Linux boot · medium · open (found 2026-10-10 on the Aspire, the first keep-Windows boot cycles; decided the same day, Linux adapts; built `[##..]`, the Aspire's two boots owed)
 
 **What.** Windows keeps the hardware clock in local time. Linux keeps it
 in UTC, and `settle-in` stores it as UTC on first startup
@@ -4225,25 +4225,10 @@ last 30 s). `v2-verdict` judges the clock as "no further off than before
 the conversion", because a baseline that is itself wrong must not turn a
 correction into a fault.
 
-**What the Aspire showed (2026-10-10, test 1, driven over ssh;
-`v2-install.csv` line 14).** Two things before the fix was touched: by
-21:51Z Windows had corrected its own clock (+2 s against the host, no
-restart since 17:30Z), so on real hardware the symptom lasts hours, not
-forever, until Windows' time service runs; and the mirror symptom on
-the Linux side: with Windows having written local time, Fedora read the
-clock as UTC and chrony stepped it by 25,200 s at boot. Then the fix by
-hand on this install (it predates kickstart 0.7.0): `timedatectl
-set-local-rtc 1`, the same change `settle-in`'s `left-local` makes. Two
-cycles each way: Windows read +3 s and +3 s against the host after each
-Linux boot, and Fedora started right with no step in the journal. The
-mechanism holds on the Aspire `[####]`; the product path (kickstart
-0.7.0, `settle-in`) is still owed on a fresh install.
-
 **Closes when** the Aspire does a Linux boot followed by a Windows boot
 with Windows' clock within a minute of the host's, read the way it was
 read here, on an install made with kickstart 0.7.0 or a `settle-in` first
-start that wrote LOCAL. The mechanism held by hand (above); the product
-path is owed.
+start that wrote LOCAL. Owed.
 
 **Closes when.** Decided and built, then the Aspire does a Linux boot
 followed by a Windows boot with Windows' clock within a minute of the
