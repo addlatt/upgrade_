@@ -3780,7 +3780,7 @@ profile actually added and Windows online at its first start, the program's
 own start from the stick through Boot2001, and a real cancel.
 
 **2026-10-04: the time, remote access, and a gate that could erase twice.**
-Decided (the owner): the way back carries the time and remote access (SSH)
+Decided (2026-10-04, the owner): the way back carries the time and remote access (SSH)
 too, as the forward conversion does. Built (settle-in 0.3.0, gate 0.3.0)
 and run on the rig the same day (`rig/hyperv/artifacts/v11w-2026-10-04/`;
 not rows: a rig cannot start the stick as the program does):
