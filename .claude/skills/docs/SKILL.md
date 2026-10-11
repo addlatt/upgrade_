@@ -39,6 +39,7 @@ doc, write a link instead.
 | What a CSV's columns and result words mean | `docs/validation-results/README.md` |
 | The rows themselves | `docs/validation-results/*.csv` (ground truth; never edited, only appended) |
 | **Where everything stands right now** | `docs/STATUS.md`, and nowhere else |
+| **What we mean to build, in what order, what each step waits on, and the decisions still owed** | `docs/ROADMAP.md`, and nowhere else |
 | **What happened, and when** (runs, findings, fixes, the story) | `docs/log/YYYY-MM.md`, append-only |
 | The public pitch | `README.md` (links to STATUS.md for state) |
 | A phase or a session (a port, a cut-over, a handoff prompt) | its own doc with an `Expires when:` line, then `docs/archive/` |
@@ -53,6 +54,13 @@ Two consequences worth saying out loud:
 - **A status bar belongs in STATUS.md.** A risk or gate carries one state
   word in its heading; the table in STATUS.md carries the bar, the latest
   row and what is owed. README.md and CLAUDE.md say "see STATUS.md".
+- **A checklist belongs in ROADMAP.md.** A roadmap is intent, which is
+  neither a risk (an unknown) nor status (evidence). Its items keep their
+  numbers for good, because other docs cite "roadmap item 3". An item says
+  what it is, what it waits on, and which gate or risk proves it; its state
+  is a link to STATUS.md, not a bar of its own. Decisions the owner still
+  owes are listed there too, under "Decisions owed", so a "decision owed"
+  in a risk is one line plus a link.
 
 ## The words for state
 
@@ -101,6 +109,9 @@ not in the risk's body.
 1. Write `**Decided (YYYY-MM-DD, the owner): ...**` in its one home: the
    risk it answers, or the architecture section it changes. Full date,
    every time; never "the same day".
+   If it was listed under "Decisions owed" in ROADMAP.md, remove it there
+   in the same commit. If it changes the plan (a new step, a new order,
+   a step dropped), change the roadmap item; never renumber.
 2. If the decision changes a risk's stakes, change that risk's severity in
    the same commit and say why in its "If real" paragraph.
 3. Log entry (short) and STATUS.md row if the state changed.
@@ -154,6 +165,8 @@ and fails on:
   a row with no risk or gate;
 - an `R##` or `V##` mentioned anywhere that is not defined;
 - a relative link to a file that is not there;
+- a roadmap item that names no gate or risk, a duplicate item number, or
+  a checkbox list anywhere but ROADMAP.md;
 - a doc under `docs/` that is neither permanent, log, archive, nor carries
   `Expires when:`; an archived doc without its `Archived` line;
 - a doc over its budget, or a single risk or gate over its unit cap.
@@ -171,8 +184,8 @@ closes. It may never grow because a month passed. The log is the only
 unbounded doc, and it is append-only.
 
 Today's numbers (from `budgets.json`): an open risk 40 lines, a closed one
-12; a gate 60; an architecture module 80; a CSV entry 30; README.md and
-CLAUDE.md 250 each flat; two STATUS.md lines per ID.
+12; a gate 60; an architecture module 80; a CSV entry 30; a roadmap item
+10; README.md and CLAUDE.md 250 each flat; two STATUS.md lines per ID.
 
 ## Writing
 
@@ -192,8 +205,8 @@ and which home it lives in. Never commit a machine report.
 ## References
 
 - `references/shapes.md`: the templates. A risk, a gate, a STATUS.md row,
-  a log entry, an expiry line, an archive line. Read it before writing any
-  of those.
+  a roadmap item, a log entry, an expiry line, an archive line. Read it
+  before writing any of those.
 - `CLAUDE.md`, "How we write" and "When the design changes": the voice, and
   the rule that architecture, RISKS and VALIDATION must agree.
 - `docs/validation-results/README.md`: what each CSV's words mean, so the

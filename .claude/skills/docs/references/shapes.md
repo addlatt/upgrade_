@@ -71,6 +71,29 @@ says that word. Write `none yet` when there is no row.
 Line N is the CSV's line number as an editor shows it (line 1 is the
 header), the same convention the CSVs' README already uses.
 
+## A roadmap item (ROADMAP.md)
+
+Numbered for good; a dropped item keeps its number and says "dropped"
+with the date. Ten lines at most. The state is a link to STATUS.md.
+
+```markdown
+## 1. A real keep-Windows install with Secure Boot on
+
+Fedora beside a shrunk Windows on a machine with a healthy drive, both
+systems reached with no key pressed. Waits on: a second laptop (the Aspire's
+drive is dying, R23). Proves: V1b, R21. Stands: see [STATUS.md](STATUS.md).
+```
+
+The "Decisions owed" section at the end of ROADMAP.md is a plain list, one
+line each, naming the risk or doc that waits on it:
+
+```markdown
+## Decisions owed
+
+- The kept Windows' clock after a Linux boot: UTC in Windows, or local time
+  in Linux (R36).
+```
+
 ## A log entry (docs/log/YYYY-MM.md)
 
 Append-only, newest at the bottom. The heading is the anchor other docs

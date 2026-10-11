@@ -274,6 +274,36 @@ for gid, g in gates.items():
     if cap and g["length"] > cap:
         fail(f"docs/VALIDATION.md:{g['line']}", f"{gid} is {g['length']} lines; a gate fits in {cap}. Move runs to the log")
 
+# ---- 11. ROADMAP.md -----------------------------------------------------
+section("11. ROADMAP.md: items name a gate or risk; checklists live only there")
+road_path = ROOT / "docs/ROADMAP.md"
+ITEM_H = re.compile(r"^## (\d+)\. (.*)$")
+if not road_path.exists():
+    fail("docs/ROADMAP.md", "missing: the one home for intent, order and decisions owed")
+else:
+    lines = texts[road_path]; items = {}; cur = None
+    for i, line in enumerate(lines + ["## end"], 1):
+        if line.startswith("## ") and cur is not None:
+            body = " ".join(lines[cur["line"]:i - 1])
+            if not IDREF.search(body):
+                fail(f"docs/ROADMAP.md:{cur['line']}", f"item {cur['num']} names no gate or risk that proves it")
+            cur = None
+        m = ITEM_H.match(line)
+        if m:
+            num = m.group(1)
+            if num in items: fail(f"docs/ROADMAP.md:{i}", f"item {num} appears twice; numbers are never reused")
+            items[num] = i; cur = {"num": num, "line": i}
+    if items: ok(f"{len(items)} roadmap items parsed")
+    else: fail("docs/ROADMAP.md", "no numbered items ('## N. title') found")
+CHECKBOX = re.compile(r"^\s*[-*] \[[ xX]\] ")
+n = 0
+for p in living:
+    if p == road_path: continue
+    for i, line in enumerate(texts[p], 1):
+        if CHECKBOX.match(line):
+            fail(f"{rel(p)}:{i}", "checkbox list: the roadmap lives in docs/ROADMAP.md"); n += 1
+if not n: ok("no checklists outside ROADMAP.md")
+
 print()
 if fails:
     print(f"docs-check: {fails} FAIL")
