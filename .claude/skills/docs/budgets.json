@@ -1,0 +1,28 @@
+{
+  "_comment": "Read by docs/tools/docs-check.py. A doc's budget is overhead + per_unit x (units it holds). Units are counted from headings matching 'unit'. Tune the numbers here, never in the checker.",
+  "legend": ["[####]", "[###.]", "[##..]", "[#...]", "[....]", "[FAIL]"],
+  "states": ["planned", "built", "held-on-rig", "held-on-machine", "closed"],
+  "severities": ["critical", "high", "medium", "low"],
+  "permanent": [
+    "README.md",
+    "CLAUDE.md",
+    "docs/STATUS.md",
+    "docs/architecture.md",
+    "docs/RISKS.md",
+    "docs/VALIDATION.md",
+    "docs/validation-results/README.md",
+    "docs/research/device-feasibility.md",
+    "docs/research/future-paths.md"
+  ],
+  "docs": {
+    "README.md":                           {"overhead": 250},
+    "CLAUDE.md":                           {"overhead": 250},
+    "docs/STATUS.md":                      {"overhead": 30,  "unit": "^\\| (R\\d+|V\\d+[a-z]?) ", "per_unit": 2},
+    "docs/architecture.md":                {"overhead": 120, "unit": "^## ", "per_unit": 80},
+    "docs/VALIDATION.md":                  {"overhead": 80,  "unit": "^## V\\d", "per_unit": 60, "unit_max": 60},
+    "docs/RISKS.md":                       {"overhead": 60,  "unit": "^## R\\d", "per_unit": 40, "closed_per_unit": 12, "unit_max": 40, "closed_unit_max": 12},
+    "docs/validation-results/README.md":   {"overhead": 40,  "unit": "^## `", "per_unit": 30},
+    "docs/research/device-feasibility.md": {"overhead": 450},
+    "docs/research/future-paths.md":       {"overhead": 450}
+  }
+}
