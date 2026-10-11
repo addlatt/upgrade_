@@ -638,22 +638,24 @@ files. With Secure Boot on that means the Windows ESP reused without a
 format, shim and GRUB fitting an ESP of often 100 MB, `bootmgfw.efi` kept,
 GRUB listing Windows, and the firmware starting Linux with nobody there.
 
-**If real.** A "successful" conversion whose kept Windows will not boot: no
-rollback, no file source, and the person was told they had both. Trust-ending.
+**If real.** A conversion whose kept Windows will not boot: no rollback, no
+file source, and the person was told they had both. Trust-ending.
 
-**Decided (2026-08-30, the owner):** the VM leg's findings became design:
-shim stays in `EFI/Boot/bootx64.efi` while Windows is kept; the prologue
-snapshots the ESP and the `Boot####` set; the post-install check re-creates
-the Windows entry, puts Linux first, checks `bootmgfw.efi` and `grub.cfg`;
-os-prober is set explicitly; `evaluate` wants 32 MiB free on the ESP.
-Windows re-taking the order became R22.
+**Decided (2026-08-30, the owner):** shim stays in `EFI/Boot/bootx64.efi`
+while Windows is kept; the prologue snapshots the ESP and the `Boot####` set;
+the post-install check re-creates the Windows entry, puts Linux first, checks
+`bootmgfw.efi` and `grub.cfg`; os-prober is set explicitly; `evaluate` wants
+32 MiB free on the ESP. Windows re-taking the order became R22.
 
 **Decided (2026-10-10, the owner):** shim in Windows' slot on firmware that
 ignores operating-system entries (Acer's): `bootmgfw.efi` moves one name
 aside (`bootmgfw-kept.efi`), shim takes its name, GRUB chainloads the kept
 name. Applied only on evidence (installed, Fedora left first, and yet Windows
 booted), reversible from the snapshot, re-applied by a guard task after
-servicing, Secure Boot on. The rig first, then the Aspire.
+servicing, Secure Boot on. **Amended (2026-10-11):** "and yet Windows booted"
+is GRUB's word: the "Windows (kept)" entry records the choice in GRUB's
+environment block on the ESP (kickstart 0.9.0), and a set flag stands the
+detector down (found on the rig, `v2-install.csv` line 16).
 
 **Closes when.** Alongside installs are proven on real machines from several
 vendors, Secure Boot on: Windows boots from the menu, GRUB lists it, the ESP
@@ -661,14 +663,12 @@ had room, and `bootmgfw.efi` is intact (its bytes, on slot firmware). Firmware
 that cannot is steered to clean slate before committing.
 
 **Where it stands.** `[####]` one machine, the product's own way:
-`v2-install.csv` line 15 (the Aspire, 2026-10-11, `pass`): the return, as
-SYSTEM, read its own evidence, moved Windows' loader to its kept name, put
-shim in the slot, and both systems were reached with nobody at the keyboard
-(four Windows boots, three Linux). Line 11 (2026-10-10) was the same by hand;
-the rig held the return, a simulated servicing pass and the rollback (lines
-12 and 13; `r21-rollback.csv` line 5). Owed: a real Windows update under the
-guard, the rollback on this machine, other vendors, a healthy drive
-([log](log/2026-10.md#2026-10-11-the-detector-fires-on-the-aspire-r36-the-product-way-r21-r22-r25-r36-v1b)).
+`v2-install.csv` line 15 (the Aspire, 2026-10-11, `pass`): the return read its
+own evidence, put shim in the slot, both systems reached with nobody there.
+The rig held the return, a servicing pass and the rollback (lines 12, 13;
+`r21-rollback.csv` line 5). Owed: the unforced rig row on the fixed kit, a
+real Windows update under the guard, the rollback on the Aspire, other
+vendors, a healthy drive ([log](log/2026-10.md#2026-10-11-the-detector-fires-on-the-aspire-r36-the-product-way-r21-r22-r25-r36-v1b)).
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · held-on-rig
 
@@ -1026,41 +1026,41 @@ arm, the Aspire's row, the basic-display machine, and signing.
 
 **What.** The Windows side (about 10,600 lines of PowerShell: scanner,
 harvester, job writer, stick writer, kickstart generator, prologue, handoff
-and rollback) is rewritten in Rust, one piece at a time, so one language runs
-the conversion from the window to the disk (`architecture.md`, "Stack"). The
-rows the scripts earned do not prove new code (rule #2).
+and rollback) is rewritten in Rust, so one language runs the conversion from
+the window to the disk (`architecture.md`, "Stack"). The rows the scripts
+earned do not prove new code (rule #2).
 
 **If real.** A port decides differently and nobody sees it: a verdict one
 step softer, a refusal that no longer fires (in the prologue, data loss, so
 critical); Windows' tools still speak text, so every parser carries the same
-traps; old proof cannot all be replayed (the scripts kept outcomes, not raw
-tool output); the `.exe` must be rebuilt byte for byte from source (R14).
+traps; old proof cannot all be replayed; the `.exe` must be rebuilt byte for
+byte from source (R14).
 
-**Decided (2026-09-27, the owner):** five steps, safest first: the schema
-library, the scanner's judging half, the read-only collectors, the writers
-with the kickstart generator, then the prologue, handoff and rollback. Each
-script stays in use until the parity ledger (V13) has a Rust pass beside
-every line it earned; builds are reproducible; raw tool output is kept.
+**Decided (2026-09-27, the owner):** five steps, safest first, each script in
+use until the parity ledger (V13) has a Rust pass beside every line it earned;
+builds reproducible; raw tool output kept. **Decided (2026-10-04, the
+owner):** the whole port built on the branch `rust-port`, the cut-over after
+one success of the PowerShell process on `main`, the rig re-run before any
+machine. **Decided (2026-10-11, the owner):** the PowerShell leaves the
+product now, one Rust product: the scripts go, the ledger lines they still
+hold stay `owed` to the Rust, and the goldens recorded from them are frozen
+(`FROZEN-GOLDENS.sha256`, `port-check.sh`); the Rust is the reference. Three
+phases in `RUST-PORT.md`, "What comes next".
 
-**Decided (2026-10-04, the owner):** build the whole port now, on the branch
-`rust-port`, and cut over after one success of the PowerShell process on
-`main`; the rig is re-run with the Rust build before any physical machine,
-and the scripts stay on the stick as the way back until then.
+**Closes when.** Every line of `port-parity.csv` reads `pass` (self-tests
+and corpus as `cargo test`, rig rows re-run by the same harness, physical
+rows re-run on the machine), no PowerShell on the stick or in `data/`, and a
+release rebuilt byte for byte by someone else.
 
-**Closes when.** Per piece, its lines in `port-parity.csv` all read `pass`
-(self-tests and corpus replays as `cargo test`, rig rows re-run by the same
-harness, physical rows re-run on the machine), and a release is rebuilt byte
-for byte from the source by someone else.
-
-**Where it stands.** `[####]` `port-parity.csv`: 657 `pass`, 45 `owed`. The
-Rust prologue has rig rows (`v9-erase.csv` lines 33 to 36; `r18-prologue.csv`
-lines 13, 14 and 17; `v0-handoff.csv` lines 14 and 15; `r21-rollback.csv`
-lines 4 and 5) and physical rows on the Aspire (`walkaway-probe.csv` line 5;
-`r18-prologue.csv` lines 15, 16 and 18; `v2-install.csv` lines 10, 11 and
-15: the whole keep-Windows conversion of 2026-10-11, driven as `UPGRADE.exe`
-drives it). The scanner matched the PowerShell on the G16 and the Aspire.
-Owed: the 45 ledger lines, the rebuild by someone else, `tables.json` kept
-in step by hand (R9) ([log](log/2026-10.md#2026-10-11-the-detector-fires-on-the-aspire-r36-the-product-way-r21-r22-r25-r36-v1b)).
+**Where it stands.** `[####]` the whole Windows side in Rust, the cut-over on
+the Aspire (`v2-install.csv` line 15, `pass`; `r18-prologue.csv` lines 18 and
+19); phase 1 of the leaving done 2026-10-11 (the ten scripts, their recorders,
+the launchers, `build.sh` and `dist/` gone; the port check Rust-only; the kit
+built); ledger 657 `pass`, 45 `owed`. Owed: the unforced rig row on the fixed
+kit (the rig's guest channel is down), phase 2 (the storage-mode harness, the
+diag tools, the stick writer), phase 3 (the data tables), the 45 lines, the
+rebuild by someone else
+([log](log/2026-10.md#2026-10-11-the-powershell-leaves-the-product-decided-phase-1-done)).
 
 ## R33: The walk-away way back to Windows · critical · held-on-machine
 

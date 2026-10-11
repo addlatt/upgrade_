@@ -446,6 +446,10 @@ After the machine has booted from the stick:
     puts its own file back; the guard re-applies the arrangement, so an update
     costs one Windows boot), and restarts once. Firmware that honours the entry
     never gets this; the rollback and the way back undo it.
+    **Amended (2026-10-11):** "with nobody pressing a key" is GRUB's word: the
+    "Windows (kept)" entry writes `upg_windows_chosen=1` into GRUB's environment
+    block on the ESP before it chainloads (kickstart 0.9.0); the return reads
+    and clears it, and a set flag means nothing is arranged (RISKS R21).
 
 **The person's files are not touched here.** No NTFS read, no BitLocker unlock,
 no copy. They come across in `settle-in`, with Windows still there as a complete
@@ -1026,17 +1030,17 @@ stick's root: it **double-clicks**, asks for administrator access once, and
 needs nothing installed (not WebView2, which is present on Windows 11 but not
 guaranteed on Windows 10). It draws with egui, the same library as `settle-in`'s
 window, so the person sees one kind of window before and after the switch. **It
-directs the work; it does not redo it:** it runs the kit's scripts as child
-`powershell.exe` processes with the same arguments the `.cmd` launchers use,
-shows their progress in plain words, and stops where they stop; the scripts stay
-the thing under test, and `data/*.ps1` stays the community's edit surface. It
-adds exactly two things of its own: it stops on a RED scan before the job writer
+directs the work; it does not redo it:** it runs the kit's four programs
+(`upgrade-scan`, `upgrade-job`, `upgrade-harvest`, `upgrade-prologue`) as child
+processes with fixed arguments, shows their progress in plain words, and stops
+where they stop. It adds exactly two things of its own: it stops on a RED scan before the job writer
 runs (more cautious than before, never less), and before the restart it
 registers a one-shot sign-in task that opens it again, so the person sees the
 result without looking for it; a restart the window cannot follow is not
 started. It cannot show anything before a sign-in (the walk-away resume runs as
 SYSTEM with no screen). If its graphics cannot draw on a machine, it says so in
-a plain Windows message box and points to the `.cmd`, which stays on the stick.
+a plain Windows message box and names the programs on the stick, which a
+helper can run from a command prompt.
 Built from WSL for `x86_64-pc-windows-gnu`, linked by zig through
 `cargo-zigbuild` (`upgrade_/windows/window/build.sh`); its logic is tested on
 Linux, and `make-kit.sh` checks it starts on Windows. Its words are drafts until
@@ -1053,11 +1057,9 @@ and the rollback, last. **Decided (2026-10-04, the owner):** all five steps are
 built on the branch `rust-port`, beside the scripts, and the project cuts over
 to Rust after one success of the PowerShell process on `main`. (The 2026-09-27
 plan had steps 3 to 5 wait for V0's three more vendors and V9's physical
-re-run.) Until the cut-over, and for each piece until its lines in
-`docs/validation-results/port-parity.csv` all read `pass`, the window keeps
-calling that piece's script, and the `.cmd` launchers stay on the stick. Builds
-are reproducible, so the `.exe` on the stick can be matched to the open source
-(RISKS R14). The port's plan is `docs/RUST-PORT.md`.
+re-run.) The cut-over happened on 2026-10-10. **Decided (2026-10-11, the
+owner):** the PowerShell leaves the product now, in three phases
+(`docs/RUST-PORT.md`; RISKS R32). Builds are reproducible (RISKS R14).
 
 ### Code signing is the gating item
 

@@ -732,7 +732,23 @@ fn return_stage(ctx: &mut Ctx, st: &mut Value, root: &str) {
     // Windows although the install left Fedora first - on that evidence, or the bench marker
     let outcome_v = if root.is_empty() { Value::Null } else { read_json(&Path::new(root).join("upgrade_").join("outcome.json")).unwrap_or(Value::Null) };
     let bench_force = !root.is_empty() && Path::new(root).join("upgrade_").join(windows_slot::BENCH_FORCE_MARKER).exists();
-    if let Some(reason) = windows_slot::needs_slot(&outcome_v, fired, bench_force) {
+    // GRUB's own word first (kickstart 0.9.0): a person who chose Windows from its menu proves the firmware boots the Linux entry
+    let chosen = if s(&outcome_v["status"]) == "completed" && s(&outcome_v["path_taken"]) == "keep-windows" {
+        match windows_slot::live::windows_chosen_in_grub(&mut ctx.rec) {
+            Ok((true, cleared)) => {
+                ctx.log(&format!("  windows slot: GRUB's record says Windows was chosen from its menu this boot, so the firmware does boot the Linux entry; nothing to arrange (flag cleared: {cleared})"));
+                true
+            }
+            Ok((false, _)) => false,
+            Err(e) => {
+                ctx.log(&format!("  windows slot: GRUB's record could not be read ({e}); deciding from the handoff alone"));
+                false
+            }
+        }
+    } else {
+        false
+    };
+    if let Some(reason) = windows_slot::needs_slot(&outcome_v, fired, bench_force, chosen) {
         ctx.log(&format!("  windows slot: {reason}"));
         let mut lines = Vec::new();
         let applied = windows_slot::live::apply(&mut ctx.rec, &ctx.state_dir, if root.is_empty() { None } else { Some(root) }, &reason, &version_line(), &mut |l| lines.push(l));

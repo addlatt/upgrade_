@@ -142,11 +142,11 @@ you can send it in and help the next person.
 
 ### Try it
 
-Download [`dist/upgrade-scan.ps1`](dist/upgrade-scan.ps1) and run this in
-PowerShell:
+The scanner is `upgrade-scan.exe`, one of the four programs on the kit
+stick (`./make-kit.sh` builds the kit). Run it in PowerShell from the stick:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\upgrade-scan.ps1
+.\upgrade-scan.exe scan --json --out upgrade_\reports --kit .
 ```
 
 ```text

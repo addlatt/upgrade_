@@ -29,14 +29,45 @@ pub const GUARD_TASK_NAME: &str = "upgrade_ windows-slot guard";
 /// (the stick did boot), and yet this code runs in Windows, which the firmware
 /// chose by itself. `bench_force` is the rig's marker. None when the firmware
 /// honoured the entry, or when the evidence is not all there.
-pub fn needs_slot(outcome: &Value, fired: bool, bench_force: bool) -> Option<String> {
+/// GRUB's "Windows (kept)" entry sets this in GRUB's environment block on
+/// the ESP before it chainloads Windows (kickstart 0.9.0). The return reads
+/// it: a person chose Windows from GRUB's menu, so the firmware does boot
+/// the Linux entry, and there is nothing to arrange. Found on the rig
+/// (2026-10-11): without it the bench's own menu choice looked exactly like
+/// a firmware that had skipped GRUB, and the slot was applied for nothing.
+pub const GRUB_CHOSEN_VAR: &str = "upg_windows_chosen";
+pub const FEDORA_GRUBENV_REL: &str = "EFI\\fedora\\grubenv";
+
+/// Does GRUB's environment block carry `key=1`?
+pub fn grub_env_has(bytes: &[u8], key: &str) -> bool {
+    let text: String = bytes.iter().map(|b| if *b < 128 { *b as char } else { '?' }).collect();
+    text.lines().any(|l| l.trim_end() == format!("{key}=1"))
+}
+
+/// The same block without `key=...`, still 1024 bytes, '#'-padded as GRUB wants it.
+pub fn grub_env_without(bytes: &[u8], key: &str) -> Vec<u8> {
+    let text: String = bytes.iter().take_while(|b| **b != 0).map(|b| if *b < 128 { *b as char } else { '?' }).collect();
+    let mut kept: Vec<&str> = Vec::new();
+    for l in text.lines() {
+        if l.starts_with(&format!("{key}=")) || l.chars().all(|c| c == '#') && kept.len() > 0 {
+            continue;
+        }
+        kept.push(l);
+    }
+    let mut out = kept.join("\n").into_bytes();
+    out.push(b'\n');
+    out.resize(1024, b'#');
+    out
+}
+
+pub fn needs_slot(outcome: &Value, fired: bool, bench_force: bool, windows_chosen_in_grub: bool) -> Option<String> {
     if s(&outcome["status"]) != "completed" || s(&outcome["path_taken"]) != "keep-windows" {
         return None;
     }
     if bench_force {
         return Some("the bench marker forces the arrangement (the rig's firmware honours the Linux entry)".into());
     }
-    if !fired {
+    if !fired || windows_chosen_in_grub {
         return None;
     }
     if !truthy(at(outcome, "cutover.boot_chain.linux_first_in_bootorder")) {
@@ -113,6 +144,26 @@ pub mod live {
 
     fn dismount_esp(rec: &mut Recorder, root: &str) {
         let _ = rec.run("mountvol", &[root.trim_end_matches('\\'), "/D"]);
+    }
+
+    /// Did a person choose Windows from GRUB's menu this boot? Reads GRUB's
+    /// environment block on the ESP and clears the flag it found, so the next
+    /// return reads this boot, not an old one. (false, false) when there is no
+    /// block: an install from before kickstart 0.9.0, or a firmware that
+    /// skipped GRUB altogether.
+    pub fn windows_chosen_in_grub(rec: &mut Recorder) -> Result<(bool, bool), String> {
+        let esp = mount_esp(rec)?;
+        let p = Path::new(&esp).join(FEDORA_GRUBENV_REL);
+        let r = match std::fs::read(&p) {
+            Ok(bytes) if grub_env_has(&bytes, GRUB_CHOSEN_VAR) => {
+                let cleared = std::fs::write(&p, grub_env_without(&bytes, GRUB_CHOSEN_VAR)).is_ok();
+                Ok((true, cleared))
+            }
+            Ok(_) => Ok((false, false)),
+            Err(_) => Ok((false, false)),
+        };
+        dismount_esp(rec, &esp);
+        r
     }
 
     fn snapshot_sha(stick_root: &str) -> Option<String> {
@@ -276,13 +327,13 @@ mod tests {
 
     #[test]
     fn the_detector_needs_every_piece_of_evidence() {
-        assert!(needs_slot(&outcome("completed", "keep-windows", true), true, false).is_some());
-        assert!(needs_slot(&outcome("completed", "keep-windows", true), false, false).is_none(), "the stick never booted: nothing to conclude");
-        assert!(needs_slot(&outcome("completed", "keep-windows", false), true, false).is_none(), "Fedora was not left first: the firmware was never asked");
-        assert!(needs_slot(&outcome("stopped", "keep-windows", true), true, false).is_none());
-        assert!(needs_slot(&outcome("completed", "clean-slate", true), true, false).is_none());
-        assert!(needs_slot(&outcome("completed", "keep-windows", false), false, true).is_some(), "the bench marker forces it");
-        assert!(needs_slot(&outcome("stopped", "keep-windows", false), false, true).is_none(), "but never on a stopped install");
+        assert!(needs_slot(&outcome("completed", "keep-windows", true), true, false, false).is_some());
+        assert!(needs_slot(&outcome("completed", "keep-windows", true), false, false, false).is_none(), "the stick never booted: nothing to conclude");
+        assert!(needs_slot(&outcome("completed", "keep-windows", false), true, false, false).is_none(), "Fedora was not left first: the firmware was never asked");
+        assert!(needs_slot(&outcome("stopped", "keep-windows", true), true, false, false).is_none());
+        assert!(needs_slot(&outcome("completed", "clean-slate", true), true, false, false).is_none());
+        assert!(needs_slot(&outcome("completed", "keep-windows", false), false, true, false).is_some(), "the bench marker forces it");
+        assert!(needs_slot(&outcome("stopped", "keep-windows", false), false, true, false).is_none(), "but never on a stopped install");
     }
 
     #[test]
@@ -300,6 +351,19 @@ mod tests {
     #[test]
     fn the_guard_reapplies_only_when_windows_took_the_slot_back() {
         assert_eq!(guard_action(Some("ss"), Some("ss"), "ss"), "nothing");
+        // a person chose Windows in GRUB: the firmware boots the Linux entry, nothing to arrange
+        let done = json!({"status": "completed", "path_taken": "keep-windows", "cutover": {"boot_chain": {"linux_first_in_bootorder": true}}});
+        assert!(needs_slot(&done, true, false, false).is_some());
+        assert!(needs_slot(&done, true, false, true).is_none(), "GRUB said Windows was chosen from its menu");
+        assert!(needs_slot(&done, true, true, true).is_some(), "the bench marker still forces it");
+        let mut block = crate::judge::grub_env_block();
+        let line = b"upg_windows_chosen=1\n";
+        block[25..25 + line.len()].copy_from_slice(line);
+        assert!(grub_env_has(&block, GRUB_CHOSEN_VAR));
+        let cleared = grub_env_without(&block, GRUB_CHOSEN_VAR);
+        assert_eq!(cleared.len(), 1024);
+        assert!(!grub_env_has(&cleared, GRUB_CHOSEN_VAR));
+        assert!(cleared.starts_with(b"# GRUB Environment Block\n"));
         assert_eq!(guard_action(Some("s2"), Some("s2"), "ss"), "nothing", "a newer shim on the ESP counts as shim");
         assert_eq!(guard_action(Some("ms"), Some("ss"), "ss"), "reapply");
         assert_eq!(guard_action(None, Some("ss"), "ss"), "slot-missing");

@@ -96,40 +96,5 @@ fn every_call_matches_invoke_rollback() {
     assert!(n >= 14, "the script's self-test has 14 cases; only {n} replayed");
 }
 
-#[test]
-fn the_self_test_is_all_here() {
-    let script = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../windows/Invoke-Rollback.ps1")).expect("Invoke-Rollback.ps1 beside the crate");
-    let cases = load("rollback-cases.json");
-    let names: Vec<String> = cases.as_array().unwrap().iter().map(|c| s(&c["name"])).collect();
-    let mut missing = vec![];
-    let mut count = 0;
-    for line in script.lines() {
-        let t = line.trim();
-        if let Some(rest) = t.strip_prefix("@{ Name = '") {
-            // the name ends at a quote that is not doubled (a doubled quote is a quote in the name)
-            let b = rest.as_bytes();
-            let mut end = None;
-            let mut i = 0;
-            while i < b.len() {
-                if b[i] == b'\'' {
-                    if b.get(i + 1) == Some(&b'\'') {
-                        i += 2;
-                        continue;
-                    }
-                    end = Some(i);
-                    break;
-                }
-                i += 1;
-            }
-            if let Some(end) = end {
-                let n = rest[..end].replace("''", "'");
-                count += 1;
-                if !names.contains(&n) {
-                    missing.push(n);
-                }
-            }
-        }
-    }
-    assert!(count >= 14, "found only {count} self-test names in the script");
-    assert!(missing.is_empty(), "self-test cases without a replay here:\n  {}", missing.join("\n  "));
-}
+// `the_self_test_is_all_here` compared the cases with the script's own self-test; the script left the
+// product on 2026-10-11 and the cases file is the frozen list now (FROZEN-GOLDENS.sha256).

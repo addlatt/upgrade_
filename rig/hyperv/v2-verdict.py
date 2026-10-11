@@ -185,6 +185,7 @@ elif wb == 0 and lb == 0 and not (A / "boots.log").exists(): result = "installed
 elif wb < 1 or grub_win != "y": result = "windows-unbootable-via-grub"
 elif lb < 1: result = "linux-unbootable"
 elif fallback not in ("shim", "shim-in-windows-slot") or snap_files < 1: result = "fallback-loader-unrecorded"
+elif fallback == "shim-in-windows-slot" and "bench marker" not in str(_slot.get("reason")) and ("Hyper-V" in FIRMWARE or "QEMU" in FIRMWARE or "OVMF" in FIRMWARE): result = "slot-applied-on-honouring-firmware"   # R21 amended 2026-10-11: the rig's firmware boots the Linux entry; a slot applied here unforced is the detector's false positive
 elif wb < 2 or lb < 2: result = "cycles-incomplete"
 elif any(d > 300 for d in clock_worse) or (clock_before is None and any(abs(o) > 300 for o in clock_offsets)): result = "windows-clock-wrong"   # R36: a Linux boot left the kept Windows' clock further off
 else: result = PASS

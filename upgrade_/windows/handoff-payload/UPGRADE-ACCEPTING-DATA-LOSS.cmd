@@ -8,7 +8,7 @@ REM  scanner refused because its DRIVE is failing or its Windows
 REM  volume needs a repair. The window asks the sentence, exactly,
 REM  before anything else, and says DATA LOSS ACCEPTED on every
 REM  screen after it. It lifts that refusal and nothing else.
-REM  Everything else is RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd's flow.
+REM  Everything else is the convert flow, as UPGRADE.cmd runs it.
 REM ============================================================
 if not exist "%~dp0UPGRADE.exe" (
   echo   ERROR: UPGRADE.exe is not on this stick - this is not a complete kit.

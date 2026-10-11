@@ -137,15 +137,17 @@ On Windows and on Linux (decided 2026-10-05, the owner, under R33). Nothing
 stops the machine going to sleep halfway through; it happened once on the
 Aspire. Proves: R33, R24. Stands: see [STATUS.md](STATUS.md).
 
-## 17. Finish the Rust port and cut over
+## 17. Finish the Rust port: the PowerShell leaves the product
 
-The whole Windows side in Rust (decided 2026-09-27, the owner). Done: the
-scanner, harvester, job writer, prologue, handoff, rollback and the window
-flows; the rig end to end; the Aspire's keep-Windows install with the Rust
-prologue (2026-10-10, named by the owner as the one success that triggers
-the cut-over). Owed: the 45 `owed` ledger lines, the scripts off the stick,
-every physical row re-earned in Rust. Proves: V13, R32. The step list is
-`RUST-PORT.md`, "What comes next".
+One Rust product (decided 2026-09-27 and, for the leaving, 2026-10-11, the
+owner). Done: the whole Windows side in Rust, the cut-over on the Aspire
+(2026-10-10), and phase 1 of the leaving: the ten product scripts, their
+recorders, the launchers, `build.sh` and `dist/` gone, the port check
+Rust-only with frozen goldens. Waits on: the rig answering again for the
+unforced row. Owed: phase 2 (the storage-mode harness, the diag tools, the
+stick writer to Rust), phase 3 (the data tables to JSON, then `CLAUDE.md`),
+the 45 `owed` ledger lines. Proves: V13, R32. The phases: `RUST-PORT.md`,
+"What comes next". Stands: see [STATUS.md](STATUS.md).
 
 ## 18. Further out
 

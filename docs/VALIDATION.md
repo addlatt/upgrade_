@@ -775,9 +775,10 @@ Rust build (`PROLOGUE=rust rig/hyperv/prologue.sh run`), appending its row
 as today. `physical`: where the run kept the raw output of the tools it
 called, a replay test closes the decision; the effect on the firmware or
 the disk still takes one re-run on the machine. `./port-check.sh` runs the
-whole check: both PowerShell self-tests, `schemas/check.py`, the recorded
-files fresh, every self-test case with a Rust case under the same name,
-and the Rust tests. **Decided (2026-10-04, the owner):** the whole port is
+whole check. **Since 2026-10-11** (the PowerShell left the product, R32):
+`schemas/check.py`, the data tables fresh until they move to JSON, the
+eight frozen goldens unchanged (`FROZEN-GOLDENS.sha256`), `cargo test` in
+every crate, the harvester's Windows cases, the schema differential. **Decided (2026-10-04, the owner):** the whole port is
 built on the branch `rust-port`, and the project cuts over to Rust after
 one success of the PowerShell process on `main`; the order is every
 `selftest`, `corpus` and differential line `pass` first, then the `rig`
@@ -791,9 +792,11 @@ ran the Aspire's keep-Windows conversions (`v2-install.csv` lines 11 and
 15; `r18-prologue.csv` line 18, the whole path on 2026-10-11, update
 restart, resume, shrink, handoff, return) and its resume
 (`walkaway-probe.csv` line 5). Fresh-clone rebuilds match
-(`r14-rebuild.csv` lines 22 to 26, `same` = `y`). Owed: the 45 lines (the
-rig's erase arms and the Aspire's rows for each piece), and the
-second-person rebuild ([log](log/2026-10.md#2026-10-11-the-detector-fires-on-the-aspire-r36-the-product-way-r21-r22-r25-r36-v1b)).
+(`r14-rebuild.csv` lines 22 to 26, `same` = `y`). Phase 1 of the leaving is done (the scripts
+gone, the port check Rust-only, the kit built; `r18-prologue.csv` line 19).
+Owed: the unforced rig row on the fixed kit, the 45 lines (the rig's erase
+arms and the Aspire's rows for each piece), phases 2 and 3, and the
+second-person rebuild ([log](log/2026-10.md#2026-10-11-the-powershell-leaves-the-product-decided-phase-1-done)).
 
 # Lesser gates (validate when their component is built)
 

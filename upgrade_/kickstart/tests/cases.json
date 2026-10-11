@@ -219,7 +219,7 @@
   ]
  },
  {
-  "name": "keep-windows %post turns os-prober off and writes its own Windows entry right under Fedora (25_windows_kept, above the firmware-settings entry), chainloading the kept name when it exists; clean-slate does neither",
+  "name": "keep-windows %post turns os-prober off and writes its own Windows entry right under Fedora (25_windows_kept, above the firmware-settings entry), telling the return it was chosen (upg_windows_chosen in GRUB's environment block) and chainloading the kept name when it exists; clean-slate does neither",
   "origin": "selftest",
   "parts": [
    {
@@ -247,6 +247,10 @@
      [
       "contains",
       "bootmgfw-kept.efi; else chainloader /EFI/Microsoft/Boot/bootmgfw.efi"
+     ],
+     [
+      "contains",
+      "save_env upg_windows_chosen"
      ]
     ]
    },

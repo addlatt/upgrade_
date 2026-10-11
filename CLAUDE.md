@@ -120,9 +120,10 @@ data/            hardware + distro knowledge base; community PRs land here
   distros.ps1      distro kernel table (goes stale; verify against release notes)
   releases.ps1     the Linux releases the kit can carry, and what Secure Boot needs of each (measured by tools/measure-release.py, never typed)
   tables.json      the same three tables as JSON, for the Rust side (written by tools/export-tables.ps1, never edited)
-evaluate/windows/  scanner (upgrade-scan.ps1), harvester, job writer, stick writer
+evaluate/windows/  the corpus of machine recordings; the PowerShell holdovers (the stick writer, the storage-mode harness, the diag tools; their phase 2 ports retire them)
+evaluate/scan/, harvest/, job/  the scanner, the harvester and the job writer in Rust (the product since 2026-10-11)
 evaluate/scan/, evaluate/harvest/, evaluate/job/  the scanner's, harvester's and job writer's judging halves in Rust (held to the PowerShell word for word)
-upgrade_/          the converter: kickstart/ the kickstart generator in Rust (held to New-Kickstart.ps1); windows/ prologue, rollback, kickstart, launchers, the window (UPGRADE.exe, Rust), V0 handoff harness; linux/ %pre verify + outcome
+upgrade_/          the converter: prologue/ the prologue, handoff, rollback and the slot in Rust; kickstart/ the kickstart generator in Rust; windows/window/ the window (UPGRADE.exe), windows/handoff-payload/ the stick's EFI payload and the two .cmd starters; linux/ %pre verify + outcome
 settle-in/         first-boot verify + file pull + reclaim (the file pull and reclaim are not built)
 schemas/           job.json / outcome.json contracts (change rarely, review hard); rust/ reads them in Rust
 docs/              architecture.md (how it works), RISKS.md (what is unproven), VALIDATION.md (how it is proven), research/ (devices, future paths)
@@ -130,45 +131,36 @@ docs/              architecture.md (how it works), RISKS.md (what is unproven), 
   ROADMAP.md         what is next, in what order, and the decisions owed: the one home for plans
   log/               what happened, one file a month, append-only; archive/ expired phase docs, each with its Archived line
   validation-results/  the CSVs (ground truth, append-only) and what their words mean; tools/docs-check.py the docs checker (./docs-check.sh)
-dist/              built single-file scanner (rebuild with ./build.sh)
+dist/kit/          the kit, built by ./make-kit.sh (gitignored; the stick's contents)
 .claude/skills/docs/  the docs skill, the one way to change a doc (SKILL.md, references/shapes.md, budgets.json)
 ```
 
 ## Working conventions
 
-- **Windows PowerShell 5.1 only.** It's what ships on stock Windows 10/11. No PS7
-  syntax: no ternaries, no `??`, no `-Parallel`. If it needs a setup step, it
-  doesn't run where it matters.
-  **Decided (2026-09-27, the owner):** the Windows side is being ported to Rust, one
-  piece at a time (RISKS R32, VALIDATION V13). A script keeps these rules, and stays
-  in use, until every line of its evidence in
-  `docs/validation-results/port-parity.csv` reads `pass` in Rust.
-  **Decided (2026-10-04, the owner):** the whole port is built on the branch
-  `rust-port`, and the project cuts over to Rust after one success of the PowerShell
-  process on `main`; rig and physical rows do not carry across, the Rust re-earns
-  them, rig first. The whole active Windows path is in Rust and the rig has run it
-  end to end; the scripts stay on the stick as the way back until the physical rows
-  are in, and new Windows-side work goes into the Rust (`./build-rust.sh`, pinned
-  toolchain). See `docs/RUST-PORT.md`.
-- **Run `./port-check.sh` when the scanner, `data/`, or `schemas/` changes.** It
-  fails when the Rust side no longer says what the PowerShell says, or when a
-  recorded file (`data/tables.json`, `evaluate/scan/tests/golden.json`) is stale.
-  `./port-check.sh --record` writes them again; the Rust tests must then pass
-  against the new answers.
+- **The Windows side is Rust** (decided 2026-09-27 and 2026-10-11, the owner;
+  RISKS R32, VALIDATION V13): `upgrade-scan`, `upgrade-harvest`, `upgrade-job`,
+  `upgrade-prologue` and the window `UPGRADE.exe`, built by `./build-rust.sh` with
+  a pinned toolchain (`rust-toolchain.toml`; `rebuild-check.sh` proves the bytes).
+  The PowerShell scripts left the product on 2026-10-11; what remains of it
+  (the storage-mode harness, the diag tools, the stick writer, `data/*.ps1`)
+  keeps to Windows PowerShell 5.1 (no PS7 syntax) until its phase in
+  `docs/RUST-PORT.md`, "What comes next", retires it.
+- **Run `./port-check.sh` before any change lands.** It runs `schemas/check.py`,
+  checks the data tables are fresh, checks the eight frozen goldens are unchanged
+  (`FROZEN-GOLDENS.sha256`: recordings of what the PowerShell answered, ground truth
+  for the Rust forever), and runs every crate's tests. A golden changes only on
+  purpose, from the Rust's own output, reviewed as a diff, with its new sha256
+  recorded in the same commit. Add a case if you change verdict, detection, parsing
+  or arithmetic logic. Live-OS reads stay behind collect/judge seams so the judging
+  halves stay testable (rule #5).
 - **Docs change only through the docs skill** (`.claude/skills/docs/SKILL.md`): one
   home per fact, history in `docs/log/`, state in `docs/STATUS.md`, plans in
   `docs/ROADMAP.md`. Run `./docs-check.sh` before any pull request that touches a
   `.md` file.
-- **`data/*.ps1` is the contribution surface.** Adding a device is a one-line PR
-  with a cited source ("it should work" is not a source). Keep it editable.
-- **`./build.sh` inlines `data/` into `dist/upgrade-scan.ps1`.** Rebuild and commit
-  `dist/` whenever `data/` or the scanner changes. Nothing enforces this yet (R9),
-  so it's on you.
-- **Run both self-tests before any change lands:** `powershell.exe -NoProfile
-  -ExecutionPolicy Bypass -File .\upgrade-scan.ps1 -SelfTest` and the same for
-  `.\Harvest-UpgradeState.ps1 -SelfTest`, from `evaluate/windows/`. Add a case if
-  you change verdict, detection, parsing or arithmetic logic. Live-OS reads stay
-  behind collect/judge seams so the judging halves stay testable (rule #5).
+- **`data/*.ps1` is the contribution surface** until phase 3 moves it to JSON.
+  Adding a device is a one-line PR with a cited source ("it should work" is not a
+  source). The Rust reads `data/tables.json`, written from the tables by
+  `data/tools/export-tables.ps1`; `./port-check.sh` fails when it is stale.
 - **Never commit a machine report** (`upgrade-report-*.txt/.json`). They hold
   someone's hardware and account details. `.gitignore` covers them; keep it that
   way.
