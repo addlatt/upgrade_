@@ -28,11 +28,13 @@ this Acer while efibootmgr's does (`r21-rollback.csv` line 6). The same run
 found that kickstart 0.9.0 saves GRUB's "Windows chosen" flag on `/boot`,
 where the return cannot read it (kickstart 0.10.0 puts it on the ESP,
 unproven). The owner then decided the rollback runs from the Linux side;
-`settle-in rollback` is built, its rig arm and Aspire row owed. The rig is
-blocked until its fresh image's bench password, expired after 42 days, is
-reset at the console. Left: that, those rig rows, the unforced rig row, a
-real Windows update under the guard (R22), phases 2 and 3 of the leaving.
-The order and what each waits on: `ROADMAP.md`.
+`settle-in rollback` held on the rig the same night (`r21-rollback.csv`
+line 7), after the rig's fresh image got its expired bench password reset;
+the same run proved kickstart 0.10.0's flag (`v2-install.csv` line 17, the
+detector stood down unforced; the row's clock word is the rig's own trap).
+Left: the Linux-side rollback on the Aspire, the rig's clock sync turned
+off, a real Windows update under the guard (R22), phases 2 and 3 of the
+leaving. The order and what each waits on: `ROADMAP.md`.
 
 ## Gates
 
@@ -40,7 +42,7 @@ The order and what each waits on: `ROADMAP.md`.
 |---|---|---|---|---|
 | V0 | the boot handoff fires once, Secure Boot on | `[####]` held-on-machine, one vendor | `v0-handoff.csv` line 12, `fired-once` (2026-09-12, the Aspire; rig line 15) | Dell, Lenovo, HP; the fail-safe rows on real firmware |
 | V1 | the unattended install completes, Secure Boot on | `[####]` held-on-machine | `v9-erase.csv` line 30, `erased-installed` (2026-10-04); live boot `v1-live-boot.csv` line 5 | other vendors; a plain-words screen for a `%pre` refusal |
-| V1b | install beside a shrunk Windows, both still boot | `[####]` held-on-machine, one dying drive | `v2-install.csv` line 15, `pass` (2026-10-11, the return applied shim in Windows' slot by itself); `r21-rollback.csv` line 6, `windows-not-direct` (2026-10-12: files back, guard gone, but bcdedit's order did not survive the restart on the Acer) | the Linux-side rollback's rig arm and Aspire row; kickstart 0.10.0's flag on the rig; the unforced rig row; a Windows update under the guard; a healthy-drive machine |
+| V1b | install beside a shrunk Windows, both still boot | `[####]` held-on-machine, one dying drive | `v2-install.csv` line 15, `pass` (2026-10-11, the return applied shim in Windows' slot by itself); `r21-rollback.csv` line 6, `windows-not-direct` (2026-10-12, the Acer: bcdedit's order did not survive the restart); line 7, `pass-plumbing` (the Linux-side rollback on the rig); `v2-install.csv` line 17, `windows-clock-wrong` (the unforced rig row: the detector stood down on GRUB's flag, kickstart 0.10.0; the clock word is the rig's own trap) | the Linux-side rollback on the Aspire; the rig's clock sync off, then the unforced row again; a Windows update under the guard; a healthy-drive machine |
 | V2 | extracted amp firmware makes the speakers work | `[#...]` planned | none yet | the G16 experiment |
 | V3 | the kept BitLocker volume reads from Linux | `[###.]` held-on-rig | `v3-bitlk-read.csv` line 16, `pass-plumbing` (2026-09-02) | a real disk; `settle-in`'s pull |
 | V4 | real disks can shrink enough | `[####]` held-on-machine, one disk (its old Windows: no) | `r18-prologue.csv` line 18, `pass-plumbing` (2026-10-11, the fresh Windows 11, 238.2 to 213.2 GB) | the rate from more machines |
@@ -79,7 +81,7 @@ The order and what each waits on: `ROADMAP.md`.
 | R18 | shrink headroom unmeasured | `[####]` held-on-machine, one disk | `r18-prologue.csv` line 18, `pass-plumbing` (2026-10-11) | more machines; the pagefile read back |
 | R19 | the BitLocker read is a new trust dependency | `[###.]` held-on-rig | `v3-bitlk-read.csv` line 16, `pass-plumbing` | a real disk |
 | R20 | browser profile porting unverified | `[#...]` planned | none yet | one move per browser and version |
-| R21 | the alongside install may break Windows boot | `[####]` held-on-machine, the return's own evidence | `v2-install.csv` line 15, `pass` (2026-10-11); `r21-rollback.csv` line 6, `windows-not-direct` (2026-10-12, the first physical rollback: everything held but the direct boot) | the Linux-side rollback on the rig, then the Acer; kickstart 0.10.0's flag on the rig; the unforced rig row; a Windows update under the guard; other vendors |
+| R21 | the alongside install may break Windows boot | `[####]` held-on-machine, the return's own evidence | `v2-install.csv` line 15, `pass` (2026-10-11); `r21-rollback.csv` line 6, `windows-not-direct` (2026-10-12, the first physical rollback); line 7, `pass-plumbing` (the Linux-side rollback, the rig); `v2-install.csv` line 17 (kickstart 0.10.0's flag stood the detector down, unforced) | the Linux-side rollback on the Acer; a Windows update under the guard; other vendors |
 | R22 | servicing re-takes the boot order | `[###.]` held-on-rig | `v2-install.csv` line 13, `pass-plumbing` (the guard re-applied, 2026-10-10; ran at every Aspire start since, nothing to re-apply) | a real Windows update under the guard; `settle-in`'s order unit |
 | R23 | the acknowledged-data-loss path | `[####]` held-on-machine | `r18-prologue.csv` line 16, `pass-plumbing` (in use on the Aspire since run 4) | nothing to widen; it stays two refusals (rule #1) |
 | R24 | the walk-away resume as SYSTEM | `[####]` held-on-machine | `walkaway-probe.csv` line 5, `resumed-unattended` (2026-10-10, the Rust prologue) | BitLocker with a PIN |
@@ -94,6 +96,6 @@ The order and what each waits on: `ROADMAP.md`.
 | R33 | the walk-away way back | `[####]` held-on-machine | `v11-walkaway.csv` line 5, `windows-reached` (2026-10-11) | a cancel from the program's own restart; a machine that stops at the key page; keeping the machine awake |
 | R34 | Secure Boot revokes the kit's boot files | `[####]` held-on-machine | `v9-erase.csv` line 30, `erased-installed` (Fedora 44, Secure Boot on) | the next level (`grub,6`); Fedora 42's record |
 | R35 | the stick installs again after the install | `[####]` held-on-machine | `v9-erase.csv` line 31, `not-installed-again` (2026-10-04) | other firmware |
-| R36 | the kept Windows' clock after a Linux boot | `[####]` held-on-machine | `v2-install.csv` line 15, `pass` (2026-10-11, +1 s, +2 s, +1 s after each Linux boot) | the rig's two boots on the keep-Windows arm |
+| R36 | the kept Windows' clock after a Linux boot | `[####]` held-on-machine | `v2-install.csv` line 15, `pass` (2026-10-11, +1 s, +2 s, +1 s after each Linux boot); line 17, `windows-clock-wrong` (the rig, 2026-10-12: Hyper-V hands UTC to the guest's clock chip, so the guest reads 7 h off after a Linux boot; a rig trap, not the product's) | the rig's Time Synchronization service off, then the arm again |
 
 Closed: F1 to F4, the four fixed defects of 2026-08-22 (`RISKS.md`, Closed).

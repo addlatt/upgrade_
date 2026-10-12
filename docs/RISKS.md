@@ -664,11 +664,11 @@ that cannot is steered to clean slate before committing.
 **Where it stands.** `[####]` one machine, the product's own way
 (`v2-install.csv` line 15, the Aspire, 2026-10-11, `pass`); the rig held the
 return, servicing and the rollback (lines 12, 13; `r21-rollback.csv` line 5).
-The Aspire's rollback (`r21-rollback.csv` line 6, `windows-not-direct`): files
-back, guard gone, but a `bcdedit` order change does not survive a restart on
-this firmware (`efibootmgr`'s does), and kickstart 0.9.0 saved GRUB's flag on
-`/boot`, unreadable from Windows (0.10.0 puts it on the ESP; unproven). Owed:
-the Linux-side rollback's rows, 0.10.0 on the rig, an update under the guard, other vendors ([log](log/2026-10.md#2026-10-12-the-first-rollback-on-a-real-machine-r21-v1b)).
+The Aspire's rollback (`r21-rollback.csv` line 6, `windows-not-direct`): a
+`bcdedit` order change does not survive a restart there (`efibootmgr`'s does).
+Kickstart 0.10.0's flag on the ESP and the Linux-side rollback both held on
+the rig (`v2-install.csv` line 17; `r21-rollback.csv` line 7). Owed: the
+Linux-side rollback on the Acer, an update under the guard, other vendors ([log](log/2026-10.md#2026-10-12-late-the-rig-answers-again-the-linux-side-rollback-holds-on-the-rig-r21-r22-r36-v1b)).
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · held-on-rig
 
@@ -1209,9 +1209,9 @@ that wrote LOCAL; and the rig repeats the two boots on the keep-Windows arm.
 host after two Linux boots; `v2-install.csv` line 14, `pass`). On the product
 path on 2026-10-11 (kickstart 0.8.0, `settle-in` `left-local`; +1 s, +2 s and
 +1 s after each Linux boot, nobody touching the clock; line 15, `pass`).
-Windows had also corrected its own clock within four hours on 2026-10-10, so
-the symptom lasts hours, not for good. Owed: the rig's two boots on the
-keep-Windows arm ([log](log/2026-10.md#2026-10-10-the-kept-windows-clock-by-hand-on-the-aspire-r36-v1b)).
+Windows also corrected its own clock within four hours on 2026-10-10. The
+rig reads `windows-clock-wrong` (`v2-install.csv` line 17): Hyper-V hands UTC
+to the guest's clock chip, which no PC does; owed: the bench's Time Synchronization off ([log](log/2026-10.md#2026-10-10-the-kept-windows-clock-by-hand-on-the-aspire-r36-v1b)).
 
 # Closed
 

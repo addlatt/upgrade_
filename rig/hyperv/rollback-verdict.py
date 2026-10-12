@@ -95,7 +95,7 @@ elif win_first != "y": result = "windows-not-first"
 elif direct != "y": result = "windows-not-direct"
 elif parts_ok != "y": result = "linux-touched"
 elif fedora_ok != "y": result = "efi-fedora-touched"
-elif _ws is not None and _ws.get("guard_removed") is not True and (rec.get("side") == "linux" or _ws.get("kept_name_removed")): result = "guard-not-removed"
+elif _ws is not None and _ws.get("guard_removed") is not True and _ws.get("kept_name_removed") is True: result = "guard-not-removed"   # a guard existed only where the slot was arranged
 else: result = PASS
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), HARNESS, FIRMWARE, yn(rec), restored, loader_ok, win_first, direct, parts_ok, fedora_ok, result, " | ".join(notes)]
 new = not CSV.exists()

@@ -46,8 +46,8 @@ Aspire's drive is dying, R23). Stands: see [STATUS.md](STATUS.md).
 
 Hardware check on first boot, copying the person's files (unlock BitLocker,
 copy, double-check), a "you used these programs, here is the Linux version"
-list, undo from the Linux side (the rollback, built 2026-10-12, waits on
-its rig arm and an Aspire row), clean-up. The clock, Wi-Fi and remote
+list, undo from the Linux side (the rollback, built 2026-10-12, held on
+the rig; waits on an Aspire row), clean-up. The clock, Wi-Fi and remote
 access are done (2026-10-04, the Aspire). Proves: V10, R28, V3, R19, R13.
 Waits on: V3 for the pull's integrity; V8 for never copying a stub (R8).
 Stands: see [STATUS.md](STATUS.md).
