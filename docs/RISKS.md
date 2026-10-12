@@ -647,14 +647,14 @@ while Windows is kept; the prologue snapshots the ESP and the `Boot####` set;
 and `grub.cfg`; `evaluate` wants 32 MiB free on the ESP. Re-taking: R22.
 
 **Decided (2026-10-10, the owner):** shim in Windows' slot on firmware that
-ignores operating-system entries (Acer's): `bootmgfw.efi` moves one name
-aside (`bootmgfw-kept.efi`), shim takes its name, GRUB chainloads the kept
-name. Applied only on evidence (installed, Fedora left first, and yet Windows
-booted), reversible from the snapshot, re-applied by a guard task after
-servicing, Secure Boot on. **Amended (2026-10-11):** "and yet Windows booted"
-is GRUB's word: the "Windows (kept)" entry records the choice in GRUB's
-environment block on the ESP (kickstart 0.9.0), and a set flag stands the
-detector down (found on the rig, `v2-install.csv` line 16).
+ignores operating-system entries (Acer's): `bootmgfw.efi` moves aside as
+`bootmgfw-kept.efi`, shim takes its name, GRUB chainloads the kept name;
+applied only on evidence, reversible from the snapshot, re-applied by a guard
+task after servicing. **Amended (2026-10-11):** GRUB's "Windows (kept)" entry
+records the choice (kickstart 0.9.0) and a set flag stands the detector down.
+**Decided (2026-10-12, the owner):** the rollback runs from the Linux side
+(`settle-in rollback`): the order through efivarfs, the files from the stick's
+snapshot, a marker the guard honours; the Windows-side tool stays as plumbing.
 
 **Closes when.** Alongside installs are proven on real machines from several
 vendors, Secure Boot on: Windows boots from the menu, GRUB lists it, the ESP
@@ -667,8 +667,8 @@ return, servicing and the rollback (lines 12, 13; `r21-rollback.csv` line 5).
 The Aspire's rollback (`r21-rollback.csv` line 6, `windows-not-direct`): files
 back, guard gone, but a `bcdedit` order change does not survive a restart on
 this firmware (`efibootmgr`'s does), and kickstart 0.9.0 saves GRUB's flag on
-`/boot`, unreadable from Windows. Owed: both fixes, the unforced rig row, a
-real update under the guard, other vendors, a healthy drive ([log](log/2026-10.md#2026-10-12-the-first-rollback-on-a-real-machine-r21-v1b)).
+`/boot`, unreadable from Windows. Owed: the Linux-side rollback's rows, the
+flag's fix, the unforced rig row, an update under the guard, other vendors ([log](log/2026-10.md#2026-10-12-the-first-rollback-on-a-real-machine-r21-v1b)).
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · held-on-rig
 

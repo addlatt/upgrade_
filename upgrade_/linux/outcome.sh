@@ -338,6 +338,18 @@ dev=/dev/disk/by-label/UPGV0
 for i in $(seq 1 30); do [ -e "$dev" ] && break; sleep 1; done
 [ -e "$dev" ] || exit 0
 mkdir -p /mnt/upgstick; mount "$dev" /mnt/upgstick || exit 0
+# a command the bench left on the stick (rig/hyperv/prologue.sh rollback, 2026-10-12): the Linux-side
+# rollback runs here, as the person's click would run it; its answer and exit code stay on the stick
+auto_cmd=0
+if [ -f /mnt/upgstick/upgrade_/bench-command ]; then
+    cmd=$(tr -d '\r\n' < /mnt/upgstick/upgrade_/bench-command); rm -f /mnt/upgstick/upgrade_/bench-command
+    case "$cmd" in
+        rollback)
+            /usr/local/libexec/upgrade_/settle-in rollback --stick /mnt/upgstick > /mnt/upgstick/upgrade_/bench-command.out 2>&1; rc=$?
+            echo "exit=$rc" >> /mnt/upgstick/upgrade_/bench-command.out
+            printf 'bench-command,%s,rollback,exit=%s\n' "$(date -u +%FT%TZ)" "$rc" >> /mnt/upgstick/upgrade_/boots.log; auto_cmd=1 ;;
+    esac
+fi
 cur=$(efibootmgr 2>/dev/null | awk '/BootCurrent/{print $2}')
 sha=$(sha256sum /boot/efi/EFI/Microsoft/Boot/bootmgfw.efi 2>/dev/null | cut -c1-64)
 # V9 (R27): the account the job created - a fingerprint of its stored hash, never the hash itself - and where /home lives
@@ -379,7 +391,7 @@ fi
 printf 'linux-boot,%s,%s,BootCurrent=%s,bootmgfw_sha256=%s,user=%s,pw_sha256=%s,home_dir=%s,home_disk=%s,root_disk=%s,default_target=%s,display_manager=%s\n' "$(date -u +%FT%TZ)" "$(uname -r)" "$cur" "$sha" "$u" "$pw" "$([ -d "/home/$u" ] && echo present || echo missing)" "${hdisk:-none}" "$rdisk" "$tgt" "$dm" >> /mnt/upgstick/upgrade_/boots.log
 auto=0; [ -e /mnt/upgstick/upgrade_/autoshutdown ] && auto=1
 sync; umount /mnt/upgstick
-[ "$auto" = 1 ] && systemctl poweroff
+[ "$auto" = 1 ] || [ "$auto_cmd" = 1 ] && systemctl poweroff
 exit 0
 EOS
     chmod +x "$SYSROOT/usr/local/sbin/upg-mark"

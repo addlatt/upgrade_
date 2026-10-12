@@ -29,6 +29,10 @@ fn json_of(args: &[&str]) -> Option<Value> {
 
 enum Page {
     Intro,
+    /// Windows was kept: the way back is the rollback (decided 2026-10-12, the owner)
+    KeptIntro,
+    KeptWord,
+    KeptDone,
     What,
     Stick,
     Consent,
@@ -97,8 +101,21 @@ pub struct GoBack {
 
 impl GoBack {
     pub fn new(screen: Value) -> Self {
-        let plan = json_of(&["go-back", "walkaway", "plan"]).unwrap_or(json!({}));
-        GoBack { screen, plan, page: Page::Intro, sentence: String::new(), sticks: Vec::new(), sticks_at: None, stick: None, typed: String::new(), job: None }
+        let kept = screen["kept"] == json!(true);
+        // a kept Windows needs no erase plan; asking for one would only list drives to erase
+        let plan = if kept { json!({}) } else { json_of(&["go-back", "walkaway", "plan"]).unwrap_or(json!({})) };
+        GoBack { screen, plan, page: if kept { Page::KeptIntro } else { Page::Intro }, sentence: String::new(), sticks: Vec::new(), sticks_at: None, stick: None, typed: String::new(), job: None }
+    }
+
+    /// The kept-Windows words (`settle-in rollback`'s, carried on the screen).
+    fn kw(&self, p: &str) -> String {
+        self.screen.pointer(&format!("/words/{}", p)).and_then(Value::as_str).unwrap_or("").to_string()
+    }
+
+    fn kept_lines(&self, ui: &mut egui::Ui, p: &str) {
+        for l in self.screen.pointer(&format!("/words/{}", p)).and_then(Value::as_array).cloned().unwrap_or_default() {
+            ui.label(l.as_str().unwrap_or(""));
+        }
     }
 
     fn w(&self, p: &str) -> String {
@@ -158,6 +175,7 @@ impl GoBack {
             self.page = match (&self.page, d["result"].as_str()) {
                 (Page::Preparing, Some("ready")) => Page::Ready,
                 (Page::Ready, Some("undone")) => Page::Undone,
+                (Page::KeptWord, Some("done")) => Page::KeptDone,
                 _ => Page::Failed(d),
             };
         }
@@ -178,6 +196,36 @@ impl GoBack {
                         for l in sec["lines"].as_array().cloned().unwrap_or_default() {
                             ui.label(l.as_str().unwrap_or(""));
                         }
+                    }
+                }
+                Page::KeptIntro => {
+                    for sec in self.screen["sections"].as_array().cloned().unwrap_or_default() {
+                        ui.add_space(10.0);
+                        ui.label(egui::RichText::new(sec["heading"].as_str().unwrap_or("")).strong().size(17.0));
+                        for l in sec["lines"].as_array().cloned().unwrap_or_default() {
+                            ui.label(l.as_str().unwrap_or(""));
+                        }
+                    }
+                }
+                Page::KeptWord => {
+                    ui.add_space(10.0);
+                    ui.label(egui::RichText::new(self.kw("word/heading")).strong().size(17.0));
+                    self.kept_lines(ui, "intro/lines");
+                    ui.add_space(8.0);
+                    ui.label(egui::RichText::new(self.kw("word/prompt")).strong());
+                    ui.add_enabled(!busy, egui::TextEdit::singleline(&mut self.typed));
+                    if busy {
+                        ui.add(egui::ProgressBar::new(0.0).animate(true));
+                        ctx.request_repaint_after(std::time::Duration::from_millis(500));
+                    }
+                }
+                Page::KeptDone => {
+                    ui.add_space(10.0);
+                    ui.label(egui::RichText::new(self.kw("done/heading")).strong().size(17.0));
+                    self.kept_lines(ui, "done/lines");
+                    ui.add_space(8.0);
+                    if ui.add(egui::Button::new(egui::RichText::new(self.kw("done/restart")).strong())).clicked() {
+                        let _ = Command::new("systemctl").arg("reboot").spawn();
                     }
                 }
                 Page::What => {
@@ -270,16 +318,26 @@ impl GoBack {
                 }
                 Page::Failed(d) => {
                     ui.add_space(10.0);
-                    ui.label(format!("{}{}", self.w("failed"), d["why"].as_str().unwrap_or("")));
-                    if d["computer_changed"] != json!(true) {
-                        ui.label(self.w("failed_unchanged"));
+                    if self.screen["kept"] == json!(true) {
+                        // the rollback's refusals come as a list; a failure names what was done before it stopped
+                        let why = match &d["why"] {
+                            Value::Array(a) => a.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(" "),
+                            v => v.as_str().unwrap_or("").to_string(),
+                        };
+                        let lead = if d["result"] == "refused" { self.kw("refused") } else { self.kw("failed") };
+                        ui.label(format!("{}{}", lead, why));
+                    } else {
+                        ui.label(format!("{}{}", self.w("failed"), d["why"].as_str().unwrap_or("")));
+                        if d["computer_changed"] != json!(true) {
+                            ui.label(self.w("failed_unchanged"));
+                        }
                     }
                 }
             }
         });
         ui.add_space(12.0);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-            let closable = !busy && !matches!(self.page, Page::Preparing);
+            let closable = !busy && !matches!(self.page, Page::Preparing | Page::KeptDone);
             if ui.add_enabled(closable, egui::Button::new(self.screen["close"].as_str().unwrap_or("Close"))).clicked() {
                 close = true;
             }
@@ -288,6 +346,17 @@ impl GoBack {
                 Page::Intro if self.drives_ok() => {
                     if ui.button(next).clicked() {
                         self.page = Page::What;
+                    }
+                }
+                Page::KeptIntro => {
+                    if ui.button(next).clicked() {
+                        self.page = Page::KeptWord;
+                        self.typed.clear();
+                    }
+                }
+                Page::KeptWord => {
+                    if ui.add_enabled(!busy && self.typed.trim() == "WINDOWS", egui::Button::new(self.kw("word/button"))).clicked() {
+                        self.job = Some(spawn(ctx, "pkexec", vec![core(), "rollback".into()]));
                     }
                 }
                 Page::What => {

@@ -46,7 +46,8 @@ Aspire's drive is dying, R23). Stands: see [STATUS.md](STATUS.md).
 
 Hardware check on first boot, copying the person's files (unlock BitLocker,
 copy, double-check), a "you used these programs, here is the Linux version"
-list, undo from the Linux side, clean-up. The clock, Wi-Fi and remote
+list, undo from the Linux side (the rollback, built 2026-10-12, waits on
+its rig arm and an Aspire row), clean-up. The clock, Wi-Fi and remote
 access are done (2026-10-04, the Aspire). Proves: V10, R28, V3, R19, R13.
 Waits on: V3 for the pull's integrity; V8 for never copying a stub (R8).
 Stands: see [STATUS.md](STATUS.md).
@@ -182,11 +183,6 @@ is decided, the dated line goes in its home and the item here is removed.
   Windows is gone (R36 says "may").
 - Who owns `shutdown /g` (Automatic Restart Sign-On), named in
   `architecture.md` as a courtesy to add later (R24).
-- How the rollback makes Windows first on firmware where a `bcdedit`
-  order change does not survive the restart (the Acer, `r21-rollback.csv`
-  line 6): another write from Windows, or the Linux-side twin
-  (`efibootmgr`, which held there; named in `architecture.md`, Rollback)
-  (R21).
 - `architecture.md`'s Stack still describes the window running the
   PowerShell scripts as child processes (2026-09-27); it needs a dated line
   once the cut-over to Rust lands (R32).

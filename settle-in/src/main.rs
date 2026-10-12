@@ -39,6 +39,14 @@
 //!       stick, then writes the installer and reads it all back. --image
 //!       writes a new file instead of a stick (tests and the rig). Progress
 //!       on stderr; the result as JSON.
+//!   settle-in rollback [--root DIR] [--stick DIR] [--dry-run]
+//!       Windows first again on a computer converted with Windows kept (root,
+//!       through pkexec; decided 2026-10-12, the owner: the rollback runs from
+//!       the Linux side). Windows' loader back in its slot, the fallback loader
+//!       back from the stick's snapshot, a marker for the guard in Windows, the
+//!       firmware's order with Windows first. Deletes nothing. The kit stick
+//!       must be in (--stick names its mount; else it is found by label).
+//!       --dry-run prints the plan and changes nothing. The result as JSON.
 //!   settle-in --version
 
 mod bootentry;
@@ -49,6 +57,7 @@ mod goback;
 mod walkaway;
 mod gpt;
 mod hw;
+mod rollback;
 mod sticks;
 mod stickwrite;
 mod ssh;
@@ -243,7 +252,14 @@ fn go_back(args: &[String], root: &str) -> i32 {
     let opt = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
     match args.first().map(String::as_str) {
         Some("screen") => {
-            let before = goback::windows_before(public_summary(root).ok().as_ref());
+            let summary = public_summary(root).ok();
+            let before = goback::windows_before(summary.as_ref());
+            // a kept Windows: the way back is the rollback (decided 2026-10-12, the owner)
+            if summary.as_ref().and_then(|s| s.get("windows_kept")) == Some(&json!(true)) {
+                let s = goback::kept_screen(&before);
+                if args.iter().any(|a| a == "--text") { print!("{}", summary::text(&s)); } else { println!("{}", s); }
+                return 0;
+            }
             let pc = goback::this_computer(root);
             let off = goback::offer(&before, &pc);
             let mut s = goback::screen(&before, &pc, &off);
@@ -555,6 +571,19 @@ fn main() {
         },
         Some("go-back") => std::process::exit(go_back(&args[1..], &opt("--root", "/"))),
         Some("remove-old-boot-entry") => std::process::exit(remove_old_boot_entry(&opt("--root", "/"))),
+        Some("rollback") => {
+            let root = opt("--root", "/");
+            // SAFETY: geteuid has no preconditions.
+            if root == "/" && unsafe { libc::geteuid() } != 0 {
+                eprintln!("settle-in: the rollback changes the startup files and order; it needs administrator rights (run it through pkexec)");
+                std::process::exit(1);
+            }
+            let stick = args.iter().position(|a| a == "--stick").and_then(|i| args.get(i + 1)).cloned();
+            let dry = args.iter().any(|a| a == "--dry-run");
+            let r = rollback::live::run(&root, stick.as_deref(), dry, &now_iso());
+            println!("{}", r);
+            std::process::exit(match r["result"].as_str() { Some("done") | Some("plan") => 0, Some("refused") => 1, _ => 2 });
+        }
         _ => {
             eprintln!("usage: settle-in first-start [--root DIR] [--rtc DEVICE] | summary [--root DIR] [--text] | remove-old-boot-entry [--root DIR] | --version");
             std::process::exit(64);

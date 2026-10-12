@@ -98,14 +98,23 @@ pub fn apply_plan(slot: Option<&str>, kept: Option<&str>, shim: Option<&str>, sn
 
 /// The guard's judgement at a Windows start: Windows' servicing put its own
 /// file back when the slot no longer holds shim (either the shim recorded at
-/// the arrangement or the shim on the ESP now).
-pub fn guard_action(slot: Option<&str>, shim_now: Option<&str>, shim_recorded: &str) -> &'static str {
+/// the arrangement or the shim on the ESP now). A rollback done from the
+/// Linux side (decided 2026-10-12, the owner) leaves a marker on the ESP;
+/// then the guard stands down and removes itself instead of putting shim back.
+pub fn guard_action(slot: Option<&str>, shim_now: Option<&str>, shim_recorded: &str, rolled_back: bool) -> &'static str {
+    if rolled_back {
+        return "stand-down";
+    }
     match slot {
         None => "slot-missing",
         Some(x) if x == shim_recorded || Some(x) == shim_now => "nothing",
         Some(_) => "reapply",
     }
 }
+
+/// The Linux-side rollback's marker on the ESP (`settle-in rollback`,
+/// `rollback::MARKER_REL` there). Its `guard` object is filled in here.
+pub const ROLLED_BACK_REL: &str = "upgrade_\\rolled-back.json";
 
 /// The record kept in the state directory and on the stick.
 pub fn record(reason: &str, plan: &Value, slot_after: Option<&str>, kept_after: Option<&str>, utc: &str, program: &str) -> Value {
@@ -269,8 +278,18 @@ pub mod live {
             let slot = Path::new(&esp).join(WINDOWS_SLOT_REL);
             let kept = Path::new(&esp).join(KEPT_REL);
             let shim = Path::new(&esp).join(SHIM_REL);
-            let action = guard_action(sha(&slot).as_deref(), sha(&shim).as_deref(), &shim_recorded);
+            let marker = Path::new(&esp).join(ROLLED_BACK_REL);
+            let action = guard_action(sha(&slot).as_deref(), sha(&shim).as_deref(), &shim_recorded, marker.exists());
             log(format!("      guard: slot {} -> {action}", sha(&slot).map(|x| x[..12].to_string()).unwrap_or("absent".into())));
+            if action == "stand-down" {
+                // the rollback ran from Linux: Windows' loader is in its slot; the guard's job is over
+                let removed = unregister_guard(rec);
+                let _ = std::fs::rename(&p, Path::new(state_dir).join("windows-slot-undone.json"));
+                let mut m: Value = std::fs::read_to_string(&marker).ok().and_then(|t| serde_json::from_str(t.trim_start_matches('\u{feff}')).ok()).unwrap_or(json!({}));
+                m["guard"] = json!({"removed": removed, "utc": plive::now_z(), "slot_sha": sha(&slot)});
+                let _ = std::fs::write(&marker, serde_json::to_string_pretty(&m).unwrap_or_default() + "\n");
+                log(format!("      the Linux-side rollback's marker is on the ESP; guard task removed: {removed}"));
+            }
             if action == "reapply" {
                 let k = copy_checked(&slot, &kept, "keeping Windows' serviced loader under its kept name")?;
                 let n = copy_checked(&shim, &slot, "putting shim back into Windows' slot")?;
@@ -350,7 +369,8 @@ mod tests {
 
     #[test]
     fn the_guard_reapplies_only_when_windows_took_the_slot_back() {
-        assert_eq!(guard_action(Some("ss"), Some("ss"), "ss"), "nothing");
+        assert_eq!(guard_action(Some("ss"), Some("ss"), "ss", false), "nothing");
+        assert_eq!(guard_action(Some("ms"), Some("ss"), "ss", true), "stand-down", "the Linux rollback's marker ends the guard, whatever the slot holds");
         // a person chose Windows in GRUB: the firmware boots the Linux entry, nothing to arrange
         let done = json!({"status": "completed", "path_taken": "keep-windows", "cutover": {"boot_chain": {"linux_first_in_bootorder": true}}});
         assert!(needs_slot(&done, true, false, false).is_some());
@@ -364,8 +384,8 @@ mod tests {
         assert_eq!(cleared.len(), 1024);
         assert!(!grub_env_has(&cleared, GRUB_CHOSEN_VAR));
         assert!(cleared.starts_with(b"# GRUB Environment Block\n"));
-        assert_eq!(guard_action(Some("s2"), Some("s2"), "ss"), "nothing", "a newer shim on the ESP counts as shim");
-        assert_eq!(guard_action(Some("ms"), Some("ss"), "ss"), "reapply");
-        assert_eq!(guard_action(None, Some("ss"), "ss"), "slot-missing");
+        assert_eq!(guard_action(Some("s2"), Some("s2"), "ss", false), "nothing", "a newer shim on the ESP counts as shim");
+        assert_eq!(guard_action(Some("ms"), Some("ss"), "ss", false), "reapply");
+        assert_eq!(guard_action(None, Some("ss"), "ss", false), "slot-missing");
     }
 }
