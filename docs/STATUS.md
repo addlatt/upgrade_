@@ -28,9 +28,11 @@ this Acer while efibootmgr's does (`r21-rollback.csv` line 6). The same run
 found that kickstart 0.9.0 saves GRUB's "Windows chosen" flag on `/boot`,
 where the return cannot read it (kickstart 0.10.0 puts it on the ESP,
 unproven). The owner then decided the rollback runs from the Linux side;
-`settle-in rollback` is built, its rig arm and Aspire row owed. Left: those
-rig rows, the unforced rig row, a real Windows update under the guard (R22),
-phases 2 and 3 of the leaving. The order and what each waits on: `ROADMAP.md`.
+`settle-in rollback` is built, its rig arm and Aspire row owed. The rig is
+blocked until its fresh image's bench password, expired after 42 days, is
+reset at the console. Left: that, those rig rows, the unforced rig row, a
+real Windows update under the guard (R22), phases 2 and 3 of the leaving.
+The order and what each waits on: `ROADMAP.md`.
 
 ## Gates
 
