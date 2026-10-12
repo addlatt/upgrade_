@@ -666,9 +666,9 @@ that cannot is steered to clean slate before committing.
 return, servicing and the rollback (lines 12, 13; `r21-rollback.csv` line 5).
 The Aspire's rollback (`r21-rollback.csv` line 6, `windows-not-direct`): files
 back, guard gone, but a `bcdedit` order change does not survive a restart on
-this firmware (`efibootmgr`'s does), and kickstart 0.9.0 saves GRUB's flag on
-`/boot`, unreadable from Windows. Owed: the Linux-side rollback's rows, the
-flag's fix, the unforced rig row, an update under the guard, other vendors ([log](log/2026-10.md#2026-10-12-the-first-rollback-on-a-real-machine-r21-v1b)).
+this firmware (`efibootmgr`'s does), and kickstart 0.9.0 saved GRUB's flag on
+`/boot`, unreadable from Windows (0.10.0 puts it on the ESP; unproven). Owed:
+the Linux-side rollback's rows, 0.10.0 on the rig, an update under the guard, other vendors ([log](log/2026-10.md#2026-10-12-the-first-rollback-on-a-real-machine-r21-v1b)).
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · held-on-rig
 

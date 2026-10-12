@@ -228,7 +228,7 @@ after a servicing pass and the rollback (lines 12 and 13, `r18-prologue.csv`
 line 17, `r21-rollback.csv` line 5, all `pass-plumbing`). The rollback on
 this machine: `r21-rollback.csv` line 6, `windows-not-direct` (2026-10-12),
 everything held but the direct boot; the rollback now runs from Linux (built
-2026-10-12, rows owed). Owed: that, the GRUB flag's home, R22, a healthy drive
+2026-10-12, rows owed). Owed: that, kickstart 0.10.0's flag, R22, a healthy drive
 ([log](log/2026-10.md#2026-10-12-the-first-rollback-on-a-real-machine-r21-v1b)).
 
 # Tier 2: a core promise breaks (recoverable, but the default is broken)
