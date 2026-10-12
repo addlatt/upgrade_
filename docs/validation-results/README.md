@@ -381,14 +381,15 @@ test setup can fake (rule #5); `fsutil dirty set` is only our model of it.
 
 ## `r21-rollback.csv`: rollback: Windows first again, its fallback loader restored from the snapshot (risk R21)
 
-Rollback undoes the boot changes so the machine starts Windows again, the way
-it did before the conversion. One row per run, appended by
-`rig/hyperv/rollback-verdict.py` from the rollback's record on the stick
-(`upgrade_/rollback.json`, written by `Invoke-Rollback.ps1` run from the kept
-Windows through `ROLLBACK.cmd`), the offline ESP manifests before the
-conversion, after the boot cycles and after the rollback, and the boot marker
-the bench writes when Windows comes up afterwards with **no key pressed**.
-Bench: `rig/hyperv/prologue.sh rollback` on a converted rig disk.
+Rollback undoes the boot changes so the machine starts Windows again as it
+did before the conversion. One row per run, by `rig/hyperv/rollback-verdict.py`
+from the rollback's record (`upgrade_/rollback.json`, written by
+`upgrade-prologue rollback`, the window's "Roll back" choice, from the kept
+Windows), the offline ESP manifests before the conversion, after the cycles
+and after the rollback, and the bench's marker when Windows comes up
+afterwards with **no key pressed**. Bench: `rig/hyperv/prologue.sh rollback`.
+`--physical`: the ESP before is the stick's snapshot sums, the captures come from
+`physical/collect-windows.ps1`, `boots.log` is assembled (first line `source,`).
 
 | Column | Meaning |
 |---|---|
@@ -397,10 +398,9 @@ Bench: `rig/hyperv/prologue.sh rollback` on a converted rig disk.
 | `linux_partitions_intact`, `efi_fedora_intact` | y/n: the GPT after the rollback equals the GPT after the cycles; every file under `EFI/fedora/` unchanged |
 | `notes` | the shas and orders before/after, the GPT and `EFI/fedora` comparison |
 
-**Result vocabulary.** `pass-plumbing` when all of the above hold; else the
-first failing item by name: `record-missing`, `not-restored`,
-`loader-mismatch`, `windows-not-first`, `windows-not-direct`,
-`linux-touched`, `efi-fedora-touched`.
+**Result vocabulary.** `pass-plumbing` (rig) or `pass` (`--physical`) when
+all of the above hold; else the first failing item by name: `record-missing`,
+`not-restored`, `loader-mismatch`, `windows-not-first`, `windows-not-direct`, `linux-touched`, `efi-fedora-touched`.
 
 **What a pass requires.** A rig row closes the plumbing of the restore half
 of the R21 snapshot. The firmware clause is a physical-matrix column: does

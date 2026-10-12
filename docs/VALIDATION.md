@@ -201,8 +201,8 @@ product path is `rig/hyperv/v2.sh` and `rig/hyperv/prologue.sh`: the
 prologue shrinks, `%pre` `verify.sh` snapshots the ESP to the stick,
 `liveimg` installs the stick's squashfs into the freed space reusing the
 Windows ESP unformatted, `%post` `outcome.sh` runs the checklist and writes
-`outcome.json`; `v2-verdict.py` writes the row, `Invoke-Rollback.ps1`
-(`ROLLBACK.cmd`) the rollback's. The Secure-Boot-on chainload is proven on
+`outcome.json`; `v2-verdict.py` writes the row, `rollback-verdict.py` the
+rollback's (`upgrade-prologue rollback`). The Secure-Boot-on chainload is proven on
 a UEFI-CA Hyper-V guest with Windows' PCA enrolled in shim's MokList
 ([log](log/2026-08.md#2026-08-31-secure-boot-on-chainload-via-mok-on-hyper-v-v1b-r21)). A real machine has
 no bench marker: its evidence comes from `rig/hyperv/physical/` (the
@@ -223,13 +223,13 @@ is committed. The product still converts them, without the safety net.
 drive (R23). The Aspire, 2026-10-11: the return applied shim in Windows'
 slot from its own evidence, then Fedora and Windows were each reached
 with nobody at the keyboard, Secure Boot on, the clock right
-(`v2-install.csv` line 15, `pass`). Line 11 (2026-10-10) was the same by
-hand. The rig held the return, the guard surviving a servicing pass and
-the rollback (lines 12 and 13, `r18-prologue.csv` line 17,
-`r21-rollback.csv` line 5, all `pass-plumbing`). Owed: a real Windows
-update under the guard (R22), the rollback on this machine, the
-healthy-drive row on another machine
-([log](log/2026-10.md#2026-10-11-the-detector-fires-on-the-aspire-r36-the-product-way-r21-r22-r25-r36-v1b)).
+(`v2-install.csv` line 15, `pass`). The rig held the return, the guard
+after a servicing pass and the rollback (lines 12 and 13, `r18-prologue.csv`
+line 17, `r21-rollback.csv` line 5, all `pass-plumbing`). The rollback on
+this machine: `r21-rollback.csv` line 6, `windows-not-direct` (2026-10-12),
+everything held but the direct boot. Owed: that order half, the GRUB flag's
+home on the ESP, a real update under the guard (R22), a healthy-drive machine
+([log](log/2026-10.md#2026-10-12-the-first-rollback-on-a-real-machine-r21-v1b)).
 
 # Tier 2: a core promise breaks (recoverable, but the default is broken)
 
