@@ -643,9 +643,8 @@ file source, and the person was told they had both. Trust-ending.
 
 **Decided (2026-08-30, the owner):** shim stays in `EFI/Boot/bootx64.efi`
 while Windows is kept; the prologue snapshots the ESP and the `Boot####` set;
-the post-install check re-creates the Windows entry, puts Linux first, checks
-`bootmgfw.efi` and `grub.cfg`; os-prober is set explicitly; `evaluate` wants
-32 MiB free on the ESP. Windows re-taking the order became R22.
+`%post` re-creates the Windows entry, puts Linux first, checks `bootmgfw.efi`
+and `grub.cfg`; `evaluate` wants 32 MiB free on the ESP. Re-taking: R22.
 
 **Decided (2026-10-10, the owner):** shim in Windows' slot on firmware that
 ignores operating-system entries (Acer's): `bootmgfw.efi` moves one name
@@ -662,13 +661,14 @@ vendors, Secure Boot on: Windows boots from the menu, GRUB lists it, the ESP
 had room, and `bootmgfw.efi` is intact (its bytes, on slot firmware). Firmware
 that cannot is steered to clean slate before committing.
 
-**Where it stands.** `[####]` one machine, the product's own way:
-`v2-install.csv` line 15 (the Aspire, 2026-10-11, `pass`): the return read its
-own evidence, put shim in the slot, both systems reached with nobody there.
-The rig held the return, a servicing pass and the rollback (lines 12, 13;
-`r21-rollback.csv` line 5). Owed: the unforced rig row on the fixed kit, a
-real Windows update under the guard, the rollback on the Aspire, other
-vendors, a healthy drive ([log](log/2026-10.md#2026-10-11-the-detector-fires-on-the-aspire-r36-the-product-way-r21-r22-r25-r36-v1b)).
+**Where it stands.** `[####]` one machine, the product's own way
+(`v2-install.csv` line 15, the Aspire, 2026-10-11, `pass`); the rig held the
+return, servicing and the rollback (lines 12, 13; `r21-rollback.csv` line 5).
+The Aspire's rollback (`r21-rollback.csv` line 6, `windows-not-direct`): files
+back, guard gone, but a `bcdedit` order change does not survive a restart on
+this firmware (`efibootmgr`'s does), and kickstart 0.9.0 saves GRUB's flag on
+`/boot`, unreadable from Windows. Owed: both fixes, the unforced rig row, a
+real update under the guard, other vendors, a healthy drive ([log](log/2026-10.md#2026-10-12-the-first-rollback-on-a-real-machine-r21-v1b)).
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · held-on-rig
 

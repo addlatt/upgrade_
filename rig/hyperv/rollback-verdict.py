@@ -8,10 +8,19 @@ loader), after the boot cycles (post-cycles.json) and after the rollback
 (post-rollback.json), and the boot marker the bench wrote when Windows came
 up with NO key pressed afterwards (boots.log). Never by hand.
 
-    rollback-verdict.py <artifacts dir> <csv> <harness version> <firmware>
+    rollback-verdict.py <artifacts dir> <csv> <harness version> <firmware> [--physical] [note]
+
+--physical: the evidence came from a real machine (rig/hyperv/physical/: the two
+ESP captures from Windows, before and after the rollback, inspected offline;
+the ESP before the conversion is the stick's own snapshot sums,
+esp-snapshot-SHA256SUMS; boots.log assembled from the machine's own records,
+first line "source,..."). A row that passes every check then reads "pass",
+not "pass-plumbing" (rule #5). First used 2026-10-12, the Aspire.
 """
 import csv, json, sys, datetime, pathlib
 A = pathlib.Path(sys.argv[1]); CSV = pathlib.Path(sys.argv[2]); HARNESS = sys.argv[3]; FIRMWARE = sys.argv[4]
+PHYSICAL = "--physical" in sys.argv[5:]; EXTRA = [x for x in sys.argv[5:] if x != "--physical"]
+PASS = "pass" if PHYSICAL else "pass-plumbing"
 HEADER = ["timestamp", "harness", "firmware", "record", "restored", "loader_matches_snapshot", "windows_first", "windows_direct_boot",
           "linux_partitions_intact", "efi_fedora_intact", "result", "notes"]
 def load(p):
@@ -20,6 +29,16 @@ def load(p):
 def yn(b): return "y" if b else "n"
 rec, pre, cyc, post = load("rollback.json"), load("pre-install.json"), load("post-cycles.json"), load("post-rollback.json")
 notes = []
+if pre is None and (A / "esp-snapshot-SHA256SUMS").exists():
+    # a physical run has no offline image of the disk before the conversion: the ESP before is the
+    # stick's own snapshot, taken by %pre (upgrade_/esp-snapshot/SHA256SUMS), as v2-verdict.py reads it
+    import re as _re
+    _m = {}
+    for line in open(A / "esp-snapshot-SHA256SUMS", encoding="utf-8", errors="replace"):
+        mm = _re.match(r"^([0-9a-f]{64})\s+\*?\.?/?(.+)$", line.strip())
+        if mm: _m["/" + mm.group(2).replace("\\", "/").lstrip("/")] = {"sha256": mm.group(1), "size": 0}
+    if _m:
+        pre = {"esp": {"manifest": _m}}; notes.append("ESP before the conversion: the stick's own snapshot sums (%d files)" % len(_m))
 fb = (rec or {}).get("fallback_loader") or {}; bo = (rec or {}).get("boot_order") or {}
 restored = yn(fb.get("restored")); win_first = yn(bo.get("windows_first"))
 # a loader that already matched the snapshot had nothing to restore (the rig, 2026-10-10: the first rollback
@@ -53,11 +72,16 @@ try:
     fedora_ok = yn(f1 == f2 and len(f1) > 0)
     notes.append(f"GPT {len(g1)} partitions unchanged={g1 == g2}; EFI/fedora {len(f1)} files unchanged={f1 == f2}")
 except Exception as ex: notes.append(f"GPT/fedora comparison unavailable: {ex}")
-direct = "n"
+direct = "n"; after = []
 try:
     for line in open(A / "boots.log", encoding="utf-8-sig", errors="replace"):
+        if line.startswith("source,"): notes.append("boot log " + line[7:].strip()[:220]); continue   # a physical run says where its boot lines came from
         if line.startswith("windows-boot") and "direct-after-rollback" in line: direct = "y"
+        elif line.startswith(("linux-boot", "windows-boot")) and ("after-rollback" in line or "after-efibootmgr" in line or "after-bcdedit" in line):
+            after.append(",".join(line.strip().split(",")[:3]))
 except Exception: pass
+if direct != "y" and after: notes.append("boots after the rollback: " + " ; ".join(after)[:300])
+if EXTRA: notes.append(" ".join(EXTRA))
 if rec is None: result = "record-missing"
 elif restored != "y": result = "not-restored"
 elif loader_ok != "y": result = "loader-mismatch"
@@ -65,7 +89,7 @@ elif win_first != "y": result = "windows-not-first"
 elif direct != "y": result = "windows-not-direct"
 elif parts_ok != "y": result = "linux-touched"
 elif fedora_ok != "y": result = "efi-fedora-touched"
-else: result = "pass-plumbing"
+else: result = PASS
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), HARNESS, FIRMWARE, yn(rec), restored, loader_ok, win_first, direct, parts_ok, fedora_ok, result, " | ".join(notes)]
 new = not CSV.exists()
 with open(CSV, "a", newline="", encoding="utf-8") as f:
@@ -73,4 +97,4 @@ with open(CSV, "a", newline="", encoding="utf-8") as f:
     if new: w.writerow(HEADER)
     w.writerow(row)
 print(f"rollback-verdict: {result} (restored={restored} loader={loader_ok} windows_first={win_first} direct={direct} parts={parts_ok} fedora={fedora_ok}) -> {CSV}")
-sys.exit(0 if result == "pass-plumbing" else 1)
+sys.exit(0 if result == PASS else 1)

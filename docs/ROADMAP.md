@@ -182,8 +182,10 @@ is decided, the dated line goes in its home and the item here is removed.
   Windows is gone (R36 says "may").
 - Who owns `shutdown /g` (Automatic Restart Sign-On), named in
   `architecture.md` as a courtesy to add later (R24).
-- The Linux-side rollback twin (`efibootmgr`, named in `architecture.md`,
-  Rollback) has no build or row statement; whether it is built or dropped
+- How the rollback makes Windows first on firmware where a `bcdedit`
+  order change does not survive the restart (the Acer, `r21-rollback.csv`
+  line 6): another write from Windows, or the Linux-side twin
+  (`efibootmgr`, which held there; named in `architecture.md`, Rollback)
   (R21).
 - `architecture.md`'s Stack still describes the window running the
   PowerShell scripts as child processes (2026-09-27); it needs a dated line
