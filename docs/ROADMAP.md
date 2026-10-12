@@ -155,6 +155,34 @@ Fill the hardware list from linux-hardware.org instead of by hand, and let
 people opt in to sharing how their switch went, so the list gets smarter
 with every one. Proves: V7, R3. Waits on: the scanner shipping.
 
+## 19. Rust unification: everything that can be Rust is Rust
+
+The first of three checkpoints, taken in order 19, 20, 21 (decided
+2026-10-12, the owner). Item 17's phases 2 and 3, then the Linux side the
+person's computer runs: `verify.sh` and `outcome.sh` in the installer,
+`settle-in`'s starter script. Build and check tools follow where feasible;
+the rig harness stays. The stick writer writes disks, so R16's rows run
+again (rule #4); `verify.sh` and `outcome.sh` re-earn V1's and R21's rows.
+Proves: V13, R32. Stands: see [STATUS.md](STATUS.md).
+
+## 20. Product unification: fewer choices, one way through
+
+Cut what the person does not need. After an erase the way back is the
+walk-away only; the guided stick goes (R30, R33). Verify and Probe leave
+the person's window, kept behind a developer flag for the rows (R31). Erase
+stops being its own flow and becomes Convert's clean-slate answer, keeping
+its own sentence and drive list (R27). Kept on purpose: KDE or GNOME, the
+console start, items 8 and 12. A refusal is never trimmed (rule #1).
+Proves: V11, V12. Stands: see [STATUS.md](STATUS.md).
+
+## 21. Test optimization
+
+Faster, steadier proof, never less of it. A check on every pull request
+that runs `./port-check.sh` (R9); a rig whose guest channel survives fast
+power cycles; the 45 `owed` ledger lines. No case or frozen golden is
+dropped to save time (rule #5). Proves: R9, V13. Stands: see
+[STATUS.md](STATUS.md).
+
 ## Decisions owed
 
 The owner's open calls, one line each, naming what waits on them. When one
@@ -174,8 +202,8 @@ is decided, the dated line goes in its home and the item here is removed.
 - What the way back does on a machine with no firmware product key, where
   Windows Setup stops at its key page and walk-away breaks (R33).
 - The data tables' format after the PowerShell scanner is retired (R32).
-- Whether the Linux side (`verify.sh`, `outcome.sh`, `make-kit.sh`, the
-  Python tools) moves to Rust too (R32).
+- What item 21 (test optimization) covers beyond the pull-request check,
+  the rig and the owed ledger lines (R9).
 - Choosing among several Linux releases on one stick, and fetching a release
   from Windows: not built, not scheduled (V14, R34).
 - Whether reclaim switches the kept-Windows machine's clock back to UTC once

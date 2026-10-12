@@ -971,9 +971,11 @@ files (R13); the walk-away reinstall is an erase (critical, R33).
 its cost first; its own program in the app menu, not the first-start window;
 guided stick first; the harvest records facts, never keys, and a failed read
 is recorded, not a refusal; the erase launchers say it before the sentence
-is typed (words a draft, awaiting the owner's approval).
+is typed (words a draft, awaiting the owner's approval). **Decided
+(2026-10-12, the owner):** the walk-away (R33) is the only way back; the
+guided stick leaves the product (`ROADMAP.md` item 20).
 
-**Closes when.** The guided stick has put back an activated Windows on real
+**Closes when.** The walk-away has put back an activated Windows on real
 machines of two licence kinds (a firmware key; a digital licence without
 one), each run leaving its harvest from before and after, and a machine that
 cannot run Windows 11 has been shown the Windows 10 path with its warning.
@@ -1008,7 +1010,10 @@ convert and erase its words sit on the commit line and this risk is critical.
 **Decided (2026-09-27, the owner):** a Rust window calling the scripts from
 the stick, the verify flow first; it must reopen after the restart. The
 `.cmd` launchers stay on the stick as the fallback until the window has its
-rows.
+rows. **Decided (2026-10-12, the owner):** fewer flows for the person:
+Verify and Probe move behind a developer flag; Erase becomes Convert's
+clean-slate answer, its sentence and drive list unchanged (R27;
+`ROADMAP.md` item 20).
 
 **Closes when.** V12's rows: the rig, then the Aspire, then a machine on the
 basic display driver.
@@ -1045,21 +1050,21 @@ machine. **Decided (2026-10-11, the owner):** the PowerShell leaves the
 product now, one Rust product: the scripts go, the ledger lines they still
 hold stay `owed` to the Rust, and the goldens recorded from them are frozen
 (`FROZEN-GOLDENS.sha256`, `port-check.sh`); the Rust is the reference. Three
-phases in `RUST-PORT.md`, "What comes next".
+phases in `RUST-PORT.md`, "What comes next". **Decided (2026-10-12, the
+owner):** all that can be Rust now is Rust, the installer's `verify.sh` and
+`outcome.sh` and `settle-in`'s starter included (`ROADMAP.md` item 19).
 
 **Closes when.** Every line of `port-parity.csv` reads `pass` (self-tests
 and corpus as `cargo test`, rig rows re-run by the same harness, physical
-rows re-run on the machine), no PowerShell on the stick or in `data/`, and a
+rows re-run on the machine), no PowerShell on the stick or in `data/`, no
+shell script in the installer's `%pre`/`%post` beyond a starter, and a
 release rebuilt byte for byte by someone else.
 
-**Where it stands.** `[####]` the whole Windows side in Rust, the cut-over on
-the Aspire (`v2-install.csv` line 15, `pass`; `r18-prologue.csv` lines 18 and
-19); phase 1 of the leaving done 2026-10-11 (the ten scripts, their recorders,
-the launchers, `build.sh` and `dist/` gone; the port check Rust-only; the kit
-built); ledger 657 `pass`, 45 `owed`. Owed: the unforced rig row on the fixed
-kit (the rig's guest channel is down), phase 2 (the storage-mode harness, the
-diag tools, the stick writer), phase 3 (the data tables), the 45 lines, the
-rebuild by someone else
+**Where it stands.** `[####]` the cut-over on the Aspire (`v2-install.csv`
+line 15, `pass`; `r18-prologue.csv` lines 18 and 19); phase 1 done
+2026-10-11; ledger 657 `pass`, 45 `owed`. Owed: the unforced rig row (the
+rig's guest channel is down), phases 2 and 3, the Linux side, the 45 lines,
+the rebuild by someone else
 ([log](log/2026-10.md#2026-10-11-the-powershell-leaves-the-product-decided-phase-1-done)).
 
 ## R33: The walk-away way back to Windows · critical · held-on-machine

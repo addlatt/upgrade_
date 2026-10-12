@@ -876,8 +876,8 @@ names (found again by serial, exact size and the typed model name; the stick
 writer's refusals, RISKS R16), splits `sources\install.wim` into `install.swm`
 parts under FAT32's 4 GB with `wimlib-imagex` (static, GPL-3.0, built from a
 pinned source and carried on the kit), reads every file back, and shows the
-steps in plain words. Nothing on the computer changes until the person starts
-the Windows installer themselves.
+steps in plain words. Nothing changes until the person starts Windows'
+installer. **Decided (2026-10-12, the owner): only stage 2 stays** (R30).
 
 **Stage 2, a walk-away reinstall. Decided (2026-09-29, the owner): the way back
 is 100% managed, and it comes now.** An unattended Windows install with its own
