@@ -144,9 +144,9 @@ owner). Done: the whole Windows side in Rust, the cut-over on the Aspire
 (2026-10-10), and phase 1 of the leaving: the ten product scripts, their
 recorders, the launchers, `build.sh` and `dist/` gone, the port check
 Rust-only with frozen goldens. Waits on: the rig answering again for the
-unforced row. Owed: phase 2's last piece (the stick writer to Rust; the
-diag tools, the storage-mode harness and `DIAG-VOLUME.cmd`'s block moved
-2026-10-14), phase 3 (the data tables to JSON, then `CLAUDE.md`), the
+unforced row. Owed: phase 2's last rows (the stick writer is built, 2026-10-14; its
+R16 write rows and the rig's refusals are still owed, then the script goes),
+phase 3 (the data tables to JSON, then `CLAUDE.md`), the
 `owed` ledger lines (see STATUS.md, V13). Proves: V13, R32. The phases: `RUST-PORT.md`,
 "What comes next". Stands: see [STATUS.md](STATUS.md).
 

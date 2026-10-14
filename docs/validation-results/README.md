@@ -207,7 +207,7 @@ check that matters moved to `settle-in`.
 
 ## `r16-stick-writer.csv`: the stick writer refuses the wrong device (risk R16)
 
-The writer (`evaluate/windows/Write-UpgradeStick.ps1`) is the first component
+The writer (`upgrade-stick`; `Write-UpgradeStick.ps1` wrote lines 2 to 12) is the first component
 that writes to a device; R16 is the risk that it writes the wrong one, before
 the commit line. One row per run: every `-Plan` (read-only) and every
 `-Write`. The rules, all of which must hold and each of which is reported:
@@ -220,7 +220,7 @@ cmdlets get that disk object, never a disk number.
 
 | Column | Meaning |
 |---|---|
-| `writer`, `machine`, `os_build`, `mode` | Write-UpgradeStick.ps1 version; where it ran; `plan` (nothing written) or `write` |
+| `writer`, `machine`, `os_build`, `mode` | the writer's version (`0.1.1` the script; `0.1.0 (Rust; ...)` the program); where it ran; `plan` (nothing written) or `write` |
 | `disks_attached`, `usb_disks`, `target`, `expected_bytes` | how many disks the run saw, and how many on the USB bus; the unique id pointed at; the size the person was shown, in bytes (decimal GB x 10^9 when typed) |
 | `decision`, `refusals` | `selected` or `refused`; when refused, every rule the pointed-at device broke |
 | `written`, `verified` | y/n: was a disk erased and written; did every file read back against SHA256SUMS |

@@ -120,7 +120,7 @@ data/            hardware + distro knowledge base; community PRs land here
   distros.ps1      distro kernel table (goes stale; verify against release notes)
   releases.ps1     the Linux releases the kit can carry, and what Secure Boot needs of each (measured by tools/measure-release.py, never typed)
   tables.json      the same three tables as JSON, for the Rust side (written by tools/export-tables.ps1, never edited)
-evaluate/windows/  the corpus of machine recordings; the one PowerShell holdover (the stick writer; its phase 2 port retires it)
+evaluate/windows/  the corpus of machine recordings; the one PowerShell holdover (the stick writer; its port `evaluate/stick` is built and retires it when R16's rows read pass)
 evaluate/scan/, harvest/, job/  the scanner, the harvester and the job writer in Rust (the product since 2026-10-11)
 evaluate/scan/, evaluate/harvest/, evaluate/job/  the scanner's, harvester's and job writer's judging halves in Rust (held to the PowerShell word for word)
 upgrade_/          the converter: prologue/ the prologue, handoff, rollback and the slot in Rust; kickstart/ the kickstart generator in Rust; windows/window/ the window (UPGRADE.exe), windows/handoff-payload/ the stick's EFI payload and the two .cmd starters; linux/ %pre verify + outcome
@@ -146,7 +146,7 @@ dist/kit/          the kit, built by ./make-kit.sh (gitignored; the stick's cont
   keeps to Windows PowerShell 5.1 (no PS7 syntax) until its phase in
   `docs/RUST-PORT.md`, "What comes next", retires it.
 - **Run `./port-check.sh` before any change lands.** It runs `schemas/check.py`,
-  checks the data tables are fresh, checks the eleven frozen goldens are unchanged
+  checks the data tables are fresh, checks the twelve frozen goldens are unchanged
   (`FROZEN-GOLDENS.sha256`: recordings of what the PowerShell answered, ground truth
   for the Rust forever), and runs every crate's tests. A golden changes only on
   purpose, from the Rust's own output, reviewed as a diff, with its new sha256

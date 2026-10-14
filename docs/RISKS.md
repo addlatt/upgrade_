@@ -503,7 +503,9 @@ refused for its bus). First physical write 2026-09-13 from the G16: one
 8 GB General UDisk written and verified (lines 11 and 12); writer 0.1.1
 learned that `Clear-Disk` leaves a real stick MBR-initialized where a VHDX
 comes back RAW. One finding for `job.json`: a stick's `UniqueId` carries
-the host name on the end and its `SerialNumber` can be empty. Owed: the
+the host name on the end and its `SerialNumber` can be empty. The writer
+in Rust (`upgrade-stick`, 2026-10-14) holds the matrix and wrote the G16's
+read-only rows again (lines 13 and 14); its write rows are owed. Owed: the
 several-devices write. Log:
 [built](log/2026-09.md#2026-09-08-the-stick-writer-built-and-the-refusal-matrix-fired-r16),
 [first write](log/2026-09.md#2026-09-13-first-physical-stick-write-r16).

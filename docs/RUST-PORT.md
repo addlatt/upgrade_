@@ -52,8 +52,10 @@ them: the first physical conversion with no PowerShell on the Windows
 side. The `RUN-*.cmd` launchers still run the PowerShell scripts, which
 stay on the stick as the way back until each script's ledger lines read
 `pass` (656 of 701 that day; 665 of 712 on the morning of 2026-10-14, 795
-of 842 by its evening, 47 owed). The stick writer, `Copy-Kit.ps1` and everything under `rig/` stay
-PowerShell on purpose; the `Diag-*` tools, the storage-mode harness and
+of 842 by its evening, 47 owed). Everything under `rig/` stays
+PowerShell on purpose; the stick writer and `Copy-Kit.ps1` are `upgrade-stick`
+since 2026-10-14 (the script stays in the tree until R16's write rows are
+earned again by the program); the `Diag-*` tools, the storage-mode harness and
 `DIAG-VOLUME.cmd`'s inline block did until 2026-10-14 (`upgrade-scan diag`,
 `upgrade-prologue storage-mode`).
 
@@ -158,7 +160,7 @@ on 2026-10-04.
 | `Harvest-UpgradeState.ps1` | 1,279 | `evaluate/harvest` (crate `upgrade-harvest`; the program `upgrade-harvest folder-map`) | 3 | `-SelfTest`, 47 cases |
 | `New-Job.ps1` | 1,451 | `evaluate/job` (crate `upgrade-job`; the program `upgrade-job write`) | 4 | `-SelfTest`, 126 cases |
 | `New-Kickstart.ps1` | 226 | part of the job writer crate | 4 | rig rows |
-| `Write-UpgradeStick.ps1` | 514 | a stick writer (shares ideas with `settle-in/src/stickwrite.rs`) | 4 | `r16-stick-writer.csv` |
+| `Write-UpgradeStick.ps1` | 514 | `evaluate/stick` (crate `upgrade-stick`: `list`, `plan`, `write`; `copy` is `Copy-Kit.ps1`), built 2026-10-14 | 4 | `-SelfTest`, 23 cases; `r16-stick-writer.csv` |
 | `Read-Password.ps1` | 201 | `evaluate/job/src/password.rs`, run as `upgrade-job password` until the window takes the prompt | 4 | `-SelfTest`, 12 cases |
 | `Invoke-Prologue.ps1` | 2,124 | `upgrade_/prologue` (crate `upgrade-prologue`), then the converter's Windows half | 5 | `-SelfTest`, 144 cases; rig and physical rows (`r18-prologue.csv`, `v2-install.csv`, `v9-erase.csv`, `walkaway-probe.csv`) |
 | `Invoke-Rollback.ps1` | 238 | `upgrade_/prologue/src/rollback.rs` (`upgrade-prologue rollback`); its rig row passed 2026-10-08 (`r21-rollback.csv` line 4) | 5 | `-SelfTest`, 14 cases; `r21-rollback.csv` |
@@ -463,6 +465,9 @@ Each one is stricter than the original, or changes no decision.
 | a leg's `Classes` and `CompatibleIds` in the record (2026-10-14) | re-saved as `{"Length": n}` objects once the state had been read back from JSON (PowerShell 5.1 serialises a string it read from JSON that way; the script's own comment records it from the Aspire, 2026-09-15) | the strings, every time | the record says what the controller declared; nothing decides on it (the row's class codes come from the capture) |
 | the storage-mode RunOnce and task commands (2026-10-14) | `powershell.exe -File <the script's copy> -SafeModeSignIn` and `-Notify`; a scheduled task on the same | this program's copy in the state directory, `storage-mode safe-mode-sign-in` and `notify` | there is no script to launch; the same `*`-prefixed value name, the same SYSTEM task shape |
 | `diag volume`, hiberfil (2026-10-14) | `Test-Path C:\hiberfil.sys`: False even when the file is there (the provider cannot open a file Windows holds; a 13 GB one was on the G16) | whether the file is there: True | the line answers the question asked; a diagnostic, nothing decides on it |
+| the stick writer's evidence row, `writer` field (2026-10-14) | `0.1.1`, the script's version | `0.1.0 (Rust; follows Write-UpgradeStick.ps1 0.1.1)` | a record should say what wrote it; the row's words are otherwise the same |
+| `stick.json` on the written stick (2026-10-14) | PowerShell's `ConvertTo-Json` layout (four-space indent, two spaces after each colon), ASCII | the same six fields, two-space indent, UTF-8 | the job writer reads either; the fields and values are the same |
+| `copy`, the file copy (2026-10-14) | `robocopy /E`, skipping the files verified in place, retrying twice | a plain copy of every kit file not verified in place, no retry; a failed copy names the file and says what a bus drop looks like | the same files land; the verification afterwards is the evidence either way |
 | `diag volume`, a refused online scan (2026-10-14) | `Repair-Volume -Scan` under `-ErrorAction SilentlyContinue`: an empty line | the same empty line when the call answers nothing (not elevated); otherwise the scan's word | the same words; the Rust names the case |
 | the password typed twice (2026-10-07) | `-cne`, which compares by the culture's rules: `é` and `e` + a combining accent count as the same, and the pair is accepted | the two entries are compared byte for byte; that pair is refused with "the two entries are not the same" | stricter, and right: Fedora's sign-in compares bytes, so the accepted pair would have locked the person out. `tests/password.rs` holds it by name |
 | the JSON files' form: the report, the folder map (2026-10-07) | `ConvertTo-Json`: a byte order mark, CRLF, .NET dates (`\/Date(...)\/`), a one-item array written as the item | plain UTF-8, LF, dates as `2025-05-19T20:00:00` local time, arrays always arrays; one field more saying what wrote the file (`Scanner`, `Harvester`) and, in the report, `ReadErrors` only when a read failed | the same values in a plainer form. Every reader (`New-Job.ps1`, the window, the Rust) accepts both; nothing decides on `System.BiosDate`. The text report is byte-identical, mark and line ends included |
@@ -752,8 +757,11 @@ The phases, each its own pull request:
    `upgrade-prologue storage-mode` (done 2026-10-14: 118 cases from the
    script, the rig's arm run again;
    [log](log/2026-10.md#2026-10-14-the-storage-mode-harness-and-the-volume-diagnostic-to-rust-r32-v13-v5-roadmap-item-19-step-2));
-   `Write-UpgradeStick.ps1` and `Copy-Kit.ps1` to an `upgrade-stick` crate
-   (a disk writer: R16's rig and physical rows again, rule #4).
+   `Write-UpgradeStick.ps1` and `Copy-Kit.ps1` to the `upgrade-stick` crate
+   (built 2026-10-14: 63 cases from the script, the G16's read-only rows
+   again, lines 13 and 14; a disk writer, so its write rows and the rig's
+   refusals are still owed, rule #4;
+   [log](log/2026-10.md#2026-10-14-the-stick-writer-to-rust-r16-r32-v13-roadmap-item-19-step-3)). The script stays in the tree until those rows exist.
    `DIAG-VOLUME.cmd`'s inline PowerShell is `upgrade-scan diag volume`
    (the same day). Nothing on the stick is PowerShell now.
 3. **Phase 3: the data tables.** `data/*.ps1` and `export-tables.ps1` to a
