@@ -197,7 +197,7 @@
   ]
  },
  {
-  "name": "%pre runs verify.sh with the job and the stick label, erroring on failure",
+  "name": "%pre runs upgrade-installer verify with the job and the stick label, erroring on failure",
   "origin": "selftest",
   "parts": [
    {
@@ -212,7 +212,7 @@
      ],
      [
       "line_suffix",
-      "verify.sh /run/install/repo/upgrade_/job.json UPGV0"
+      "upgrade-installer verify /run/install/repo/upgrade_/job.json UPGV0"
      ]
     ]
    }
@@ -425,7 +425,7 @@
   ]
  },
  {
-  "name": "the nochroot %post runs outcome.sh after the chroot %post",
+  "name": "the nochroot %post runs upgrade-installer outcome after the chroot %post",
   "origin": "selftest",
   "parts": [
    {
@@ -445,7 +445,7 @@
      ],
      [
       "contains",
-      "outcome.sh /run/install/repo/upgrade_/job.json"
+      "upgrade-installer outcome /run/install/repo/upgrade_/job.json"
      ]
     ]
    }

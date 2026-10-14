@@ -4,7 +4,7 @@
 # Hyper-V rig (RISKS R31). The window is started in the signed-in session and
 # driven with the guest's keyboard: Tab to "Start the test", Enter. From
 # there the product runs itself: scan -> job -> kickstart -> its own reopen
-# task -> Test-Handoff's arm -> restart -> the stick's live boot (verify.sh,
+# task -> Test-Handoff's arm -> restart -> the stick's live boot (the verify step,
 # upg.mode=verify) -> back to Windows -> autologon -> the return check and
 # the window's reopen fire at the same sign-in -> the window shows the
 # result. The verdict reads the stick's convert.log (the window's own lines),

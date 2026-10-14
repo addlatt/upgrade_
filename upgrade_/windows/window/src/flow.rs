@@ -3,7 +3,7 @@
 //! level). The programs decide; this file only mirrors RUN-VERIFY.cmd's
 //! steps as calls to the kit's Rust programs (the cut-over, RISKS R32:
 //! `upgrade-scan`, `upgrade-job`, `upgrade-prologue`), and reads what they
-//! and verify.sh wrote.
+//! and the installer's verify step wrote.
 
 use crate::words;
 use serde_json::Value;
@@ -17,7 +17,7 @@ pub const KIT_FILES_VERIFY: [&str; 8] = [
     "upgrade-prologue.exe",
     "EFI\\BOOT\\BOOTX64.EFI",
     "images\\install.img",
-    "upgrade_\\verify.sh",
+    "upgrade_\\upgrade-installer",
     "upgrade_\\LiveOS\\kde.squashfs",
     "SHA256SUMS",
 ];
@@ -84,14 +84,13 @@ pub fn arm_call(stick: &str) -> Call {
 
 /// The files RUN-CONVERT.cmd refuses to start without, with the Rust
 /// programs in place of the scripts.
-pub const KIT_FILES_CONVERT: [&str; 10] = [
+pub const KIT_FILES_CONVERT: [&str; 9] = [
     "upgrade-scan.exe",
     "upgrade-job.exe",
     "upgrade-prologue.exe",
     "EFI\\BOOT\\BOOTX64.EFI",
     "images\\install.img",
-    "upgrade_\\verify.sh",
-    "upgrade_\\outcome.sh",
+    "upgrade_\\upgrade-installer",
     "upgrade_\\LiveOS\\kde.squashfs",
     "upgrade_\\LiveOS\\gnome.squashfs",
     "SHA256SUMS",
@@ -628,7 +627,7 @@ mod tests {
 
     #[test]
     fn the_convert_kit_list_adds_what_the_install_needs() {
-        for f in ["upgrade_\\outcome.sh", "upgrade_\\LiveOS\\gnome.squashfs", "upgrade-prologue.exe"] {
+        for f in ["upgrade_\\upgrade-installer", "upgrade_\\LiveOS\\gnome.squashfs", "upgrade-prologue.exe"] {
             assert!(KIT_FILES_CONVERT.contains(&f), "{f}");
         }
         assert!(hash_file_path().to_string_lossy().contains("upgrade-pw-"));

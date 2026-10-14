@@ -15,7 +15,7 @@ members = [
     "upgrade_/prologue",
     "upgrade_/windows/window",
 ]
-exclude = ["settle-in", "settle-in/window", "settle-in/gate"]
+exclude = ["settle-in", "settle-in/window", "settle-in/gate", "upgrade_/linux/installer"]
 
 # the same bytes from any machine: symbols out, one codegen unit; the window
 # is built for size as before
