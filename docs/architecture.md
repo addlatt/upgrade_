@@ -361,7 +361,7 @@ decisions can be self-tested.
 
 Still fully reversible; even the shrink can be undone by growing the partition
 back. The prologue's record (`upgrade_/prologue.json`) is what `%post`'s
-`outcome.sh` carries into `outcome.json` as the `prologue` block.
+outcome step carries into `outcome.json` as the `prologue` block.
 
 #### The handoff
 
@@ -580,19 +580,19 @@ in one way that matters: the person said up front that nothing is to be kept.
    drives by identity), lets a waiting Windows update finish (RISKS R25), arms
    the one-time boot to the stick and restarts. Windows still boots if anything
    stops before the countdown ends.
-4. **The installer checks, then counts down.** `%pre` (`verify.sh`, which runs
+4. **The installer checks, then counts down.** `%pre` (`upgrade-installer verify`, which runs
    inside the installer before it does anything) finds each listed drive by
    identity and exact size and refuses on any mismatch (a stick moved to another
    computer never erases it); reads the desktop image back against its checksum
    (RISKS R17); then shows a **two-minute countdown: "Erasing both drives in
    1:59 - press any key to cancel and restart into Windows."** Any key cancels:
    the report goes to the stick and the machine restarts into an untouched
-   Windows. The moment it reaches zero is **the commit line**: `verify.sh`
+   Windows. The moment it reaches zero is **the commit line**: the verify step
    writes the time to the stick, writes `upgrade_/converted` and removes
    `upgrade_/boot-install` (a converted stick only ever hands over to the
    installed system, never installs again; RISKS R35), and the installer erases
    and installs. **Every refusal before the countdown is a plain screen**
-   (decided 2026-09-27, the owner; `verify.sh` 0.5.0), not Anaconda's raw
+   (decided 2026-09-27, the owner; `verify.sh` 0.5.0, now `upgrade-installer verify`), not Anaconda's raw
    traceback, for 60 s (any key: now), then the computer restarts unchanged with
    `report/refusal.json` on the stick:
 
@@ -957,12 +957,12 @@ The modules talk to each other only through files on the stick:
 |---|---|---|
 | `job.json` + `artifacts/` | evaluate | upgrade_, **settle-in** |
 | `outcome.json` + logs | upgrade_ | settle-in |
-| `/var/lib/upgrade_/` on the installed system | the installer adapter (Fedora: `outcome.sh`) | settle-in |
+| `/var/lib/upgrade_/` on the installed system | the installer adapter (Fedora: `upgrade-installer outcome`) | settle-in |
 
 `settle-in` reads `job.json` too: on the keep-Windows path it needs the folder
 map and the BitLocker recovery key to pull the files. So `job.json` outlives
 cutover, and the recovery key can only be scrubbed **after** the pull. **The
-handoff folder** (`outcome.sh` 0.4.0): at the end of the install the adapter
+handoff folder** (the outcome step; since `outcome.sh` 0.4.0): at the end of the install the adapter
 copies `job.json` and `outcome.json` into `/var/lib/upgrade_/` on the installed
 system, root-only (folders 0700, files 0600), laid out like the stick's
 `upgrade_/` so the job's relative paths resolve the same. The Wi-Fi password

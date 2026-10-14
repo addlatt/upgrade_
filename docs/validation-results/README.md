@@ -246,7 +246,7 @@ after, in `notes`). No VM can run it: Hyper-V has no USB emulation.
 One row per run, appended by `rig/hyperv/v1-verdict.py` from the V0 harness
 row the guest wrote when Windows came back (`Test-Handoff.ps1 -Check -Auto`)
 and the report the `%pre` verifier left on the stick
-(`upgrade_/report/verify.json`, by `upgrade_/linux/verify.sh` inside
+(`upgrade_/report/verify.json`, by `upgrade-installer verify` inside
 Anaconda's stage2; `%pre` runs before the installer touches any disk). The
 chain: one-time boot entry, shim, GRUB records `upg_fired` and boots the
 installer from the stick with `upg.mode=verify`, `%pre` finds the job's disk
@@ -367,7 +367,7 @@ session 0 interactive False explorer False` and the bench line reads `=0`
 | `fork-<x>` | the fork landed elsewhere than keep-windows (recorded, not a pass for this leg) | design input |
 | `shrink-short` | `Resize-Partition` freed less than planned, or the GPT disagrees with the record | **fail-loud** |
 | `not-armed`, `handoff-failed`, `install-failed`, `outcome-invalid` | as their names; see `v2-install.csv` | fail |
-| `record-mismatch` | `outcome.json` carries a `prologue` block that is not the prologue's record | fail: `outcome.sh` lost the hand-over |
+| `record-mismatch` | `outcome.json` carries a `prologue` block that is not the prologue's record | fail: the outcome step lost the hand-over |
 | `resume-attended` | (prologue 0.3.0+) a resume ran with a session present: someone was signed in, or the task ran as the person | fail for the walk-away clause. The row's other columns still stand |
 | `resume-with-autologon` | the bench did not switch the guest's autologon off, so the row cannot say whether the resume needed a sign-in | incomplete: re-run with `autologon off` |
 

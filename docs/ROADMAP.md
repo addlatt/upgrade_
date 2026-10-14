@@ -159,11 +159,12 @@ with every one. Proves: V7, R3. Waits on: the scanner shipping.
 ## 19. Rust unification: everything that can be Rust is Rust
 
 The first of three checkpoints, taken in order 19, 20, 21 (decided
-2026-10-12, the owner). Item 17's phases 2 and 3, then the Linux side the
-person's computer runs: `verify.sh` and `outcome.sh` in the installer,
-`settle-in`'s starter script. Build and check tools follow where feasible;
-the rig harness stays. The stick writer writes disks, so R16's rows run
-again (rule #4); `verify.sh` and `outcome.sh` re-earn V1's and R21's rows.
+2026-10-12, the owner). Item 17's phases 2 and 3 (done 2026-10-14), then
+the Linux side the person's computer runs: the installer's `verify.sh` and
+`outcome.sh` (`upgrade-installer`, built 2026-10-14), `settle-in`'s starter
+script. Build and check tools follow where feasible; the rig harness stays.
+The stick writer writes disks, so R16's rows run again (rule #4); the
+installer re-earns V1's, V9's and R21's rows.
 Proves: V13, R32. Stands: see [STATUS.md](STATUS.md).
 
 ## 20. Product unification: fewer choices, one way through

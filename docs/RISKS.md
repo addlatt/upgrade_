@@ -399,7 +399,7 @@ at the correct (later) moment, and plain words to the person when they
 choose what to do are built and verified, not just designed.
 
 **Where it stands.** `[##..]` built, for the Wi-Fi half only. The
-installer's move-and-delete step exists (`upgrade_/linux/outcome.sh`
+installer's move-and-delete step exists (`upgrade-installer outcome`
 records `moved` and `removed_from_stick` in `outcome.json`), and the
 Aspire's run 11 (2026-10-04) connected to Wi-Fi by itself, but no row in
 this risk's record names the removal, so it is not held. The BitLocker
@@ -527,7 +527,7 @@ the commit line, while Windows still exists) is built as a hard gate (done)
 and shown to catch a known-counterfeit stick.
 
 **Where it stands.** `[####]` held-on-machine for the gate; the counterfeit
-half untried. `upgrade_/linux/verify.sh` (the kickstart's `%pre`) reads the
+half untried. `upgrade-installer verify` (the kickstart's `%pre`) reads the
 chosen desktop image back against the stick's own `SHA256SUMS` before
 anything is decided; in install mode a mismatch refuses (exit 23). It also
 records the stick's read speed, the honest basis for the time estimate. On
@@ -1063,11 +1063,11 @@ shell script in the installer's `%pre`/`%post` beyond a starter, and a
 release rebuilt byte for byte by someone else.
 
 **Where it stands.** `[####]` the cut-over on the Aspire (`v2-install.csv`
-line 15, `pass`; `r18-prologue.csv` lines 18 and 19); phase 1 done
-2026-10-11; ledger 657 `pass`, 45 `owed`. Owed: the unforced rig row (the
-rig's guest channel is down), phases 2 and 3, the Linux side, the 45 lines,
-the rebuild by someone else
-([log](log/2026-10.md#2026-10-11-the-powershell-leaves-the-product-decided-phase-1-done)).
+line 15, `pass`; `r18-prologue.csv` lines 18 and 19); phases 1 to 3 done
+(2026-10-11, 2026-10-14); the installer's two steps Rust since 2026-10-14 (42
+sandbox cases match the scripts); ledger 904 `pass`, 168 `owed`. Owed: the rig
+and Aspire rows for each piece (the installer's first), the stick writer's
+write rows, settle-in's starter, the rebuild by someone else ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
 
 ## R33: The walk-away way back to Windows · critical · held-on-machine
 
