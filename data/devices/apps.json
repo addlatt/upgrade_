@@ -1,0 +1,18 @@
+{
+  "_about": {
+    "table": "installed programs with no Linux path, matched against the inventory's names (a regular expression, case does not matter)",
+    "read": "data/README.md",
+    "fields": "Match, Severity (blocker: do not convert this machine for this program; friction: an alternative exists but is not a drop-in; info: worth knowing), Note, Source, Verified"
+  },
+  "Risks": [
+    {"Match": "Adobe (Photoshop|Illustrator|InDesign|Premiere|After Effects|Lightroom)", "Severity": "blocker", "Note": "Adobe Creative Cloud does not run on Linux and Adobe has stated it will not. Alternatives (GIMP, Krita, Inkscape, DaVinci Resolve, Kdenlive) are capable but are not drop-in replacements, and none open .psd/.ai files with full fidelity. If you are paid to use these, do not convert this machine.", "Source": "", "Verified": ""},
+    {"Match": "Microsoft (Office|365)|Microsoft Word|Excel|PowerPoint", "Severity": "friction", "Note": "Desktop Office does not run on Linux. Office on the web works fine in a browser, and LibreOffice or OnlyOffice handle most documents - but complex Excel macros and heavily formatted Word files will break.", "Source": "", "Verified": ""},
+    {"Match": "QuickBooks|Sage 50|TurboTax|H&R Block", "Severity": "blocker", "Note": "Accounting and tax software is Windows-only and rarely has a usable Linux equivalent. If you run a business on this, keep a Windows machine or a Windows VM.", "Source": "", "Verified": ""},
+    {"Match": "AutoCAD|SolidWorks|Fusion 360|Revit|Altium|ArcGIS", "Severity": "blocker", "Note": "Professional CAD/EDA/GIS software is Windows-only. FreeCAD, KiCad and QGIS exist and are good, but file compatibility with commercial formats is imperfect.", "Source": "", "Verified": ""},
+    {"Match": "Valorant|Riot (Client|Vanguard)|Fortnite|Easy ?Anti ?Cheat|BattlEye|Call of Duty|Destiny 2|Apex Legends", "Severity": "blocker", "Note": "Kernel-level anti-cheat blocks Linux by design. These specific games will not run, no matter what you do. Most other games work well through Steam Proton - check protondb.com for your library.", "Source": "", "Verified": ""},
+    {"Match": "Steam", "Severity": "info", "Note": "Steam runs natively on Linux and Proton makes most Windows games work. Check protondb.com for your specific library before committing.", "Source": "", "Verified": ""},
+    {"Match": "iTunes|Apple Music", "Severity": "friction", "Note": "No Linux iTunes. iPhone sync and backup is limited; Apple Music works in a browser.", "Source": "", "Verified": ""},
+    {"Match": "OneDrive", "Severity": "friction", "Note": "No official Linux OneDrive client. Third-party sync clients exist and work, but setup is manual.", "Source": "", "Verified": ""},
+    {"Match": "Visual Studio (?!Code)", "Severity": "friction", "Note": "Visual Studio (the full IDE) is Windows-only. VS Code, JetBrains Rider and the .NET SDK all run natively on Linux.", "Source": "", "Verified": ""}
+  ]
+}

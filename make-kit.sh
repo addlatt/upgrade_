@@ -6,7 +6,7 @@
 #
 #   ./make-kit.sh [--release ID] [--allow-dirty] [--to DIR]
 #
-# --release names an entry in data/releases.ps1 (default fedora-44). The kit
+# --release names an entry in data/releases.json (default fedora-44). The kit
 # carries that release's signed boot chain, installer and desktop images,
 # fetched and checked against the table by rig/vm/fetch-release.sh, and says
 # which release it is in release.json; the scanner and the job writer refuse
@@ -162,17 +162,17 @@ step "schemas check passed"
 # --- 5. payload bits --------------------------------------------------------
 [ -f "$BITS/Shell.efi" ] || fail "missing $BITS/Shell.efi - run rig/vm/fetch-payload-bits.sh"
 # the release: its boot chain, installer and desktop images, each checked
-# against data/releases.ps1 (fetch-release.sh refuses any other bytes)
-"$ROOT/rig/vm/fetch-release.sh" "$RELEASE" >/dev/null || fail "release $RELEASE could not be fetched or does not match data/releases.ps1 (rig/vm/fetch-release.sh $RELEASE)"
+# against data/releases.json (fetch-release.sh refuses any other bytes)
+"$ROOT/rig/vm/fetch-release.sh" "$RELEASE" >/dev/null || fail "release $RELEASE could not be fetched or does not match data/releases.json (rig/vm/fetch-release.sh $RELEASE)"
 REL="$ROOT/rig/vm/artifacts/releases/$RELEASE"
 RBITS="$REL/bits"
 RJ="$REL/release.json.table"
 rq() { python3 -c "import json,sys; j=json.load(open('$RJ')); print($1)"; }
-[ -n "$(rq "j.get('Installer') or ''")" ] || fail "release $RELEASE has no unattended installer in data/releases.ps1"
+[ -n "$(rq "j.get('Installer') or ''")" ] || fail "release $RELEASE has no unattended installer in data/releases.json"
 NETINST_SRC=$(rq "j['Netinst']['Url']")
 # the shim payload's grub MUST be the install-media build (reads EFI/BOOT/grub.cfg)
 grep -q 'save_env' <(strings -n 6 "$RBITS/EFI/BOOT/grubx64.efi") || fail "grubx64.efi lacks save_env - wrong GRUB build"
-step "release $RELEASE ($(rq "j['Name']")): boot chain, installer and desktop images match data/releases.ps1"
+step "release $RELEASE ($(rq "j['Name']")): boot chain, installer and desktop images match data/releases.json"
 
 # --- 6. the grubenv block ---------------------------------------------------
 [ "$(stat -c %s "$PAYLOAD/grubenv")" = 1024 ] || fail "grubenv is not 1024 bytes"
@@ -267,7 +267,7 @@ window:           UPGRADE.exe $(grep -m1 '^version' "$ROOT/upgrade_/windows/wind
 settle-in:        $SETTLE_IN_VERSION  $(sha256sum "$SETTLE_IN_BIN" | cut -c1-64)   -> upgrade_/settle-in/settle-in
 rust programs:    $(for e in upgrade-scan upgrade-harvest upgrade-job upgrade-prologue; do printf '%s %s  ' "$e.exe" "$(sha256sum "$D/$e.exe" | cut -c1-64)"; done)
 toolchain:        $("$ROOT/build-rust.sh" --toolchain)   (RISKS R14: rebuild-check.sh proves a second checkout gives these bytes)
-release:          $RELEASE ($(rq "j['Name']"), measured $(rq "j['Measured']")) - data/releases.ps1; release.json on this stick
+release:          $RELEASE ($(rq "j['Name']"), measured $(rq "j['Measured']")) - data/releases.json; release.json on this stick
   Shell.efi       $(sha256sum "$BITS/Shell.efi" | cut -c1-64)   -> EFI/SHELL/SHELLX64.EFI
   shim            $(sha256sum "$RBITS/EFI/BOOT/BOOTX64.EFI" | cut -c1-64)   -> EFI/BOOT/BOOTX64.EFI
   grub            $(sha256sum "$RBITS/EFI/BOOT/grubx64.efi" | cut -c1-64)   -> EFI/BOOT/grubx64.efi

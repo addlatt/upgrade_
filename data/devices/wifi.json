@@ -1,0 +1,42 @@
+{
+  "_about": {
+    "table": "Wi-Fi adapters by PCI id (vvvv:dddd, lower-case hex), then a fallback by vendor id",
+    "read": "data/README.md",
+    "fields": "Name (shown to the person), Driver (the in-tree kernel module, or proprietary or none), MinKernel (the earliest kernel with usable support; empty means long supported), Status (ok, warn or fail), Note (one line, shown verbatim), Source (how we know: a kernel commit, release notes, a machine capture in evaluate/windows/corpus; empty means nobody has cited one yet), Verified (the date the Source was last checked, or empty)",
+    "rule": "Adding a device is one entry and a cited source. 'It should work' is not a source."
+  },
+  "Devices": {
+    "10ec:8821": {"Name": "Realtek RTL8821CE", "Driver": "rtw88", "MinKernel": "5.8", "Status": "warn", "Note": "Known for unstable throughput and suspend/resume drops on some models.", "Source": "", "Verified": ""},
+    "10ec:8852": {"Name": "Realtek RTL8852AE", "Driver": "rtw89", "MinKernel": "5.16", "Status": "ok", "Source": "", "Verified": ""},
+    "10ec:b852": {"Name": "Realtek RTL8852BE", "Driver": "rtw89", "MinKernel": "6.1", "Status": "ok", "Source": "", "Verified": ""},
+    "10ec:c821": {"Name": "Realtek RTL8821CE", "Driver": "rtw88", "MinKernel": "5.8", "Status": "warn", "Note": "Known for unstable throughput and suspend/resume drops on some models.", "Source": "", "Verified": ""},
+    "10ec:c852": {"Name": "Realtek RTL8852CE", "Driver": "rtw89", "MinKernel": "6.1", "Status": "ok", "Source": "", "Verified": ""},
+    "14c3:0616": {"Name": "MediaTek MT7922", "Driver": "mt7921e", "MinKernel": "5.19", "Status": "ok", "Source": "", "Verified": ""},
+    "14c3:7922": {"Name": "MediaTek MT7922", "Driver": "mt7921e", "MinKernel": "5.19", "Status": "ok", "Source": "", "Verified": ""},
+    "14c3:7925": {"Name": "MediaTek MT7925", "Driver": "mt7925e", "MinKernel": "6.7", "Status": "warn", "Note": "Wi-Fi 7 card, supported from kernel 6.7. On older kernels there is no driver at all - you will boot with no wireless.", "Source": "the G16 (the development machine, MediaTek MT7925)", "Verified": ""},
+    "14c3:7961": {"Name": "MediaTek MT7921", "Driver": "mt7921e", "MinKernel": "5.15", "Status": "ok", "Source": "", "Verified": ""},
+    "14e4:4365": {"Name": "Broadcom BCM43142", "Driver": "broadcom-wl", "MinKernel": "", "Status": "fail", "Note": "Broadcom. Poorly supported even with the out-of-tree driver. Replacing the M.2 card with an Intel AX200 (~$20) is the standard fix.", "Source": "", "Verified": ""},
+    "14e4:43a3": {"Name": "Broadcom BCM4350", "Driver": "broadcom-wl", "MinKernel": "", "Status": "fail", "Note": "Broadcom. No working in-tree driver. Needs the out-of-tree wl module, which must be compiled - and you cannot download it without a network connection you do not yet have. Bring a USB Ethernet adapter or a phone for USB tethering.", "Source": "", "Verified": ""},
+    "14e4:43b1": {"Name": "Broadcom BCM4352", "Driver": "broadcom-wl", "MinKernel": "", "Status": "fail", "Note": "Broadcom. Same chicken-and-egg problem: the driver needs a network connection to install. Bring USB Ethernet or a tethered phone.", "Source": "", "Verified": ""},
+    "168c:0030": {"Name": "Atheros AR9300", "Driver": "ath9k", "MinKernel": "", "Status": "ok", "Source": "", "Verified": ""},
+    "168c:003e": {"Name": "Qualcomm QCA6174", "Driver": "ath10k", "MinKernel": "", "Status": "ok", "Source": "", "Verified": ""},
+    "17cb:1101": {"Name": "Qualcomm QCA6390", "Driver": "ath11k", "MinKernel": "5.13", "Status": "warn", "Note": "Firmware is fussy; Bluetooth coexistence bugs are common. Usually works, occasionally does not.", "Source": "", "Verified": ""},
+    "17cb:1103": {"Name": "Qualcomm WCN6855", "Driver": "ath11k", "MinKernel": "5.16", "Status": "warn", "Note": "Needs vendor firmware blobs that some distros ship late.", "Source": "", "Verified": ""},
+    "8086:24f3": {"Name": "Intel 8260", "Driver": "iwlwifi", "MinKernel": "", "Status": "ok", "Source": "", "Verified": ""},
+    "8086:24fd": {"Name": "Intel 8265", "Driver": "iwlwifi", "MinKernel": "", "Status": "ok", "Source": "", "Verified": ""},
+    "8086:2723": {"Name": "Intel AX200", "Driver": "iwlwifi", "MinKernel": "5.1", "Status": "ok", "Source": "", "Verified": ""},
+    "8086:2725": {"Name": "Intel AX210", "Driver": "iwlwifi", "MinKernel": "5.10", "Status": "ok", "Source": "", "Verified": ""},
+    "8086:272b": {"Name": "Intel BE200", "Driver": "iwlwifi", "MinKernel": "6.7", "Status": "warn", "Note": "Wi-Fi 7 card. Needs a recent kernel; some vendors ship it on boards that only whitelist it under Windows.", "Source": "", "Verified": ""},
+    "8086:51f0": {"Name": "Intel AX211", "Driver": "iwlwifi", "MinKernel": "5.16", "Status": "ok", "Source": "", "Verified": ""},
+    "8086:51f1": {"Name": "Intel AX211", "Driver": "iwlwifi", "MinKernel": "5.16", "Status": "ok", "Source": "", "Verified": ""},
+    "8086:54f0": {"Name": "Intel AX211", "Driver": "iwlwifi", "MinKernel": "5.16", "Status": "ok", "Source": "", "Verified": ""}
+  },
+  "VendorFallback": {
+    "10ec": {"Vendor": "Realtek", "Driver": "rtw88/rtw89", "Status": "warn", "Note": "Unrecognised Realtek card. Support ranges from fine to flaky depending on the exact part.", "Source": "", "Verified": ""},
+    "14c3": {"Vendor": "MediaTek", "Driver": "mt76", "Status": "warn", "Note": "Unrecognised MediaTek card. Recent MediaTek parts are supported but often only on very new kernels - prefer a current-release distro.", "Source": "", "Verified": ""},
+    "14e4": {"Vendor": "Broadcom", "Driver": "broadcom-wl", "Status": "fail", "Note": "Unrecognised Broadcom card. Broadcom wireless is the single most common cause of \"no internet after installing Linux\". Bring USB Ethernet or a tethered phone.", "Source": "", "Verified": ""},
+    "168c": {"Vendor": "Atheros", "Driver": "ath9k/ath10k", "Status": "ok", "Note": "Unrecognised Atheros card. This family is generally well supported.", "Source": "", "Verified": ""},
+    "17cb": {"Vendor": "Qualcomm", "Driver": "ath11k/ath12k", "Status": "warn", "Note": "Unrecognised Qualcomm card. Newer ath12k parts need very recent kernels and firmware.", "Source": "", "Verified": ""},
+    "8086": {"Vendor": "Intel", "Driver": "iwlwifi", "Status": "ok", "Note": "Unrecognised Intel card. Intel wireless is in-tree and near-universally supported; very likely fine.", "Source": "", "Verified": ""}
+  }
+}
