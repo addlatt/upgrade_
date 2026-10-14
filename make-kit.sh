@@ -18,19 +18,19 @@
 # UEFI Shell at EFI/SHELL/SHELLX64.EFI (the matrix rows) - plus the Windows
 # side as one Rust product (decided 2026-10-11, the owner): UPGRADE.exe, its
 # two .cmd starters, the four programs it runs, README-STICK.txt, SHA256SUMS
-# and KIT-MANIFEST.txt naming the commit and versions. The last PowerShell on
-# the stick is the storage-mode harness and the inline PowerShell of
-# DIAG-VOLUME.cmd (phase 2 of docs/RUST-PORT.md, "What comes next"); the
-# SMART and Secure Boot diagnostics are `upgrade-scan diag` since 2026-10-14.
+# and KIT-MANIFEST.txt naming the commit and versions. No .ps1 ships on the
+# stick since 2026-10-14: the SMART and Secure Boot diagnostics are
+# `upgrade-scan diag`, the storage-mode harness (V5) is `upgrade-prologue
+# storage-mode`. The one PowerShell left is the inline block of DIAG-VOLUME.cmd.
 #
 # What is verified, in order - any failure stops the build:
 #   1. the tree is committed (a row must map to a commit; --allow-dirty to
 #      override, and the manifest then says so)
 #   2. the Rust product's tests pass (./port-check.sh is the full check;
 #      here: the Windows programs and the window build with their tests)
-#   3. the two PowerShell holdovers' self-tests pass on Windows PowerShell
-#      5.1 (the stick writer, the storage-mode harness) and schemas/check.py
-#   4. every shipped .ps1 (the holdovers) parses under the PS 5.1 parser
+#   3. the one PowerShell holdover's self-test passes on Windows PowerShell
+#      5.1 (the stick writer, which is not shipped) and schemas/check.py
+#   4. the launchers' if-blocks carry no unescaped parenthesis
 #   5. the EFI payload bits exist and are the ones the rig fetched
 #      (rig/vm/fetch-payload-bits.sh; gitignored build inputs)
 #   6. the grubenv block is exactly 1024 bytes with GRUB's header
@@ -98,7 +98,6 @@ selftest() {  # $1 = label, $2 = script path (WSL)
     fi
 }
 selftest "stick writer" "$ROOT/evaluate/windows/Write-UpgradeStick.ps1"
-selftest "storage-mode harness (V5)" "$ROOT/evaluate/windows/Test-StorageMode.ps1"
 bash -n "$ROOT/upgrade_/linux/verify.sh" || fail "verify.sh does not parse"
 bash -n "$ROOT/upgrade_/linux/outcome.sh" || fail "outcome.sh does not parse"
 # settle-in: the first-startup program, one self-contained file (Rust, static,
@@ -154,7 +153,6 @@ for c in "$PAYLOAD"/*.cmd "$ROOT"/evaluate/windows/usb-kit/*.cmd; do
     bad=$(awk '/^if .*\(\r?$/ {inb=1; next} /^\)/ {inb=0} inb && /echo.*[()]/ && !/\^[()]/ {print FILENAME":"NR": "$0}' "$c")
     [ -z "$bad" ] || fail "unescaped parenthesis inside an if-block (write ^( and ^)): $bad"
 done
-parsecheck "$ROOT/evaluate/windows/Test-StorageMode.ps1"
 (cd "$ROOT" && python3 schemas/check.py >/dev/null) || fail "schemas/check.py failed - the contracts the prologue and outcome.sh write against are broken"
 step "schemas check passed"
 
@@ -197,7 +195,6 @@ crlf "$ROOT/evaluate/windows/usb-kit/DIAG-VOLUME.cmd" "$D/DIAG-VOLUME.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SMART.cmd"  "$D/DIAG-SMART.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SECUREBOOT.cmd" "$D/DIAG-SECUREBOOT.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/RUN-STORAGE-MODE.cmd" "$D/RUN-STORAGE-MODE.cmd"
-cp "$ROOT/evaluate/windows/Test-StorageMode.ps1" "$D/Test-StorageMode.ps1"
 # the folder map (0.10.0): the job writer runs the harvester beside it, in its own process
 # signed payload: the product path, at the removable-media default location
 cp "$RBITS/EFI/BOOT/BOOTX64.EFI" "$D/EFI/BOOT/BOOTX64.EFI"

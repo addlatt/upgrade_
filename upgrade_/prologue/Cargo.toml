@@ -1,6 +1,6 @@
 [package]
 name = "upgrade-prologue"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "GPL-3.0-only"
 
@@ -10,8 +10,9 @@ license = "GPL-3.0-only"
 # conditions, the records), held to Invoke-Prologue.ps1 by tests, and its
 # live half (every read and write, each tool call kept with its raw
 # output), proven on the rig and then the Aspire. The binary
-# `upgrade-prologue` is the converter's Windows half; Invoke-Prologue.ps1
-# stays in use until the prologue's ledger lines all read `pass`.
+# `upgrade-prologue` is the converter's Windows half. Since 0.2.0 it also
+# carries the storage-mode harness (src/storage_mode, `upgrade-prologue
+# storage-mode`; gate V5), which was Test-StorageMode.ps1.
 [dependencies]
 serde_json = { version = "1", features = ["preserve_order"] }
 regress = "0.10"

@@ -11,6 +11,8 @@
 //!   upgrade-prologue rollback --stick <X:>           (Windows first again; Invoke-Rollback.ps1)
 //!   upgrade-prologue facts --stick <X:> [--out <file>]   (read-only: what Get-PrologueFacts reads, for the side-by-side)
 //!   upgrade-prologue compare-facts <rust.json> <powershell.json>
+//!   upgrade-prologue storage-mode start --stick <X:> [--bench] [--no-prompt] [--state-dir <dir>]   (RUN-STORAGE-MODE.cmd; V5)
+//!   upgrade-prologue storage-mode resume|notify|abort|safe-mode-sign-in [--state-dir <dir>]
 //!
 //! Every tool it calls is kept with its raw output (`tools.jsonl` in the
 //! state directory and in `upgrade_/report/` on the stick). Nothing here
@@ -32,6 +34,8 @@ fn usage() -> ExitCode {
     eprintln!("       upgrade-prologue guard [--state-dir <dir>]                (the kept Windows' startup task: shim back after servicing)");
     eprintln!("       upgrade-prologue facts --stick <X:> [--out <file>]");
     eprintln!("       upgrade-prologue compare-facts <rust.json> <powershell.json>");
+    eprintln!("       upgrade-prologue storage-mode start --stick <X:> [--bench] [--no-prompt] [--state-dir <dir>]   (the V5 both-modes harness)");
+    eprintln!("       upgrade-prologue storage-mode resume|notify|abort|safe-mode-sign-in [--state-dir <dir>]");
     ExitCode::from(2)
 }
 
@@ -75,6 +79,23 @@ fn run(args: &[String]) -> ExitCode {
     if mode == "notify" {
         flow::notify(&state_dir);
         return ExitCode::SUCCESS;
+    }
+    if mode == "storage-mode" {
+        // the V5 both-modes harness (Test-StorageMode.ps1): its own state directory and its own elevation rules
+        use upgrade_prologue::storage_mode::{flow::{Args, Flow}, live::WinLive};
+        let Some(phase) = args.get(1).cloned() else { return usage() };
+        let sm_state = value_of("--state-dir").unwrap_or_else(upgrade_prologue::storage_mode::live::default_state_dir);
+        let a = Args { phase, stick_drive: value_of("--stick").unwrap_or_default(), bench: args.iter().any(|x| x == "--bench"), no_prompt: args.iter().any(|x| x == "--no-prompt") };
+        if a.phase == "start" && a.stick_drive.is_empty() {
+            eprintln!("give --stick <X:>");
+            return ExitCode::from(2);
+        }
+        if !["start", "resume", "notify", "abort", "safe-mode-sign-in"].contains(&a.phase.as_str()) {
+            return usage();
+        }
+        let mut live = WinLive::new(&sm_state);
+        let code = Flow::new(&mut live, &sm_state).run(&a);
+        return ExitCode::from(code as u8);
     }
     // the verify flow's handoff (Test-Handoff.ps1) keeps its own state directory, %ProgramData%\upgrade_\v0
     let verify_state = value_of("--state-dir").unwrap_or_else(upgrade_prologue::verify::live::default_state_dir);
