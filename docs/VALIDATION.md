@@ -713,7 +713,7 @@ accepts (`architecture.md`, "It chooses the Linux release").
 
 **What passes.** Six steps. (1) The scanner reads the firmware's SBAT
 level and judges the stick's boot files. (2) Each release's boot facts in
-`data/releases.ps1` are measured from its files by
+`data/releases.json` are measured from its files by
 `data/tools/measure-release.py`, never typed. (3) The scanner judges every
 release, including the Secure Boot db's authorities, and the job writer
 refuses one that cannot start. (4) `make-kit.sh --release <name>` builds a

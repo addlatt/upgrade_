@@ -113,7 +113,7 @@ offered with plain words, never silently.
 
 What's new:
 
-1. Surface rows in `data/devices.ps1`: what works on the stock kernel, per
+1. Surface rows in `data/devices/vendors.json`: what works on the stock kernel, per
    model (source: linux-surface's feature tables, C35).
 2. Surface firmware (UEFI) supports USB boot and a third-party certificate
    option (C34). Owed: does the one-time boot through `bcdedit` fire on

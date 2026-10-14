@@ -478,16 +478,17 @@ Each one is stricter than the original, or changes no decision.
 
 ## The data tables
 
-`data/*.ps1` is the community's edit surface: adding a device is a one-line
-change with a source. That does not change yet.
-
-The Rust cannot read PowerShell, so `data/tools/export-tables.ps1` writes
-the same tables to `data/tables.json`, and the Rust is built with that file
-inside. `port-check.sh` fails when `tables.json` is older than the `.ps1`
-files say. Never edit `tables.json` by hand.
-
-When the PowerShell scanner is retired, the tables need a home that is not
-PowerShell and is still a one-line edit. That format is not decided.
+**Decided (2026-10-14, the owner):** the tables are JSON, one file per
+table (`data/devices/*.json`, `data/distros.json`, `data/releases.json`),
+compiled into the scanner; a device stays one line with a cited `Source`
+and a `Verified` date; the field meanings live in `data/README.md`. The
+`.ps1` tables, `export-tables.ps1` and the exported `tables.json` are gone,
+and `port-check.sh` needs no PowerShell. Chosen over TOML and CSV because
+the Rust already read this shape, the releases are nested and
+machine-written, and the project's own schema checker can hold the shape;
+the comments the `.ps1` files carried became `_about` entries and the
+README. A table of machine models and generations is a later decision
+(`ROADMAP.md`, "Decisions owed").
 
 ## Layout and build
 
@@ -501,7 +502,8 @@ evaluate/scan/       crate upgrade-scan: the judging half
   tests/golden.ps1     asks the PowerShell scanner; writes golden.json
   tests/golden.json    the PowerShell's answers
   src/main.rs          upgrade-scan --replay machine.json
-data/tables.json     the data tables as JSON (written by a tool)
+data/devices/*.json  the data tables (JSON, the source since 2026-10-14)
+data/distros.json, data/releases.json
 port-check.sh        the one command
 ```
 
@@ -764,12 +766,13 @@ The phases, each its own pull request:
    [log](log/2026-10.md#2026-10-14-the-stick-writer-to-rust-r16-r32-v13-roadmap-item-19-step-3)). The script stays in the tree until those rows exist.
    `DIAG-VOLUME.cmd`'s inline PowerShell is `upgrade-scan diag volume`
    (the same day). Nothing on the stick is PowerShell now.
-3. **Phase 3: the data tables.** `data/*.ps1` and `export-tables.ps1` to a
-   JSON source that stays a one-line contribution (the owner's open
-   decision 2; JSON assumed, since `data/tables.json` already exists);
-   `make-kit.sh` and `fetch-release.sh` read it. Then `CLAUDE.md`'s
-   conventions ("Windows PowerShell 5.1 only", `build.sh`, the two
-   self-tests) are rewritten for the Rust product.
+3. **Phase 3: the data tables.** Done 2026-10-14: `data/*.ps1` and
+   `export-tables.ps1` to JSON, one file per table, with `Source` and
+   `Verified` on every entry ("The data tables" above); `make-kit.sh`,
+   `fetch-release.sh` and `measure-release.py` read and write it;
+   `CLAUDE.md`, `README.md` and `CONTRIBUTING.md` rewritten for a product
+   with no PowerShell
+   ([log](log/2026-10.md#2026-10-14-the-data-tables-to-json-r32-v13-roadmap-item-19-step-4)).
 
 What stays PowerShell on purpose: the rig's own Hyper-V scripts
 (`rig/hyperv/vm.ps1`, `setup.ps1`, `new-vm.ps1`) and its guest-side fault
@@ -778,8 +781,8 @@ the harness, not the product.
 
 ## Open decisions (the owner's)
 
-1. **The data tables' format** after the PowerShell scanner is retired
-   (phase 3 above assumes JSON).
+1. **The data tables' format**: decided 2026-10-14, JSON ("The data
+   tables" above).
 2. **Beyond the Windows side.** The Linux side still has shell
    (`upgrade_/linux/verify.sh`, `outcome.sh`, `make-kit.sh`) and Python
    (`schemas/check.py`, `data/tools/`). Whether those move to Rust too is

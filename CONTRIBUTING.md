@@ -13,11 +13,11 @@ devices it didn't recognise:
     wifi 14c3:7925 (MediaTek Wi-Fi 7 MT7925 Wireless LAN Card)
 ```
 
-Add it to `data/devices.ps1`:
+Add it to `data/devices/wifi.json` (one line; the fields are explained in
+`data/README.md`):
 
-```powershell
-'14c3:7925' = @{ Name='MediaTek MT7925'; Driver='mt7925e'; MinKernel='6.7'; Status='warn'
-                 Note='Wi-Fi 7 card, supported from kernel 6.7. On older kernels there is no driver at all - you will boot with no wireless.' }
+```json
+"14c3:7925": {"Name": "MediaTek MT7925", "Driver": "mt7925e", "MinKernel": "6.7", "Status": "warn", "Note": "Wi-Fi 7 card, supported from kernel 6.7. On older kernels there is no driver at all - you will boot with no wireless.", "Source": "<how you know>", "Verified": "2026-10-14"}
 ```
 
 In the PR, say **how you know**. Any one of these is enough:
@@ -33,8 +33,8 @@ prevent.
 
 ## Adding a machine capture (the second most valuable contribution)
 
-```powershell
-.\upgrade-scan.ps1 -DumpMachine machine-capture.json
+```text
+upgrade-scan.exe dump-machine machine-capture.json
 ```
 
 This writes a **hardware-only** snapshot of what the scanner's checks read on
@@ -77,34 +77,34 @@ technical.
 
 ## The distribution table
 
-`data/distros.ps1` goes stale faster than anything else here, and a stale
+`data/distros.json` goes stale faster than anything else here, and a stale
 kernel number gives advice that is confident and wrong. Entries marked
-`Approx=$true` were not checked against a primary source (the release notes
-themselves) and need confirming.
+`"Approx": true` were not checked against a primary source (the release
+notes themselves) and need confirming.
 
-If you refresh it, set `$script:UpgDistroTableVerified` to the date you
-checked, and cite the release notes in your PR. The scanner warns users when
-the table is more than 120 days old.
+If you refresh it, set the table's `Verified` date to the day you checked,
+and cite the release notes in your PR. The scanner warns users when the
+table is more than 120 days old.
 
 ## Code
 
-Windows PowerShell **5.1**. That's what ships on a stock Windows 10 and 11
-machine, and this tool runs on machines nobody has set up for development.
-No PowerShell 7 syntax: no `?:` ternaries, no `??`, no `-Parallel`.
+Rust, built with the pinned toolchain in `rust-toolchain.toml` and
+`./build-rust.sh` (the Windows programs cross-build from Linux with zig).
+The programs run on machines nobody has set up for development, so they
+carry everything they need, the data tables included.
 
-Run the tests before opening a PR:
+Run the checks before opening a PR:
 
-```powershell
-.\evaluate\windows\upgrade-scan.ps1 -SelfTest
-.\evaluate\windows\Harvest-UpgradeState.ps1 -SelfTest
+```text
+./port-check.sh
 ```
 
-If you change verdict or detection logic, add a case to `Invoke-UpgSelfTest`
-that covers it. If you change the harvester's parsing or arithmetic, add one
-to `Invoke-HarvestSelfTest`. The checks that read the live OS are split in
-two: a half that collects and a half that judges. Keep it that way. Judging
-functions take their inputs as parameters, so the self-test can feed them
-machines that don't exist here (see CLAUDE.md rule #5).
+It runs every crate's tests, the schema oracle and the frozen goldens. If
+you change verdict or detection logic, add a case to the crate's tests
+(`evaluate/scan/tests/cases.json` for the scanner). The checks that read
+the live OS are split in two: a half that collects and a half that judges.
+Keep it that way. Judging functions take their inputs as parameters, so a
+test can feed them machines that don't exist here (see CLAUDE.md rule #5).
 
 ## The one rule that isn't negotiable
 

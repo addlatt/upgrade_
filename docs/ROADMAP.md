@@ -146,8 +146,8 @@ recorders, the launchers, `build.sh` and `dist/` gone, the port check
 Rust-only with frozen goldens. Waits on: the rig answering again for the
 unforced row. Owed: phase 2's last rows (the stick writer is built, 2026-10-14; its
 R16 write rows and the rig's refusals are still owed, then the script goes),
-phase 3 (the data tables to JSON, then `CLAUDE.md`), the
-`owed` ledger lines (see STATUS.md, V13). Proves: V13, R32. The phases: `RUST-PORT.md`,
+the `owed` ledger lines (see STATUS.md, V13). Done 2026-10-14 as well:
+phase 3 (the data tables to JSON, `CLAUDE.md` rewritten). Proves: V13, R32. The phases: `RUST-PORT.md`,
 "What comes next". Stands: see [STATUS.md](STATUS.md).
 
 ## 18. Further out
@@ -202,7 +202,9 @@ is decided, the dated line goes in its home and the item here is removed.
   Boot on (R30).
 - What the way back does on a machine with no firmware product key, where
   Windows Setup stops at its key page and walk-away breaks (R33).
-- The data tables' format after the PowerShell scanner is retired (R32).
+- The shape of a table of machine models and generations, the thing
+  hundreds of supported models will need: waits on enough real captures to
+  see what the rules look like (R32; `data/README.md`).
 - What item 21 (test optimization) covers beyond the pull-request check,
   the rig and the owed ledger lines (R9).
 - Choosing among several Linux releases on one stick, and fetching a release
