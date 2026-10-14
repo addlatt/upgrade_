@@ -15,7 +15,7 @@
 //! Everything it learns goes to the stick under upgrade_/report/. With
 //! upg.mode=verify on the command line it reports and reboots: no install.
 
-use crate::tty::{is_char_device, Console};
+use crate::tty::{is_char_device, say_on, Console};
 use crate::util::*;
 use serde_json::{json, Value};
 use std::path::Path;
@@ -63,7 +63,10 @@ fn refuse(c: &Ctx, code: i32, plain: &str, detail: &str) -> ! {
                     }
                     format!("\x1b[2J\x1b[H\n\n{}", lines.iter().map(|l| format!("   {l}\n")).collect::<String>())
                 };
-                con.wait(test_secs("UPG_TEST_REFUSAL_SECS", 60), &screen, false);
+                if let Err(e) = con.wait(test_secs("UPG_TEST_REFUSAL_SECS", 60), &screen, false) {
+                    // the script's Python died here and bash went on to the restart
+                    c.log.say(&format!("!! the refusal screen stopped: {CTTY} could not be written ({e})"));
+                }
             }
             Err(e) => c.log.say(&format!("!! the refusal screen could not be opened ({e}); restarting in 60 s")),
         }
@@ -580,12 +583,22 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
             }
             format!("\x1b[2J\x1b[H\n\n{}", lines.iter().map(|l| format!("   {l}\n")).collect::<String>())
         };
-        let (keyed, elapsed) = con.wait(count_secs, &screen, true);
-        let result = if keyed { "cancelled" } else { "elapsed" };
-        c.log.say(&format!("== countdown {result} after {elapsed:.1} s"));
+        // a console that stops taking writes ends the countdown as cancelled: the
+        // script's Python died there (exit 1), which bash read as a cancel. Never
+        // an erase behind a screen nobody can see (rule #3)
+        let keyed = match con.wait(count_secs, &screen, true) {
+            Ok((keyed, elapsed)) => {
+                c.log.say(&format!("== countdown {} after {elapsed:.1} s", if keyed { "cancelled" } else { "elapsed" }));
+                keyed
+            }
+            Err(e) => {
+                c.log.say(&format!("!! the countdown stopped: {CTTY} could not be written ({e}); taken as a cancel"));
+                true
+            }
+        };
+        drop(con);
         if keyed {
-            con.put("\x1b[2J\x1b[H\n\n   CANCELLED. Nothing was erased. Restarting into Windows...\n");
-            drop(con);
+            say_on(CTTY, "\x1b[2J\x1b[H\n\n   CANCELLED. Nothing was erased. Restarting into Windows...\n");
             c.log.say("== countdown CANCELLED by a key press - nothing erased; restarting into Windows");
             record("cancelled");
             run("mount", &["-o", "remount,rw", STICK]);
@@ -603,8 +616,7 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
             sleep("60");
             return 27;
         }
-        con.put("\x1b[2J\x1b[H\n\n   Erasing and installing Fedora. This takes a while; you can walk away.\n");
-        drop(con);
+        say_on(CTTY, "\x1b[2J\x1b[H\n\n   Erasing and installing Fedora. This takes a while; you can walk away.\n");
         c.log.say(&format!("== countdown ELAPSED - the commit line: the installer now erases {what}"));
         record("elapsed");
         run("chvt", &["1"]);

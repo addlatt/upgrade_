@@ -57,16 +57,29 @@ impl Console {
         Ok(())
     }
 
-    pub fn put(&self, text: &str) {
+    /// Write all of `text`. Like the scripts' Python: "try again" (EAGAIN) is
+    /// retried every 10 ms, an interrupted call at once; any other error ends
+    /// the write. A console hung up after it was opened answers every write
+    /// with EIO (the rig, 2026-10-14: a shell started on tty6 after the
+    /// program opened it); retrying that for ever kept the machine from
+    /// restarting.
+    pub fn put(&self, text: &str) -> Result<(), String> {
         let mut data = text.as_bytes();
         while !data.is_empty() {
             let n = unsafe { libc::write(self.fd, data.as_ptr() as *const _, data.len()) };
             if n > 0 {
                 data = &data[n as usize..];
-            } else {
-                std::thread::sleep(Duration::from_millis(10));
+                continue;
+            }
+            let e = std::io::Error::last_os_error();
+            match e.raw_os_error() {
+                Some(libc::EAGAIN) => std::thread::sleep(Duration::from_millis(10)),
+                Some(libc::EINTR) => {}
+                _ if n == 0 => return Err("the console took no bytes".into()),
+                _ => return Err(e.to_string()),
             }
         }
+        Ok(())
     }
 
     /// A key within `timeout`: true when one came.
@@ -83,8 +96,9 @@ impl Console {
     }
 
     /// Draw `screen(left)` every second until the deadline or a key.
-    /// Returns true when a key cut it short.
-    pub fn wait(&self, seconds: f64, screen: &dyn Fn(u64) -> String, fine: bool) -> (bool, f64) {
+    /// Ok((true, _)) when a key cut it short; Err when the console could not
+    /// be written (the scripts' Python died there, exit 1).
+    pub fn wait(&self, seconds: f64, screen: &dyn Fn(u64) -> String, fine: bool) -> Result<(bool, f64), String> {
         let end = Instant::now() + Duration::from_secs_f64(seconds);
         let mut keyed = false;
         loop {
@@ -93,7 +107,7 @@ impl Console {
                 break;
             }
             let whole = left.ceil() as u64;
-            self.put(&screen(whole));
+            self.put(&screen(whole))?;
             let timeout = if fine { (left - (whole as f64 - 1.0)).max(0.05) } else { left.min(1.0) };
             if self.key_within(Duration::from_secs_f64(timeout)) {
                 keyed = true;
@@ -101,7 +115,16 @@ impl Console {
             }
         }
         let elapsed = seconds - end.saturating_duration_since(Instant::now()).as_secs_f64().max(0.0);
-        (keyed, elapsed)
+        Ok((keyed, elapsed))
+    }
+}
+
+/// `printf '...' > /dev/tty6`: a fresh open each time, as bash's redirect
+/// was; an error is ignored, as bash went on after a failed redirect.
+pub fn say_on(path: &str, text: &str) {
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(path) {
+        let _ = f.write_all(text.as_bytes());
     }
 }
 
@@ -110,6 +133,43 @@ impl Drop for Console {
         unsafe {
             libc::tcsetattr(self.fd, libc::TCSANOW, &self.old);
             libc::close(self.fd);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A pseudo-terminal whose other end is gone answers writes with EIO, as
+    /// a hung-up virtual console does: the write must end, not loop.
+    #[test]
+    fn a_console_that_stops_taking_writes_ends_the_wait() {
+        let (mut master, mut slave) = (0, 0);
+        assert_eq!(unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) }, 0);
+        let name = unsafe { std::ffi::CStr::from_ptr(libc::ttyname(slave)) }.to_string_lossy().into_owned();
+        let con = Console::open(&name).expect("the pty opens");
+        unsafe {
+            libc::close(master);
+            libc::close(slave);
+        }
+        let started = Instant::now();
+        let r = con.wait(5.0, &|left| format!("{left}\n").repeat(400), false);
+        assert!(r.is_err(), "the wait went on after the console stopped taking writes: {r:?}");
+        assert!(started.elapsed() < Duration::from_secs(2), "the wait did not end at once");
+    }
+
+    #[test]
+    fn a_working_console_counts_down() {
+        let (mut master, mut slave) = (0, 0);
+        assert_eq!(unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) }, 0);
+        let name = unsafe { std::ffi::CStr::from_ptr(libc::ttyname(slave)) }.to_string_lossy().into_owned();
+        let con = Console::open(&name).expect("the pty opens");
+        let r = con.wait(1.2, &|left| format!("{left}\n"), true);
+        assert!(matches!(r, Ok((false, _))), "{r:?}");
+        unsafe {
+            libc::close(master);
+            libc::close(slave);
         }
     }
 }
