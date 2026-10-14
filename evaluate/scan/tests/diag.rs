@@ -9,7 +9,7 @@
 //!   (`FROZEN-GOLDENS.sha256`).
 
 use serde_json::Value;
-use upgrade_scan::diag::{en_us, secureboot, smart};
+use upgrade_scan::diag::{en_us, secureboot, smart, volume};
 use upgrade_scan::parse::smart_table;
 use upgrade_scan::ps::Stamp;
 
@@ -108,4 +108,31 @@ fn the_files_are_named_as_the_scripts_named_them() {
     let tail = |p: std::path::PathBuf| p.iter().map(|c| c.to_string_lossy().into_owned()).collect::<Vec<_>>();
     assert_eq!(tail(secureboot::default_out(root, "2026-10-14T16:01:02.1234567Z")), ["stick", "upgrade_", "report", "secureboot-diag-20261014T160102Z.txt"]);
     assert_eq!(tail(smart::default_out(root, "ASPIRE")), ["stick", "upgrade_", "reports", "smart-diag-ASPIRE.txt"]);
+}
+
+/// `diag volume` against DIAG-VOLUME.cmd's inline PowerShell, line for
+/// line (`volume-cases.json` by `make-volume-cases.py`; `volume-golden.json`
+/// recorded by `volume-golden.ps1` from the launcher's block, frozen).
+#[test]
+fn every_volume_case_says_what_the_launcher_said() {
+    let cases: Vec<Value> = serde_json::from_str(include_str!("volume-cases.json")).unwrap();
+    let golden: Value = serde_json::from_str(include_str!("volume-golden.json")).unwrap();
+    let mut failures = Vec::new();
+    for case in &cases {
+        let name = case["name"].as_str().unwrap();
+        let facts: volume::Facts = serde_json::from_value(case["facts"].clone()).expect("volume facts");
+        let ours = volume::lines(&facts);
+        let theirs: Vec<String> = golden[name].as_array().unwrap_or_else(|| panic!("no golden for {name}")).iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        if ours == theirs {
+            continue;
+        }
+        let at = ours.iter().zip(&theirs).position(|(a, b)| a != b).unwrap_or(ours.len().min(theirs.len()));
+        failures.push(format!("{name}\n  Rust {} lines, launcher {}; first difference at line {}:\n    launcher: {:?}\n    Rust:     {:?}", ours.len(), theirs.len(), at + 1, theirs.get(at), ours.get(at)));
+    }
+    assert!(failures.is_empty(), "{} of {} volume cases differ from the launcher:\n{}", failures.len(), cases.len(), failures.join("\n"));
+    assert_eq!(cases.len(), 3, "the three cases");
+    // the file is the elements joined with CRLF, no byte order mark
+    let f: volume::Facts = serde_json::from_value(cases[1]["facts"].clone()).unwrap();
+    assert!(volume::text(&f).starts_with("== upgrade_ volume diagnostic"));
+    assert_eq!(volume::default_out(std::path::Path::new("E:\\"), "G16-TEST").file_name().unwrap().to_string_lossy(), "volume-diag-G16-TEST.txt");
 }

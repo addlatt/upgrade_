@@ -7,7 +7,7 @@ use super::registry::{self, Hive};
 use super::storage::{bus_type, count, health_status, int, media_type, operational_status, storage_wmi, text};
 use super::win::{self, firmware_variable_ex, privilege_status, win32_message};
 use super::wmi::{Wmi, CIMV2, WMI_ROOT};
-use crate::diag::{secureboot, smart};
+use crate::diag::{secureboot, smart, volume};
 use serde_json::Value;
 use windows::Win32::Security::SE_SYSTEM_ENVIRONMENT_NAME;
 
@@ -227,6 +227,93 @@ pub fn smart_facts() -> smart::Facts {
                 size: opt_u64(&v["Size"]),
                 size_remaining: opt_u64(&v["SizeRemaining"]),
             });
+        }
+    }
+    f
+}
+
+/// A CIM datetime (`20261014113005.500000-240`) as the local stamp it names.
+fn cim_local(text: &str) -> Option<crate::ps::Stamp> {
+    let d = text.get(..14)?;
+    if !d.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    crate::ps::Stamp::parse(&format!("{}-{}-{}T{}:{}:{}", &d[..4], &d[4..6], &d[6..8], &d[8..10], &d[10..12], &d[12..14]))
+}
+
+fn volume_events(channel: &str, xpath: &str) -> Vec<volume::Event> {
+    events::query(channel, xpath).unwrap_or_default().into_iter().map(|e| volume::Event { time_local: e.time_local.iso(), provider: e.provider, id: e.id, message: e.message }).collect()
+}
+
+fn tool_lines(program: &str, args: &[&str]) -> Vec<String> {
+    match win::run_tool(program, args, 120) {
+        Ok(l) => l,
+        Err(e) => vec![e],
+    }
+}
+
+/// DIAG-VOLUME.cmd's reads: the flag, what autochk is set to do, found.*,
+/// the volume, the online scan, the NTFS info, the last 30 days of
+/// check, NTFS and disk events, the physical disks, Fast Startup, the
+/// last boot. Read-only.
+pub fn volume_facts() -> volume::Facts {
+    let (_, now) = super::now();
+    let mut f = volume::Facts { now, computer: computer_name(), ..Default::default() };
+    f.fsutil_dirty = tool_lines("fsutil", &["dirty", "query", "C:"]);
+    f.chkntfs = tool_lines("chkntfs", &["C:"]);
+    f.boot_execute = registry::value(&Hive::LocalMachine, r"SYSTEM\CurrentControlSet\Control\Session Manager", "BootExecute").map(|(kind, bytes)| match reg_data(kind, &bytes) {
+        Value::Array(l) => l.iter().map(text).collect(),
+        other => vec![text(&other)],
+    });
+    if let Ok(rd) = std::fs::read_dir("C:\\") {
+        let mut dirs: Vec<std::path::PathBuf> = rd.flatten().map(|e| e.path()).filter(|p| p.is_dir()).filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.len() == 9 && n[..6].eq_ignore_ascii_case("found.") && n[6..].bytes().all(|b| b.is_ascii_digit()))).collect();
+        dirs.sort_by_key(|p| p.to_string_lossy().to_lowercase());
+        for d in dirs {
+            let modified = d.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|dur| win::utc_to_local(super::utc_from_seconds(dur.as_secs() as i64)).iso()).unwrap_or_default();
+            let mut files = 0;
+            let mut stack = vec![d.clone()];
+            while let Some(dir) = stack.pop() {
+                if let Ok(rd) = std::fs::read_dir(&dir) {
+                    for e in rd.flatten() {
+                        let p = e.path();
+                        if p.is_dir() {
+                            stack.push(p);
+                        } else {
+                            files += 1;
+                        }
+                    }
+                }
+            }
+            f.found.push(volume::Found { full_name: d.to_string_lossy().trim_end_matches('\\').to_string(), last_write_time: modified, files });
+        }
+    }
+    if let Ok(w) = storage_wmi() {
+        if let Ok(l) = w.query_where("MSFT_Volume", &["DriveLetter", "FileSystem", "HealthStatus", "OperationalStatus", "Size", "SizeRemaining"], "DriveLetter='C'") {
+            if let Some(v) = l.first() {
+                f.volume = Some(volume::Volume { drive_letter: "C".into(), file_system: text(&v["FileSystem"]), health_status: health_status(&v["HealthStatus"]), operational_status: operational_status(&v["OperationalStatus"], true), size: int(&v["Size"]).unwrap_or(0), size_remaining: int(&v["SizeRemaining"]).unwrap_or(0) });
+            }
+        }
+        for d in w.query("MSFT_PhysicalDisk", &["ObjectId", "DeviceId", "FriendlyName", "MediaType", "HealthStatus", "OperationalStatus", "Size"]).unwrap_or_default() {
+            f.physical_disks.push(volume::PhysicalDisk { device_id: text(&d["DeviceId"]), friendly_name: text(&d["FriendlyName"]), media_type: media_type(&d["MediaType"]), health_status: health_status(&d["HealthStatus"]), operational_status: operational_status(&d["OperationalStatus"], false), size: int(&d["Size"]).unwrap_or(0) });
+        }
+    }
+    // `Repair-Volume -Scan -ErrorAction SilentlyContinue` prints nothing when it
+    // cannot scan (not elevated: the call answers with no result, seen as -1
+    // on the G16, 2026-10-14); the launcher printed an empty line for that
+    let scan = super::storage::online_scan();
+    f.repair_scan = if scan.starts_with("scan failed") || scan == "-1" { None } else { Some(scan) };
+    f.ntfs_info = tool_lines("fsutil", &["fsinfo", "ntfsinfo", "C:"]);
+    let recent = within(volume::DAYS * DAY);
+    f.wininit = volume_events("Application", &format!("*[System[(EventID=1001) and {recent}]]"));
+    f.chkdsk = volume_events("Application", &format!("*[System[Provider[@Name='Chkdsk'] and {recent}]]"));
+    f.ntfs = volume_events("System", &format!("*[System[Provider[@Name='Microsoft-Windows-Ntfs'] and {recent}]]"));
+    let providers = volume::DISK_PROVIDERS.iter().map(|p| format!("@Name='{p}'")).collect::<Vec<_>>().join(" or ");
+    f.disk_events = volume_events("System", &format!("*[System[Provider[{providers}] and {recent}]]"));
+    f.hiberboot_enabled = registry::dword(&Hive::LocalMachine, r"SYSTEM\CurrentControlSet\Control\Session Manager\Power", "HiberbootEnabled");
+    f.hiberfil = std::path::Path::new("C:\\hiberfil.sys").exists();
+    if let Ok(w) = Wmi::connect(CIMV2) {
+        if let Some(os) = w.query("Win32_OperatingSystem", &["LastBootUpTime"]).ok().and_then(|l| l.into_iter().next()) {
+            f.last_boot_up_time = cim_local(&text(&os["LastBootUpTime"])).map(|t| t.iso()).unwrap_or_else(|| text(&os["LastBootUpTime"]));
         }
     }
     f

@@ -1,12 +1,13 @@
 [package]
 name = "upgrade-scan"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 license = "GPL-3.0-only"
 
 # The scanner in Rust (RISKS R32, docs/RUST-PORT.md): the judging half, the
-# collectors (Windows only) and, since 0.3.0, the two read-only diagnostics
-# that were Diag-SecureBoot.ps1 and Diag-Smart.ps1 (`upgrade-scan diag`).
+# collectors (Windows only) and, since 0.3.0, the read-only diagnostics that
+# were Diag-SecureBoot.ps1 and Diag-Smart.ps1 (`upgrade-scan diag`; 0.4.0
+# adds `diag volume`, which was the inline PowerShell of DIAG-VOLUME.cmd).
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

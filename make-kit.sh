@@ -18,10 +18,10 @@
 # UEFI Shell at EFI/SHELL/SHELLX64.EFI (the matrix rows) - plus the Windows
 # side as one Rust product (decided 2026-10-11, the owner): UPGRADE.exe, its
 # two .cmd starters, the four programs it runs, README-STICK.txt, SHA256SUMS
-# and KIT-MANIFEST.txt naming the commit and versions. No .ps1 ships on the
-# stick since 2026-10-14: the SMART and Secure Boot diagnostics are
-# `upgrade-scan diag`, the storage-mode harness (V5) is `upgrade-prologue
-# storage-mode`. The one PowerShell left is the inline block of DIAG-VOLUME.cmd.
+# and KIT-MANIFEST.txt naming the commit and versions. No PowerShell ships
+# on the stick since 2026-10-14: the three diagnostics are `upgrade-scan
+# diag` (DIAG-VOLUME.cmd's inline block went last), the storage-mode
+# harness (V5) is `upgrade-prologue storage-mode`.
 #
 # What is verified, in order - any failure stops the build:
 #   1. the tree is committed (a row must map to a commit; --allow-dirty to

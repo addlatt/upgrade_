@@ -107,6 +107,18 @@ pub fn diag_smart() -> Result<crate::diag::smart::Facts, String> {
     }
 }
 
+/// `diag volume`: what DIAG-VOLUME.cmd's inline PowerShell read. Off Windows, nothing.
+pub fn diag_volume() -> Result<crate::diag::volume::Facts, String> {
+    #[cfg(windows)]
+    {
+        Ok(diag::volume_facts())
+    }
+    #[cfg(not(windows))]
+    {
+        Err("not running on Windows".into())
+    }
+}
+
 /// Only the system facts and the device list (what `-DumpMachine` reads).
 pub fn collect_hardware() -> Collected {
     #[cfg(windows)]

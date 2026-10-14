@@ -84,7 +84,7 @@ fn scan(args: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// `diag secureboot | smart`: the diagnostic's lines on the console and in
+/// `diag secureboot | smart | volume`: the diagnostic's lines on the console and in
 /// its one file under the stick (`--kit`, or the folder this program runs
 /// from), or where `--out` says. Changes nothing on the computer.
 fn diag(args: &[String]) -> ExitCode {
@@ -120,8 +120,22 @@ fn diag(args: &[String]) -> ExitCode {
             let done = format!("  written: {}  ({} lines). Nothing on this computer was changed.", path.display(), lines.len());
             (lines, path, text, done)
         }
+        Some("volume") => {
+            let f = match collect::diag_volume() {
+                Ok(f) => f,
+                Err(e) => {
+                    eprintln!("upgrade-scan: {e}");
+                    return ExitCode::from(2);
+                }
+            };
+            let lines = upgrade_scan::diag::volume::lines(&f);
+            let path = out.unwrap_or_else(|| upgrade_scan::diag::volume::default_out(&root, &f.computer));
+            let text = upgrade_scan::diag::volume::text(&f);
+            let done = format!("  written: {}  ({} lines). Nothing on this computer was changed.", path.display(), lines.len());
+            (lines, path, text, done)
+        }
         _ => {
-            eprintln!("usage: upgrade-scan diag secureboot|smart [--out <file>] [--kit <stick root>]");
+            eprintln!("usage: upgrade-scan diag secureboot|smart|volume [--out <file>] [--kit <stick root>]");
             return ExitCode::from(2);
         }
     };

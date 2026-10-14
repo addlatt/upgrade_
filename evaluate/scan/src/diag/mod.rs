@@ -1,6 +1,6 @@
-//! `upgrade-scan diag`: the two read-only diagnostics that were
-//! `Diag-SecureBoot.ps1` and `Diag-Smart.ps1` on the stick (phase 2 of
-//! docs/RUST-PORT.md, 2026-10-14). Each has a facts half (what was read; the
+//! `upgrade-scan diag`: the three read-only diagnostics that were
+//! `Diag-SecureBoot.ps1`, `Diag-Smart.ps1` and the inline PowerShell of
+//! `DIAG-VOLUME.cmd` on the stick (phase 2 of docs/RUST-PORT.md, 2026-10-14). Each has a facts half (what was read; the
 //! collectors in `collect::diag` fill it on Windows) and a render half (the
 //! lines of the text file, held to the script's word for word). The render
 //! halves are tested in `tests/diag.rs` against what the scripts answered
@@ -12,6 +12,7 @@
 
 pub mod secureboot;
 pub mod smart;
+pub mod volume;
 
 use crate::ps::Stamp;
 use serde::{Deserialize, Deserializer, Serializer};
