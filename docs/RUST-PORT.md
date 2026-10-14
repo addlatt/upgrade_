@@ -51,9 +51,11 @@ and convert flows, and the Aspire's three runs of 2026-10-10 went through
 them: the first physical conversion with no PowerShell on the Windows
 side. The `RUN-*.cmd` launchers still run the PowerShell scripts, which
 stay on the stick as the way back until each script's ledger lines read
-`pass` (656 of 701 that day; 665 of 712 on 2026-10-14, 47 owed). The stick
-writer, `Copy-Kit.ps1` and everything under `rig/` stay PowerShell on
-purpose; the `Diag-*` tools did until 2026-10-14 (`upgrade-scan diag`).
+`pass` (656 of 701 that day; 665 of 712 on the morning of 2026-10-14, 795
+of 842 by its evening, 47 owed). The stick writer, `Copy-Kit.ps1` and everything under `rig/` stay
+PowerShell on purpose; the `Diag-*` tools, the storage-mode harness and
+`DIAG-VOLUME.cmd`'s inline block did until 2026-10-14 (`upgrade-scan diag`,
+`upgrade-prologue storage-mode`).
 
 One command checks all of it:
 
@@ -165,9 +167,10 @@ on 2026-10-04.
 | `data/*.ps1` | 379 | stays the edit surface for now (see "The data tables") | 2 | checked by the self-test |
 
 Not on the list, and staying as they are: the rig scripts under `rig/`
-(test equipment, not product), the diagnostic scripts on the kit
-(`Diag-*.ps1`), and the test harnesses (`Test-Materialize.ps1`,
-`Test-StorageMode.ps1`).
+(test equipment, not product). The diagnostic scripts on the kit
+(`Diag-*.ps1`, `DIAG-VOLUME.cmd`'s block) and the storage-mode harness
+(`Test-StorageMode.ps1`) were listed here as staying, and left on
+2026-10-14 (phase 2 below); `Test-Materialize.ps1` went with phase 1.
 
 ## Step 1: the schema library. Built 2026-10-04.
 
@@ -456,6 +459,11 @@ Each one is stricter than the original, or changes no decision.
 | the job writer's refusals at the door | a missing stick or scan folder, a wrong `-Desktop`, or a failed read makes the script throw (a traceback, exit 1) | the same words as a plain refusal, exit 2; a job is written only after `upgrade_schema::Job` accepted it | stricter and plainer; the script wrote without checking the contract |
 | a job's `evaluate.version` | `0.18.0` | given by the program that writes the job | a record should say what wrote it |
 | `Disk N` detail line | printed with the machine's own number format (`931,5 GB` on a German Windows) | always a dot (`931.5 GB`) | a display line only; no decision reads it |
+| the storage-mode record (2026-10-14) | `harness_version` only | `harness_program` beside it, naming this program | a record should say what wrote it; `v5-verdict.py` reads neither |
+| a leg's `Classes` and `CompatibleIds` in the record (2026-10-14) | re-saved as `{"Length": n}` objects once the state had been read back from JSON (PowerShell 5.1 serialises a string it read from JSON that way; the script's own comment records it from the Aspire, 2026-09-15) | the strings, every time | the record says what the controller declared; nothing decides on it (the row's class codes come from the capture) |
+| the storage-mode RunOnce and task commands (2026-10-14) | `powershell.exe -File <the script's copy> -SafeModeSignIn` and `-Notify`; a scheduled task on the same | this program's copy in the state directory, `storage-mode safe-mode-sign-in` and `notify` | there is no script to launch; the same `*`-prefixed value name, the same SYSTEM task shape |
+| `diag volume`, hiberfil (2026-10-14) | `Test-Path C:\hiberfil.sys`: False even when the file is there (the provider cannot open a file Windows holds; a 13 GB one was on the G16) | whether the file is there: True | the line answers the question asked; a diagnostic, nothing decides on it |
+| `diag volume`, a refused online scan (2026-10-14) | `Repair-Volume -Scan` under `-ErrorAction SilentlyContinue`: an empty line | the same empty line when the call answers nothing (not elevated); otherwise the scan's word | the same words; the Rust names the case |
 | the password typed twice (2026-10-07) | `-cne`, which compares by the culture's rules: `é` and `e` + a combining accent count as the same, and the pair is accepted | the two entries are compared byte for byte; that pair is refused with "the two entries are not the same" | stricter, and right: Fedora's sign-in compares bytes, so the accepted pair would have locked the person out. `tests/password.rs` holds it by name |
 | the JSON files' form: the report, the folder map (2026-10-07) | `ConvertTo-Json`: a byte order mark, CRLF, .NET dates (`\/Date(...)\/`), a one-item array written as the item | plain UTF-8, LF, dates as `2025-05-19T20:00:00` local time, arrays always arrays; one field more saying what wrote the file (`Scanner`, `Harvester`) and, in the report, `ReadErrors` only when a read failed | the same values in a plainer form. Every reader (`New-Job.ps1`, the window, the Rust) accepts both; nothing decides on `System.BiosDate`. The text report is byte-identical, mark and line ends included |
 | `upgrade-scan diag smart`, the dates (2026-10-14) | `"{0}" -f $date`: the machine's own culture (`10/3/2026 4:01:02 PM` on an English Windows) | always the English (United States) form | a diagnostic for a person to read; nothing decides on it. The G16 and the Aspire are both English, so the files are the same there |
@@ -740,10 +748,14 @@ The phases, each its own pull request:
 2. **Phase 2: the last PowerShell on the stick.** `Diag-*.ps1` to
    `upgrade-scan diag` (done 2026-10-14: six cases from the scripts, the G16
    side by side; [log](log/2026-10.md#2026-10-14-the-diag-tools-to-upgrade-scan-diag-r32-v13-roadmap-item-19-step-1));
-   `Test-StorageMode.ps1` (the V5 both-modes harness) to Rust;
+   `Test-StorageMode.ps1` (the V5 both-modes harness) to
+   `upgrade-prologue storage-mode` (done 2026-10-14: 118 cases from the
+   script, the rig's arm run again;
+   [log](log/2026-10.md#2026-10-14-the-storage-mode-harness-and-the-volume-diagnostic-to-rust-r32-v13-v5-roadmap-item-19-step-2));
    `Write-UpgradeStick.ps1` and `Copy-Kit.ps1` to an `upgrade-stick` crate
    (a disk writer: R16's rig and physical rows again, rule #4).
-   `DIAG-VOLUME.cmd`'s inline PowerShell goes with the harness.
+   `DIAG-VOLUME.cmd`'s inline PowerShell is `upgrade-scan diag volume`
+   (the same day). Nothing on the stick is PowerShell now.
 3. **Phase 3: the data tables.** `data/*.ps1` and `export-tables.ps1` to a
    JSON source that stays a one-line contribution (the owner's open
    decision 2; JSON assumed, since `data/tables.json` already exists);

@@ -453,7 +453,7 @@ Linux often cannot see the disk. This file records whether the scanner's
 check fires on real hardware when it should (**positive direction**) and
 stays quiet when it should (**negative direction**). One row per scanner run
 in one SATA mode, written by `rig/v5-verdict.py`, never by hand. **The
-one-click path** (`RUN-STORAGE-MODE.cmd`, `Test-StorageMode.ps1`) scans in
+one-click path** (`RUN-STORAGE-MODE.cmd`, `upgrade-prologue storage-mode`) scans in
 the mode the machine is in, restarts into the firmware setup for the person
 to change SATA Mode, boots Safe Mode once through a copied boot entry, scans
 again as SYSTEM with nobody signed in, asks for the mode back and scans a
