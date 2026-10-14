@@ -1,0 +1,1255 @@
+[
+ {
+  "name": "secureboot: elevated, level 2025051000 applied, Fedora 44 files on the stick",
+  "diag": "secureboot",
+  "facts": {
+   "Now": "2026-10-14T16:01:02.1234567Z",
+   "Computer": "CASE-ONE",
+   "Privilege": "ok",
+   "Variables": [
+    {
+     "Name": "SbatLevel",
+     "Status": "error 203 (203 = not present or not readable from Windows)",
+     "Bytes": null
+    },
+    {
+     "Name": "SbatLevelRT",
+     "Status": "attributes 0x7",
+     "Bytes": "736261742c312c323032353035313030300a7368696d2c340a677275622c350a677275622e64656269616e2c340a677275622e7065696d6167652c320a00"
+    }
+   ],
+   "Databases": [
+    {
+     "Name": "db",
+     "Bytes": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff4d6963726f736f667420436f72706f726174696f6e20554546492043412032303131",
+     "Error": null
+    },
+    {
+     "Name": "dbx",
+     "Bytes": "2616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c5092402616c4c14c509240",
+     "Error": null
+    }
+   ],
+   "ConfirmSecureBoot": "True",
+   "Registry": [
+    {
+     "Key": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot",
+     "Values": [
+      {
+       "Name": "AvailableUpdates",
+       "Data": 0
+      }
+     ]
+    },
+    {
+     "Key": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\SBAT",
+     "Values": [
+      {
+       "Name": "UpdateStatus",
+       "Data": 2
+      },
+      {
+       "Name": "SbatLevel",
+       "Data": [
+        115,
+        98,
+        97,
+        116,
+        44,
+        49,
+        44,
+        50,
+        48,
+        50,
+        52,
+        48,
+        49,
+        48,
+        57,
+        48,
+        48,
+        10,
+        115,
+        104,
+        105,
+        109,
+        44,
+        52,
+        10,
+        103,
+        114,
+        117,
+        98,
+        44,
+        51,
+        10,
+        103,
+        114,
+        117,
+        98,
+        46,
+        100,
+        101,
+        98,
+        105,
+        97,
+        110,
+        44,
+        52,
+        0,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "Key": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\Servicing",
+     "Values": [
+      {
+       "Name": "UEFICA2023Status",
+       "Data": "Updated"
+      },
+      {
+       "Name": "ConfidenceLevel",
+       "Data": "High Confidence"
+      },
+      {
+       "Name": "LastTelemetrySendTime",
+       "Data": [
+        62,
+        191,
+        12,
+        89,
+        227,
+        91,
+        221,
+        1
+       ]
+      },
+      {
+       "Name": "RefireRunDate",
+       "Data": 134345952000000000
+      },
+      {
+       "Name": "OEMModelSKU",
+       "Data": ""
+      },
+      {
+       "Name": "Negative",
+       "Data": -1
+      },
+      {
+       "Name": "Paths",
+       "Data": [
+        "C:\\one",
+        "D:\\two"
+       ]
+      },
+      {
+       "Name": "Empty",
+       "Data": []
+      }
+     ]
+    },
+    {
+     "Key": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\Servicing\\DeviceAttributes",
+     "Values": [
+      {
+       "Name": "OEMName",
+       "Data": "Example Computer Co."
+      },
+      {
+       "Name": "FirmwareReleaseDate",
+       "Data": "05/28/2025"
+      }
+     ]
+    },
+    {
+     "Key": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\Servicing\\UploadedForCurrentBootCycle",
+     "Values": []
+    },
+    {
+     "Key": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\State",
+     "Values": [
+      {
+       "Name": "UEFISecureBootEnabled",
+       "Data": 1
+      },
+      {
+       "Name": "PolicyPublisher",
+       "Data": "{77fa9abd-0359-4d32-bd60-28f4e78f784b}"
+      },
+      {
+       "Name": "PolicyVersion",
+       "Data": 1
+      }
+     ]
+    }
+   ],
+   "Events": [
+    {
+     "TimeUtc": "2026-10-11T23:29:59.4653094Z",
+     "Provider": "Microsoft-Windows-TPM-WMI",
+     "Id": 1808,
+     "Message": "This device has updated Secure Boot CA/keys.\r\n\r\nThis device signature information is:\tKEK\t\tdb  \n"
+    },
+    {
+     "TimeUtc": "2026-10-11T23:24:57.3118572Z",
+     "Provider": "Microsoft-Windows-TPM-WMI",
+     "Id": 1038,
+     "Message": "  Pre-attestation health checks confirm that the device is expected to pass attestation."
+    },
+    {
+     "TimeUtc": "2026-10-03T15:40:00.0000000Z",
+     "Provider": "Microsoft-Windows-Kernel-Boot",
+     "Id": 1801,
+     "Message": "Secure Boot servicing: the SBAT level was raised to 2025051000."
+    },
+    {
+     "TimeUtc": "2026-09-30T08:00:00.0000001Z",
+     "Provider": "Microsoft-Windows-Kernel-Boot",
+     "Id": 1795,
+     "Message": ""
+    }
+   ],
+   "Files": [
+    {
+     "Name": "EFI\\BOOT\\grubx64.efi",
+     "Bytes": "4d5a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000005045000064860200000000000000000000000000000022002e74657874000000280000000010000030000000b0000000000000000000000000000000400000402e73626174000000f60000000010000000010000e0000000000000000000000000000000400000400000000000000000909090909090909090909090909090909090909090909090909090909090909090909090909090900000000000000000736261742c312c534241542056657273696f6e2c736261742c312c68747470733a2f2f6769746875622e636f6d2f7268626f6f742f7368696d2f626c6f622f6d61696e2f534241542e6d640a677275622c352c4672656520536f66747761726520466f756e646174696f6e2c677275622c322e31322c68747470733a2f2f7777772e676e752e6f72672f736f6674776172652f677275622f0a677275622e6665646f72612c352c546865204665646f72612050726f6a6563742c67727562322c322e31322d36362e666334342c68747470733a2f2f7372632e6665646f726170726f6a6563742e6f72672f72706d732f67727562320a00000000000000000000"
+    },
+    {
+     "Name": "EFI\\BOOT\\BOOTX64.EFI",
+     "Bytes": "4d5a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000005045000064860300000000000000000000000000000022002e74657874000000180000000010000020000000d0000000000000000000000000000000400000402e73626174000000d800000000100000e0000000f0000000000000000000000000000000400000402e736261746c6576656c2f0000000010000030000000d001000000000000000000000000000040000040cccccccccccccccccccccccccccccccccccccccccccccccc0000000000000000736261742c312c534241542056657273696f6e2c736261742c312c68747470733a2f2f6769746875622e636f6d2f7268626f6f742f7368696d2f626c6f622f6d61696e2f534241542e6d640a7368696d2c342c55454649207368696d2c7368696d2c312c68747470733a2f2f6769746875622e636f6d2f7268626f6f742f7368696d0a7368696d2e6665646f72612c322c546865204665646f72612050726f6a6563742c7368696d2c31362e312d372c68747470733a2f2f7372632e6665646f726170726f6a6563742e6f72672f72706d732f7368696d0a0000000000000000736261742c312c323032353035313030300a7368696d2c340a677275622c350a677275622e64656269616e2c340a0000"
+    }
+   ]
+  }
+ },
+ {
+  "name": "secureboot: not elevated, nothing readable, one stick file without a .sbat section",
+  "diag": "secureboot",
+  "facts": {
+   "Now": "2026-10-14T16:02:03.0000000Z",
+   "Computer": "CASE-TWO",
+   "Privilege": "AdjustTokenPrivileges 1300",
+   "Variables": [
+    {
+     "Name": "SbatLevel",
+     "Status": "error 1314 (203 = not present or not readable from Windows)",
+     "Bytes": null
+    },
+    {
+     "Name": "SbatLevelRT",
+     "Status": "error 1314 (203 = not present or not readable from Windows)",
+     "Bytes": null
+    }
+   ],
+   "Databases": [
+    {
+     "Name": "db",
+     "Bytes": null,
+     "Error": "Unable to set proper privileges. Access was denied."
+    },
+    {
+     "Name": "dbx",
+     "Bytes": null,
+     "Error": "Unable to set proper privileges. Access was denied."
+    }
+   ],
+   "ConfirmSecureBoot": "Unable to set proper privileges. Access was denied.",
+   "Registry": [
+    {
+     "Key": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot",
+     "Values": [
+      {
+       "Name": "AvailableUpdates",
+       "Data": 0
+      }
+     ]
+    },
+    {
+     "Key": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\SBAT",
+     "Values": [
+      {
+       "Name": "UpdateStatus",
+       "Data": 2
+      },
+      {
+       "Name": "SbatLevel",
+       "Data": [
+        115,
+        98,
+        97,
+        116,
+        44,
+        49,
+        44,
+        50,
+        48,
+        50,
+        52,
+        48,
+        49,
+        48,
+        57,
+        48,
+        48,
+        10,
+        115,
+        104,
+        105,
+        109,
+        44,
+        52,
+        10,
+        103,
+        114,
+        117,
+        98,
+        44,
+        51,
+        10,
+        103,
+        114,
+        117,
+        98,
+        46,
+        100,
+        101,
+        98,
+        105,
+        97,
+        110,
+        44,
+        52,
+        0,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "Key": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\State",
+     "Values": [
+      {
+       "Name": "UEFISecureBootEnabled",
+       "Data": 1
+      },
+      {
+       "Name": "PolicyPublisher",
+       "Data": "{77fa9abd-0359-4d32-bd60-28f4e78f784b}"
+      },
+      {
+       "Name": "PolicyVersion",
+       "Data": 1
+      }
+     ]
+    }
+   ],
+   "Events": [],
+   "Files": [
+    {
+     "Name": "EFI\\BOOT\\grubx64.efi",
+     "Bytes": null
+    },
+    {
+     "Name": "EFI\\BOOT\\BOOTX64.EFI",
+     "Bytes": "4d5a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000005045000064860200000000000000000000000000000022002e74657874000000180000000010000020000000b0000000000000000000000000000000400000402e646174610000000e0000000010000010000000d0000000000000000000000000000000400000400000000000000000cccccccccccccccccccccccccccccccccccccccccccccccc00000000000000006e6f7468696e6720746f207365650000"
+    }
+   ]
+  }
+ },
+ {
+  "name": "secureboot: Secure Boot off, no SBAT key, a variable with bytes past ASCII, no stick",
+  "diag": "secureboot",
+  "facts": {
+   "Now": "2026-01-02T00:00:00.5000000Z",
+   "Computer": "CASE-THREE",
+   "Privilege": "ok",
+   "Variables": [
+    {
+     "Name": "SbatLevel",
+     "Status": "attributes 0x3",
+     "Bytes": "736261742c312c323032333031323930300a7368696d2c320a677275622c330afffe0000"
+    },
+    {
+     "Name": "SbatLevelRT",
+     "Status": "error 203 (203 = not present or not readable from Windows)",
+     "Bytes": null
+    }
+   ],
+   "Databases": [
+    {
+     "Name": "db",
+     "Bytes": "00000000000000000000000000000000",
+     "Error": null
+    },
+    {
+     "Name": "dbx",
+     "Bytes": null,
+     "Error": "The system could not find the environment option that was entered."
+    }
+   ],
+   "ConfirmSecureBoot": "False",
+   "Registry": [
+    {
+     "Key": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot",
+     "Values": []
+    },
+    {
+     "Key": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\State",
+     "Values": [
+      {
+       "Name": "UEFISecureBootEnabled",
+       "Data": 0
+      }
+     ]
+    }
+   ],
+   "Events": [
+    {
+     "TimeUtc": "2025-12-31T23:59:59.9999999Z",
+     "Provider": "Microsoft-Windows-TPM-WMI",
+     "Id": 1032,
+     "Message": "Secure Boot update failed to update a Secure Boot variable with error Access denied."
+    }
+   ],
+   "Files": [
+    {
+     "Name": "EFI\\BOOT\\grubx64.efi",
+     "Bytes": null
+    },
+    {
+     "Name": "EFI\\BOOT\\BOOTX64.EFI",
+     "Bytes": null
+    }
+   ]
+  }
+ },
+ {
+  "name": "smart: a SATA SSD logging bad blocks beside a clean HDD (the Aspire's shape)",
+  "diag": "smart",
+  "facts": {
+   "Now": "2026-09-13T15:16:48.1234567Z",
+   "Computer": "CASE-FOUR",
+   "PhysicalDisks": [
+    {
+     "DeviceId": "0",
+     "FriendlyName": "SK hynix SC311 SATA 256GB",
+     "BusType": "SATA",
+     "MediaType": "SSD",
+     "HealthStatus": "Healthy",
+     "OperationalStatus": [
+      "OK"
+     ],
+     "Size": 256060514304,
+     "FirmwareVersion": "30001P10",
+     "SerialNumber": "MADEUP0001",
+     "Reliability": {
+      "Wear": 0,
+      "Temperature": 35,
+      "TemperatureMax": 50,
+      "PowerOnHours": 8566,
+      "ReadErrorsUncorrected": 0,
+      "WriteErrorsUncorrected": 0,
+      "ReadErrorsTotal": 725,
+      "WriteErrorsTotal": 0,
+      "ReadLatencyMax": 1234,
+      "WriteLatencyMax": 567,
+      "StartStopCycleCount": null,
+      "LoadUnloadCycleCount": null
+     },
+     "ReliabilityError": null
+    },
+    {
+     "DeviceId": "1",
+     "FriendlyName": "WDC WD10SPZX-21Z10T0",
+     "BusType": "SATA",
+     "MediaType": "HDD",
+     "HealthStatus": "Healthy",
+     "OperationalStatus": [
+      "OK"
+     ],
+     "Size": 1000204886016,
+     "FirmwareVersion": "01.01A01",
+     "SerialNumber": "MADEUP0002",
+     "Reliability": null,
+     "ReliabilityError": null
+    }
+   ],
+   "DiskDrives": [
+    {
+     "Index": 0,
+     "Model": "SK hynix SC311 SATA 256GB",
+     "InterfaceType": "IDE",
+     "Status": "OK",
+     "PNPDeviceID": "SCSI\\DISK&VEN_SK_HYNIX&PROD_SC311_SATA_256GB\\4&1A2B3C4D&0&000000"
+    },
+    {
+     "Index": 1,
+     "Model": "WDC WD10SPZX-21Z10T0",
+     "InterfaceType": "IDE",
+     "Status": "OK",
+     "PNPDeviceID": "SCSI\\DISK&VEN_WDC&PROD_WD10SPZX-21Z10T0\\4&1A2B3C4D&0&010000"
+    }
+   ],
+   "FailurePredictStatus": {
+    "Error": null,
+    "Items": [
+     {
+      "InstanceName": "SCSI\\Disk&Ven_SK_hynix&Prod_SC311_SATA_256GB\\4&1a2b3c4d&0&000000_0",
+      "PredictFailure": false,
+      "Reason": 0
+     },
+     {
+      "InstanceName": "SCSI\\Disk&Ven_WDC&Prod_WD10SPZX-21Z10T0\\4&1a2b3c4d&0&010000_0",
+      "PredictFailure": false,
+      "Reason": 0
+     }
+    ]
+   },
+   "FailurePredictData": {
+    "Error": null,
+    "Items": [
+     {
+      "InstanceName": "SCSI\\Disk&Ven_SK_hynix&Prod_SC311_SATA_256GB\\4&1a2b3c4d&0&000000_0",
+      "VendorSpecific": "1000010f006464000000000000000533006464070000000000000932006464762100000000000c320064649f240000000000000000000000000000000000a83200646403000000000000b8330064647f020000000000bb32006464d5020000000000bc3200646400000000000000c22200413223003200140000c31a000101e0e58b03000000c43200646407000000000000c53200646400000000000000c63000646400000000000000c73e00646400000000000000f132006464351cdcdf020000fa32006464bc9a7856341200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+     },
+     {
+      "InstanceName": "SCSI\\Disk&Ven_WDC&Prod_WD10SPZX-21Z10T0\\4&1a2b3c4d&0&010000_0",
+      "VendorSpecific": "1000010f00c8c800000000000000032700b4b4dc0500000000000432006363b0040000000000053300c8c8000000000000000932005a5a611e0000000000c53200c8c800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+     }
+    ]
+   },
+   "FailurePredictThresholds": {
+    "Error": null,
+    "Items": [
+     {
+      "InstanceName": "SCSI\\Disk&Ven_SK_hynix&Prod_SC311_SATA_256GB\\4&1a2b3c4d&0&000000_0",
+      "VendorSpecific": "1000013200000000000000000000050a000000000000000000000900000000000000000000000c0000000000000000000000b86100000000000000000000bb0000000000000000000000c20000000000000000000000c30000000000000000000000c40a00000000000000000000c50000000000000000000000c60000000000000000000000c70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+     },
+     {
+      "InstanceName": "SCSI\\Disk&Ven_WDC&Prod_WD10SPZX-21Z10T0\\4&1a2b3c4d&0&010000_0",
+      "VendorSpecific": "1000013300000000000000000000031500000000000000000000040000000000000000000000058c00000000000000000000090000000000000000000000c50000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+     }
+    ]
+   },
+   "DiskEvents": [
+    {
+     "TimeLocal": "2026-09-13T10:10:04.1200000",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "The device, \\Device\\Harddisk0\\DR0, has a bad block."
+    },
+    {
+     "TimeLocal": "2026-09-13T10:09:58.0000000",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "The device, \\Device\\Harddisk0\\DR0, has a bad block."
+    },
+    {
+     "TimeLocal": "2026-09-12T23:59:59.0000000",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "The IO operation at logical block address 0x1a2b3c for Disk 0 (PDO name: \\Device\\00000031) was retried."
+    },
+    {
+     "TimeLocal": "2026-09-12T12:00:00.0000000",
+     "Provider": "disk",
+     "Id": 51,
+     "Message": "An error was detected on device \\Device\\Harddisk0\\DR0 during a paging operation."
+    },
+    {
+     "TimeLocal": "2026-09-12T00:05:00.0000000",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "The device, \\Device\\Harddisk0\\DR0, has a bad block."
+    },
+    {
+     "TimeLocal": "2026-09-01T07:30:15.5000000",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "Disk 2 has been surprise removed."
+    },
+    {
+     "TimeLocal": "2026-08-27T18:45:00.0000000",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "The device,   \\Device\\Harddisk0\\DR0,\r\nhas a bad block."
+    },
+    {
+     "TimeLocal": "2026-08-27T18:44:59.0000000",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "The IO operation at logical block address 0x0 for Disk 0 (PDO name: \\Device\\00000031) was retried."
+    }
+   ],
+   "StorageEvents": [
+    {
+     "TimeLocal": "2026-09-13T10:10:04.5000000",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: (\\Device\\HarddiskVolume3) needs to be taken offline to perform a Full Chkdsk. Please run CHKDSK /F."
+    },
+    {
+     "TimeLocal": "2026-09-13T10:09:00.0000000",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 55,
+     "Message": "A corruption was discovered in the file system structure on volume C:.\n\nThe exact nature of the corruption is unknown.  The file system structures need to be scanned online."
+    },
+    {
+     "TimeLocal": "2026-09-12T23:59:58.0000000",
+     "Provider": "storahci",
+     "Id": 129,
+     "Message": "Reset to device, \\Device\\RaidPort0, was issued."
+    },
+    {
+     "TimeLocal": "2026-09-10T08:00:00.0000000",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 55,
+     "Message": "A corruption was discovered in the file system structure on volume C:."
+    },
+    {
+     "TimeLocal": "2026-09-01T07:30:16.0000000",
+     "Provider": "partmgr",
+     "Id": 58,
+     "Message": "The disk signature of disk 2 is equal to the disk signature of disk 1."
+    }
+   ],
+   "Volumes": [
+    {
+     "DriveLetter": "C",
+     "FileSystemLabel": "Acer",
+     "FileSystem": "NTFS",
+     "HealthStatus": "Healthy",
+     "OperationalStatus": "OK",
+     "Size": 237203591168,
+     "SizeRemaining": 61372792832
+    },
+    {
+     "DriveLetter": "D",
+     "FileSystemLabel": "Data",
+     "FileSystem": "NTFS",
+     "HealthStatus": "Healthy",
+     "OperationalStatus": "OK",
+     "Size": 1000202039296,
+     "SizeRemaining": 999998001152
+    }
+   ]
+  }
+ },
+ {
+  "name": "smart: an NVMe drive, not elevated: counters refused, SMART not supported, nothing logged",
+  "diag": "smart",
+  "facts": {
+   "Now": "2026-10-14T18:30:00.0000000Z",
+   "Computer": "CASE-FIVE",
+   "PhysicalDisks": [
+    {
+     "DeviceId": "0",
+     "FriendlyName": "MTFDKBA1T0QFM-1BD1AABGB",
+     "BusType": "NVMe",
+     "MediaType": "SSD",
+     "HealthStatus": "Healthy",
+     "OperationalStatus": [
+      "OK"
+     ],
+     "Size": 1024209543168,
+     "FirmwareVersion": "V3MA101",
+     "SerialNumber": "0000_0000_0000_0001_MADE_UP00_0000_0000.",
+     "Reliability": null,
+     "ReliabilityError": "Access to a CIM resource was not available to the client."
+    }
+   ],
+   "DiskDrives": [
+    {
+     "Index": 0,
+     "Model": "MTFDKBA1T0QFM-1BD1AABGB",
+     "InterfaceType": "SCSI",
+     "Status": "OK",
+     "PNPDeviceID": "SCSI\\DISK&VEN_NVME&PROD_MTFDKBA1T0QFM-1B\\5&89A5465&0&000000"
+    }
+   ],
+   "FailurePredictStatus": {
+    "Error": "Not supported",
+    "Items": []
+   },
+   "FailurePredictData": {
+    "Error": "Not supported",
+    "Items": []
+   },
+   "FailurePredictThresholds": {
+    "Error": "Not supported",
+    "Items": []
+   },
+   "DiskEvents": [],
+   "StorageEvents": [],
+   "Volumes": [
+    {
+     "DriveLetter": "C",
+     "FileSystemLabel": "OS",
+     "FileSystem": "NTFS",
+     "HealthStatus": "Healthy",
+     "OperationalStatus": "OK",
+     "Size": 992585519104,
+     "SizeRemaining": 5118668800
+    }
+   ]
+  }
+ },
+ {
+  "name": "smart: more events than the script shows, a disk with no size, an empty threshold block, a status with no bool",
+  "diag": "smart",
+  "facts": {
+   "Now": "2026-10-02T12:00:00.0000000Z",
+   "Computer": "CASE-SIX",
+   "PhysicalDisks": [
+    {
+     "DeviceId": "3",
+     "FriendlyName": "Virtual Disk",
+     "BusType": "Virtual",
+     "MediaType": "Unspecified",
+     "HealthStatus": "Warning",
+     "OperationalStatus": [
+      "Degraded",
+      "Predictive Failure"
+     ],
+     "Size": null,
+     "FirmwareVersion": "",
+     "SerialNumber": "",
+     "Reliability": {
+      "Wear": 12,
+      "Temperature": null,
+      "TemperatureMax": null,
+      "PowerOnHours": 1,
+      "ReadErrorsUncorrected": 2,
+      "WriteErrorsUncorrected": 3,
+      "ReadErrorsTotal": 4,
+      "WriteErrorsTotal": 5,
+      "ReadLatencyMax": 6,
+      "WriteLatencyMax": 7,
+      "StartStopCycleCount": 8,
+      "LoadUnloadCycleCount": 9
+     },
+     "ReliabilityError": null
+    },
+    {
+     "DeviceId": "4",
+     "FriendlyName": "Broken Disk",
+     "BusType": "USB",
+     "MediaType": "HDD",
+     "HealthStatus": "Unhealthy",
+     "OperationalStatus": [
+      "Lost Communication"
+     ],
+     "Size": 4000787030016,
+     "FirmwareVersion": "0001",
+     "SerialNumber": "X",
+     "Reliability": null,
+     "ReliabilityError": "The device is not ready."
+    }
+   ],
+   "DiskDrives": [
+    {
+     "Index": null,
+     "Model": "",
+     "InterfaceType": "",
+     "Status": "",
+     "PNPDeviceID": ""
+    }
+   ],
+   "FailurePredictStatus": {
+    "Error": null,
+    "Items": [
+     {
+      "InstanceName": "X_0",
+      "PredictFailure": true,
+      "Reason": 4
+     }
+    ]
+   },
+   "FailurePredictData": {
+    "Error": null,
+    "Items": [
+     {
+      "InstanceName": "X_0",
+      "VendorSpecific": "10000533000101ffffffffffff000000000000000000000000000932000000ffff00000000000c3200000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+     },
+     {
+      "InstanceName": "Y_0",
+      "VendorSpecific": "1000"
+     }
+    ]
+   },
+   "FailurePredictThresholds": {
+    "Error": null,
+    "Items": [
+     {
+      "InstanceName": "X_0",
+      "VendorSpecific": "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+     }
+    ]
+   },
+   "DiskEvents": [
+    {
+     "TimeLocal": "2026-10-01T23:59:00.0000000",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "Event number 0: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:58:07.0000001",
+     "Provider": "disk",
+     "Id": 51,
+     "Message": "Event number 1: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:57:14.0000002",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "Event number 2: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:56:21.0000003",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "Event number 3: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:55:28.0000004",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "Event number 4: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:54:35.0000005",
+     "Provider": "disk",
+     "Id": 51,
+     "Message": "Event number 5: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:53:42.0000006",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "Event number 6: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:52:49.0000007",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "Event number 7: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:51:56.0000008",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "Event number 8: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:50:03.0000009",
+     "Provider": "disk",
+     "Id": 51,
+     "Message": "Event number 9: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:49:10.0000010",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "Event number 10: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:48:17.0000011",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "Event number 11: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:47:24.0000012",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "Event number 12: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:46:31.0000013",
+     "Provider": "disk",
+     "Id": 51,
+     "Message": "Event number 13: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:45:38.0000014",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "Event number 14: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:44:45.0000015",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "Event number 15: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:43:52.0000016",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "Event number 16: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:42:59.0000017",
+     "Provider": "disk",
+     "Id": 51,
+     "Message": "Event number 17: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:41:06.0000018",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "Event number 18: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:40:13.0000019",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "Event number 19: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:39:20.0000020",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "Event number 20: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:38:27.0000021",
+     "Provider": "disk",
+     "Id": 51,
+     "Message": "Event number 21: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:37:34.0000022",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "Event number 22: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:36:41.0000023",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "Event number 23: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:35:48.0000024",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "Event number 24: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:34:55.0000025",
+     "Provider": "disk",
+     "Id": 51,
+     "Message": "Event number 25: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:33:02.0000026",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "Event number 26: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:32:09.0000027",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "Event number 27: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:31:16.0000028",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "Event number 28: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:30:23.0000029",
+     "Provider": "disk",
+     "Id": 51,
+     "Message": "Event number 29: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:29:30.0000030",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "Event number 30: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:28:37.0000031",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "Event number 31: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:27:44.0000032",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "Event number 32: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:26:51.0000033",
+     "Provider": "disk",
+     "Id": 51,
+     "Message": "Event number 33: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:25:58.0000034",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "Event number 34: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:24:05.0000035",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "Event number 35: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:23:12.0000036",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "Event number 36: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:22:19.0000037",
+     "Provider": "disk",
+     "Id": 51,
+     "Message": "Event number 37: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:21:26.0000038",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "Event number 38: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:20:33.0000039",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "Event number 39: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:19:40.0000040",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "Event number 40: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:18:47.0000041",
+     "Provider": "disk",
+     "Id": 51,
+     "Message": "Event number 41: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:17:54.0000042",
+     "Provider": "disk",
+     "Id": 153,
+     "Message": "Event number 42: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:16:01.0000043",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "Event number 43: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:15:08.0000044",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "Event number 44: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+   ],
+   "StorageEvents": [
+    {
+     "TimeLocal": "2026-10-02T00:30:00.0000000",
+     "Provider": "stornvme",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #0"
+    },
+    {
+     "TimeLocal": "2026-10-02T01:30:00.0000000",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #1"
+    },
+    {
+     "TimeLocal": "2026-10-02T02:30:00.0000000",
+     "Provider": "volmgr",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #2"
+    },
+    {
+     "TimeLocal": "2026-10-02T03:30:00.0000000",
+     "Provider": "stornvme",
+     "Id": 98,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #3"
+    },
+    {
+     "TimeLocal": "2026-10-02T04:30:00.0000000",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #4"
+    },
+    {
+     "TimeLocal": "2026-10-02T05:30:00.0000000",
+     "Provider": "volmgr",
+     "Id": 98,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #5"
+    },
+    {
+     "TimeLocal": "2026-10-02T06:30:00.0000000",
+     "Provider": "stornvme",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #6"
+    },
+    {
+     "TimeLocal": "2026-10-02T07:30:00.0000000",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #7"
+    },
+    {
+     "TimeLocal": "2026-10-02T08:30:00.0000000",
+     "Provider": "volmgr",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #8"
+    },
+    {
+     "TimeLocal": "2026-10-02T09:30:00.0000000",
+     "Provider": "stornvme",
+     "Id": 98,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #9"
+    },
+    {
+     "TimeLocal": "2026-10-02T10:30:00.0000000",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #10"
+    },
+    {
+     "TimeLocal": "2026-10-02T11:30:00.0000000",
+     "Provider": "volmgr",
+     "Id": 98,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #11"
+    },
+    {
+     "TimeLocal": "2026-10-02T12:30:00.0000000",
+     "Provider": "stornvme",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #12"
+    },
+    {
+     "TimeLocal": "2026-10-02T13:30:00.0000000",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #13"
+    },
+    {
+     "TimeLocal": "2026-10-02T14:30:00.0000000",
+     "Provider": "volmgr",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #14"
+    },
+    {
+     "TimeLocal": "2026-10-02T15:30:00.0000000",
+     "Provider": "stornvme",
+     "Id": 98,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #15"
+    },
+    {
+     "TimeLocal": "2026-10-02T16:30:00.0000000",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #16"
+    },
+    {
+     "TimeLocal": "2026-10-02T17:30:00.0000000",
+     "Provider": "volmgr",
+     "Id": 98,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #17"
+    },
+    {
+     "TimeLocal": "2026-10-02T18:30:00.0000000",
+     "Provider": "stornvme",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #18"
+    },
+    {
+     "TimeLocal": "2026-10-02T19:30:00.0000000",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #19"
+    },
+    {
+     "TimeLocal": "2026-10-02T20:30:00.0000000",
+     "Provider": "volmgr",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #20"
+    },
+    {
+     "TimeLocal": "2026-10-02T21:30:00.0000000",
+     "Provider": "stornvme",
+     "Id": 98,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #21"
+    },
+    {
+     "TimeLocal": "2026-10-02T22:30:00.0000000",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #22"
+    },
+    {
+     "TimeLocal": "2026-10-02T23:30:00.0000000",
+     "Provider": "volmgr",
+     "Id": 98,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #23"
+    },
+    {
+     "TimeLocal": "2026-10-03T00:30:00.0000000",
+     "Provider": "stornvme",
+     "Id": 129,
+     "Message": "A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message A long message #24"
+    }
+   ],
+   "Volumes": []
+  }
+ }
+]

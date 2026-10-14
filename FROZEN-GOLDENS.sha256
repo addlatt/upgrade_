@@ -1,4 +1,5 @@
 07b40194dcace256e45247e4d168ca4b6cf021f90655711ea86d15fff67dbc96  evaluate/scan/tests/golden.json
+34446f8900467c81b97f9bdeba86199d33df84d672203f15af680a0f82c45220  evaluate/scan/tests/diag-golden.json
 a3bf42ee54cf20940b9446de5e64f799ccb89459c2b740653e729f0613667376  evaluate/harvest/tests/golden.json
 b503c281d7b567d7876ea753a658297aecfecd01ed44cf932da3a4e3333afb3c  evaluate/job/tests/golden.json
 81ccd8e992d07904498e7ed20300ab1b8da9553bef8cb82a3fb7360986280bf1  evaluate/job/tests/password-golden.json

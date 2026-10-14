@@ -7,6 +7,10 @@
 //!       (and .json) where upgrade-scan.ps1 -Json -OutDir writes them
 //!   upgrade-scan dump-machine <file>
 //!       the hardware-only capture upgrade-scan.ps1 -DumpMachine writes
+//!   upgrade-scan diag secureboot [--out <file>] [--kit <stick root>]
+//!   upgrade-scan diag smart [--out <file>] [--kit <stick root>]
+//!       the two read-only diagnostics that were Diag-SecureBoot.ps1 and
+//!       Diag-Smart.ps1 on the stick: print the lines, write the one file
 //!
 //! The comparison commands (how the port is proven side by side):
 //!
@@ -77,6 +81,65 @@ fn scan(args: &[String]) -> ExitCode {
         }
     }
     println!();
+    ExitCode::SUCCESS
+}
+
+/// `diag secureboot | smart`: the diagnostic's lines on the console and in
+/// its one file under the stick (`--kit`, or the folder this program runs
+/// from), or where `--out` says. Changes nothing on the computer.
+fn diag(args: &[String]) -> ExitCode {
+    let value_of = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned();
+    let root = value_of("--kit").map(std::path::PathBuf::from).or_else(|| std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf()))).unwrap_or_default();
+    let out = value_of("--out").map(std::path::PathBuf::from);
+    let (lines, path, text, done) = match args.first().map(String::as_str) {
+        Some("secureboot") => {
+            let f = match collect::diag_secureboot(Some(&root)) {
+                Ok(f) => f,
+                Err(e) => {
+                    eprintln!("upgrade-scan: {e}");
+                    return ExitCode::from(2);
+                }
+            };
+            let lines = upgrade_scan::diag::secureboot::render(&f);
+            let path = out.unwrap_or_else(|| upgrade_scan::diag::secureboot::default_out(&root, &f.now));
+            let text = upgrade_scan::diag::text_with_bom(&lines);
+            let done = format!("  written: {}", path.display());
+            (lines, path, text, done)
+        }
+        Some("smart") => {
+            let f = match collect::diag_smart() {
+                Ok(f) => f,
+                Err(e) => {
+                    eprintln!("upgrade-scan: {e}");
+                    return ExitCode::from(2);
+                }
+            };
+            let lines = upgrade_scan::diag::smart::render(&f);
+            let path = out.unwrap_or_else(|| upgrade_scan::diag::smart::default_out(&root, &f.computer));
+            let text = upgrade_scan::diag::text_without_bom(&lines);
+            let done = format!("  written: {}  ({} lines). Nothing on this computer was changed.", path.display(), lines.len());
+            (lines, path, text, done)
+        }
+        _ => {
+            eprintln!("usage: upgrade-scan diag secureboot|smart [--out <file>] [--kit <stick root>]");
+            return ExitCode::from(2);
+        }
+    };
+    if let Some(dir) = path.parent() {
+        if let Err(e) = std::fs::create_dir_all(dir) {
+            eprintln!("upgrade-scan: cannot make {}: {e}", dir.display());
+            return ExitCode::from(2);
+        }
+    }
+    if let Err(e) = std::fs::write(&path, text) {
+        eprintln!("upgrade-scan: cannot write {}: {e}", path.display());
+        return ExitCode::from(2);
+    }
+    for line in &lines {
+        println!("{line}");
+    }
+    println!();
+    println!("{done}");
     ExitCode::SUCCESS
 }
 
@@ -362,6 +425,7 @@ fn usage() -> ExitCode {
     eprintln!("upgrade-scan {} (Rust; follows scanner {FOLLOWS_SCANNER})", env!("CARGO_PKG_VERSION"));
     eprintln!("usage: upgrade-scan scan [--json] [--out <folder>] [--kit <stick root>] [--no-file]");
     eprintln!("       upgrade-scan dump-machine <file>");
+    eprintln!("       upgrade-scan diag secureboot|smart [--out <file>] [--kit <stick root>]");
     eprintln!("       upgrade-scan --replay <machine.json> [--now YYYY-MM-DDTHH:MM:SS] [--json] [--against <powershell.json>]");
     eprintln!("       upgrade-scan --record [--out <folder>] [--kit <stick root>]");
     eprintln!("       upgrade-scan --compare-facts <rust.json> <powershell.json>");
@@ -379,6 +443,7 @@ fn main() -> ExitCode {
     match args.first().map(String::as_str) {
         Some("scan") => return scan(&args[1..]),
         Some("dump-machine") => return dump_machine(args.get(1)),
+        Some("diag") => return diag(&args[1..]),
         Some("compare-reports") => {
             let (Some(a), Some(b)) = (args.get(1), args.get(2)) else { return usage() };
             return compare_reports(a, b);

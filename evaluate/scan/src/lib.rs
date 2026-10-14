@@ -11,6 +11,7 @@
 pub mod check;
 pub mod collect;
 pub mod data;
+pub mod diag;
 pub mod facts;
 pub mod hardware;
 pub mod parse;

@@ -82,6 +82,54 @@ pub fn enable_privilege(name: PCWSTR) -> bool {
     }
 }
 
+/// The same, saying which call failed and with what error number, as the
+/// diagnostic's own helper did: `ok`, or `AdjustTokenPrivileges 1300`
+/// (ERROR_NOT_ALL_ASSIGNED: not elevated).
+pub fn privilege_status(name: PCWSTR) -> String {
+    use windows::Win32::Foundation::GetLastError;
+    unsafe {
+        let mut token = HANDLE::default();
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &mut token).is_err() {
+            return format!("OpenProcessToken {}", GetLastError().0);
+        }
+        let mut luid = LUID::default();
+        if LookupPrivilegeValueW(None, name, &mut luid).is_err() {
+            let e = GetLastError().0;
+            let _ = CloseHandle(token);
+            return format!("LookupPrivilegeValue {e}");
+        }
+        let tp = TOKEN_PRIVILEGES { PrivilegeCount: 1, Privileges: [LUID_AND_ATTRIBUTES { Luid: luid, Attributes: SE_PRIVILEGE_ENABLED }] };
+        let _ = AdjustTokenPrivileges(token, false, Some(&tp), 0, None, None);
+        let e = GetLastError().0;
+        let _ = CloseHandle(token);
+        if e == 0 { "ok".to_string() } else { format!("AdjustTokenPrivileges {e}") }
+    }
+}
+
+/// One UEFI variable's bytes and attributes, or the Win32 error number
+/// (203 = not there) when it cannot be read.
+pub fn firmware_variable_ex(name: &str, guid: &str) -> Result<(Vec<u8>, u32), u32> {
+    use windows::Win32::Foundation::GetLastError;
+    let (n, g) = (wide(name), wide(guid));
+    let mut buf = vec![0u8; 256 * 1024];
+    let mut attributes = 0u32;
+    unsafe {
+        let got = GetFirmwareEnvironmentVariableExW(PCWSTR(n.as_ptr()), PCWSTR(g.as_ptr()), Some(buf.as_mut_ptr() as *mut _), buf.len() as u32, Some(&mut attributes));
+        if got == 0 {
+            return Err(GetLastError().0);
+        }
+        buf.truncate(got as usize);
+    }
+    Ok((buf, attributes))
+}
+
+/// The system's words for a Win32 error number.
+pub fn win32_message(code: u32) -> String {
+    let m = windows::core::Error::from_hresult(windows::core::HRESULT::from_win32(code)).message();
+    let m = m.trim();
+    if m.is_empty() { format!("error {code}") } else { m.to_string() }
+}
+
 /// One UEFI variable's bytes, or nothing when it is not there or cannot be
 /// read (the privilege must be on first).
 pub fn firmware_variable(name: &str, guid: &str) -> Option<Vec<u8>> {

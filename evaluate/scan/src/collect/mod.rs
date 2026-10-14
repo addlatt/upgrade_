@@ -13,6 +13,8 @@
 use serde_json::{json, Map, Value};
 
 #[cfg(windows)]
+mod diag;
+#[cfg(windows)]
 pub mod events;
 #[cfg(windows)]
 mod firmware;
@@ -77,6 +79,31 @@ pub fn collect(kit_root: Option<&std::path::Path>) -> Collected {
     {
         let _ = kit_root;
         Collected { not_read: FACT_NAMES.to_vec(), errors: vec!["not running on Windows".into()], ..Default::default() }
+    }
+}
+
+/// `diag secureboot`: what Diag-SecureBoot.ps1 read. Off Windows, nothing.
+pub fn diag_secureboot(kit_root: Option<&std::path::Path>) -> Result<crate::diag::secureboot::Facts, String> {
+    #[cfg(windows)]
+    {
+        Ok(diag::secureboot_facts(kit_root))
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = kit_root;
+        Err("not running on Windows".into())
+    }
+}
+
+/// `diag smart`: what Diag-Smart.ps1 read. Off Windows, nothing.
+pub fn diag_smart() -> Result<crate::diag::smart::Facts, String> {
+    #[cfg(windows)]
+    {
+        Ok(diag::smart_facts())
+    }
+    #[cfg(not(windows))]
+    {
+        Err("not running on Windows".into())
     }
 }
 
