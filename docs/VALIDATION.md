@@ -777,7 +777,7 @@ called, a replay test closes the decision; the effect on the firmware or
 the disk still takes one re-run on the machine. `./port-check.sh` runs the
 whole check. **Since 2026-10-11** (the PowerShell left the product, R32):
 `schemas/check.py`, the data tables fresh until they move to JSON, the
-eight frozen goldens unchanged (`FROZEN-GOLDENS.sha256`), `cargo test` in
+nine frozen goldens unchanged (`FROZEN-GOLDENS.sha256`), `cargo test` in
 every crate, the harvester's Windows cases, the schema differential. **Decided (2026-10-04, the owner):** the whole port is
 built on the branch `rust-port`, and the project cuts over to Rust after
 one success of the PowerShell process on `main`; the order is every

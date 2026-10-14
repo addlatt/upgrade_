@@ -19,8 +19,9 @@
 # side as one Rust product (decided 2026-10-11, the owner): UPGRADE.exe, its
 # two .cmd starters, the four programs it runs, README-STICK.txt, SHA256SUMS
 # and KIT-MANIFEST.txt naming the commit and versions. The last PowerShell on
-# the stick is the storage-mode harness and the three diag tools (phase 2 of
-# docs/RUST-PORT.md, "What comes next").
+# the stick is the storage-mode harness and the inline PowerShell of
+# DIAG-VOLUME.cmd (phase 2 of docs/RUST-PORT.md, "What comes next"); the
+# SMART and Secure Boot diagnostics are `upgrade-scan diag` since 2026-10-14.
 #
 # What is verified, in order - any failure stops the build:
 #   1. the tree is committed (a row must map to a commit; --allow-dirty to
@@ -195,10 +196,8 @@ crlf "$PAYLOAD/UPGRADE-ACCEPTING-DATA-LOSS.cmd" "$D/UPGRADE-ACCEPTING-DATA-LOSS.
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-VOLUME.cmd" "$D/DIAG-VOLUME.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SMART.cmd"  "$D/DIAG-SMART.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SECUREBOOT.cmd" "$D/DIAG-SECUREBOOT.cmd"
-cp "$ROOT/evaluate/windows/usb-kit/Diag-SecureBoot.ps1" "$D/Diag-SecureBoot.ps1"
 crlf "$ROOT/evaluate/windows/usb-kit/RUN-STORAGE-MODE.cmd" "$D/RUN-STORAGE-MODE.cmd"
 cp "$ROOT/evaluate/windows/Test-StorageMode.ps1" "$D/Test-StorageMode.ps1"
-cp "$ROOT/evaluate/windows/usb-kit/Diag-Smart.ps1" "$D/Diag-Smart.ps1"
 # the folder map (0.10.0): the job writer runs the harvester beside it, in its own process
 # signed payload: the product path, at the removable-media default location
 cp "$RBITS/EFI/BOOT/BOOTX64.EFI" "$D/EFI/BOOT/BOOTX64.EFI"

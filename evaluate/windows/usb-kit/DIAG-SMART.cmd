@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  upgrade_ - read-only SMART / drive diagnostic
+REM  upgrade_ - read-only SMART / drive diagnostic (upgrade-scan diag smart)
 REM  Reads every drive's health attributes and the disk error log.
 REM  Writes ONE file to this stick: upgrade_\reports\smart-diag-<computer>.txt
 REM  Changes nothing on this computer.
@@ -12,7 +12,7 @@ if %errorlevel% neq 0 (
   exit /b
 )
 cd /d "%~dp0"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Diag-Smart.ps1"
+"%~dp0upgrade-scan.exe" diag smart
 echo.
 echo   Done. Bring the stick back.
 pause

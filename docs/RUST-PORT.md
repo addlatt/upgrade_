@@ -51,8 +51,9 @@ and convert flows, and the Aspire's three runs of 2026-10-10 went through
 them: the first physical conversion with no PowerShell on the Windows
 side. The `RUN-*.cmd` launchers still run the PowerShell scripts, which
 stay on the stick as the way back until each script's ledger lines read
-`pass` (656 of 701 today, 45 owed). The stick writer, `Copy-Kit.ps1`, the
-`Diag-*` tools and everything under `rig/` stay PowerShell on purpose.
+`pass` (656 of 701 that day; 665 of 712 on 2026-10-14, 47 owed). The stick
+writer, `Copy-Kit.ps1` and everything under `rig/` stay PowerShell on
+purpose; the `Diag-*` tools did until 2026-10-14 (`upgrade-scan diag`).
 
 One command checks all of it:
 
@@ -457,6 +458,9 @@ Each one is stricter than the original, or changes no decision.
 | `Disk N` detail line | printed with the machine's own number format (`931,5 GB` on a German Windows) | always a dot (`931.5 GB`) | a display line only; no decision reads it |
 | the password typed twice (2026-10-07) | `-cne`, which compares by the culture's rules: `é` and `e` + a combining accent count as the same, and the pair is accepted | the two entries are compared byte for byte; that pair is refused with "the two entries are not the same" | stricter, and right: Fedora's sign-in compares bytes, so the accepted pair would have locked the person out. `tests/password.rs` holds it by name |
 | the JSON files' form: the report, the folder map (2026-10-07) | `ConvertTo-Json`: a byte order mark, CRLF, .NET dates (`\/Date(...)\/`), a one-item array written as the item | plain UTF-8, LF, dates as `2025-05-19T20:00:00` local time, arrays always arrays; one field more saying what wrote the file (`Scanner`, `Harvester`) and, in the report, `ReadErrors` only when a read failed | the same values in a plainer form. Every reader (`New-Job.ps1`, the window, the Rust) accepts both; nothing decides on `System.BiosDate`. The text report is byte-identical, mark and line ends included |
+| `upgrade-scan diag smart`, the dates (2026-10-14) | `"{0}" -f $date`: the machine's own culture (`10/3/2026 4:01:02 PM` on an English Windows) | always the English (United States) form | a diagnostic for a person to read; nothing decides on it. The G16 and the Aspire are both English, so the files are the same there |
+| `upgrade-scan diag`, the console (2026-10-14) | `Diag-Smart.ps1` printed only the "written:" line; `Diag-SecureBoot.ps1` printed every line | both print every line, then "written:" | the file is the record and is unchanged; the console shows what was written |
+| `upgrade-scan diag secureboot`, a failed read of `db`, `dbx` or `SecureBoot` (2026-10-14) | the exception text of `Get-SecureBootUEFI` and `Confirm-SecureBootUEFI` | without elevation, the cmdlets' own sentence ("Unable to set proper privileges. Access was denied."); elevated, the system's words for the Win32 error of `GetFirmwareEnvironmentVariableEx` | a diagnostic line. The unelevated case, the only one seen, is word for word; the elevated failure has not been seen on a machine |
 | "Volume health", the online scan's result (2026-10-07) | judged under Windows 10's names only (`ErrorsFound`, `ErrorsNotFixed`); on Windows 11 a scan that found errors (`ScanErrorsFoundNeedSpotFix`, `ScanErrorsFixedOnlineAlsoNeedSpotFix`, `ScanErrorsFoundAndFixedOnline`) read as ok, the word left in the note | both sets of names mean errors found: WARN, "online scan reported: ..."; and `ScanNoErrorsFound` gets the "its own log contradicts" clause like `NoErrorsFound` | stricter. `storage::SCAN_FOUND_ERRORS`; `tests/parity.rs` holds the four cases by name, and fails the day the PowerShell says the same, so the exception cannot outlive its reason |
 
 ## The data tables
@@ -733,10 +737,13 @@ The phases, each its own pull request:
    `Invoke-Rollback.ps1`, `Test-Handoff.ps1`, `Invoke-Logged.ps1`,
    `Test-Materialize.ps1`, the golden recorders, the side-by-side
    recorders, `build.sh`, `dist/upgrade-scan.ps1`.
-2. **Phase 2: the last PowerShell on the stick.** `Test-StorageMode.ps1`
-   (the V5 both-modes harness) to Rust; `Diag-*.ps1` to `upgrade-scan diag`;
+2. **Phase 2: the last PowerShell on the stick.** `Diag-*.ps1` to
+   `upgrade-scan diag` (done 2026-10-14: six cases from the scripts, the G16
+   side by side; [log](log/2026-10.md#2026-10-14-the-diag-tools-to-upgrade-scan-diag-r32-v13-roadmap-item-19-step-1));
+   `Test-StorageMode.ps1` (the V5 both-modes harness) to Rust;
    `Write-UpgradeStick.ps1` and `Copy-Kit.ps1` to an `upgrade-stick` crate
    (a disk writer: R16's rig and physical rows again, rule #4).
+   `DIAG-VOLUME.cmd`'s inline PowerShell goes with the harness.
 3. **Phase 3: the data tables.** `data/*.ps1` and `export-tables.ps1` to a
    JSON source that stays a one-line contribution (the owner's open
    decision 2; JSON assumed, since `data/tables.json` already exists);
