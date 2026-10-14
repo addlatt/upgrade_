@@ -711,3 +711,11 @@ Diag-Smart.ps1,"an NVMe drive, not elevated: counters refused, SMART not support
 Diag-Smart.ps1,"more events than the script shows, a disk with no size, an empty threshold block, a status with no bool",selftest,evaluate/scan diag::every_case_says_what_the_script_said (diag-golden.json: the script fed the case through mocked cmdlets),pass,2026-10-14
 Diag-Smart.ps1,"the G16 side by side, not elevated (2026-10-14): the file the script wrote against the file upgrade-scan diag smart wrote two minutes later, beside the kit's boot files",physical,"upgrade-scan diag smart: the same 79 lines but the header's time, after two fixes to the live half (the counters refusal's words, the trailing space in Not supported)",pass,2026-10-14
 Diag-SecureBoot.ps1,"the G16 side by side, not elevated (2026-10-14): the file the script wrote against the file upgrade-scan diag secureboot wrote, beside the kit's boot files",physical,"upgrade-scan diag secureboot: the same 97,501 bytes but the header's time (the registry walk, 110 events, both boot files' sha256 and .sbat)",pass,2026-10-14
+Test-StorageMode.ps1,v5-controller-mode.csv:3,rig,,owed,2026-10-14
+Test-StorageMode.ps1,v5-controller-mode.csv:4,rig,,owed,2026-10-14
+Test-StorageMode.ps1,v5-controller-mode.csv:5,rig,,owed,2026-10-14
+Test-StorageMode.ps1,v5-controller-mode.csv:6,rig,,owed,2026-10-14
+Test-StorageMode.ps1,v5-controller-mode.csv:7,physical,,owed,2026-10-14
+Test-StorageMode.ps1,v5-controller-mode.csv:8,physical,,owed,2026-10-14
+Test-StorageMode.ps1,v5-controller-mode.csv:9,physical,,owed,2026-10-14
+Test-StorageMode.ps1,v5-controller-mode.csv:10,physical,,owed,2026-10-14
