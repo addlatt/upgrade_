@@ -63,7 +63,11 @@ fn refuse(c: &Ctx, code: i32, plain: &str, detail: &str) -> ! {
                     }
                     format!("\x1b[2J\x1b[H\n\n{}", lines.iter().map(|l| format!("   {l}\n")).collect::<String>())
                 };
-                if let Err(e) = con.wait(test_secs("UPG_TEST_REFUSAL_SECS", 60), &screen, false) {
+                let r = con.wait(test_secs("UPG_TEST_REFUSAL_SECS", 60), &screen, false);
+                if con.reopens.get() > 0 {
+                    c.log.say(&format!("== the refusal screen opened {CTTY} again {} time(s): it had been hung up", con.reopens.get()));
+                }
+                if let Err(e) = r {
                     // the script's Python died here and bash went on to the restart
                     c.log.say(&format!("!! the refusal screen stopped: {CTTY} could not be written ({e})"));
                 }
@@ -586,7 +590,11 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
         // a console that stops taking writes ends the countdown as cancelled: the
         // script's Python died there (exit 1), which bash read as a cancel. Never
         // an erase behind a screen nobody can see (rule #3)
-        let keyed = match con.wait(count_secs, &screen, true) {
+        let waited = con.wait(count_secs, &screen, true);
+        if con.reopens.get() > 0 {
+            c.log.say(&format!("== countdown opened {CTTY} again {} time(s): it had been hung up", con.reopens.get()));
+        }
+        let keyed = match waited {
             Ok((keyed, elapsed)) => {
                 c.log.say(&format!("== countdown {} after {elapsed:.1} s", if keyed { "cancelled" } else { "elapsed" }));
                 keyed

@@ -7,7 +7,9 @@
 use std::time::{Duration, Instant};
 
 pub struct Console {
-    fd: i32,
+    path: String,
+    fd: std::cell::Cell<i32>,
+    pub reopens: std::cell::Cell<u32>,
     old: libc::termios,
     pub cols: u16,
     pub rows: u16,
@@ -41,17 +43,39 @@ impl Console {
         }
         let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
         unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut ws) };
-        Ok(Console { fd, old, cols: ws.ws_col, rows: ws.ws_row })
+        Ok(Console { path: path.to_string(), fd: std::cell::Cell::new(fd), reopens: std::cell::Cell::new(0), old, cols: ws.ws_col, rows: ws.ws_row })
+    }
+
+    /// The same console opened again, raw as before, its input flushed; the
+    /// old descriptor closed. The size is not set again: a resize made
+    /// before stays on the console itself.
+    fn reopen(&self) -> Result<(), String> {
+        let c = std::ffi::CString::new(self.path.as_str()).map_err(|e| e.to_string())?;
+        let fd = unsafe { libc::open(c.as_ptr(), libc::O_RDWR | libc::O_NOCTTY | libc::O_NONBLOCK) };
+        if fd < 0 {
+            return Err(std::io::Error::last_os_error().to_string());
+        }
+        let mut raw = self.old;
+        raw.c_lflag &= !(libc::ICANON | libc::ECHO | libc::ISIG);
+        raw.c_cc[libc::VMIN] = 0;
+        raw.c_cc[libc::VTIME] = 0;
+        unsafe {
+            libc::tcsetattr(fd, libc::TCSANOW, &raw);
+            libc::tcflush(fd, libc::TCIFLUSH);
+            libc::close(self.fd.get());
+        }
+        self.fd.set(fd);
+        Ok(())
     }
 
     /// A console the kernel reports narrower than 40 columns is set to 80x25.
     pub fn resize(&mut self, rows: u16, cols: u16) -> Result<(), String> {
         let ws = libc::winsize { ws_row: rows, ws_col: cols, ws_xpixel: 0, ws_ypixel: 0 };
-        if unsafe { libc::ioctl(self.fd, libc::TIOCSWINSZ, &ws) } != 0 {
+        if unsafe { libc::ioctl(self.fd.get(), libc::TIOCSWINSZ, &ws) } != 0 {
             return Err(std::io::Error::last_os_error().to_string());
         }
         let mut got: libc::winsize = unsafe { std::mem::zeroed() };
-        unsafe { libc::ioctl(self.fd, libc::TIOCGWINSZ, &mut got) };
+        unsafe { libc::ioctl(self.fd.get(), libc::TIOCGWINSZ, &mut got) };
         self.rows = got.ws_row;
         self.cols = got.ws_col;
         Ok(())
@@ -66,7 +90,7 @@ impl Console {
     pub fn put(&self, text: &str) -> Result<(), String> {
         let mut data = text.as_bytes();
         while !data.is_empty() {
-            let n = unsafe { libc::write(self.fd, data.as_ptr() as *const _, data.len()) };
+            let n = unsafe { libc::write(self.fd.get(), data.as_ptr() as *const _, data.len()) };
             if n > 0 {
                 data = &data[n as usize..];
                 continue;
@@ -84,12 +108,12 @@ impl Console {
 
     /// A key within `timeout`: true when one came.
     pub fn key_within(&self, timeout: Duration) -> bool {
-        let mut pfd = libc::pollfd { fd: self.fd, events: libc::POLLIN, revents: 0 };
+        let mut pfd = libc::pollfd { fd: self.fd.get(), events: libc::POLLIN, revents: 0 };
         let ms = timeout.as_millis().min(i32::MAX as u128) as i32;
         let r = unsafe { libc::poll(&mut pfd, 1, ms) };
         if r > 0 {
             let mut buf = [0u8; 64];
-            let n = unsafe { libc::read(self.fd, buf.as_mut_ptr() as *mut _, buf.len()) };
+            let n = unsafe { libc::read(self.fd.get(), buf.as_mut_ptr() as *mut _, buf.len()) };
             return n > 0;
         }
         false
@@ -107,7 +131,20 @@ impl Console {
                 break;
             }
             let whole = left.ceil() as u64;
-            self.put(&screen(whole))?;
+            if let Err(e) = self.put(&screen(whole)) {
+                // Fedora's installer starts a shell on a console the moment it is
+                // switched to, and that shell hangs the console up as it starts: an
+                // open made before it is dead (the rig, 2026-10-14). Open it again,
+                // set it up the same way, and draw again against the same deadline.
+                // Three times at most; then the caller decides (a refusal restarts,
+                // the countdown cancels).
+                if self.reopens.get() >= 3 {
+                    return Err(e);
+                }
+                self.reopens.set(self.reopens.get() + 1);
+                self.reopen().map_err(|r| format!("{e}; opened again: {r}"))?;
+                continue;
+            }
             let timeout = if fine { (left - (whole as f64 - 1.0)).max(0.05) } else { left.min(1.0) };
             if self.key_within(Duration::from_secs_f64(timeout)) {
                 keyed = true;
@@ -131,8 +168,8 @@ pub fn say_on(path: &str, text: &str) {
 impl Drop for Console {
     fn drop(&mut self) {
         unsafe {
-            libc::tcsetattr(self.fd, libc::TCSANOW, &self.old);
-            libc::close(self.fd);
+            libc::tcsetattr(self.fd.get(), libc::TCSANOW, &self.old);
+            libc::close(self.fd.get());
         }
     }
 }
@@ -157,6 +194,31 @@ mod tests {
         let r = con.wait(5.0, &|left| format!("{left}\n").repeat(400), false);
         assert!(r.is_err(), "the wait went on after the console stopped taking writes: {r:?}");
         assert!(started.elapsed() < Duration::from_secs(2), "the wait did not end at once");
+    }
+
+    /// A descriptor that stops taking writes on a console that is still there
+    /// (the installer's shell hung up the old open): the console is opened
+    /// again and the wait goes on to its deadline.
+    #[test]
+    fn a_hung_up_open_is_replaced_and_the_wait_goes_on() {
+        let (mut master, mut slave) = (0, 0);
+        assert_eq!(unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) }, 0);
+        let name = unsafe { std::ffi::CStr::from_ptr(libc::ttyname(slave)) }.to_string_lossy().into_owned();
+        let con = Console::open(&name).expect("the pty opens");
+        // the old open goes dead: its number now holds a read-only open, so writes fail (EBADF)
+        let c = std::ffi::CString::new(name.as_str()).unwrap();
+        let ro = unsafe { libc::open(c.as_ptr(), libc::O_RDONLY | libc::O_NOCTTY | libc::O_NONBLOCK) };
+        assert!(ro >= 0);
+        assert_eq!(unsafe { libc::dup2(ro, con.fd.get()) }, con.fd.get());
+        unsafe { libc::close(ro) };
+        let r = con.wait(1.2, &|left| format!("{left}\n"), true);
+        assert!(matches!(r, Ok((false, e)) if e >= 1.1), "{r:?}");
+        assert_eq!(con.reopens.get(), 1);
+        drop(con);
+        unsafe {
+            libc::close(master);
+            libc::close(slave);
+        }
     }
 
     #[test]
