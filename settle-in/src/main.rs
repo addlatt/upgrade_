@@ -44,6 +44,7 @@
 mod bootentry;
 mod civil;
 mod clock;
+mod console_hook;
 mod efi;
 mod goback;
 mod walkaway;
@@ -92,7 +93,7 @@ fn save_public(root: &str, v: &Value) -> Result<(), String> {
     std::fs::rename(&tmp, &path).map_err(|e| format!("{}: {}", path, e))
 }
 
-fn public_summary(root: &str) -> Result<Value, String> {
+pub(crate) fn public_summary(root: &str) -> Result<Value, String> {
     read_json(&format!("{}/{}/summary.json", root.trim_end_matches('/'), summary::PUBLIC_DIR))
 }
 
@@ -555,8 +556,9 @@ fn main() {
         },
         Some("go-back") => std::process::exit(go_back(&args[1..], &opt("--root", "/"))),
         Some("remove-old-boot-entry") => std::process::exit(remove_old_boot_entry(&opt("--root", "/"))),
+        Some("console-hook") => std::process::exit(console_hook::run(&opt("--root", "/"))),
         _ => {
-            eprintln!("usage: settle-in first-start [--root DIR] [--rtc DEVICE] | summary [--root DIR] [--text] | remove-old-boot-entry [--root DIR] | --version");
+            eprintln!("usage: settle-in first-start [--root DIR] [--rtc DEVICE] | summary [--root DIR] [--text] | remove-old-boot-entry [--root DIR] | console-hook [--root DIR] | --version");
             std::process::exit(64);
         }
     }
