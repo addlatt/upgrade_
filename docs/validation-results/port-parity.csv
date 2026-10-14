@@ -841,3 +841,14 @@ DIAG-VOLUME.cmd,"a dirty volume with found.000, a boot-time check logged, NTFS a
 DIAG-VOLUME.cmd,"a clean NVMe volume, nothing found, no events, Fast Startup off",selftest,"evaluate/scan diag::every_volume_case_says_what_the_launcher_said (volume-golden.json: the launcher's block fed the case through mocked cmdlets)",pass,2026-10-14
 DIAG-VOLUME.cmd,"not elevated: fsutil refuses, the scan is refused, no BootExecute value, more events than the cuts keep",selftest,"evaluate/scan diag::every_volume_case_says_what_the_launcher_said (volume-golden.json: the launcher's block fed the case through mocked cmdlets)",pass,2026-10-14
 DIAG-VOLUME.cmd,"the G16 side by side, not elevated (2026-10-14): the file the launcher's block wrote against the file upgrade-scan diag volume wrote a minute later",physical,"upgrade-scan diag volume: the same 194 lines but the header's time, the free space (drifted) and hiberfil (the block's Test-Path says False for a file Windows holds open; the program says True, the file is there)",pass,2026-10-14
+Write-UpgradeStick.ps1,r16-stick-writer.csv:2,physical,,owed,2026-10-14
+Write-UpgradeStick.ps1,r16-stick-writer.csv:3,physical,,owed,2026-10-14
+Write-UpgradeStick.ps1,r16-stick-writer.csv:4,physical,,owed,2026-10-14
+Write-UpgradeStick.ps1,r16-stick-writer.csv:5,physical,,owed,2026-10-14
+Write-UpgradeStick.ps1,r16-stick-writer.csv:8,physical,,owed,2026-10-14
+Write-UpgradeStick.ps1,r16-stick-writer.csv:9,physical,,owed,2026-10-14
+Write-UpgradeStick.ps1,r16-stick-writer.csv:11,physical,,owed,2026-10-14
+Write-UpgradeStick.ps1,r16-stick-writer.csv:12,physical,,owed,2026-10-14
+Write-UpgradeStick.ps1,r16-stick-writer.csv:6,rig,,owed,2026-10-14
+Write-UpgradeStick.ps1,r16-stick-writer.csv:7,rig,,owed,2026-10-14
+Copy-Kit.ps1,"a real stick refreshed on the G16 and verified against SHA256SUMS (the Aspire visits of 2026-09-20 and after; no CSV row, the log entries)",physical,,owed,2026-10-14
