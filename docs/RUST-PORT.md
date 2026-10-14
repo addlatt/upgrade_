@@ -744,6 +744,9 @@ The phases, each its own pull request:
    conventions ("Windows PowerShell 5.1 only", `build.sh`, the two
    self-tests) are rewritten for the Rust product.
 
+The handoff prompt for the sessions that do phases 2 and 3, and the Linux
+side after them (roadmap item 19): `UNIFICATION-PROMPT.md`.
+
 What stays PowerShell on purpose: the rig's own Hyper-V scripts
 (`rig/hyperv/vm.ps1`, `setup.ps1`, `new-vm.ps1`) and its guest-side fault
 injection, which is how WSL drives Hyper-V and a Windows guest; they are
