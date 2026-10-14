@@ -16,7 +16,7 @@ is the one in that heading. "Line N" is the CSV's line as an editor shows
 it; line 1 is the header. One real machine is one data point, not proof:
 nearly every `[####]` below is the Acer Aspire A515-51G, Secure Boot on.
 
-## Right now (2026-10-12)
+## Right now (2026-10-14)
 
 The keep-Windows path on the Aspire did itself on 2026-10-11: the return
 put shim in Windows' slot from its own evidence, and the clock held (R21,
@@ -28,8 +28,8 @@ this Acer while efibootmgr's does (`r21-rollback.csv` line 6). The same run
 found that kickstart 0.9.0 saves GRUB's "Windows chosen" flag on `/boot`,
 where the return cannot read it. Left: those two fixes, the unforced rig row
 (the rig's guest channel is down), a real Windows update under the guard
-(R22), phases 2 and 3 of the leaving. The order and what each waits on:
-`ROADMAP.md`.
+(R22), phases 2 and 3 of the leaving (phase 2 began 2026-10-14: the diag
+tools are `upgrade-scan diag`). The order and what each waits on: `ROADMAP.md`.
 
 ## Gates
 
@@ -41,7 +41,7 @@ where the return cannot read it. Left: those two fixes, the unforced rig row
 | V2 | extracted amp firmware makes the speakers work | `[#...]` planned | none yet | the G16 experiment |
 | V3 | the kept BitLocker volume reads from Linux | `[###.]` held-on-rig | `v3-bitlk-read.csv` line 16, `pass-plumbing` (2026-09-02) | a real disk; `settle-in`'s pull |
 | V4 | real disks can shrink enough | `[####]` held-on-machine, one disk (its old Windows: no) | `r18-prologue.csv` line 18, `pass-plumbing` (2026-10-11, the fresh Windows 11, 238.2 to 213.2 GB) | the rate from more machines |
-| V5 | RST and VMD detection on real hardware | `[####]` held-on-machine, the warn direction only | `v5-controller-mode.csv` line 2, `warn-rst-on-ahci` (2026-09-13) | the RAID/VMD row: an 11th-gen+ machine, or firmware that honours boot-to-setup |
+| V5 | RST and VMD detection on real hardware | `[####]` held-on-machine, the warn direction only | `v5-controller-mode.csv` line 2, `warn-rst-on-ahci` (2026-09-13); line 12, `no-intel-controller` (2026-10-14, the rig's flow through `upgrade-prologue storage-mode`, `mode-unchanged`) | the RAID/VMD row: an 11th-gen+ machine, or firmware that honours boot-to-setup; the Aspire's rows 7 to 10 with the Rust harness |
 | V6 | a signed binary earns Defender's tolerance | `[#...]` planned | none yet | an entity, a certificate, and the calendar |
 | V7 | the scanner generalizes beyond one laptop | `[#...]` planned | none yet | ship it, collect reports |
 | V8 | OneDrive placeholders are never copied as files | `[###.]` held-on-rig | `v8-materialize.csv` line 5, `pass-plumbing` (2026-09-08, a synthetic provider on the G16) | a signed-in OneDrive; `settle-in`'s refusal (not built) |
@@ -49,7 +49,7 @@ where the return cannot read it. Left: those two fixes, the unforced rig row
 | V10 | `settle-in`'s first start on any Linux | `[####]` held-on-machine, Fedora only | `settle-in-first-start.csv` line 20, `pass` (2026-10-04) | a non-Fedora distribution; the old-entry button on real firmware; the file pull |
 | V11 | the way back to Windows | `[####]` held-on-machine, one licence kind | `v11-walkaway.csv` line 5, `windows-reached` (2026-10-11, run 3); line 4 `cancelled-untouched` (2026-10-06) | a machine with a firmware key; a cancel started by the program's own restart |
 | V12 | the window in front of the programs | `[###.]` held-on-rig, the stop path only | `v12-window.csv` line 3, `stopped-before-arm` (2026-10-08) | a row on the Aspire: the reopen after restart, the result screen |
-| V13 | the port from PowerShell to Rust | `[####]` held-on-machine | `v2-install.csv` line 15, `pass` (2026-10-11, the whole conversion through the Rust prologue); `r18-prologue.csv` line 19, `pass-plumbing` (the Rust-only bench); ledger 657 pass, 45 owed | the unforced rig row; the 45 owed lines; phase 2 (storage-mode harness, diag tools, stick writer); phase 3 (the data tables) |
+| V13 | the port from PowerShell to Rust | `[####]` held-on-machine | `v2-install.csv` line 15, `pass` (2026-10-11, the whole conversion through the Rust prologue); `r18-prologue.csv` line 19, `pass-plumbing` (the Rust-only bench); ledger 862 pass, 56 owed (2026-10-14) | the unforced rig row; the 56 owed lines; phase 2's last rows (the stick writer is built; its write rows and the rig's refusals); phase 3 done 2026-10-14 (JSON) |
 | V14 | the kit's Linux release starts where it is used | `[####]` held-on-machine, one firmware | `v9-erase.csv` line 30, `erased-installed` (2026-10-04, Fedora 44, Secure Boot on) | Fedora 42's measured record; a second firmware; the next SBAT level |
 
 ## Open risks
@@ -71,7 +71,7 @@ where the return cannot read it. Left: those two fixes, the unforced rig row
 | R13 | the stick as a credential store | `[##..]` built | none yet | a row naming the Wi-Fi removal from the stick; the BitLocker key wipe after the pull |
 | R14 | supply chain | `[####]` held-on-machine, the reproducible half | `r14-rebuild.csv` line 26, `same` = y (2026-10-09, five programs) | signing; the release credential |
 | R15 | the handoff on other vendors' firmware | `[####]` held-on-machine, one vendor | `v0-handoff.csv` line 12, `fired-once` | Dell, Lenovo, HP; fail-safe rows on real firmware |
-| R16 | the stick writer writes the wrong device | `[####]` held-on-machine | `r16-stick-writer.csv` line 12, `verified` = y (2026-09-13, the G16) | a second device class; the writer in Rust |
+| R16 | the stick writer writes the wrong device | `[####]` held-on-machine | `r16-stick-writer.csv` line 12, `verified` = y (2026-09-13, the G16); lines 13 and 14, `refused` (2026-10-14, `upgrade-stick plan` on the G16) | a second device class; the Rust writer's write rows (a real stick, the owner) and the rig's refusals |
 | R17 | counterfeit or failing flash as the carrier | `[####]` held-on-machine, the gate half | `v1-live-boot.csv` line 5, `pass-plumbing` (read back at 22.6 MB/s) | the counterfeit half: a fake stick |
 | R18 | shrink headroom unmeasured | `[####]` held-on-machine, one disk | `r18-prologue.csv` line 18, `pass-plumbing` (2026-10-11) | more machines; the pagefile read back |
 | R19 | the BitLocker read is a new trust dependency | `[###.]` held-on-rig | `v3-bitlk-read.csv` line 16, `pass-plumbing` | a real disk |
@@ -87,7 +87,7 @@ where the return cannot read it. Left: those two fixes, the unforced rig row
 | R29 | the third-party UEFI CA off on Secured-core PCs | `[#...]` planned | none yet | Microsoft's own document; a Secured-core machine; reading the setting from Windows |
 | R30 | the way back to Windows | `[###.]` held-on-rig | `v11-way-back.csv` line 3, `pass-plumbing` (2026-09-27) | a machine with a firmware key; `install.swm` with Secure Boot on |
 | R31 | the window in front of the programs | `[##..]` built | `v12-window.csv` line 3, `stopped-before-arm` | a passing row; the words approved |
-| R32 | the port from PowerShell to Rust | `[####]` held-on-machine, the scripts gone (2026-10-11) | `v2-install.csv` line 15, `pass` (the Rust prologue, the whole path); `r18-prologue.csv` line 19, `pass-plumbing` (the Rust-only bench) | the unforced rig row; the 45 owed ledger lines; phase 2 and 3 of the leaving |
+| R32 | the port from PowerShell to Rust | `[####]` held-on-machine, the scripts gone (2026-10-11) | `v2-install.csv` line 15, `pass` (the Rust prologue, the whole path); `r18-prologue.csv` line 19, `pass-plumbing` (the Rust-only bench) | the unforced rig row; the 56 owed ledger lines; phase 2's last rows (the stick writer is built 2026-10-14; the script goes when its R16 rows read pass); phase 3 done 2026-10-14 |
 | R33 | the walk-away way back | `[####]` held-on-machine | `v11-walkaway.csv` line 5, `windows-reached` (2026-10-11) | a cancel from the program's own restart; a machine that stops at the key page; keeping the machine awake |
 | R34 | Secure Boot revokes the kit's boot files | `[####]` held-on-machine | `v9-erase.csv` line 30, `erased-installed` (Fedora 44, Secure Boot on) | the next level (`grub,6`); Fedora 42's record |
 | R35 | the stick installs again after the install | `[####]` held-on-machine | `v9-erase.csv` line 31, `not-installed-again` (2026-10-04) | other firmware |

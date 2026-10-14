@@ -51,8 +51,13 @@ and convert flows, and the Aspire's three runs of 2026-10-10 went through
 them: the first physical conversion with no PowerShell on the Windows
 side. The `RUN-*.cmd` launchers still run the PowerShell scripts, which
 stay on the stick as the way back until each script's ledger lines read
-`pass` (656 of 701 today, 45 owed). The stick writer, `Copy-Kit.ps1`, the
-`Diag-*` tools and everything under `rig/` stay PowerShell on purpose.
+`pass` (656 of 701 that day; 665 of 712 on the morning of 2026-10-14, 795
+of 842 by its evening, 47 owed). Everything under `rig/` stays
+PowerShell on purpose; the stick writer and `Copy-Kit.ps1` are `upgrade-stick`
+since 2026-10-14 (the script stays in the tree until R16's write rows are
+earned again by the program); the `Diag-*` tools, the storage-mode harness and
+`DIAG-VOLUME.cmd`'s inline block did until 2026-10-14 (`upgrade-scan diag`,
+`upgrade-prologue storage-mode`).
 
 One command checks all of it:
 
@@ -155,7 +160,7 @@ on 2026-10-04.
 | `Harvest-UpgradeState.ps1` | 1,279 | `evaluate/harvest` (crate `upgrade-harvest`; the program `upgrade-harvest folder-map`) | 3 | `-SelfTest`, 47 cases |
 | `New-Job.ps1` | 1,451 | `evaluate/job` (crate `upgrade-job`; the program `upgrade-job write`) | 4 | `-SelfTest`, 126 cases |
 | `New-Kickstart.ps1` | 226 | part of the job writer crate | 4 | rig rows |
-| `Write-UpgradeStick.ps1` | 514 | a stick writer (shares ideas with `settle-in/src/stickwrite.rs`) | 4 | `r16-stick-writer.csv` |
+| `Write-UpgradeStick.ps1` | 514 | `evaluate/stick` (crate `upgrade-stick`: `list`, `plan`, `write`; `copy` is `Copy-Kit.ps1`), built 2026-10-14 | 4 | `-SelfTest`, 23 cases; `r16-stick-writer.csv` |
 | `Read-Password.ps1` | 201 | `evaluate/job/src/password.rs`, run as `upgrade-job password` until the window takes the prompt | 4 | `-SelfTest`, 12 cases |
 | `Invoke-Prologue.ps1` | 2,124 | `upgrade_/prologue` (crate `upgrade-prologue`), then the converter's Windows half | 5 | `-SelfTest`, 144 cases; rig and physical rows (`r18-prologue.csv`, `v2-install.csv`, `v9-erase.csv`, `walkaway-probe.csv`) |
 | `Invoke-Rollback.ps1` | 238 | `upgrade_/prologue/src/rollback.rs` (`upgrade-prologue rollback`); its rig row passed 2026-10-08 (`r21-rollback.csv` line 4) | 5 | `-SelfTest`, 14 cases; `r21-rollback.csv` |
@@ -164,9 +169,10 @@ on 2026-10-04.
 | `data/*.ps1` | 379 | stays the edit surface for now (see "The data tables") | 2 | checked by the self-test |
 
 Not on the list, and staying as they are: the rig scripts under `rig/`
-(test equipment, not product), the diagnostic scripts on the kit
-(`Diag-*.ps1`), and the test harnesses (`Test-Materialize.ps1`,
-`Test-StorageMode.ps1`).
+(test equipment, not product). The diagnostic scripts on the kit
+(`Diag-*.ps1`, `DIAG-VOLUME.cmd`'s block) and the storage-mode harness
+(`Test-StorageMode.ps1`) were listed here as staying, and left on
+2026-10-14 (phase 2 below); `Test-Materialize.ps1` went with phase 1.
 
 ## Step 1: the schema library. Built 2026-10-04.
 
@@ -455,22 +461,34 @@ Each one is stricter than the original, or changes no decision.
 | the job writer's refusals at the door | a missing stick or scan folder, a wrong `-Desktop`, or a failed read makes the script throw (a traceback, exit 1) | the same words as a plain refusal, exit 2; a job is written only after `upgrade_schema::Job` accepted it | stricter and plainer; the script wrote without checking the contract |
 | a job's `evaluate.version` | `0.18.0` | given by the program that writes the job | a record should say what wrote it |
 | `Disk N` detail line | printed with the machine's own number format (`931,5 GB` on a German Windows) | always a dot (`931.5 GB`) | a display line only; no decision reads it |
+| the storage-mode record (2026-10-14) | `harness_version` only | `harness_program` beside it, naming this program | a record should say what wrote it; `v5-verdict.py` reads neither |
+| a leg's `Classes` and `CompatibleIds` in the record (2026-10-14) | re-saved as `{"Length": n}` objects once the state had been read back from JSON (PowerShell 5.1 serialises a string it read from JSON that way; the script's own comment records it from the Aspire, 2026-09-15) | the strings, every time | the record says what the controller declared; nothing decides on it (the row's class codes come from the capture) |
+| the storage-mode RunOnce and task commands (2026-10-14) | `powershell.exe -File <the script's copy> -SafeModeSignIn` and `-Notify`; a scheduled task on the same | this program's copy in the state directory, `storage-mode safe-mode-sign-in` and `notify` | there is no script to launch; the same `*`-prefixed value name, the same SYSTEM task shape |
+| `diag volume`, hiberfil (2026-10-14) | `Test-Path C:\hiberfil.sys`: False even when the file is there (the provider cannot open a file Windows holds; a 13 GB one was on the G16) | whether the file is there: True | the line answers the question asked; a diagnostic, nothing decides on it |
+| the stick writer's evidence row, `writer` field (2026-10-14) | `0.1.1`, the script's version | `0.1.0 (Rust; follows Write-UpgradeStick.ps1 0.1.1)` | a record should say what wrote it; the row's words are otherwise the same |
+| `stick.json` on the written stick (2026-10-14) | PowerShell's `ConvertTo-Json` layout (four-space indent, two spaces after each colon), ASCII | the same six fields, two-space indent, UTF-8 | the job writer reads either; the fields and values are the same |
+| `copy`, the file copy (2026-10-14) | `robocopy /E`, skipping the files verified in place, retrying twice | a plain copy of every kit file not verified in place, no retry; a failed copy names the file and says what a bus drop looks like | the same files land; the verification afterwards is the evidence either way |
+| `diag volume`, a refused online scan (2026-10-14) | `Repair-Volume -Scan` under `-ErrorAction SilentlyContinue`: an empty line | the same empty line when the call answers nothing (not elevated); otherwise the scan's word | the same words; the Rust names the case |
 | the password typed twice (2026-10-07) | `-cne`, which compares by the culture's rules: `é` and `e` + a combining accent count as the same, and the pair is accepted | the two entries are compared byte for byte; that pair is refused with "the two entries are not the same" | stricter, and right: Fedora's sign-in compares bytes, so the accepted pair would have locked the person out. `tests/password.rs` holds it by name |
 | the JSON files' form: the report, the folder map (2026-10-07) | `ConvertTo-Json`: a byte order mark, CRLF, .NET dates (`\/Date(...)\/`), a one-item array written as the item | plain UTF-8, LF, dates as `2025-05-19T20:00:00` local time, arrays always arrays; one field more saying what wrote the file (`Scanner`, `Harvester`) and, in the report, `ReadErrors` only when a read failed | the same values in a plainer form. Every reader (`New-Job.ps1`, the window, the Rust) accepts both; nothing decides on `System.BiosDate`. The text report is byte-identical, mark and line ends included |
+| `upgrade-scan diag smart`, the dates (2026-10-14) | `"{0}" -f $date`: the machine's own culture (`10/3/2026 4:01:02 PM` on an English Windows) | always the English (United States) form | a diagnostic for a person to read; nothing decides on it. The G16 and the Aspire are both English, so the files are the same there |
+| `upgrade-scan diag`, the console (2026-10-14) | `Diag-Smart.ps1` printed only the "written:" line; `Diag-SecureBoot.ps1` printed every line | both print every line, then "written:" | the file is the record and is unchanged; the console shows what was written |
+| `upgrade-scan diag secureboot`, a failed read of `db`, `dbx` or `SecureBoot` (2026-10-14) | the exception text of `Get-SecureBootUEFI` and `Confirm-SecureBootUEFI` | without elevation, the cmdlets' own sentence ("Unable to set proper privileges. Access was denied."); elevated, the system's words for the Win32 error of `GetFirmwareEnvironmentVariableEx` | a diagnostic line. The unelevated case, the only one seen, is word for word; the elevated failure has not been seen on a machine |
 | "Volume health", the online scan's result (2026-10-07) | judged under Windows 10's names only (`ErrorsFound`, `ErrorsNotFixed`); on Windows 11 a scan that found errors (`ScanErrorsFoundNeedSpotFix`, `ScanErrorsFixedOnlineAlsoNeedSpotFix`, `ScanErrorsFoundAndFixedOnline`) read as ok, the word left in the note | both sets of names mean errors found: WARN, "online scan reported: ..."; and `ScanNoErrorsFound` gets the "its own log contradicts" clause like `NoErrorsFound` | stricter. `storage::SCAN_FOUND_ERRORS`; `tests/parity.rs` holds the four cases by name, and fails the day the PowerShell says the same, so the exception cannot outlive its reason |
 
 ## The data tables
 
-`data/*.ps1` is the community's edit surface: adding a device is a one-line
-change with a source. That does not change yet.
-
-The Rust cannot read PowerShell, so `data/tools/export-tables.ps1` writes
-the same tables to `data/tables.json`, and the Rust is built with that file
-inside. `port-check.sh` fails when `tables.json` is older than the `.ps1`
-files say. Never edit `tables.json` by hand.
-
-When the PowerShell scanner is retired, the tables need a home that is not
-PowerShell and is still a one-line edit. That format is not decided.
+**Decided (2026-10-14, the owner):** the tables are JSON, one file per
+table (`data/devices/*.json`, `data/distros.json`, `data/releases.json`),
+compiled into the scanner; a device stays one line with a cited `Source`
+and a `Verified` date; the field meanings live in `data/README.md`. The
+`.ps1` tables, `export-tables.ps1` and the exported `tables.json` are gone,
+and `port-check.sh` needs no PowerShell. Chosen over TOML and CSV because
+the Rust already read this shape, the releases are nested and
+machine-written, and the project's own schema checker can hold the shape;
+the comments the `.ps1` files carried became `_about` entries and the
+README. A table of machine models and generations is a later decision
+(`ROADMAP.md`, "Decisions owed").
 
 ## Layout and build
 
@@ -484,7 +502,8 @@ evaluate/scan/       crate upgrade-scan: the judging half
   tests/golden.ps1     asks the PowerShell scanner; writes golden.json
   tests/golden.json    the PowerShell's answers
   src/main.rs          upgrade-scan --replay machine.json
-data/tables.json     the data tables as JSON (written by a tool)
+data/devices/*.json  the data tables (JSON, the source since 2026-10-14)
+data/distros.json, data/releases.json
 port-check.sh        the one command
 ```
 
@@ -733,16 +752,27 @@ The phases, each its own pull request:
    `Invoke-Rollback.ps1`, `Test-Handoff.ps1`, `Invoke-Logged.ps1`,
    `Test-Materialize.ps1`, the golden recorders, the side-by-side
    recorders, `build.sh`, `dist/upgrade-scan.ps1`.
-2. **Phase 2: the last PowerShell on the stick.** `Test-StorageMode.ps1`
-   (the V5 both-modes harness) to Rust; `Diag-*.ps1` to `upgrade-scan diag`;
-   `Write-UpgradeStick.ps1` and `Copy-Kit.ps1` to an `upgrade-stick` crate
-   (a disk writer: R16's rig and physical rows again, rule #4).
-3. **Phase 3: the data tables.** `data/*.ps1` and `export-tables.ps1` to a
-   JSON source that stays a one-line contribution (the owner's open
-   decision 2; JSON assumed, since `data/tables.json` already exists);
-   `make-kit.sh` and `fetch-release.sh` read it. Then `CLAUDE.md`'s
-   conventions ("Windows PowerShell 5.1 only", `build.sh`, the two
-   self-tests) are rewritten for the Rust product.
+2. **Phase 2: the last PowerShell on the stick.** `Diag-*.ps1` to
+   `upgrade-scan diag` (done 2026-10-14: six cases from the scripts, the G16
+   side by side; [log](log/2026-10.md#2026-10-14-the-diag-tools-to-upgrade-scan-diag-r32-v13-roadmap-item-19-step-1));
+   `Test-StorageMode.ps1` (the V5 both-modes harness) to
+   `upgrade-prologue storage-mode` (done 2026-10-14: 118 cases from the
+   script, the rig's arm run again;
+   [log](log/2026-10.md#2026-10-14-the-storage-mode-harness-and-the-volume-diagnostic-to-rust-r32-v13-v5-roadmap-item-19-step-2));
+   `Write-UpgradeStick.ps1` and `Copy-Kit.ps1` to the `upgrade-stick` crate
+   (built 2026-10-14: 63 cases from the script, the G16's read-only rows
+   again, lines 13 and 14; a disk writer, so its write rows and the rig's
+   refusals are still owed, rule #4;
+   [log](log/2026-10.md#2026-10-14-the-stick-writer-to-rust-r16-r32-v13-roadmap-item-19-step-3)). The script stays in the tree until those rows exist.
+   `DIAG-VOLUME.cmd`'s inline PowerShell is `upgrade-scan diag volume`
+   (the same day). Nothing on the stick is PowerShell now.
+3. **Phase 3: the data tables.** Done 2026-10-14: `data/*.ps1` and
+   `export-tables.ps1` to JSON, one file per table, with `Source` and
+   `Verified` on every entry ("The data tables" above); `make-kit.sh`,
+   `fetch-release.sh` and `measure-release.py` read and write it;
+   `CLAUDE.md`, `README.md` and `CONTRIBUTING.md` rewritten for a product
+   with no PowerShell
+   ([log](log/2026-10.md#2026-10-14-the-data-tables-to-json-r32-v13-roadmap-item-19-step-4)).
 
 The handoff prompt for the sessions that do phases 2 and 3, and the Linux
 side after them (roadmap item 19): `UNIFICATION-PROMPT.md`.
@@ -754,8 +784,8 @@ the harness, not the product.
 
 ## Open decisions (the owner's)
 
-1. **The data tables' format** after the PowerShell scanner is retired
-   (phase 3 above assumes JSON).
+1. **The data tables' format**: decided 2026-10-14, JSON ("The data
+   tables" above).
 2. **Beyond the Windows side.** The Linux side still has shell
    (`upgrade_/linux/verify.sh`, `outcome.sh`, `make-kit.sh`) and Python
    (`schemas/check.py`, `data/tools/`). Whether those move to Rust too is

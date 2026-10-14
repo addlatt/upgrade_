@@ -28,7 +28,7 @@
 #                             prepare -> stick -> windows -> autologon off -> -Probe -> restart -> the
 #                             SYSTEM task writes the row to the stick -> pulled -> transported verbatim
 #                             into docs/validation-results/walkaway-probe.csv -> restore
-#   prologue.sh storage-mode  the V5 one-click flow (Test-StorageMode.ps1 -Start -Bench -NoPrompt) on a fresh
+#   prologue.sh storage-mode  the V5 one-click flow (upgrade-prologue storage-mode start --bench --no-prompt) on a fresh
 #                             copy with autologon off: leg-1 scan -> Safe Mode once through the copied boot
 #                             entry -> the SYSTEM task restarts from Safe Mode -> leg-2 scan as SYSTEM ->
 #                             mode-unchanged (a VM has no SATA mode to flip) -> cleanup -> record pulled ->
@@ -212,8 +212,8 @@ storage-mode-run)
     SM_STATE='C:\ProgramData\upgrade_\storage-mode'; SA="$A/storage-mode"; mkdir -p "$SA/progress"
     "$SELF" windows; "$SELF" autologon off
     L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume in the guest" >&2; exit 1; }
-    # Test-StorageMode.ps1 is the last PowerShell harness on the stick (V5); it leaves when the storage-mode flow is ported (RUST-PORT.md, phase 2)
-    guest "Test-Path ${L}:\\Test-StorageMode.ps1" | grep -q True || { echo "prologue: Test-StorageMode.ps1 is not on the stick - rebuild the kit (make-kit.sh) and the stick" >&2; exit 1; }
+    # the harness is `upgrade-prologue storage-mode` since 2026-10-14 (it was Test-StorageMode.ps1, the last PowerShell on the stick)
+    guest "Test-Path ${L}:\\upgrade-prologue.exe" | grep -q True || { echo "prologue: upgrade-prologue.exe is not on the stick - rebuild the kit (make-kit.sh) and the stick" >&2; exit 1; }
     guest "Remove-Item -Recurse -Force '$SM_STATE' -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force ${L}:\\upgrade_\\storage-mode -ErrorAction SilentlyContinue"
     # The rig guest boots with its clock 7 h ahead (Hyper-V hands it the host's
     # local time as the RTC) and the time-sync integration service pulls it back
@@ -225,7 +225,7 @@ storage-mode-run)
     # what the guest looks like before: no Schedule key in Safe Mode's list, no task, one Windows entry
     guest "Test-Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SafeBoot\\Minimal\\Schedule'; (Get-ScheduledTask -TaskName 'upgrade_ storage-mode resume' -ErrorAction SilentlyContinue) -ne \$null; (bcdedit /enum osloader | Select-String '^identifier').Count" > "$SA/before.txt"
     boot0=$(guest '(Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString("o")' 2>/dev/null || true)
-    guest "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${L}:\\Test-StorageMode.ps1 -Start -StickDrive ${L}: -Bench -NoPrompt" | tee "$SA/start.log"
+    guest "& ${L}:\\upgrade-prologue.exe storage-mode start --stick ${L}: --bench --no-prompt" | tee "$SA/start.log"
     grep -q 'armed: Safe Mode once' "$SA/start.log" || { echo "prologue: the harness did not arm - read $SA/start.log" >&2; guest "Get-Content '$SM_STATE\\storage-mode.log' -Raw" > "$SA/guest-storage-mode.log" 2>/dev/null || true; exit 1; }
     "$SELF" storage-mode-wait
     ;;

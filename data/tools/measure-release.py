@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-measure-release.py - write one release's entry in data/releases.ps1 from the
+measure-release.py - write one release's entry in data/releases.json from the
 release's own files (RISKS R34, decided 2026-10-03, the owner: the kit's
 Linux release is chosen from what the machine accepts). The facts in the
 table are measured here, never typed by hand (rule #2).
@@ -8,7 +8,7 @@ table are measured here, never typed by hand (rule #2).
     measure-release.py --id fedora-44 --name "Fedora 44" --family fedora \
         --installer kickstart --netinst URL ISO \
         --desktop kde "KDE Plasma" URL ISO --desktop gnome GNOME URL ISO \
-        [--image-path LiveOS/squashfs.img] [--table data/releases.ps1]
+        [--image-path LiveOS/squashfs.img] [--table data/releases.json]
 
 For the installer ISO: its sha256, and the facts of EFI/BOOT/BOOTX64.EFI
 (shim) and EFI/BOOT/grubx64.efi (the install-media GRUB, which reads the
@@ -60,15 +60,8 @@ def image_files(img, wanted, tmp):
         if os.path.exists(p): out[w] = p
     return out
 
-def ps(s):
-    return "'" + str(s).replace("'", "''") + "'"
-
 def boot_entry(role, f):
-    lv = ', '.join(ps(x) for x in f['sbatlevel'])
-    by = ', '.join(ps(x) for x in f['signed_by'])
-    return ("        @{ Role = %s; File = %s; Sha256 = %s\n"
-            "           Sbat = %s\n"
-            "           SbatLevel = @(%s); SignedBy = @(%s) }\n") % (ps(role), ps(f['file']), ps(f['sha256']), ps(f['sbat']), lv, by)
+    return {'Role': role, 'File': f['file'], 'Sha256': f['sha256'], 'Sbat': f['sbat'], 'SbatLevel': list(f['sbatlevel']), 'SignedBy': list(f['signed_by'])}
 
 def main():
     a = argparse.ArgumentParser()
@@ -77,7 +70,7 @@ def main():
     a.add_argument('--netinst', nargs=2, metavar=('URL', 'ISO'), required=True)
     a.add_argument('--desktop', nargs=4, action='append', metavar=('ID', 'LABEL', 'URL', 'ISO'), default=[])
     a.add_argument('--image-path', default='LiveOS/squashfs.img')
-    a.add_argument('--table', default=str(ROOT / 'data/releases.ps1'))
+    a.add_argument('--table', default=str(ROOT / 'data/releases.json'))
     a.add_argument('--note', default='')
     o = a.parse_args()
     today = datetime.date.today().isoformat()
@@ -88,7 +81,7 @@ def main():
         iso_sha = sha256(iso)
         for inner in ('EFI/BOOT/BOOTX64.EFI', 'EFI/BOOT/grubx64.efi'):
             boot.append(boot_entry('stick', pe_facts.facts(iso_extract(iso, inner, tmp))))
-        netinst = '@{ Url = %s; Sha256 = %s }' % (ps(url), ps(iso_sha))
+        netinst = {'Url': url, 'Sha256': iso_sha}
         for did, label, durl, diso in o.desktop:
             print('measure-release: desktop %s (%s): unpacking its image, this takes minutes' % (did, diso), file=sys.stderr)
             d = os.path.join(tmp, did); os.makedirs(d)
@@ -100,26 +93,20 @@ def main():
                 raise SystemExit('measure-release: %s lacks the installed boot files (found %s); refusing to guess' % (did, list(got)))
             for w in ('/boot/efi/EFI/fedora/shimx64.efi', '/boot/efi/EFI/fedora/grubx64.efi'):
                 boot.append(boot_entry('installed ' + did, pe_facts.facts(got[w])))
-            desktops.append('        @{ Id = %s; Label = %s; Url = %s; IsoSha256 = %s; ImagePath = %s; ImageSha256 = %s }\n'
-                            % (ps(did), ps(label), ps(durl), ps(dsha), ps(o.image_path), ps(isha)))
+            desktops.append({'Id': did, 'Label': label, 'Url': durl, 'IsoSha256': dsha, 'ImagePath': o.image_path, 'ImageSha256': isha})
             shutil.rmtree(d, ignore_errors=True)
-    block = ("    # BEGIN %s (measured %s by data/tools/measure-release.py from the files themselves; do not edit by hand)\n"
-             "    @{ Id = %s; Name = %s; Family = %s; Installer = %s; Measured = %s; Note = %s\n"
-             "       Netinst = %s\n"
-             "       Desktops = @(\n%s       )\n"
-             "       Boot = @(\n%s       ) }\n"
-             "    # END %s\n") % (o.id, today, ps(o.id), ps(o.name), ps(o.family), ps(o.installer), ps(today), ps(o.note),
-                                  netinst, ''.join(desktops), ''.join(boot), o.id)
-    t = open(o.table).read()
-    b, e = '    # BEGIN %s ' % o.id, '    # END %s\n' % o.id
-    if b in t:
-        i = t.index(b); j = t.index(e, i) + len(e)
-        t = t[:i] + block + t[j:]
+    entry = {'Id': o.id, 'Name': o.name, 'Family': o.family, 'Installer': o.installer, 'Measured': today, 'Note': o.note,
+             'Netinst': netinst, 'Desktops': desktops, 'Boot': boot}
+    # the entry replaces one with the same Id, or goes at the end; the rest of the file is untouched
+    doc = json.load(open(o.table, encoding='utf-8'))
+    rels = doc['Releases']
+    at = next((i for i, r in enumerate(rels) if r.get('Id') == o.id), None)
+    if at is None:
+        rels.append(entry)
     else:
-        m = '    # (releases end)\n'
-        assert m in t, 'no "# (releases end)" marker in the table'
-        t = t.replace(m, block + m)
-    open(o.table, 'w').write(t)
+        rels[at] = entry
+    with open(o.table, 'w', encoding='utf-8') as f:
+        json.dump(doc, f, indent=2, ensure_ascii=False); f.write('\n')
     print('measure-release: wrote %s into %s' % (o.id, o.table), file=sys.stderr)
 
 if __name__ == '__main__':

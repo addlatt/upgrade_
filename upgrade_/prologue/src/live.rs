@@ -609,10 +609,16 @@ fn xml_escape(s: &str) -> String {
 
 /// The SYSTEM startup task's XML: runs before and without a sign-in.
 pub fn resume_task_xml(exe: &str, state: &str) -> String {
+    task_xml(exe, "upgrade_: continue the conversion after a restart (removed by the prologue itself)", &format!("resume --state-dir \"{state}\""), "PT4H")
+}
+
+/// A SYSTEM startup task's XML: this program with `args`, before and
+/// without a sign-in, for at most `limit` (an ISO 8601 duration).
+pub fn task_xml(exe: &str, description: &str, args: &str, limit: &str) -> String {
     format!(
         r#"<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-  <RegistrationInfo><Description>upgrade_: continue the conversion after a restart (removed by the prologue itself)</Description></RegistrationInfo>
+  <RegistrationInfo><Description>{d}</Description></RegistrationInfo>
   <Triggers><BootTrigger><Enabled>true</Enabled></BootTrigger></Triggers>
   <Principals><Principal id="Author"><UserId>S-1-5-18</UserId><RunLevel>HighestAvailable</RunLevel></Principal></Principals>
   <Settings>
@@ -620,14 +626,16 @@ pub fn resume_task_xml(exe: &str, state: &str) -> String {
     <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
     <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
     <StartWhenAvailable>true</StartWhenAvailable>
-    <ExecutionTimeLimit>PT4H</ExecutionTimeLimit>
+    <ExecutionTimeLimit>{l}</ExecutionTimeLimit>
     <Enabled>true</Enabled>
   </Settings>
-  <Actions Context="Author"><Exec><Command>{e}</Command><Arguments>resume --state-dir "{s}"</Arguments></Exec></Actions>
+  <Actions Context="Author"><Exec><Command>{e}</Command><Arguments>{a}</Arguments></Exec></Actions>
 </Task>
 "#,
+        d = xml_escape(description),
+        l = limit,
         e = xml_escape(exe),
-        s = xml_escape(state)
+        a = xml_escape(args)
     )
 }
 
@@ -654,27 +662,33 @@ pub fn register_resume_task(rec: &mut Recorder, state: &str) -> Result<Vec<Strin
     let copy = Path::new(state).join("upgrade-prologue.exe");
     place_program(&me, &copy)?;
     let acl = protect_state_dir(rec, state)?;
-    let xml_path = Path::new(state).join("resume-task.xml");
-    let xml = resume_task_xml(&copy.to_string_lossy(), state);
+    register_task(rec, state, TASK_NAME, "resume-task.xml", &resume_task_xml(&copy.to_string_lossy(), state))?;
+    Ok(acl)
+}
+
+/// A SYSTEM startup task from its XML (written UTF-16 into the state
+/// directory as `xml_name`), checked to have registered as SYSTEM.
+pub fn register_task(rec: &mut Recorder, state: &str, task_name: &str, xml_name: &str, xml: &str) -> Result<(), String> {
+    let xml_path = Path::new(state).join(xml_name);
     let mut bytes = vec![0xFF, 0xFE];
     for u in xml.encode_utf16() {
         bytes.extend_from_slice(&u.to_le_bytes());
     }
     std::fs::write(&xml_path, bytes).map_err(|e| e.to_string())?;
     let xp = xml_path.to_string_lossy().to_string();
-    let r = rec.run("schtasks", &["/Create", "/TN", TASK_NAME, "/XML", &xp, "/F"]).clone();
+    let r = rec.run("schtasks", &["/Create", "/TN", task_name, "/XML", &xp, "/F"]).clone();
     if !r.ok() {
         return Err(format!("schtasks could not register the resume task ({})", r.text().trim()));
     }
-    let q = rec.run("schtasks", &["/Query", "/TN", TASK_NAME, "/XML"]).clone();
+    let q = rec.run("schtasks", &["/Query", "/TN", task_name, "/XML"]).clone();
     if !q.ok() {
         return Err("the resume task is not present after registration".to_string());
     }
     if !matches("<UserId>(S-1-5-18|NT AUTHORITY\\\\SYSTEM|SYSTEM)</UserId>", &q.text()) {
-        unregister_resume_task(rec);
+        unregister_task_named(rec, task_name);
         return Err("the resume task did not register as SYSTEM; removed again".to_string());
     }
-    Ok(acl)
+    Ok(())
 }
 
 /// The program's copy in a state directory, from which a task runs it. A
@@ -715,10 +729,15 @@ fn same_file(a: &Path, b: &Path) -> bool {
 
 /// Unregister-ResumeTask: true when a task was there and went.
 pub fn unregister_resume_task(rec: &mut Recorder) -> bool {
-    if !rec.run("schtasks", &["/Query", "/TN", TASK_NAME]).ok() {
+    unregister_task_named(rec, TASK_NAME)
+}
+
+/// A task by name: true when it was there and went.
+pub fn unregister_task_named(rec: &mut Recorder, task_name: &str) -> bool {
+    if !rec.run("schtasks", &["/Query", "/TN", task_name]).ok() {
         return false;
     }
-    rec.run("schtasks", &["/Delete", "/TN", TASK_NAME, "/F"]).ok()
+    rec.run("schtasks", &["/Delete", "/TN", task_name, "/F"]).ok()
 }
 
 /// Get-LiveResumeContext: who runs this, in which session, with a screen or not.

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build the Rust Windows binaries the kit carries (RISKS R32, the cut-over):
-# upgrade-scan.exe, upgrade-harvest.exe, upgrade-job.exe, upgrade-prologue.exe.
+# upgrade-scan.exe, upgrade-harvest.exe, upgrade-job.exe, upgrade-prologue.exe,
+# and the host-side stick writer upgrade-stick.exe (not shipped on the stick).
 # Each crate's tests run first on this side; then cargo zigbuild makes the
 # Windows build (x86_64-pc-windows-gnu, linked by zig; the same toolchain as
 # upgrade_/windows/window/build.sh). Prints one line per binary: its path.
@@ -23,7 +24,7 @@ if [ "${1:-}" = --toolchain ]; then
     echo "rustc $(rustc --version | cut -d' ' -f2-) ($(cat "$ROOT/rust-toolchain.toml" | grep channel | cut -d'"' -f2) pinned); $(cargo-zigbuild --version); zig $(zig version); target x86_64-pc-windows-gnu; cargo --locked; paths remapped"
     exit 0
 fi
-for crate in evaluate/scan evaluate/harvest evaluate/job upgrade_/prologue; do
+for crate in evaluate/scan evaluate/harvest evaluate/job upgrade_/prologue evaluate/stick; do
     name=$(basename "$crate"); bin="upgrade-$name"
     (cd "$ROOT/$crate" && cargo test --locked --quiet >/dev/null 2>&1) || { echo "build-rust.sh: tests fail in $crate" >&2; exit 1; }
     (cd "$ROOT/$crate" && cargo zigbuild --locked --release --quiet --target x86_64-pc-windows-gnu) || { echo "build-rust.sh: $crate does not build for Windows" >&2; exit 1; }

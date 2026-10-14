@@ -12,7 +12,19 @@ pub struct Event {
     pub id: i64,
     pub provider: String,
     pub time_local: Stamp,
+    /// the event's own `SystemTime` (UTC), written as .NET's round-trip form
+    /// `2026-10-06T21:30:48.1234567Z`
+    pub time_utc: String,
     pub message: String,
+}
+
+/// `2026-10-06T21:30:48.123Z` or `...48Z` -> `2026-10-06T21:30:48.1230000Z`,
+/// the seven digits `.ToString('o')` prints.
+pub fn round_trip(system_time: &str) -> String {
+    let t = system_time.trim_end_matches('Z');
+    let (whole, frac) = t.split_once('.').unwrap_or((t, ""));
+    let digits: String = frac.chars().filter(char::is_ascii_digit).chain(std::iter::repeat('0')).take(7).collect();
+    format!("{whole}.{digits}Z")
 }
 
 fn xml_of(event: EVT_HANDLE) -> Option<String> {
@@ -78,10 +90,10 @@ pub fn query(channel: &str, xpath: &str) -> Result<Vec<Event>, String> {
                         let find = |name: &str| system.and_then(|s| s.children().find(|n| n.has_tag_name(name)));
                         let provider = find("Provider").and_then(|n| n.attribute("Name")).unwrap_or("").to_string();
                         let id = find("EventID").and_then(|n| n.text()).and_then(|t| t.trim().parse().ok()).unwrap_or(0);
-                        let time = find("TimeCreated").and_then(|n| n.attribute("SystemTime")).and_then(local_time);
-                        if let Some(time_local) = time {
+                        let system_time = find("TimeCreated").and_then(|n| n.attribute("SystemTime")).unwrap_or("");
+                        if let Some(time_local) = local_time(system_time) {
                             let message = message_of(&provider, event);
-                            out.push(Event { id, provider, time_local, message });
+                            out.push(Event { id, provider, time_local, time_utc: round_trip(system_time), message });
                         }
                     }
                 }

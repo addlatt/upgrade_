@@ -209,21 +209,19 @@ PCs (old Surfaces, handhelds, Macs, TVs): [docs/research/](docs/research/).
 ## Working on it
 
 Start with [CLAUDE.md](CLAUDE.md): the mission, the rules, the layout of the
-repo and the working conventions. Run the scanner straight from
-`evaluate/windows/upgrade-scan.ps1` (it loads `data/` from disk), or build
-the single file with `./build.sh`.
+repo and the working conventions. Build the kit with `./make-kit.sh` and run
+the scanner from it (`upgrade-scan.exe scan`); `./build-rust.sh` builds the
+Windows programs alone.
 
-The Windows side targets **Windows PowerShell 5.1**, because that is what
-comes with every Windows 10 and 11 machine: no PowerShell 7 syntax (no
-ternaries, no `??`, no `-Parallel`). It is being ported to Rust one piece at
-a time; a script stays in use until its Rust twin has earned the same rows
-([docs/RUST-PORT.md](docs/RUST-PORT.md)).
+The Windows side is **Rust**, cross-built from Linux with a pinned toolchain,
+so one build gives the same bytes on any machine. The PowerShell it replaced
+is recorded in frozen goldens the Rust is held to
+([docs/RUST-PORT.md](docs/RUST-PORT.md)); one script remains, the stick
+writer, until its Rust twin has earned the same rows.
 
 Before you open a pull request:
-- both self-tests, from `evaluate/windows/`: `.\upgrade-scan.ps1 -SelfTest`
-  and `.\Harvest-UpgradeState.ps1 -SelfTest`.
-- `./port-check.sh` when the scanner, `data/` or `schemas/` changed. It fails
-  when the Rust side no longer says what the PowerShell says.
+- `./port-check.sh`: every crate's tests, the schema oracle, the frozen
+  goldens unchanged, the data tables' shape. It must pass.
 - `./docs-check.sh` when any `.md` file changed. The docs change only through
   the docs skill ([.claude/skills/docs/SKILL.md](.claude/skills/docs/SKILL.md)):
   one home per fact, history in `docs/log/`, state in `docs/STATUS.md`, plans

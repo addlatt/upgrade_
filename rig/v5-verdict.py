@@ -8,7 +8,8 @@ hand.
     v5-verdict.py --from-run <upgrade_/storage-mode dir> [<csv>] [--note "..."]
     v5-verdict.py --sata-mode-set raid|ahci|absent <report.json> <capture.json> [<csv>] [--note "..."]
 
---from-run is the one-click path (RUN-STORAGE-MODE.cmd / Test-StorageMode.ps1):
+--from-run is the one-click path (RUN-STORAGE-MODE.cmd / upgrade-prologue storage-mode,
+which was Test-StorageMode.ps1 until 2026-10-14):
 it reads the harness's record storage-mode.json and writes one row per leg,
 the mode-as-set being what the harness ASKED the person to set on the setup
 screen ('initial' for leg 1) - no operator word at all. The flow columns

@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  upgrade_ - read-only Secure Boot revocation diagnostic
+REM  upgrade_ - read-only Secure Boot revocation diagnostic (upgrade-scan diag secureboot)
 REM  Reads the firmware's SBAT level, the size of db and dbx,
 REM  Windows' Secure Boot update events, and the SBAT data of
 REM  this stick's boot files. Writes ONE file to this stick:
@@ -14,7 +14,7 @@ if %errorlevel% neq 0 (
   exit /b
 )
 cd /d "%~dp0"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Diag-SecureBoot.ps1"
+"%~dp0upgrade-scan.exe" diag secureboot
 echo.
 echo   Done. Bring the stick back.
 pause

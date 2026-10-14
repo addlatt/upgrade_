@@ -1,0 +1,882 @@
+[
+ {
+  "name": "a dirty volume with found.000, a boot-time check logged, NTFS and disk events, an SSD and an HDD",
+  "facts": {
+   "Now": "2026-10-14T16:01:02.0000000Z",
+   "Computer": "ASPIRE-TEST",
+   "FsutilDirty": [
+    "Volume - C: is Dirty"
+   ],
+   "Chkntfs": [
+    "The type of the file system is NTFS.",
+    "C: is dirty.  You may use the /C option to schedule chkdsk for this drive."
+   ],
+   "BootExecute": [
+    "autocheck autochk *"
+   ],
+   "Found": [
+    {
+     "FullName": "C:\\found.000",
+     "LastWriteTime": "2026-09-15T18:01:40",
+     "Files": 7
+    },
+    {
+     "FullName": "C:\\found.001",
+     "LastWriteTime": "2026-09-20T09:00:00",
+     "Files": 0
+    }
+   ],
+   "Volume": {
+    "DriveLetter": "C",
+    "FileSystem": "NTFS",
+    "HealthStatus": "Warning",
+    "OperationalStatus": "Scan Needed",
+    "Size": 255481835520,
+    "SizeRemaining": 61203312640
+   },
+   "RepairScan": "ErrorsFound",
+   "NtfsInfo": [
+    "NTFS Volume Serial Number :       0x1234567890abcdef",
+    "NTFS Version   :                  3.1",
+    "Bytes Per Sector  :               512",
+    "Total Clusters :                  62373495 (237.9 GB)"
+   ],
+   "Wininit": [
+    {
+     "TimeLocal": "2026-09-15T18:03:10",
+     "Provider": "Microsoft-Windows-Wininit",
+     "Id": 1001,
+     "Message": "Checking file system on C:\r\nThe type of the file system is NTFS.\r\n\r\nA disk check has been scheduled.\r\nWindows will now check the disk.\r\n\r\nStage 1: Examining basic file system structure ...\r\n  389376 file records processed.\r\nFile verification completed.\r\n\r\nWindows has scanned the file system and found no problems.\r\nNo further action is required."
+    },
+    {
+     "TimeLocal": "2026-09-14T08:00:00",
+     "Provider": "Microsoft-Windows-Winlogon",
+     "Id": 1001,
+     "Message": "not Wininit; dropped"
+    }
+   ],
+   "Chkdsk": [
+    {
+     "TimeLocal": "2026-09-15T20:10:00",
+     "Provider": "Chkdsk",
+     "Id": 26212,
+     "Message": "Chkdsk was executed in scan mode on a volume snapshot.\r\n\r\nChecking file system on C:\r\nStage 1 ..."
+    },
+    {
+     "TimeLocal": "2026-09-15T20:11:00",
+     "Provider": "Chkdsk",
+     "Id": 26226,
+     "Message": "Chkdsk was executed in verify mode on a volume snapshot."
+    }
+   ],
+   "Ntfs": [
+    {
+     "TimeLocal": "2026-09-15T18:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 55,
+     "Message": "A corruption was discovered in the file system structure on volume C:.\r\n\r\nThe exact nature of the corruption is unknown.  The file system structures need to be scanned online."
+    },
+    {
+     "TimeLocal": "2026-09-15T17:59:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: (\\Device\\HarddiskVolume3) is healthy.  No action is needed."
+    },
+    {
+     "TimeLocal": "2026-09-15T17:58:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 130,
+     "Message": "The file system structure on volume C: has now been repaired. The file system structure on volume C: has now been repaired. The file system structure on volume C: has now been repaired. The file system structure on volume C: has now been repaired. The file system structure on volume C: has now been repaired. The file system structure on volume C: has now been repaired. The file system structure on volume C: has now been repaired. The file system structure on volume C: has now been repaired. "
+    },
+    {
+     "TimeLocal": "2026-09-15T17:57:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 131,
+     "Message": "short one-line message with no double spaces"
+    }
+   ],
+   "DiskEvents": [
+    {
+     "TimeLocal": "2026-09-15T17:50:00",
+     "Provider": "disk",
+     "Id": 7,
+     "Message": "The device, \\Device\\Harddisk0\\DR0, has a bad block."
+    },
+    {
+     "TimeLocal": "2026-09-15T17:49:00",
+     "Provider": "Service Control Manager",
+     "Id": 7036,
+     "Message": "not a disk provider; dropped"
+    },
+    {
+     "TimeLocal": "2026-09-15T17:48:00",
+     "Provider": "storahci",
+     "Id": 129,
+     "Message": "Reset to device, \\Device\\RaidPort0, was issued.\r\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+     "TimeLocal": "2026-09-15T17:47:00",
+     "Provider": "volmgr",
+     "Id": 46,
+     "Message": "Crash dump initialization failed!"
+    },
+    {
+     "TimeLocal": "2026-09-15T17:46:00",
+     "Provider": "partmgr",
+     "Id": 58,
+     "Message": "The disk signature of disk 1 is equal to the disk signature of disk 0."
+    }
+   ],
+   "PhysicalDisks": [
+    {
+     "DeviceId": "0",
+     "FriendlyName": "KINGSTON SA400M8240G",
+     "MediaType": "SSD",
+     "HealthStatus": "Warning",
+     "OperationalStatus": "OK",
+     "Size": 240057409536
+    },
+    {
+     "DeviceId": "1",
+     "FriendlyName": "WDC WD10SPZX-21Z10T0",
+     "MediaType": "HDD",
+     "HealthStatus": "Healthy",
+     "OperationalStatus": "OK",
+     "Size": 1000204886016
+    }
+   ],
+   "HiberbootEnabled": 1,
+   "Hiberfil": true,
+   "LastBootUpTime": "2026-10-14T11:30:05"
+  }
+ },
+ {
+  "name": "a clean NVMe volume, nothing found, no events, Fast Startup off",
+  "facts": {
+   "Now": "2026-10-14T16:05:00.0000000Z",
+   "Computer": "G16-TEST",
+   "FsutilDirty": [
+    "Volume - C: is NOT Dirty"
+   ],
+   "Chkntfs": [
+    "The type of the file system is NTFS.",
+    "C: is not dirty."
+   ],
+   "BootExecute": [
+    "autocheck autochk *",
+    "extra entry"
+   ],
+   "Found": [],
+   "Volume": {
+    "DriveLetter": "C",
+    "FileSystem": "NTFS",
+    "HealthStatus": "Healthy",
+    "OperationalStatus": "OK",
+    "Size": 1022989434880,
+    "SizeRemaining": 500000000000
+   },
+   "RepairScan": "NoErrorsFound",
+   "NtfsInfo": [
+    "NTFS Volume Serial Number :       0x0000000000000001"
+   ],
+   "Wininit": [],
+   "Chkdsk": [],
+   "Ntfs": [],
+   "DiskEvents": [],
+   "PhysicalDisks": [
+    {
+     "DeviceId": "0",
+     "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+     "MediaType": "SSD",
+     "HealthStatus": "Healthy",
+     "OperationalStatus": "OK",
+     "Size": 1024209543168
+    }
+   ],
+   "HiberbootEnabled": 0,
+   "Hiberfil": false,
+   "LastBootUpTime": "2026-10-13T22:15:44"
+  }
+ },
+ {
+  "name": "not elevated: fsutil refuses, the scan is refused, no BootExecute value, more events than the cuts keep",
+  "facts": {
+   "Now": "2026-10-14T16:09:30.0000000Z",
+   "Computer": "LAB-PC",
+   "FsutilDirty": [
+    "The FSUTIL utility requires that you have administrative privileges."
+   ],
+   "Chkntfs": [
+    "Access Denied as you do not have sufficient privileges.",
+    "You have to invoke this utility running in elevated mode."
+   ],
+   "BootExecute": null,
+   "Found": [
+    {
+     "FullName": "C:\\found.002",
+     "LastWriteTime": "2026-10-01T00:00:00",
+     "Files": 1
+    }
+   ],
+   "Volume": {
+    "DriveLetter": "C",
+    "FileSystem": "NTFS",
+    "HealthStatus": "Healthy",
+    "OperationalStatus": "OK",
+    "Size": 128000000000,
+    "SizeRemaining": 1000
+   },
+   "RepairScan": null,
+   "NtfsInfo": [
+    "The FSUTIL utility requires that you have administrative privileges."
+   ],
+   "Wininit": [
+    {
+     "TimeLocal": "2026-10-10T07:00:00",
+     "Provider": "Microsoft-Windows-Wininit",
+     "Id": 1001,
+     "Message": "one line"
+    }
+   ],
+   "Chkdsk": [],
+   "Ntfs": [
+    {
+     "TimeLocal": "2026-10-01T00:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 0."
+    },
+    {
+     "TimeLocal": "2026-10-01T01:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 1."
+    },
+    {
+     "TimeLocal": "2026-10-01T02:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 2."
+    },
+    {
+     "TimeLocal": "2026-10-01T03:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 3."
+    },
+    {
+     "TimeLocal": "2026-10-01T04:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 4."
+    },
+    {
+     "TimeLocal": "2026-10-01T05:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 5."
+    },
+    {
+     "TimeLocal": "2026-10-01T06:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 6."
+    },
+    {
+     "TimeLocal": "2026-10-01T07:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 7."
+    },
+    {
+     "TimeLocal": "2026-10-01T08:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 8."
+    },
+    {
+     "TimeLocal": "2026-10-01T09:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 9."
+    },
+    {
+     "TimeLocal": "2026-10-01T10:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 10."
+    },
+    {
+     "TimeLocal": "2026-10-01T11:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 11."
+    },
+    {
+     "TimeLocal": "2026-10-01T12:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 12."
+    },
+    {
+     "TimeLocal": "2026-10-01T13:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 13."
+    },
+    {
+     "TimeLocal": "2026-10-01T14:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 14."
+    },
+    {
+     "TimeLocal": "2026-10-01T15:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 15."
+    },
+    {
+     "TimeLocal": "2026-10-01T16:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 16."
+    },
+    {
+     "TimeLocal": "2026-10-01T17:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 17."
+    },
+    {
+     "TimeLocal": "2026-10-01T18:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 18."
+    },
+    {
+     "TimeLocal": "2026-10-01T19:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 19."
+    },
+    {
+     "TimeLocal": "2026-10-01T20:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 20."
+    },
+    {
+     "TimeLocal": "2026-10-01T21:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 21."
+    },
+    {
+     "TimeLocal": "2026-10-01T22:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 22."
+    },
+    {
+     "TimeLocal": "2026-10-01T23:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 23."
+    },
+    {
+     "TimeLocal": "2026-10-02T00:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 24."
+    },
+    {
+     "TimeLocal": "2026-10-02T01:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 25."
+    },
+    {
+     "TimeLocal": "2026-10-02T02:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 26."
+    },
+    {
+     "TimeLocal": "2026-10-02T03:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 27."
+    },
+    {
+     "TimeLocal": "2026-10-02T04:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 28."
+    },
+    {
+     "TimeLocal": "2026-10-02T05:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 29."
+    },
+    {
+     "TimeLocal": "2026-10-02T06:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 30."
+    },
+    {
+     "TimeLocal": "2026-10-02T07:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 31."
+    },
+    {
+     "TimeLocal": "2026-10-02T08:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 32."
+    },
+    {
+     "TimeLocal": "2026-10-02T09:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 33."
+    },
+    {
+     "TimeLocal": "2026-10-02T10:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 34."
+    },
+    {
+     "TimeLocal": "2026-10-02T11:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 35."
+    },
+    {
+     "TimeLocal": "2026-10-02T12:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 36."
+    },
+    {
+     "TimeLocal": "2026-10-02T13:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 37."
+    },
+    {
+     "TimeLocal": "2026-10-02T14:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 38."
+    },
+    {
+     "TimeLocal": "2026-10-02T15:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 39."
+    },
+    {
+     "TimeLocal": "2026-10-02T16:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 40."
+    },
+    {
+     "TimeLocal": "2026-10-02T17:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 41."
+    },
+    {
+     "TimeLocal": "2026-10-02T18:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 42."
+    },
+    {
+     "TimeLocal": "2026-10-02T19:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 43."
+    },
+    {
+     "TimeLocal": "2026-10-02T20:00:00",
+     "Provider": "Microsoft-Windows-Ntfs",
+     "Id": 98,
+     "Message": "Volume C: is healthy, mount number 44."
+    }
+   ],
+   "DiskEvents": [
+    {
+     "TimeLocal": "2026-10-01T00:30:00",
+     "Provider": "disk",
+     "Id": 100,
+     "Message": "disk event 0  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T01:30:00",
+     "Provider": "stornvme",
+     "Id": 101,
+     "Message": "disk event 1  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T02:30:00",
+     "Provider": "other",
+     "Id": 102,
+     "Message": "disk event 2  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T03:30:00",
+     "Provider": "disk",
+     "Id": 103,
+     "Message": "disk event 3  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T04:30:00",
+     "Provider": "stornvme",
+     "Id": 104,
+     "Message": "disk event 4  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T05:30:00",
+     "Provider": "other",
+     "Id": 105,
+     "Message": "disk event 5  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T06:30:00",
+     "Provider": "disk",
+     "Id": 106,
+     "Message": "disk event 6  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T07:30:00",
+     "Provider": "stornvme",
+     "Id": 107,
+     "Message": "disk event 7  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T08:30:00",
+     "Provider": "other",
+     "Id": 108,
+     "Message": "disk event 8  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T09:30:00",
+     "Provider": "disk",
+     "Id": 109,
+     "Message": "disk event 9  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T10:30:00",
+     "Provider": "stornvme",
+     "Id": 110,
+     "Message": "disk event 10  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T11:30:00",
+     "Provider": "other",
+     "Id": 111,
+     "Message": "disk event 11  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T12:30:00",
+     "Provider": "disk",
+     "Id": 112,
+     "Message": "disk event 12  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T13:30:00",
+     "Provider": "stornvme",
+     "Id": 113,
+     "Message": "disk event 13  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T14:30:00",
+     "Provider": "other",
+     "Id": 114,
+     "Message": "disk event 14  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T15:30:00",
+     "Provider": "disk",
+     "Id": 115,
+     "Message": "disk event 15  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T16:30:00",
+     "Provider": "stornvme",
+     "Id": 116,
+     "Message": "disk event 16  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T17:30:00",
+     "Provider": "other",
+     "Id": 117,
+     "Message": "disk event 17  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T18:30:00",
+     "Provider": "disk",
+     "Id": 118,
+     "Message": "disk event 18  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T19:30:00",
+     "Provider": "stornvme",
+     "Id": 119,
+     "Message": "disk event 19  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T20:30:00",
+     "Provider": "other",
+     "Id": 120,
+     "Message": "disk event 20  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T21:30:00",
+     "Provider": "disk",
+     "Id": 121,
+     "Message": "disk event 21  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T22:30:00",
+     "Provider": "stornvme",
+     "Id": 122,
+     "Message": "disk event 22  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-01T23:30:00",
+     "Provider": "other",
+     "Id": 123,
+     "Message": "disk event 23  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T00:30:00",
+     "Provider": "disk",
+     "Id": 124,
+     "Message": "disk event 24  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T01:30:00",
+     "Provider": "stornvme",
+     "Id": 125,
+     "Message": "disk event 25  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T02:30:00",
+     "Provider": "other",
+     "Id": 126,
+     "Message": "disk event 26  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T03:30:00",
+     "Provider": "disk",
+     "Id": 127,
+     "Message": "disk event 27  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T04:30:00",
+     "Provider": "stornvme",
+     "Id": 128,
+     "Message": "disk event 28  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T05:30:00",
+     "Provider": "other",
+     "Id": 129,
+     "Message": "disk event 29  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T06:30:00",
+     "Provider": "disk",
+     "Id": 130,
+     "Message": "disk event 30  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T07:30:00",
+     "Provider": "stornvme",
+     "Id": 131,
+     "Message": "disk event 31  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T08:30:00",
+     "Provider": "other",
+     "Id": 132,
+     "Message": "disk event 32  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T09:30:00",
+     "Provider": "disk",
+     "Id": 133,
+     "Message": "disk event 33  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T10:30:00",
+     "Provider": "stornvme",
+     "Id": 134,
+     "Message": "disk event 34  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T11:30:00",
+     "Provider": "other",
+     "Id": 135,
+     "Message": "disk event 35  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T12:30:00",
+     "Provider": "disk",
+     "Id": 136,
+     "Message": "disk event 36  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T13:30:00",
+     "Provider": "stornvme",
+     "Id": 137,
+     "Message": "disk event 37  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T14:30:00",
+     "Provider": "other",
+     "Id": 138,
+     "Message": "disk event 38  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T15:30:00",
+     "Provider": "disk",
+     "Id": 139,
+     "Message": "disk event 39  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T16:30:00",
+     "Provider": "stornvme",
+     "Id": 140,
+     "Message": "disk event 40  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T17:30:00",
+     "Provider": "other",
+     "Id": 141,
+     "Message": "disk event 41  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T18:30:00",
+     "Provider": "disk",
+     "Id": 142,
+     "Message": "disk event 42  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T19:30:00",
+     "Provider": "stornvme",
+     "Id": 143,
+     "Message": "disk event 43  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T20:30:00",
+     "Provider": "other",
+     "Id": 144,
+     "Message": "disk event 44  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T21:30:00",
+     "Provider": "disk",
+     "Id": 145,
+     "Message": "disk event 45  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T22:30:00",
+     "Provider": "stornvme",
+     "Id": 146,
+     "Message": "disk event 46  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-02T23:30:00",
+     "Provider": "other",
+     "Id": 147,
+     "Message": "disk event 47  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-03T00:30:00",
+     "Provider": "disk",
+     "Id": 148,
+     "Message": "disk event 48  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-03T01:30:00",
+     "Provider": "stornvme",
+     "Id": 149,
+     "Message": "disk event 49  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-03T02:30:00",
+     "Provider": "other",
+     "Id": 150,
+     "Message": "disk event 50  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-03T03:30:00",
+     "Provider": "disk",
+     "Id": 151,
+     "Message": "disk event 51  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-03T04:30:00",
+     "Provider": "stornvme",
+     "Id": 152,
+     "Message": "disk event 52  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-03T05:30:00",
+     "Provider": "other",
+     "Id": 153,
+     "Message": "disk event 53  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-03T06:30:00",
+     "Provider": "disk",
+     "Id": 154,
+     "Message": "disk event 54  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-03T07:30:00",
+     "Provider": "stornvme",
+     "Id": 155,
+     "Message": "disk event 55  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-03T08:30:00",
+     "Provider": "other",
+     "Id": 156,
+     "Message": "disk event 56  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-03T09:30:00",
+     "Provider": "disk",
+     "Id": 157,
+     "Message": "disk event 57  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-03T10:30:00",
+     "Provider": "stornvme",
+     "Id": 158,
+     "Message": "disk event 58  with  double  spaces"
+    },
+    {
+     "TimeLocal": "2026-10-03T11:30:00",
+     "Provider": "other",
+     "Id": 159,
+     "Message": "disk event 59  with  double  spaces"
+    }
+   ],
+   "PhysicalDisks": [],
+   "HiberbootEnabled": null,
+   "Hiberfil": true,
+   "LastBootUpTime": "2026-10-14T06:00:00"
+  }
+ }
+]

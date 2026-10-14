@@ -186,8 +186,8 @@ Windows raises it by itself, so a fixed release in the kit breaks as soon as
 Windows moves the level (RISKS R34). So the release is a choice:
 
 ```text
- the machine (scanner)              the releases (data/releases.ps1)       the kit (make-kit.sh)
- ---------------------              --------------------------------       ---------------------
+ the machine (scanner)              the releases (data/releases.json)      the kit (make-kit.sh)
+ ---------------------              ---------------------------------      ---------------------
  Secure Boot on / off               one entry per release, MEASURED        --release ID: fetches
  SBAT level (registry +        ->   from its own files by              ->  that release's files,
    firmware SbatLevelRT)            data/tools/measure-release.py:          refuses any byte that
@@ -771,7 +771,7 @@ at first startup; what every desktop Linux shares is the kernel. So:
    uses; its connection files are the same format everywhere) and a display.
    Anything missing gets a plain sentence, never a guess: a distribution with
    another Wi-Fi manager has its networks listed, not set up. Each supported
-   distribution is a row in `data/distros.ps1`, backed by a real install.
+   distribution is a row in `data/distros.json`, backed by a real install.
 
 What stays Fedora-specific, on purpose: the installer adapter (kickstart,
 `%pre`, `%post`), which lives in `upgrade_`, not here.
@@ -1171,7 +1171,7 @@ audio has been partial. A project rather than an install. Not v1.
 
 **Intel Macs without T2 (pre-2018): the genuinely interesting case.** Ordinary
 x86 machines with conventional firmware, among the easiest Linux targets there
-are; the main pain is Broadcom Wi-Fi, which `data/devices.ps1` already covers.
+are; the main pain is Broadcom Wi-Fi, which `data/devices/wifi.json` already covers.
 macOS Tahoe is the final release supporting Intel Macs, and only four models
 (the 2020 iMac, the 2019 16-inch MacBook Pro, the 2020 four-port 13-inch MacBook
 Pro, the 2019 Mac Pro); every other Intel Mac is *already* out of support, this

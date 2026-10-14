@@ -3231,7 +3231,7 @@ dependencies = [
 
 [[package]]
 name = "upgrade-prologue"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "regress",
  "serde_json",
@@ -3243,12 +3243,13 @@ dependencies = [
 
 [[package]]
 name = "upgrade-scan"
-version = "0.2.0"
+version = "0.4.0"
 dependencies = [
  "regress",
  "roxmltree",
  "serde",
  "serde_json",
+ "sha2",
  "windows",
 ]
 
@@ -3258,6 +3259,16 @@ version = "0.1.0"
 dependencies = [
  "regress",
  "serde_json",
+]
+
+[[package]]
+name = "upgrade-stick"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "sha2",
+ "upgrade-scan",
+ "windows",
 ]
 
 [[package]]

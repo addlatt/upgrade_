@@ -590,7 +590,8 @@ made-up PnP entries through the real check. Spoof: a patched QEMU `pci-testdev`
 `evaluate/windows/corpus/vm-qemu-q35-vmd-spoof-9a0b.json` is the
 regression; it closes the plumbing (listing, parsing, verdict), never the
 clause. Real machine: `RUN-STORAGE-MODE.cmd`
-(`evaluate/windows/Test-StorageMode.ps1`) scans, arms a Safe Mode boot
+(`upgrade-prologue storage-mode`, which was `Test-StorageMode.ps1` until
+2026-10-14) scans, arms a Safe Mode boot
 through a copied boot entry booted once, restarts into the firmware setup
 for the person to change SATA Mode, scans again as SYSTEM with nobody
 signed in, asks for the mode back, scans a third time and cleans up; the
@@ -609,9 +610,11 @@ only. The Aspire in AHCI mode, `8086:9d03`, class `0106`, iaStorAC bound:
 one-click visit fired twice on its firmware (lines 7 to 10, 2026-09-15:
 `warn-rst-on-ahci` and `mode-mismatch`) but never reached the setup
 screen, because InsydeH2O V1.21 ignores boot-to-setup. The rig's rows are
-lines 3 to 6, `no-intel-controller`. Owed: the RST or VMD row on real
-hardware
-([log](log/2026-09.md#2026-09-15-the-storage-mode-visit-on-the-aspire-rows-6-to-9-v5-r1)).
+lines 3 to 6, `no-intel-controller`, and lines 11 and 12 with the Rust
+harness (2026-10-14). Owed: the RST or VMD row on real hardware
+([log](log/2026-09.md#2026-09-15-the-storage-mode-visit-on-the-aspire-rows-6-to-9-v5-r1)),
+the Aspire's rows with the Rust harness
+([log](log/2026-10.md#2026-10-14-the-storage-mode-harness-and-the-volume-diagnostic-to-rust-r32-v13-v5-roadmap-item-19-step-2)).
 
 ## V6: A signed binary can earn Defender's tolerance · kills: distribution · RISKS R12 · planned
 
@@ -710,7 +713,7 @@ accepts (`architecture.md`, "It chooses the Linux release").
 
 **What passes.** Six steps. (1) The scanner reads the firmware's SBAT
 level and judges the stick's boot files. (2) Each release's boot facts in
-`data/releases.ps1` are measured from its files by
+`data/releases.json` are measured from its files by
 `data/tools/measure-release.py`, never typed. (3) The scanner judges every
 release, including the Secure Boot db's authorities, and the job writer
 refuses one that cannot start. (4) `make-kit.sh --release <name>` builds a
@@ -777,7 +780,7 @@ called, a replay test closes the decision; the effect on the firmware or
 the disk still takes one re-run on the machine. `./port-check.sh` runs the
 whole check. **Since 2026-10-11** (the PowerShell left the product, R32):
 `schemas/check.py`, the data tables fresh until they move to JSON, the
-eight frozen goldens unchanged (`FROZEN-GOLDENS.sha256`), `cargo test` in
+twelve frozen goldens unchanged (`FROZEN-GOLDENS.sha256`), `cargo test` in
 every crate, the harvester's Windows cases, the schema differential. **Decided (2026-10-04, the owner):** the whole port is
 built on the branch `rust-port`, and the project cuts over to Rust after
 one success of the PowerShell process on `main`; the order is every

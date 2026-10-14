@@ -1,0 +1,18 @@
+{
+  "_about": {
+    "table": "graphics by PCI id, then a rule by vendor id",
+    "read": "data/README.md",
+    "fields": "Name (shown to the person), Driver (the in-tree kernel module, or proprietary or none), MinKernel (the earliest kernel with usable support; empty means long supported), Status (ok, warn or fail), Note (one line, shown verbatim), Source (how we know: a kernel commit, release notes, a machine capture in evaluate/windows/corpus; empty means nobody has cited one yet), Verified (the date the Source was last checked, or empty)"
+  },
+  "Devices": {
+    "1002:150e": {"Name": "AMD Radeon 890M (Strix Point)", "Driver": "amdgpu", "MinKernel": "6.10", "Status": "warn", "Note": "Strix Point graphics need kernel 6.10 or newer. On an older kernel you get software rendering or a black screen.", "Source": "", "Verified": ""},
+    "1002:164e": {"Name": "AMD Raphael iGPU", "Driver": "amdgpu", "MinKernel": "6.1", "Status": "ok", "Source": "", "Verified": ""},
+    "1002:1900": {"Name": "AMD Radeon 780M (Phoenix)", "Driver": "amdgpu", "MinKernel": "6.4", "Status": "ok", "Source": "", "Verified": ""},
+    "10de:28e0": {"Name": "NVIDIA GeForce RTX 4060 Laptop", "Driver": "nvidia (proprietary)", "MinKernel": "", "Status": "warn", "Note": "NVIDIA needs the proprietary driver for usable performance. Choose a distro that installs it for you - Linux Mint, Pop!_OS, and Fedora all do.", "Source": "a real scan of the G16 (2026-08-20)", "Verified": ""}
+  },
+  "VendorRules": {
+    "1002": {"Vendor": "AMD", "Driver": "amdgpu", "Status": "ok", "Note": "AMD graphics are in-tree and generally work with zero configuration. Very recent APUs need a matching recent kernel.", "Source": "", "Verified": ""},
+    "10de": {"Vendor": "NVIDIA", "Driver": "nvidia (proprietary)", "Status": "warn", "Note": "NVIDIA needs the proprietary driver for usable performance. Choose a distro that installs it for you - Linux Mint, Pop!_OS, and Fedora all do. Avoid distros that make you do it by hand.", "Source": "", "Verified": ""},
+    "8086": {"Vendor": "Intel", "Driver": "i915 / xe", "Status": "ok", "Note": "Intel graphics are in-tree and generally work with zero configuration.", "Source": "", "Verified": ""}
+  }
+}

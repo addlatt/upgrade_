@@ -1,0 +1,22 @@
+{
+  "_about": {
+    "table": "Intel VMD controller PCI ids (vvvv:dddd): a disk behind one is invisible to a Linux installer until the mode is changed (RISKS R1)",
+    "read": "data/README.md",
+    "Source": "the kernel's drivers/pci/controller/vmd.c, reconciled 2026-08-22",
+    "Verified": "2026-08-22"
+  },
+  "VmdDeviceIds": [
+    "8086:201d",
+    "8086:28c0",
+    "8086:9a0b",
+    "8086:4c3d",
+    "8086:467f",
+    "8086:a77f",
+    "8086:7d0b",
+    "8086:ad0b",
+    "8086:b60b",
+    "8086:b06f",
+    "8086:b07f",
+    "8086:09ab"
+  ]
+}

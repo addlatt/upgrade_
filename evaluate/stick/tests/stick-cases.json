@@ -1,0 +1,3601 @@
+[
+ {
+  "name": "one stick beside the system disk, pointed at, right size: selected",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 0,
+     "FriendlyName": "Samsung NVMe",
+     "UniqueId": "eui.SYS",
+     "SerialNumber": "",
+     "BusType": "NVMe",
+     "MediaType": "SSD",
+     "SizeBytes": 1024209543168,
+     "PartitionStyle": "MBR",
+     "IsSystem": true,
+     "IsBoot": true,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "C",
+       "Label": "OS",
+       "FileSystem": "NTFS",
+       "SizeBytes": 1
+      }
+     ],
+     "HoldsSystemLetter": true
+    },
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-STICK-A",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "the system disk is never a candidate even when pointed at",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 0,
+     "FriendlyName": "Samsung NVMe",
+     "UniqueId": "eui.SYS",
+     "SerialNumber": "",
+     "BusType": "NVMe",
+     "MediaType": "SSD",
+     "SizeBytes": 1024209543168,
+     "PartitionStyle": "MBR",
+     "IsSystem": true,
+     "IsBoot": true,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "C",
+       "Label": "OS",
+       "FileSystem": "NTFS",
+       "SizeBytes": 1
+      }
+     ],
+     "HoldsSystemLetter": true
+    },
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "eui.SYS",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 1024
+  }
+ },
+ {
+  "name": "two sticks + a USB hard drive attached: the pointed-at stick is selected",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 0,
+     "FriendlyName": "Samsung NVMe",
+     "UniqueId": "eui.SYS",
+     "SerialNumber": "",
+     "BusType": "NVMe",
+     "MediaType": "SSD",
+     "SizeBytes": 1024209543168,
+     "PartitionStyle": "MBR",
+     "IsSystem": true,
+     "IsBoot": true,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "C",
+       "Label": "OS",
+       "FileSystem": "NTFS",
+       "SizeBytes": 1
+      }
+     ],
+     "HoldsSystemLetter": true
+    },
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    },
+    {
+     "Number": 2,
+     "FriendlyName": "SanDisk Ultra",
+     "UniqueId": "USB-STICK-B",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 32010000000,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    },
+    {
+     "Number": 4,
+     "FriendlyName": "WD Elements 2TB",
+     "UniqueId": "USB-HDD",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "HDD",
+     "SizeBytes": 2000398934016,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-STICK-B",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 32
+  }
+ },
+ {
+  "name": "the USB hard drive pointed at is refused for its media type",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 0,
+     "FriendlyName": "Samsung NVMe",
+     "UniqueId": "eui.SYS",
+     "SerialNumber": "",
+     "BusType": "NVMe",
+     "MediaType": "SSD",
+     "SizeBytes": 1024209543168,
+     "PartitionStyle": "MBR",
+     "IsSystem": true,
+     "IsBoot": true,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "C",
+       "Label": "OS",
+       "FileSystem": "NTFS",
+       "SizeBytes": 1
+      }
+     ],
+     "HoldsSystemLetter": true
+    },
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    },
+    {
+     "Number": 4,
+     "FriendlyName": "WD Elements 2TB",
+     "UniqueId": "USB-HDD",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "HDD",
+     "SizeBytes": 2000398934016,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-HDD",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 2000
+  }
+ },
+ {
+  "name": "a USB SSD enclosure is refused the same way",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 0,
+     "FriendlyName": "Samsung NVMe",
+     "UniqueId": "eui.SYS",
+     "SerialNumber": "",
+     "BusType": "NVMe",
+     "MediaType": "SSD",
+     "SizeBytes": 1024209543168,
+     "PartitionStyle": "MBR",
+     "IsSystem": true,
+     "IsBoot": true,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "C",
+       "Label": "OS",
+       "FileSystem": "NTFS",
+       "SizeBytes": 1
+      }
+     ],
+     "HoldsSystemLetter": true
+    },
+    {
+     "Number": 5,
+     "FriendlyName": "Samsung T7",
+     "UniqueId": "USB-SSD",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "SSD",
+     "SizeBytes": 1000204886016,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-SSD",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 1000
+  }
+ },
+ {
+  "name": "right stick, wrong expected size: refused",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 0,
+     "FriendlyName": "Samsung NVMe",
+     "UniqueId": "eui.SYS",
+     "SerialNumber": "",
+     "BusType": "NVMe",
+     "MediaType": "SSD",
+     "SizeBytes": 1024209543168,
+     "PartitionStyle": "MBR",
+     "IsSystem": true,
+     "IsBoot": true,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "C",
+       "Label": "OS",
+       "FileSystem": "NTFS",
+       "SizeBytes": 1
+      }
+     ],
+     "HoldsSystemLetter": true
+    },
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-STICK-A",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 32
+  }
+ },
+ {
+  "name": "exact bytes from a job match exactly",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-STICK-A",
+   "ExpectedBytes": 8053063680,
+   "ExpectedGB": 0
+  }
+ },
+ {
+  "name": "exact bytes off by one byte: refused",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-STICK-A",
+   "ExpectedBytes": 8053063681,
+   "ExpectedGB": 0
+  }
+ },
+ {
+  "name": "no expected size at all: refused",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-STICK-A",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 0
+  }
+ },
+ {
+  "name": "two sticks with the same unique id (cloned serials): ambiguous, refused",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 0,
+     "FriendlyName": "Samsung NVMe",
+     "UniqueId": "eui.SYS",
+     "SerialNumber": "",
+     "BusType": "NVMe",
+     "MediaType": "SSD",
+     "SizeBytes": 1024209543168,
+     "PartitionStyle": "MBR",
+     "IsSystem": true,
+     "IsBoot": true,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "C",
+       "Label": "OS",
+       "FileSystem": "NTFS",
+       "SizeBytes": 1
+      }
+     ],
+     "HoldsSystemLetter": true
+    },
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    },
+    {
+     "Number": 3,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-STICK-A",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "the target is not attached: refused, says so",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 0,
+     "FriendlyName": "Samsung NVMe",
+     "UniqueId": "eui.SYS",
+     "SerialNumber": "",
+     "BusType": "NVMe",
+     "MediaType": "SSD",
+     "SizeBytes": 1024209543168,
+     "PartitionStyle": "MBR",
+     "IsSystem": true,
+     "IsBoot": true,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "C",
+       "Label": "OS",
+       "FileSystem": "NTFS",
+       "SizeBytes": 1
+      }
+     ],
+     "HoldsSystemLetter": true
+    },
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-STICK-B",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 32
+  }
+ },
+ {
+  "name": "an SD card is not USB: refused",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 6,
+     "FriendlyName": "SD Card",
+     "UniqueId": "SD-1",
+     "SerialNumber": "",
+     "BusType": "SD",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "SD-1",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "a VHDX on the SAS bus (the rig stand-in) is refused for its bus",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 7,
+     "FriendlyName": "Msft Virtual Disk",
+     "UniqueId": "VHDX-1",
+     "SerialNumber": "",
+     "BusType": "SAS",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "VHDX-1",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "an offline stick is refused",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 8,
+     "FriendlyName": "Kingston",
+     "UniqueId": "USB-OFF",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": true,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-OFF",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "a read-only stick is refused",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 10,
+     "FriendlyName": "Verbatim",
+     "UniqueId": "USB-RO",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": true,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-RO",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "a USB disk holding the letter Windows runs from is refused (Windows To Go)",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 9,
+     "FriendlyName": "Kingston",
+     "UniqueId": "USB-PF",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "C",
+       "Label": "",
+       "FileSystem": "NTFS",
+       "SizeBytes": 1
+      }
+     ],
+     "HoldsSystemLetter": true
+    }
+   ],
+   "Target": "USB-PF",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "empty target: refused",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "a blank target of spaces: refused as no target",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "   ",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "every non-target disk gets 'not the device pointed at' among its reasons",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 0,
+     "FriendlyName": "Samsung NVMe",
+     "UniqueId": "eui.SYS",
+     "SerialNumber": "",
+     "BusType": "NVMe",
+     "MediaType": "SSD",
+     "SizeBytes": 1024209543168,
+     "PartitionStyle": "MBR",
+     "IsSystem": true,
+     "IsBoot": true,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "C",
+       "Label": "OS",
+       "FileSystem": "NTFS",
+       "SizeBytes": 1
+      }
+     ],
+     "HoldsSystemLetter": true
+    },
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    },
+    {
+     "Number": 2,
+     "FriendlyName": "SanDisk Ultra",
+     "UniqueId": "USB-STICK-B",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 32010000000,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-STICK-B",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 32
+  }
+ },
+ {
+  "name": "the target id matches without regard to case",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 0,
+     "FriendlyName": "Samsung NVMe",
+     "UniqueId": "eui.SYS",
+     "SerialNumber": "",
+     "BusType": "NVMe",
+     "MediaType": "SSD",
+     "SizeBytes": 1024209543168,
+     "PartitionStyle": "MBR",
+     "IsSystem": true,
+     "IsBoot": true,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "C",
+       "Label": "OS",
+       "FileSystem": "NTFS",
+       "SizeBytes": 1
+      }
+     ],
+     "HoldsSystemLetter": true
+    },
+    {
+     "Number": 12,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "usb-stick-a",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "F",
+       "Label": "upgv0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 1
+      }
+     ],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-STICK-A",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "a lower-case bus word is still USB; a lower-case media word is still a drive",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 0,
+     "FriendlyName": "X",
+     "UniqueId": "U1",
+     "SerialNumber": "",
+     "BusType": "usb",
+     "MediaType": "hdd",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "U1",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "a 7.2 GB stick is within 10 % of 8 GB; a 7.1 GB one is not",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 0,
+     "FriendlyName": "X",
+     "UniqueId": "A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 7200000000,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    },
+    {
+     "Number": 1,
+     "FriendlyName": "X",
+     "UniqueId": "B",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 7100000000,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "B",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "a typed 8.1 GB prints as 8.1 in the refusal",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 2,
+     "FriendlyName": "SanDisk Ultra",
+     "UniqueId": "USB-STICK-B",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 32010000000,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-STICK-B",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8.1
+  }
+ },
+ {
+  "name": "exact bytes win over a typed size when both are given",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [
+    {
+     "Number": 1,
+     "FriendlyName": "General UDisk",
+     "UniqueId": "USB-STICK-A",
+     "SerialNumber": "",
+     "BusType": "USB",
+     "MediaType": "Unspecified",
+     "SizeBytes": 8053063680,
+     "PartitionStyle": "MBR",
+     "IsSystem": false,
+     "IsBoot": false,
+     "IsOffline": false,
+     "IsReadOnly": false,
+     "Volumes": [
+      {
+       "DriveLetter": "D",
+       "Label": "UPGV0",
+       "FileSystem": "FAT32",
+       "SizeBytes": 8036253696
+      }
+     ],
+     "HoldsSystemLetter": false
+    }
+   ],
+   "Target": "USB-STICK-A",
+   "ExpectedBytes": 8053063680,
+   "ExpectedGB": 32
+  }
+ },
+ {
+  "name": "no disks at all",
+  "kind": "fn",
+  "fn": "Resolve-UpgStickTarget",
+  "args": {
+   "Disks": [],
+   "Target": "USB-STICK-A",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "size: 8 GB packaging matches a 8053063680-byte stick",
+  "kind": "fn",
+  "fn": "Test-UpgStickSize",
+  "args": {
+   "SizeBytes": 8053063680,
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "size: 8 GB packaging does not match a 16 GB stick",
+  "kind": "fn",
+  "fn": "Test-UpgStickSize",
+  "args": {
+   "SizeBytes": 15931539456,
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "size: 64 GB does not match a 2 TB drive",
+  "kind": "fn",
+  "fn": "Test-UpgStickSize",
+  "args": {
+   "SizeBytes": 2000398934016,
+   "ExpectedBytes": 0,
+   "ExpectedGB": 64
+  }
+ },
+ {
+  "name": "size: exactly 10 % under is still a match",
+  "kind": "fn",
+  "fn": "Test-UpgStickSize",
+  "args": {
+   "SizeBytes": 7200000000,
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "size: a negative expected size is no size",
+  "kind": "fn",
+  "fn": "Test-UpgStickSize",
+  "args": {
+   "SizeBytes": 8053063680,
+   "ExpectedBytes": -5,
+   "ExpectedGB": -1
+  }
+ },
+ {
+  "name": "refusals: the system disk's five reasons, in order, plus the size",
+  "kind": "fn",
+  "fn": "Get-UpgDiskRefusals",
+  "args": {
+   "Disk": {
+    "Number": 0,
+    "FriendlyName": "Samsung NVMe",
+    "UniqueId": "eui.SYS",
+    "SerialNumber": "",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "MBR",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "C",
+      "Label": "OS",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   "Target": "eui.SYS",
+   "ExpectedBytes": 0,
+   "ExpectedGB": 8
+  }
+ },
+ {
+  "name": "refusals: an offline read-only stick of the wrong size, not pointed at",
+  "kind": "fn",
+  "fn": "Get-UpgDiskRefusals",
+  "args": {
+   "Disk": {
+    "Number": 0,
+    "FriendlyName": "X",
+    "UniqueId": "Z",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": true,
+    "IsReadOnly": true,
+    "Volumes": [],
+    "HoldsSystemLetter": false
+   },
+   "Target": "Y",
+   "ExpectedBytes": 1,
+   "ExpectedGB": 0
+  }
+ },
+ {
+  "name": "refusals: none for the right stick",
+  "kind": "fn",
+  "fn": "Get-UpgDiskRefusals",
+  "args": {
+   "Disk": {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USB-STICK-A",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGV0",
+      "FileSystem": "FAT32",
+      "SizeBytes": 8036253696
+     }
+    ],
+    "HoldsSystemLetter": false
+   },
+   "Target": "USB-STICK-A",
+   "ExpectedBytes": 8053063680,
+   "ExpectedGB": 0
+  }
+ },
+ {
+  "name": "confirm word: the current label when there is one",
+  "kind": "fn",
+  "fn": "Get-UpgConfirmWord",
+  "args": {
+   "Disk": {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USB-STICK-A",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGV0",
+      "FileSystem": "FAT32",
+      "SizeBytes": 8036253696
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  }
+ },
+ {
+  "name": "confirm word: the model name when the stick is blank",
+  "kind": "fn",
+  "fn": "Get-UpgConfirmWord",
+  "args": {
+   "Disk": {
+    "Number": 2,
+    "FriendlyName": "SanDisk Ultra",
+    "UniqueId": "USB-STICK-B",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 32010000000,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [],
+    "HoldsSystemLetter": false
+   }
+  }
+ },
+ {
+  "name": "confirm word: the first labelled volume, skipping an unlabelled one",
+  "kind": "fn",
+  "fn": "Get-UpgConfirmWord",
+  "args": {
+   "Disk": {
+    "Number": 11,
+    "FriendlyName": "Lexar JumpDrive S75 With a Very Long Name",
+    "UniqueId": "USB-TWO",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 64023257088,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "E",
+      "Label": "",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": null,
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 59000000000
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  }
+ },
+ {
+  "name": "confirm word: a model name with spaces around it is trimmed",
+  "kind": "fn",
+  "fn": "Get-UpgConfirmWord",
+  "args": {
+   "Disk": {
+    "Number": 0,
+    "FriendlyName": "  Kingston DataTraveler  ",
+    "UniqueId": "ID",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [],
+    "HoldsSystemLetter": false
+   }
+  }
+ },
+ {
+  "name": "sha256sums: parses sha256sum -c lines into path -> hex",
+  "kind": "fn",
+  "fn": "ConvertFrom-UpgSha256Sums",
+  "args": {
+   "Lines": [
+    "ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef0123456789  ./EFI/BOOT/BOOTX64.EFI",
+    "not a sum line"
+   ]
+  }
+ },
+ {
+  "name": "sha256sums: a binary-mode line, a bare path, a repeated path in another case",
+  "kind": "fn",
+  "fn": "ConvertFrom-UpgSha256Sums",
+  "args": {
+   "Lines": [
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa *./a/b.txt",
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  c.txt",
+    "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc  ./A/B.TXT",
+    ""
+   ]
+  }
+ },
+ {
+  "name": "disk line: the G16's internal drive",
+  "kind": "fn",
+  "fn": "Format-DiskLine",
+  "args": {
+   "Disk": {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   }
+  }
+ },
+ {
+  "name": "disk line: a stick with two volumes",
+  "kind": "fn",
+  "fn": "Format-DiskLine",
+  "args": {
+   "Disk": {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  }
+ },
+ {
+  "name": "disk line: a long name, a lettered and an unlettered volume",
+  "kind": "fn",
+  "fn": "Format-DiskLine",
+  "args": {
+   "Disk": {
+    "Number": 11,
+    "FriendlyName": "Lexar JumpDrive S75 With a Very Long Name",
+    "UniqueId": "USB-TWO",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 64023257088,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "E",
+      "Label": "",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": null,
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 59000000000
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  }
+ },
+ {
+  "name": "disk line: a 2 TB USB drive with no volumes",
+  "kind": "fn",
+  "fn": "Format-DiskLine",
+  "args": {
+   "Disk": {
+    "Number": 4,
+    "FriendlyName": "WD Elements 2TB",
+    "UniqueId": "USB-HDD",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "HDD",
+    "SizeBytes": 2000398934016,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [],
+    "HoldsSystemLetter": false
+   }
+  }
+ },
+ {
+  "name": "disk line: the rig's 512 MiB OEMDRV volume",
+  "kind": "fn",
+  "fn": "Format-DiskLine",
+  "args": {
+   "Disk": {
+    "Number": 1,
+    "FriendlyName": "Msft Virtual Disk",
+    "UniqueId": "600224802F9DA875E3B23683792B2346",
+    "SerialNumber": "",
+    "BusType": "SAS",
+    "MediaType": "Unspecified",
+    "SizeBytes": 536870912,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "E",
+      "Label": "OEMDRV",
+      "FileSystem": "FAT32",
+      "SizeBytes": 536870912
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  }
+ },
+ {
+  "name": "list: the G16 with a written stick",
+  "kind": "flow",
+  "phase": "list",
+  "target": "",
+  "expected_bytes": 0,
+  "expected_gb": 0,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": false,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "list: the rig's three virtual disks",
+  "kind": "flow",
+  "phase": "list",
+  "target": "",
+  "expected_bytes": 0,
+  "expected_gb": 0,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "Msft Virtual Disk",
+    "UniqueId": "60022480D07C0B9D81C3C65FD528F6E7",
+    "SerialNumber": "",
+    "BusType": "SAS",
+    "MediaType": "Unspecified",
+    "SizeBytes": 85899345920,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "",
+      "FileSystem": "FAT32",
+      "SizeBytes": 104857600
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 85000000000
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "Msft Virtual Disk",
+    "UniqueId": "600224802F9DA875E3B23683792B2346",
+    "SerialNumber": "",
+    "BusType": "SAS",
+    "MediaType": "Unspecified",
+    "SizeBytes": 536870912,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "E",
+      "Label": "OEMDRV",
+      "FileSystem": "FAT32",
+      "SizeBytes": 536870912
+     }
+    ],
+    "HoldsSystemLetter": false
+   },
+   {
+    "Number": 2,
+    "FriendlyName": "Msft Virtual Disk",
+    "UniqueId": "60022480AAAAAAAAAAAAAAAAAAAAAAAA",
+    "SerialNumber": "",
+    "BusType": "SAS",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "F",
+      "Label": "UPGV0",
+      "FileSystem": "FAT32",
+      "SizeBytes": 8053063680
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "Microsoft Corporation",
+   "Model": "Virtual Machine",
+   "Caption": "Microsoft Windows 10 Pro",
+   "BuildNumber": "19045"
+  },
+  "elevated": false,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "list: no disks",
+  "kind": "flow",
+  "phase": "list",
+  "target": "",
+  "expected_bytes": 0,
+  "expected_gb": 0,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": false,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "plan: the G16's stick pointed at with 8.1 GB: selected, nothing written",
+  "kind": "flow",
+  "phase": "plan",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 0,
+  "expected_gb": 8.1,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": false,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "plan: the G16's stick pointed at with 32 GB: refused",
+  "kind": "flow",
+  "phase": "plan",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 0,
+  "expected_gb": 32,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": false,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "plan: the internal NVMe pointed at: refused on five counts",
+  "kind": "flow",
+  "phase": "plan",
+  "target": "eui.000000000000000100A07524480C0000",
+  "expected_bytes": 0,
+  "expected_gb": 1024,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": false,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "plan: a device that is not attached",
+  "kind": "flow",
+  "phase": "plan",
+  "target": "USBSTOR\\DISK&VEN_X&PROD_Y\\0",
+  "expected_bytes": 0,
+  "expected_gb": 8,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": false,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "plan: the rig, every VHDX refused for its bus",
+  "kind": "flow",
+  "phase": "plan",
+  "target": "60022480AAAAAAAAAAAAAAAAAAAAAAAA",
+  "expected_bytes": 0,
+  "expected_gb": 8,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "Msft Virtual Disk",
+    "UniqueId": "60022480D07C0B9D81C3C65FD528F6E7",
+    "SerialNumber": "",
+    "BusType": "SAS",
+    "MediaType": "Unspecified",
+    "SizeBytes": 85899345920,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "",
+      "FileSystem": "FAT32",
+      "SizeBytes": 104857600
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 85000000000
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "Msft Virtual Disk",
+    "UniqueId": "600224802F9DA875E3B23683792B2346",
+    "SerialNumber": "",
+    "BusType": "SAS",
+    "MediaType": "Unspecified",
+    "SizeBytes": 536870912,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "E",
+      "Label": "OEMDRV",
+      "FileSystem": "FAT32",
+      "SizeBytes": 536870912
+     }
+    ],
+    "HoldsSystemLetter": false
+   },
+   {
+    "Number": 2,
+    "FriendlyName": "Msft Virtual Disk",
+    "UniqueId": "60022480AAAAAAAAAAAAAAAAAAAAAAAA",
+    "SerialNumber": "",
+    "BusType": "SAS",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "F",
+      "Label": "UPGV0",
+      "FileSystem": "FAT32",
+      "SizeBytes": 8053063680
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "Microsoft Corporation",
+   "Model": "Virtual Machine",
+   "Caption": "Microsoft Windows 10 Pro",
+   "BuildNumber": "19045"
+  },
+  "elevated": true,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "plan: exact bytes from a job",
+  "kind": "flow",
+  "phase": "plan",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 8053063680,
+  "expected_gb": 0,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": false,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "write: refused for size: logged, exit 2",
+  "kind": "flow",
+  "phase": "write",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 0,
+  "expected_gb": 32,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": true,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "write: not elevated: the throw",
+  "kind": "flow",
+  "phase": "write",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 0,
+  "expected_gb": 8.1,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": false,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "write: the source has no SHA256SUMS: the throw",
+  "kind": "flow",
+  "phase": "write",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 0,
+  "expected_gb": 8.1,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": true,
+  "answer": "",
+  "source_has_sums": false,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "write: the typed label matches: written and verified",
+  "kind": "flow",
+  "phase": "write",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 0,
+  "expected_gb": 8.1,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": true,
+  "answer": "UPGRADE",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "write: the typed label is wrong: refused, exit 2",
+  "kind": "flow",
+  "phase": "write",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 0,
+  "expected_gb": 8.1,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": true,
+  "answer": "upgrade",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "write: the label passed in by the caller",
+  "kind": "flow",
+  "phase": "write",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 0,
+  "expected_gb": 8.1,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "UPGRADE",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": true,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "write: a blank stick confirms by its model name",
+  "kind": "flow",
+  "phase": "write",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 0,
+  "expected_gb": 8.1,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": true,
+  "answer": "General UDisk",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "write: the write fails after the confirmation: the error logged, exit 1",
+  "kind": "flow",
+  "phase": "write",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 0,
+  "expected_gb": 8.1,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "UPGRADE",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": true,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "error": "The disk has already been initialized."
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "write: written but a file failed verification: not verified, exit 1",
+  "kind": "flow",
+  "phase": "write",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 0,
+  "expected_gb": 8.1,
+  "source": "C:\\kit\\stick",
+  "label": "UPGRADE",
+  "boot_size_gb": 4,
+  "confirmed_label": "UPGRADE",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": true,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": false,
+   "Files": 30,
+   "Failed": [
+    "EFI\\BOOT\\grubx64.efi"
+   ],
+   "BootLetter": "D",
+   "DataLetter": null,
+   "Notes": [
+    "no room for a staging partition"
+   ],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ },
+ {
+  "name": "write: a capped boot partition is noted",
+  "kind": "flow",
+  "phase": "write",
+  "target": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+  "expected_bytes": 0,
+  "expected_gb": 8.1,
+  "source": "C:\\kit\\stick",
+  "label": "UPGV0",
+  "boot_size_gb": 8,
+  "confirmed_label": "UPGRADE",
+  "disks": [
+   {
+    "Number": 0,
+    "FriendlyName": "SAMSUNG MZVL21T0HCLR-00B00",
+    "UniqueId": "eui.000000000000000100A07524480C0000",
+    "SerialNumber": "S6UQNX0T000000",
+    "BusType": "NVMe",
+    "MediaType": "SSD",
+    "SizeBytes": 1024209543168,
+    "PartitionStyle": "GPT",
+    "IsSystem": true,
+    "IsBoot": true,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": null,
+      "Label": "SYSTEM",
+      "FileSystem": "FAT32",
+      "SizeBytes": 272629760
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": null,
+      "SizeBytes": 16777216
+     },
+     {
+      "DriveLetter": "C",
+      "Label": "",
+      "FileSystem": "NTFS",
+      "SizeBytes": 1022989434880
+     },
+     {
+      "DriveLetter": null,
+      "Label": null,
+      "FileSystem": "NTFS",
+      "SizeBytes": 1023410176
+     }
+    ],
+    "HoldsSystemLetter": true
+   },
+   {
+    "Number": 1,
+    "FriendlyName": "General UDisk",
+    "UniqueId": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "SerialNumber": "",
+    "BusType": "USB",
+    "MediaType": "Unspecified",
+    "SizeBytes": 8053063680,
+    "PartitionStyle": "MBR",
+    "IsSystem": false,
+    "IsBoot": false,
+    "IsOffline": false,
+    "IsReadOnly": false,
+    "Volumes": [
+     {
+      "DriveLetter": "D",
+      "Label": "UPGRADE",
+      "FileSystem": "FAT32",
+      "SizeBytes": 4294967296
+     },
+     {
+      "DriveLetter": "E",
+      "Label": "UPGDATA",
+      "FileSystem": "exFAT",
+      "SizeBytes": 3758096384
+     }
+    ],
+    "HoldsSystemLetter": false
+   }
+  ],
+  "machine": {
+   "Manufacturer": "ASUSTeK COMPUTER INC.",
+   "Model": "ROG Zephyrus G16 GA605WV_GA605WV",
+   "Caption": "Microsoft Windows 11 Home",
+   "BuildNumber": "26200"
+  },
+  "elevated": true,
+  "answer": "",
+  "source_has_sums": true,
+  "write": {
+   "Written": true,
+   "Verified": true,
+   "Files": 31,
+   "Failed": [],
+   "BootLetter": "D",
+   "DataLetter": "E",
+   "Notes": [
+    "boot partition capped to the disk"
+   ],
+   "Stick": {
+    "unique_id": "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\7&00000000&0&_&0:host",
+    "serial_number": "",
+    "size_bytes": 8053063680,
+    "friendly_name": "General UDisk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   }
+  },
+  "now": "2026-10-14T20:00:00.0000000Z"
+ }
+]

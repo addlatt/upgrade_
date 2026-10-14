@@ -6,7 +6,7 @@
 #
 #   ./make-kit.sh [--release ID] [--allow-dirty] [--to DIR]
 #
-# --release names an entry in data/releases.ps1 (default fedora-44). The kit
+# --release names an entry in data/releases.json (default fedora-44). The kit
 # carries that release's signed boot chain, installer and desktop images,
 # fetched and checked against the table by rig/vm/fetch-release.sh, and says
 # which release it is in release.json; the scanner and the job writer refuse
@@ -18,28 +18,32 @@
 # UEFI Shell at EFI/SHELL/SHELLX64.EFI (the matrix rows) - plus the Windows
 # side as one Rust product (decided 2026-10-11, the owner): UPGRADE.exe, its
 # two .cmd starters, the four programs it runs, README-STICK.txt, SHA256SUMS
-# and KIT-MANIFEST.txt naming the commit and versions. The last PowerShell on
-# the stick is the storage-mode harness and the three diag tools (phase 2 of
-# docs/RUST-PORT.md, "What comes next").
+# and KIT-MANIFEST.txt naming the commit and versions. No PowerShell ships
+# on the stick since 2026-10-14: the three diagnostics are `upgrade-scan
+# diag` (DIAG-VOLUME.cmd's inline block went last), the storage-mode
+# harness (V5) is `upgrade-prologue storage-mode`.
 #
 # What is verified, in order - any failure stops the build:
 #   1. the tree is committed (a row must map to a commit; --allow-dirty to
 #      override, and the manifest then says so)
 #   2. the Rust product's tests pass (./port-check.sh is the full check;
 #      here: the Windows programs and the window build with their tests)
-#   3. the two PowerShell holdovers' self-tests pass on Windows PowerShell
-#      5.1 (the stick writer, the storage-mode harness) and schemas/check.py
-#   4. every shipped .ps1 (the holdovers) parses under the PS 5.1 parser
+#   3. the one PowerShell holdover's self-test passes on Windows PowerShell
+#      5.1 (the stick writer, which is not shipped) and schemas/check.py
+#   4. the launchers' if-blocks carry no unescaped parenthesis
 #   5. the EFI payload bits exist and are the ones the rig fetched
 #      (rig/vm/fetch-payload-bits.sh; gitignored build inputs)
 #   6. the grubenv block is exactly 1024 bytes with GRUB's header
 #   7. after layout, SHA256SUMS re-verifies; with --to, the copy re-verifies
 #
 # This script never writes to a device. --to copies into a DIRECTORY (a
-# mounted stick, or a staging folder). The device writer is
-# evaluate/windows/Write-UpgradeStick.ps1 (R16): point it at dist/kit/stick
-# with -Source and it partitions, formats, copies and re-verifies - after
-# refusing everything that is not the one USB stick pointed at.
+# mounted stick, or a staging folder). The device writer is upgrade-stick.exe
+# (evaluate/stick, R16; placed at dist/kit/upgrade-stick.exe, beside the
+# stick's folder, never on the stick): point it at dist/kit/stick with
+# --source and it partitions, formats, copies and re-verifies - after
+# refusing everything that is not the one USB stick pointed at. Until R16's
+# rows are earned again by the program, evaluate/windows/Write-UpgradeStick.ps1
+# stays in the tree as the way back.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -97,7 +101,6 @@ selftest() {  # $1 = label, $2 = script path (WSL)
     fi
 }
 selftest "stick writer" "$ROOT/evaluate/windows/Write-UpgradeStick.ps1"
-selftest "storage-mode harness (V5)" "$ROOT/evaluate/windows/Test-StorageMode.ps1"
 bash -n "$ROOT/upgrade_/linux/verify.sh" || fail "verify.sh does not parse"
 bash -n "$ROOT/upgrade_/linux/outcome.sh" || fail "outcome.sh does not parse"
 # settle-in: the first-startup program, one self-contained file (Rust, static,
@@ -153,24 +156,23 @@ for c in "$PAYLOAD"/*.cmd "$ROOT"/evaluate/windows/usb-kit/*.cmd; do
     bad=$(awk '/^if .*\(\r?$/ {inb=1; next} /^\)/ {inb=0} inb && /echo.*[()]/ && !/\^[()]/ {print FILENAME":"NR": "$0}' "$c")
     [ -z "$bad" ] || fail "unescaped parenthesis inside an if-block (write ^( and ^)): $bad"
 done
-parsecheck "$ROOT/evaluate/windows/Test-StorageMode.ps1"
 (cd "$ROOT" && python3 schemas/check.py >/dev/null) || fail "schemas/check.py failed - the contracts the prologue and outcome.sh write against are broken"
 step "schemas check passed"
 
 # --- 5. payload bits --------------------------------------------------------
 [ -f "$BITS/Shell.efi" ] || fail "missing $BITS/Shell.efi - run rig/vm/fetch-payload-bits.sh"
 # the release: its boot chain, installer and desktop images, each checked
-# against data/releases.ps1 (fetch-release.sh refuses any other bytes)
-"$ROOT/rig/vm/fetch-release.sh" "$RELEASE" >/dev/null || fail "release $RELEASE could not be fetched or does not match data/releases.ps1 (rig/vm/fetch-release.sh $RELEASE)"
+# against data/releases.json (fetch-release.sh refuses any other bytes)
+"$ROOT/rig/vm/fetch-release.sh" "$RELEASE" >/dev/null || fail "release $RELEASE could not be fetched or does not match data/releases.json (rig/vm/fetch-release.sh $RELEASE)"
 REL="$ROOT/rig/vm/artifacts/releases/$RELEASE"
 RBITS="$REL/bits"
 RJ="$REL/release.json.table"
 rq() { python3 -c "import json,sys; j=json.load(open('$RJ')); print($1)"; }
-[ -n "$(rq "j.get('Installer') or ''")" ] || fail "release $RELEASE has no unattended installer in data/releases.ps1"
+[ -n "$(rq "j.get('Installer') or ''")" ] || fail "release $RELEASE has no unattended installer in data/releases.json"
 NETINST_SRC=$(rq "j['Netinst']['Url']")
 # the shim payload's grub MUST be the install-media build (reads EFI/BOOT/grub.cfg)
 grep -q 'save_env' <(strings -n 6 "$RBITS/EFI/BOOT/grubx64.efi") || fail "grubx64.efi lacks save_env - wrong GRUB build"
-step "release $RELEASE ($(rq "j['Name']")): boot chain, installer and desktop images match data/releases.ps1"
+step "release $RELEASE ($(rq "j['Name']")): boot chain, installer and desktop images match data/releases.json"
 
 # --- 6. the grubenv block ---------------------------------------------------
 [ "$(stat -c %s "$PAYLOAD/grubenv")" = 1024 ] || fail "grubenv is not 1024 bytes"
@@ -189,16 +191,13 @@ mkdir -p "$D/EFI/BOOT" "$D/EFI/SHELL"
 crlf() { sed 's/\r$//; s/$/\r/' "$1" > "$2"; }
 crlf "$PAYLOAD/README-STICK.txt"    "$D/README-STICK.txt"
 cp "$UPGRADE_EXE"                   "$D/UPGRADE.exe"
-for exe in $RUST_EXES; do cp "$exe" "$D/$(basename "$exe")"; done
+for exe in $RUST_EXES; do case "$(basename "$exe")" in upgrade-stick.exe) cp "$exe" "$D/../upgrade-stick.exe" ;; *) cp "$exe" "$D/$(basename "$exe")" ;; esac; done
 crlf "$PAYLOAD/UPGRADE.cmd"         "$D/UPGRADE.cmd"
 crlf "$PAYLOAD/UPGRADE-ACCEPTING-DATA-LOSS.cmd" "$D/UPGRADE-ACCEPTING-DATA-LOSS.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-VOLUME.cmd" "$D/DIAG-VOLUME.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SMART.cmd"  "$D/DIAG-SMART.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SECUREBOOT.cmd" "$D/DIAG-SECUREBOOT.cmd"
-cp "$ROOT/evaluate/windows/usb-kit/Diag-SecureBoot.ps1" "$D/Diag-SecureBoot.ps1"
 crlf "$ROOT/evaluate/windows/usb-kit/RUN-STORAGE-MODE.cmd" "$D/RUN-STORAGE-MODE.cmd"
-cp "$ROOT/evaluate/windows/Test-StorageMode.ps1" "$D/Test-StorageMode.ps1"
-cp "$ROOT/evaluate/windows/usb-kit/Diag-Smart.ps1" "$D/Diag-Smart.ps1"
 # the folder map (0.10.0): the job writer runs the harvester beside it, in its own process
 # signed payload: the product path, at the removable-media default location
 cp "$RBITS/EFI/BOOT/BOOTX64.EFI" "$D/EFI/BOOT/BOOTX64.EFI"
@@ -268,7 +267,7 @@ window:           UPGRADE.exe $(grep -m1 '^version' "$ROOT/upgrade_/windows/wind
 settle-in:        $SETTLE_IN_VERSION  $(sha256sum "$SETTLE_IN_BIN" | cut -c1-64)   -> upgrade_/settle-in/settle-in
 rust programs:    $(for e in upgrade-scan upgrade-harvest upgrade-job upgrade-prologue; do printf '%s %s  ' "$e.exe" "$(sha256sum "$D/$e.exe" | cut -c1-64)"; done)
 toolchain:        $("$ROOT/build-rust.sh" --toolchain)   (RISKS R14: rebuild-check.sh proves a second checkout gives these bytes)
-release:          $RELEASE ($(rq "j['Name']"), measured $(rq "j['Measured']")) - data/releases.ps1; release.json on this stick
+release:          $RELEASE ($(rq "j['Name']"), measured $(rq "j['Measured']")) - data/releases.json; release.json on this stick
   Shell.efi       $(sha256sum "$BITS/Shell.efi" | cut -c1-64)   -> EFI/SHELL/SHELLX64.EFI
   shim            $(sha256sum "$RBITS/EFI/BOOT/BOOTX64.EFI" | cut -c1-64)   -> EFI/BOOT/BOOTX64.EFI
   grub            $(sha256sum "$RBITS/EFI/BOOT/grubx64.efi" | cut -c1-64)   -> EFI/BOOT/grubx64.efi

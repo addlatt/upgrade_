@@ -1,0 +1,13 @@
+{
+  "_about": {
+    "table": "audio quirks matched against the HDAUDIO and INTELAUDIO device paths",
+    "read": "data/README.md",
+    "fields": "Match (a regular expression over the device path, case does not matter), Name, MinKernel, Status, Note, Source, Verified"
+  },
+  "Quirks": [
+    {"Match": "CSC3551", "Name": "Cirrus Logic CS35L41 smart amplifier", "MinKernel": "6.7", "Status": "warn", "Note": "Laptop speakers are driven by Cirrus smart amps. Headphones work immediately; internal speakers stay silent until kernel 6.7+ with the right firmware. Very common on ASUS, Dell and Lenovo 2023+ models.", "Source": "", "Verified": ""},
+    {"Match": "CSC3556", "Name": "Cirrus Logic CS35L56 smart amplifier", "MinKernel": "6.7", "Status": "warn", "Note": "Laptop speakers are driven by Cirrus smart amps. Headphones work immediately; internal speakers may stay silent until kernel 6.7+ with vendor firmware extracted from Windows.", "Source": "", "Verified": ""},
+    {"Match": "TXNW2781", "Name": "TI TAS2781 smart amplifier", "MinKernel": "6.6", "Status": "warn", "Note": "TI smart amps, common on Lenovo. Internal speakers need kernel 6.6+ and firmware; headphones are unaffected.", "Source": "", "Verified": ""},
+    {"Match": "INTC10", "Name": "Intel SST / SOF DSP audio", "MinKernel": "6.0", "Status": "warn", "Note": "DSP-based audio. Needs the SOF firmware package, which most current distros ship - but audio may be silent on older or minimal installs.", "Source": "", "Verified": ""}
+  ]
+}

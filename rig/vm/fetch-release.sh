@@ -2,7 +2,7 @@
 #
 # fetch-release.sh ID - gather one release's build inputs for the kit
 # (decided 2026-10-03, the owner; RISKS R34). The release, its download
-# addresses and every checksum come from data/releases.ps1, whose facts
+# addresses and every checksum come from data/releases.json, whose facts
 # data/tools/measure-release.py measured from these same files. Nothing
 # here is release-specific: a new release is a new table entry.
 #
@@ -18,8 +18,8 @@ ID=${1:?usage: fetch-release.sh RELEASE-ID}
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 R="$ROOT/rig/vm/artifacts/releases/$ID"
 mkdir -p "$R/iso" "$R/bits"
-J=$(powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ". '$(wslpath -w "$ROOT/data/releases.ps1")'; Get-UpgReleaseTable | Where-Object { \$_.Id -eq '$ID' } | ConvertTo-Json -Depth 6" | tr -d '\r')
-[ -n "$J" ] || { echo "fetch-release: no release '$ID' in data/releases.ps1" >&2; exit 1; }
+J=$(python3 -c "import json,sys; r=[x for x in json.load(open(sys.argv[1]))['Releases'] if x['Id']==sys.argv[2]]; print(json.dumps(r[0], indent=2) if r else '')" "$ROOT/data/releases.json" "$ID")
+[ -n "$J" ] || { echo "fetch-release: no release '$ID' in data/releases.json" >&2; exit 1; }
 echo "$J" > "$R/release.json.table"
 
 get() {  # url sha256 -> iso/<name>, verified

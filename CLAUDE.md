@@ -115,12 +115,11 @@ finished until it does.
 ## Layout
 
 ```
-data/            hardware + distro knowledge base; community PRs land here
-  devices.ps1      Wi-Fi/GPU/audio/storage quirks by PCI ID
-  distros.ps1      distro kernel table (goes stale; verify against release notes)
-  releases.ps1     the Linux releases the kit can carry, and what Secure Boot needs of each (measured by tools/measure-release.py, never typed)
-  tables.json      the same three tables as JSON, for the Rust side (written by tools/export-tables.ps1, never edited)
-evaluate/windows/  the corpus of machine recordings; the PowerShell holdovers (the stick writer, the storage-mode harness, the diag tools; their phase 2 ports retire them)
+data/            the knowledge tables, JSON, compiled into the scanner; community PRs land here (data/README.md)
+  devices/*.json   Wi-Fi, GPU, audio, storage, vendor and app tables, one entry per line
+  distros.json     distro kernel table (goes stale; verify against release notes)
+  releases.json    the Linux releases the kit can carry, and what Secure Boot needs of each (measured by tools/measure-release.py, never typed)
+evaluate/windows/  the corpus of machine recordings; the one PowerShell holdover (the stick writer; its port `evaluate/stick` is built and retires it when R16's rows read pass)
 evaluate/scan/, harvest/, job/  the scanner, the harvester and the job writer in Rust (the product since 2026-10-11)
 evaluate/scan/, evaluate/harvest/, evaluate/job/  the scanner's, harvester's and job writer's judging halves in Rust (held to the PowerShell word for word)
 upgrade_/          the converter: prologue/ the prologue, handoff, rollback and the slot in Rust; kickstart/ the kickstart generator in Rust; windows/window/ the window (UPGRADE.exe), windows/handoff-payload/ the stick's EFI payload and the two .cmd starters; linux/ %pre verify + outcome
@@ -141,12 +140,11 @@ dist/kit/          the kit, built by ./make-kit.sh (gitignored; the stick's cont
   RISKS R32, VALIDATION V13): `upgrade-scan`, `upgrade-harvest`, `upgrade-job`,
   `upgrade-prologue` and the window `UPGRADE.exe`, built by `./build-rust.sh` with
   a pinned toolchain (`rust-toolchain.toml`; `rebuild-check.sh` proves the bytes).
-  The PowerShell scripts left the product on 2026-10-11; what remains of it
-  (the storage-mode harness, the diag tools, the stick writer, `data/*.ps1`)
-  keeps to Windows PowerShell 5.1 (no PS7 syntax) until its phase in
-  `docs/RUST-PORT.md`, "What comes next", retires it.
+  The PowerShell scripts left the product on 2026-10-11 and the data tables
+  on 2026-10-14; the one script left, the stick writer, keeps to Windows
+  PowerShell 5.1 (no PS7 syntax) until `upgrade-stick` has earned R16's rows.
 - **Run `./port-check.sh` before any change lands.** It runs `schemas/check.py`,
-  checks the data tables are fresh, checks the eight frozen goldens are unchanged
+  checks the data tables parse, checks the twelve frozen goldens are unchanged
   (`FROZEN-GOLDENS.sha256`: recordings of what the PowerShell answered, ground truth
   for the Rust forever), and runs every crate's tests. A golden changes only on
   purpose, from the Rust's own output, reviewed as a diff, with its new sha256
@@ -157,10 +155,10 @@ dist/kit/          the kit, built by ./make-kit.sh (gitignored; the stick's cont
   home per fact, history in `docs/log/`, state in `docs/STATUS.md`, plans in
   `docs/ROADMAP.md`. Run `./docs-check.sh` before any pull request that touches a
   `.md` file.
-- **`data/*.ps1` is the contribution surface** until phase 3 moves it to JSON.
-  Adding a device is a one-line PR with a cited source ("it should work" is not a
-  source). The Rust reads `data/tables.json`, written from the tables by
-  `data/tools/export-tables.ps1`; `./port-check.sh` fails when it is stale.
+- **`data/` is the contribution surface** (JSON, decided 2026-10-14, the owner).
+  Adding a device is a one-line PR with a cited `Source` ("it should work" is not
+  a source); `data/README.md` has the fields. The scanner compiles the tables in
+  and refuses a shape a check could not use.
 - **Never commit a machine report** (`upgrade-report-*.txt/.json`). They hold
   someone's hardware and account details. `.gitignore` covers them; keep it that
   way.

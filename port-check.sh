@@ -4,8 +4,8 @@
 # (RISKS R32, VALIDATION V13, docs/RUST-PORT.md)
 #
 #   ./port-check.sh            check everything, change nothing
-#   ./port-check.sh --record   write data/tables.json and the schema
-#                              refusal cases again from their sources, then check
+#   ./port-check.sh --record   write the schema refusal cases again from
+#                              their source, then check
 #
 # Decided (2026-10-11, the owner): the PowerShell scripts leave the product.
 # The goldens the Rust was held to (recorded from the scripts while they
@@ -14,9 +14,9 @@
 # from the Rust's own tests, not from PowerShell.
 #
 # What it runs, in order:
-#   1. the originals that remain: schemas/check.py (Python; the contract's
-#      oracle) and, until the data tables move to JSON, data/tables.json
-#      from data/*.ps1 (the one PowerShell call left; skipped without powershell.exe)
+#   1. the original that remains: schemas/check.py (Python; the contract's
+#      oracle). The data tables are JSON since 2026-10-14 and the scanner's
+#      own tests check their shape; nothing here needs PowerShell.
 #   2. the frozen goldens are unchanged
 #   3. cargo test in every crate of the product, the harvester's filesystem
 #      cases on Windows, and the schema differential against check.py
@@ -39,17 +39,15 @@ fresh() {  # $1 = the committed file, $2 = the fresh copy
     else fail "$1 is stale: run ./port-check.sh --record and read the diff"; fi
 }
 
-say; say "  1. the originals that remain"; say
+say; say "  1. the original that remains"; say
 if python3 schemas/check.py --dump-cases "$TMP/refused-cases.json" --dump-mutations "$TMP/mutations.jsonl" > "$TMP/check.txt" 2>&1; then
     pass "schemas/check.py ($(grep -c '  PASS  ' "$TMP/check.txt") checks)"
 else fail "schemas/check.py"; fi
 [ -f "$TMP/refused-cases.json" ] && fresh schemas/rust/tests/refused-cases.json "$TMP/refused-cases.json"
-if [ -f data/tools/export-tables.ps1 ]; then
-    if [ "$HAVE_PS" = 1 ]; then
-        ps data/tools/export-tables.ps1 -Out "$(wslpath -w "$TMP")\\tables.json" > /dev/null
-        fresh data/tables.json "$TMP/tables.json"
-    else skip "data/tables.json against data/*.ps1"; fi
-fi
+for f in data/devices/*.json data/distros.json data/releases.json; do
+    python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" > /dev/null 2>&1 || fail "$f is not JSON"
+done
+pass "data/devices/*.json, data/distros.json and data/releases.json parse (their shape: evaluate/scan's data tests)"
 
 say; say "  2. the frozen goldens"; say
 if sha256sum -c --quiet FROZEN-GOLDENS.sha256 > "$TMP/frozen.txt" 2>&1; then
@@ -57,7 +55,7 @@ if sha256sum -c --quiet FROZEN-GOLDENS.sha256 > "$TMP/frozen.txt" 2>&1; then
 else fail "a frozen golden changed (FROZEN-GOLDENS.sha256): a recording is ground truth; if a case was added on purpose, record the new sha256 there and say so in the commit"; sed 's/^/          /' "$TMP/frozen.txt"; fi
 
 say; say "  3. the Rust side"; say
-for crate in schemas/rust evaluate/scan evaluate/harvest evaluate/job upgrade_/kickstart upgrade_/prologue upgrade_/windows/window; do
+for crate in schemas/rust evaluate/scan evaluate/harvest evaluate/job evaluate/stick upgrade_/kickstart upgrade_/prologue upgrade_/windows/window; do
     if (cd "$crate" && cargo test --locked --quiet) > "$TMP/cargo.txt" 2>&1; then pass "cargo test in $crate"
     else fail "cargo test in $crate"; sed 's/^/          /' "$TMP/cargo.txt" | tail -40; fi
 done

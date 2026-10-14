@@ -94,6 +94,39 @@ pub fn smart_attributes(bytes: &[u8]) -> BTreeMap<u8, i64> {
     h
 }
 
+/// One row of the ATA SMART attribute table, as `Diag-Smart.ps1` read it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SmartRow {
+    pub id: u8,
+    pub flags: u16,
+    pub current: u8,
+    pub worst: u8,
+    /// the 48-bit raw value, little-endian
+    pub raw: u64,
+    /// its low 16 bits
+    pub raw16: u64,
+}
+
+/// The 512-byte ATA SMART block, every entry in order (duplicates kept).
+/// Entries are 12 bytes from offset 2; an id of 0 is skipped. The same
+/// walk serves the thresholds block, where `flags & 0xff` is the threshold.
+pub fn smart_table(bytes: &[u8]) -> Vec<SmartRow> {
+    let mut rows = Vec::new();
+    let mut i = 2;
+    while i + 12 <= bytes.len() {
+        let id = bytes[i];
+        if id != 0 {
+            let mut raw: u64 = 0;
+            for k in (0..6).rev() {
+                raw = raw * 256 + bytes[i + 5 + k] as u64;
+            }
+            rows.push(SmartRow { id, flags: bytes[i + 1] as u16 + 256 * bytes[i + 2] as u16, current: bytes[i + 3], worst: bytes[i + 4], raw, raw16: bytes[i + 5] as u64 + 256 * bytes[i + 6] as u64 });
+        }
+        i += 12;
+    }
+    rows
+}
+
 /// Defrag event 259 -> the last file Windows could not move.
 pub fn defrag_259(message: &str) -> Option<String> {
     let file = capture(r"last unmovable file appears to be:\s*(\S.*?)\s*$", "m", message)?;

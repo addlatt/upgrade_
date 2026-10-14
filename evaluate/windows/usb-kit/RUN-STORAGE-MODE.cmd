@@ -35,13 +35,8 @@ if %errorlevel% neq 0 (
 )
 
 cd /d "%~dp0"
-if not exist "%~dp0Test-StorageMode.ps1" (
-  echo   ERROR: Test-StorageMode.ps1 is not on this stick - this is not a complete kit.
-  pause
-  exit /b 1
-)
-if not exist "%~dp0upgrade-scan.ps1" (
-  echo   ERROR: upgrade-scan.ps1 is not on this stick - this is not a complete kit.
+if not exist "%~dp0upgrade-prologue.exe" (
+  echo   ERROR: upgrade-prologue.exe is not on this stick - this is not a complete kit.
   pause
   exit /b 1
 )
@@ -55,7 +50,7 @@ echo   Three scans, two restarts into the setup screen where YOU
 echo   change SATA Mode (the window that follows says which way).
 echo   Nothing on the disk is changed; Windows keeps booting.
 echo.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Test-StorageMode.ps1" -Start -StickDrive %~d0
+"%~dp0upgrade-prologue.exe" storage-mode start --stick %~d0
 if %errorlevel% neq 0 (
   echo.
   echo   The test did not start - read the message above. Nothing was changed.

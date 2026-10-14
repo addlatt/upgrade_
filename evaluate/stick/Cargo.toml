@@ -1,0 +1,20 @@
+[package]
+name = "upgrade-stick"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+
+# The stick writer in Rust (RISKS R16, R32; docs/RUST-PORT.md phase 2): the
+# one host-side component that writes a device. Its judging half (which
+# disk may be written, and why every other one is refused) and its phases
+# (list, plan, write) are held to Write-UpgradeStick.ps1 0.1.1 by tests;
+# `copy` is Copy-Kit.ps1, the refresh of a stick that already carries a
+# FAT32 volume. The PowerShell stays in the tree until R16's rows are
+# earned again by this program (a real stick, the owner at the keyboard).
+[dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = "0.10"
+upgrade-scan = { path = "../scan" }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Com", "Win32_System_Wmi", "Win32_System_Ole", "Win32_System_Variant", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl", "Win32_Security"] }

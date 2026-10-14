@@ -56,7 +56,7 @@ Storage Technology) or VMD (Volume Management Device), storage modes that
 can hide the disk from a Linux installer. The scanner's flagship check (the
 README's "single most common false 'Linux won't install'") is meant to
 catch this. `Test-UpgStorageMode` uses three signals: the PCI ID list in
-`data/devices.ps1`, matched to the kernel's `vmd.c` table; the `iaStorVD`
+`data/devices/storage.json`, matched to the kernel's `vmd.c` table; the `iaStorVD`
 service (the VMD generation of the RST driver); and an Intel controller
 declaring PCI RAID class `CC_0104`. RST software on an AHCI controller warns (R7).
 
@@ -118,8 +118,8 @@ does not exist, so the mechanism counts as built, not held.
 
 ## R3: Distro kernel table is unverified and stale · high · planned
 
-**What.** `data/distros.ps1` marks Fedora (6.14) and Pop!_OS (6.9) with
-`Approx=$true`, meaning nobody checked them against release notes. Ubuntu
+**What.** `data/distros.json` marks Fedora (6.14) and Pop!_OS (6.9) with
+`"Approx": true`, meaning nobody checked them against release notes. Ubuntu
 26.04 LTS is missing entirely. This table produces the report's headline
 claim: the scanner tells people "RULED OUT for shipping an older kernel:
 Linux Mint, Ubuntu LTS, Pop!_OS" with total confidence, from data marked as
@@ -299,11 +299,11 @@ file. Nothing makes sure it matches `data/` and `evaluate/`. The self-test
 never runs automatically. (CI, continuous integration, means tests that run
 by themselves on every change.)
 
-**If real.** A contributor edits `data/devices.ps1`, forgets `./build.sh`,
-and the published scanner runs old data while the source looks correct.
+**If real.** A contributor edits `data/devices/wifi.json` with a status
+the checks do not know, or a pattern that does not read, and the published
+scanner carries it.
 
-**Closes when.** A GitHub Action runs `./build.sh`, fails if `dist/`
-changes, and runs `-SelfTest` on every PR.
+**Closes when.** A GitHub Action runs `./port-check.sh` on every PR.
 
 **Where it stands.** `[#...]` planned. No workflow exists; `./build.sh`,
 `./port-check.sh` and `./docs-check.sh` are run by hand before a pull
@@ -503,7 +503,9 @@ refused for its bus). First physical write 2026-09-13 from the G16: one
 8 GB General UDisk written and verified (lines 11 and 12); writer 0.1.1
 learned that `Clear-Disk` leaves a real stick MBR-initialized where a VHDX
 comes back RAW. One finding for `job.json`: a stick's `UniqueId` carries
-the host name on the end and its `SerialNumber` can be empty. Owed: the
+the host name on the end and its `SerialNumber` can be empty. The writer
+in Rust (`upgrade-stick`, 2026-10-14) holds the matrix and wrote the G16's
+read-only rows again (lines 13 and 14); its write rows are owed. Owed: the
 several-devices write. Log:
 [built](log/2026-09.md#2026-09-08-the-stick-writer-built-and-the-refusal-matrix-fired-r16),
 [first write](log/2026-09.md#2026-09-13-first-physical-stick-write-r16).
@@ -1124,7 +1126,7 @@ Everything that can refuse must refuse before the line (rule #3).
 
 **Decided (2026-10-03, the owner):** the release is not fixed in the kit.
 `evaluate` reads what the machine accepts and the kit is built for a release
-that meets it, from `data/releases.ps1`, whose facts are measured from each
+that meets it, from `data/releases.json`, whose facts are measured from each
 release's own files by `data/tools/measure-release.py`, never typed (V14).
 
 **Closes when.** The kit carries boot files that meet the level on the
