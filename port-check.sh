@@ -57,7 +57,7 @@ if sha256sum -c --quiet FROZEN-GOLDENS.sha256 > "$TMP/frozen.txt" 2>&1; then
 else fail "a frozen golden changed (FROZEN-GOLDENS.sha256): a recording is ground truth; if a case was added on purpose, record the new sha256 there and say so in the commit"; sed 's/^/          /' "$TMP/frozen.txt"; fi
 
 say; say "  3. the Rust side"; say
-for crate in schemas/rust evaluate/scan evaluate/harvest evaluate/job upgrade_/kickstart upgrade_/prologue upgrade_/windows/window; do
+for crate in schemas/rust evaluate/scan evaluate/harvest evaluate/job evaluate/stick upgrade_/kickstart upgrade_/prologue upgrade_/windows/window; do
     if (cd "$crate" && cargo test --locked --quiet) > "$TMP/cargo.txt" 2>&1; then pass "cargo test in $crate"
     else fail "cargo test in $crate"; sed 's/^/          /' "$TMP/cargo.txt" | tail -40; fi
 done

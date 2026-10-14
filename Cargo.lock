@@ -3262,6 +3262,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "upgrade-stick"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "sha2",
+ "upgrade-scan",
+ "windows",
+]
+
+[[package]]
 name = "upgrade-window"
 version = "0.1.1"
 dependencies = [

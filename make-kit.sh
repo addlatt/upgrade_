@@ -37,10 +37,13 @@
 #   7. after layout, SHA256SUMS re-verifies; with --to, the copy re-verifies
 #
 # This script never writes to a device. --to copies into a DIRECTORY (a
-# mounted stick, or a staging folder). The device writer is
-# evaluate/windows/Write-UpgradeStick.ps1 (R16): point it at dist/kit/stick
-# with -Source and it partitions, formats, copies and re-verifies - after
-# refusing everything that is not the one USB stick pointed at.
+# mounted stick, or a staging folder). The device writer is upgrade-stick.exe
+# (evaluate/stick, R16; placed at dist/kit/upgrade-stick.exe, beside the
+# stick's folder, never on the stick): point it at dist/kit/stick with
+# --source and it partitions, formats, copies and re-verifies - after
+# refusing everything that is not the one USB stick pointed at. Until R16's
+# rows are earned again by the program, evaluate/windows/Write-UpgradeStick.ps1
+# stays in the tree as the way back.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -188,7 +191,7 @@ mkdir -p "$D/EFI/BOOT" "$D/EFI/SHELL"
 crlf() { sed 's/\r$//; s/$/\r/' "$1" > "$2"; }
 crlf "$PAYLOAD/README-STICK.txt"    "$D/README-STICK.txt"
 cp "$UPGRADE_EXE"                   "$D/UPGRADE.exe"
-for exe in $RUST_EXES; do cp "$exe" "$D/$(basename "$exe")"; done
+for exe in $RUST_EXES; do case "$(basename "$exe")" in upgrade-stick.exe) cp "$exe" "$D/../upgrade-stick.exe" ;; *) cp "$exe" "$D/$(basename "$exe")" ;; esac; done
 crlf "$PAYLOAD/UPGRADE.cmd"         "$D/UPGRADE.cmd"
 crlf "$PAYLOAD/UPGRADE-ACCEPTING-DATA-LOSS.cmd" "$D/UPGRADE-ACCEPTING-DATA-LOSS.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-VOLUME.cmd" "$D/DIAG-VOLUME.cmd"
