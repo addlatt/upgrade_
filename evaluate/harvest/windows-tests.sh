@@ -7,7 +7,10 @@ cd "$(dirname "$0")"
 ZIG_DIR="$HOME/.local/opt/zig-linux-x86_64-0.13.0"
 [ -x "$ZIG_DIR/zig" ] && export PATH="$ZIG_DIR:$PATH"
 cargo zigbuild --tests --target x86_64-pc-windows-gnu --quiet
-exe="$(ls -t target/x86_64-pc-windows-gnu/debug/deps/filesystem-*.exe | head -1)"
+# the workspace builds into the root's target/ (Cargo.toml at the root, 2026-10-09);
+# ask cargo where, so a fresh worktree finds it too
+target="$(cargo metadata --format-version 1 --no-deps --offline | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')"
+exe="$(ls -t "$target"/x86_64-pc-windows-gnu/debug/deps/filesystem-*.exe | head -1)"
 win_tmp="$(powershell.exe -NoProfile -Command '$env:TEMP' | tr -d '\r')"
 mkdir -p "$(wslpath -u "$win_tmp")/upgrade-harvest-tests"
 cp "$exe" "$(wslpath -u "$win_tmp")/upgrade-harvest-tests/filesystem.exe"
