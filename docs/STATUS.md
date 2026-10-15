@@ -92,5 +92,7 @@ tools are `upgrade-scan diag`). The order and what each waits on: `ROADMAP.md`.
 | R34 | Secure Boot revokes the kit's boot files | `[####]` held-on-machine | `v9-erase.csv` line 30, `erased-installed` (Fedora 44, Secure Boot on) | the next level (`grub,6`); Fedora 42's record |
 | R35 | the stick installs again after the install | `[####]` held-on-machine | `v9-erase.csv` line 31, `not-installed-again` (2026-10-04) | other firmware |
 | R36 | the kept Windows' clock after a Linux boot | `[####]` held-on-machine | `v2-install.csv` line 15, `pass` (2026-10-11, +1 s, +2 s, +1 s after each Linux boot) | the rig's two boots on the keep-Windows arm |
+| R37 | the installer's own startup hangs before our checks | `[#...]` planned | none yet (three hangs on the rig, 2026-10-04, 2026-10-11, 2026-10-15, screens kept) | the cause; a way back with plain words |
+| R38 | the installer's shell shares the countdown's console | `[#...]` planned | none yet (the shell on tty6 and its cursor query, rig, 2026-10-14/15) | the decision how to keep it off; a rig row with every key read; a real machine |
 
 Closed: F1 to F4, the four fixed defects of 2026-08-22 (`RISKS.md`, Closed).

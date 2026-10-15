@@ -190,6 +190,10 @@ dropped to save time (rule #5). Proves: R9, V13. Stands: see
 The owner's open calls, one line each, naming what waits on them. When one
 is decided, the dated line goes in its home and the item here is removed.
 
+- How the erase countdown keeps Fedora's installer shell off its console
+  (R38): stop the shell while it runs, count down on a console the
+  installer gives no shell, or turn that shell off in the kickstart. The
+  next erase on a real machine waits on it; the rig's arms do not.
 - Whether R34's release check (held on the Aspire 2026-10-04) meets R11's
   closing clause, or R11's wording still promises more than it verifies.
 - R8's closing clause (`-Materialize` against a signed-in client) predates

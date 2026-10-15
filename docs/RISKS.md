@@ -1220,6 +1220,52 @@ Windows had also corrected its own clock within four hours on 2026-10-10, so
 the symptom lasts hours, not for good. Owed: the rig's two boots on the
 keep-Windows arm ([log](log/2026-10.md#2026-10-10-the-kept-windows-clock-by-hand-on-the-aspire-r36-v1b)).
 
+## R37: The installer's own startup hangs before our checks run · medium · planned
+
+**What.** Fedora 44's installer sometimes stops early in its own startup
+(at the SELinux relabel), before the kickstart's `%pre` and so before the
+verify step, the refusals or any countdown. Seen three times on the rig:
+2026-10-04 (arm C5), 2026-10-11 and 2026-10-15 (a diagnostic arm B). The
+cause is not known.
+
+**If real.** On a real machine the person sees a screen of text that never
+moves. Holding the power button brings Windows back, since the handoff is
+one-time, and nothing on the disks has been touched. Nothing detects it or
+says so in plain words: medium.
+
+**Closes when.** The cause is found and fixed, or a hang is caught and the
+machine comes back to Windows by itself with a plain sentence, shown on the
+rig and on one real machine.
+
+**Where it stands.** `[#...]` planned: the three hangs are recorded with
+their screens (`rig/hyperv/artifacts/v9/Bdiag-installer-boot-hung-2026-10-15/`;
+[log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)). Nothing is built.
+
+## R38: The installer's shell shares the countdown's console · critical · planned
+
+**What.** Fedora's installer starts a root shell on any console it is
+switched to. The verify step switches to tty6 for the refusal screen and
+the erase countdown, so that shell starts there and reads the same
+keyboard. A key the person presses to cancel can go to the shell instead.
+
+**If real.** The cancel is the commit line's only exit (rule #3). A key the
+shell takes is a cancel nobody hears; a person who presses once and waits
+sees the countdown run out, and both drives are erased. Critical.
+
+**Evidence so far (2026-10-14/15, the rig).** The shell's prompt is on
+tty6 during the verify step; it hung up tty6 as it started and asked the
+console where the cursor was, and the answer landed in the countdown's
+input (`1b 5b 39 3b 31 52 1b 5b 34 38 3b 31 32 38 52`). On 2026-09-29 two
+Space presses during a countdown were never read (arm B). That the shell
+took them is not shown (rule #2).
+
+**Closes when.** The countdown's console has no other reader while it runs,
+and a rig row shows every key sent being read, then one real machine.
+
+**Where it stands.** `[#...]` planned. How to keep the shell off the
+countdown's console is a decision owed (`ROADMAP.md`). The two console
+faults the port met on the way are fixed ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
+
 # Closed
 
 ## F1: `break` inside `ForEach-Object` terminated the whole script · high · closed
