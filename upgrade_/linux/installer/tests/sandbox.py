@@ -206,6 +206,9 @@ def drop_noise(lines):
     for l in lines:
         if "integer expression expected" in l or (": line " in l and ": [: " in l):
             continue
+        # the program's own diagnostics of the console (2026-10-14), lines the script never wrote
+        if l.startswith("== countdown key read: ") or l.startswith("== countdown ignored the console") or " again " in l and "time(s): it had been hung up" in l:
+            continue
         if skip_zero and l == "0":
             skip_zero = False
             continue

@@ -591,6 +591,14 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
         // script's Python died there (exit 1), which bash read as a cancel. Never
         // an erase behind a screen nobody can see (rule #3)
         let waited = con.wait(count_secs, &screen, true);
+        for r in con.reports.borrow().iter() {
+            let hex: Vec<String> = r.iter().map(|b| format!("{b:02x}")).collect();
+            c.log.say(&format!("== countdown ignored the console's cursor report(s), not a key: {}", hex.join(" ")));
+        }
+        if matches!(waited, Ok((true, _))) {
+            let hex: Vec<String> = con.key_bytes.borrow().iter().map(|b| format!("{b:02x}")).collect();
+            c.log.say(&format!("== countdown key read: {}", hex.join(" ")));
+        }
         if con.reopens.get() > 0 {
             c.log.say(&format!("== countdown opened {CTTY} again {} time(s): it had been hung up", con.reopens.get()));
         }

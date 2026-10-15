@@ -10,6 +10,10 @@ pub struct Console {
     path: String,
     fd: std::cell::Cell<i32>,
     pub reopens: std::cell::Cell<u32>,
+    /// the bytes that ended the last wait as a key, for the log
+    pub key_bytes: std::cell::RefCell<Vec<u8>>,
+    /// cursor-position reports read and not taken as a key, for the log
+    pub reports: std::cell::RefCell<Vec<Vec<u8>>>,
     old: libc::termios,
     pub cols: u16,
     pub rows: u16,
@@ -43,7 +47,7 @@ impl Console {
         }
         let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
         unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut ws) };
-        Ok(Console { path: path.to_string(), fd: std::cell::Cell::new(fd), reopens: std::cell::Cell::new(0), old, cols: ws.ws_col, rows: ws.ws_row })
+        Ok(Console { path: path.to_string(), fd: std::cell::Cell::new(fd), reopens: std::cell::Cell::new(0), key_bytes: std::cell::RefCell::new(Vec::new()), reports: std::cell::RefCell::new(Vec::new()), old, cols: ws.ws_col, rows: ws.ws_row })
     }
 
     /// The same console opened again, raw as before, its input flushed; the
@@ -114,6 +118,16 @@ impl Console {
         if r > 0 {
             let mut buf = [0u8; 64];
             let n = unsafe { libc::read(self.fd.get(), buf.as_mut_ptr() as *mut _, buf.len()) };
+            if n > 0 {
+                let got = &buf[..n as usize];
+                if only_cursor_reports(got) {
+                    // the console's answer to another program's "where is the cursor?"
+                    // (the installer's shell on tty6 asks as it starts, 2026-10-15), not a key
+                    self.reports.borrow_mut().push(got.to_vec());
+                    return false;
+                }
+                *self.key_bytes.borrow_mut() = got.to_vec();
+            }
             return n > 0;
         }
         false
@@ -156,6 +170,34 @@ impl Console {
     }
 }
 
+/// True when `bytes` is one or more cursor-position reports and nothing
+/// else: `ESC [ <digits> ; <digits> R`, each. A Linux console's keyboard
+/// never sends that shape (its keys are ESC [ [ A, ESC [ 1 ~ and the like);
+/// the console writes it into its own input when a program asks where the
+/// cursor is. Anything else in the read, or a report cut short, is a key.
+pub fn only_cursor_reports(bytes: &[u8]) -> bool {
+    let mut i = 0;
+    let mut seen = 0;
+    while i < bytes.len() {
+        if bytes.get(i) != Some(&0x1b) || bytes.get(i + 1) != Some(&b'[') {
+            return false;
+        }
+        i += 2;
+        let row = bytes[i..].iter().take_while(|b| b.is_ascii_digit()).count();
+        if row == 0 || bytes.get(i + row) != Some(&b';') {
+            return false;
+        }
+        i += row + 1;
+        let col = bytes[i..].iter().take_while(|b| b.is_ascii_digit()).count();
+        if col == 0 || bytes.get(i + col) != Some(&b'R') {
+            return false;
+        }
+        i += col + 1;
+        seen += 1;
+    }
+    seen > 0
+}
+
 /// `printf '...' > /dev/tty6`: a fresh open each time, as bash's redirect
 /// was; an error is ignored, as bash went on after a failed redirect.
 pub fn say_on(path: &str, text: &str) {
@@ -178,13 +220,22 @@ impl Drop for Console {
 mod tests {
     use super::*;
 
+    /// A pseudo-terminal pair and the slave's path (ttyname_r: the tests run
+    /// on several threads, and ttyname's one buffer is shared between them).
+    fn pty() -> (i32, i32, String) {
+        let (mut master, mut slave) = (0, 0);
+        assert_eq!(unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) }, 0);
+        let mut buf = [0 as libc::c_char; 128];
+        assert_eq!(unsafe { libc::ttyname_r(slave, buf.as_mut_ptr(), buf.len()) }, 0);
+        let name = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }.to_string_lossy().into_owned();
+        (master, slave, name)
+    }
+
     /// A pseudo-terminal whose other end is gone answers writes with EIO, as
     /// a hung-up virtual console does: the write must end, not loop.
     #[test]
     fn a_console_that_stops_taking_writes_ends_the_wait() {
-        let (mut master, mut slave) = (0, 0);
-        assert_eq!(unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) }, 0);
-        let name = unsafe { std::ffi::CStr::from_ptr(libc::ttyname(slave)) }.to_string_lossy().into_owned();
+        let (master, slave, name) = pty();
         let con = Console::open(&name).expect("the pty opens");
         unsafe {
             libc::close(master);
@@ -201,9 +252,7 @@ mod tests {
     /// again and the wait goes on to its deadline.
     #[test]
     fn a_hung_up_open_is_replaced_and_the_wait_goes_on() {
-        let (mut master, mut slave) = (0, 0);
-        assert_eq!(unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) }, 0);
-        let name = unsafe { std::ffi::CStr::from_ptr(libc::ttyname(slave)) }.to_string_lossy().into_owned();
+        let (master, slave, name) = pty();
         let con = Console::open(&name).expect("the pty opens");
         // the old open goes dead: its number now holds a read-only open, so writes fail (EBADF)
         let c = std::ffi::CString::new(name.as_str()).unwrap();
@@ -222,10 +271,49 @@ mod tests {
     }
 
     #[test]
+    fn the_consoles_own_answers_are_not_keys() {
+        // the bytes read on the rig, 2026-10-15 (v9 Bdiag): two reports, one read
+        assert!(only_cursor_reports(b"\x1b[9;1R\x1b[48;128R"));
+        assert!(only_cursor_reports(b"\x1b[1;1R"));
+        // keys stay keys
+        for k in [&b" "[..], b"\r", b"a", b"\x1b", b"\x1b[A", b"\x1b[[A", b"\x1b[15~", b"\x03"] {
+            assert!(!only_cursor_reports(k), "{k:?}");
+        }
+        // a report with a key beside it, or cut short, is a key
+        assert!(!only_cursor_reports(b"\x1b[9;1R "));
+        assert!(!only_cursor_reports(b" \x1b[9;1R"));
+        assert!(!only_cursor_reports(b"\x1b[9;1"));
+        assert!(!only_cursor_reports(b"\x1b[;1R"));
+        assert!(!only_cursor_reports(b""));
+    }
+
+    #[test]
+    fn a_cursor_report_does_not_end_the_wait_and_a_key_still_does() {
+        let (master, slave, name) = pty();
+        let con = Console::open(&name).expect("the pty opens");
+        let m = master;
+        let typist = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(200));
+            let r = b"\x1b[9;1R\x1b[48;128R";
+            unsafe { libc::write(m, r.as_ptr() as *const _, r.len()) };
+            std::thread::sleep(Duration::from_millis(600));
+            unsafe { libc::write(m, b" ".as_ptr() as *const _, 1) };
+        });
+        let r = con.wait(5.0, &|left| format!("{left}\n"), true);
+        typist.join().unwrap();
+        assert!(matches!(r, Ok((true, e)) if e > 0.6 && e < 2.0), "{r:?}");
+        assert_eq!(con.reports.borrow().len(), 1);
+        assert_eq!(&con.key_bytes.borrow()[..], b" ");
+        drop(con);
+        unsafe {
+            libc::close(master);
+            libc::close(slave);
+        }
+    }
+
+    #[test]
     fn a_working_console_counts_down() {
-        let (mut master, mut slave) = (0, 0);
-        assert_eq!(unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) }, 0);
-        let name = unsafe { std::ffi::CStr::from_ptr(libc::ttyname(slave)) }.to_string_lossy().into_owned();
+        let (master, slave, name) = pty();
         let con = Console::open(&name).expect("the pty opens");
         let r = con.wait(1.2, &|left| format!("{left}\n"), true);
         assert!(matches!(r, Ok((false, _))), "{r:?}");
