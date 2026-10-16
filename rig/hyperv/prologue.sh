@@ -50,7 +50,8 @@
 #                             ESP inspected offline, then a keyless start must bring Windows up
 #                             directly -> rollback-verdict.py -> r21-rollback.csv
 #   prologue.sh restore       VM off: main UPGRIGHV.vhdx back, prologue disk detached
-#   prologue.sh run           prepare -> stick -> windows -> inspect pre -> dirty -> autologon off -> convert -> wait-off
+#   prologue.sh run           prepare -> stick -> windows -> inspect pre -> update-clear -> dirty -> autologon off
+#                             -> update-recheck -> convert -> wait-off
 #                             -> inspect post-install -> cycle windows w1 -> cycle linux l1
 #                             -> cycle windows w2 -> cycle linux l2 -> inspect post-cycles -> verdict
 #
@@ -159,6 +160,22 @@ update-clear)
         sleep 45; wait_windows 900
         guest "$(rd after)" | tee -a "$A/update-before.txt"
         grep -q 'after: cbs=False wu=False' "$A/update-before.txt" || { echo "prologue: the update is still waiting after a restart - read $A/update-before.txt" >&2; exit 1; }
+    fi
+    ;;
+update-recheck)
+    # The same read again, just before convert: on 2026-10-16 update-clear read no
+    # update waiting, then one queued itself in the minutes after the flag was set,
+    # the prologue's update restart cleared the flag (r18-prologue.csv line 21,
+    # flag-not-confirmed). If one waits now: restart once, then set the flag again.
+    rd() { echo "\$c = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Component Based Servicing\\RebootPending'; \$w = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired'; '$1: cbs=' + \$c + ' wu=' + \$w"; }
+    guest "$(rd recheck)" | tee -a "$A/update-before.txt"
+    if tail -1 "$A/update-before.txt" | grep -q 'True'; then
+        echo "prologue: an update queued itself after the flag was set; restarting once and setting the flag again"
+        guest 'shutdown /r /t 0' >/dev/null 2>&1 || true
+        sleep 45; wait_windows 900
+        guest "$(rd after-recheck)" | tee -a "$A/update-before.txt"
+        tail -1 "$A/update-before.txt" | grep -q 'cbs=False wu=False' || { echo "prologue: the update is still waiting after a restart - read $A/update-before.txt" >&2; exit 1; }
+        "$SELF" dirty
     fi
     ;;
 dirty)
@@ -437,7 +454,7 @@ restore)
     PS disk list
     ;;
 run)
-    "$SELF" prepare; "$SELF" stick; "$SELF" inspect pre-install; "$SELF" windows; "$SELF" update-clear; "$SELF" dirty; "$SELF" autologon off; "$SELF" convert
+    "$SELF" prepare; "$SELF" stick; "$SELF" inspect pre-install; "$SELF" windows; "$SELF" update-clear; "$SELF" dirty; "$SELF" autologon off; "$SELF" update-recheck; "$SELF" convert
     "$SELF" wait-off 5400; "$SELF" inspect post-install
     "$SELF" cycle windows w1; "$SELF" cycle linux l1; "$SELF" cycle windows w2; "$SELF" cycle linux l2
     "$SELF" inspect post-cycles; "$SELF" verdict
