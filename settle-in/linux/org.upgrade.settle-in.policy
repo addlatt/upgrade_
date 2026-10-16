@@ -32,4 +32,15 @@
     <annotate key="org.freedesktop.policykit.exec.path">/usr/local/libexec/upgrade_/settle-in</annotate>
     <annotate key="org.freedesktop.policykit.exec.argv1">go-back</annotate>
   </action>
+  <action id="org.upgrade.settle-in.rollback">
+    <description>Make Windows start first again</description>
+    <message>Making Windows start first again changes this computer's startup files and order. Nothing is deleted. Type your password to allow it.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/libexec/upgrade_/settle-in</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">rollback</annotate>
+  </action>
 </policyconfig>

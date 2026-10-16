@@ -22,7 +22,7 @@ use upgrade_schema::Job;
 /// The last PowerShell generator this followed, word for word, before the scripts left the product (2026-10-11); the Rust is the reference since.
 pub const FOLLOWS_GENERATOR: &str = "0.8.0";
 /// This generator's own version: 0.9.0 (2026-10-11) GRUB's Windows entry records the choice in GRUB's environment block.
-pub const GENERATOR_VERSION: &str = "0.9.0";
+pub const GENERATOR_VERSION: &str = "0.10.0";
 
 /// A value inside a PowerShell "..." string.
 fn text(v: Option<&Value>) -> String {
@@ -168,8 +168,10 @@ pub fn kickstart(job: &Value, label: &str, manifest: &[String]) -> Result<String
         add("# keep-windows: Windows appears in the menu by our doing, not by luck (RISKS R21): os-prober off, our own entry");
         add("if grep -q '^GRUB_DISABLE_OS_PROBER=' /etc/default/grub; then sed -i 's/^GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=true/' /etc/default/grub; else echo 'GRUB_DISABLE_OS_PROBER=true' >> /etc/default/grub; fi");
         add("# the entry chainloads Windows' loader under its kept name when shim sits in Windows' slot (architecture step 12, decided 2026-10-10),");
-        add("# and first tells the prologue's return, through GRUB's environment block on the ESP, that Windows was chosen from this menu (amended 2026-10-11)");
+        add("# and first tells the prologue's return that Windows was chosen from this menu (amended 2026-10-11). The flag lives in its own");
+        add("# environment block ON THE ESP, made here: GRUB's default block is /boot/grub2/grubenv on ext4, which Windows cannot read (0.10.0, 2026-10-12)");
         add("espuuid=$(findmnt -no UUID /boot/efi 2>/dev/null)");
+        add("grub2-editenv /boot/efi/EFI/fedora/grubenv create");
         add("cat > /etc/grub.d/25_windows_kept <<'UPGEOF'");
         add("#!/bin/sh");
         add("exec tail -n +3 $0");
@@ -179,7 +181,7 @@ pub fn kickstart(job: &Value, label: &str, manifest: &[String]) -> Result<String
         add("    insmod chain");
         add("    search --no-floppy --fs-uuid --set=root ESPUUID");
         add("    set upg_windows_chosen=1");
-        add("    save_env upg_windows_chosen");
+        add("    save_env -f /EFI/fedora/grubenv upg_windows_chosen");
         add("    if [ -f /EFI/Microsoft/Boot/bootmgfw-kept.efi ]; then chainloader /EFI/Microsoft/Boot/bootmgfw-kept.efi; else chainloader /EFI/Microsoft/Boot/bootmgfw.efi; fi");
         add("}");
         add("UPGEOF");

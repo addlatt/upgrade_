@@ -12358,7 +12358,7 @@
    },
    "usr/local/sbin/upg-mark": {
     "mode": "0o755",
-    "sha256": "3efc2edc564a6cf3bd608a44bfab3f76c83f5e6d43069d2aafc553da06f59ac8"
+    "sha256": "b30d80f6a717995b212813ef6a91893f92e00455747249ba84e0e1ca6f6361d5"
    },
    "usr/share/applications/upgrade_-go-back-to-windows.desktop": {
     "mode": "0o644",

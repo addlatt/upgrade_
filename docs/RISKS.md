@@ -649,14 +649,14 @@ while Windows is kept; the prologue snapshots the ESP and the `Boot####` set;
 and `grub.cfg`; `evaluate` wants 32 MiB free on the ESP. Re-taking: R22.
 
 **Decided (2026-10-10, the owner):** shim in Windows' slot on firmware that
-ignores operating-system entries (Acer's): `bootmgfw.efi` moves one name
-aside (`bootmgfw-kept.efi`), shim takes its name, GRUB chainloads the kept
-name. Applied only on evidence (installed, Fedora left first, and yet Windows
-booted), reversible from the snapshot, re-applied by a guard task after
-servicing, Secure Boot on. **Amended (2026-10-11):** "and yet Windows booted"
-is GRUB's word: the "Windows (kept)" entry records the choice in GRUB's
-environment block on the ESP (kickstart 0.9.0), and a set flag stands the
-detector down (found on the rig, `v2-install.csv` line 16).
+ignores operating-system entries (Acer's): `bootmgfw.efi` moves aside as
+`bootmgfw-kept.efi`, shim takes its name, GRUB chainloads the kept name;
+applied only on evidence, reversible from the snapshot, re-applied by a guard
+task after servicing. **Amended (2026-10-11):** GRUB's "Windows (kept)" entry
+records the choice (kickstart 0.9.0) and a set flag stands the detector down.
+**Decided (2026-10-12, the owner):** the rollback runs from the Linux side
+(`settle-in rollback`): the order through efivarfs, the files from the stick's
+snapshot, a marker the guard honours; the Windows-side tool stays as plumbing.
 
 **Closes when.** Alongside installs are proven on real machines from several
 vendors, Secure Boot on: Windows boots from the menu, GRUB lists it, the ESP
@@ -666,11 +666,11 @@ that cannot is steered to clean slate before committing.
 **Where it stands.** `[####]` one machine, the product's own way
 (`v2-install.csv` line 15, the Aspire, 2026-10-11, `pass`); the rig held the
 return, servicing and the rollback (lines 12, 13; `r21-rollback.csv` line 5).
-The Aspire's rollback (`r21-rollback.csv` line 6, `windows-not-direct`): files
-back, guard gone, but a `bcdedit` order change does not survive a restart on
-this firmware (`efibootmgr`'s does), and kickstart 0.9.0 saves GRUB's flag on
-`/boot`, unreadable from Windows. Owed: both fixes, the unforced rig row, a
-real update under the guard, other vendors, a healthy drive ([log](log/2026-10.md#2026-10-12-the-first-rollback-on-a-real-machine-r21-v1b)).
+The Aspire's rollback (`r21-rollback.csv` line 6, `windows-not-direct`): a
+`bcdedit` order change does not survive a restart there (`efibootmgr`'s does).
+Kickstart 0.10.0's flag on the ESP and the Linux-side rollback both held on
+the rig (`v2-install.csv` line 17; `r21-rollback.csv` line 7). Owed: the
+Linux-side rollback on the Acer, an update under the guard, other vendors ([log](log/2026-10.md#2026-10-12-late-the-rig-answers-again-the-linux-side-rollback-holds-on-the-rig-r21-r22-r36-v1b)).
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · held-on-rig
 
@@ -1216,9 +1216,9 @@ that wrote LOCAL; and the rig repeats the two boots on the keep-Windows arm.
 host after two Linux boots; `v2-install.csv` line 14, `pass`). On the product
 path on 2026-10-11 (kickstart 0.8.0, `settle-in` `left-local`; +1 s, +2 s and
 +1 s after each Linux boot, nobody touching the clock; line 15, `pass`).
-Windows had also corrected its own clock within four hours on 2026-10-10, so
-the symptom lasts hours, not for good. Owed: the rig's two boots on the
-keep-Windows arm ([log](log/2026-10.md#2026-10-10-the-kept-windows-clock-by-hand-on-the-aspire-r36-v1b)).
+Windows also corrected its own clock within four hours on 2026-10-10. The
+rig reads `windows-clock-wrong` (`v2-install.csv` line 17): Hyper-V hands UTC
+to the guest's clock chip, which no PC does; owed: the bench's Time Synchronization off ([log](log/2026-10.md#2026-10-10-the-kept-windows-clock-by-hand-on-the-aspire-r36-v1b)).
 
 ## R37: The installer's own startup hangs before our checks run · medium · planned
 

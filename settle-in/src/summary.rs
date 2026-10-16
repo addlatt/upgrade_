@@ -43,7 +43,17 @@ pub fn build(root: &str, report: &Value, job: &Value) -> Value {
         // for "Go back to Windows": which Windows it was, never a key (the
         // schema refuses key shapes in every field; R13, R30)
         "windows_before": windows_before(job),
+        // for "Go back to Windows": a kept Windows means "Windows first again"
+        // (the rollback), not a fresh install (decided 2026-10-12, the owner)
+        "windows_kept": windows_kept(root, job),
     })
+}
+
+fn windows_kept(root: &str, job: &Value) -> bool {
+    let intent = job.pointer("/intent/path").and_then(Value::as_str) == Some("keep-windows");
+    let outcome = std::fs::read_to_string(format!("{}/var/lib/upgrade_/outcome.json", root.trim_end_matches('/'))).ok()
+        .and_then(|t| serde_json::from_str::<Value>(&t).ok()).unwrap_or(Value::Null);
+    intent && outcome.pointer("/path_taken").and_then(Value::as_str) == Some("keep-windows") && outcome.pointer("/windows/kept") == Some(&json!(true))
 }
 
 fn windows_before(job: &Value) -> Value {

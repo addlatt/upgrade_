@@ -383,11 +383,11 @@ test setup can fake (rule #5); `fsutil dirty set` is only our model of it.
 
 Rollback undoes the boot changes so the machine starts Windows again as it
 did before the conversion. One row per run, by `rig/hyperv/rollback-verdict.py`
-from the rollback's record (`upgrade_/rollback.json`, written by
-`upgrade-prologue rollback`, the window's "Roll back" choice, from the kept
-Windows), the offline ESP manifests before the conversion, after the cycles
-and after the rollback, and the bench's marker when Windows comes up
-afterwards with **no key pressed**. Bench: `rig/hyperv/prologue.sh rollback`.
+from the rollback's record (`upgrade_/rollback.json`, by `settle-in rollback`
+from Linux since 2026-10-12, or `upgrade-prologue rollback` from the kept
+Windows), the offline ESP manifests before the conversion, after the cycles and
+after the rollback, the guard's answer in the ESP marker `rolled-back.json`, and
+the bench's marker when Windows comes up with **no key pressed**. Bench: `rig/hyperv/prologue.sh rollback`.
 `--physical`: the ESP before is the stick's snapshot sums, the captures come from
 `physical/collect-windows.ps1`, `boots.log` is assembled (first line `source,`).
 
@@ -400,7 +400,7 @@ afterwards with **no key pressed**. Bench: `rig/hyperv/prologue.sh rollback`.
 
 **Result vocabulary.** `pass-plumbing` (rig) or `pass` (`--physical`) when
 all of the above hold; else the first failing item by name: `record-missing`,
-`not-restored`, `loader-mismatch`, `windows-not-first`, `windows-not-direct`, `linux-touched`, `efi-fedora-touched`.
+`not-restored`, `loader-mismatch`, `windows-not-first`, `windows-not-direct`, `linux-touched`, `efi-fedora-touched`, `guard-not-removed`.
 
 **What a pass requires.** A rig row closes the plumbing of the restore half
 of the R21 snapshot. The firmware clause is a physical-matrix column: does

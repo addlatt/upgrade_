@@ -45,8 +45,14 @@ restored = yn(fb.get("restored")); win_first = yn(bo.get("windows_first"))
 # attempt restored it and then refused at the slot's second mount; the second attempt found it in place)
 if restored != "y" and fb.get("sha_before") and fb.get("sha_before") == fb.get("snapshot_sha") and fb.get("sha_after") == fb.get("snapshot_sha"):
     restored = "y"; notes.append("fallback loader already matched the snapshot; nothing to restore")
-# shim in Windows' slot (architecture step 12): the rollback puts Windows' loader back under its own name and removes the guard
+# shim in Windows' slot (architecture step 12): the rollback puts Windows' loader back under its own name and removes the guard.
+# From the Linux side (decided 2026-10-12) the guard answers at the next Windows start, in the ESP marker rolled-back.json
 _ws = rec.get("windows_slot") if rec else None
+_marker = load("rolled-back.json")
+if _ws is not None and _ws.get("guard_removed") is None:
+    g = (_marker or {}).get("guard") or {}
+    _ws["guard_removed"] = g.get("removed") if g.get("removed") is not None else "not-yet-answered"
+    notes.append("linux-side rollback (" + str(rec.get("rollback_program")) + "); guard's answer from the ESP marker: " + str(_ws["guard_removed"]))
 if _ws: notes.append("slot undone: Windows' loader back in its slot (" + str(_ws.get("slot_sha_after"))[:12] + "), guard removed: " + str(_ws.get("guard_removed")))
 if rec: notes.append(f"rollback {rec.get('rollback_version')}: sha {str(fb.get('sha_before'))[:12]} -> {str(fb.get('sha_after'))[:12]} (snapshot {str(fb.get('snapshot_sha'))[:12]}); order {' '.join(bo.get('before', []))} -> {' '.join(bo.get('after', []))}")
 def man(r): return ((r or {}).get("esp") or {}).get("manifest") or {}
@@ -89,6 +95,7 @@ elif win_first != "y": result = "windows-not-first"
 elif direct != "y": result = "windows-not-direct"
 elif parts_ok != "y": result = "linux-touched"
 elif fedora_ok != "y": result = "efi-fedora-touched"
+elif _ws is not None and _ws.get("guard_removed") is not True and _ws.get("kept_name_removed") is True: result = "guard-not-removed"   # a guard existed only where the slot was arranged
 else: result = PASS
 row = [datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), HARNESS, FIRMWARE, yn(rec), restored, loader_ok, win_first, direct, parts_ok, fedora_ok, result, " | ".join(notes)]
 new = not CSV.exists()

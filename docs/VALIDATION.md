@@ -224,12 +224,12 @@ drive (R23). The Aspire, 2026-10-11: the return applied shim in Windows'
 slot from its own evidence, then Fedora and Windows were each reached
 with nobody at the keyboard, Secure Boot on, the clock right
 (`v2-install.csv` line 15, `pass`). The rig held the return, the guard
-after a servicing pass and the rollback (lines 12 and 13, `r18-prologue.csv`
-line 17, `r21-rollback.csv` line 5, all `pass-plumbing`). The rollback on
-this machine: `r21-rollback.csv` line 6, `windows-not-direct` (2026-10-12),
-everything held but the direct boot. Owed: that order half, the GRUB flag's
-home on the ESP, a real update under the guard (R22), a healthy-drive machine
-([log](log/2026-10.md#2026-10-12-the-first-rollback-on-a-real-machine-r21-v1b)).
+after servicing and the rollback (lines 12, 13; `r21-rollback.csv` line 5).
+The rollback on this machine: `r21-rollback.csv` line 6, `windows-not-direct`
+(2026-10-12), everything held but the direct boot; it now runs from Linux,
+held on the rig (`r21-rollback.csv` line 7; kickstart 0.10.0's flag unforced,
+`v2-install.csv` line 17). Owed: the Aspire's Linux-side rollback, R22, a
+healthy drive ([log](log/2026-10.md#2026-10-12-late-the-rig-answers-again-the-linux-side-rollback-holds-on-the-rig-r21-r22-r36-v1b)).
 
 # Tier 2: a core promise breaks (recoverable, but the default is broken)
 
