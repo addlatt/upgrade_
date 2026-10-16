@@ -409,8 +409,9 @@ aba09ec, Fedora 44, KDE, Secure Boot on, the stick left in throughout:
 `not-installed-again` (2026-10-04, run 11, the first clean conversion);
 line 32, `cancelled-untouched` (2026-10-06). Runs 9 and 10 are `[FAIL]`
 rows that stay (lines 11 and 22, `fail`: a text login; a second install,
-R35). The rig's latest is line 36 (`refused-before-countdown`,
-2026-10-09). Owed: other vendors' firmware, and the old-entry button on
+R35). The rig's latest: line 39 (`cancelled-untouched`, 2026-10-16) and
+line 40 (`fail`, arm C cancelled itself, R38); lines 33 to 38 were judged
+from older runs' records ([log](log/2026-10.md#2026-10-16-the-rigs-v9-rows-since-2026-10-08-were-judged-from-older-runs-records-v9-r27-r37-r38-roadmap-item-19-step-5)). Owed: other vendors' firmware, and the old-entry button on
 real firmware (nothing was left for it to remove)
 ([log](log/2026-10.md#2026-10-04-the-aspires-run-11-passed-the-first-clean-conversion-v9-v10-r27-r35)).
 

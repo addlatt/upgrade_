@@ -605,34 +605,34 @@ Invoke-Prologue.ps1,"v2-install.csv:3 (Hyper-V UEFI Release v4.1)",rig,,owed,202
 Invoke-Prologue.ps1,"v2-install.csv:4 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
 Invoke-Prologue.ps1,"v2-install.csv:5 (Hyper-V UEFI Release v4.1)",rig,"v2-install.csv:7 (PROLOGUE=rust prologue.sh run: keep-windows, kde, pass-plumbing)",pass,2026-10-07
 Invoke-Prologue.ps1,"v2-install.csv:6 (Hyper-V UEFI Release v4.1)",rig,"v2-install.csv:7 (PROLOGUE=rust prologue.sh run: keep-windows, kde, pass-plumbing)",pass,2026-10-07
-Invoke-Prologue.ps1,"v9-erase.csv:2 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:35 (arm A armed by upgrade-prologue verify-arm: refused-before-countdown)",pass,2026-10-09
-Invoke-Prologue.ps1,"v9-erase.csv:3 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:2 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 36 (arm A, 2026-10-09), whose verdict read the 2026-09-27 records in arm-A/ (log, 2026-10-16)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:3 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
 Invoke-Prologue.ps1,"v9-erase.csv:4 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
-Invoke-Prologue.ps1,"v9-erase.csv:5 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:34 (PROLOGUE=rust v9.sh arm B: a key during the countdown, cancelled-untouched, the return wrote the stopped outcome)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:6 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:7 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:8 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:9 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:10 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:5 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:39 (arm B again, 2026-10-16: upgrade-prologue 0.2.0 and upgrade-installer 0.1.1, the stick checked by sha256; Space read as 20, cancelled-untouched, both disks unchanged)",pass,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:6 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:7 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:8 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:9 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:10 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
 Invoke-Prologue.ps1,"v9-erase.csv:11 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
-Invoke-Prologue.ps1,"v9-erase.csv:12 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:13 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:14 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:35 (arm A armed by upgrade-prologue verify-arm: refused-before-countdown)",pass,2026-10-09
-Invoke-Prologue.ps1,"v9-erase.csv:15 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:16 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:34 (PROLOGUE=rust v9.sh arm B: a key during the countdown, cancelled-untouched, the return wrote the stopped outcome)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:17 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:34 (PROLOGUE=rust v9.sh arm B: a key during the countdown, cancelled-untouched, the return wrote the stopped outcome)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:18 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:19 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:20 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:21 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:12 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:13 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:14 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 36 (arm A, 2026-10-09), whose verdict read the 2026-09-27 records in arm-A/ (log, 2026-10-16)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:15 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:16 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:39 (arm B again, 2026-10-16: upgrade-prologue 0.2.0 and upgrade-installer 0.1.1, the stick checked by sha256; Space read as 20, cancelled-untouched, both disks unchanged)",pass,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:17 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:39 (arm B again, 2026-10-16: upgrade-prologue 0.2.0 and upgrade-installer 0.1.1, the stick checked by sha256; Space read as 20, cancelled-untouched, both disks unchanged)",pass,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:18 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:19 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:20 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:21 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
 Invoke-Prologue.ps1,"v9-erase.csv:22 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
-Invoke-Prologue.ps1,"v9-erase.csv:23 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:24 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:33 (arm D after the Rust prologue's arm C: not-installed-again)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:23 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:24 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
 Invoke-Prologue.ps1,"v9-erase.csv:25 (Hyper-V UEFI Release v4.1)",rig,,owed,2026-10-07
-Invoke-Prologue.ps1,"v9-erase.csv:26 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:27 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:33 (arm D after the Rust prologue's arm C: not-installed-again)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:28 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:32 (PROLOGUE=rust v9.sh arm C: erased-installed, the update restart first, countdown elapsed)",pass,2026-10-08
-Invoke-Prologue.ps1,"v9-erase.csv:29 (Hyper-V UEFI Release v4.1)",rig,"v9-erase.csv:33 (arm D after the Rust prologue's arm C: not-installed-again)",pass,2026-10-08
+Invoke-Prologue.ps1,"v9-erase.csv:26 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:27 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:28 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
+Invoke-Prologue.ps1,"v9-erase.csv:29 (Hyper-V UEFI Release v4.1)",rig,"was v9-erase.csv line 33 (arm C, 2026-10-08), whose verdict read the 2026-10-03 records in arm-C/ (log, 2026-10-16); arm C again failed, line 40 (R38)",owed,2026-10-16
 Invoke-Prologue.ps1,"v9-erase.csv:30 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
 Invoke-Prologue.ps1,"v9-erase.csv:31 (InsydeH2O V1.21 (Acer Aspire A515-51G))",physical,,owed,2026-10-07
 Invoke-Prologue.ps1,"walkaway-probe.csv:2 (Microsoft Corporation)",rig,"walkaway-probe.csv:4 (PROLOGUE=rust prologue.sh probe: resumed-unattended, SYSTEM session 0, stick after 4 s)",pass,2026-10-08
@@ -940,7 +940,7 @@ verify.sh,v2-install.csv:16,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:2,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:3,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:4,rig,,owed,2026-10-14
-verify.sh,v9-erase.csv:5,rig,,owed,2026-10-14
+verify.sh,v9-erase.csv:5,rig,"v9-erase.csv:39 (arm B again, 2026-10-16: upgrade-prologue 0.2.0 and upgrade-installer 0.1.1, the stick checked by sha256; Space read as 20, cancelled-untouched, both disks unchanged)",pass,2026-10-16
 verify.sh,v9-erase.csv:6,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:7,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:8,rig,,owed,2026-10-14
@@ -951,8 +951,8 @@ verify.sh,v9-erase.csv:12,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:13,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:14,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:15,rig,,owed,2026-10-14
-verify.sh,v9-erase.csv:16,rig,,owed,2026-10-14
-verify.sh,v9-erase.csv:17,rig,,owed,2026-10-14
+verify.sh,v9-erase.csv:16,rig,"v9-erase.csv:39 (arm B again, 2026-10-16: upgrade-prologue 0.2.0 and upgrade-installer 0.1.1, the stick checked by sha256; Space read as 20, cancelled-untouched, both disks unchanged)",pass,2026-10-16
+verify.sh,v9-erase.csv:17,rig,"v9-erase.csv:39 (arm B again, 2026-10-16: upgrade-prologue 0.2.0 and upgrade-installer 0.1.1, the stick checked by sha256; Space read as 20, cancelled-untouched, both disks unchanged)",pass,2026-10-16
 verify.sh,v9-erase.csv:18,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:19,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:20,rig,,owed,2026-10-14

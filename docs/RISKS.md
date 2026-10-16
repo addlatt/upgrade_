@@ -1224,9 +1224,10 @@ keep-Windows arm ([log](log/2026-10.md#2026-10-10-the-kept-windows-clock-by-hand
 
 **What.** Fedora 44's installer sometimes stops early in its own startup
 (at the SELinux relabel), before the kickstart's `%pre` and so before the
-verify step, the refusals or any countdown. Seen three times on the rig:
-2026-10-04 (arm C5), 2026-10-11 and 2026-10-15 (a diagnostic arm B). The
-cause is not known.
+verify step, the refusals or any countdown. Seen four times on the rig:
+2026-10-04 (arm C5), 2026-10-11, 2026-10-15 (a diagnostic arm B) and the
+night of 2026-10-15 (arm C: no `verify.log`, Windows back once the VM was
+freed, the prologue's record `stopped` at `install`). The cause is not known.
 
 **If real.** On a real machine the person sees a screen of text that never
 moves. Holding the power button brings Windows back, since the handoff is
@@ -1256,15 +1257,20 @@ sees the countdown run out, and both drives are erased. Critical.
 tty6 during the verify step; it hung up tty6 as it started and asked the
 console where the cursor was, and the answer landed in the countdown's
 input (`1b 5b 39 3b 31 52 1b 5b 34 38 3b 31 32 38 52`). On 2026-09-29 two
-Space presses during a countdown were never read (arm B). That the shell
-took them is not shown (rule #2).
+Space presses during a countdown were never read (arm B). On 2026-10-16
+(arm C, `v9-erase.csv` line 40) the countdown read only the back half of
+that answer (`34 38 3b 31 32 38 52`): another reader on tty6, the shell,
+had taken the front half. So the shell does read the countdown's input.
+That it takes a person's key is not shown yet (rule #2). The false cancel
+is the safe direction; the same race the other way is an erase.
 
 **Closes when.** The countdown's console has no other reader while it runs,
 and a rig row shows every key sent being read, then one real machine.
 
 **Where it stands.** `[#...]` planned. How to keep the shell off the
-countdown's console is a decision owed (`ROADMAP.md`). The two console
-faults the port met on the way are fixed ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
+countdown's console is a decision owed (`ROADMAP.md`); arm C on the rig
+cannot pass until then. No filter can tell half a cursor report from a key,
+so none is tried. The two console faults the port met on the way are fixed ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
 
 # Closed
 
