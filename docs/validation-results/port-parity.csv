@@ -924,16 +924,16 @@ verify.sh,v1-live-boot.csv:5,physical,,owed,2026-10-14
 verify.sh,v1-live-boot.csv:6,rig,,owed,2026-10-14
 verify.sh,v2-install.csv:2,rig,,owed,2026-10-14
 verify.sh,v2-install.csv:3,rig,,owed,2026-10-14
-verify.sh,v2-install.csv:4,rig,,owed,2026-10-14
-verify.sh,v2-install.csv:5,rig,,owed,2026-10-14
-verify.sh,v2-install.csv:6,rig,,owed,2026-10-14
-verify.sh,v2-install.csv:7,rig,,owed,2026-10-14
-verify.sh,v2-install.csv:8,rig,,owed,2026-10-14
-verify.sh,v2-install.csv:9,rig,,owed,2026-10-14
+verify.sh,v2-install.csv:4,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
+verify.sh,v2-install.csv:5,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
+verify.sh,v2-install.csv:6,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
+verify.sh,v2-install.csv:7,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
+verify.sh,v2-install.csv:8,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
+verify.sh,v2-install.csv:9,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
 verify.sh,v2-install.csv:10,physical,,owed,2026-10-14
 verify.sh,v2-install.csv:11,physical,,owed,2026-10-14
-verify.sh,v2-install.csv:12,rig,,owed,2026-10-14
-verify.sh,v2-install.csv:13,rig,,owed,2026-10-14
+verify.sh,v2-install.csv:12,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
+verify.sh,v2-install.csv:13,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
 verify.sh,v2-install.csv:14,physical,,owed,2026-10-14
 verify.sh,v2-install.csv:15,physical,,owed,2026-10-14
 verify.sh,v2-install.csv:16,rig,,owed,2026-10-14
@@ -972,23 +972,23 @@ verify.sh,v9-erase.csv:33,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:34,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:35,rig,,owed,2026-10-14
 verify.sh,v9-erase.csv:36,rig,,owed,2026-10-14
-verify.sh,r21-rollback.csv:2,rig,,owed,2026-10-14
-verify.sh,r21-rollback.csv:3,rig,,owed,2026-10-14
-verify.sh,r21-rollback.csv:4,rig,,owed,2026-10-14
-verify.sh,r21-rollback.csv:5,rig,,owed,2026-10-14
+verify.sh,r21-rollback.csv:2,rig,"r21-rollback.csv:8 (the Linux-side rollback, 2026-10-16, after v2-install.csv line 19 with upgrade-installer 0.1.1; pass-plumbing)",pass,2026-10-16
+verify.sh,r21-rollback.csv:3,rig,"r21-rollback.csv:8 (the Linux-side rollback, 2026-10-16, after v2-install.csv line 19 with upgrade-installer 0.1.1; pass-plumbing)",pass,2026-10-16
+verify.sh,r21-rollback.csv:4,rig,"r21-rollback.csv:8 (the Linux-side rollback, 2026-10-16, after v2-install.csv line 19 with upgrade-installer 0.1.1; pass-plumbing)",pass,2026-10-16
+verify.sh,r21-rollback.csv:5,rig,"r21-rollback.csv:8 (the Linux-side rollback, 2026-10-16, after v2-install.csv line 19 with upgrade-installer 0.1.1; pass-plumbing)",pass,2026-10-16
 verify.sh,r21-rollback.csv:6,physical,,owed,2026-10-14
 outcome.sh,v2-install.csv:2,rig,,owed,2026-10-14
 outcome.sh,v2-install.csv:3,rig,,owed,2026-10-14
-outcome.sh,v2-install.csv:4,rig,,owed,2026-10-14
-outcome.sh,v2-install.csv:5,rig,,owed,2026-10-14
-outcome.sh,v2-install.csv:6,rig,,owed,2026-10-14
-outcome.sh,v2-install.csv:7,rig,,owed,2026-10-14
-outcome.sh,v2-install.csv:8,rig,,owed,2026-10-14
-outcome.sh,v2-install.csv:9,rig,,owed,2026-10-14
+outcome.sh,v2-install.csv:4,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
+outcome.sh,v2-install.csv:5,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
+outcome.sh,v2-install.csv:6,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
+outcome.sh,v2-install.csv:7,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
+outcome.sh,v2-install.csv:8,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
+outcome.sh,v2-install.csv:9,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
 outcome.sh,v2-install.csv:10,physical,,owed,2026-10-14
 outcome.sh,v2-install.csv:11,physical,,owed,2026-10-14
-outcome.sh,v2-install.csv:12,rig,,owed,2026-10-14
-outcome.sh,v2-install.csv:13,rig,,owed,2026-10-14
+outcome.sh,v2-install.csv:12,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
+outcome.sh,v2-install.csv:13,rig,"v2-install.csv:19 (the keep-Windows arm again, 2026-10-16, kit 74684e9: upgrade-installer 0.1.1 in %pre and %post, kickstart 0.10.0; pass-plumbing)",pass,2026-10-16
 outcome.sh,v2-install.csv:14,physical,,owed,2026-10-14
 outcome.sh,v2-install.csv:15,physical,,owed,2026-10-14
 outcome.sh,v2-install.csv:16,rig,,owed,2026-10-14
@@ -1024,10 +1024,10 @@ outcome.sh,v9-erase.csv:32,physical,,owed,2026-10-14
 outcome.sh,v9-erase.csv:33,rig,,owed,2026-10-14
 outcome.sh,v9-erase.csv:34,rig,,owed,2026-10-14
 outcome.sh,v9-erase.csv:35,rig,,owed,2026-10-14
-outcome.sh,r21-rollback.csv:2,rig,,owed,2026-10-14
-outcome.sh,r21-rollback.csv:3,rig,,owed,2026-10-14
-outcome.sh,r21-rollback.csv:4,rig,,owed,2026-10-14
-outcome.sh,r21-rollback.csv:5,rig,,owed,2026-10-14
+outcome.sh,r21-rollback.csv:2,rig,"r21-rollback.csv:8 (the Linux-side rollback, 2026-10-16, after v2-install.csv line 19 with upgrade-installer 0.1.1; pass-plumbing)",pass,2026-10-16
+outcome.sh,r21-rollback.csv:3,rig,"r21-rollback.csv:8 (the Linux-side rollback, 2026-10-16, after v2-install.csv line 19 with upgrade-installer 0.1.1; pass-plumbing)",pass,2026-10-16
+outcome.sh,r21-rollback.csv:4,rig,"r21-rollback.csv:8 (the Linux-side rollback, 2026-10-16, after v2-install.csv line 19 with upgrade-installer 0.1.1; pass-plumbing)",pass,2026-10-16
+outcome.sh,r21-rollback.csv:5,rig,"r21-rollback.csv:8 (the Linux-side rollback, 2026-10-16, after v2-install.csv line 19 with upgrade-installer 0.1.1; pass-plumbing)",pass,2026-10-16
 outcome.sh,r21-rollback.csv:6,physical,,owed,2026-10-14
 verify.sh,"keep-windows, verify mode: identity, hardware, image and snapshot pass, the report, back to Windows",selftest,"upgrade_/linux/installer/tests/parity.rs (golden.json: 42 cases in the sandbox, the program's exit, lines, files, tool calls and screens equal to the script's)",pass,2026-10-14
 verify.sh,"keep-windows, install mode: every gate passes, the stick is disarmed",selftest,"upgrade_/linux/installer/tests/parity.rs (golden.json: 42 cases in the sandbox, the program's exit, lines, files, tool calls and screens equal to the script's)",pass,2026-10-14
