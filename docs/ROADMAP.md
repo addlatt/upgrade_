@@ -186,6 +186,15 @@ power cycles; the 45 `owed` ledger lines. No case or frozen golden is
 dropped to save time (rule #5). Proves: R9, V13. Stands: see
 [STATUS.md](STATUS.md).
 
+## 22. Open firmware, for the curious (parked)
+
+An opt-in step, never the default: replace the machine's firmware with
+Libreboot (26.10, 2026-10-15: EDK2 UEFI by default, 233 Chromebooks).
+Decided (2026-10-15, the owner): long-term and for experienced users only;
+not explored until the base product is highly aligned. A failed flash leaves
+a machine nothing on the stick can start (rule #4). Proves: new risks the
+day it is picked (R15, R21, R29 first). Waits on: the Windows path shipping.
+
 ## Decisions owed
 
 The owner's open calls, one line each, naming what waits on them. When one
