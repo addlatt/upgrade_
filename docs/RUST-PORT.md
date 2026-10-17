@@ -477,6 +477,9 @@ Each one is stricter than the original, or changes no decision.
 | `upgrade-scan diag secureboot`, a failed read of `db`, `dbx` or `SecureBoot` (2026-10-14) | the exception text of `Get-SecureBootUEFI` and `Confirm-SecureBootUEFI` | without elevation, the cmdlets' own sentence ("Unable to set proper privileges. Access was denied."); elevated, the system's words for the Win32 error of `GetFirmwareEnvironmentVariableEx` | a diagnostic line. The unelevated case, the only one seen, is word for word; the elevated failure has not been seen on a machine |
 | the installer's header lines (2026-10-14) | `== upgrade_ verify.sh 0.6.0  mode=...`, `== upgrade_ outcome.sh 0.6.1 ...` | the same, with `(upgrade-installer <version>, Rust)` after the version | a record should say what wrote it; the parity test reads past the suffix, nothing else reads the line |
 | `verify.json` (2026-10-14) | `verify_version` | `verify_program` beside it, naming this program; `verify_version` stays the script's | a record should say what wrote it; `v1-verdict.py` reads `verify_version`. `outcome.json` gains nothing: its schema allows no extra field, and `settle-in` reads `converter_version`, which stays `0.6.1` |
+| the way back's SSH server, "installed" (2026-10-17) | `Get-WindowsCapability`'s state `Installed` | the `sshd` service exists (the service manager's own numbers; DISM's words follow the machine's language) | the capability registers the service; the question asked is "is there a server to start" |
+| the way back's firewall opening (2026-10-17) | `New-NetFirewallRule -Name OpenSSH-Server-In-TCP` if missing, then that rule set to every profile | our own rule by `netsh`, `upgrade_ OpenSSH Server (sshd)`, TCP 22, every profile, added once; the capability's rule left as Windows made it | `netsh` finds rules by display name, which is not ours to rely on; port 22 is open in every profile either way |
+| `sshd_config`'s three lines on top (2026-10-17) | `Get-Content -Raw`, then `Set-Content -Encoding ascii` (a character outside ASCII became `?`) | the file's own bytes kept, the three lines in front | the same lines; nothing else in the file changes |
 | `outcome.sh`'s grub count on a `grub.cfg` with no Windows entry (2026-10-14) | `grep -c` prints `0` and exits 1, so `\|\| echo 0` printed a second `0`, bash complained about the comparison (`integer expression expected`) and the count line echoed twice; the decision was right | the count once, no complaint | the script's own noise; `tests/sandbox.py` drops it on both sides so the case still compares. Nothing read those lines |
 | "Volume health", the online scan's result (2026-10-07) | judged under Windows 10's names only (`ErrorsFound`, `ErrorsNotFixed`); on Windows 11 a scan that found errors (`ScanErrorsFoundNeedSpotFix`, `ScanErrorsFixedOnlineAlsoNeedSpotFix`, `ScanErrorsFoundAndFixedOnline`) read as ok, the word left in the note | both sets of names mean errors found: WARN, "online scan reported: ..."; and `ScanNoErrorsFound` gets the "its own log contradicts" clause like `NoErrorsFound` | stricter. `storage::SCAN_FOUND_ERRORS`; `tests/parity.rs` holds the four cases by name, and fails the day the PowerShell says the same, so the exception cannot outlive its reason |
 
@@ -789,9 +792,15 @@ The phases, each its own pull request:
    the scripts call: 42 faked machines, the program's exit, lines, files,
    tool calls, screens and firmware entries equal to what the scripts did,
    frozen as the thirteenth golden ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)). The scripts left the tree
-   in the same commit. Owed: the rig rows re-earned with the program (V1,
-   the keep-Windows install and its rollback, V9's three arms), then the
-   Aspire's; settle-in's starter (step 6); the build and check tools (step 7).
+   in the same commit. The rig rows re-earned with the program: the
+   keep-Windows install and its rollback (2026-10-16), V9's arms B, C and D
+   (2026-10-17). Owed: V1's live boot and V9's arm A on the rig, then the
+   Aspire's. Step 6, settle-in's starter, is built (2026-10-14, 5a8b820,
+   settle-in 0.4.0): `settle-in console-hook` holds what the script
+   checked, under five unit tests, and `/etc/profile.d/` keeps a three-line
+   file that calls it (a sign-in shell can only source shell); a console
+   sign-in on the rig with it is owed. Step 7 is dropped (decided
+   2026-10-17, below).
 
 The handoff prompt for the sessions that do phases 2 and 3, and the Linux
 side after them (roadmap item 19): `UNIFICATION-PROMPT.md`.
@@ -801,12 +810,66 @@ What stays PowerShell on purpose: the rig's own Hyper-V scripts
 injection, which is how WSL drives Hyper-V and a Windows guest; they are
 the harness, not the product.
 
+**Decided (2026-10-17, the owner): the port stops at what a person's
+computer runs.** What is still to do: V9's arm A (B, C and D passed with
+the countdown on tty9, 2026-10-17), V1's live boot, the prologue's
+disk-check arm, the same rows on the Aspire, and R16's write rows, after which
+`Write-UpgradeStick.ps1` and `Copy-Kit.ps1` leave the tree. The owed
+ledger lines turn as those runs happen; no run is made for a ledger line
+alone. Kept as they are, on purpose:
+
+- the build and check tools (`make-kit.sh`, `build-rust.sh`,
+  `rebuild-check.sh`, `port-check.sh`, `docs-check.sh`, `schemas/check.py`,
+  `data/tools/`, settle-in's `tools/` builders): they run on the
+  developer's machine, never the person's, and they work (step 7 dropped);
+- `upgrade_/linux/installer/src/upg-mark.sh`: the rig's boot marker,
+  installed only when the stick carries `upgrade_/bench`; every rig
+  verdict reads its lines, so it is harness, like `vm.ps1`;
+- the `.cmd` starters on the stick (`UPGRADE.cmd`, the `DIAG-*.cmd`):
+  Windows needs a file a person can double-click, and each only starts a
+  Rust program;
+- settle-in's three-line `/etc/profile.d/` file (step 6 above);
+- `go-back-first-logon.cmd` on the walk-away stick: Windows Setup's
+  answer file can only start a command line, and since 2026-10-17 it is
+  one line that starts `upgrade-gate.exe first-logon` (below).
+
+**The last shell and PowerShell in the product (2026-10-17, roadmap item
+19).** Found while listing what a person's computer runs: two pieces the
+list above missed.
+
+- *The kickstart's chroot `%post`* (about 25 lines of shell: os-prober
+  off, the ESP's GRUB environment block, the `25_windows_kept` entry with
+  the ESP's UUID, `grub2-mkconfig`, Plasma Setup off, the start target,
+  the captures in `/root`) is now the first thing `upgrade-installer
+  outcome` does (0.1.3, `src/post.rs`), in the same order and before
+  anything `outcome` reads from the installed system. Files are written by
+  the Rust; the installed system's own tools run through `chroot`; the
+  GRUB entry stays GRUB script, a fixed text. Kickstart generator 0.11.0
+  keeps only the exec lines. Six new sandbox cases; both goldens recorded
+  again from the programs and reviewed as diffs (the 31 verify cases and
+  every old `outcome.json` unchanged).
+- *The way back's first sign-in* (`go-back-first-logon.cmd`, Wi-Fi and the
+  SSH keys, and `go-back-ssh.ps1`, the SYSTEM task) is now `upgrade-gate
+  first-logon` and `upgrade-gate ssh-task` (gate 0.4.0,
+  `settle-in/gate/src/firstlogon.rs`, eleven unit tests with a made-up
+  Windows). **Where the program lives:** in the gate, not
+  `upgrade-prologue.exe`. The gate is already the way back's Windows
+  program, the installer already carries it onto the installed Linux
+  (`outcome.rs`, `GB_FILES`, checked against `SHA256SUMS`), and settle-in
+  already puts it on the walk-away stick (inside `boot.wim`); one more
+  copy beside the starter is all it takes. The prologue would have needed
+  a new file in the kit, in `SI_FILES` and on the installed Linux, for a
+  program whose job is the other direction.
+- *The stick writer* (`Write-UpgradeStick.ps1`, `Copy-Kit.ps1`) stays
+  until R16's write rows exist (rule #4); the plan for the commit that
+  deletes it is in the pull request that carried this.
+
 ## Open decisions (the owner's)
 
 1. **The data tables' format**: decided 2026-10-14, JSON ("The data
    tables" above).
 2. **Beyond the Windows side.** Decided 2026-10-12 (R32): all that can
    be Rust is Rust. The installer's two scripts are Rust since 2026-10-14
-   (phase 4 above). Still shell or Python: `settle-in`'s starter (roadmap
-   item 19, step 6), `make-kit.sh`, `build-rust.sh`, `schemas/check.py`
-   and `data/tools/` (step 7, where feasible).
+   (phase 4 above), settle-in's starter since the same day. Where the
+   port stops, and what stays shell or Python on purpose: decided
+   2026-10-17 ("What comes next" above).

@@ -20,7 +20,12 @@
 //!   upgrade-gate                 the WinPE start (refuses to run anywhere else)
 //!   upgrade-gate --list          the drives this Windows sees, as JSON (read-only)
 //!   upgrade-gate --check JOB     what the gate would decide here (read-only)
+//!   upgrade-gate first-logon S:  the new Windows' first sign-in (firstlogon.rs): Wi-Fi from the stick S:, the SSH task
+//!   upgrade-gate ssh-task        that task, as SYSTEM at every start until done
 
+// only the Windows build starts it; the Linux build tests it
+#[cfg_attr(not(windows), allow(dead_code))]
+mod firstlogon;
 mod logic;
 mod win;
 
@@ -37,7 +42,7 @@ fn found_json(f: &[Found]) -> Value {
 }
 
 /// UTC now, "YYYY-MM-DDTHH:MM:SSZ" (WinPE's clock is the firmware's, as it reads it).
-fn now_utc() -> String {
+pub fn now_utc() -> String {
     let s = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0) as i64;
     let (days, rem) = (s.div_euclid(86400), s.rem_euclid(86400));
     let z = days + 719468;
@@ -264,6 +269,12 @@ fn run() -> i32 {
     0
 }
 
+/// C:\ProgramData, as Windows names it.
+#[cfg(windows)]
+fn programdata() -> String {
+    std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".into())
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
@@ -278,6 +289,11 @@ fn main() {
             };
             println!("{}", serde_json::to_string_pretty(&json!({ "decision": out, "seen": seen_json(&seen) })).unwrap_or_default());
         }
+        // the new Windows, never WinPE: the answer file's first-sign-in commands, then the task they register
+        #[cfg(windows)]
+        Some("first-logon") if args.len() >= 2 => std::process::exit(firstlogon::first_logon(&mut firstlogon::Real, &args[1], &programdata())),
+        #[cfg(windows)]
+        Some("ssh-task") => std::process::exit(firstlogon::ssh_task(&mut firstlogon::Real, &programdata())),
         None => std::process::exit(run()),
         Some(other) => {
             eprintln!("upgrade-gate: unknown argument {}", other);

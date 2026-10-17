@@ -189,6 +189,8 @@ pub fn build_tree(esd: &str, edition: &str, account: &str, tree: &str, gate: &st
     // commands instead, which run everywhere (R33)
     let _ = account;
     std::fs::create_dir_all(format!("{}/upgrade_", tree)).map_err(|e| e.to_string())?;
+    // the gate again, outside boot.wim: the new Windows' first sign-in runs it from the stick (FIRST_LOGON_CMD)
+    std::fs::copy(gate, format!("{}/upgrade_/upgrade-gate.exe", tree)).map_err(|e| format!("the gate program could not be copied ({}): {}", gate, e))?;
     Ok(json!({ "edition": edition, "esd_index": index }))
 }
 
@@ -292,13 +294,15 @@ pub fn wifi_profile(keyfile: &str) -> Option<(Value, Option<String>)> {
     Some((info(true, if auto { "connects by itself" } else { "set up; connect from the network menu" }), Some(xml)))
 }
 
-/// The stick's first-sign-in script (run by the gate's answer file, with the
-/// stick's drive as %1): add every profile for all users, log what Windows
-/// said (names only), delete the profiles from the stick. Pure. It starts the
-/// Wi-Fi service first and waits 5 s: at the first sign-in it may not be
-/// running yet (the rig answered "wlansvc is not running", 2026-10-03; there
-/// because a VM has no Wi-Fi hardware).
-pub const FIRST_LOGON_CMD: &str = "@echo off\r\nrem written by settle-in: Wi-Fi from Linux (decided 2026-10-02); passwords leave this stick here\r\nset S=%1\r\nif exist %S%\\upgrade_\\wifi (\r\n  net start wlansvc >> %S%\\upgrade_\\go-back-wifi.log 2>&1\r\n  ping -n 6 127.0.0.1 > nul\r\n  for %%f in (%S%\\upgrade_\\wifi\\*.xml) do netsh wlan add profile filename=\"%%f\" user=all >> %S%\\upgrade_\\go-back-wifi.log 2>&1\r\n  rmdir /s /q %S%\\upgrade_\\wifi\r\n)\r\nif exist %S%\\upgrade_\\wifi (echo wifi folder NOT removed >> %S%\\upgrade_\\go-back-wifi.log) else (echo wifi folder removed >> %S%\\upgrade_\\go-back-wifi.log)\r\nrem remote access from Linux (decided 2026-10-04): public keys only; a task as SYSTEM installs the SSH server once the network is up\r\nif exist %S%\\upgrade_\\ssh\\authorized_keys (\r\n  mkdir C:\\ProgramData\\upgrade_ 2>nul\r\n  copy /y %S%\\upgrade_\\ssh\\authorized_keys C:\\ProgramData\\upgrade_\\go-back-ssh-keys > nul\r\n  copy /y %S%\\upgrade_\\go-back-ssh.ps1 C:\\ProgramData\\upgrade_\\go-back-ssh.ps1 > nul\r\n  powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\\ProgramData\\upgrade_\\go-back-ssh.ps1 -Register >> %S%\\upgrade_\\go-back-ssh.log 2>&1\r\n)\r\n";
+/// The stick's first-sign-in starter (run by the gate's answer file, with
+/// the stick's drive as %1). Windows Setup can only start a command line, so
+/// this one line starts the gate's own first sign-in (upgrade-gate.exe
+/// first-logon, settle-in/gate/src/firstlogon.rs; a batch file of its own
+/// until gate 0.4.0, 2026-10-17): Wi-Fi from Linux for all users, then the
+/// passwords leave the stick (decided 2026-10-02); remote access with the
+/// person's public keys only (decided 2026-10-04). build_tree puts the gate
+/// next to it.
+pub const FIRST_LOGON_CMD: &str = "@echo off\r\nrem written by settle-in: the way back's first sign-in is upgrade-gate.exe's (Wi-Fi decided 2026-10-02, SSH keys only 2026-10-04)\r\n\"%~1\\upgrade_\\upgrade-gate.exe\" first-logon %1\r\n";
 
 /// Read Linux's saved networks (root) and write the profiles into the
 /// stick's files. Returns the list for the job: names and reasons, never a password.
@@ -380,61 +384,13 @@ fn plain_key(line: &str) -> bool {
         && body.len() >= 16 && body.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'=')
 }
 
-/// Windows turns its SSH server on with these keys (as SYSTEM, from a task
-/// the first sign-in registers). The server is a download from Windows
-/// Update, so it waits for the network and tries again at every start until
-/// it has it. Keys only: password sign-in is switched off. Windows
-/// PowerShell 5.1.
-pub const SSH_PS1: &str = r##"# written by settle-in: remote access (SSH) carried from Linux (decided 2026-10-04)
-param([switch]$Register)
-$ErrorActionPreference = 'Continue'
-$d = 'C:\ProgramData\upgrade_'; $log = "$d\go-back-ssh.log"; $task = 'upgrade_ go-back ssh'
-function L([string]$s) { Add-Content -Path $log -Value ((Get-Date).ToUniversalTime().ToString('o') + ' ' + $s) }
-if ($Register) {
-    # the first sign-in only registers this script as a task (SYSTEM, every start, on battery too) and starts it;
-    # the work goes on after the person is signed out
-    $a = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -ExecutionPolicy Bypass -File "' + $PSCommandPath + '"')
-    $p = New-ScheduledTaskPrincipal -UserId 'NT AUTHORITY\SYSTEM' -LogonType ServiceAccount -RunLevel Highest
-    $s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 2)
-    Register-ScheduledTask -TaskName $task -Action $a -Trigger (New-ScheduledTaskTrigger -AtStartup) -Principal $p -Settings $s -Force | Out-Null
-    Start-ScheduledTask -TaskName $task
-    L 'task registered and started'
-    exit 0
-}
-if (Test-Path "$d\go-back-ssh.done") { schtasks /delete /tn $task /f | Out-Null; exit 0 }
-if (-not (Test-Path "$d\go-back-ssh-keys")) { L 'no keys file; nothing to do'; schtasks /delete /tn $task /f | Out-Null; exit 0 }
-$name = 'OpenSSH.Server~~~~0.0.1.0'; $have = $false
-for ($i = 0; $i -lt 60 -and -not $have; $i++) {
-    $c = Get-WindowsCapability -Online -Name $name -ErrorAction SilentlyContinue
-    if ($c -and "$($c.State)" -eq 'Installed') { $have = $true; break }
-    try { Add-WindowsCapability -Online -Name $name -ErrorAction Stop | Out-Null; $have = $true; L 'the SSH server was installed' }
-    catch { L ('not yet (try ' + ($i + 1) + '): ' + $_.Exception.Message); Start-Sleep -Seconds 60 }
-}
-if (-not $have) { L 'the SSH server could not be downloaded this time; trying again at the next start'; exit 1 }
-Start-Service sshd -ErrorAction SilentlyContinue   # its first start writes C:\ProgramData\ssh\sshd_config
-$k = 'C:\ProgramData\ssh\administrators_authorized_keys'
-Copy-Item "$d\go-back-ssh-keys" $k -Force
-icacls $k /inheritance:r /grant '*S-1-5-32-544:F' /grant '*S-1-5-18:F' | Out-Null
-$cfg = 'C:\ProgramData\ssh\sshd_config'
-if (Test-Path $cfg) {
-    $t = Get-Content $cfg -Raw
-    if ($t -notmatch '(?m)^# upgrade_: keys only') {
-        # sshd keeps the first value it reads: these lines go on top
-        Set-Content -Path $cfg -Value ("# upgrade_: keys only, carried from Linux`r`nPasswordAuthentication no`r`nKbdInteractiveAuthentication no`r`n" + $t) -Encoding ascii
-    }
-} else { L 'sshd_config was not found; password sign-in was NOT switched off' }
-Set-Service sshd -StartupType Automatic
-Restart-Service sshd -ErrorAction SilentlyContinue
-if (-not (Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue)) { New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 | Out-Null }
-Set-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -Profile Any -Enabled True
-$s = Get-Service sshd -ErrorAction SilentlyContinue
-L ('sshd: ' + $s.Status + ', start ' + $s.StartType + '; keys ' + @(Get-Content $k).Count + '; password sign-in off: ' + [bool]((Get-Content $cfg -Raw -ErrorAction SilentlyContinue) -match '(?m)^PasswordAuthentication no'))
-if ("$($s.Status)" -eq 'Running') { Set-Content "$d\go-back-ssh.done" 'done'; Remove-Item "$d\go-back-ssh-keys" -Force; schtasks /delete /tn $task /f | Out-Null }
-"##;
-
-/// Linux's remote access, for the stick: the keys file and the Windows
-/// script, written only when the SSH server is enabled and the person has
-/// plain public keys. `user`: whose keys (the person who started the way
+/// Linux's remote access, for the stick: the keys file, written only when
+/// the SSH server is enabled and the person has plain public keys. Windows
+/// turns its SSH server on with them: the gate's first sign-in registers a
+/// SYSTEM task that waits for the network, installs the server, lets in
+/// these keys only, switches password sign-in off and removes itself
+/// (settle-in/gate/src/firstlogon.rs; a PowerShell script on the stick
+/// until gate 0.4.0). `user`: whose keys (the person who started the way
 /// back). Returns what goes into the job: a result and a count, never a key.
 pub fn carry_ssh(root: &str, user: &str, tree: &str) -> Result<Value, String> {
     let r = root.trim_end_matches('/');
@@ -461,7 +417,6 @@ pub fn carry_ssh(root: &str, user: &str, tree: &str) -> Result<Value, String> {
     let dir = format!("{}/upgrade_/ssh", tree);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {}", dir, e))?;
     std::fs::write(format!("{}/authorized_keys", dir), keys.join("\r\n") + "\r\n").map_err(|e| e.to_string())?;
-    std::fs::write(format!("{}/upgrade_/go-back-ssh.ps1", tree), SSH_PS1.replace('\n', "\r\n")).map_err(|e| e.to_string())?;
     Ok(json!({ "result": "carried", "keys": keys.len() }))
 }
 
@@ -878,7 +833,10 @@ mod tests {
         assert!(std::fs::read_to_string(tree.join("upgrade_/wifi/01.xml")).unwrap().contains("secret123"));
         assert!(!tree.join("upgrade_/wifi/02.xml").exists());
         let cmd = std::fs::read_to_string(tree.join("upgrade_/go-back-first-logon.cmd")).unwrap();
-        assert!(cmd.contains("netsh wlan add profile filename=") && cmd.contains("user=all") && cmd.contains("rmdir /s /q %S%\\upgrade_\\wifi"));
+        // one starter line: the work is the gate's (settle-in/gate/src/firstlogon.rs holds its tests)
+        assert_eq!(cmd.lines().filter(|l| !l.starts_with("@echo") && !l.starts_with("rem ")).collect::<Vec<_>>(), vec!["\"%~1\\upgrade_\\upgrade-gate.exe\" first-logon %1"]);
+        assert!(cmd.ends_with("\r\n") && cmd.matches("\r\n").count() == 3, "CRLF lines, as cmd.exe reads them");
+        assert!(!cmd.contains("netsh") && !cmd.contains("powershell"));
         assert!(!serde_json::to_string(&list).unwrap().contains("secret123"));
         std::fs::remove_dir_all(&r).unwrap();
     }
@@ -932,11 +890,11 @@ mod tests {
         let out = carry_ssh(r, "a", t).unwrap();
         assert_eq!(out, json!({ "result": "carried", "keys": 1 }));
         assert_eq!(std::fs::read_to_string(tree.join("upgrade_/ssh/authorized_keys")).unwrap(), format!("{}\r\n", k));
-        let ps = std::fs::read_to_string(tree.join("upgrade_/go-back-ssh.ps1")).unwrap();
-        assert!(ps.contains("PasswordAuthentication no") && ps.contains("OpenSSH.Server~~~~0.0.1.0") && ps.contains("administrators_authorized_keys"));
+        // no script beside the keys: the gate's first sign-in does the Windows side
+        assert!(!tree.join("upgrade_/go-back-ssh.ps1").exists());
         assert_eq!(carry_ssh(r, "nobody", t).unwrap()["result"], "no-keys");
         assert_eq!(person(r).as_deref(), Some("a"));
-        assert!(FIRST_LOGON_CMD.contains("go-back-ssh.ps1 -Register") && ps.contains("NT AUTHORITY\\SYSTEM") && ps.contains("AllowStartIfOnBatteries"));
+        assert!(FIRST_LOGON_CMD.contains("upgrade-gate.exe\" first-logon %1"));
     }
 
 }

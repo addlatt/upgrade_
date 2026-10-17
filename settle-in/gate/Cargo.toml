@@ -1,11 +1,13 @@
 [package]
 name = "upgrade-gate"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2024"
 
 # The gate on a "Go back to Windows" stick (RISKS R33): it runs first inside
 # Windows Setup's own environment (WinPE), finds the drives the job names,
-# and holds the countdown that is the commit line.
+# and holds the countdown that is the commit line. Since 0.4.0 it also does
+# the new Windows' first sign-in (Wi-Fi, SSH keys; firstlogon.rs), which was
+# a batch file and a PowerShell script.
 [[bin]]
 name = "upgrade-gate"
 path = "src/main.rs"
@@ -14,7 +16,7 @@ path = "src/main.rs"
 serde_json = "1"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl", "Win32_System_Console", "Win32_System_Threading", "Win32_System_SystemInformation"] }
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl", "Win32_System_Console", "Win32_System_Threading", "Win32_System_SystemInformation", "Win32_System_Services"] }
 
 [profile.release]
 opt-level = "s"
