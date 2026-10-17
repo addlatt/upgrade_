@@ -789,9 +789,15 @@ The phases, each its own pull request:
    the scripts call: 42 faked machines, the program's exit, lines, files,
    tool calls, screens and firmware entries equal to what the scripts did,
    frozen as the thirteenth golden ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)). The scripts left the tree
-   in the same commit. Owed: the rig rows re-earned with the program (V1,
-   the keep-Windows install and its rollback, V9's three arms), then the
-   Aspire's; settle-in's starter (step 6); the build and check tools (step 7).
+   in the same commit. The rig rows re-earned with the program: the
+   keep-Windows install and its rollback (2026-10-16), V9's arms B, C and D
+   (2026-10-17). Owed: V1's live boot and V9's arm A on the rig, then the
+   Aspire's. Step 6, settle-in's starter, is built (2026-10-14, 5a8b820,
+   settle-in 0.4.0): `settle-in console-hook` holds what the script
+   checked, under five unit tests, and `/etc/profile.d/` keeps a three-line
+   file that calls it (a sign-in shell can only source shell); a console
+   sign-in on the rig with it is owed. Step 7 is dropped (decided
+   2026-10-17, below).
 
 The handoff prompt for the sessions that do phases 2 and 3, and the Linux
 side after them (roadmap item 19): `UNIFICATION-PROMPT.md`.
@@ -801,12 +807,32 @@ What stays PowerShell on purpose: the rig's own Hyper-V scripts
 injection, which is how WSL drives Hyper-V and a Windows guest; they are
 the harness, not the product.
 
+**Decided (2026-10-17, the owner): the port stops at what a person's
+computer runs.** What is still to do: V9's arm A (B, C and D passed with
+the countdown on tty9, 2026-10-17), V1's live boot, the prologue's
+disk-check arm, the same rows on the Aspire, and R16's write rows, after which
+`Write-UpgradeStick.ps1` and `Copy-Kit.ps1` leave the tree. The owed
+ledger lines turn as those runs happen; no run is made for a ledger line
+alone. Kept as they are, on purpose:
+
+- the build and check tools (`make-kit.sh`, `build-rust.sh`,
+  `rebuild-check.sh`, `port-check.sh`, `docs-check.sh`, `schemas/check.py`,
+  `data/tools/`, settle-in's `tools/` builders): they run on the
+  developer's machine, never the person's, and they work (step 7 dropped);
+- `upgrade_/linux/installer/src/upg-mark.sh`: the rig's boot marker,
+  installed only when the stick carries `upgrade_/bench`; every rig
+  verdict reads its lines, so it is harness, like `vm.ps1`;
+- the `.cmd` starters on the stick (`UPGRADE.cmd`, the `DIAG-*.cmd`):
+  Windows needs a file a person can double-click, and each only starts a
+  Rust program;
+- settle-in's three-line `/etc/profile.d/` file (step 6 above).
+
 ## Open decisions (the owner's)
 
 1. **The data tables' format**: decided 2026-10-14, JSON ("The data
    tables" above).
 2. **Beyond the Windows side.** Decided 2026-10-12 (R32): all that can
    be Rust is Rust. The installer's two scripts are Rust since 2026-10-14
-   (phase 4 above). Still shell or Python: `settle-in`'s starter (roadmap
-   item 19, step 6), `make-kit.sh`, `build-rust.sh`, `schemas/check.py`
-   and `data/tools/` (step 7, where feasible).
+   (phase 4 above), settle-in's starter since the same day. Where the
+   port stops, and what stays shell or Python on purpose: decided
+   2026-10-17 ("What comes next" above).
