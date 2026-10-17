@@ -1,7 +1,8 @@
 //! `outcome`: the cutover's last step, following upgrade_/linux/outcome.sh
 //! 0.6.1 line for line (architecture.md stage 2, step 11; RISKS R21). From
-//! the kickstart's `%post --nochroot`, after the chroot %post regenerated
-//! grub.cfg: the handoff folder settle-in reads (/var/lib/upgrade_ on the
+//! the kickstart's `%post --nochroot`. First the installed system's last
+//! settings (`post.rs`, the chroot %post's shell until 0.1.3: GRUB's
+//! Windows entry and grub.cfg, the start target), then: the handoff folder settle-in reads (/var/lib/upgrade_ on the
 //! installed system: job.json, the Wi-Fi password files, which then leave
 //! the stick), settle-in and the way back installed only when they match
 //! the kit's manifest, the firmware's entries (the Windows entry re-created
@@ -69,12 +70,15 @@ fn readlink_base(path: &str) -> String {
 pub fn main(job_path: &str) -> i32 {
     let log = Log { path: LOG.into() };
     log.say(&format!("== upgrade_ outcome.sh {FOLLOWS} (upgrade-installer {}, Rust) {}", env!("CARGO_PKG_VERSION"), utc_now()));
+    let job: Value = std::fs::read_to_string(job_path).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or(Value::Null);
+    let path_chosen = jq(&job, "intent.path");
+    // --- the installed system's last settings, before anything below reads them
+    let p = crate::post::main(SYSROOT, &path_chosen, &jq(&job, "intent.start_at"));
+    log.say(&format!("== post: start target {} set={}{}", p.target, p.target_set, p.windows_entries.map(|n| format!("; Windows entry written, grub.cfg made again ({n} line(s) name Windows)")).unwrap_or_default()));
     run("mount", &["-o", "remount,rw", STICK]);
     let converted_ok = std::fs::metadata(format!("{STICK}/upgrade_/converted")).map(|m| m.len() > 0).unwrap_or(false);
     log.say(&format!("== stick markers: boot-install={} converted={}", if exists(&format!("{STICK}/upgrade_/boot-install")) { "PRESENT" } else { "gone" }, if converted_ok { "written" } else { "MISSING" }));
     let _ = std::fs::create_dir_all(REPORT);
-    let job: Value = std::fs::read_to_string(job_path).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or(Value::Null);
-    let path_chosen = jq(&job, "intent.path");
 
     // --- 0. the handoff folder settle-in reads
     let handoff = format!("{SYSROOT}{HANDOFF_DIR}");
