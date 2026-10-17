@@ -22,7 +22,8 @@ holders() { # $1 a device path: every process with it open, by readlink of /proc
         done
     done
 }
-T() { timeout 10 "$@"; }
+# the installer image has no `timeout` (arm C, 2026-10-17: every call answered 127): run plainly then
+T() { if command -v timeout > /dev/null; then timeout 10 "$@"; else "$@"; fi; }
 note() { echo "$(date -u +%FT%TZ) $*" >> /tmp/r38cap.log; }
 cap() {
     note "cap $1 begins"
