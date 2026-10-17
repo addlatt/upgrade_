@@ -147,6 +147,14 @@ else:
     home_gpt_ok = home_after.count("Linux") == 1 and "+" not in home_after
     ok = countdown == "elapsed" and status == "completed" and ov == "y" and same_time and sys_ok and home_gpt_ok and booted == "y" and pw_ok == "y" and home_ok == "y" and gui_ok == "y"
     if not same_time: notes.append("crossed_utc %s vs countdown end %s" % ((o or {}).get("commit_line", {}).get("crossed_utc"), elapsed_at))
+    # upgrade-installer 0.1.3+ (post.rs): the start target set by `outcome`'s post step, as the job asked
+    vlog = (D / "verify.log").read_text(errors="replace") if (D / "verify.log").exists() else ""
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent)); import postlog
+    if postlog.has_post_step(vlog):
+        want_t = "multi-user.target" if (job or {}).get("intent", {}).get("start_at") == "console" else "graphical.target"
+        pl = (D / "post.log").read_text(errors="replace") if (D / "post.log").exists() else ""
+        post_ok, post_why = postlog.target_set(pl, want_t) if pl else (False, "no report/post.log on the stick")
+        notes.append(post_why); ok = ok and post_ok
     result = "erased-installed" if ok else "fail"
 if o and o.get("reason"): notes.append("reason: " + o["reason"])
 

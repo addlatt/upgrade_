@@ -170,6 +170,20 @@ _hist = [h for h in (_slot.get("history") or []) if isinstance(h, dict)]
 if _hist: notes.append("the guard re-applied the slot " + str(len([h for h in _hist if h.get("action") == "reapplied"])) + " time(s) (R22 under step 12; the bench's service step)")
 if v0: notes.append("v0 row: " + v0["notes"][:120])
 
+# upgrade-installer 0.1.3+ writes the Windows entry in `outcome`'s post step (post.rs): read what it left
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent)); import postlog
+_vlog = (A / "verify.log").read_text(errors="replace") if (A / "verify.log").exists() else ""
+post_ok = True
+if path == "keep-windows" and postlog.has_post_step(_vlog):
+    _pl = (A / "post.log").read_text(errors="replace") if (A / "post.log").exists() else ""
+    _gc = (A / "grub.cfg").read_text(errors="replace") if (A / "grub.cfg").exists() else ""
+    if not _pl or not _gc: post_ok, _why = False, "post step: " + ", ".join(x for x, y in (("no report/post.log", _pl), ("no report/grub.cfg", _gc)) if not y)
+    else: post_ok, _why = postlog.kept_entry(_pl, _gc, esp(post).get("volume_serial"))
+    if _pl:
+        _t = "multi-user.target" if (json.load(open(A / "job.json")).get("intent", {}).get("start_at") == "console" if (A / "job.json").exists() else False) else "graphical.target"
+        _ok2, _why2 = postlog.target_set(_pl, _t); post_ok = post_ok and _ok2; _why += "; " + _why2
+    notes.append(_why)
+
 def yn(b): return "y" if b else "n"
 win_present, lin_first, grub_win = yn(bc.get("windows_entry_present")), yn(bc.get("linux_first_in_bootorder")), yn(bc.get("grub_lists_windows"))
 
@@ -182,6 +196,7 @@ elif outcome_valid != "y": result = "outcome-invalid"
 elif ms_changed or bootmgfw_ok != "y": result = "windows-files-changed"; notes.append("Microsoft files changed: " + ",".join(ms_changed))
 elif e1 and free_a not in ("", None) and int(free_a) < 0: result = "esp-full"
 elif wb == 0 and lb == 0 and not (A / "boots.log").exists(): result = "installed-not-cycled"   # a physical run before its boot cycles
+elif not post_ok: result = "post-step-wrong"
 elif wb < 1 or grub_win != "y": result = "windows-unbootable-via-grub"
 elif lb < 1: result = "linux-unbootable"
 elif fallback not in ("shim", "shim-in-windows-slot") or snap_files < 1: result = "fallback-loader-unrecorded"

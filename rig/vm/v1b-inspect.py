@@ -107,6 +107,14 @@ def fat_free(esp):
             return int(line.split('bytes free')[0].replace(' ', '').replace(',', ''))
     return None
 
+def volume_serial(esp):
+    # the FAT volume serial, as blkid and findmnt print it ("ABCD-1234"): the
+    # UUID the keep-Windows GRUB entry must name (upgrade-installer 0.1.3)
+    b = open(esp, 'rb').read(512)
+    off = 0x43 if b[0x52:0x5A] == b'FAT32   ' else 0x27
+    v = struct.unpack_from('<I', b, off)[0]
+    return '%04X-%04X' % (v >> 16, v & 0xFFFF)
+
 def evict_page_cache(path):
     # 2026-08-30, Hyper-V leg: WSL's 9p page cache served HOURS-stale pages of
     # a VHDX that Windows (VMMS) had rewritten - an offline inspection read a
@@ -148,6 +156,7 @@ def main():
             rec['esp'] = {
                 'partition_index': esp['index'], 'size_bytes': esp['size_bytes'],
                 'size_mib': esp['size_mib'], 'fat_bytes_free': fat_free(espimg),
+                'volume_serial': volume_serial(espimg),
                 'file_bytes_used': used, 'file_count': len(manifest),
                 'bootmgfw_sha256': manifest.get('/EFI/Microsoft/Boot/bootmgfw.efi', {}).get('sha256'),
                 'manifest': manifest,
