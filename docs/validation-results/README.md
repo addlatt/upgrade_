@@ -311,15 +311,15 @@ installer's `esp-after` manifest.
 | `outcome-invalid` | `outcome.json` does not validate | fail: the contract is wrong or the writer is |
 | `windows-files-changed` | a Microsoft boot file changed, or `bootmgfw.efi` differs | **fail-loud**: the safety net is compromised |
 | `esp-full` | the ESP had no room | design input |
+| `post-step-wrong` | with `upgrade-installer` 0.1.3 or later (the Windows entry written by `outcome`): `report/grub.cfg` does not hold 'Windows (kept)' alone naming the ESP's serial as read offline, or `report/post.log` does not show os-prober off and the start target set and read back | fail: Windows may not be reachable from the menu |
 | `installed-not-cycled` | the install completed and the ESP checks held, but no boot of either OS was recorded after `install-done` (a physical run before its boot cycles) | not a pass: the cycles are owed |
 | `windows-unbootable-via-grub` | no Windows boot arrived, or GRUB does not list Windows | fail |
 | `linux-unbootable` | the installed system never booted | fail |
 | `fallback-loader-unrecorded` | the fallback slot is neither shim word, or the snapshot is missing | fail: rollback could not restore Windows' loader |
 | `cycles-incomplete` | fewer than 2 boots of each OS | re-run the cycles |
 
-**What a pass requires.** `pass-plumbing` on the rig, then on a physical
-machine with Secure Boot on, with the boot cycles recorded (R21's checklist
-all true, both systems reached with no key pressed).
+**What a pass requires.** `pass-plumbing` on the rig, then on a physical machine with Secure Boot on,
+with the boot cycles recorded (R21's checklist all true, both systems reached with no key pressed).
 
 ## `r18-prologue.csv`: the prologue as product code: re-validate, the disk check, the shrink, the handoff (risk R18, step 1b)
 
@@ -570,8 +570,8 @@ carry the remote-access (SSH) result.
 
 | Result | Meaning | Verdict |
 |---|---|---|
-| `pass` | every check held, with real Wi-Fi networks | **pass for the machine in the row** (a rig row still closes plumbing only, rule #5) |
-| `pass-plumbing` | every check held, with the rig's spoofed Wi-Fi networks (`--spoofed-wifi`) | plumbing |
+| `pass` | every check held on a real machine (rig lines 16, 17 and 21 say `pass` from before 2026-10-17: they close plumbing only, rule #5) | **pass for the machine in the row** |
+| `pass-plumbing` | every check held on the rig (spoofed Wi-Fi or none; any rig pass since 2026-10-17) | plumbing |
 | `fail` | a check failed, each named in the row and `notes`. When the verdict itself was wrong, the re-judged row follows | **fail** |
 
 **What a pass requires.** `pass` on a real machine after one install: clock

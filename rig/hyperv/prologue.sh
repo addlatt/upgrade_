@@ -105,7 +105,7 @@ stick_offline() {
     local raw="${A:?}/stick-${1:?}.raw"; rm -f "$raw"
     qemu-img convert -f vhdx -O raw "$HV/vm/v1-stick.vhdx" "$raw" || { echo "prologue: could not read the stick image" >&2; return 2; }
     for f in prologue.json prologue-return.json outcome.json boots.log job.json ks.cfg rollback.json bench-command.out; do mtype -i "$raw@@1M" "::/upgrade_/$f" > "$A/$f" 2>/dev/null || rm -f "${A:?}/${f:?}"; done
-    for f in prologue.log verify.json verify.log outcome.log efibootmgr-after.txt windows-slot.json tools.jsonl; do mtype -i "$raw@@1M" "::/upgrade_/report/$f" > "$A/$f" 2>/dev/null || rm -f "${A:?}/${f:?}"; done
+    for f in prologue.log verify.json verify.log outcome.log efibootmgr-after.txt windows-slot.json tools.jsonl post.log grub.cfg; do mtype -i "$raw@@1M" "::/upgrade_/report/$f" > "$A/$f" 2>/dev/null || rm -f "${A:?}/${f:?}"; done
     rm -f "$raw"; echo "prologue: stick read offline ($1)"
 }
 pull() {  # $1 guest path, $2 local name
@@ -116,7 +116,7 @@ pull_all() {
     L=$(stick_letter)
     if [ -n "$L" ]; then
         for f in prologue.json prologue-return.json outcome.json boots.log job.json ks.cfg; do pull "${L}:\\upgrade_\\$f" "$f"; done
-        for f in prologue.log verify.json verify.log outcome.log efibootmgr-after.txt windows-slot.json; do pull "${L}:\\upgrade_\\report\\$f" "$f"; done
+        for f in prologue.log verify.json verify.log outcome.log efibootmgr-after.txt windows-slot.json post.log grub.cfg; do pull "${L}:\\upgrade_\\report\\$f" "$f"; done
     fi
     for f in state.json state-stopped.json state-returned.json prologue.log windows-slot.json; do pull "$GUEST_STATE\\$f" "guest-$f"; done
     guest "bcdedit /enum firmware | Select-String 'identifier|description|path'" > "$A/bcd-firmware-${1:-x}.txt" 2>/dev/null || true
