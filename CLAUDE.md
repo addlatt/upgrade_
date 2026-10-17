@@ -143,6 +143,12 @@ dist/kit/          the kit, built by ./make-kit.sh (gitignored; the stick's cont
   The PowerShell scripts left the product on 2026-10-11 and the data tables
   on 2026-10-14; the one script left, the stick writer, keeps to Windows
   PowerShell 5.1 (no PS7 syntax) until `upgrade-stick` has earned R16's rows.
+- **Product code is Rust; tooling is whatever fits** (decided 2026-10-17,
+  the owner). Anything that runs on the person's computer is Rust where it
+  can be. The tools around it (build, checks, the rig, data tools) may be
+  shell, Python or PowerShell when that is the plainer choice, and are not
+  ported for the sake of it. What stays outside Rust on purpose, and why:
+  `docs/RUST-PORT.md`, "What comes next".
 - **Run `./port-check.sh` before any change lands.** It runs `schemas/check.py`,
   checks the data tables parse, checks the twelve frozen goldens are unchanged
   (`FROZEN-GOLDENS.sha256`: recordings of what the PowerShell answered, ground truth

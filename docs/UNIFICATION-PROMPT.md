@@ -131,7 +131,7 @@ Each step is its own pull request. Numbers are line counts today.
    console and must stay out of the way of a display manager (the
    black-screen bug of 2026-09-27, rig run 2). A `settle-in console-hook`
    subcommand with the same logind check.
-7. **Build and check tools, where feasible**: `schemas/check.py` (421)
+7. **Dropped (decided 2026-10-17, the owner; `RUST-PORT.md`).** Was: build and check tools, where feasible: `schemas/check.py` (421)
    into `schemas/rust`'s tests; `make-kit.sh`, `build-rust.sh`,
    `port-check.sh`, `rebuild-check.sh` stay shell unless a Rust tool is
    plainly better. Do not spend the session here.
