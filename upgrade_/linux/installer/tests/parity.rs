@@ -2,13 +2,17 @@
 //! (RISKS R32; VALIDATION V13, V1, V2, V9, R21). `cases.json` is the
 //! faked machines (by `make-cases.py`); `golden.json` is what the scripts
 //! did for each, recorded once by `record.sh` through the sandbox
-//! (`sandbox.py`), frozen. This test runs the program through the same
-//! sandbox for every case and requires the same result: the exit code,
+//! (`sandbox.py`), frozen. Recorded again once from the program's own
+//! output for 0.1.2 (2026-10-17, R38: the console moved from tty6 to tty9,
+//! and two cases where another program holds it), reviewed as a diff: only
+//! the console's path, one new log line and the new cases moved. This
+//! test runs the program through the same sandbox for every case and requires the same result: the exit code,
 //! every line printed, every file left on the stick, in the installed
 //! system and under /tmp, every tool called in order, every screen drawn
 //! on the console, and the firmware's entries after.
 //!
-//! The sandbox needs a user namespace (`unshare -Urm`) and python3; the
+//! The sandbox needs a user and process namespace (`unshare -Urmpf
+//! --mount-proc`) and python3; the
 //! test fails plainly without them rather than passing by doing nothing.
 
 use serde_json::Value;
@@ -78,8 +82,8 @@ fn short(v: &Value) -> String {
 
 #[test]
 fn every_case_does_what_the_scripts_did() {
-    let probe = Command::new("unshare").args(["-Urm", "true"]).output();
-    assert!(probe.map(|o| o.status.success()).unwrap_or(false), "this test needs a user namespace (unshare -Urm) and python3; the sandbox cannot run here");
+    let probe = Command::new("unshare").args(["-Urmpf", "--mount-proc", "true"]).output();
+    assert!(probe.map(|o| o.status.success()).unwrap_or(false), "this test needs a user namespace (unshare -Urmpf --mount-proc) and python3; the sandbox cannot run here");
     let bin = env!("CARGO_BIN_EXE_upgrade-installer");
     let out_root = here().join("target").join("sandbox").join("parity");
     let g = golden();

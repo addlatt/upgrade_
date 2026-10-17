@@ -6,13 +6,17 @@ level, and RUST-PORT.md "How one piece is ported").
 The two steps run inside Anaconda's stage 2 and read the kernel's own
 paths: /proc/cmdline, /sys/class/drm, /sys/block, /sys/firmware/efi,
 /dev/disk/by-id, the stick at /run/install/repo, the installed system at
-/mnt/sysroot, the console /dev/tty6, and tools (lsblk, blockdev, mount,
+/mnt/sysroot, the console /dev/tty9 (tty6 before upgrade-installer 0.1.2,
+R38), /proc's list of processes, and tools (lsblk, blockdev, mount,
 nmcli, efibootmgr, findmnt, chroot, chvt, systemctl ...). This driver
 builds a world from a case (tests/cases.json), then runs one command in a
-user namespace (unshare -Urm) where every one of those paths is a bind
+user and process namespace (unshare -Urm, and -pf --mount-proc so the
+command sees only the world's processes) where every one of those paths is a bind
 mount of the world's copy, the tools are fakes answering from the world
-(tests/faketool.py), and /dev/tty6 is a pseudo-terminal this driver holds
+(tests/faketool.py), and /dev/tty9 is a pseudo-terminal this driver holds
 the other end of (it records what was drawn and presses the case's keys).
+A case's "holder" starts another program holding the console open, at
+once or when the countdown starts (R38).
 Nothing on this computer is read or changed.
 
     sandbox.py <cases.json> <case name> <command...> --out <dir>
@@ -149,7 +153,7 @@ def build_world(case, world):
     return world
 
 
-def inner_script(world, cmd, out, tty_path):
+def inner_script(world, cmd, out, tty_path, holder=None):
     binds = [
         (f"{world}/proc-cmdline", "/proc/cmdline"),
         (f"{world}/sys/class/drm", "/sys/class/drm"),
@@ -164,10 +168,16 @@ def inner_script(world, cmd, out, tty_path):
     for src, dst in binds:
         lines.append(f"[ -e {dst} ] && mount --bind {src} {dst} || true")
     if tty_path:
-        lines.append(f"mount --bind {tty_path} /dev/tty6")
+        lines.append(f"mount --bind {tty_path} /dev/tty9")
     else:
         # no console: a plain file where the character device would be
-        lines.append(f"mount --bind {world}/no-tty /dev/tty6")
+        lines.append(f"mount --bind {world}/no-tty /dev/tty9")
+    # another program reading the console (R38): tail opens it itself, so it is
+    # named tail whenever it holds it
+    if holder == "before":
+        lines.append("/usr/bin/tail -f /dev/tty9 > /dev/null 2>&1 &")
+    elif holder == "countdown":
+        lines.append("( until /bin/grep -q '== countdown: ' /tmp/upgrade_-verify.log 2>/dev/null; do /bin/sleep 0.1; done; /bin/sleep 0.3; exec /usr/bin/tail -f /dev/tty9 > /dev/null 2>&1 ) &")
     lines += [f"export PATH={world}/bin:$PATH WORLD={world}", "cd /", "set +e",
               " ".join(cmd) + f" > {out}/stdout.txt 2>&1", f"echo $? > {out}/exit.txt", "set -e",
               f"mkdir -p {out}/tmp && cp -a /tmp/. {out}/tmp/ 2>/dev/null || true"]
@@ -183,6 +193,7 @@ RULES = [
     (re.compile(r"installer=\d+"), "installer=<epoch>"),
     (re.compile(r'"installer_utc_epoch": \d+'), '"installer_utc_epoch": <epoch>'),
     (re.compile(r"/dev/pts/\d+"), "/dev/pts/N"),
+    (re.compile(r"\(pid \d+\)"), "(pid N)"),
     # the program names itself after the script's header
     (re.compile(r"(== upgrade_ (?:verify|outcome)\.sh \d+\.\d+\.\d+) \(upgrade-installer [^)]*\)"), r"\1"),
     # `ls -l`: a link's date and time (or year) column
@@ -286,7 +297,7 @@ def run(case, cmd, out):
     job = "/run/install/repo/upgrade_/job.json"
     cmd = [job if w == "JOB" else case.get("label", "UPGV0") if w == "LABEL" else w for w in cmd]
     inner = os.path.join(out, "inner.sh")
-    write(inner, inner_script(world, cmd, out, tty_path))
+    write(inner, inner_script(world, cmd, out, tty_path, case.get("holder")))
     env = dict(os.environ, UPG_TEST_COUNTDOWN=str(case.get("countdown_secs", 2)), UPG_TEST_REFUSAL_SECS=str(case.get("refusal_secs", 1)), LC_ALL="C", LANG="C")
     # the world's own path (a tool's location in a message, say) reads the same wherever the world was built
     RULES.insert(0, (re.compile(re.escape(world)), "<world>"))
@@ -310,7 +321,7 @@ def run(case, cmd, out):
         t = threading.Thread(target=reader, daemon=True)
         t.start()
     t0 = time.monotonic()
-    proc = subprocess.Popen(["unshare", "-Urm", "bash", inner], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen(["unshare", "-Urmpf", "--mount-proc", "bash", inner], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     keys = sorted(case.get("keys", []), key=lambda k: k["after"])
     while proc.poll() is None:
         now = time.monotonic() - t0
