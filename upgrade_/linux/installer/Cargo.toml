@@ -1,0 +1,27 @@
+[package]
+name = "upgrade-installer"
+version = "0.1.1"
+edition = "2024"
+license = "GPL-3.0-only"
+
+# The installer's two steps in Rust (RISKS R32; docs/RUST-PORT.md, the
+# Linux side): `verify`, the refusal gate before the commit line that ran
+# as upgrade_/linux/verify.sh 0.6.0 inside Anaconda's %pre, and `outcome`,
+# the boot-chain checklist and installer adapter that ran as outcome.sh
+# 0.6.1 in %post. One static binary on the stick (upgrade_/upgrade-installer),
+# built for x86_64-unknown-linux-musl so the installer's own libraries do
+# not matter. Held to the scripts by tests/parity.rs: both ran in the same
+# faked machine (tests/sandbox.py), and the program must leave the same
+# files, lines, calls and screens.
+[dependencies]
+libc = "0.2"
+serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = "0.10"
+
+# its own workspace root (as settle-in): a checkout under another repository
+# must not fall into that repository's root workspace
+[workspace]
+
+[profile.release]
+strip = true
+codegen-units = 1

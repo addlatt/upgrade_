@@ -46,7 +46,8 @@ Aspire's drive is dying, R23). Stands: see [STATUS.md](STATUS.md).
 
 Hardware check on first boot, copying the person's files (unlock BitLocker,
 copy, double-check), a "you used these programs, here is the Linux version"
-list, undo from the Linux side, clean-up. The clock, Wi-Fi and remote
+list, undo from the Linux side (the rollback, built 2026-10-12, held on
+the rig; waits on an Aspire row), clean-up. The clock, Wi-Fi and remote
 access are done (2026-10-04, the Aspire). Proves: V10, R28, V3, R19, R13.
 Waits on: V3 for the pull's integrity; V8 for never copying a stub (R8).
 Stands: see [STATUS.md](STATUS.md).
@@ -159,11 +160,12 @@ with every one. Proves: V7, R3. Waits on: the scanner shipping.
 ## 19. Rust unification: everything that can be Rust is Rust
 
 The first of three checkpoints, taken in order 19, 20, 21 (decided
-2026-10-12, the owner). Item 17's phases 2 and 3, then the Linux side the
-person's computer runs: `verify.sh` and `outcome.sh` in the installer,
-`settle-in`'s starter script. Build and check tools follow where feasible;
-the rig harness stays. The stick writer writes disks, so R16's rows run
-again (rule #4); `verify.sh` and `outcome.sh` re-earn V1's and R21's rows.
+2026-10-12, the owner). Item 17's phases 2 and 3 (done 2026-10-14), then
+the Linux side the person's computer runs: the installer's `verify.sh` and
+`outcome.sh` (`upgrade-installer`, built 2026-10-14), `settle-in`'s starter
+script. Build and check tools follow where feasible; the rig harness stays.
+The stick writer writes disks, so R16's rows run again (rule #4); the
+installer re-earns V1's, V9's and R21's rows.
 Proves: V13, R32. Stands: see [STATUS.md](STATUS.md).
 
 ## 20. Product unification: fewer choices, one way through
@@ -198,6 +200,11 @@ day it is picked (R15, R21, R29 first). Waits on: the Windows path shipping.
 The owner's open calls, one line each, naming what waits on them. When one
 is decided, the dated line goes in its home and the item here is removed.
 
+- How the erase countdown keeps Fedora's installer shell off its console
+  (R38): stop the shell while it runs, count down on a console the
+  installer gives no shell, or turn that shell off in the kickstart. The
+  next erase on a real machine waits on it, and so do the rig's arms C and
+  D: arm C cancelled itself on 2026-10-16 (`v9-erase.csv` line 40).
 - Whether R34's release check (held on the Aspire 2026-10-04) meets R11's
   closing clause, or R11's wording still promises more than it verifies.
 - R8's closing clause (`-Materialize` against a signed-in client) predates
@@ -222,11 +229,6 @@ is decided, the dated line goes in its home and the item here is removed.
   Windows is gone (R36 says "may").
 - Who owns `shutdown /g` (Automatic Restart Sign-On), named in
   `architecture.md` as a courtesy to add later (R24).
-- How the rollback makes Windows first on firmware where a `bcdedit`
-  order change does not survive the restart (the Acer, `r21-rollback.csv`
-  line 6): another write from Windows, or the Linux-side twin
-  (`efibootmgr`, which held there; named in `architecture.md`, Rollback)
-  (R21).
 - `architecture.md`'s Stack still describes the window running the
   PowerShell scripts as child processes (2026-09-27); it needs a dated line
   once the cut-over to Rust lands (R32).

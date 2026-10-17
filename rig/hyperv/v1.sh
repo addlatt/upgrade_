@@ -6,13 +6,13 @@
 # boot-verify}), armed by the V0 harness exactly as a person would arm it
 # (RUN-TEST.cmd's -Arm -Auto), then: firmware boots the stick -> shim ->
 # GRUB records upg_fired and boots Anaconda's stage2 from the stick with
-# upg.mode=verify -> %pre runs upgrade_/linux/verify.sh (identity against
+# upg.mode=verify -> %pre runs upgrade-installer verify (identity against
 # job.json, hardware, storage include) -> report on the stick -> reboot ->
 # Windows returns -> the harness's return check writes the V0 row. The
 # verdict reads both and writes one row of docs/validation-results/
 # v1-live-boot.csv. Nothing is installed; the internal disk is not touched.
 #
-#   v1.sh stick        VM off: build artifacts/v1/stick.img from dist/kit/stick (+ verify.sh,
+#   v1.sh stick        VM off: build artifacts/v1/stick.img from dist/kit/stick (+ the installer,
 #                      boot-verify), convert to VHDX, attach on SCSI
 #   v1.sh windows      power on, pick Windows in GRUB (three Downs), wait for PS Direct
 #   v1.sh job          Windows up: read the guest's facts, write job.json (v1-job.py, schema-

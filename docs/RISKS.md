@@ -399,7 +399,7 @@ at the correct (later) moment, and plain words to the person when they
 choose what to do are built and verified, not just designed.
 
 **Where it stands.** `[##..]` built, for the Wi-Fi half only. The
-installer's move-and-delete step exists (`upgrade_/linux/outcome.sh`
+installer's move-and-delete step exists (`upgrade-installer outcome`
 records `moved` and `removed_from_stick` in `outcome.json`), and the
 Aspire's run 11 (2026-10-04) connected to Wi-Fi by itself, but no row in
 this risk's record names the removal, so it is not held. The BitLocker
@@ -527,7 +527,7 @@ the commit line, while Windows still exists) is built as a hard gate (done)
 and shown to catch a known-counterfeit stick.
 
 **Where it stands.** `[####]` held-on-machine for the gate; the counterfeit
-half untried. `upgrade_/linux/verify.sh` (the kickstart's `%pre`) reads the
+half untried. `upgrade-installer verify` (the kickstart's `%pre`) reads the
 chosen desktop image back against the stick's own `SHA256SUMS` before
 anything is decided; in install mode a mismatch refuses (exit 23). It also
 records the stick's read speed, the honest basis for the time estimate. On
@@ -649,14 +649,14 @@ while Windows is kept; the prologue snapshots the ESP and the `Boot####` set;
 and `grub.cfg`; `evaluate` wants 32 MiB free on the ESP. Re-taking: R22.
 
 **Decided (2026-10-10, the owner):** shim in Windows' slot on firmware that
-ignores operating-system entries (Acer's): `bootmgfw.efi` moves one name
-aside (`bootmgfw-kept.efi`), shim takes its name, GRUB chainloads the kept
-name. Applied only on evidence (installed, Fedora left first, and yet Windows
-booted), reversible from the snapshot, re-applied by a guard task after
-servicing, Secure Boot on. **Amended (2026-10-11):** "and yet Windows booted"
-is GRUB's word: the "Windows (kept)" entry records the choice in GRUB's
-environment block on the ESP (kickstart 0.9.0), and a set flag stands the
-detector down (found on the rig, `v2-install.csv` line 16).
+ignores operating-system entries (Acer's): `bootmgfw.efi` moves aside as
+`bootmgfw-kept.efi`, shim takes its name, GRUB chainloads the kept name;
+applied only on evidence, reversible from the snapshot, re-applied by a guard
+task after servicing. **Amended (2026-10-11):** GRUB's "Windows (kept)" entry
+records the choice (kickstart 0.9.0) and a set flag stands the detector down.
+**Decided (2026-10-12, the owner):** the rollback runs from the Linux side
+(`settle-in rollback`): the order through efivarfs, the files from the stick's
+snapshot, a marker the guard honours; the Windows-side tool stays as plumbing.
 
 **Closes when.** Alongside installs are proven on real machines from several
 vendors, Secure Boot on: Windows boots from the menu, GRUB lists it, the ESP
@@ -666,11 +666,11 @@ that cannot is steered to clean slate before committing.
 **Where it stands.** `[####]` one machine, the product's own way
 (`v2-install.csv` line 15, the Aspire, 2026-10-11, `pass`); the rig held the
 return, servicing and the rollback (lines 12, 13; `r21-rollback.csv` line 5).
-The Aspire's rollback (`r21-rollback.csv` line 6, `windows-not-direct`): files
-back, guard gone, but a `bcdedit` order change does not survive a restart on
-this firmware (`efibootmgr`'s does), and kickstart 0.9.0 saves GRUB's flag on
-`/boot`, unreadable from Windows. Owed: both fixes, the unforced rig row, a
-real update under the guard, other vendors, a healthy drive ([log](log/2026-10.md#2026-10-12-the-first-rollback-on-a-real-machine-r21-v1b)).
+The Aspire's rollback (`r21-rollback.csv` line 6, `windows-not-direct`): a
+`bcdedit` order change does not survive a restart there (`efibootmgr`'s does).
+Kickstart 0.10.0's flag on the ESP and the Linux-side rollback both held on
+the rig (`v2-install.csv` line 17; `r21-rollback.csv` line 7). Owed: the
+Linux-side rollback on the Acer, an update under the guard, other vendors ([log](log/2026-10.md#2026-10-12-late-the-rig-answers-again-the-linux-side-rollback-holds-on-the-rig-r21-r22-r36-v1b)).
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · held-on-rig
 
@@ -1063,11 +1063,11 @@ shell script in the installer's `%pre`/`%post` beyond a starter, and a
 release rebuilt byte for byte by someone else.
 
 **Where it stands.** `[####]` the cut-over on the Aspire (`v2-install.csv`
-line 15, `pass`; `r18-prologue.csv` lines 18 and 19); phase 1 done
-2026-10-11; ledger 657 `pass`, 45 `owed`. Owed: the unforced rig row (the
-rig's guest channel is down), phases 2 and 3, the Linux side, the 45 lines,
-the rebuild by someone else
-([log](log/2026-10.md#2026-10-11-the-powershell-leaves-the-product-decided-phase-1-done)).
+line 15, `pass`; `r18-prologue.csv` lines 18 and 19); phases 1 to 3 done
+(2026-10-11, 2026-10-14); the installer's two steps Rust since 2026-10-14 (42
+sandbox cases match the scripts); ledger 904 `pass`, 168 `owed`. Owed: the rig
+and Aspire rows for each piece (the installer's first), the stick writer's
+write rows, settle-in's starter, the rebuild by someone else ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
 
 ## R33: The walk-away way back to Windows · critical · held-on-machine
 
@@ -1216,9 +1216,61 @@ that wrote LOCAL; and the rig repeats the two boots on the keep-Windows arm.
 host after two Linux boots; `v2-install.csv` line 14, `pass`). On the product
 path on 2026-10-11 (kickstart 0.8.0, `settle-in` `left-local`; +1 s, +2 s and
 +1 s after each Linux boot, nobody touching the clock; line 15, `pass`).
-Windows had also corrected its own clock within four hours on 2026-10-10, so
-the symptom lasts hours, not for good. Owed: the rig's two boots on the
-keep-Windows arm ([log](log/2026-10.md#2026-10-10-the-kept-windows-clock-by-hand-on-the-aspire-r36-v1b)).
+Windows also corrected its own clock within four hours on 2026-10-10. The
+rig reads `windows-clock-wrong` (`v2-install.csv` line 17): Hyper-V hands UTC
+to the guest's clock chip, which no PC does; owed: the bench's Time Synchronization off ([log](log/2026-10.md#2026-10-10-the-kept-windows-clock-by-hand-on-the-aspire-r36-v1b)).
+
+## R37: The installer's own startup hangs before our checks run · medium · planned
+
+**What.** Fedora 44's installer sometimes stops early in its own startup
+(at the SELinux relabel), before the kickstart's `%pre` and so before the
+verify step, the refusals or any countdown. Seen four times on the rig:
+2026-10-04 (arm C5), 2026-10-11, 2026-10-15 (a diagnostic arm B) and the
+night of 2026-10-15 (arm C: no `verify.log`, Windows back once the VM was
+freed, the prologue's record `stopped` at `install`). The cause is not known.
+
+**If real.** On a real machine the person sees a screen of text that never
+moves. Holding the power button brings Windows back, since the handoff is
+one-time, and nothing on the disks has been touched. Nothing detects it or
+says so in plain words: medium.
+
+**Closes when.** The cause is found and fixed, or a hang is caught and the
+machine comes back to Windows by itself with a plain sentence, shown on the
+rig and on one real machine.
+
+**Where it stands.** `[#...]` planned: the three hangs are recorded with
+their screens (`rig/hyperv/artifacts/v9/Bdiag-installer-boot-hung-2026-10-15/`;
+[log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)). Nothing is built.
+
+## R38: The installer's shell shares the countdown's console · critical · planned
+
+**What.** Fedora's installer starts a root shell on any console it is
+switched to. The verify step switches to tty6 for the refusal screen and
+the erase countdown, so that shell starts there and reads the same
+keyboard. A key the person presses to cancel can go to the shell instead.
+
+**If real.** The cancel is the commit line's only exit (rule #3). A key the
+shell takes is a cancel nobody hears; a person who presses once and waits
+sees the countdown run out, and both drives are erased. Critical.
+
+**Evidence so far (2026-10-14/15, the rig).** The shell's prompt is on
+tty6 during the verify step; it hung up tty6 as it started and asked the
+console where the cursor was, and the answer landed in the countdown's
+input (`1b 5b 39 3b 31 52 1b 5b 34 38 3b 31 32 38 52`). On 2026-09-29 two
+Space presses during a countdown were never read (arm B). On 2026-10-16
+(arm C, `v9-erase.csv` line 40) the countdown read only the back half of
+that answer (`34 38 3b 31 32 38 52`): another reader on tty6, the shell,
+had taken the front half. So the shell does read the countdown's input.
+That it takes a person's key is not shown yet (rule #2). The false cancel
+is the safe direction; the same race the other way is an erase.
+
+**Closes when.** The countdown's console has no other reader while it runs,
+and a rig row shows every key sent being read, then one real machine.
+
+**Where it stands.** `[#...]` planned. How to keep the shell off the
+countdown's console is a decision owed (`ROADMAP.md`); arm C on the rig
+cannot pass until then. No filter can tell half a cursor report from a key,
+so none is tried. The two console faults the port met on the way are fixed ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
 
 # Closed
 

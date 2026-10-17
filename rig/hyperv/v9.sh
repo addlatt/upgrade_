@@ -8,7 +8,7 @@
 #
 #   A  refuse   a job naming a home disk that is not attached, armed by the
 #               V0 harness (the prologue would refuse it first, in Windows):
-#               verify.sh must refuse before any countdown; both disks unchanged
+#               the verify step must refuse before any countdown; both disks unchanged
 #   B  cancel   armed by the product prologue (-EraseConsent); a key during the
 #               countdown: back to Windows, the prologue's return writes a
 #               stopped outcome (stopped_at countdown); both disks unchanged

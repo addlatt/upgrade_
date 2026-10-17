@@ -5,7 +5,7 @@
 #
 #   sudo bash collect-linux.sh [--esp]
 #
-# A product stick carries no bench marker (outcome.sh writes upg-mark only when
+# A product stick carries no bench marker (the outcome step writes upg-mark only when
 # the stick says "bench"), so on a real machine the marker's own commands are
 # run by hand, over the carried SSH key. This is that, kept in the tree so a
 # physical row can be made the same way twice (first used 2026-10-04, the
@@ -30,7 +30,7 @@ mkdir -p "$C" "$O/stick/EFI/BOOT"
 cp -a /var/lib/upgrade_ "$O/var-lib-upgrade_" 2>/dev/null; ls -laR /var/lib/upgrade_ > "$O/var-lib-ls.txt" 2>&1
 sshd -T 2>/dev/null | grep -i 'passwordauthentication\|pubkeyauthentication\|kbdinteractiveauthentication\|permitrootlogin' > "$O/sshd-T.txt"
 
-# --- the bench marker's own lines (upgrade_/linux/outcome.sh, upg-mark) ---
+# --- the bench marker's own lines (upgrade_/linux/installer/src/upg-mark.sh, upg-mark) ---
 cur=$(efibootmgr 2>/dev/null | awk '/BootCurrent/{print $2}')
 sha=$(sha256sum /boot/efi/EFI/Microsoft/Boot/bootmgfw.efi 2>/dev/null | cut -c1-64)
 u=$U; pw=$(getent shadow "$u" 2>/dev/null | cut -d: -f2 | tr -d '\n' | sha256sum | cut -c1-64)

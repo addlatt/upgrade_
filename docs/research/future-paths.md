@@ -26,8 +26,8 @@ which steps carry over, which change, and which are new.
   3 write the stick         Write-UpgradeStick.ps1                 per source OS
   4 prologue                Invoke-Prologue.ps1: check, shrink,    per source OS
                               pause encryption, one-time boot
-  5 installer on the stick  Fedora + shim + verify.sh (%pre)       yes on x86; new image on ARM
-  6 install + outcome       kickstart, %post checks, outcome.sh    yes on x86
+  5 installer on the stick  Fedora + shim + the verify step (%pre) yes on x86; new image on ARM
+  6 install + outcome       kickstart, %post checks, outcome step  yes on x86
   7 first start             settle-in (runs on any Linux, R28)     yes
 ```
 
@@ -165,7 +165,7 @@ Step by step:
    `bless` only works from Recovery when SIP (System Integrity Protection)
    is on (C18, secondary). If that's true, walk-away breaks here, and the
    path needs a different way to reach the stick.
-5. **Installer.** Today's Fedora x86_64 image and `verify.sh`, unchanged
+5. **Installer.** Today's Fedora x86_64 image and its verify step, unchanged
    in principle. Identity by the Mac's serial number.
 6. **Install beside macOS.** The Mac's own boot picker (hold Option) is a
    natural way back, and `bless` can make macOS the default again, which

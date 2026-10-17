@@ -59,7 +59,7 @@ for crate in schemas/rust evaluate/scan evaluate/harvest evaluate/job evaluate/s
     if (cd "$crate" && cargo test --locked --quiet) > "$TMP/cargo.txt" 2>&1; then pass "cargo test in $crate"
     else fail "cargo test in $crate"; sed 's/^/          /' "$TMP/cargo.txt" | tail -40; fi
 done
-for crate in settle-in settle-in/gate; do
+for crate in settle-in settle-in/gate upgrade_/linux/installer; do
     if (cd "$crate" && cargo test --locked --quiet) > "$TMP/cargo.txt" 2>&1; then pass "cargo test in $crate"
     else fail "cargo test in $crate"; sed 's/^/          /' "$TMP/cargo.txt" | tail -40; fi
 done

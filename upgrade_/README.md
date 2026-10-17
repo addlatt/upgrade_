@@ -19,15 +19,15 @@ once every check has said yes.
 
 ## What's here
 
-| File | What it does | State |
-|---|---|---|
-| `windows/Invoke-Prologue.ps1` | The Windows side: re-checks the job against the live machine, repairs a flagged disk, measures the room twice, shrinks Windows, pauses BitLocker and sets up the one-time boot into the stick. Carries on after restarts with nobody signed in. Stops and writes down why at every refusal. | `[###.]` rig, `[####]` real machine stops safely |
-| `windows/Invoke-Rollback.ps1` | Undo. Puts Windows first in the boot order again, from the snapshot taken before the install. | `[###.]` rig |
-| `windows/New-Kickstart.ps1` | Writes the installer's recipe (a Fedora "kickstart") from `job.json`. | `[####]` |
-| `windows/Test-Handoff.ps1` | Test harness for the one-time boot (V0). | `[####]` |
-| `windows/handoff-payload/` | What goes on the stick: launchers, boot files. See its README. | `[####]` |
-| `linux/verify.sh` | Runs inside the installer before anything is decided (`%pre`): right machine, hardware, the desktop image read back byte for byte. For erase-and-install it holds the 2-minute countdown that you can cancel. | `[###.]` rig, `[####]` live boot on a real machine |
-| `linux/outcome.sh` | Writes `outcome.json` at the end, whatever happened. | `[###.]` |
+| Where | What it does |
+|---|---|
+| `prologue/` | `upgrade-prologue`, the Windows side: re-checks the job against the live machine, confirms a flagged disk, measures the room twice, shrinks Windows, pauses BitLocker and sets up the one-time boot into the stick. Carries on after restarts with nobody signed in. Stops and writes down why at every refusal. Also the undo (Windows first in the boot order again, from the snapshot taken before the install), shim in Windows' slot, and the storage-mode harness. |
+| `kickstart/` | `upgrade-kickstart`: writes the installer's recipe (a Fedora "kickstart") from `job.json`. |
+| `windows/window/` | `UPGRADE.exe`, the window the person sees. It runs the programs and shows their words. |
+| `windows/handoff-payload/` | What goes on the stick: the two starters, the boot files. See its README. |
+| `linux/installer/` | `upgrade-installer`, one program inside the installer on the stick. `verify` runs before anything is decided (`%pre`): right machine, hardware, the desktop image read back byte for byte; for erase-and-install it holds the 2-minute countdown that you can cancel. `outcome` writes `outcome.json` at the end, whatever happened. |
+
+Where each stands: `docs/STATUS.md`.
 
 ## Where the commit line sits
 
@@ -35,7 +35,7 @@ once every check has said yes.
   Windows gets smaller and Linux moves in next door. The point of no return
   is the clean-up offer later, in `settle-in`.
 - **Erase and install**: the commit line is the end of the 2-minute
-  countdown in `verify.sh`. Until it hits zero, the disks are untouched.
+  countdown in `upgrade-installer verify`. Until it hits zero, the disks are untouched.
 
 These are the only parts that write to a disk, so they were built last and
 get reviewed hardest. Full design in `docs/architecture.md`.

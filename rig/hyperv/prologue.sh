@@ -45,11 +45,13 @@
 #                             then v2-verdict.py -> v2-install.csv (the install row)
 #   prologue.sh service       (after run, slot applied) servicing simulated: Windows via GRUB, the kept copy put back
 #                             over the slot, restart, Windows via GRUB, the guard's history entry awaited (R22, step 12)
-#   prologue.sh rollback      VM off, after the cycles: Windows via GRUB, ROLLBACK.cmd, record pulled,
+#   prologue.sh rollback      VM off, after the cycles: Windows via GRUB leaves the bench command on the stick,
+#                             Linux boots and runs `settle-in rollback` (decided 2026-10-12), record pulled,
 #                             ESP inspected offline, then a keyless start must bring Windows up
 #                             directly -> rollback-verdict.py -> r21-rollback.csv
 #   prologue.sh restore       VM off: main UPGRIGHV.vhdx back, prologue disk detached
-#   prologue.sh run           prepare -> stick -> windows -> inspect pre -> dirty -> autologon off -> convert -> wait-off
+#   prologue.sh run           prepare -> stick -> windows -> inspect pre -> update-clear -> dirty -> autologon off
+#                             -> update-recheck -> convert -> wait-off
 #                             -> inspect post-install -> cycle windows w1 -> cycle linux l1
 #                             -> cycle windows w2 -> cycle linux l2 -> inspect post-cycles -> verdict
 #
@@ -102,7 +104,7 @@ stick_offline() {
     # the guest is Off: read the stick's records from its VHDX (converted to a raw image; shell values never interpolated into Python)
     local raw="${A:?}/stick-${1:?}.raw"; rm -f "$raw"
     qemu-img convert -f vhdx -O raw "$HV/vm/v1-stick.vhdx" "$raw" || { echo "prologue: could not read the stick image" >&2; return 2; }
-    for f in prologue.json prologue-return.json outcome.json boots.log job.json ks.cfg; do mtype -i "$raw@@1M" "::/upgrade_/$f" > "$A/$f" 2>/dev/null || rm -f "${A:?}/${f:?}"; done
+    for f in prologue.json prologue-return.json outcome.json boots.log job.json ks.cfg rollback.json bench-command.out; do mtype -i "$raw@@1M" "::/upgrade_/$f" > "$A/$f" 2>/dev/null || rm -f "${A:?}/${f:?}"; done
     for f in prologue.log verify.json verify.log outcome.log efibootmgr-after.txt windows-slot.json tools.jsonl; do mtype -i "$raw@@1M" "::/upgrade_/report/$f" > "$A/$f" 2>/dev/null || rm -f "${A:?}/${f:?}"; done
     rm -f "$raw"; echo "prologue: stick read offline ($1)"
 }
@@ -158,6 +160,22 @@ update-clear)
         sleep 45; wait_windows 900
         guest "$(rd after)" | tee -a "$A/update-before.txt"
         grep -q 'after: cbs=False wu=False' "$A/update-before.txt" || { echo "prologue: the update is still waiting after a restart - read $A/update-before.txt" >&2; exit 1; }
+    fi
+    ;;
+update-recheck)
+    # The same read again, just before convert: on 2026-10-16 update-clear read no
+    # update waiting, then one queued itself in the minutes after the flag was set,
+    # the prologue's update restart cleared the flag (r18-prologue.csv line 21,
+    # flag-not-confirmed). If one waits now: restart once, then set the flag again.
+    rd() { echo "\$c = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Component Based Servicing\\RebootPending'; \$w = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired'; '$1: cbs=' + \$c + ' wu=' + \$w"; }
+    guest "$(rd recheck)" | tee -a "$A/update-before.txt"
+    if tail -1 "$A/update-before.txt" | grep -q 'True'; then
+        echo "prologue: an update queued itself after the flag was set; restarting once and setting the flag again"
+        guest 'shutdown /r /t 0' >/dev/null 2>&1 || true
+        sleep 45; wait_windows 900
+        guest "$(rd after-recheck)" | tee -a "$A/update-before.txt"
+        tail -1 "$A/update-before.txt" | grep -q 'cbs=False wu=False' || { echo "prologue: the update is still waiting after a restart - read $A/update-before.txt" >&2; exit 1; }
+        "$SELF" dirty
     fi
     ;;
 dirty)
@@ -384,16 +402,23 @@ service)
     PS stop; wait_off 300
     ;;
 rollback)
-    # VM off with the converted disk in place (after the cycles): boot Windows through
-    # GRUB, run the stick's ROLLBACK.cmd (ROLLBACK on stdin), pull its record, power off;
-    # inspect the ESP offline; then start with NO key pressed - the firmware must bring
-    # Windows up by itself - mark it, power off; verdict -> r21-rollback.csv
+    # VM off with the converted disk in place (after the cycles). Decided 2026-10-12 (the owner): the
+    # rollback runs from the Linux side. Windows via GRUB leaves the bench command on the stick and
+    # restarts; GRUB's default boots Linux, the bench marker runs `settle-in rollback --stick` (the
+    # files from the snapshot, the marker for the guard, Windows first through efivarfs) and powers
+    # off; the ESP is inspected offline; then a start with NO key pressed: the firmware must bring
+    # Windows up by itself, the guard must stand down and remove itself; verdict -> r21-rollback.csv
     need_off; PS start; sleep 10; pick_windows rollback; PS key 13
     wait_windows 600; L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume" >&2; exit 1; }
-        guest "& ${L}:\\upgrade-prologue.exe rollback --stick ${L}:" | tee "$A/rollback.log"
-    pull "${L}:\\upgrade_\\rollback.json" rollback.json
-    guest "bcdedit /enum '{fwbootmgr}'" > "$A/bcd-fwbootmgr-after-rollback.txt" 2>/dev/null || true
-    PS stop; wait_off 300
+    guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-boot,' + (Get-Date).ToUniversalTime().ToString('o') + ',via-grub-before-rollback,host-utc=$(date -u +%FT%TZ)')" >/dev/null 2>&1 || true
+    guest "Set-Content -Path ${L}:\\upgrade_\\bench-command -Value rollback -NoNewline" >/dev/null
+    guest "bcdedit /enum '{fwbootmgr}'" > "$A/bcd-fwbootmgr-before-rollback.txt" 2>/dev/null || true
+    echo "prologue: bench command left on the stick; restarting into GRUB's default (Linux), where settle-in rollback runs"
+    guest "Restart-Computer -Force" >/dev/null 2>&1 || true
+    sleep 20; shot grub-default-rollback; wait_off 900
+    stick_offline rollback
+    [ -s "$A/rollback.json" ] || { echo "prologue: settle-in rollback left no record on the stick (see $A/bench-command.out)" >&2; }
+    cp "$A/rollback.json" "$A/rollback-linux.json" 2>/dev/null || true
     "$SELF" inspect post-rollback
     PS start; t0=$(date +%s)
     until guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV'; do
@@ -404,7 +429,14 @@ rollback)
     if guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV'; then
         shot windows-direct
         guest "Add-Content -Path ${L}:\\upgrade_\\boots.log -Value ('windows-boot,' + (Get-Date).ToUniversalTime().ToString('o') + ',direct-after-rollback,BootCurrent=' + ((bcdedit /enum '{fwbootmgr}' | Select-String 'displayorder' | Select-Object -First 1) -replace '\\s+',' '))" >/dev/null 2>&1 || true
+        # the guard runs as SYSTEM at startup; it reads the marker and removes itself
+        t0=$(date +%s)
+        until guest "schtasks /Query /TN 'upgrade_ windows-slot guard' 2>&1" 2>/dev/null | grep -q "ERROR"; do [ $(( $(date +%s) - t0 )) -ge 300 ] && break; sleep 15; done
+        guest "mountvol S: /S; Get-Content S:\\upgrade_\\rolled-back.json -Raw -ErrorAction SilentlyContinue; mountvol S: /D" > "$A/rolled-back.json" 2>/dev/null || true
+        grep -q '"schema"' "$A/rolled-back.json" 2>/dev/null || rm -f "${A:?}/rolled-back.json"
+        guest "schtasks /Query /TN 'upgrade_ windows-slot guard' 2>&1" > "$A/guard-task-after-rollback.txt" 2>/dev/null || true
         pull "${L}:\\upgrade_\\boots.log" boots.log
+        pull "$GUEST_STATE\\windows-slot-undone.json" guest-windows-slot-undone.json
         PS stop; wait_off 300
     fi
     python3 rollback-verdict.py "$A" ../../docs/validation-results/r21-rollback.csv "$HARNESS_VERSION" "$FIRMWARE"
@@ -422,7 +454,7 @@ restore)
     PS disk list
     ;;
 run)
-    "$SELF" prepare; "$SELF" stick; "$SELF" inspect pre-install; "$SELF" windows; "$SELF" update-clear; "$SELF" dirty; "$SELF" autologon off; "$SELF" convert
+    "$SELF" prepare; "$SELF" stick; "$SELF" inspect pre-install; "$SELF" windows; "$SELF" update-clear; "$SELF" dirty; "$SELF" autologon off; "$SELF" update-recheck; "$SELF" convert
     "$SELF" wait-off 5400; "$SELF" inspect post-install
     "$SELF" cycle windows w1; "$SELF" cycle linux l1; "$SELF" cycle windows w2; "$SELF" cycle linux l2
     "$SELF" inspect post-cycles; "$SELF" verdict

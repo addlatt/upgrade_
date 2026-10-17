@@ -5,7 +5,7 @@ arm's own evidence (RISKS R27). Never by hand.
 
     v9-verdict.py <artifacts/v9> <arm A|B|C> <csv> <firmware> [note]
 
-Reads <dir>/arm-<X>/ (what `v9.sh pull` / `stick-pull` copied) and the
+Reads <dir>/<X>/ (else <dir>/arm-<X>/; what `v9.sh pull` / `stick-pull` copied) and the
 offline disk inspections v9-pre.json and v9-after-<X>.json.
   A refuse: verify.json identity=fail, no countdown.json, disks unchanged -> refused-before-countdown
   B cancel: countdown.json cancelled, outcome.json stopped at countdown and schema-valid,
@@ -24,7 +24,10 @@ from jsonschema import Draft7Validator, FormatChecker
 
 A = pathlib.Path(sys.argv[1]); ARM = sys.argv[2].upper(); CSV = pathlib.Path(sys.argv[3]); FIRMWARE = sys.argv[4]
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-D = A / ("arm-" + ARM)
+# the arm's records: <dir>/<arm>/ as `v9.sh pull <arm>` writes them, else <dir>/arm-<arm>/ (the drivers
+# before 2026-10-14). Until 2026-10-16 only arm-<arm> was read, and pull B wrote B/: v9-erase.csv lines 36
+# to 38 were judged from 2026-09-27/28 records left in arm-A/ and arm-B/ (log, 2026-10-16)
+D = A / ARM if (A / ARM).is_dir() else A / ("arm-" + ARM)
 HEADER = ["timestamp", "arm", "firmware", "prologue_version", "verify_version", "identity", "countdown", "outcome_status",
           "stopped_at", "commit_crossed", "outcome_valid", "disks_unchanged", "system_gpt_after", "home_gpt_after",
           "fedora_booted", "password_matches", "home_on_second_disk", "result", "notes", "graphical_login"]
@@ -57,6 +60,23 @@ notes = [sys.argv[5]] if len(sys.argv) > 5 else []
 v = load(D / "verify.json"); cd = load(D / "countdown.json"); o = load(D / "outcome.json"); job = load(D / "job.json") or load(A / "job.json")
 pre = load(A / "v9-pre.json"); after = load(A / ("v9-after-%s.json" % ARM))
 pro = load(D / "prologue.json")
+# the records must be this run's: the job v9.sh job wrote last (<dir>/job.json) is the job on the stick, in
+# verify.json and in outcome.json. Records from another job are never judged (2026-10-16)
+if not D.is_dir():
+    sys.exit("v9-verdict: no records at %s; no row written" % D)
+current = (load(A / "job.json") or {}).get("job_id")
+seen = {"stick job.json": (load(D / "job.json") or {}).get("job_id"), "verify.json": (v or {}).get("job_id"), "outcome.json": (o or {}).get("job_id")}
+stale = {k: j for k, j in seen.items() if j is not None and j != current}
+if not current or stale:
+    sys.exit("v9-verdict: %s holds records of another job (current %s; %s); no row written" % (D, current, ", ".join("%s %s" % kv for kv in stale.items()) or "no current job"))
+# a cancel must be a key: the installer logs the bytes that ended its countdown (upgrade-installer, 2026-10-15);
+# the console's own cursor-position reports (ESC [ n ; m R) are not a key (lines 38 and 39, 2026-10-14/15)
+import re
+key_read = None
+if (D / "verify.log").exists():
+    m = re.search(r"== countdown key read: ([0-9a-f ]+)", (D / "verify.log").read_text(errors="replace"))
+    key_read = bytes.fromhex(m.group(1)) if m else None
+key_is_report = key_read is not None and re.fullmatch(rb"(\x1b\[[0-9]+;[0-9]+R)+", key_read) is not None
 identity = (v or {}).get("identity", {}).get("result", "n/a")
 countdown = (cd or {}).get("result", "none")
 status = (o or {}).get("status", "none"); stopped_at = (o or {}).get("stopped_at") or ""
@@ -105,8 +125,9 @@ elif KIND == "A":
     ok = identity == "fail" and countdown == "none" and unchanged.startswith("y")
     result = "refused-before-countdown" if ok else "fail"
 elif KIND == "B":
-    ok = countdown == "cancelled" and status == "stopped" and stopped_at == "countdown" and ov == "y" and unchanged.startswith("y")
+    ok = countdown == "cancelled" and status == "stopped" and stopped_at == "countdown" and ov == "y" and unchanged.startswith("y") and not key_is_report
     result = "cancelled-untouched" if ok else "fail"
+    if key_read is not None: notes.append("countdown ended by bytes %s%s" % (key_read.hex(" "), " (the console's own cursor report, not a key)" if key_is_report else ""))
 else:
     elapsed_at = (cd or {}).get("ended_utc")
     same_time = elapsed_at and (o or {}).get("commit_line", {}).get("crossed_utc") == elapsed_at

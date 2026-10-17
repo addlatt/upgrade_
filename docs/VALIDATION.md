@@ -130,7 +130,7 @@ Boot still on. Two halves, each with its own file:
 - the reversible half, `v1-live-boot.csv`: the handoff fires, the stick
   boots shim then GRUB, the **unmodified** Fedora installer starts with
   `inst.ks=` and `upg.mode=verify`, `%pre` (the kickstart's script before
-  anything is installed) runs `upgrade_/linux/verify.sh`, which matches
+  anything is installed) runs `upgrade-installer verify`, which matches
   the job's disk by unique id or serial and exact size, checks the display
   and Wi-Fi, finds the Windows ESP (the small EFI System Partition that
   holds every OS's boot files), reads the chosen desktop image back byte
@@ -198,9 +198,9 @@ snapshot `%pre` took. Vocabulary: `validation-results/README.md`.
 by `rig/vm/guest/v1b-shrink.ps1`, the kickstart `rig/vm/v1b-ks.cfg` from
 an OEMDRV volume, boot markers from each OS, `v1b.sh verdict`). The
 product path is `rig/hyperv/v2.sh` and `rig/hyperv/prologue.sh`: the
-prologue shrinks, `%pre` `verify.sh` snapshots the ESP to the stick,
+prologue shrinks, `%pre` (the verify step) snapshots the ESP to the stick,
 `liveimg` installs the stick's squashfs into the freed space reusing the
-Windows ESP unformatted, `%post` `outcome.sh` runs the checklist and writes
+Windows ESP unformatted, `%post` (the outcome step) runs the checklist and writes
 `outcome.json`; `v2-verdict.py` writes the row, `rollback-verdict.py` the
 rollback's (`upgrade-prologue rollback`). The Secure-Boot-on chainload is proven on
 a UEFI-CA Hyper-V guest with Windows' PCA enrolled in shim's MokList
@@ -224,12 +224,12 @@ drive (R23). The Aspire, 2026-10-11: the return applied shim in Windows'
 slot from its own evidence, then Fedora and Windows were each reached
 with nobody at the keyboard, Secure Boot on, the clock right
 (`v2-install.csv` line 15, `pass`). The rig held the return, the guard
-after a servicing pass and the rollback (lines 12 and 13, `r18-prologue.csv`
-line 17, `r21-rollback.csv` line 5, all `pass-plumbing`). The rollback on
-this machine: `r21-rollback.csv` line 6, `windows-not-direct` (2026-10-12),
-everything held but the direct boot. Owed: that order half, the GRUB flag's
-home on the ESP, a real update under the guard (R22), a healthy-drive machine
-([log](log/2026-10.md#2026-10-12-the-first-rollback-on-a-real-machine-r21-v1b)).
+after servicing and the rollback (lines 12, 13; `r21-rollback.csv` line 5).
+The rollback on this machine: `r21-rollback.csv` line 6, `windows-not-direct`
+(2026-10-12), everything held but the direct boot; it now runs from Linux,
+held on the rig (`r21-rollback.csv` line 7; kickstart 0.10.0's flag unforced,
+`v2-install.csv` line 17). Owed: the Aspire's Linux-side rollback, R22, a
+healthy drive ([log](log/2026-10.md#2026-10-12-late-the-rig-answers-again-the-linux-side-rollback-holds-on-the-rig-r21-r22-r36-v1b)).
 
 # Tier 2: a core promise breaks (recoverable, but the default is broken)
 
@@ -395,8 +395,8 @@ the keyboard afterwards, Fedora signs in at the chosen screen. Vocabulary:
 
 **How it is run.** `rig/hyperv/v9.sh` on a copy of the rig's Windows disk
 plus a blank second disk (arm A is armed by the V0 harness), with the
-installer's `verify.sh` (the countdown; the `converted` and `boot-install`
-markers on the stick) and `outcome.sh`. Then the Aspire: the system on the
+installer's verify step (the countdown; the `converted` and `boot-install`
+markers on the stick) and its outcome step. Then the Aspire: the system on the
 failing SSD under R23, `/home` on the 1 TB drive, the rows written by the
 same verdict script from the machine's own records (`disks_unchanged`
 there compares partition tables only). Residue: a vendor's firmware
@@ -409,8 +409,9 @@ aba09ec, Fedora 44, KDE, Secure Boot on, the stick left in throughout:
 `not-installed-again` (2026-10-04, run 11, the first clean conversion);
 line 32, `cancelled-untouched` (2026-10-06). Runs 9 and 10 are `[FAIL]`
 rows that stay (lines 11 and 22, `fail`: a text login; a second install,
-R35). The rig's latest is line 36 (`refused-before-countdown`,
-2026-10-09). Owed: other vendors' firmware, and the old-entry button on
+R35). The rig's latest: line 39 (`cancelled-untouched`, 2026-10-16) and
+line 40 (`fail`, arm C cancelled itself, R38); lines 33 to 38 were judged
+from older runs' records ([log](log/2026-10.md#2026-10-16-the-rigs-v9-rows-since-2026-10-08-were-judged-from-older-runs-records-v9-r27-r37-r38-roadmap-item-19-step-5)). Owed: other vendors' firmware, and the old-entry button on
 real firmware (nothing was left for it to remove)
 ([log](log/2026-10.md#2026-10-04-the-aspires-run-11-passed-the-first-clean-conversion-v9-v10-r27-r35)).
 
@@ -780,26 +781,28 @@ called, a replay test closes the decision; the effect on the firmware or
 the disk still takes one re-run on the machine. `./port-check.sh` runs the
 whole check. **Since 2026-10-11** (the PowerShell left the product, R32):
 `schemas/check.py`, the data tables fresh until they move to JSON, the
-twelve frozen goldens unchanged (`FROZEN-GOLDENS.sha256`), `cargo test` in
+frozen goldens unchanged (`FROZEN-GOLDENS.sha256`; thirteen), `cargo test` in
 every crate, the harvester's Windows cases, the schema differential. **Decided (2026-10-04, the owner):** the whole port is
 built on the branch `rust-port`, and the project cuts over to Rust after
 one success of the PowerShell process on `main`; the order is every
 `selftest`, `corpus` and differential line `pass` first, then the `rig`
 lines re-run with the Rust build, then the `physical` ones.
 
-**Where it stands.** `[####]` held-on-machine: 657 ledger lines `pass`,
-45 `owed`, none `fail` (counted 2026-10-11). The Rust scanner's reads and
+**Where it stands.** `[####]` held-on-machine: 904 ledger lines `pass`,
+168 `owed`, none `fail` (counted 2026-10-14). The Rust scanner's reads and
 report matched the PowerShell's on the G16 and the Aspire in the same
 minute (`v13-rust-scanner.csv` lines 4 and 5, `SAME`); the Rust prologue
 ran the Aspire's keep-Windows conversions (`v2-install.csv` lines 11 and
-15; `r18-prologue.csv` line 18, the whole path on 2026-10-11, update
-restart, resume, shrink, handoff, return) and its resume
-(`walkaway-probe.csv` line 5). Fresh-clone rebuilds match
-(`r14-rebuild.csv` lines 22 to 26, `same` = `y`). Phase 1 of the leaving is done (the scripts
-gone, the port check Rust-only, the kit built; `r18-prologue.csv` line 19).
-Owed: the unforced rig row on the fixed kit, the 45 lines (the rig's erase
-arms and the Aspire's rows for each piece), phases 2 and 3, and the
-second-person rebuild ([log](log/2026-10.md#2026-10-11-the-powershell-leaves-the-product-decided-phase-1-done)).
+15; `r18-prologue.csv` line 18, the whole path on 2026-10-11) and its
+resume (`walkaway-probe.csv` line 5). Fresh-clone rebuilds match
+(`r14-rebuild.csv` lines 22 to 26, `same` = `y`). Phases 1 to 3 of the
+leaving are done (2026-10-11 and 2026-10-14: no PowerShell on the stick or
+in `data/`), and the installer's two steps are Rust (2026-10-14: 42 faked
+machines through a sandbox, the program's every line, file, tool call and
+screen equal to the scripts'). Owed: the 168 lines (the rig's and the
+Aspire's rows for each piece, the installer's first), the stick writer's
+write rows, settle-in's starter, and the second-person rebuild
+([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
 
 # Lesser gates (validate when their component is built)
 

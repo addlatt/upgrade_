@@ -101,8 +101,11 @@ selftest() {  # $1 = label, $2 = script path (WSL)
     fi
 }
 selftest "stick writer" "$ROOT/evaluate/windows/Write-UpgradeStick.ps1"
-bash -n "$ROOT/upgrade_/linux/verify.sh" || fail "verify.sh does not parse"
-bash -n "$ROOT/upgrade_/linux/outcome.sh" || fail "outcome.sh does not parse"
+# the installer's two steps (verify in %pre, outcome in %post): one static program, its
+# parity test against the scripts it replaced runs first (needs a user namespace)
+(cd "$ROOT/upgrade_/linux/installer" && cargo test --locked --quiet >/dev/null 2>&1) || fail "upgrade-installer tests fail (cd upgrade_/linux/installer && cargo test)"
+(cd "$ROOT/upgrade_/linux/installer" && cargo build --locked --release --quiet --target x86_64-unknown-linux-musl) || fail "upgrade-installer does not build"
+INSTALLER_BIN="$ROOT/upgrade_/linux/installer/target/x86_64-unknown-linux-musl/release/upgrade-installer"
 # settle-in: the first-startup program, one self-contained file (Rust, static,
 # decided 2026-09-27); its tests run before it is built into the kit
 (cd "$ROOT/settle-in" && cargo test --locked --quiet >/dev/null 2>&1) || fail "settle-in tests fail (cd settle-in && cargo test)"
@@ -156,7 +159,7 @@ for c in "$PAYLOAD"/*.cmd "$ROOT"/evaluate/windows/usb-kit/*.cmd; do
     bad=$(awk '/^if .*\(\r?$/ {inb=1; next} /^\)/ {inb=0} inb && /echo.*[()]/ && !/\^[()]/ {print FILENAME":"NR": "$0}' "$c")
     [ -z "$bad" ] || fail "unescaped parenthesis inside an if-block (write ^( and ^)): $bad"
 done
-(cd "$ROOT" && python3 schemas/check.py >/dev/null) || fail "schemas/check.py failed - the contracts the prologue and outcome.sh write against are broken"
+(cd "$ROOT" && python3 schemas/check.py >/dev/null) || fail "schemas/check.py failed - the contracts the prologue and the outcome step write against are broken"
 step "schemas check passed"
 
 # --- 5. payload bits --------------------------------------------------------
@@ -215,9 +218,8 @@ mkdir -p "$D/images/pxeboot" "$D/upgrade_"
 cp "$RBITS/images/pxeboot/vmlinuz"    "$D/images/pxeboot/vmlinuz"
 cp "$RBITS/images/pxeboot/initrd.img" "$D/images/pxeboot/initrd.img"
 cp "$RBITS/images/install.img"        "$D/images/install.img"
-sed 's/\r$//' "$ROOT/upgrade_/linux/verify.sh"  > "$D/upgrade_/verify.sh"
-sed 's/\r$//' "$ROOT/upgrade_/linux/outcome.sh" > "$D/upgrade_/outcome.sh"
-# settle-in and its service; outcome.sh installs them only if their checksums match SHA256SUMS
+cp "$INSTALLER_BIN" "$D/upgrade_/upgrade-installer"
+# settle-in and its service; the outcome step installs them only if their checksums match SHA256SUMS
 mkdir -p "$D/upgrade_/settle-in"
 cp "$SETTLE_IN_BIN" "$D/upgrade_/settle-in/settle-in"
 sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-settle-in.service" > "$D/upgrade_/settle-in/upgrade_-settle-in.service"
@@ -231,7 +233,7 @@ cp "$GATE_EXE" "$D/upgrade_/settle-in/upgrade-gate.exe"
 sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-go-back-to-windows.desktop" > "$D/upgrade_/settle-in/upgrade_-go-back-to-windows.desktop"
 # the desktops: Fedora's own live squashfs images, unmodified, one per
 # desktop the intent capture offers (rig/vm/fetch-desktops.sh). The
-# kickstart's liveimg line names one of them; verify.sh reads it back
+# kickstart's liveimg line names one of them; the verify step reads it back
 # against SHA256SUMS in the live session before anything is installed.
 mkdir -p "$D/upgrade_/LiveOS"
 for d in gnome kde; do

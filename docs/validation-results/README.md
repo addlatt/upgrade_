@@ -246,7 +246,7 @@ after, in `notes`). No VM can run it: Hyper-V has no USB emulation.
 One row per run, appended by `rig/hyperv/v1-verdict.py` from the V0 harness
 row the guest wrote when Windows came back (`Test-Handoff.ps1 -Check -Auto`)
 and the report the `%pre` verifier left on the stick
-(`upgrade_/report/verify.json`, by `upgrade_/linux/verify.sh` inside
+(`upgrade_/report/verify.json`, by `upgrade-installer verify` inside
 Anaconda's stage2; `%pre` runs before the installer touches any disk). The
 chain: one-time boot entry, shim, GRUB records `upg_fired` and boots the
 installer from the stick with `upg.mode=verify`, `%pre` finds the job's disk
@@ -367,7 +367,7 @@ session 0 interactive False explorer False` and the bench line reads `=0`
 | `fork-<x>` | the fork landed elsewhere than keep-windows (recorded, not a pass for this leg) | design input |
 | `shrink-short` | `Resize-Partition` freed less than planned, or the GPT disagrees with the record | **fail-loud** |
 | `not-armed`, `handoff-failed`, `install-failed`, `outcome-invalid` | as their names; see `v2-install.csv` | fail |
-| `record-mismatch` | `outcome.json` carries a `prologue` block that is not the prologue's record | fail: `outcome.sh` lost the hand-over |
+| `record-mismatch` | `outcome.json` carries a `prologue` block that is not the prologue's record | fail: the outcome step lost the hand-over |
 | `resume-attended` | (prologue 0.3.0+) a resume ran with a session present: someone was signed in, or the task ran as the person | fail for the walk-away clause. The row's other columns still stand |
 | `resume-with-autologon` | the bench did not switch the guest's autologon off, so the row cannot say whether the resume needed a sign-in | incomplete: re-run with `autologon off` |
 
@@ -383,11 +383,11 @@ test setup can fake (rule #5); `fsutil dirty set` is only our model of it.
 
 Rollback undoes the boot changes so the machine starts Windows again as it
 did before the conversion. One row per run, by `rig/hyperv/rollback-verdict.py`
-from the rollback's record (`upgrade_/rollback.json`, written by
-`upgrade-prologue rollback`, the window's "Roll back" choice, from the kept
-Windows), the offline ESP manifests before the conversion, after the cycles
-and after the rollback, and the bench's marker when Windows comes up
-afterwards with **no key pressed**. Bench: `rig/hyperv/prologue.sh rollback`.
+from the rollback's record (`upgrade_/rollback.json`, by `settle-in rollback`
+from Linux since 2026-10-12, or `upgrade-prologue rollback` from the kept
+Windows), the offline ESP manifests before the conversion, after the cycles and
+after the rollback, the guard's answer in the ESP marker `rolled-back.json`, and
+the bench's marker when Windows comes up with **no key pressed**. Bench: `rig/hyperv/prologue.sh rollback`.
 `--physical`: the ESP before is the stick's snapshot sums, the captures come from
 `physical/collect-windows.ps1`, `boots.log` is assembled (first line `source,`).
 
@@ -400,7 +400,7 @@ afterwards with **no key pressed**. Bench: `rig/hyperv/prologue.sh rollback`.
 
 **Result vocabulary.** `pass-plumbing` (rig) or `pass` (`--physical`) when
 all of the above hold; else the first failing item by name: `record-missing`,
-`not-restored`, `loader-mismatch`, `windows-not-first`, `windows-not-direct`, `linux-touched`, `efi-fedora-touched`.
+`not-restored`, `loader-mismatch`, `windows-not-first`, `windows-not-direct`, `linux-touched`, `efi-fedora-touched`, `guard-not-removed`.
 
 **What a pass requires.** A rig row closes the plumbing of the restore half
 of the R21 snapshot. The firmware clause is a physical-matrix column: does

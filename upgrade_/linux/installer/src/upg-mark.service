@@ -1,0 +1,8 @@
+[Unit]
+Description=upgrade_ rig boot marker (writes a row to the stick)
+After=multi-user.target
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/upg-mark
+[Install]
+WantedBy=multi-user.target

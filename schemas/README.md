@@ -137,7 +137,7 @@ Schemas and examples exist (2026-09-08). Writers (2026-09-12): the job
 writer `evaluate/windows/New-Job.ps1` writes `job.json`. The prologue
 `upgrade_/windows/Invoke-Prologue.ps1` writes a stopped `outcome.json` at
 any refusal, and writes the `prologue` block (via `upgrade_/prologue.json`
-on the stick) that `upgrade_/linux/outcome.sh` carries into the completed
+on the stick) that the installer's outcome step (`upgrade-installer outcome`) carries into the completed
 `outcome.json`. The same day, the prologue block gained
 `volume_check.scan` and `.restarts`, `shrink.remeasured_by` and
 `.remeasured_diskpart_gb`, an optional `staged` block and `handoff.marker`.

@@ -361,7 +361,7 @@ decisions can be self-tested.
 
 Still fully reversible; even the shrink can be undone by growing the partition
 back. The prologue's record (`upgrade_/prologue.json`) is what `%post`'s
-`outcome.sh` carries into `outcome.json` as the `prologue` block.
+outcome step carries into `outcome.json` as the `prologue` block.
 
 #### The handoff
 
@@ -480,24 +480,24 @@ changed, and nothing is deleted until the person says yes at reclaim.
 
 ### Rollback is a mode of upgrade_, not a fourth module
 
-On the keep-Windows path, rollback means restoring the Windows boot entry. It
-takes seconds, and can be reached from the stick and from `settle-in`.
-Concretely (decided 2026-08-30): put the Windows Boot Manager entry first in
-`BootOrder` (re-creating it if missing); restore Windows' own
-`EFI/Boot/bootx64.efi` from the step-8 snapshot; leave the Linux partitions and
-`EFI/fedora` in place until the person asks for the space back. A boot-order
-change, not a deletion. The Windows-side tool (`Invoke-Rollback.ps1`,
-`ROLLBACK.cmd` on the kit stick, run from the kept Windows) reads the job, the
-outcome and the snapshot; refuses on a moved stick or a path that kept no
-Windows; restores `EFI/Boot/bootx64.efi` from the snapshot with its checksum
-checked (the shim copy is saved to the stick); puts `{bootmgr}` first with
-`bcdedit`; and records `upgrade_/rollback.json`. The Linux-side twin
-(`efibootmgr`) belongs to `settle-in`. Owning rollback here is deliberate:
-recovery paths nobody owns get discovered by the person whose laptop is already
-a brick. The clean-slate path has no rollback, which is exactly why it has a
-human gate before its commit line; the honest fallback there is Microsoft's own
-install media (the digital licence reactivates on the same hardware) plus the
-stick's files.
+On the keep-Windows path, rollback means Windows first again: a boot-order
+restore, not a deletion. It takes seconds and deletes nothing; the Linux
+partitions and `EFI/fedora` stay until the person asks for the space back.
+Concretely (decided 2026-08-30): Windows Boot Manager first in `BootOrder`;
+Windows' own `EFI/Boot/bootx64.efi` back from the step-8 snapshot; and, where
+shim sat in Windows' slot (step 12), Windows' loader back under its own name
+and the guard task gone. **Decided (2026-10-12, the owner): it runs from the
+Linux side,** where the person starts it ("Go back to Windows" on a kept
+Windows offers it instead of a fresh install), because on the Acer a `bcdedit`
+order change did not survive the restart while Linux's efivarfs write did
+(`r21-rollback.csv` line 6). `settle-in rollback` refuses on a moved stick, a
+wrong job or a disk that is not the job's; then restores the two files from
+the stick's snapshot (checksums checked, the shim copy saved to the stick),
+writes a marker on the ESP (`upgrade_/rolled-back.json`) that the guard in the
+kept Windows reads at its next start to remove itself, puts Windows first and
+reads it back, and records `upgrade_/rollback.json`. `upgrade-prologue
+rollback` on the Windows side stays as plumbing for the bench. The clean-slate
+path has no rollback (hence its human gate before the commit line); its way back is below.
 
 ### Design constraints: offline, and one stick, honestly sized
 
@@ -580,19 +580,19 @@ in one way that matters: the person said up front that nothing is to be kept.
    drives by identity), lets a waiting Windows update finish (RISKS R25), arms
    the one-time boot to the stick and restarts. Windows still boots if anything
    stops before the countdown ends.
-4. **The installer checks, then counts down.** `%pre` (`verify.sh`, which runs
+4. **The installer checks, then counts down.** `%pre` (`upgrade-installer verify`, which runs
    inside the installer before it does anything) finds each listed drive by
    identity and exact size and refuses on any mismatch (a stick moved to another
    computer never erases it); reads the desktop image back against its checksum
    (RISKS R17); then shows a **two-minute countdown: "Erasing both drives in
    1:59 - press any key to cancel and restart into Windows."** Any key cancels:
    the report goes to the stick and the machine restarts into an untouched
-   Windows. The moment it reaches zero is **the commit line**: `verify.sh`
+   Windows. The moment it reaches zero is **the commit line**: the verify step
    writes the time to the stick, writes `upgrade_/converted` and removes
    `upgrade_/boot-install` (a converted stick only ever hands over to the
    installed system, never installs again; RISKS R35), and the installer erases
    and installs. **Every refusal before the countdown is a plain screen**
-   (decided 2026-09-27, the owner; `verify.sh` 0.5.0), not Anaconda's raw
+   (decided 2026-09-27, the owner; `verify.sh` 0.5.0, now `upgrade-installer verify`), not Anaconda's raw
    traceback, for 60 s (any key: now), then the computer restarts unchanged with
    `report/refusal.json` on the stick:
 
@@ -957,12 +957,12 @@ The modules talk to each other only through files on the stick:
 |---|---|---|
 | `job.json` + `artifacts/` | evaluate | upgrade_, **settle-in** |
 | `outcome.json` + logs | upgrade_ | settle-in |
-| `/var/lib/upgrade_/` on the installed system | the installer adapter (Fedora: `outcome.sh`) | settle-in |
+| `/var/lib/upgrade_/` on the installed system | the installer adapter (Fedora: `upgrade-installer outcome`) | settle-in |
 
 `settle-in` reads `job.json` too: on the keep-Windows path it needs the folder
 map and the BitLocker recovery key to pull the files. So `job.json` outlives
 cutover, and the recovery key can only be scrubbed **after** the pull. **The
-handoff folder** (`outcome.sh` 0.4.0): at the end of the install the adapter
+handoff folder** (the outcome step; since `outcome.sh` 0.4.0): at the end of the install the adapter
 copies `job.json` and `outcome.json` into `/var/lib/upgrade_/` on the installed
 system, root-only (folders 0700, files 0600), laid out like the stick's
 `upgrade_/` so the job's relative paths resolve the same. The Wi-Fi password

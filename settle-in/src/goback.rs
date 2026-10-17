@@ -219,6 +219,21 @@ pub fn screen(before: &Value, pc: &Value, off: &Value) -> Value {
     json!({ "title": "Go back to Windows", "sections": out, "close": "Close", "next": "I have downloaded it", "wizard": wizard(before, off["windows"].as_str()) })
 }
 
+/// The screen when Windows was kept (decided 2026-10-12, the owner): the way
+/// back is the rollback, Windows first again, nothing deleted. The words are
+/// `rollback::words()` (DRAFT, awaiting the owner's approval).
+pub fn kept_screen(before: &Value) -> Value {
+    let w = crate::rollback::words();
+    let mut sections = vec![json!({ "heading": w["intro"]["heading"], "lines": w["intro"]["lines"] })];
+    if before["result"] == "read" {
+        if let Some(v) = before["windows_version"].as_str() {
+            let name = edition_name(before, Some(v)).unwrap_or_else(|| format!("Windows {}", v));
+            sections.push(json!({ "heading": "Your Windows", "lines": [format!("Still on this computer: {}, as it was when you converted.", name)] }));
+        }
+    }
+    json!({ "title": "Go back to Windows", "kept": true, "sections": sections, "close": "Close", "next_plain": "Next", "words": w })
+}
+
 /// The words for the later screens (the window draws them; it has none of
 /// its own). DRAFT, awaiting the owner's approval.
 pub fn wizard(before: &Value, windows: Option<&str>) -> Value {
