@@ -219,7 +219,7 @@
   ]
  },
  {
-  "name": "keep-windows %post turns os-prober off and writes its own Windows entry right under Fedora (25_windows_kept, above the firmware-settings entry), telling the return it was chosen (upg_windows_chosen in an environment block made on the ESP, where the return can read it) and chainloading the kept name when it exists; clean-slate does neither",
+  "name": "keep-windows: the kickstart carries no GRUB shell since 0.11.0 (os-prober off, 25_windows_kept, the ESP's grubenv are upgrade-installer outcome's, post.rs); clean-slate neither",
   "origin": "selftest",
   "parts": [
    {
@@ -229,32 +229,24 @@
     "manifest": null,
     "asserts": [
      [
-      "contains",
-      "GRUB_DISABLE_OS_PROBER=true"
+      "not_contains",
+      "GRUB_DISABLE_OS_PROBER"
      ],
      [
-      "contains",
-      "/etc/grub.d/25_windows_kept"
+      "not_contains",
+      "25_windows_kept"
      ],
      [
       "not_contains",
       "40_custom"
      ],
      [
-      "contains",
-      "menuentry 'Windows (kept)'"
+      "not_contains",
+      "grub2-"
      ],
      [
-      "contains",
-      "bootmgfw-kept.efi; else chainloader /EFI/Microsoft/Boot/bootmgfw.efi"
-     ],
-     [
-      "contains",
-      "save_env -f /EFI/fedora/grubenv upg_windows_chosen"
-     ],
-     [
-      "contains",
-      "grub2-editenv /boot/efi/EFI/fedora/grubenv create"
+      "not_contains",
+      "menuentry"
      ]
     ]
    },
@@ -429,7 +421,7 @@
   ]
  },
  {
-  "name": "the nochroot %post runs upgrade-installer outcome after the chroot %post",
+  "name": "the only %post is the nochroot one that runs upgrade-installer outcome; no chroot %post since 0.11.0",
   "origin": "selftest",
   "parts": [
    {
@@ -443,9 +435,12 @@
       "%post --nochroot --log=/tmp/upgrade_-outcome-post.log"
      ],
      [
-      "before",
-      "%post --log=/root/upgrade_-post.log",
-      "%post --nochroot"
+      "not_contains",
+      "%post --log="
+     ],
+     [
+      "not_contains",
+      "set -x"
      ],
      [
       "contains",
@@ -477,7 +472,7 @@
   ]
  },
  {
-  "name": "the installed system boots to the graphical sign-in (xconfig, and %post sets the target) - never a text console",
+  "name": "the installed system boots to the graphical sign-in (xconfig here; upgrade-installer outcome sets the target) - never a text console",
   "origin": "selftest",
   "parts": [
    {
@@ -491,8 +486,8 @@
       "xconfig --startxonboot"
      ],
      [
-      "line",
-      "systemctl set-default graphical.target"
+      "not_contains",
+      "systemctl"
      ]
     ]
    },
@@ -511,7 +506,7 @@
   ]
  },
  {
-  "name": "the account is made by the kickstart, so Plasma Setup (Fedora 44 KDE) is marked done and disabled",
+  "name": "the account is made by the kickstart; Plasma Setup (Fedora 44 KDE) is turned off by upgrade-installer outcome, not here",
   "origin": "selftest",
   "parts": [
    {
@@ -521,24 +516,19 @@
     "manifest": null,
     "asserts": [
      [
-      "line",
-      "touch /etc/plasma-setup-done"
+      "contains",
+      "user --name="
      ],
      [
-      "line_prefix",
-      "systemctl disable plasma-setup.service"
-     ],
-     [
-      "before",
-      "%post --log=/root/upgrade_-post.log",
-      "touch /etc/plasma-setup-done"
+      "not_contains",
+      "plasma-setup"
      ]
     ]
    }
   ]
  },
  {
-  "name": "console chosen: no graphical login, the text console is the default target",
+  "name": "console chosen: no graphical login here; upgrade-installer outcome makes the text console the default target",
   "origin": "selftest",
   "parts": [
    {
@@ -560,8 +550,8 @@
       "xconfig"
      ],
      [
-      "line",
-      "systemctl set-default multi-user.target"
+      "not_contains",
+      "systemctl"
      ]
     ]
    }

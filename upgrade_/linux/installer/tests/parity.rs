@@ -5,7 +5,12 @@
 //! (`sandbox.py`), frozen. Recorded again once from the program's own
 //! output for 0.1.2 (2026-10-17, R38: the console moved from tty6 to tty9,
 //! and two cases where another program holds it), reviewed as a diff: only
-//! the console's path, one new log line and the new cases moved. This
+//! the console's path, one new log line and the new cases moved. Recorded
+//! again from the program for 0.1.3 (2026-10-17: the kickstart's chroot
+//! %post moved into `outcome`, post.rs), reviewed as a diff: the 31 verify
+//! cases unchanged, no old case's outcome.json moved, the outcome cases
+//! gained the post step's tool calls, files and log lines, and six new
+//! cases (keep-Windows and erase, console and desktop). This
 //! test runs the program through the same sandbox for every case and requires the same result: the exit code,
 //! every line printed, every file left on the stick, in the installed
 //! system and under /tmp, every tool called in order, every screen drawn

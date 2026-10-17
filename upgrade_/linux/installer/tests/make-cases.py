@@ -142,7 +142,7 @@ PROLOGUE_REC = {"schema": "prologue/1", "prologue_version": "0.12.2", "job_id": 
                              "bitlocker": {"status_before": "off", "suspended": False, "reboot_count": None}, "handoff": {"armed": True, "marker": "boot-install", "entry_guid": "{guid}", "armed_utc": "2026-10-14T19:05:00Z", "bcd_backup": "x"}}}
 SYSROOT = {"files": {"boot/efi/EFI/Microsoft/Boot/bootmgfw.efi": BOOTMGFW, "boot/efi/EFI/Microsoft/Boot/BCD": "BCD-store-bytes", "boot/efi/EFI/BOOT/BOOTX64.EFI": SHIM, "boot/efi/EFI/fedora/shimx64.efi": SHIM, "boot/efi/EFI/fedora/grubx64.efi": GRUB,
                      "boot/grub2/grub.cfg": "menuentry 'Fedora Linux' {\n}\nmenuentry 'Windows (kept)' --class windows {\n chainloader\n}\n", "lib/modules/6.14.0-63.fc44.x86_64/modules.dep": "", "lib/modules/6.13.9-200.fc42.x86_64/modules.dep": "",
-                     "etc/os-release": "NAME=\"Fedora Linux\"\nVERSION_ID=44\n", "root/anaconda-ks.cfg": "# ks\n", "root/upgrade_-post.log": "post log\n"},
+                     "etc/os-release": "NAME=\"Fedora Linux\"\nVERSION_ID=44\n", "root/anaconda-ks.cfg": "# ks\n", "etc/default/grub": "GRUB_TIMEOUT=5\nGRUB_DISABLE_SUBMENU=true\nGRUB_ENABLE_BLSCFG=true\n"},
            "links": {"etc/systemd/system/default.target": "/usr/lib/systemd/system/graphical.target", "etc/systemd/system/display-manager.service": "/usr/lib/systemd/system/sddm.service"}}
 EFI = {"entries": [["0001", "Windows Boot Manager", "HD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)"], ["0002", "Fedora", "HD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)"], ["0003", "UEFI: USB Stick", "PciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)"]], "order": ["0001", "0002", "0003"], "current": "0003"}
 WIFI_FILES = {"upgrade_/artifacts/credentials/wifi/Home Net.xml": "<WLANProfile>home</WLANProfile>", "upgrade_/artifacts/credentials/wifi/Office.xml": "<WLANProfile>office</WLANProfile>"}
@@ -150,7 +150,7 @@ WIFI_FILES = {"upgrade_/artifacts/credentials/wifi/Home Net.xml": "<WLANProfile>
 
 def outcome(name, job, **kw):
     c = {"name": name, "mode": "outcome", "job": job, "stick": {"files": dict(STICK_KEEP["files"], **WIFI_FILES, **{"upgrade_/prologue.json": json.dumps(PROLOGUE_REC, indent=2)}), "markers": ["converted:verify 0.6.0 job x committed 2026-10-14T20:00:00Z"], "report": {"verify.json": copy.deepcopy(VERIFY_JSON)}, "esp_snapshot": copy.deepcopy(SNAPSHOT), "settle_in": copy.deepcopy(SETTLE_IN)},
-         "disks": [disk_sda()], "sysroot": copy.deepcopy(SYSROOT), "efibootmgr": copy.deepcopy(EFI), "findmnt": {"/mnt/sysroot": "/dev/sda5", "/mnt/sysroot/boot/efi": "/dev/sda1"},
+         "disks": [disk_sda()], "sysroot": copy.deepcopy(SYSROOT), "efibootmgr": copy.deepcopy(EFI), "findmnt": {"/mnt/sysroot": "/dev/sda5", "/mnt/sysroot/boot/efi": "/dev/sda1"}, "findmnt_uuid": {"/mnt/sysroot/boot/efi": "A1B2-C3D4"}, "plasma_setup_present": True,
          "clock": {"rtc": "1760472000", "ntp": "yes", "chronyc": "Reference ID    : C0A80001 (192.168.0.1)\nLeap status     : Normal"}, "kernel": "6.14.0-63.fc44.x86_64", "tty": False}
     for k, v in kw.items():
         if k == "stick":
@@ -170,7 +170,7 @@ cases += [
     outcome("keep-windows: the firmware dropped the Windows entry: re-created, Linux first", KEEP, efibootmgr={"entries": [EFI["entries"][1], EFI["entries"][2]], "order": ["0003", "0002"], "current": "0003"}),
     outcome("keep-windows: Linux already first, no reorder", KEEP, efibootmgr=dict(EFI, order=["0002", "0001", "0003"])),
     outcome("keep-windows: bootmgfw differs from the snapshot, grub lists no Windows, shim sits in the fallback slot, no verify.json", KEEP, stick={"report": {}, "esp_snapshot": dict(SNAPSHOT, SHA256SUMS=f"{h(SHIM)}  ./EFI/Boot/bootx64.efi\n{h('other')}  ./EFI/Microsoft/Boot/bootmgfw.efi\n")},
-            sysroot={"files": dict(SYSROOT["files"], **{"boot/grub2/grub.cfg": "menuentry 'Fedora Linux' {\n}\n"}), "links": SYSROOT["links"]}),
+            sysroot={"files": dict(SYSROOT["files"], **{"boot/grub2/grub.cfg": "menuentry 'Fedora Linux' {\n}\n"}), "links": SYSROOT["links"]}, grub_mkconfig_fails=True),
     outcome("keep-windows: settle-in incomplete on the stick: not installed, the reason said", KEEP, stick={"settle_in": {k: v for k, v in SETTLE_IN.items() if k != "settle-in-window"}}),
     outcome("keep-windows: a settle-in file does not match the manifest: not installed", KEEP, stick={"wrong_sum_for": ["upgrade_-settle-in.service"]}),
     outcome("keep-windows: the way back's files do not match: settle-in installed, go-back not", KEEP, stick={"wrong_sum_for": ["cabextract"]}),
@@ -184,6 +184,20 @@ cases += [
     outcome("erase-and-install: no countdown record: said, the outcome written anyway", ERASE_JOB, stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": ERASE_VERIFY}, "esp_snapshot": None}, disks=[disk_vm(dev="sda")], efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"}),
     outcome("clean-slate without erase: the commit line crossed by the wipe", CLEAN_JOB, stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": dict(VERIFY_JSON, job_id=CLEAN_JOB["job_id"])}, "esp_snapshot": None}, efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"}),
     outcome("the clock: no rtc, time service not synchronized, chronyc silent", KEEP, clock={"rtc": "", "ntp": "no", "chronyc": ""}),
+    # the installed system's last settings, the chroot %post's shell until upgrade-installer 0.1.3 (kickstart 0.11.0)
+    outcome("post, keep-windows, desktop: os-prober said false and would find Windows; turned off, our entry the only Windows one", KEEP, os_prober_finds_windows=True,
+            sysroot={"files": dict(SYSROOT["files"], **{"etc/default/grub": "GRUB_TIMEOUT=5\nGRUB_DISABLE_OS_PROBER=false\n"}), "links": SYSROOT["links"]}),
+    outcome("post, keep-windows, console: the start target set to multi-user, the graphical link replaced", vjob(KEEP, **{"intent.start_at": "console"})),
+    outcome("post, keep-windows: the ESP's UUID cannot be read: the entry written without it, said in post.log", KEEP, findmnt_uuid={}),
+    outcome("post, keep-windows: no /etc/default/grub at all: written with os-prober off", KEEP, sysroot={"files": {k: v for k, v in SYSROOT["files"].items() if k != "etc/default/grub"}, "links": SYSROOT["links"]}),
+    outcome("post, erase, console: no GRUB changes, the start target multi-user, Plasma Setup absent", vjob(ERASE_JOB, **{"intent.start_at": "console"}), plasma_setup_present=False,
+            stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": ERASE_VERIFY, "countdown.json": {"schema": "countdown/1", "result": "elapsed", "seconds": 120, "ended_utc": "2026-10-14T20:02:00Z"}}, "esp_snapshot": None},
+            disks=[disk_vm(dev="sda")], findmnt={"/mnt/sysroot": "/dev/sda3", "/mnt/sysroot/boot/efi": "/dev/sda1"}, efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"},
+            sysroot={"files": {k: v for k, v in SYSROOT["files"].items() if k != "boot/grub2/grub.cfg"}, "links": SYSROOT["links"]}),
+    outcome("post, erase, desktop: no GRUB changes, the start target graphical over a multi-user link", ERASE_JOB,
+            stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": ERASE_VERIFY, "countdown.json": {"schema": "countdown/1", "result": "elapsed", "seconds": 120, "ended_utc": "2026-10-14T20:02:00Z"}}, "esp_snapshot": None},
+            disks=[disk_vm(dev="sda")], findmnt={"/mnt/sysroot": "/dev/sda3", "/mnt/sysroot/boot/efi": "/dev/sda1"}, efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"},
+            sysroot={"files": {k: v for k, v in SYSROOT["files"].items() if k != "boot/grub2/grub.cfg"}, "links": {"etc/systemd/system/default.target": "/usr/lib/systemd/system/multi-user.target"}}),
 ]
 
 out = pathlib.Path(__file__).with_name("cases.json")

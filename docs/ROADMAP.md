@@ -163,7 +163,8 @@ The first of three checkpoints, taken in order 19, 20, 21 (decided
 2026-10-12, the owner). Item 17's phases 2 and 3 (done 2026-10-14), then
 the Linux side the person's computer runs: the installer's `verify.sh` and
 `outcome.sh` (`upgrade-installer`, built 2026-10-14), `settle-in`'s starter
-script (built the same day). The build and check tools, the rig's boot
+script (built the same day), the kickstart's chroot `%post` and the way
+back's first sign-in (built 2026-10-17). The build and check tools, the rig's boot
 marker and the stick's `.cmd` starters stay as they are (decided
 2026-10-17, the owner; `RUST-PORT.md`, "What comes next"). The stick
 writer writes disks, so R16's rows run again (rule #4); the installer

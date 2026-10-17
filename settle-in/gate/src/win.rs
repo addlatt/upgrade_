@@ -1,8 +1,11 @@
 //! What only Windows can do for the gate: list the drives WinPE sees (serial,
 //! exact size, model), find which drive holds the stick, read a key and clear
 //! the screen. Read-only toward every drive: the only writes the gate ever
-//! makes are its record files on the stick. Off Windows these are stand-ins,
-//! so the gate's logic builds and tests on Linux.
+//! makes are its record files on the stick. And, for the first sign-in on
+//! the new Windows (firstlogon.rs, 0.4.0), the sshd service through the
+//! service manager: its state and start type are numbers there, the same in
+//! every language Windows speaks. Off Windows these are stand-ins, so the
+//! gate's logic builds and tests on Linux.
 
 #[cfg(windows)]
 mod imp {
@@ -170,6 +173,84 @@ mod imp {
         t.wYear = w[0]; t.wMonth = w[1]; t.wDay = w[2]; t.wHour = w[3]; t.wMinute = w[4]; t.wSecond = w[5];
         unsafe { SetLocalTime(&t) != 0 }
     }
+
+    use windows_sys::Win32::System::Services::{
+        ChangeServiceConfigW, CloseServiceHandle, ControlService, OpenSCManagerW, OpenServiceW, QueryServiceConfigW, QueryServiceStatus, StartServiceW, QUERY_SERVICE_CONFIGW, SC_HANDLE, SC_MANAGER_CONNECT,
+        SERVICE_AUTO_START, SERVICE_CHANGE_CONFIG, SERVICE_CONTROL_STOP, SERVICE_NO_CHANGE, SERVICE_QUERY_CONFIG, SERVICE_QUERY_STATUS, SERVICE_RUNNING, SERVICE_START, SERVICE_STATUS, SERVICE_STOP, SERVICE_STOPPED,
+    };
+
+    /// A service opened with the rights the first sign-in needs; closed with it.
+    fn with_service<T>(name: &str, f: impl FnOnce(SC_HANDLE) -> T) -> Option<T> {
+        let m = unsafe { OpenSCManagerW(std::ptr::null(), std::ptr::null(), SC_MANAGER_CONNECT) };
+        if m.is_null() {
+            return None;
+        }
+        let n = w(name);
+        let s = unsafe { OpenServiceW(m, n.as_ptr(), SERVICE_QUERY_STATUS | SERVICE_QUERY_CONFIG | SERVICE_START | SERVICE_STOP | SERVICE_CHANGE_CONFIG) };
+        let out = if s.is_null() { None } else { Some(f(s)) };
+        unsafe {
+            if !s.is_null() {
+                CloseServiceHandle(s);
+            }
+            CloseServiceHandle(m);
+        }
+        out
+    }
+
+    fn state(s: SC_HANDLE) -> u32 {
+        let mut st: SERVICE_STATUS = unsafe { std::mem::zeroed() };
+        if unsafe { QueryServiceStatus(s, &mut st) } == 0 { 0 } else { st.dwCurrentState }
+    }
+
+    /// Waits up to 30 s for a state.
+    fn wait_for(s: SC_HANDLE, want: u32) -> bool {
+        for _ in 0..60 {
+            if state(s) == want {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+        false
+    }
+
+    /// None: no such service.
+    pub fn service(name: &str) -> Option<crate::firstlogon::Svc> {
+        with_service(name, |s| {
+            let mut buf = vec![0u8; 8192];
+            let mut need = 0u32;
+            let auto = unsafe { QueryServiceConfigW(s, buf.as_mut_ptr() as *mut QUERY_SERVICE_CONFIGW, buf.len() as u32, &mut need) } != 0
+                && unsafe { (*(buf.as_ptr() as *const QUERY_SERVICE_CONFIGW)).dwStartType } == SERVICE_AUTO_START;
+            crate::firstlogon::Svc { running: state(s) == SERVICE_RUNNING, automatic: auto }
+        })
+    }
+
+    pub fn service_start(name: &str) -> bool {
+        with_service(name, |s| {
+            if state(s) != SERVICE_RUNNING {
+                unsafe { StartServiceW(s, 0, std::ptr::null()) };
+            }
+            wait_for(s, SERVICE_RUNNING)
+        })
+        .unwrap_or(false)
+    }
+
+    pub fn service_stop(name: &str) -> bool {
+        with_service(name, |s| {
+            if state(s) != SERVICE_STOPPED {
+                let mut st: SERVICE_STATUS = unsafe { std::mem::zeroed() };
+                unsafe { ControlService(s, SERVICE_CONTROL_STOP, &mut st) };
+            }
+            wait_for(s, SERVICE_STOPPED)
+        })
+        .unwrap_or(false)
+    }
+
+    pub fn service_automatic(name: &str) -> bool {
+        with_service(name, |s| unsafe {
+            ChangeServiceConfigW(s, SERVICE_NO_CHANGE, SERVICE_AUTO_START, SERVICE_NO_CHANGE, std::ptr::null(), std::ptr::null(), std::ptr::null_mut(), std::ptr::null(), std::ptr::null(), std::ptr::null(), std::ptr::null()) != 0
+        })
+        .unwrap_or(false)
+    }
 }
 
 #[cfg(not(windows))]
@@ -183,6 +264,14 @@ mod imp {
     pub fn reboot() {}
     pub fn local_wall() -> [u16; 6] { [1970, 1, 1, 0, 0, 0] }
     pub fn set_wall(_: &[u16; 6]) -> bool { false }
+    #[allow(dead_code)]
+    pub fn service(_: &str) -> Option<crate::firstlogon::Svc> { None }
+    #[allow(dead_code)]
+    pub fn service_start(_: &str) -> bool { false }
+    #[allow(dead_code)]
+    pub fn service_stop(_: &str) -> bool { false }
+    #[allow(dead_code)]
+    pub fn service_automatic(_: &str) -> bool { false }
 }
 
 pub use imp::*;
