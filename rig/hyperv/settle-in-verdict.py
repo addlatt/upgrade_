@@ -41,7 +41,7 @@ stick-credentials-dir.txt. Checks, each named in the row:
               stale entries left the boot order, the running entry stayed first, and
               the next boot (boots.log) started from it into the graphical sign-in
 
-A spoofed pass is pass-plumbing: it closes plumbing, never a real-hardware
+A spoofed pass, or any pass on the rig, is pass-plumbing: it closes plumbing, never a real-hardware
 clause (rule #5).
 """
 import csv, datetime, json, pathlib, re, sys
@@ -198,7 +198,10 @@ else:
     own_entry = "%s%s" % (own.get("result"), "; still in the firmware" if left else ("; gone from the firmware" if snaps else ""))
     if own.get("result") not in ("removed", "already-gone") or left: fails.append("own entry")
 
-result = ("pass-plumbing" if spoofed else "pass") if not fails else "fail"
+# a rig row is plumbing whether or not Wi-Fi was spoofed (rule #5); lines 16, 17 and 21 said "pass" for rig
+# runs without --spoofed-wifi until 2026-10-17 (the test pass): read them as plumbing
+rig = "(rig)" in MACHINE or "Hyper-V" in MACHINE or "QEMU" in MACHINE
+result = ("pass-plumbing" if spoofed or rig else "pass") if not fails else "fail"
 if result != "fail" and spoofed and "partial" in wifi_nm: result = "partial"
 # remote access (2026-10-04): carried only when the job says Windows had it on; a carried
 # job whose report is not "carried" fails the row (the reason is settle-in's own)
