@@ -128,7 +128,7 @@ pull)
     tag=${2:?tag}; mkdir -p "$A/$tag"; L=$(stick_letter)
     if [ -n "$L" ]; then
         for f in outcome.json prologue.json prologue-return.json job.json boots.log; do pull "${L}:\\upgrade_\\$f" "$A/$tag/$f"; done
-        for f in verify.json verify.log countdown.json storage.ks prologue.log refusal.json r38-consoles-1-pre-start.txt r38-consoles-2-countdown-3s.txt r38-consoles-3-countdown-30s.txt r38-consoles-2-no-countdown.txt r38cap.log; do pull "${L}:\\upgrade_\\report\\$f" "$A/$tag/$f"; done
+        for f in verify.json verify.log countdown.json storage.ks prologue.log refusal.json r38-pre.txt r38-consoles-1-pre-start.txt r38-consoles-2-countdown-3s.txt r38-consoles-3-countdown-30s.txt r38-consoles-2-no-countdown.txt r38cap.log; do pull "${L}:\\upgrade_\\report\\$f" "$A/$tag/$f"; done
     fi
     for f in state-returned.json prologue.log; do pull "$GUEST_STATE\\$f" "$A/$tag/guest-$f"; done
     pull 'C:\upgrade_\v1\v0-handoff.csv' "$A/$tag/v0-handoff.csv"
@@ -140,7 +140,7 @@ stick-pull)
     qemu-img convert -f vhdx -O raw "$STICK_VHDX" "$A/stick.raw"
     for f in outcome.json prologue.json boots.log job.json converted boot-install; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/$f" "$A/$tag/$f" 2>/dev/null || true; done
     mdir -b -i "$A/stick.raw@@1M" "::/upgrade_" > "$A/$tag/stick-upgrade-dir.txt" 2>&1 || true   # which markers the stick carries (R35)
-    for f in verify.json verify.log countdown.json storage.ks outcome.log anaconda.log storage.log efibootmgr-after.txt refusal.json r38-consoles-1-pre-start.txt r38-consoles-2-countdown-3s.txt r38-consoles-3-countdown-30s.txt r38-consoles-2-no-countdown.txt r38cap.log; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/report/$f" "$A/$tag/$f" 2>/dev/null || true; done
+    for f in verify.json verify.log countdown.json storage.ks outcome.log anaconda.log storage.log efibootmgr-after.txt refusal.json r38-pre.txt r38-consoles-1-pre-start.txt r38-consoles-2-countdown-3s.txt r38-consoles-3-countdown-30s.txt r38-consoles-2-no-countdown.txt r38cap.log; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/report/$f" "$A/$tag/$f" 2>/dev/null || true; done
     # settle-in's first startup, captured by the bench marker (2026-09-27)
     mkdir -p "$A/$tag/settle-in"; mcopy -s -o -i "$A/stick.raw@@1M" "::/upgrade_/settle-in-capture/*" "$A/$tag/settle-in/" 2>/dev/null || true
     mdir -i "$A/stick.raw@@1M" "::/upgrade_/artifacts/credentials" > "$A/$tag/stick-credentials-dir.txt" 2>&1 || true

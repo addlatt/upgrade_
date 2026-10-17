@@ -8,8 +8,9 @@
 # r38-consoles-<when>.txt, for `v9.sh pull` / `stick-pull` to collect.
 # v9.sh puts it in front of the job's ks.cfg (R38CAP=1 v9.sh job).
 # Every command has a 10 s limit and every record is saved at once, with
-# r38cap.log saying how far it got: the first version (2026-10-17, arm B,
-# v9-erase.csv line 41) left nothing on the stick, cause unknown.
+# r38cap.log saying how far it got: the first two versions (2026-10-17, arms
+# B and B2) left nothing on the stick; the watcher was most likely ended
+# with %pre (see below).
 %pre --log=/tmp/upgrade_-r38-capture-pre.log
 cat > /tmp/r38cap.sh <<'EOF'
 #!/bin/bash
@@ -67,5 +68,12 @@ done
 sleep 3; cap 2-countdown-3s; save
 sleep 27; cap 3-countdown-30s; save
 EOF
-setsid bash /tmp/r38cap.sh < /dev/null > /tmp/r38cap.log 2>&1 &
+# a process left behind by %pre is ended with it when %pre runs as a systemd
+# service (the cgroup is cleaned up; setsid does not leave it): the watcher
+# gets a unit of its own. And %pre itself says, on the stick, which unit ran it
+{ echo "$(date -u +%FT%TZ) %pre ran; its cgroup: $(cat /proc/self/cgroup)"; echo "parent: $(cat /proc/$PPID/comm 2>&1) $(tr '\0' ' ' < /proc/$PPID/cmdline 2>&1)"; } > /tmp/r38-pre.txt
+if systemd-run --unit=upgrade-r38cap --collect --quiet bash /tmp/r38cap.sh >> /tmp/r38-pre.txt 2>&1; then echo "watcher: systemd-run upgrade-r38cap" >> /tmp/r38-pre.txt
+else echo "watcher: systemd-run failed, setsid instead" >> /tmp/r38-pre.txt; setsid bash /tmp/r38cap.sh < /dev/null > /dev/null 2>&1 & fi
+mount -o remount,rw /run/install/repo && mkdir -p /run/install/repo/upgrade_/report && cp /tmp/r38-pre.txt /run/install/repo/upgrade_/report/ && sync
+true
 %end
