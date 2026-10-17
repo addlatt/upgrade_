@@ -1264,12 +1264,22 @@ had taken the front half. So the shell does read the countdown's input.
 That it takes a person's key is not shown yet (rule #2). The false cancel
 is the safe direction; the same race the other way is an erase.
 
+**Decided (2026-10-17, the owner): the countdown moves to a console the
+installer never gives a shell.** The refusal screen and the countdown leave
+tty6 for tty9, outside the six consoles systemd starts a shell on (that
+this is how the shell starts is our reading of Fedora's installer, not yet
+seen on the rig). Before the countdown, `upgrade-installer` checks that no
+other process holds tty9 open, and refuses if one does: a refusal there
+erases nothing (rule #1). Not chosen: stopping the shell while the
+countdown runs (still a race, at the commit line) and turning the shell off
+with a boot option (it rests on the service's name in every release, and
+fails silently when the name is wrong).
+
 **Closes when.** The countdown's console has no other reader while it runs,
 and a rig row shows every key sent being read, then one real machine.
 
-**Where it stands.** `[#...]` planned. How to keep the shell off the
-countdown's console is a decision owed (`ROADMAP.md`); arm C on the rig
-cannot pass until then. No filter can tell half a cursor report from a key,
+**Where it stands.** `[#...]` planned. Decided 2026-10-17 (above), not
+built; arms C and D on the rig wait on the build ([log](log/2026-10.md#2026-10-17-r38-decided-the-countdown-moves-to-a-console-with-no-shell-r38-v9)). No filter can tell half a cursor report from a key,
 so none is tried. The two console faults the port met on the way are fixed ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
 
 # Closed
