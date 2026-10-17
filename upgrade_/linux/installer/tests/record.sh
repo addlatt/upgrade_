@@ -18,6 +18,8 @@
 # tty6 to tty9 and the scripts never knew tty9) the golden is recorded from
 # the program's own output, reviewed as a diff against the one before:
 #   tests/record.sh --program <upgrade-installer> [<out dir>]
+# Recorded so again for 0.1.3 (2026-10-17: the kickstart's chroot %post
+# moved into `outcome`).
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROGRAM=

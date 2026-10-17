@@ -2,7 +2,8 @@
 //! upgrade_/upgrade-installer (static; RISKS R32, roadmap item 19).
 //!
 //!   upgrade-installer verify  <job.json> [<stick label>]   the %pre refusal gate (was verify.sh 0.6.0)
-//!   upgrade-installer outcome <job.json>                   the %post checklist and adapter (was outcome.sh 0.6.1)
+//!   upgrade-installer outcome <job.json>                   the %post: the installed system's last settings (the chroot %post's
+//!                                                          shell until 0.1.3), then the checklist and adapter (was outcome.sh 0.6.1)
 //!
 //! Both are started by the kickstart upgrade-kickstart writes, run inside
 //! Anaconda's stage 2, and leave everything they learn on the stick under
@@ -10,6 +11,7 @@
 //! parity test only: UPG_TEST_COUNTDOWN and UPG_TEST_REFUSAL_SECS.
 
 mod outcome;
+mod post;
 mod tty;
 mod util;
 mod verify;

@@ -134,11 +134,49 @@ elif tool == "efibootmgr":
     out("\n".join(lines) + "\n")
 elif tool == "findmnt":
     target = args[-1]
-    v = W.get("findmnt", {}).get(target)
+    v = W.get("findmnt_uuid" if "UUID" in args else "findmnt", {}).get(target)
     if v is None:
         sys.exit(1)
     out(v + "\n")
-elif tool in ("chroot", "restorecon", "sync", "sleep"):
+elif tool == "chroot":
+    # the installed system's own tools (upgrade-installer 0.1.3 runs the
+    # former chroot %post's through chroot), answering from the world
+    root, cmd = args[0], args[1:]
+    if cmd[:1] == ["grub2-editenv"] and cmd[2:] == ["create"]:
+        envblk = "# GRUB Environment Block\n"
+        write_to = os.path.join(root, cmd[1].lstrip("/"))
+        os.makedirs(os.path.dirname(write_to), exist_ok=True)
+        open(write_to, "w").write(envblk + "#" * (1024 - len(envblk)))
+    elif cmd[:1] == ["grub2-mkconfig"]:
+        if W.get("grub_mkconfig_fails"):
+            sys.stderr.write("grub2-mkconfig: error: failed\n")
+            sys.exit(1)
+        cfg = "### BEGIN /etc/grub.d/10_linux ###\nmenuentry 'Fedora Linux' {\n}\n### END /etc/grub.d/10_linux ###\n"
+        kept = os.path.join(root, "etc/grub.d/25_windows_kept")
+        if os.path.isfile(kept) and os.access(kept, os.X_OK):
+            cfg += "### BEGIN /etc/grub.d/25_windows_kept ###\n" + "".join(open(kept).read().splitlines(True)[2:]) + "### END /etc/grub.d/25_windows_kept ###\n"
+        dg = os.path.join(root, "etc/default/grub")
+        if W.get("os_prober_finds_windows") and "GRUB_DISABLE_OS_PROBER=true" not in (open(dg).read() if os.path.exists(dg) else ""):
+            cfg += "menuentry 'Windows Boot Manager (on /dev/sda1)' --class windows --class os {\n}\n"
+        open(os.path.join(root, cmd[cmd.index("-o") + 1].lstrip("/")), "w").write(cfg)
+        sys.stderr.write("Generating grub configuration file ...\ndone\n")
+    elif cmd[:2] == ["systemctl", "set-default"]:
+        link = os.path.join(root, "etc/systemd/system/default.target")
+        os.makedirs(os.path.dirname(link), exist_ok=True)
+        if os.path.lexists(link):
+            os.remove(link)
+            out("Removed '/etc/systemd/system/default.target'.\n")
+        os.symlink("/usr/lib/systemd/system/" + cmd[2], link)
+        out(f"Created symlink '/etc/systemd/system/default.target' \u2192 '/usr/lib/systemd/system/{cmd[2]}'.\n")
+    elif cmd[:2] == ["systemctl", "get-default"]:
+        link = os.path.join(root, "etc/systemd/system/default.target")
+        out((os.path.basename(os.readlink(link)) if os.path.islink(link) else "graphical.target") + "\n")
+    elif cmd[:2] == ["systemctl", "disable"]:
+        sys.exit(0 if W.get("plasma_setup_present") else 1)
+    elif cmd[:1] == ["efibootmgr"]:
+        st = json.load(open(os.path.join(WORLD, "efi-state.json")))
+        out("\n".join([f"BootCurrent: {st.get('current', '')}", "Timeout: 0 seconds", "BootOrder: " + ",".join(st["order"])] + [f"Boot{n}* {l}\t{p}" for n, l, p in st["entries"]]) + "\n")
+elif tool in ("restorecon", "sync", "sleep"):
     pass
 elif tool == "timedatectl":
     out(W.get("clock", {}).get("ntp", "") + "\n")

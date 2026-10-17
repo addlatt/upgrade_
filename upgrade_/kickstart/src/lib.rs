@@ -21,8 +21,9 @@ use upgrade_schema::Job;
 /// The PowerShell generator this port follows.
 /// The last PowerShell generator this followed, word for word, before the scripts left the product (2026-10-11); the Rust is the reference since.
 pub const FOLLOWS_GENERATOR: &str = "0.8.0";
-/// This generator's own version: 0.9.0 (2026-10-11) GRUB's Windows entry records the choice in GRUB's environment block.
-pub const GENERATOR_VERSION: &str = "0.10.0";
+/// This generator's own version: 0.9.0 (2026-10-11) GRUB's Windows entry records the choice in GRUB's environment block;
+/// 0.11.0 (2026-10-17) the chroot %post's shell moved into `upgrade-installer outcome`: only exec lines are left.
+pub const GENERATOR_VERSION: &str = "0.11.0";
 
 /// A value inside a PowerShell "..." string.
 fn text(v: Option<&Value>) -> String {
@@ -140,7 +141,6 @@ pub fn kickstart(job: &Value, label: &str, manifest: &[String]) -> Result<String
     add("services --enabled=NetworkManager");
     // What the computer starts at is the person's choice (2026-09-26, the
     // Aspire's run 9): desktop = graphical sign-in, console = text.
-    let target = if console { "multi-user.target" } else { "graphical.target" };
     if !console {
         add("xconfig --startxonboot");
     }
@@ -162,44 +162,11 @@ pub fn kickstart(job: &Value, label: &str, manifest: &[String]) -> Result<String
     add("");
     add("reboot");
     add("");
-    add("%post --log=/root/upgrade_-post.log");
-    add("set -x");
-    if eq_ci(&path, "keep-windows") {
-        add("# keep-windows: Windows appears in the menu by our doing, not by luck (RISKS R21): os-prober off, our own entry");
-        add("if grep -q '^GRUB_DISABLE_OS_PROBER=' /etc/default/grub; then sed -i 's/^GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=true/' /etc/default/grub; else echo 'GRUB_DISABLE_OS_PROBER=true' >> /etc/default/grub; fi");
-        add("# the entry chainloads Windows' loader under its kept name when shim sits in Windows' slot (architecture step 12, decided 2026-10-10),");
-        add("# and first tells the prologue's return that Windows was chosen from this menu (amended 2026-10-11). The flag lives in its own");
-        add("# environment block ON THE ESP, made here: GRUB's default block is /boot/grub2/grubenv on ext4, which Windows cannot read (0.10.0, 2026-10-12)");
-        add("espuuid=$(findmnt -no UUID /boot/efi 2>/dev/null)");
-        add("grub2-editenv /boot/efi/EFI/fedora/grubenv create");
-        add("cat > /etc/grub.d/25_windows_kept <<'UPGEOF'");
-        add("#!/bin/sh");
-        add("exec tail -n +3 $0");
-        add("menuentry 'Windows (kept)' --class windows --class os {");
-        add("    insmod part_gpt");
-        add("    insmod fat");
-        add("    insmod chain");
-        add("    search --no-floppy --fs-uuid --set=root ESPUUID");
-        add("    set upg_windows_chosen=1");
-        add("    save_env -f /EFI/fedora/grubenv upg_windows_chosen");
-        add("    if [ -f /EFI/Microsoft/Boot/bootmgfw-kept.efi ]; then chainloader /EFI/Microsoft/Boot/bootmgfw-kept.efi; else chainloader /EFI/Microsoft/Boot/bootmgfw.efi; fi");
-        add("}");
-        add("UPGEOF");
-        add("sed -i \"s/ESPUUID/$espuuid/\" /etc/grub.d/25_windows_kept");
-        add("chmod +x /etc/grub.d/25_windows_kept");
-        add("grub2-mkconfig -o /boot/grub2/grub.cfg");
-        add("grep -c -i windows /boot/grub2/grub.cfg > /root/upgrade_-grub-windows-entries.txt || true");
-    }
-    // The account is made here, so no desktop's first-run wizard may ask for
-    // one (Fedora 44 KDE's Plasma Setup, the rig, 2026-10-03).
-    add("touch /etc/plasma-setup-done");
-    add("systemctl disable plasma-setup.service 2>/dev/null || true");
-    add(&format!("systemctl set-default {target}"));
-    add("systemctl get-default > /root/upgrade_-default-target.txt 2>&1 || true");
-    add("efibootmgr -v > /root/upgrade_-efibootmgr.txt 2>&1 || true");
-    add("%end");
-    add("");
-    add("# the boot-chain checklist, then outcome.json and the logs onto the stick (stage 2, step 11)");
+    // The installed system's last settings (GRUB's Windows entry, R21, R36,
+    // architecture step 12; the start target; no first-run wizard) were a
+    // chroot %post of shell up to 0.10.0; since 0.11.0 (2026-10-17) the
+    // installer's outcome step does them first (upgrade_/linux/installer/src/post.rs).
+    add("# the installed system's last settings, the boot-chain checklist, then outcome.json and the logs onto the stick (stage 2, step 11)");
     add("%post --nochroot --log=/tmp/upgrade_-outcome-post.log");
     add("exec /run/install/repo/upgrade_/upgrade-installer outcome /run/install/repo/upgrade_/job.json");
     add("%end");
