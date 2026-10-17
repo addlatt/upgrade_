@@ -92,6 +92,8 @@ job)
     python3 v9-job.py artifacts/v1/job.json "$A/disks.json" "$A/job.json" "${@:2}"
     KICKSTART="$(cd ../.. && pwd)/target/release/upgrade-kickstart"; (cd ../.. && cargo build --release --quiet -p upgrade-kickstart)
     "$KICKSTART" --job "$A/job.json" --out "$A/ks.cfg" --label UPGV0 --manifest ../../dist/kit/stick/SHA256SUMS
+    # R38CAP=1: the rig-only console capture (r38-consoles.ks) goes in front of the installer's %pre
+    if [ -n "${R38CAP:-}" ]; then cat r38-consoles.ks "$A/ks.cfg" > "$A/ks.cfg.cap" && mv "$A/ks.cfg.cap" "$A/ks.cfg"; echo "v9: R38 console capture in front of ks.cfg"; fi
     L=$(stick_letter); [ -n "$L" ] || { echo "v9: no UPGV0 volume in the guest" >&2; exit 1; }
     PS copy "$(wslpath -w "$A/job.json")" "${L}:\\upgrade_\\job.json" | tr -d '\r'
     PS copy "$(wslpath -w "$A/ks.cfg")" "${L}:\\upgrade_\\ks.cfg" | tr -d '\r'
@@ -126,7 +128,7 @@ pull)
     tag=${2:?tag}; mkdir -p "$A/$tag"; L=$(stick_letter)
     if [ -n "$L" ]; then
         for f in outcome.json prologue.json prologue-return.json job.json boots.log; do pull "${L}:\\upgrade_\\$f" "$A/$tag/$f"; done
-        for f in verify.json verify.log countdown.json storage.ks prologue.log; do pull "${L}:\\upgrade_\\report\\$f" "$A/$tag/$f"; done
+        for f in verify.json verify.log countdown.json storage.ks prologue.log refusal.json r38-pre.txt r38-consoles-1-pre-start.txt r38-consoles-2-countdown-3s.txt r38-consoles-3-countdown-30s.txt r38-consoles-2-no-countdown.txt r38cap.log; do pull "${L}:\\upgrade_\\report\\$f" "$A/$tag/$f"; done
     fi
     for f in state-returned.json prologue.log; do pull "$GUEST_STATE\\$f" "$A/$tag/guest-$f"; done
     pull 'C:\upgrade_\v1\v0-handoff.csv' "$A/$tag/v0-handoff.csv"
@@ -138,7 +140,7 @@ stick-pull)
     qemu-img convert -f vhdx -O raw "$STICK_VHDX" "$A/stick.raw"
     for f in outcome.json prologue.json boots.log job.json converted boot-install; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/$f" "$A/$tag/$f" 2>/dev/null || true; done
     mdir -b -i "$A/stick.raw@@1M" "::/upgrade_" > "$A/$tag/stick-upgrade-dir.txt" 2>&1 || true   # which markers the stick carries (R35)
-    for f in verify.json verify.log countdown.json storage.ks outcome.log anaconda.log storage.log efibootmgr-after.txt; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/report/$f" "$A/$tag/$f" 2>/dev/null || true; done
+    for f in verify.json verify.log countdown.json storage.ks outcome.log anaconda.log storage.log efibootmgr-after.txt refusal.json r38-pre.txt r38-consoles-1-pre-start.txt r38-consoles-2-countdown-3s.txt r38-consoles-3-countdown-30s.txt r38-consoles-2-no-countdown.txt r38cap.log; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/report/$f" "$A/$tag/$f" 2>/dev/null || true; done
     # settle-in's first startup, captured by the bench marker (2026-09-27)
     mkdir -p "$A/$tag/settle-in"; mcopy -s -o -i "$A/stick.raw@@1M" "::/upgrade_/settle-in-capture/*" "$A/$tag/settle-in/" 2>/dev/null || true
     mdir -i "$A/stick.raw@@1M" "::/upgrade_/artifacts/credentials" > "$A/$tag/stick-credentials-dir.txt" 2>&1 || true

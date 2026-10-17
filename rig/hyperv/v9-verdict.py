@@ -76,6 +76,10 @@ key_read = None
 if (D / "verify.log").exists():
     m = re.search(r"== countdown key read: ([0-9a-f ]+)", (D / "verify.log").read_text(errors="replace"))
     key_read = bytes.fromhex(m.group(1)) if m else None
+# R38: the build since upgrade-installer 0.1.2 says the countdown's console was free, or refuses (exit 30)
+if (D / "verify.log").exists():
+    m = re.search(r"== countdown console (\S+): no other process holds it", (D / "verify.log").read_text(errors="replace"))
+    if m: notes.append("countdown console %s: no other holder" % m.group(1))
 key_is_report = key_read is not None and re.fullmatch(rb"(\x1b\[[0-9]+;[0-9]+R)+", key_read) is not None
 identity = (v or {}).get("identity", {}).get("result", "n/a")
 countdown = (cd or {}).get("result", "none")
@@ -125,7 +129,15 @@ elif KIND == "A":
     ok = identity == "fail" and countdown == "none" and unchanged.startswith("y")
     result = "refused-before-countdown" if ok else "fail"
 elif KIND == "B":
-    ok = countdown == "cancelled" and status == "stopped" and stopped_at == "countdown" and ov == "y" and unchanged.startswith("y") and not key_is_report
+    # R38 (2026-10-17): when the driver sent several keys, it writes keys-sent.txt (one line per key:
+    # "<seconds after the countdown was seen> <hex the console sends>"); the cancel must be the FIRST
+    # key sent. A later one ending it means an earlier key went to another reader
+    first_ok = True
+    if (D / "keys-sent.txt").exists():
+        sent = [l.split() for l in (D / "keys-sent.txt").read_text().splitlines() if l.strip()]
+        first_ok = bool(sent) and key_read is not None and key_read.hex() == sent[0][1]
+        notes.append("keys sent: %s; the first one read: %s" % (", ".join("%s at +%s s" % (k[1], k[0]) for k in sent), "y" if first_ok else "n"))
+    ok = countdown == "cancelled" and status == "stopped" and stopped_at == "countdown" and ov == "y" and unchanged.startswith("y") and not key_is_report and first_ok
     result = "cancelled-untouched" if ok else "fail"
     if key_read is not None: notes.append("countdown ended by bytes %s%s" % (key_read.hex(" "), " (the console's own cursor report, not a key)" if key_is_report else ""))
 else:

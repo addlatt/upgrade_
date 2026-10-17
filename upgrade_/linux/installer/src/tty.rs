@@ -1,4 +1,5 @@
-//! The console the scripts drew on (/dev/tty6): opened raw once for the
+//! The console the refusal screen and the countdown draw on (/dev/tty9 since
+//! 0.1.2, R38; the scripts drew on /dev/tty6): opened raw once for the
 //! whole wait, keys read from a non-blocking descriptor against a
 //! monotonic deadline, the terminal put back after. What the scripts'
 //! Python did (verify.sh 0.5.0 and 0.4.1: a key pressed during bash's
@@ -14,6 +15,10 @@ pub struct Console {
     pub key_bytes: std::cell::RefCell<Vec<u8>>,
     /// cursor-position reports read and not taken as a key, for the log
     pub reports: std::cell::RefCell<Vec<Vec<u8>>>,
+    /// asked once a second during a wait: who else holds the console open
+    /// (R38). Anyone ends the wait as a key would, and is kept here
+    pub guard: Option<Box<dyn Fn() -> Vec<String>>>,
+    pub held_by: std::cell::RefCell<Vec<String>>,
     old: libc::termios,
     pub cols: u16,
     pub rows: u16,
@@ -27,7 +32,7 @@ pub fn is_char_device(path: &str) -> bool {
 impl Console {
     pub fn open(path: &str) -> Result<Console, String> {
         let c = std::ffi::CString::new(path).map_err(|e| e.to_string())?;
-        let fd = unsafe { libc::open(c.as_ptr(), libc::O_RDWR | libc::O_NOCTTY | libc::O_NONBLOCK) };
+        let fd = unsafe { libc::open(c.as_ptr(), libc::O_RDWR | libc::O_NOCTTY | libc::O_NONBLOCK | libc::O_CLOEXEC) };
         if fd < 0 {
             return Err(format!("{path}: {}", std::io::Error::last_os_error()));
         }
@@ -47,7 +52,7 @@ impl Console {
         }
         let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
         unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut ws) };
-        Ok(Console { path: path.to_string(), fd: std::cell::Cell::new(fd), reopens: std::cell::Cell::new(0), key_bytes: std::cell::RefCell::new(Vec::new()), reports: std::cell::RefCell::new(Vec::new()), old, cols: ws.ws_col, rows: ws.ws_row })
+        Ok(Console { path: path.to_string(), fd: std::cell::Cell::new(fd), reopens: std::cell::Cell::new(0), key_bytes: std::cell::RefCell::new(Vec::new()), reports: std::cell::RefCell::new(Vec::new()), guard: None, held_by: std::cell::RefCell::new(Vec::new()), old, cols: ws.ws_col, rows: ws.ws_row })
     }
 
     /// The same console opened again, raw as before, its input flushed; the
@@ -55,7 +60,7 @@ impl Console {
     /// before stays on the console itself.
     fn reopen(&self) -> Result<(), String> {
         let c = std::ffi::CString::new(self.path.as_str()).map_err(|e| e.to_string())?;
-        let fd = unsafe { libc::open(c.as_ptr(), libc::O_RDWR | libc::O_NOCTTY | libc::O_NONBLOCK) };
+        let fd = unsafe { libc::open(c.as_ptr(), libc::O_RDWR | libc::O_NOCTTY | libc::O_NONBLOCK | libc::O_CLOEXEC) };
         if fd < 0 {
             return Err(std::io::Error::last_os_error().to_string());
         }
@@ -134,7 +139,9 @@ impl Console {
     }
 
     /// Draw `screen(left)` every second until the deadline or a key.
-    /// Ok((true, _)) when a key cut it short; Err when the console could not
+    /// Ok((true, _)) when a key cut it short, or when the guard found another
+    /// holder of the console (`held_by` says which: never an erase on a
+    /// console another program can read); Err when the console could not
     /// be written (the scripts' Python died there, exit 1).
     pub fn wait(&self, seconds: f64, screen: &dyn Fn(u64) -> String, fine: bool) -> Result<(bool, f64), String> {
         let end = Instant::now() + Duration::from_secs_f64(seconds);
@@ -145,6 +152,14 @@ impl Console {
                 break;
             }
             let whole = left.ceil() as u64;
+            if let Some(g) = &self.guard {
+                let h = g();
+                if !h.is_empty() {
+                    *self.held_by.borrow_mut() = h;
+                    keyed = true;
+                    break;
+                }
+            }
             if let Err(e) = self.put(&screen(whole)) {
                 // Fedora's installer starts a shell on a console the moment it is
                 // switched to, and that shell hangs the console up as it starts: an
@@ -198,6 +213,51 @@ pub fn only_cursor_reports(bytes: &[u8]) -> bool {
     seen > 0
 }
 
+/// Every other process holding `path` open, as "<name> (pid <n>)": each
+/// /proc/<pid>/fd entry whose device is the console's, by device number, so
+/// another name for the same console counts too. This process is skipped.
+/// A process whose open files cannot be read counts as a holder: what
+/// cannot be checked is not taken as free (rule #1). A process gone while
+/// it is read does not count.
+pub fn other_holders(path: &str) -> Vec<String> {
+    let mut pids: Vec<u32> = match std::fs::read_dir("/proc") {
+        Ok(d) => d.flatten().filter_map(|e| e.file_name().to_str().and_then(|n| n.parse().ok())).collect(),
+        Err(e) => return vec![format!("/proc could not be read ({e})")],
+    };
+    pids.sort_unstable();
+    holders_among(path, &pids)
+}
+
+/// `other_holders` over the processes `pids` only (the tests name their own)
+fn holders_among(path: &str, pids: &[u32]) -> Vec<String> {
+    use std::os::unix::fs::{FileTypeExt, MetadataExt};
+    let rdev = match std::fs::metadata(path) {
+        Ok(m) if m.file_type().is_char_device() => m.rdev(),
+        Ok(_) => return vec![format!("{path} is not a console")],
+        Err(e) => return vec![format!("{path} could not be read ({e})")],
+    };
+    let me = std::process::id();
+    let mut out = Vec::new();
+    for &pid in pids.iter().filter(|p| **p != me) {
+        let name = || std::fs::read_to_string(format!("/proc/{pid}/comm")).map(|s| s.trim().to_string()).unwrap_or_else(|_| "?".into());
+        let fds = match std::fs::read_dir(format!("/proc/{pid}/fd")) {
+            Ok(d) => d,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => {
+                if std::path::Path::new(&format!("/proc/{pid}")).exists() {
+                    out.push(format!("{} (pid {pid}, its open files could not be read: {e})", name()));
+                }
+                continue;
+            }
+        };
+        let holds = fds.flatten().any(|f| std::fs::metadata(f.path()).is_ok_and(|m| m.file_type().is_char_device() && m.rdev() == rdev));
+        if holds {
+            out.push(format!("{} (pid {pid})", name()));
+        }
+    }
+    out
+}
+
 /// `printf '...' > /dev/tty6`: a fresh open each time, as bash's redirect
 /// was; an error is ignored, as bash went on after a failed redirect.
 pub fn say_on(path: &str, text: &str) {
@@ -220,11 +280,26 @@ impl Drop for Console {
 mod tests {
     use super::*;
 
+    /// Held while a pty is made and while a child is spawned: a child must
+    /// never inherit another test's console before it is close-on-exec
+    static SPAWN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn sleeper(console: &str) -> std::process::Child {
+        let _g = SPAWN.lock().unwrap_or_else(|e| e.into_inner());
+        std::process::Command::new("sleep").arg("30").stdin(std::fs::File::open(console).unwrap()).spawn().unwrap()
+    }
+
     /// A pseudo-terminal pair and the slave's path (ttyname_r: the tests run
     /// on several threads, and ttyname's one buffer is shared between them).
     fn pty() -> (i32, i32, String) {
+        let _g = SPAWN.lock().unwrap_or_else(|e| e.into_inner());
         let (mut master, mut slave) = (0, 0);
         assert_eq!(unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) }, 0);
+        // a child another test spawns must not inherit this test's console
+        unsafe {
+            libc::fcntl(master, libc::F_SETFD, libc::FD_CLOEXEC);
+            libc::fcntl(slave, libc::F_SETFD, libc::FD_CLOEXEC);
+        }
         let mut buf = [0 as libc::c_char; 128];
         assert_eq!(unsafe { libc::ttyname_r(slave, buf.as_mut_ptr(), buf.len()) }, 0);
         let name = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }.to_string_lossy().into_owned();
@@ -304,6 +379,70 @@ mod tests {
         assert!(matches!(r, Ok((true, e)) if e > 0.6 && e < 2.0), "{r:?}");
         assert_eq!(con.reports.borrow().len(), 1);
         assert_eq!(&con.key_bytes.borrow()[..], b" ");
+        drop(con);
+        unsafe {
+            libc::close(master);
+            libc::close(slave);
+        }
+    }
+
+    /// R38: a console another process holds is found, under any name for
+    /// it; once that process lets go, it is free again
+    #[test]
+    fn another_holder_of_the_console_is_found() {
+        let (master, slave, name) = pty();
+        let me = std::process::id();
+        assert!(holders_among(&name, &[me]).is_empty(), "a console only this process holds read as held");
+        let mut child = sleeper(&name);
+        let other = sleeper("/dev/null");
+        assert_eq!(holders_among(&name, &[me, child.id(), other.id()]), vec![format!("sleep (pid {})", child.id())]);
+        // under its other name too (the device, not the path, is compared)
+        let alias = format!("/proc/{me}/fd/{slave}");
+        assert_eq!(holders_among(&alias, &[child.id()]), vec![format!("sleep (pid {})", child.id())]);
+        for mut c in [child, other] {
+            c.kill().unwrap();
+            c.wait().unwrap();
+        }
+        assert!(holders_among(&name, &[]).is_empty());
+        assert_eq!(holders_among("/proc/self/status", &[]), vec!["/proc/self/status is not a console".to_string()]);
+        // a process gone does not count
+        assert!(holders_among(&name, &[u32::MAX - 1]).is_empty());
+        // one whose open files cannot be read counts (as a user, pid 1's cannot)
+        if std::fs::read_dir("/proc/1/fd").is_err() {
+            let h = holders_among(&name, &[1]);
+            assert!(h.len() == 1 && h[0].contains("(pid 1, its open files could not be read"), "{h:?}");
+        }
+        unsafe {
+            libc::close(master);
+            libc::close(slave);
+        }
+    }
+
+    /// R38: a holder that turns up during the countdown ends it as a key
+    /// would, and says who; a free console counts down to the end
+    #[test]
+    fn a_holder_during_the_wait_ends_it_and_a_free_console_counts_down() {
+        let (master, slave, name) = pty();
+        let mut con = Console::open(&name).expect("the pty opens");
+        let watched = std::sync::Arc::new(std::sync::Mutex::new(Vec::<u32>::new()));
+        let (n, w) = (name.clone(), watched.clone());
+        con.guard = Some(Box::new(move || holders_among(&n, &w.lock().unwrap())));
+        let r = con.wait(1.2, &|left| format!("{left}\n"), true);
+        assert!(matches!(r, Ok((false, e)) if e >= 1.1), "{r:?}");
+        assert!(con.held_by.borrow().is_empty());
+        let (n, w) = (name.clone(), watched.clone());
+        let late = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(300));
+            let c = sleeper(&n);
+            w.lock().unwrap().push(c.id());
+            c
+        });
+        let r = con.wait(5.0, &|left| format!("{left}\n"), true);
+        let mut child = late.join().unwrap();
+        assert!(matches!(r, Ok((true, e)) if e < 2.5), "{r:?}");
+        assert_eq!(*con.held_by.borrow(), vec![format!("sleep (pid {})", child.id())]);
+        child.kill().unwrap();
+        child.wait().unwrap();
         drop(con);
         unsafe {
             libc::close(master);

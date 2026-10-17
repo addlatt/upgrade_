@@ -200,11 +200,6 @@ day it is picked (R15, R21, R29 first). Waits on: the Windows path shipping.
 The owner's open calls, one line each, naming what waits on them. When one
 is decided, the dated line goes in its home and the item here is removed.
 
-- How the erase countdown keeps Fedora's installer shell off its console
-  (R38): stop the shell while it runs, count down on a console the
-  installer gives no shell, or turn that shell off in the kickstart. The
-  next erase on a real machine waits on it, and so do the rig's arms C and
-  D: arm C cancelled itself on 2026-10-16 (`v9-erase.csv` line 40).
 - Whether R34's release check (held on the Aspire 2026-10-04) meets R11's
   closing clause, or R11's wording still promises more than it verifies.
 - R8's closing clause (`-Materialize` against a signed-in client) predates

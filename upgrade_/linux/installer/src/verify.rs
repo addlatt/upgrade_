@@ -15,7 +15,7 @@
 //! Everything it learns goes to the stick under upgrade_/report/. With
 //! upg.mode=verify on the command line it reports and reboots: no install.
 
-use crate::tty::{is_char_device, say_on, Console};
+use crate::tty::{is_char_device, other_holders, say_on, Console};
 use crate::util::*;
 use serde_json::{json, Value};
 use std::path::Path;
@@ -26,7 +26,11 @@ const REPORT: &str = "/run/install/repo/upgrade_/report";
 const STORAGE_KS: &str = "/tmp/upgrade_-storage.ks";
 const LOG: &str = "/tmp/upgrade_-verify.log";
 const ESP_TYPE: &str = "c12a7328-f81f-11d2-ba4b-00a0c93ec93b";
-const CTTY: &str = "/dev/tty6";
+/// The refusal screen's and the countdown's console: tty9, outside the six
+/// consoles the installer's shell is started on (R38, decided 2026-10-17;
+/// it was tty6, where that shell read the countdown's input)
+const CTTY: &str = "/dev/tty9";
+const CVT: &str = "9";
 
 struct Ctx {
     log: Log,
@@ -46,7 +50,7 @@ fn refuse(c: &Ctx, code: i32, plain: &str, detail: &str) -> ! {
     let _ = std::fs::copy(LOG, format!("{REPORT}/verify.log"));
     sync();
     sync();
-    if is_char_device(CTTY) && run("chvt", &["6"]).ok() {
+    if is_char_device(CTTY) && run("chvt", &[CVT]).ok() {
         match Console::open(CTTY) {
             Ok(con) => {
                 let plain = plain.to_string();
@@ -75,7 +79,7 @@ fn refuse(c: &Ctx, code: i32, plain: &str, detail: &str) -> ! {
             Err(e) => c.log.say(&format!("!! the refusal screen could not be opened ({e}); restarting in 60 s")),
         }
     } else {
-        c.log.say("!! the refusal screen could not be shown on tty6; restarting in 60 s");
+        c.log.say(&format!("!! the refusal screen could not be shown on {CTTY}; restarting in 60 s"));
         sleep("60");
     }
     reboot();
@@ -548,10 +552,18 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
             sync();
             sync();
         };
-        if !is_char_device(CTTY) || !run("chvt", &["6"]).ok() {
+        if !is_char_device(CTTY) || !run("chvt", &[CVT]).ok() {
             let chvt = std::env::var_os("PATH").and_then(|p| std::env::split_paths(&p).map(|d| d.join("chvt")).find(|p| p.is_file())).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|| "missing".into());
             refuse(&c, 26, "the last-chance countdown could not be shown, and nothing is erased without it", &format!("the countdown could not be shown on {CTTY} (chvt: {chvt}) - no erase without a visible last exit"));
         }
+        // R38: a key meant to cancel must reach the countdown and nothing else.
+        // Another program holding the console open could read it first, so
+        // the countdown does not start (a refusal here erases nothing)
+        let held = other_holders(CTTY);
+        if !held.is_empty() {
+            refuse(&c, 30, "another program was reading the screen the last-chance countdown uses, so a key pressed to cancel might not be heard", &format!("another process holds {CTTY} open: {} - no countdown a cancel might not reach (R38)", held.join(", ")));
+        }
+        c.log.say(&format!("== countdown console {CTTY}: no other process holds it"));
         c.log.say(&format!("== countdown: {} s on {CTTY}, erasing {what} ({names})", count_secs as i64));
         let mut con = match Console::open(CTTY) {
             Ok(k) => k,
@@ -590,7 +602,15 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
         // a console that stops taking writes ends the countdown as cancelled: the
         // script's Python died there (exit 1), which bash read as a cancel. Never
         // an erase behind a screen nobody can see (rule #3)
+        // and no other program opens it while the countdown runs: checked once a
+        // second; one that does ends the countdown and refuses (R38)
+        con.guard = Some(Box::new(|| other_holders(CTTY)));
         let waited = con.wait(count_secs, &screen, true);
+        let held = con.held_by.borrow().clone();
+        if !held.is_empty() {
+            drop(con);
+            refuse(&c, 30, "another program was reading the screen the last-chance countdown uses, so a key pressed to cancel might not be heard", &format!("another process opened {CTTY} during the countdown: {} - the countdown stopped, nothing erased (R38)", held.join(", ")));
+        }
         for r in con.reports.borrow().iter() {
             let hex: Vec<String> = r.iter().map(|b| format!("{b:02x}")).collect();
             c.log.say(&format!("== countdown ignored the console's cursor report(s), not a key: {}", hex.join(" ")));

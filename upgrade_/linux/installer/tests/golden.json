@@ -645,7 +645,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -701,7 +701,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -1036,7 +1036,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -1216,7 +1216,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -2082,7 +2082,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -2309,7 +2309,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -2532,7 +2532,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -2759,7 +2759,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -2957,7 +2957,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -3153,7 +3153,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -3351,7 +3351,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -3574,7 +3574,8 @@
    "part /         --fstype=ext4 --size=4096 --grow --ondisk=sdb",
    "part /home     --fstype=ext4 --size=1024 --grow --ondisk=sdc",
    "== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass",
-   "== countdown: 2 s on /dev/tty6, erasing BOTH DRIVES (Msft Virtual Disk and Msft Virtual Disk)",
+   "== countdown console /dev/tty9: no other process holds it",
+   "== countdown: 2 s on /dev/tty9, erasing BOTH DRIVES (Msft Virtual Disk and Msft Virtual Disk)",
    "== countdown console 80x25",
    "== countdown elapsed after <secs> s",
    "== countdown ELAPSED - the commit line: the installer now erases BOTH DRIVES",
@@ -3686,7 +3687,7 @@
    },
    "upgrade_/report/verify.log": {
     "mode": "0o644",
-    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== home candidate /dev/sdc (unique_id via wwn-0x60022480000000000000000000000002) size=68719476736\n== erase-and-install: 2 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\nsdc 68719476736 disk    \n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb,sdc - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb,sdc\nclearpart --all --initlabel --drives=sdb,sdc\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\npart /home     --fstype=ext4 --size=1024 --grow --ondisk=sdc\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown: 2 s on /dev/tty6, erasing BOTH DRIVES (Msft Virtual Disk and Msft Virtual Disk)\n== countdown console 80x25\n== countdown elapsed after <secs> s\n== countdown ELAPSED - the commit line: the installer now erases BOTH DRIVES\n== the stick is disarmed: upgrade_/converted written, upgrade_/boot-install removed"
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== home candidate /dev/sdc (unique_id via wwn-0x60022480000000000000000000000002) size=68719476736\n== erase-and-install: 2 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\nsdc 68719476736 disk    \n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb,sdc - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb,sdc\nclearpart --all --initlabel --drives=sdb,sdc\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\npart /home     --fstype=ext4 --size=1024 --grow --ondisk=sdc\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown console /dev/tty9: no other process holds it\n== countdown: 2 s on /dev/tty9, erasing BOTH DRIVES (Msft Virtual Disk and Msft Virtual Disk)\n== countdown console 80x25\n== countdown elapsed after <secs> s\n== countdown ELAPSED - the commit line: the installer now erases BOTH DRIVES\n== the stick is disarmed: upgrade_/converted written, upgrade_/boot-install removed"
    }
   },
   "sysroot": {},
@@ -3721,7 +3722,7 @@
    },
    "upgrade_-verify.log": {
     "mode": "0o644",
-    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== home candidate /dev/sdc (unique_id via wwn-0x60022480000000000000000000000002) size=68719476736\n== erase-and-install: 2 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\nsdc 68719476736 disk    \n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb,sdc - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb,sdc\nclearpart --all --initlabel --drives=sdb,sdc\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\npart /home     --fstype=ext4 --size=1024 --grow --ondisk=sdc\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown: 2 s on /dev/tty6, erasing BOTH DRIVES (Msft Virtual Disk and Msft Virtual Disk)\n== countdown console 80x25\n== countdown elapsed after <secs> s\n== countdown ELAPSED - the commit line: the installer now erases BOTH DRIVES\n== the stick is disarmed: upgrade_/converted written, upgrade_/boot-install removed"
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== home candidate /dev/sdc (unique_id via wwn-0x60022480000000000000000000000002) size=68719476736\n== erase-and-install: 2 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\nsdc 68719476736 disk    \n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb,sdc - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb,sdc\nclearpart --all --initlabel --drives=sdb,sdc\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\npart /home     --fstype=ext4 --size=1024 --grow --ondisk=sdc\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown console /dev/tty9: no other process holds it\n== countdown: 2 s on /dev/tty9, erasing BOTH DRIVES (Msft Virtual Disk and Msft Virtual Disk)\n== countdown console 80x25\n== countdown elapsed after <secs> s\n== countdown ELAPSED - the commit line: the installer now erases BOTH DRIVES\n== the stick is disarmed: upgrade_/converted written, upgrade_/boot-install removed"
    }
   },
   "calls": [
@@ -3744,7 +3745,7 @@
    "sync ",
    "lsblk -dno MODEL /dev/sdb",
    "lsblk -dno MODEL /dev/sdc",
-   "chvt 6",
+   "chvt 9",
    "sync ",
    "sync ",
    "chvt 1",
@@ -3790,7 +3791,8 @@
    "part /         --fstype=ext4 --size=4096 --grow --ondisk=sdb",
    "part /home     --fstype=ext4 --size=1024 --grow --ondisk=sdc",
    "== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass",
-   "== countdown: 5 s on /dev/tty6, erasing BOTH DRIVES (Msft Virtual Disk and Msft Virtual Disk)",
+   "== countdown console /dev/tty9: no other process holds it",
+   "== countdown: 5 s on /dev/tty9, erasing BOTH DRIVES (Msft Virtual Disk and Msft Virtual Disk)",
    "== countdown console 80x25",
    "== countdown cancelled after <secs> s",
    "== countdown CANCELLED by a key press - nothing erased; restarting into Windows",
@@ -3894,7 +3896,7 @@
    },
    "upgrade_/report/verify.log": {
     "mode": "0o644",
-    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== home candidate /dev/sdc (unique_id via wwn-0x60022480000000000000000000000002) size=68719476736\n== erase-and-install: 2 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\nsdc 68719476736 disk    \n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb,sdc - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb,sdc\nclearpart --all --initlabel --drives=sdb,sdc\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\npart /home     --fstype=ext4 --size=1024 --grow --ondisk=sdc\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown: 5 s on /dev/tty6, erasing BOTH DRIVES (Msft Virtual Disk and Msft Virtual Disk)\n== countdown console 80x25\n== countdown cancelled after <secs> s\n== countdown CANCELLED by a key press - nothing erased; restarting into Windows\n== boot-install removed from the stick"
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== home candidate /dev/sdc (unique_id via wwn-0x60022480000000000000000000000002) size=68719476736\n== erase-and-install: 2 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\nsdc 68719476736 disk    \n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb,sdc - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb,sdc\nclearpart --all --initlabel --drives=sdb,sdc\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\npart /home     --fstype=ext4 --size=1024 --grow --ondisk=sdc\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown console /dev/tty9: no other process holds it\n== countdown: 5 s on /dev/tty9, erasing BOTH DRIVES (Msft Virtual Disk and Msft Virtual Disk)\n== countdown console 80x25\n== countdown cancelled after <secs> s\n== countdown CANCELLED by a key press - nothing erased; restarting into Windows\n== boot-install removed from the stick"
    }
   },
   "sysroot": {},
@@ -3929,7 +3931,7 @@
    },
    "upgrade_-verify.log": {
     "mode": "0o644",
-    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== home candidate /dev/sdc (unique_id via wwn-0x60022480000000000000000000000002) size=68719476736\n== erase-and-install: 2 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\nsdc 68719476736 disk    \n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb,sdc - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb,sdc\nclearpart --all --initlabel --drives=sdb,sdc\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\npart /home     --fstype=ext4 --size=1024 --grow --ondisk=sdc\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown: 5 s on /dev/tty6, erasing BOTH DRIVES (Msft Virtual Disk and Msft Virtual Disk)\n== countdown console 80x25\n== countdown cancelled after <secs> s\n== countdown CANCELLED by a key press - nothing erased; restarting into Windows\n== boot-install removed from the stick"
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== home candidate /dev/sdc (unique_id via wwn-0x60022480000000000000000000000002) size=68719476736\n== erase-and-install: 2 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\nsdc 68719476736 disk    \n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb,sdc - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb,sdc\nclearpart --all --initlabel --drives=sdb,sdc\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\npart /home     --fstype=ext4 --size=1024 --grow --ondisk=sdc\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown console /dev/tty9: no other process holds it\n== countdown: 5 s on /dev/tty9, erasing BOTH DRIVES (Msft Virtual Disk and Msft Virtual Disk)\n== countdown console 80x25\n== countdown cancelled after <secs> s\n== countdown CANCELLED by a key press - nothing erased; restarting into Windows\n== boot-install removed from the stick"
    }
   },
   "calls": [
@@ -3952,7 +3954,7 @@
    "sync ",
    "lsblk -dno MODEL /dev/sdb",
    "lsblk -dno MODEL /dev/sdc",
-   "chvt 6",
+   "chvt 9",
    "sync ",
    "sync ",
    "mount -o remount,rw /run/install/repo",
@@ -3996,7 +3998,8 @@
    "part /boot     --fstype=ext4 --size=1024 --ondisk=sdb",
    "part /         --fstype=ext4 --size=4096 --grow --ondisk=sdb",
    "== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass",
-   "== countdown: 2 s on /dev/tty6, erasing THIS COMPUTER'S DRIVE (Msft Virtual Disk)",
+   "== countdown console /dev/tty9: no other process holds it",
+   "== countdown: 2 s on /dev/tty9, erasing THIS COMPUTER'S DRIVE (Msft Virtual Disk)",
    "== countdown console 80x25",
    "== countdown elapsed after <secs> s",
    "== countdown ELAPSED - the commit line: the installer now erases THIS COMPUTER'S DRIVE",
@@ -4104,7 +4107,7 @@
    },
    "upgrade_/report/verify.log": {
     "mode": "0o644",
-    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== erase-and-install: 1 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown: 2 s on /dev/tty6, erasing THIS COMPUTER'S DRIVE (Msft Virtual Disk)\n== countdown console 80x25\n== countdown elapsed after <secs> s\n== countdown ELAPSED - the commit line: the installer now erases THIS COMPUTER'S DRIVE\n== the stick is disarmed: upgrade_/converted written, upgrade_/boot-install removed"
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== erase-and-install: 1 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown console /dev/tty9: no other process holds it\n== countdown: 2 s on /dev/tty9, erasing THIS COMPUTER'S DRIVE (Msft Virtual Disk)\n== countdown console 80x25\n== countdown elapsed after <secs> s\n== countdown ELAPSED - the commit line: the installer now erases THIS COMPUTER'S DRIVE\n== the stick is disarmed: upgrade_/converted written, upgrade_/boot-install removed"
    }
   },
   "sysroot": {},
@@ -4139,7 +4142,7 @@
    },
    "upgrade_-verify.log": {
     "mode": "0o644",
-    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== erase-and-install: 1 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown: 2 s on /dev/tty6, erasing THIS COMPUTER'S DRIVE (Msft Virtual Disk)\n== countdown console 80x25\n== countdown elapsed after <secs> s\n== countdown ELAPSED - the commit line: the installer now erases THIS COMPUTER'S DRIVE\n== the stick is disarmed: upgrade_/converted written, upgrade_/boot-install removed"
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== erase-and-install: 1 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown console /dev/tty9: no other process holds it\n== countdown: 2 s on /dev/tty9, erasing THIS COMPUTER'S DRIVE (Msft Virtual Disk)\n== countdown console 80x25\n== countdown elapsed after <secs> s\n== countdown ELAPSED - the commit line: the installer now erases THIS COMPUTER'S DRIVE\n== the stick is disarmed: upgrade_/converted written, upgrade_/boot-install removed"
    }
   },
   "calls": [
@@ -4160,7 +4163,7 @@
    "sync ",
    "sync ",
    "lsblk -dno MODEL /dev/sdb",
-   "chvt 6",
+   "chvt 9",
    "sync ",
    "sync ",
    "chvt 1",
@@ -4344,7 +4347,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -4525,7 +4528,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -4703,7 +4706,7 @@
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "systemctl reboot",
    "sleep 60"
   ],
@@ -4740,9 +4743,9 @@
    "part /boot     --fstype=ext4 --size=1024 --ondisk=sdb",
    "part /         --fstype=ext4 --size=4096 --grow --ondisk=sdb",
    "== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass",
-   "!! the countdown could not be shown on /dev/tty6 (chvt: <world>/bin/chvt) - no erase without a visible last exit",
+   "!! the countdown could not be shown on /dev/tty9 (chvt: <world>/bin/chvt) - no erase without a visible last exit",
    "== REFUSED (exit 26): the last-chance countdown could not be shown, and nothing is erased without it",
-   "!! the refusal screen could not be shown on tty6; restarting in 60 s"
+   "!! the refusal screen could not be shown on /dev/tty9; restarting in 60 s"
   ],
   "stick": {
    "KIT-MANIFEST.txt": {
@@ -4783,7 +4786,7 @@
      "schema": "refusal/1",
      "exit_code": 26,
      "reason": "the last-chance countdown could not be shown, and nothing is erased without it",
-     "detail": "the countdown could not be shown on /dev/tty6 (chvt: <world>/bin/chvt) - no erase without a visible last exit",
+     "detail": "the countdown could not be shown on /dev/tty9 (chvt: <world>/bin/chvt) - no erase without a visible last exit",
      "created_utc": "<time>"
     }
    },
@@ -4843,7 +4846,7 @@
    },
    "upgrade_/report/verify.log": {
     "mode": "0o644",
-    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== erase-and-install: 1 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n!! the countdown could not be shown on /dev/tty6 (chvt: <world>/bin/chvt) - no erase without a visible last exit\n== REFUSED (exit 26): the last-chance countdown could not be shown, and nothing is erased without it"
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== erase-and-install: 1 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n!! the countdown could not be shown on /dev/tty9 (chvt: <world>/bin/chvt) - no erase without a visible last exit\n== REFUSED (exit 26): the last-chance countdown could not be shown, and nothing is erased without it"
    }
   },
   "sysroot": {},
@@ -4878,7 +4881,7 @@
    },
    "upgrade_-verify.log": {
     "mode": "0o644",
-    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== erase-and-install: 1 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n!! the countdown could not be shown on /dev/tty6 (chvt: <world>/bin/chvt) - no erase without a visible last exit\n== REFUSED (exit 26): the last-chance countdown could not be shown, and nothing is erased without it\n!! the refusal screen could not be shown on tty6; restarting in 60 s"
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== erase-and-install: 1 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n!! the countdown could not be shown on /dev/tty9 (chvt: <world>/bin/chvt) - no erase without a visible last exit\n== REFUSED (exit 26): the last-chance countdown could not be shown, and nothing is erased without it\n!! the refusal screen could not be shown on /dev/tty9; restarting in 60 s"
    }
   },
   "calls": [
@@ -4899,16 +4902,426 @@
    "sync ",
    "sync ",
    "lsblk -dno MODEL /dev/sdb",
-   "chvt 6",
+   "chvt 9",
    "mount -o remount,rw /run/install/repo",
    "sync ",
    "sync ",
-   "chvt 6",
+   "chvt 9",
    "sleep 60",
    "systemctl reboot",
    "sleep 60"
   ],
   "screens": [],
+  "efi": {
+   "entries": [],
+   "order": [],
+   "current": ""
+  }
+ },
+ "erase: another program holds the countdown's console open (R38): refused 30, no countdown": {
+  "exit": 30,
+  "stdout": [
+   "== upgrade_ verify.sh 0.6.0  mode=install  <time>",
+   "== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet",
+   "== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472",
+   "== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472",
+   "== erase-and-install: 1 drive(s); identity=pass",
+   "NAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN",
+   "sdb 137438953472 disk    ",
+   "sdb1 104857600 part vfat  EFI System",
+   "sdb2 137000000000 part ntfs  Microsoft basic data",
+   "== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s",
+   "== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot",
+   "== storage include:",
+   "# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)",
+   "zerombr",
+   "ignoredisk --only-use=sdb",
+   "clearpart --all --initlabel --drives=sdb",
+   "bootloader --location=mbr --boot-drive=sdb",
+   "part /boot/efi --fstype=efi --size=600 --ondisk=sdb",
+   "part /boot     --fstype=ext4 --size=1024 --ondisk=sdb",
+   "part /         --fstype=ext4 --size=4096 --grow --ondisk=sdb",
+   "== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass",
+   "!! another process holds /dev/tty9 open: tail (pid N) - no countdown a cancel might not reach (R38)",
+   "== REFUSED (exit 30): another program was reading the screen the last-chance countdown uses, so a key pressed to cancel might not be heard"
+  ],
+  "stick": {
+   "KIT-MANIFEST.txt": {
+    "mode": "0o644",
+    "text": "k"
+   },
+   "SHA256SUMS": {
+    "mode": "0o644",
+    "text": "8254c329a92850f6d539dd376f4816ee2764517da5e0235514af433164480d7a  ./KIT-MANIFEST.txt\ne402a90383369bbc4a10dcb0ac9fc54493b564986e1f621ea9921eeec3e5af77  ./upgrade_/LiveOS/gnome.squashfs\n"
+   },
+   "upgrade_/boot-install": {
+    "mode": "0o644",
+    "text": "v9\n"
+   },
+   "upgrade_/report/by-id.txt": {
+    "mode": "0o644",
+    "text": "total 0\nlrwxrwxrwx 1 root root  9 <date> scsi-360022480000000000000000000000001 -> ../../sdb\nlrwxrwxrwx 1 root root 10 <date> scsi-360022480000000000000000000000001-part1 -> ../../sdb1\nlrwxrwxrwx 1 root root 10 <date> scsi-360022480000000000000000000000001-part2 -> ../../sdb2\nlrwxrwxrwx 1 root root  9 <date> wwn-0x60022480000000000000000000000001 -> ../../sdb\nlrwxrwxrwx 1 root root 10 <date> wwn-0x60022480000000000000000000000001-part1 -> ../../sdb1\nlrwxrwxrwx 1 root root 10 <date> wwn-0x60022480000000000000000000000001-part2 -> ../../sdb2\n"
+   },
+   "upgrade_/report/dmesg.txt": {
+    "mode": "0o644",
+    "text": "[    0.000000] Linux version fake\n"
+   },
+   "upgrade_/report/fb0.txt": {
+    "mode": "0o644",
+    "text": ""
+   },
+   "upgrade_/report/lsblk.txt": {
+    "mode": "0o644",
+    "text": "NAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n"
+   },
+   "upgrade_/report/lspci.txt": {
+    "mode": "0o644",
+    "text": "00:00.0 Host bridge [0600]: Fake Host Bridge [1234:0001]\n"
+   },
+   "upgrade_/report/nmcli.txt": {
+    "mode": "0o644",
+    "text": "DEVICE TYPE STATE\nwlp2s0 wifi connected\nenp1s0 ethernet connected\n"
+   },
+   "upgrade_/report/refusal.json": {
+    "mode": "0o644",
+    "json": {
+     "schema": "refusal/1",
+     "exit_code": 30,
+     "reason": "another program was reading the screen the last-chance countdown uses, so a key pressed to cancel might not be heard",
+     "detail": "another process holds /dev/tty9 open: tail (pid N) - no countdown a cancel might not reach (R38)",
+     "created_utc": "<time>"
+    }
+   },
+   "upgrade_/report/storage.ks": {
+    "mode": "0o644",
+    "text": "# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n"
+   },
+   "upgrade_/report/verify.json": {
+    "mode": "0o644",
+    "json": {
+     "schema": "verify/1",
+     "verify_version": "0.6.0",
+     "job_id": "9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e",
+     "mode": "install",
+     "created_utc": "<time>",
+     "kernel": "6.14.0-63.fc44.x86_64",
+     "cmdline": "BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet",
+     "identity": {
+      "result": "pass",
+      "disk": "/dev/sdb",
+      "matched_by": "unique_id via scsi-360022480000000000000000000000001",
+      "disk_size_bytes": "137438953472",
+      "job_size_bytes": "137438953472"
+     },
+     "hardware": {
+      "display": "pass",
+      "display_detail": "card0-eDP-1:1920x1080",
+      "wifi": "pass",
+      "wifi_detail": "wlp2s0 sees 3 networks",
+      "audio_firmware": "skipped",
+      "audio_detail": "job lists no firmware artifacts"
+     },
+     "storage": {
+      "path": "clean-slate",
+      "esp": "/dev/sdb1",
+      "esp_result": "skipped",
+      "include_written": true,
+      "erase": true,
+      "home_disk": "",
+      "home_matched_by": "",
+      "home_size_bytes": ""
+     },
+     "esp_snapshot": {
+      "result": "skipped",
+      "files": 0,
+      "path": "upgrade_/esp-snapshot"
+     },
+     "payload": {
+      "desktop": "gnome",
+      "image": "upgrade_/LiveOS/gnome.squashfs",
+      "result": "pass",
+      "detail": "upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s",
+      "read_mbps": "<mbps>"
+     },
+     "secure_boot": "1"
+    }
+   },
+   "upgrade_/report/verify.log": {
+    "mode": "0o644",
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== erase-and-install: 1 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n!! another process holds /dev/tty9 open: tail (pid N) - no countdown a cancel might not reach (R38)\n== REFUSED (exit 30): another program was reading the screen the last-chance countdown uses, so a key pressed to cancel might not be heard"
+   }
+  },
+  "sysroot": {},
+  "tmp": {
+   "upgrade_-by-id.txt": {
+    "mode": "0o644",
+    "text": "total 0\nlrwxrwxrwx 1 root root  9 <date> scsi-360022480000000000000000000000001 -> ../../sdb\nlrwxrwxrwx 1 root root 10 <date> scsi-360022480000000000000000000000001-part1 -> ../../sdb1\nlrwxrwxrwx 1 root root 10 <date> scsi-360022480000000000000000000000001-part2 -> ../../sdb2\nlrwxrwxrwx 1 root root  9 <date> wwn-0x60022480000000000000000000000001 -> ../../sdb\nlrwxrwxrwx 1 root root 10 <date> wwn-0x60022480000000000000000000000001-part1 -> ../../sdb1\nlrwxrwxrwx 1 root root 10 <date> wwn-0x60022480000000000000000000000001-part2 -> ../../sdb2\n"
+   },
+   "upgrade_-dmesg.txt": {
+    "mode": "0o644",
+    "text": "[    0.000000] Linux version fake\n"
+   },
+   "upgrade_-fb0.txt": {
+    "mode": "0o644",
+    "text": ""
+   },
+   "upgrade_-lsblk.txt": {
+    "mode": "0o644",
+    "text": "NAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n"
+   },
+   "upgrade_-lspci.txt": {
+    "mode": "0o644",
+    "text": "00:00.0 Host bridge [0600]: Fake Host Bridge [1234:0001]\n"
+   },
+   "upgrade_-nmcli.txt": {
+    "mode": "0o644",
+    "text": "DEVICE TYPE STATE\nwlp2s0 wifi connected\nenp1s0 ethernet connected\n"
+   },
+   "upgrade_-storage.ks": {
+    "mode": "0o644",
+    "text": "# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n"
+   },
+   "upgrade_-verify.log": {
+    "mode": "0o644",
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== erase-and-install: 1 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n!! another process holds /dev/tty9 open: tail (pid N) - no countdown a cancel might not reach (R38)\n== REFUSED (exit 30): another program was reading the screen the last-chance countdown uses, so a key pressed to cancel might not be heard"
+   }
+  },
+  "calls": [
+   "blockdev --getsize64 /dev/sdb",
+   "lsblk -b -o NAME,SIZE,TYPE,FSTYPE,LABEL,PARTTYPENAME,SERIAL,WWN",
+   "nmcli -t -f DEVICE,TYPE device",
+   "nmcli device wifi rescan ifname wlp2s0",
+   "sleep 4",
+   "nmcli -t -f SSID device wifi list ifname wlp2s0",
+   "nmcli device",
+   "lspci -nn",
+   "dmesg ",
+   "lsblk -no PARTTYPE /dev/sdb1",
+   "mount -o ro /dev/sdb1 /tmp/upg-esp",
+   "umount /tmp/upg-esp",
+   "mount -o remount,rw /run/install/repo",
+   "uname -r",
+   "sync ",
+   "sync ",
+   "lsblk -dno MODEL /dev/sdb",
+   "chvt 9",
+   "mount -o remount,rw /run/install/repo",
+   "sync ",
+   "sync ",
+   "chvt 9",
+   "systemctl reboot",
+   "sleep 60"
+  ],
+  "screens": [
+   "\n\n   NOTHING WAS CHANGED ON THIS COMPUTER.\n   \n   The installer stopped before touching anything, because\n   another program was reading the screen the last-chance\n   countdown uses, so a key pressed to cancel might not be\n   heard.\n   \n   It restarts in N seconds, exactly as it was before.\n   Press any key to restart now.\n   \n   The details are saved on the USB stick, in upgrade_\\report.\n"
+  ],
+  "efi": {
+   "entries": [],
+   "order": [],
+   "current": ""
+  }
+ },
+ "erase: another program opens the console during the countdown (R38): the countdown stops, refused 30, nothing erased": {
+  "exit": 30,
+  "stdout": [
+   "== upgrade_ verify.sh 0.6.0  mode=install  <time>",
+   "== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet",
+   "== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472",
+   "== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472",
+   "== erase-and-install: 1 drive(s); identity=pass",
+   "NAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN",
+   "sdb 137438953472 disk    ",
+   "sdb1 104857600 part vfat  EFI System",
+   "sdb2 137000000000 part ntfs  Microsoft basic data",
+   "== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s",
+   "== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot",
+   "== storage include:",
+   "# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)",
+   "zerombr",
+   "ignoredisk --only-use=sdb",
+   "clearpart --all --initlabel --drives=sdb",
+   "bootloader --location=mbr --boot-drive=sdb",
+   "part /boot/efi --fstype=efi --size=600 --ondisk=sdb",
+   "part /boot     --fstype=ext4 --size=1024 --ondisk=sdb",
+   "part /         --fstype=ext4 --size=4096 --grow --ondisk=sdb",
+   "== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass",
+   "== countdown console /dev/tty9: no other process holds it",
+   "== countdown: 5 s on /dev/tty9, erasing THIS COMPUTER'S DRIVE (Msft Virtual Disk)",
+   "== countdown console 80x25",
+   "!! another process opened /dev/tty9 during the countdown: tail (pid N) - the countdown stopped, nothing erased (R38)",
+   "== REFUSED (exit 30): another program was reading the screen the last-chance countdown uses, so a key pressed to cancel might not be heard"
+  ],
+  "stick": {
+   "KIT-MANIFEST.txt": {
+    "mode": "0o644",
+    "text": "k"
+   },
+   "SHA256SUMS": {
+    "mode": "0o644",
+    "text": "8254c329a92850f6d539dd376f4816ee2764517da5e0235514af433164480d7a  ./KIT-MANIFEST.txt\ne402a90383369bbc4a10dcb0ac9fc54493b564986e1f621ea9921eeec3e5af77  ./upgrade_/LiveOS/gnome.squashfs\n"
+   },
+   "upgrade_/boot-install": {
+    "mode": "0o644",
+    "text": "v9\n"
+   },
+   "upgrade_/report/by-id.txt": {
+    "mode": "0o644",
+    "text": "total 0\nlrwxrwxrwx 1 root root  9 <date> scsi-360022480000000000000000000000001 -> ../../sdb\nlrwxrwxrwx 1 root root 10 <date> scsi-360022480000000000000000000000001-part1 -> ../../sdb1\nlrwxrwxrwx 1 root root 10 <date> scsi-360022480000000000000000000000001-part2 -> ../../sdb2\nlrwxrwxrwx 1 root root  9 <date> wwn-0x60022480000000000000000000000001 -> ../../sdb\nlrwxrwxrwx 1 root root 10 <date> wwn-0x60022480000000000000000000000001-part1 -> ../../sdb1\nlrwxrwxrwx 1 root root 10 <date> wwn-0x60022480000000000000000000000001-part2 -> ../../sdb2\n"
+   },
+   "upgrade_/report/dmesg.txt": {
+    "mode": "0o644",
+    "text": "[    0.000000] Linux version fake\n"
+   },
+   "upgrade_/report/fb0.txt": {
+    "mode": "0o644",
+    "text": ""
+   },
+   "upgrade_/report/lsblk.txt": {
+    "mode": "0o644",
+    "text": "NAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n"
+   },
+   "upgrade_/report/lspci.txt": {
+    "mode": "0o644",
+    "text": "00:00.0 Host bridge [0600]: Fake Host Bridge [1234:0001]\n"
+   },
+   "upgrade_/report/nmcli.txt": {
+    "mode": "0o644",
+    "text": "DEVICE TYPE STATE\nwlp2s0 wifi connected\nenp1s0 ethernet connected\n"
+   },
+   "upgrade_/report/refusal.json": {
+    "mode": "0o644",
+    "json": {
+     "schema": "refusal/1",
+     "exit_code": 30,
+     "reason": "another program was reading the screen the last-chance countdown uses, so a key pressed to cancel might not be heard",
+     "detail": "another process opened /dev/tty9 during the countdown: tail (pid N) - the countdown stopped, nothing erased (R38)",
+     "created_utc": "<time>"
+    }
+   },
+   "upgrade_/report/storage.ks": {
+    "mode": "0o644",
+    "text": "# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n"
+   },
+   "upgrade_/report/verify.json": {
+    "mode": "0o644",
+    "json": {
+     "schema": "verify/1",
+     "verify_version": "0.6.0",
+     "job_id": "9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e",
+     "mode": "install",
+     "created_utc": "<time>",
+     "kernel": "6.14.0-63.fc44.x86_64",
+     "cmdline": "BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet",
+     "identity": {
+      "result": "pass",
+      "disk": "/dev/sdb",
+      "matched_by": "unique_id via scsi-360022480000000000000000000000001",
+      "disk_size_bytes": "137438953472",
+      "job_size_bytes": "137438953472"
+     },
+     "hardware": {
+      "display": "pass",
+      "display_detail": "card0-eDP-1:1920x1080",
+      "wifi": "pass",
+      "wifi_detail": "wlp2s0 sees 3 networks",
+      "audio_firmware": "skipped",
+      "audio_detail": "job lists no firmware artifacts"
+     },
+     "storage": {
+      "path": "clean-slate",
+      "esp": "/dev/sdb1",
+      "esp_result": "skipped",
+      "include_written": true,
+      "erase": true,
+      "home_disk": "",
+      "home_matched_by": "",
+      "home_size_bytes": ""
+     },
+     "esp_snapshot": {
+      "result": "skipped",
+      "files": 0,
+      "path": "upgrade_/esp-snapshot"
+     },
+     "payload": {
+      "desktop": "gnome",
+      "image": "upgrade_/LiveOS/gnome.squashfs",
+      "result": "pass",
+      "detail": "upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s",
+      "read_mbps": "<mbps>"
+     },
+     "secure_boot": "1"
+    }
+   },
+   "upgrade_/report/verify.log": {
+    "mode": "0o644",
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== erase-and-install: 1 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown console /dev/tty9: no other process holds it\n== countdown: 5 s on /dev/tty9, erasing THIS COMPUTER'S DRIVE (Msft Virtual Disk)\n== countdown console 80x25\n!! another process opened /dev/tty9 during the countdown: tail (pid N) - the countdown stopped, nothing erased (R38)\n== REFUSED (exit 30): another program was reading the screen the last-chance countdown uses, so a key pressed to cancel might not be heard"
+   }
+  },
+  "sysroot": {},
+  "tmp": {
+   "upgrade_-by-id.txt": {
+    "mode": "0o644",
+    "text": "total 0\nlrwxrwxrwx 1 root root  9 <date> scsi-360022480000000000000000000000001 -> ../../sdb\nlrwxrwxrwx 1 root root 10 <date> scsi-360022480000000000000000000000001-part1 -> ../../sdb1\nlrwxrwxrwx 1 root root 10 <date> scsi-360022480000000000000000000000001-part2 -> ../../sdb2\nlrwxrwxrwx 1 root root  9 <date> wwn-0x60022480000000000000000000000001 -> ../../sdb\nlrwxrwxrwx 1 root root 10 <date> wwn-0x60022480000000000000000000000001-part1 -> ../../sdb1\nlrwxrwxrwx 1 root root 10 <date> wwn-0x60022480000000000000000000000001-part2 -> ../../sdb2\n"
+   },
+   "upgrade_-dmesg.txt": {
+    "mode": "0o644",
+    "text": "[    0.000000] Linux version fake\n"
+   },
+   "upgrade_-fb0.txt": {
+    "mode": "0o644",
+    "text": ""
+   },
+   "upgrade_-lsblk.txt": {
+    "mode": "0o644",
+    "text": "NAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n"
+   },
+   "upgrade_-lspci.txt": {
+    "mode": "0o644",
+    "text": "00:00.0 Host bridge [0600]: Fake Host Bridge [1234:0001]\n"
+   },
+   "upgrade_-nmcli.txt": {
+    "mode": "0o644",
+    "text": "DEVICE TYPE STATE\nwlp2s0 wifi connected\nenp1s0 ethernet connected\n"
+   },
+   "upgrade_-storage.ks": {
+    "mode": "0o644",
+    "text": "# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n"
+   },
+   "upgrade_-verify.log": {
+    "mode": "0o644",
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e path=clean-slate disk serial='' unique_id='60022480000000000000000000000001' size=137438953472\n== candidate /dev/sdb (unique_id via scsi-360022480000000000000000000000001) size=137438953472\n== erase-and-install: 1 drive(s); identity=pass\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/gnome.squashfs 600 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== storage include:\n# written by verify.sh: erase-and-install on sdb - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use=sdb\nclearpart --all --initlabel --drives=sdb\nbootloader --location=mbr --boot-drive=sdb\npart /boot/efi --fstype=efi --size=600 --ondisk=sdb\npart /boot     --fstype=ext4 --size=1024 --ondisk=sdb\npart /         --fstype=ext4 --size=4096 --grow --ondisk=sdb\n== report written to /run/install/repo/upgrade_/report; identity=pass display=pass wifi=pass audio=skipped esp=skipped image=pass\n== countdown console /dev/tty9: no other process holds it\n== countdown: 5 s on /dev/tty9, erasing THIS COMPUTER'S DRIVE (Msft Virtual Disk)\n== countdown console 80x25\n!! another process opened /dev/tty9 during the countdown: tail (pid N) - the countdown stopped, nothing erased (R38)\n== REFUSED (exit 30): another program was reading the screen the last-chance countdown uses, so a key pressed to cancel might not be heard"
+   }
+  },
+  "calls": [
+   "blockdev --getsize64 /dev/sdb",
+   "lsblk -b -o NAME,SIZE,TYPE,FSTYPE,LABEL,PARTTYPENAME,SERIAL,WWN",
+   "nmcli -t -f DEVICE,TYPE device",
+   "nmcli device wifi rescan ifname wlp2s0",
+   "sleep 4",
+   "nmcli -t -f SSID device wifi list ifname wlp2s0",
+   "nmcli device",
+   "lspci -nn",
+   "dmesg ",
+   "lsblk -no PARTTYPE /dev/sdb1",
+   "mount -o ro /dev/sdb1 /tmp/upg-esp",
+   "umount /tmp/upg-esp",
+   "mount -o remount,rw /run/install/repo",
+   "uname -r",
+   "sync ",
+   "sync ",
+   "lsblk -dno MODEL /dev/sdb",
+   "chvt 9",
+   "mount -o remount,rw /run/install/repo",
+   "sync ",
+   "sync ",
+   "chvt 9",
+   "systemctl reboot",
+   "sleep 60"
+  ],
+  "screens": [
+   "\n\n   ERASING THIS COMPUTER'S DRIVE IN M:SS\n   \n   Windows and everything on this computer will be deleted.\n   (Msft Virtual Disk)\n   \n   Press any key to CANCEL and restart into Windows.\n",
+   "\n\n   NOTHING WAS CHANGED ON THIS COMPUTER.\n   \n   The installer stopped before touching anything, because\n   another program was reading the screen the last-chance\n   countdown uses, so a key pressed to cancel might not be\n   heard.\n   \n   It restarts in N seconds, exactly as it was before.\n   Press any key to restart now.\n   \n   The details are saved on the USB stick, in upgrade_\\report.\n"
+  ],
   "efi": {
    "entries": [],
    "order": [],
@@ -5368,7 +5781,7 @@
    "== report written to /run/install/repo/upgrade_/report; identity=fail display=pass wifi=pass audio=skipped esp=skipped image=pass",
    "!! IDENTITY MISMATCH - refusing to install on this machine",
    "== REFUSED (exit 20): this USB stick was prepared for a different computer, or one of its drives has changed since",
-   "!! the refusal screen could not be shown on tty6; restarting in 60 s"
+   "!! the refusal screen could not be shown on /dev/tty9; restarting in 60 s"
   ],
   "stick": {
    "KIT-MANIFEST.txt": {
@@ -5496,7 +5909,7 @@
    },
    "upgrade_-verify.log": {
     "mode": "0o644",
-    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b path=keep-windows disk serial='S3YANB0K123456' unique_id='eui.0025385A91B12345' size=250059350016\n!! no attached disk carries the job's unique id or serial\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/kde.squashfs 525 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== report written to /run/install/repo/upgrade_/report; identity=fail display=pass wifi=pass audio=skipped esp=skipped image=pass\n!! IDENTITY MISMATCH - refusing to install on this machine\n== REFUSED (exit 20): this USB stick was prepared for a different computer, or one of its drives has changed since\n!! the refusal screen could not be shown on tty6; restarting in 60 s"
+    "text": "== upgrade_ verify.sh 0.6.0  mode=install  <time>\n== cmdline: BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet\n== job 3f2b6a1e-7c4d-4e8f-9a0b-1c2d3e4f5a6b path=keep-windows disk serial='S3YANB0K123456' unique_id='eui.0025385A91B12345' size=250059350016\n!! no attached disk carries the job's unique id or serial\nNAME SIZE TYPE FSTYPE LABEL PARTTYPENAME SERIAL WWN\nsdb 137438953472 disk    \nsdb1 104857600 part vfat  EFI System\nsdb2 137000000000 part ntfs  Microsoft basic data\n== desktop image: pass - upgrade_/LiveOS/kde.squashfs 525 bytes sha256 ok, read at <mbps> MB/s\n== esp snapshot: skipped (0 files) -> /run/install/repo/upgrade_/report/../esp-snapshot\n== report written to /run/install/repo/upgrade_/report; identity=fail display=pass wifi=pass audio=skipped esp=skipped image=pass\n!! IDENTITY MISMATCH - refusing to install on this machine\n== REFUSED (exit 20): this USB stick was prepared for a different computer, or one of its drives has changed since\n!! the refusal screen could not be shown on /dev/tty9; restarting in 60 s"
    }
   },
   "calls": [

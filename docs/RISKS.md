@@ -1224,10 +1224,12 @@ to the guest's clock chip, which no PC does; owed: the bench's Time Synchronizat
 
 **What.** Fedora 44's installer sometimes stops early in its own startup
 (at the SELinux relabel), before the kickstart's `%pre` and so before the
-verify step, the refusals or any countdown. Seen four times on the rig:
-2026-10-04 (arm C5), 2026-10-11, 2026-10-15 (a diagnostic arm B) and the
+verify step, the refusals or any countdown. Seen five times on the rig:
+2026-10-04 (arm C5), 2026-10-11, 2026-10-15 (a diagnostic arm B), the
 night of 2026-10-15 (arm C: no `verify.log`, Windows back once the VM was
-freed, the prologue's record `stopped` at `install`). The cause is not known.
+freed, the prologue's record `stopped` at `install`) and 2026-10-17 (arm
+B). On the rig a shutdown request to the hung VM can jam it until an admin
+ends its worker process. The cause is not known.
 
 **If real.** On a real machine the person sees a screen of text that never
 moves. Holding the power button brings Windows back, since the handoff is
@@ -1238,11 +1240,11 @@ says so in plain words: medium.
 machine comes back to Windows by itself with a plain sentence, shown on the
 rig and on one real machine.
 
-**Where it stands.** `[#...]` planned: the three hangs are recorded with
-their screens (`rig/hyperv/artifacts/v9/Bdiag-installer-boot-hung-2026-10-15/`;
-[log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)). Nothing is built.
+**Where it stands.** `[#...]` planned: the hangs are recorded with their
+screens (`rig/hyperv/artifacts/v9/Bdiag-installer-boot-hung-2026-10-15/`,
+`B-installer-boot-hung-2026-10-17/`; [log](log/2026-10.md#2026-10-17-later-r38-built-held-on-the-rig-arms-b-c-and-d-pass-r38-v9-r37-v13)). Nothing is built.
 
-## R38: The installer's shell shares the countdown's console · critical · planned
+## R38: The installer's shell shares the countdown's console · critical · held-on-rig
 
 **What.** Fedora's installer starts a root shell on any console it is
 switched to. The verify step switches to tty6 for the refusal screen and
@@ -1253,23 +1255,33 @@ keyboard. A key the person presses to cancel can go to the shell instead.
 shell takes is a cancel nobody hears; a person who presses once and waits
 sees the countdown run out, and both drives are erased. Critical.
 
-**Evidence so far (2026-10-14/15, the rig).** The shell's prompt is on
-tty6 during the verify step; it hung up tty6 as it started and asked the
-console where the cursor was, and the answer landed in the countdown's
-input (`1b 5b 39 3b 31 52 1b 5b 34 38 3b 31 32 38 52`). On 2026-09-29 two
-Space presses during a countdown were never read (arm B). On 2026-10-16
-(arm C, `v9-erase.csv` line 40) the countdown read only the back half of
-that answer (`34 38 3b 31 32 38 52`): another reader on tty6, the shell,
-had taken the front half. So the shell does read the countdown's input.
-That it takes a person's key is not shown yet (rule #2). The false cancel
-is the safe direction; the same race the other way is an erase.
+**Evidence so far (the rig).** The shell's prompt sat on tty6 during the
+verify step and read the console's own cursor reports out of the countdown's
+input: the countdown cancelled itself on the rest (`v9-erase.csv` line 40,
+`fail`, 2026-10-16; [log](log/2026-10.md#2026-10-16-the-rigs-v9-rows-since-2026-10-08-were-judged-from-older-runs-records-v9-r27-r37-r38-roadmap-item-19-step-5)).
+The false cancel is the safe direction; the same race the other way is an
+erase.
+
+**Decided (2026-10-17, the owner): the countdown moves to a console the
+installer never gives a shell.** The refusal screen and the countdown leave
+tty6 for tty9, outside the six consoles systemd starts a shell on (that
+this is how the shell starts is our reading of Fedora's installer, not yet
+seen on the rig). Before the countdown, `upgrade-installer` checks that no
+other process holds tty9 open, and refuses if one does: a refusal there
+erases nothing (rule #1). Not chosen: stopping the shell while the
+countdown runs (still a race, at the commit line) and turning the shell off
+with a boot option (it rests on the service's name in every release, and
+fails silently when the name is wrong).
 
 **Closes when.** The countdown's console has no other reader while it runs,
 and a rig row shows every key sent being read, then one real machine.
 
-**Where it stands.** `[#...]` planned. How to keep the shell off the
-countdown's console is a decision owed (`ROADMAP.md`); arm C on the rig
-cannot pass until then. No filter can tell half a cursor report from a key,
+**Where it stands.** `[###.]` held-on-rig. Built in `upgrade-installer`
+0.1.2 (it also checks once a second during the countdown). On the rig the
+first of three keys sent was read, twice (`v9-erase.csv` lines 41, 42), the
+countdown ran its 120 s with no key (line 43); tty9 had no other holder and
+the shell is logind's, tty1 to tty6 ([log](log/2026-10.md#2026-10-17-later-r38-built-held-on-the-rig-arms-b-c-and-d-pass-r38-v9-r37-v13)). Owed: a real
+machine. No filter can tell half a cursor report from a key,
 so none is tried. The two console faults the port met on the way are fixed ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
 
 # Closed
