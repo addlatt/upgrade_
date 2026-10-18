@@ -205,6 +205,9 @@ day it is picked (R15, R21, R29 first). Waits on: the Windows path shipping.
 The owner's open calls, one line each, naming what waits on them. When one
 is decided, the dated line goes in its home and the item here is removed.
 
+- R30 after the guided stick left (item 20, 2026-10-17): close it on the
+  walk-away's evidence (R33), or keep it open for the licence and key
+  clauses it still names.
 - Whether R34's release check (held on the Aspire 2026-10-04) meets R11's
   closing clause, or R11's wording still promises more than it verifies.
 - R8's closing clause (`-Materialize` against a signed-in client) predates
