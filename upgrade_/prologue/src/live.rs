@@ -5,7 +5,7 @@
 
 use crate::judge;
 use crate::tools::Recorder;
-use crate::val::{at, int, items, s, truthy};
+use crate::val::{int, items, s, truthy};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
@@ -16,7 +16,6 @@ use upgrade_scan::collect::{self, events};
 use upgrade_scan::parse::{chkdsk_event, defrag_259, diskpart_query_max, disk_events, fsutil_dirty};
 use upgrade_scan::ps::{capture, matches, Stamp};
 
-const GB: f64 = 1073741824.0;
 const DAY: i64 = 86400;
 pub const TASK_NAME: &str = "upgrade_ prologue resume";
 pub const NOTICE_RUNONCE_NAME: &str = "upgrade_ prologue notice";
@@ -511,13 +510,6 @@ pub fn windows_partition() -> Option<Value> {
     Some(json!({"number": int(&p["PartitionNumber"]), "guid": text(&p["Guid"]), "size_bytes": int(&p["Size"])}))
 }
 
-fn sha256_file(path: &Path) -> Result<String, String> {
-    let mut f = std::fs::File::open(path).map_err(|e| e.to_string())?;
-    let mut h = Sha256::new();
-    std::io::copy(&mut f, &mut h).map_err(|e| e.to_string())?;
-    Ok(h.finalize().iter().map(|b| format!("{b:02x}")).collect())
-}
-
 fn walk_files(dir: &Path, out: &mut Vec<PathBuf>) {
     if let Ok(rd) = std::fs::read_dir(dir) {
         for e in rd.flatten() {
@@ -531,70 +523,6 @@ fn walk_files(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// Invoke-PrologueStage (clean slate): the folders to the stick with
-/// per-file checksums, at a write speed measured now. `log` takes the
-/// lines the script would log.
-pub fn stage(job: &Value, root: &str, log: &mut dyn FnMut(String)) -> Value {
-    let dir = Path::new(root).join("upgrade_").join("staging");
-    let _ = std::fs::create_dir_all(&dir);
-    let folders: Vec<&Value> = items(at(job, "harvest.folders")).into_iter().filter(|f| truthy(at(f, "exists")) && truthy(at(f, "path"))).collect();
-    let total: i64 = folders.iter().map(|f| int(at(f, "bytes"))).sum();
-    // measure, then estimate - never the other way round
-    let probe = dir.join(".probe");
-    let mut buf = vec![0u8; STAGE_PROBE_BYTES];
-    let _ = crate::random::fill(&mut buf);
-    let t0 = std::time::Instant::now();
-    let wrote = std::fs::File::create(&probe).and_then(|mut f| {
-        use std::io::Write;
-        f.write_all(&buf)?;
-        f.sync_all()
-    });
-    let secs = t0.elapsed().as_secs_f64().max(0.001);
-    let _ = std::fs::remove_file(&probe);
-    let mbps = if wrote.is_ok() { upgrade_scan::ps::round1(STAGE_PROBE_BYTES as f64 / 1e6 / secs) } else { 0.0 };
-    let est = judge::time_estimate(total, Some(mbps));
-    log(format!("  staging {} folder(s), {} GB, stick writes at {} MB/s: {}", folders.len(), upgrade_scan::ps::fmt_n(total as f64 / GB, 2), upgrade_scan::ps::num(mbps), judge::duration(est)));
-    let free = storage_wmi().ok().and_then(|w| w.query_where("MSFT_Volume", &["SizeRemaining"], &format!("DriveLetter='{}'", &root[..1])).ok()).and_then(|l| l.into_iter().next()).map_or(0, |v| int(&v["SizeRemaining"]));
-    if total as f64 * 1.02 + 64.0 * 1048576.0 > free as f64 {
-        return json!({"Files": 0, "Bytes": 0, "Failed": 0, "WriteMbps": mbps, "EstimatedSeconds": est, "Manifest": "upgrade_/staging/SHA256SUMS", "Error": format!("the files ({total} bytes) do not fit the stick's free space ({free} bytes)")});
-    }
-    let (mut lines, mut files, mut bytes, mut failed) = (Vec::new(), 0i64, 0i64, 0i64);
-    for fo in &folders {
-        let src = PathBuf::from(text(at(fo, "path")));
-        let name = text(at(fo, "name"));
-        let dst = dir.join(&name);
-        let mut all = Vec::new();
-        walk_files(&src, &mut all);
-        for fi in all {
-            let rel = fi.strip_prefix(&src).map(|r| r.to_string_lossy().to_string()).unwrap_or_default();
-            let to = dst.join(&rel);
-            let mut copy = || -> Result<(), String> {
-                if let Some(parent) = to.parent() {
-                    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-                }
-                std::fs::copy(&fi, &to).map_err(|e| e.to_string())?;
-                let h = sha256_file(&to)?;
-                lines.push(format!("{h}  ./staging/{name}/{}", rel.replace('\\', "/")));
-                Ok(())
-            };
-            match copy() {
-                Ok(()) => {
-                    files += 1;
-                    bytes += std::fs::metadata(&fi).map(|m| m.len() as i64).unwrap_or(0);
-                }
-                Err(e) => {
-                    failed += 1;
-                    log(format!("  ! could not stage {}: {e}", fi.display()));
-                }
-            }
-        }
-    }
-    let manifest = if lines.is_empty() { String::new() } else { lines.join("\n") + "\n" };
-    let _ = std::fs::write(dir.join("SHA256SUMS"), manifest);
-    json!({"Files": files, "Bytes": bytes, "Failed": failed, "WriteMbps": mbps, "EstimatedSeconds": est, "Manifest": "upgrade_/staging/SHA256SUMS", "Error": null})
-}
-
-/// Reset-GrubEnv.
 pub fn reset_grub_env(root: &str) -> bool {
     let env = Path::new(root).join(GRUB_ENV_REL);
     if env.exists() || Path::new(root).join("EFI\\BOOT\\grubx64.efi").exists() {

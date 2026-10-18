@@ -5,7 +5,6 @@
 use crate::val::{at, eq_ci, int, items, one_of, s, truthy};
 use crate::{decide, harvest, maps, records, ERASE_STATEMENT, LINUX_MIN_GB, VERIFY_ONLY_HASH};
 use serde_json::{json, Value};
-use upgrade_scan::parse::shrink_mitigable;
 use upgrade_scan::ps::{num, round1};
 
 /// What the person chose on the launcher.
@@ -17,8 +16,6 @@ pub struct Choices<'a> {
     pub start_at: &'a str,
     /// SHA-512 crypt; the password itself never reaches this code
     pub password_hash: &'a str,
-    /// `stop` or `clean-slate`: what to do if Windows cannot be kept
-    pub if_cannot_keep: &'a str,
     /// where the scan report sits, relative to the job folder
     pub report_rel: &'a str,
     /// what was typed for the data-loss statement (R23), or empty
@@ -137,18 +134,11 @@ pub fn job_document(f: &Value, choice: &Choices, stamp: &Stamp) -> Result<Value,
         shrink_gb = None;
     }
     let health = s(at(f, "Health"));
-    let dirty = s(at(f, "Dirty"));
-    let mitigable = shrink_mitigable(&s(at(f, "LastUnmovable")));
-    let path = if erase { Some(("clean-slate", "user-chose-fresh-start")) } else { decide::path(&health, esp_fits, shrink_gb, &dirty, disk_ack, repair_queued, mitigable, choice.if_cannot_keep) };
+    let path = if erase { Some(("clean-slate", "user-chose-fresh-start")) } else { decide::path(&health, esp_fits, disk_ack) };
     let Some((path, path_reason)) = path else {
         let why = if !esp_fits { format!("the EFI system partition has {} MB free, too little for Linux's boot files beside Windows'", num(round1(esp_free as f64 / 1048576.0))) } else { format!("the system disk reports '{health}'") };
         return Err(vec![format!("Windows cannot be kept on this machine ({why}), and you chose to stop rather than wipe it - no job; nothing was changed")]);
     };
-    if !erase {
-        if let Some(why) = harvest::stick_fit_refusal(h, path) {
-            return Err(vec![format!("{why} - no job; nothing was changed")]);
-        }
-    }
     let (folders, cloud_files, stick_fit) = harvest::to_job(h);
     let health_status = if one_of(&health, &["Healthy", "Warning", "Unhealthy"]) { health.clone() } else { "Unknown".to_string() };
     let text_or_null = |v: &Value| if truthy(v) { json!(s(v)) } else { Value::Null };
@@ -181,7 +171,7 @@ pub fn job_document(f: &Value, choice: &Choices, stamp: &Stamp) -> Result<Value,
         // The launcher's decision screen says restore points and NTFS's change
         // journal go if they are what stops the shrink, and that this cannot
         // be undone. CONVERT typed there is the consent (R18).
-        "fork": {"if_cannot_keep": choice.if_cannot_keep, "volume_check_consented": true, "restore_points_consented": true, "usn_journal_consented": true},
+        "fork": {"if_cannot_keep": "stop", "volume_check_consented": true, "restore_points_consented": true, "usn_journal_consented": true},
         "storage": {
             "shrinkable_gb": shrink_gb, "shrink_source": if shrink_gb.is_some() { json!("storage-api") } else { Value::Null }, "shrink_error": shrink_error,
             "last_unmovable_file": text_or_null(at(f, "LastUnmovable")),
@@ -213,8 +203,6 @@ pub fn job_document(f: &Value, choice: &Choices, stamp: &Stamp) -> Result<Value,
     }
     if erase {
         job["erase_consent"] = json!({"statement": ERASE_STATEMENT, "accepted_utc": stamp.now_utc, "disks": erase_disks});
-    } else if path == "clean-slate" {
-        job["staged"] = json!({"files": 0, "bytes": 0, "manifest": "staging/SHA256SUMS"});
     }
     Ok(job)
 }

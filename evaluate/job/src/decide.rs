@@ -3,33 +3,22 @@
 //! which drives an erase names, and whether the stick's release can start.
 
 use crate::val::{at, eq_ci, int, items, one_of, s, truthy};
-use crate::{LINUX_MIN_GB, RISK_STATEMENT};
+use crate::RISK_STATEMENT;
 use serde_json::{json, Value};
 use upgrade_scan::ps::matches;
 
 /// Get-JobPath (architecture.md, "The conversion path is not a coin flip"):
-/// keep Windows whenever the disk can, else clean slate, and only if the
-/// person allowed that. Under `stop` the answer is keep-windows whenever
-/// the disk and the boot partition allow it (the prologue measures again
-/// and stops if it still does not fit), and no path at all when they do
-/// not. Under `stop` a job is never a wipe (R18, 2026-09-22).
-#[allow(clippy::too_many_arguments)]
-pub fn path(disk_health: &str, esp_fits: bool, shrinkable_gb: Option<f64>, dirty: &str, disk_health_acknowledged: bool, repair_queued: bool, mitigable: bool, if_cannot_keep: &str) -> Option<(&'static str, &'static str)> {
-    let keep = Some(("keep-windows", "default"));
-    let may_wipe = eq_ci(if_cannot_keep, "clean-slate");
+/// keep-windows whenever the disk and the boot partition allow it (the
+/// prologue measures the room again and stops if Linux still does not
+/// fit), and no path at all when they do not. A job is never a wipe the
+/// person did not ask for (R18, 2026-09-22): the forced clean slate left
+/// the product (decided 2026-10-17, the owner; roadmap item 20), so the
+/// room measured here no longer changes the answer, only the prologue's.
+pub fn path(disk_health: &str, esp_fits: bool, disk_health_acknowledged: bool) -> Option<(&'static str, &'static str)> {
     if (eq_ci(disk_health, "Healthy") || disk_health_acknowledged) && esp_fits {
-        match shrinkable_gb {
-            Some(gb) if gb >= LINUX_MIN_GB || mitigable => return keep,
-            // a flagged volume or a queued repair cannot be measured at all: not "no room"
-            None if eq_ci(dirty, "dirty") || repair_queued => return keep,
-            _ if !may_wipe => return keep,
-            _ => {}
-        }
+        return Some(("keep-windows", "default"));
     }
-    if !may_wipe {
-        return None;
-    }
-    Some(("clean-slate", "forced-no-room"))
+    None
 }
 
 /// A moment as Windows gave it: the words to print, and where it falls in

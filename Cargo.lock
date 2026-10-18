@@ -3207,7 +3207,7 @@ dependencies = [
 
 [[package]]
 name = "upgrade-job"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "regress",
  "roxmltree",

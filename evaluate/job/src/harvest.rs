@@ -6,9 +6,7 @@
 use crate::val::{at, eq_ci, int, items, list, one_of, s, truthy};
 use crate::KNOWN_HARVEST_VERSIONS;
 use serde_json::{json, Value};
-use upgrade_scan::ps::fmt_n;
 
-const GB: f64 = 1073741824.0;
 
 /// Get-JobHarvestRefusals. `h` is the harvester's folder map (nothing when
 /// it could not be made, and then `harvest_error` says why).
@@ -59,34 +57,6 @@ pub fn refusals(h: &Value, harvest_error: &str) -> Vec<String> {
         r.push(format!("the stick's free space could not be read ({})", s(at(h, "Stick.Error"))));
     }
     r
-}
-
-/// Get-JobStickFitRefusal. Clean slate stages the folders to the stick and
-/// then wipes Windows: a job whose folders do not fit, or that would leave
-/// other people's files behind (RISKS R5), is no job. The gap is named so
-/// the next try can succeed.
-pub fn stick_fit_refusal(h: &Value, path: &str) -> Option<String> {
-    if !eq_ci(path, "clean-slate") {
-        return None;
-    }
-    let fit = at(h, "StickFit");
-    if !truthy(at(fit, "Fits")) {
-        let more = if int(at(fit, "GapBytes")) > 0 {
-            let at_least = (int(at(fit, "NeededBytes")) as f64 / GB * 10.0).ceil() / 10.0;
-            format!("; a stick with at least {} GB free would hold them", fmt_n(at_least, 1))
-        } else {
-            String::new()
-        };
-        return Some(format!("Windows cannot be kept, and your folders do not fit on this stick: {}{more}", s(at(fit, "Reason"))));
-    }
-    // `list`, not `items`: a map that does not say who else is on the
-    // computer counts as one unnamed account, as it does in PowerShell
-    let others = list(at(h, "Owner.OtherProfiles"));
-    if !others.is_empty() {
-        let paths = others.iter().map(|o| s(at(o, "Path"))).collect::<Vec<_>>().join(", ");
-        return Some(format!("this computer has {} other account(s) ({paths}); a clean slate would delete their files, and this version copies only yours (RISKS R5)", others.len()));
-    }
-    None
 }
 
 /// ConvertTo-JobHarvest: the folder map as the job's `harvest.folders`,
