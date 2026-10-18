@@ -13,7 +13,8 @@
 //! The launchers as flows (2026-10-08): verify (RUN-VERIFY.cmd: nothing is
 //! installed and nothing on the internal drive is changed), convert
 //! (RUN-CONVERT.cmd: keep Windows, install Linux beside it), erase
-//! (RUN-ERASE-AND-INSTALL.cmd), roll back (a pointer to Linux since 2026-10-17), the walk-away
+//! (RUN-ERASE-AND-INSTALL.cmd; since 2026-10-17 Convert's clean-slate answer,
+//! not a button of its own), roll back (a pointer to Linux since 2026-10-17), the walk-away
 //! probe (RUN-PROBE.cmd) and cancel (CANCEL-CONVERSION.cmd). The data-loss
 //! variants of convert and erase are reached only by starting the window
 //! with --accepting-data-loss, its own launcher, as rule #1 asks. Verify and
@@ -477,18 +478,18 @@ enum Flow {
 
 /// The first screen's buttons. Verify and Probe make the rows (V0, V1, R24)
 /// and a person converting never needs them: they show only with
-/// --developer (roadmap item 20, R31). The data-loss launcher shows only
-/// its own two (rule #1, R23).
+/// --developer (roadmap item 20, R31). Erase is no longer a button: it is
+/// Convert's clean-slate answer, on the set-up screen. The data-loss launcher
+/// shows only its own convert (rule #1, R23).
 fn first_screen(accepting_data_loss: bool, developer: bool) -> Vec<(&'static str, &'static str, Flow)> {
     if accepting_data_loss {
-        return vec![(words::CHOOSE_CONVERT_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Convert), (words::CHOOSE_ERASE_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Erase)];
+        return vec![(words::CHOOSE_CONVERT_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Convert)];
     }
     let mut v = vec![];
     if developer {
         v.push((words::CHOOSE_VERIFY, words::CHOOSE_VERIFY_LINE, Flow::Verify));
     }
     v.push((words::CHOOSE_CONVERT, words::CHOOSE_CONVERT_LINE, Flow::Convert));
-    v.push((words::CHOOSE_ERASE, words::CHOOSE_ERASE_LINE, Flow::Erase));
     v.push((words::CHOOSE_ROLLBACK, words::CHOOSE_ROLLBACK_LINE, Flow::Rollback));
     if developer {
         v.push((words::CHOOSE_PROBE, words::CHOOSE_PROBE_LINE, Flow::Probe));
@@ -797,6 +798,19 @@ impl eframe::App for App {
                             }
                             ui.add_space(8.0);
                         }
+                        // Convert's one switch: keep Windows, or the clean slate (the erase
+                        // flow, unchanged). A switch clears the typed erase sentence, so it is
+                        // always typed under the words it answers.
+                        ui.label(egui::RichText::new(words::PATH_HEADING).strong().size(17.0));
+                        let before = self.flow;
+                        ui.radio_value(&mut self.flow, Flow::Convert, words::PATH_KEEP);
+                        para(ui, words::PATH_KEEP_LINE);
+                        ui.radio_value(&mut self.flow, Flow::Erase, words::PATH_CLEAN);
+                        para(ui, words::PATH_CLEAN_LINE);
+                        if self.flow != before {
+                            self.setup.erase.clear();
+                        }
+                        ui.add_space(10.0);
                         if self.flow == Flow::Erase {
                             heading(ui, words::ERASE_HEADING);
                             ui.label(egui::RichText::new(words::ERASE_READ_FIRST).strong().size(17.0));
@@ -1253,13 +1267,13 @@ mod tests {
 
     #[test]
     fn verify_and_probe_only_with_the_developer_flag() {
-        assert_eq!(flows(false, false), ["convert", "erase", "rollback", "cancel"]);
-        assert_eq!(flows(false, true), ["verify", "convert", "erase", "rollback", "probe", "cancel"]);
+        assert_eq!(flows(false, false), ["convert", "rollback", "cancel"]);
+        assert_eq!(flows(false, true), ["verify", "convert", "rollback", "probe", "cancel"]);
     }
 
     #[test]
-    fn the_data_loss_launcher_shows_only_its_own_two() {
-        assert_eq!(flows(true, false), ["convert", "erase"]);
-        assert_eq!(flows(true, true), ["convert", "erase"], "the developer flag adds nothing to the data-loss screen");
+    fn the_data_loss_launcher_shows_only_its_own_convert() {
+        assert_eq!(flows(true, false), ["convert"]);
+        assert_eq!(flows(true, true), ["convert"], "the developer flag adds nothing to the data-loss screen");
     }
 }

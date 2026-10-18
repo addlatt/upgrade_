@@ -85,8 +85,15 @@ pub const NO_WINDOW: &str = "The upgrade_ window could not open on this computer
 pub const CHOOSE_HEADING: &str = "What would you like to do?";
 pub const CHOOSE_VERIFY: &str = "Test this computer with Linux";
 pub const CHOOSE_VERIFY_LINE: &str = "Nothing is installed and nothing on this computer's drive is changed.";
-pub const CHOOSE_CONVERT: &str = "Convert this computer: keep Windows, install Linux beside it";
-pub const CHOOSE_CONVERT_LINE: &str = "This changes the internal drive. You type one word before anything changes.";
+pub const CHOOSE_CONVERT: &str = "Convert this computer to Linux";
+pub const CHOOSE_CONVERT_LINE: &str = "Keep Windows beside Linux (the default), or erase this computer for a clean slate. You choose on the next screen, and you type before anything changes.";
+// What happens to Windows: Convert's one switch (roadmap item 20, 2026-10-17). The clean
+// slate is the erase flow, its sentence, countdown and drive list unchanged (R27).
+pub const PATH_HEADING: &str = "What happens to Windows";
+pub const PATH_KEEP: &str = "Keep Windows beside Linux (recommended)";
+pub const PATH_KEEP_LINE: &str = "Windows is shrunk to make room and stays on the computer, so you can roll back. Your files stay where they are.";
+pub const PATH_CLEAN: &str = "Clean slate: erase this computer";
+pub const PATH_CLEAN_LINE: &str = "Everything on this computer's drives is deleted and Fedora is installed alone. Nothing is kept. You type one sentence before anything changes.";
 pub const CHOOSE_CONVERT_ACK: &str = "Convert this computer, ACCEPTING DATA LOSS";
 pub const CHOOSE_CONVERT_ACK_LINE: &str = "For a computer the scanner refused because its drive is failing. Read the next screen first.";
 
@@ -165,9 +172,6 @@ pub const LINUX_NAME_UNKNOWN: &str = "The Linux account name could not be worked
 
 // ---------------------------------------------------------------- erase: the words of RUN-ERASE-AND-INSTALL.cmd (2026-10-08)
 
-pub const CHOOSE_ERASE: &str = "Erase this computer and install Fedora";
-pub const CHOOSE_ERASE_LINE: &str = "Everything on this computer is deleted; nothing is kept. You type one sentence before anything changes.";
-pub const CHOOSE_ERASE_ACK: &str = "Erase this computer and install Fedora, ACCEPTING DATA LOSS";
 pub const ERASE_HEADING: &str = "Erase this computer and install Fedora";
 pub const ERASE_READ_FIRST: &str = "Read this first";
 pub const ERASE_LINES: [&str; 5] = [
