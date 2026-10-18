@@ -104,6 +104,11 @@ prologue refuses a stale forced clean-slate job under `stop` the same way, and
 refuses clean slate whenever the job lists no folders or nothing was staged. A
 "stop" is never turned into a wipe.
 
+**Decided (2026-10-17, the owner): the forced fallback and its staging
+leave the code** (roadmap item 20): no route reached them (the log,
+2026-10-17). A disk too full to keep Windows stops, untouched; its offer is
+roadmap item 8 (R26). Carrying files on the erase path stays stage 2.
+
 ### It harvests what only Windows can give
 
 - **The folder map.** *Where* the person's files really live, looked up through
@@ -495,9 +500,11 @@ wrong job or a disk that is not the job's; then restores the two files from
 the stick's snapshot (checksums checked, the shim copy saved to the stick),
 writes a marker on the ESP (`upgrade_/rolled-back.json`) that the guard in the
 kept Windows reads at its next start to remove itself, puts Windows first and
-reads it back, and records `upgrade_/rollback.json`. `upgrade-prologue
-rollback` on the Windows side stays as plumbing for the bench. The clean-slate
-path has no rollback (hence its human gate before the commit line); its way back is below.
+reads it back, and records `upgrade_/rollback.json`. **Decided (2026-10-17,
+the owner): `upgrade-prologue rollback`, the Windows-side way that failed on
+the Acer, leaves the product** (roadmap item 20); the window's Rollback button
+sends the person to Linux's "Go back to Windows". The clean-slate path has no
+rollback (hence its human gate before the commit line); its way back is below.
 
 ### Design constraints: offline, and one stick, honestly sized
 
@@ -867,17 +874,9 @@ who could not make a Windows stick is who this is for (R30, V11).
   checks the processor); otherwise 10, with the October 2025 / October 2026
   warning. The 32-bit Windows 10 file and the wrong Windows are refused.
 
-**Stage 1, a guided stick** (`settle-in go-back`): the person downloads
-Microsoft's own installer in their own browser (we never redistribute it); the
-program checks it against Microsoft's published SHA-256 table
-(`settle-in/data/windows-media.json`, copied by
-`settle-in/tools/refresh-windows-media.py`), writes it to a USB stick the person
-names (found again by serial, exact size and the typed model name; the stick
-writer's refusals, RISKS R16), splits `sources\install.wim` into `install.swm`
-parts under FAT32's 4 GB with `wimlib-imagex` (static, GPL-3.0, built from a
-pinned source and carried on the kit), reads every file back, and shows the
-steps in plain words. Nothing changes until the person starts Windows'
-installer. **Decided (2026-10-12, the owner): only stage 2 stays** (R30).
+**Stage 1, a guided stick** (`settle-in go-back`), made a Windows stick for
+the person to start by hand; rig only (`v11-way-back.csv` line 3). **Decided
+(2026-10-12, the owner): only stage 2 stays** (R30); its code leaves with item 20.
 
 **Stage 2, a walk-away reinstall. Decided (2026-09-29, the owner): the way back
 is 100% managed, and it comes now.** An unattended Windows install with its own

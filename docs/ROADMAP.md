@@ -174,12 +174,13 @@ Proves: V13, R32. Stands: see [STATUS.md](STATUS.md).
 
 ## 20. Product unification: fewer choices, one way through
 
-Cut what the person does not need. After an erase the way back is the
-walk-away only; the guided stick goes (R30, R33). Verify and Probe leave
-the person's window, kept behind a developer flag for the rows (R31). Erase
-stops being its own flow and becomes Convert's clean-slate answer, keeping
-its own sentence and drive list (R27). Kept on purpose: KDE or GNOME, the
-console start, items 8 and 12. A refusal is never trimmed (rule #1).
+Two routes across the line and one switch: keep Windows (its way back, the
+Linux-side rollback) or clean slate (its way back, the walk-away). The
+guided stick goes (R30, R33), and so do the Windows-side rollback (R21) and
+the staged-files branch nothing reaches (decided 2026-10-17, the owner).
+Verify and Probe go behind a developer flag (R31). Erase becomes Convert's
+clean-slate answer, keeping its sentence and drive list (R27). Kept: KDE or
+GNOME, the console start, items 8 and 12. A refusal is never trimmed.
 Proves: V11, V12. Stands: see [STATUS.md](STATUS.md).
 
 ## 21. Test optimization
