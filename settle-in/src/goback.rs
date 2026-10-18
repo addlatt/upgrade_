@@ -1,23 +1,19 @@
-//! "Go back to Windows", stage 1: the facts and the download check
-//! (architecture.md, "The way back to Windows"; RISKS R30; VALIDATION V11).
+//! "Go back to Windows": the facts the way back starts from
+//! (architecture.md, "The way back to Windows"; RISKS R30, R33; VALIDATION V11).
 //!
 //! Nothing here writes. It reads what Windows said about itself before it
 //! was erased (harvest.windows_license, copied into the public summary at
-//! first start), what this computer shows Linux today, and checks an
-//! installer file the person downloaded from Microsoft against the SHA-256
-//! table Microsoft prints on its own download page (data/windows-media.json,
-//! refreshed by tools/refresh-windows-media.py). A file that is not in that
-//! table is refused: we never guess that a file is Windows.
+//! first start) and what this computer shows Linux today, and says which
+//! Windows to offer. The guided stick (stage 1: a downloaded ISO checked
+//! against Microsoft's SHA-256 table, then installed by hand) left the
+//! product with roadmap item 20 (decided 2026-10-12, the owner); the
+//! walk-away (walkaway.rs) is the way back after an erase.
 //!
 //! The words the person sees are drafts until the owner approves them.
 
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::io::Read;
-
-pub const MEDIA: &str = include_str!("../data/windows-media.json");
-pub const PAGE_10: &str = "https://www.microsoft.com/software-download/windows10ISO";
-pub const PAGE_11: &str = "https://www.microsoft.com/software-download/windows11";
 
 /// What Windows said about itself, from the public summary.
 pub fn windows_before(summary: Option<&Value>) -> Value {
@@ -79,36 +75,6 @@ pub fn offer(before: &Value, pc: &Value) -> Value {
     json!({ "windows": "10", "why": format!("Linux cannot see {} on this computer", missing.join(" or ")) })
 }
 
-/// The media table, parsed.
-pub fn media() -> Vec<Value> {
-    serde_json::from_str::<Value>(MEDIA).ok().and_then(|d| d["media"].as_array().cloned()).unwrap_or_default()
-}
-
-pub fn media_read_utc() -> String {
-    serde_json::from_str::<Value>(MEDIA).ok().and_then(|d| d["read_utc"].as_str().map(str::to_string)).unwrap_or_default()
-}
-
-/// Judge a file by its hash. Pure.
-pub fn judge(sha256: &str, size: u64, table: &[Value], want: Option<&str>) -> Value {
-    let sha = sha256.to_ascii_lowercase();
-    let hit = table.iter().find(|m| m["sha256"].as_str() == Some(sha.as_str()));
-    let Some(m) = hit else {
-        return json!({ "result": "refused", "sha256": sha, "size": size,
-            "why": "this file is not one of the Windows installers Microsoft lists on its download page, so it is not used" });
-    };
-    if m["arch"] != json!("x64") {
-        return json!({ "result": "refused", "sha256": sha, "size": size, "media": m,
-            "why": "this is the 32-bit Windows installer; this computer needs the 64-bit one" });
-    }
-    if let Some(w) = want {
-        if m["windows"].as_str() != Some(w) {
-            return json!({ "result": "refused", "sha256": sha, "size": size, "media": m,
-                "why": format!("this is the Windows {} installer, but Windows {} is the one for this computer", m["windows"].as_str().unwrap_or("?"), w) });
-        }
-    }
-    json!({ "result": "verified", "sha256": sha, "size": size, "media": m })
-}
-
 /// SHA-256 of a file, reporting progress as it goes.
 pub fn sha256_file(path: &str, mut progress: impl FnMut(u64, u64)) -> Result<(String, u64), String> {
     let mut f = std::fs::File::open(path).map_err(|e| format!("{}: {}", path, e))?;
@@ -129,35 +95,11 @@ pub fn sha256_file(path: &str, mut progress: impl FnMut(u64, u64)) -> Result<(St
     Ok((hex, done))
 }
 
-/// ISO files in the person's Downloads folder, newest first.
-pub fn find_downloads(home: &str) -> Vec<Value> {
-    let mut v: Vec<(std::time::SystemTime, Value)> = Vec::new();
-    for dir in ["Downloads", ""] {
-        let d = format!("{}/{}", home.trim_end_matches('/'), dir);
-        let Ok(rd) = std::fs::read_dir(&d) else { continue };
-        for e in rd.flatten() {
-            let p = e.path();
-            if p.extension().and_then(|x| x.to_str()).map(|x| x.eq_ignore_ascii_case("iso")) != Some(true) {
-                continue;
-            }
-            if let Ok(m) = e.metadata() {
-                v.push((m.modified().unwrap_or(std::time::UNIX_EPOCH), json!({ "path": p.to_string_lossy(), "size": m.len() })));
-            }
-        }
-    }
-    v.sort_by(|a, b| b.0.cmp(&a.0));
-    v.into_iter().map(|(_, j)| j).collect()
-}
-
 /// "Windows 10 Home" from the harvest, if it said. Pure.
 pub fn edition_name(before: &Value, windows: Option<&str>) -> Option<String> {
     let e = before.get("edition_id").and_then(Value::as_str)?;
     let e = match e { "Core" => "Home", "CoreN" => "Home N", "CoreSingleLanguage" => "Home Single Language", "Professional" => "Pro", "ProfessionalN" => "Pro N", "Education" => "Education", other => other };
     Some(format!("Windows {} {}", windows.or(before.get("windows_version").and_then(Value::as_str)).unwrap_or(""), e).replace("  ", " "))
-}
-
-fn gb(b: u64) -> String {
-    format!("{:.1} GB", b as f64 / 1e9)
 }
 
 /// The first screen: the cost first, then the facts, then what to do.
@@ -167,7 +109,6 @@ pub fn screen(before: &Value, pc: &Value, off: &Value) -> Value {
     out.push(json!({ "heading": "What going back means", "lines": [
         "Going back puts a new, empty Windows on this computer.",
         "Linux and everything on it will be deleted: your files, your settings, your apps. Copy what you want to keep onto a USB drive or into online storage first.",
-        "This program does not delete anything. It makes a Windows installer stick; you start the installer yourself, and you can stop before it deletes anything.",
     ]}));
     let mut wl = Vec::new();
     if before["result"] == "read" {
@@ -208,15 +149,7 @@ pub fn screen(before: &Value, pc: &Value, off: &Value) -> Value {
         _ => ol.push(format!("None that this program can make: {}.", off["why"].as_str().unwrap_or(""))),
     }
     out.push(json!({ "heading": "Which Windows", "lines": ol }));
-    if w.is_some() {
-        let page = if w == Some("10") { PAGE_10 } else { PAGE_11 };
-        out.push(json!({ "heading": "Step 1: download Windows from Microsoft", "lines": [
-            "Open Microsoft's download page, choose the edition and your language, and download the file (about 6 to 9 GB).",
-            format!("Microsoft's page: {}", page),
-            "We never hand out Windows ourselves. This program checks the file against the numbers Microsoft publishes on that page before using it.",
-        ], "link": page }));
-    }
-    json!({ "title": "Go back to Windows", "sections": out, "close": "Close", "next": "I have downloaded it", "wizard": wizard(before, off["windows"].as_str()) })
+    json!({ "title": "Go back to Windows", "sections": out, "close": "Close", "next_plain": "Next", "wizard": { "stick": stick_words() } })
 }
 
 /// The screen when Windows was kept (decided 2026-10-12, the owner): the way
@@ -234,69 +167,19 @@ pub fn kept_screen(before: &Value) -> Value {
     json!({ "title": "Go back to Windows", "kept": true, "sections": sections, "close": "Close", "next_plain": "Next", "words": w })
 }
 
-/// The words for the later screens (the window draws them; it has none of
-/// its own). DRAFT, awaiting the owner's approval.
-pub fn wizard(before: &Value, windows: Option<&str>) -> Value {
-    let edition = edition_name(before, windows);
+/// The words for the walk-away's stick page (the window draws them; it has
+/// none of its own). DRAFT, awaiting the owner's approval.
+pub fn stick_words() -> Value {
     json!({
-        "file": {
-            "heading": "Step 2: check the file",
-            "lines": ["Choose the file you downloaded. This program checks it against Microsoft's numbers; that takes a minute or two."],
-            "none": "No Windows file found in your Downloads folder yet. When the download has finished, press Look again.",
-            "look_again": "Look again",
-            "check": "Check this file",
-        },
-        "stick": {
-            "heading": "Step 3: the USB stick",
-            "lines": [
-                "Plug in a USB stick of 16 GB or more (Windows 11 does not fit on 8 GB). Everything on it will be deleted.",
-                "Only a USB stick can be chosen. This computer's own drives, USB hard drives and the upgrade_ stick are never offered.",
-            ],
-            "none": "No USB stick that can be used is plugged in.",
-            "refused_heading": "Not offered:",
-            "type_prompt": "To confirm, type the stick's name exactly as shown:",
-            "write": "Delete everything on this stick and make the Windows installer",
-            "note": "You will be asked for your password. It takes 10 to 30 minutes; the stick is checked at the end.",
-        },
-        "done": {
-            "heading": "The Windows installer stick is ready",
-            "lines": [
-                "Nothing on this computer has changed yet. When you are ready:",
-                "1. Copy everything you want to keep off this computer. Going back deletes it.",
-                "2. Leave the stick in and restart. As the computer starts, press the key for its startup menu (often F12, F9, Esc or F2; the maker's logo screen usually says which) and choose the USB stick.",
-                "3. Windows Setup starts. If it asks for a product key, choose \"I don't have a product key\" (Setup's own advice when reinstalling).",
-                match &edition {
-                    Some(e) => format!("4. When it asks which edition, choose {}: the one this computer had.", e),
-                    None => "4. When it asks which edition, choose the one this computer had (most home computers had Home).".to_string(),
-                },
-                "5. Choose \"Custom: Install Windows only\". Delete every partition on this computer's drives: this is the step that deletes Linux and your files. Never delete the one called WINSETUP: that is this stick. Then choose the empty space and click Next.",
-                "6. When Windows has started, you are done. The stick can go back to ordinary use.",
-                "Until step 5, you can stop: take the stick out and restart, and Linux starts as before.",
-            ],
-        },
-        "failed": "The stick was not made: ",
-        "failed_changed": "What was on the stick has been deleted, but it does not hold a working installer. Nothing on this computer changed.",
-        "failed_unchanged": "Nothing was written: the stick and this computer are as they were.",
+        "heading": "The USB stick",
+        "lines": [
+            "Plug in a USB stick of 16 GB or more (Windows 11 does not fit on 8 GB). Everything on it will be deleted.",
+            "Only a USB stick can be chosen. This computer's own drives, USB hard drives and the upgrade_ stick are never offered.",
+        ],
+        "none": "No USB stick that can be used is plugged in.",
+        "refused_heading": "Not offered:",
+        "type_prompt": "To confirm, type the stick's name exactly as shown:",
     })
-}
-
-pub fn check_report(path: &str, want: Option<&str>, table: &[Value]) -> Value {
-    let (sha, size) = match sha256_file(path, |d, t| {
-        if t > 0 && d % (256 << 20) < (4 << 20) {
-            eprintln!("{}", json!({ "progress": d, "total": t }));
-        }
-    }) {
-        Ok(x) => x,
-        Err(e) => return json!({ "result": "refused", "why": format!("the file could not be read ({})", e) }),
-    };
-    let mut j = judge(&sha, size, table, want);
-    j["path"] = json!(path);
-    j["table_read_utc"] = json!(media_read_utc());
-    if j["result"] == "verified" {
-        j["line"] = json!(format!("Checked: this is Microsoft's Windows {} installer ({}, {}).",
-            j["media"]["windows"].as_str().unwrap_or("?"), j["media"]["language"].as_str().unwrap_or("?"), gb(size)));
-    }
-    j
 }
 
 #[cfg(test)]
@@ -305,17 +188,6 @@ mod tests {
 
     fn pc(tpm: Option<u64>, uefi: bool) -> Value {
         json!({ "arch": "x86_64", "uefi": uefi, "tpm_version": tpm, "firmware_key_present": true })
-    }
-
-    #[test]
-    fn the_table_is_real_and_has_both() {
-        let t = media();
-        assert!(t.len() >= 60, "{}", t.len());
-        assert!(t.iter().any(|m| m["windows"] == "10" && m["arch"] == "x64"));
-        assert!(t.iter().any(|m| m["windows"] == "11" && m["arch"] == "x64"));
-        for m in &t {
-            assert_eq!(m["sha256"].as_str().unwrap().len(), 64);
-        }
     }
 
     #[test]
@@ -368,28 +240,6 @@ mod tests {
     }
 
     #[test]
-    fn a_file_not_in_microsofts_table_is_refused() {
-        let j = judge(&"ab".repeat(32), 5, &media(), None);
-        assert_eq!(j["result"], "refused");
-    }
-
-    #[test]
-    fn microsofts_file_is_verified_and_the_wrong_one_refused() {
-        let t = media();
-        let w11 = t.iter().find(|m| m["windows"] == "11" && m["language"] == "English").unwrap();
-        let sha = w11["sha256"].as_str().unwrap().to_ascii_uppercase();
-        assert_eq!(judge(&sha, 7, &t, Some("11"))["result"], "verified");
-        assert_eq!(judge(&sha, 7, &t, None)["result"], "verified");
-        let j = judge(&sha, 7, &t, Some("10"));
-        assert_eq!(j["result"], "refused");
-        assert!(j["why"].as_str().unwrap().contains("Windows 11 installer"));
-        let w10_32 = t.iter().find(|m| m["windows"] == "10" && m["arch"] == "32-bit").unwrap();
-        let j = judge(w10_32["sha256"].as_str().unwrap(), 7, &t, None);
-        assert_eq!(j["result"], "refused");
-        assert!(j["why"].as_str().unwrap().contains("32-bit"));
-    }
-
-    #[test]
     fn hashing_matches_a_known_value() {
         let dir = std::env::temp_dir().join(format!("goback-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -398,7 +248,6 @@ mod tests {
         let (h, n) = sha256_file(p.to_str().unwrap(), |_, _| {}).unwrap();
         assert_eq!(h, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
         assert_eq!(n, 3);
-        assert_eq!(find_downloads(dir.to_str().unwrap()).len(), 1);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -412,19 +261,15 @@ mod tests {
         assert_eq!(secs[1]["lines"][0], "Before Linux, this computer had Windows 10 Home.");
         let which = secs[2]["lines"].to_string();
         assert!(which.contains("October 2025") && which.contains("October 2026"));
-        assert_eq!(secs[3]["link"], PAGE_10);
+        // the guided stick's download step is gone (roadmap item 20)
+        assert_eq!(secs.len(), 3);
+        assert!(!s.to_string().contains("microsoft.com/software-download"));
     }
 
     #[test]
-    fn the_done_steps_name_the_edition_and_spare_the_stick() {
-        let before = json!({ "result": "read", "windows_version": "11", "edition_id": "Core" });
-        let w = wizard(&before, Some("11")).to_string();
-        assert!(w.contains("choose Windows 11 Home: the one this computer had"));
-        assert!(w.contains("Never delete the one called WINSETUP"));
-        // an edition from Windows 10 on a machine now offered 11 names 11
+    fn an_edition_from_windows_10_on_a_machine_offered_11_names_11() {
         let before = json!({ "result": "read", "windows_version": "10", "edition_id": "Professional" });
         assert_eq!(edition_name(&before, Some("11")).unwrap(), "Windows 11 Pro");
-        assert!(wizard(&json!({ "result": "unreadable" }), Some("11")).to_string().contains("most home computers had Home"));
     }
 
     #[test]

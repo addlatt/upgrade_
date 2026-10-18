@@ -499,8 +499,8 @@ steps, each on the rig before a real machine:
 
 Vocabulary: `validation-results/README.md`.
 
-**How it is run.** The rig: `settle-in go-back write --image` writes a
-file, never a disk, and `rig/hyperv/v11-stick.ps1` boots it in a new
+**How it is run.** The rig: `settle-in go-back walkaway prepare --image`
+writes a file, never a disk, and `rig/hyperv/v11-stick.ps1` boots it in a new
 Generation 2 VM, Secure Boot on, offline, with an empty 64 GB target; the
 walk-away arms start from a Fedora the V9 rig installed, two disks,
 spoofed networks. The Aspire: a real stick, a physical cancel first, then

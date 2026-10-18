@@ -21,24 +21,20 @@
 //!       exists. Prints what it did as JSON.
 //!   settle-in go-back screen [--root DIR] [--text]
 //!       "Go back to Windows": the first screen (the cost, which Windows it
-//!       was, which one to download), as JSON sections or text. No root.
-//!   settle-in go-back downloads [--home DIR]
-//!       ISO files in the person's Downloads folder, newest first.
-//!   settle-in go-back check FILE [--want 10|11]
-//!       Checks a downloaded installer against Microsoft's published SHA-256
-//!       table. Progress on stderr, the verdict as JSON. Refuses anything
-//!       not in the table.
+//!       was, which one comes back), as JSON sections or text. No root.
 //!   settle-in go-back sticks [--root DIR] [--min-bytes N] [--facts]
 //!       Every disk, and the rules it breaks (R16 on Linux); only a disk
 //!       that breaks none is offered. --facts prints the raw facts instead
 //!       (a recording, replayable in tests). Read-only, no root.
-//!   settle-in go-back write --iso FILE [--want 10|11] --serial S --size N --typed MODEL
-//!                            [--wimlib PATH] [--root DIR]
-//!   settle-in go-back write --iso FILE [--want 10|11] --image NEWFILE --size N
-//!       The one writer (root, through pkexec): re-checks the file and the
-//!       stick, then writes the installer and reads it all back. --image
-//!       writes a new file instead of a stick (tests and the rig). Progress
-//!       on stderr; the result as JSON.
+//!   settle-in go-back walkaway plan [--root DIR] [--language xx-yy]
+//!   settle-in go-back walkaway prepare --sentence S --account NAME --serial S --size N --typed MODEL
+//!   settle-in go-back walkaway undo
+//!       The walk-away way back after an erase (RISKS R33): the plan
+//!       (read-only), then the one writer (root, through pkexec), which
+//!       downloads Windows from Microsoft's catalog, writes the stick, reads
+//!       it back and sets a one-time start from it; undo takes that start
+//!       back. The guided stick (`go-back downloads`, `check`, `write`) left
+//!       the product with roadmap item 20.
 //!   settle-in rollback [--root DIR] [--stick DIR] [--dry-run]
 //!       Windows first again on a computer converted with Windows kept (root,
 //!       through pkexec; decided 2026-10-12, the owner: the rollback runs from
@@ -272,60 +268,6 @@ fn go_back(args: &[String], root: &str) -> i32 {
             }
             0
         }
-        Some("downloads") => {
-            let home = opt("--home").or_else(|| std::env::var("HOME").ok()).unwrap_or_default();
-            println!("{}", Value::Array(goback::find_downloads(&home)));
-            0
-        }
-        Some("check") => {
-            let Some(file) = args.get(1).filter(|f| !f.starts_with("--")) else {
-                eprintln!("usage: settle-in go-back check FILE [--want 10|11]");
-                return 64;
-            };
-            let want = opt("--want");
-            let j = goback::check_report(file, want.as_deref(), &goback::media());
-            println!("{}", j);
-            if j["result"] == "verified" { 0 } else { 1 }
-        }
-        Some("write") => {
-            let exe_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_string_lossy().to_string())).unwrap_or_default();
-            let req = stickwrite::Request {
-                tree: None,
-                iso: opt("--iso").unwrap_or_default(),
-                want: opt("--want"),
-                serial: opt("--serial").unwrap_or_default(),
-                size_bytes: opt("--size").and_then(|v| v.parse().ok()).unwrap_or(0),
-                typed: opt("--typed").unwrap_or_default(),
-                image: opt("--image"),
-                wimlib: opt("--wimlib").unwrap_or_else(|| format!("{}/wimlib-imagex", exe_dir)),
-                root: root.to_string(),
-            };
-            let started = now_iso();
-            let r = stickwrite::write(&req);
-            // every real write leaves a record (rule #5): what was asked, every disk
-            // as seen afterwards, and the result. Root-only; a record that cannot be
-            // saved is said, never fatal (the stick is already what the result says)
-            // SAFETY: geteuid has no preconditions.
-            if unsafe { libc::geteuid() } == 0 {
-                let dir = format!("{}/var/lib/upgrade_-go-back", root.trim_end_matches('/'));
-                let rec = json!({
-                    "schema": "go-back-write/1", "settle_in_version": VERSION, "started_utc": started, "finished_utc": now_iso(),
-                    "request": { "iso": req.iso, "want": req.want, "serial": req.serial, "size_bytes": req.size_bytes, "typed": req.typed, "image": req.image },
-                    "disks_after": sticks::collect(root), "result": r,
-                });
-                let path = format!("{}/stick-{}.json", dir, started.replace(':', ""));
-                let saved = std::fs::create_dir_all(&dir)
-                    .and_then(|_| std::fs::set_permissions(&dir, std::os::unix::fs::PermissionsExt::from_mode(0o700)))
-                    .map_err(|e| format!("{}: {}", dir, e))
-                    .and_then(|_| save(&path, &rec));
-                match saved {
-                    Ok(()) => eprintln!("{}", json!({ "record": path })),
-                    Err(e) => eprintln!("{}", json!({ "record_not_saved": e })),
-                }
-            }
-            println!("{}", r);
-            if r["result"] == "written" { 0 } else { 1 }
-        }
         Some("walkaway") => walkaway_cmd(&args[1..], root),
         Some("sticks") => {
             let facts = sticks::collect(root);
@@ -338,7 +280,7 @@ fn go_back(args: &[String], root: &str) -> i32 {
             0
         }
         _ => {
-            eprintln!("usage: settle-in go-back screen [--root DIR] [--text] | downloads [--home DIR] | check FILE [--want 10|11] | sticks [--root DIR] [--min-bytes N] [--facts]");
+            eprintln!("usage: settle-in go-back screen [--root DIR] [--text] | sticks [--root DIR] [--min-bytes N] [--facts] | walkaway plan|prepare|undo");
             64
         }
     }
@@ -512,8 +454,7 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
             ok!("build", json!({ "tree": tree, "built": built, "job_id": job_id }));
             // 6. the stick (R16's rules, in stickwrite)
             let req = stickwrite::Request {
-                tree: Some(tree.clone()),
-                iso: String::new(),
+                tree: tree.clone(),
                 want: Some(windows.clone()),
                 serial: opt("--serial").unwrap_or_default(),
                 size_bytes: opt("--size").and_then(|v| v.parse().ok()).unwrap_or(0),
