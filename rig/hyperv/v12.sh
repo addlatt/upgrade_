@@ -20,6 +20,11 @@
 #   v12.sh close         Tab + Enter on the result window's Close, then check what it left behind
 #   v12.sh verdict       pull the evidence over PS Direct -> v12-verdict.py -> one row
 #   v12.sh run           stick -> windows -> start -> wait -> close -> verdict
+#   v12.sh screens       item 20's screens (2026-10-17), shots only, nothing started: the chooser
+#                        without --developer (Convert, Rollback, Cancel), Rollback's pointer to
+#                        Linux, Convert's PATH switch (keep / clean slate; the typed erase sentence
+#                        cleared by a switch), and --accepting-data-loss's single Convert. Continue
+#                        is never pressed. The shots are read by eye; they make no row.
 #
 # Autologon stands in for the person signing in after the restart. A green
 # row closes plumbing only (CLAUDE.md rule #5): the Aspire row is still owed.
@@ -57,7 +62,50 @@ wait_session() {
     done
 }
 
+# start UPGRADE.exe with $1 as its arguments in the signed-in session, elevated, and focus it
+launch() {
+    L=$(stick_letter); [ -n "$L" ] || { echo "v12: no UPGV0 volume in the guest" >&2; exit 1; }
+    # a fresh copy's first minutes run Windows Update's own tasks (RUXIM), and a task queued
+    # behind them waits ~2 min (2026-10-17): wait for the window's process, not a fixed time
+    guest "schtasks /Create /TN '$LAUNCH_TASK' /TR '${L}:\\UPGRADE.exe $1' /SC ONCE /ST 23:59 /RU rig /IT /RL HIGHEST /F | Out-Null; schtasks /Run /TN '$LAUNCH_TASK' | Out-Null; \$t=0; while (-not (Get-Process UPGRADE -ErrorAction SilentlyContinue) -and \$t -lt 300) { Start-Sleep 3; \$t+=3 }; schtasks /Delete /TN '$LAUNCH_TASK' /F | Out-Null; if (\$t -ge 300) { 'not started in 300 s: $1' } else { 'launched after ' + \$t + ' s: $1' }"
+    sleep 10
+    PS copy "$(wslpath -w v12-front.ps1)" 'C:\upgrade-rig\v12-front.ps1' >/dev/null
+    guest "schtasks /Create /TN 'upgrade_ v12 focus' /TR 'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File C:\upgrade-rig\v12-front.ps1' /SC ONCE /ST 23:59 /RU rig /IT /RL HIGHEST /F | Out-Null; schtasks /Run /TN 'upgrade_ v12 focus' | Out-Null; Start-Sleep 6; schtasks /Delete /TN 'upgrade_ v12 focus' /F | Out-Null; 'focused, maximized'"
+}
+quit_window() { guest 'Stop-Process -Name UPGRADE -Force -ErrorAction SilentlyContinue; "closed"'; sleep 3; }
+
 case "${1:-}" in
+screens)
+    S=$A/screens; mkdir -p "$S"; rm -f "$S"/*.png; A=$S
+    quit_window
+    # a fresh copy's first sign-in brings OneDrive's "Turn On Windows Backup" popup, which takes
+    # the keys (2026-10-17): stop OneDrive before driving the window
+    guest 'Stop-Process -Name OneDrive -Force -ErrorAction SilentlyContinue; "OneDrive stopped"'
+    # launch maximizes the window (1024x768 guest), so every click below is a fixed guest pixel;
+    # egui's radios do not answer Tab + Space here, so the switch is clicked, as a person would
+    # 1. the chooser for everyone: Convert, Rollback, Cancel (no Verify, no Probe)
+    launch ""; shot s1-choose
+    # 2. Rollback (the second choice): the pointer to Linux's way back, nothing run
+    PS key 9 9; sleep 1; PS key 13; sleep 2; shot s2-rollback
+    quit_window
+    # 3. Convert (the first choice): the PATH switch, keep Windows chosen
+    launch ""; PS key 9; sleep 1; PS key 13; sleep 2; shot s3-convert-keep
+    # 4. click Clean slate: the erase words appear
+    PS click 19 123; sleep 2; shot s4-clean
+    # 5. scroll to the end (the scrollbar's foot), click the sentence box, type the sentence
+    PS click 1012 700; sleep 2; PS click 500 550; sleep 1
+    PS type "I confirm that everything on this computer will be deleted and nothing will be kept"; sleep 2; shot s5-typed
+    # 6. back to the top, Keep, Clean slate again, the end: the box must be empty
+    PS click 1012 60; sleep 2; PS click 19 74; sleep 2; shot s6a-keep-again
+    PS click 19 123; sleep 2; PS click 1012 700; sleep 2; shot s6b-clean-again-empty
+    quit_window
+    # 7. the data-loss launcher: one Convert, then its set-up with the acknowledgement
+    launch "--accepting-data-loss"; shot s7-choose-ack
+    PS key 9; sleep 1; PS key 13; sleep 2; shot s8-convert-ack
+    quit_window
+    guest '[pscustomobject]@{ window_running = [bool](Get-Process UPGRADE -ErrorAction SilentlyContinue); launch_task_left = [bool](Get-ScheduledTask -TaskName "upgrade_ v12 launch" -ErrorAction SilentlyContinue); window_dir_left = (Test-Path C:\ProgramData\upgrade_\window) } | ConvertTo-Json' | tee "$S/after.json"
+    ls "$S"
+    ;;
 stick)
     s=$(vm_state); [ "$s" = Off ] || { echo "v12: VM must be Off (state: $s)" >&2; exit 1; }
     MODE=window ./v1.sh stick
@@ -72,12 +120,10 @@ start)
     L=$(stick_letter); [ -n "$L" ] || { echo "v12: no UPGV0 volume in the guest" >&2; exit 1; }
     guest "if (-not (Test-Path ${L}:\\UPGRADE.exe)) { 'no UPGRADE.exe on the stick' }; & ${L}:\\UPGRADE.exe --version | Out-String" | tee "$A/version.txt"
     date -u +%Y-%m-%dT%H:%M:%SZ > "$A/started_utc.txt"
-    # the signed-in session, not PS Direct's: a one-shot interactive task, removed at once
-    guest "schtasks /Create /TN '$LAUNCH_TASK' /TR '${L}:\\UPGRADE.exe --developer' /SC ONCE /ST 23:59 /RU rig /IT /RL HIGHEST /F | Out-Null; schtasks /Run /TN '$LAUNCH_TASK' | Out-Null; Start-Sleep 2; schtasks /Delete /TN '$LAUNCH_TASK' /F | Out-Null; 'launched'"
-    sleep 12; shot 1-welcome
+    # the signed-in session, not PS Direct's: a one-shot interactive task, removed at once.
     # a window started by a task does not get the keyboard focus (run 1, 2026-09-27: Tab + Enter
-    # went nowhere); AppActivate from inside the same session brings it to the front
-    guest "schtasks /Create /TN 'upgrade_ v12 focus' /TR 'powershell.exe -NoProfile -WindowStyle Hidden -Command (New-Object -ComObject WScript.Shell).AppActivate(''upgrade_'')' /SC ONCE /ST 23:59 /RU rig /IT /F | Out-Null; schtasks /Run /TN 'upgrade_ v12 focus' | Out-Null; Start-Sleep 4; schtasks /Delete /TN 'upgrade_ v12 focus' /F | Out-Null; 'focused'"
+    # went nowhere); launch's AppActivate from inside the same session brings it to the front
+    launch --developer; shot 1-welcome
     PS key 9; sleep 1; shot 2-focused
     # since 2026-10-08 the window opens on a chooser (verify, convert, erase, roll back, probe,
     # cancel): Tab + Enter picks the first choice, the verify flow, then its welcome screen
@@ -139,5 +185,5 @@ run)
     "$SELF" stick; "$SELF" windows; "$SELF" start; "$SELF" wait; "$SELF" close; "$SELF" verdict
     ;;
 *)
-    sed -n '2,26p' "$SELF"; exit 1 ;;
+    sed -n '2,31p' "$SELF"; exit 1 ;;
 esac

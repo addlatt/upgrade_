@@ -698,7 +698,8 @@ screen need the Aspire.
 drew via wgpu on the guest (OpenGL 1.1 only), ran the scan, showed the job
 writer's refusal in its words and left nothing behind: `v12-window.csv`
 line 2, `stopped-before-arm` (2026-09-28, window 0.1.1), and line 3, the
-same over the Rust programs (2026-10-08). The Aspire's run of 2026-10-10
+same over the Rust programs (2026-10-08), and line 4, window 0.2.0 after
+item 20 (2026-10-18; `v12.sh screens` shot its new screens, no row). The Aspire's run of 2026-10-10
 started from `UPGRADE.exe --accepting-data-loss` (`r18-prologue.csv` line
 16's harness column), but no `v12-window.csv` row records the reopen or
 the result screen. Owed: steps 2 and 3
