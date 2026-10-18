@@ -50,6 +50,11 @@
 #                             ESP inspected offline, then a keyless start must bring Windows up
 #                             directly -> rollback-verdict.py -> r21-rollback.csv
 #   prologue.sh restore       VM off: main UPGRIGHV.vhdx back, prologue disk detached
+#   prologue.sh clean-slate   (Windows up, any fresh copy) the forced fallback's stop (roadmap item 20,
+#                             2026-10-17): v1.sh's job with intent.path turned to clean-slate, no erase
+#                             sentence; the prologue must stop at revalidate before any restart, C:
+#                             unshrunk, nothing armed -> prologue-verdict.py -> r18-prologue.csv
+#                             (A defaults to artifacts/prologue-clean-slate)
 #   prologue.sh run           prepare -> stick -> windows -> inspect pre -> update-clear -> dirty -> autologon off
 #                             -> update-recheck -> convert -> wait-off
 #                             -> inspect post-install -> cycle windows w1 -> cycle linux l1
@@ -64,6 +69,7 @@ SELF=$(readlink -f "${BASH_SOURCE[0]}")
 cd "$(dirname "$SELF")"
 VMNAME=${VMNAME:-UPGRIGHV}
 A=${A:-artifacts/prologue}
+[ "${1:-}" = clean-slate ] && [ "$A" = artifacts/prologue ] && A=artifacts/prologue-clean-slate
 HV=/mnt/c/upgrade-rig/hv
 MAIN_VHDX_WIN="C:\\upgrade-rig\\hv\\vm\\$VMNAME.vhdx"
 FRESH_VHDX_WIN="C:\\upgrade-rig\\hv\\vm\\$VMNAME.fresh.vhdx"
@@ -447,6 +453,25 @@ verdict)
     [ -s "$A/convert.log" ] || { echo "prologue: no convert.log in $A: the flow did not run here, so no row is written" >&2; exit 1; }
     python3 prologue-verdict.py "$A" "$CSV" "$HARNESS_VERSION" "$FIRMWARE" || true
     python3 v2-verdict.py "$A" "$CSV_V2" "$HARNESS_VERSION-prologue" "$FIRMWARE"
+    ;;
+clean-slate)
+    mkdir -p "$A"; rm -f "$A"/*
+    L=$(stick_letter); [ -n "$L" ] || { echo "prologue: no UPGV0 volume in the guest" >&2; exit 1; }
+    guest "Remove-Item -Recurse -Force '$GUEST_STATE' -ErrorAction SilentlyContinue; Remove-Item ${L}:\\upgrade_\\prologue.json,${L}:\\upgrade_\\prologue-return.json,${L}:\\upgrade_\\outcome.json -Force -ErrorAction SilentlyContinue"
+    A=artifacts/v1 ./v1.sh job > "$A/v1-job.log"
+    # the job writer can no longer write this job (it answers only keep-windows or stop since
+    # 2026-10-17): an old or hand-made job is what the prologue's guard is for
+    python3 -c 'import json,sys; j=json.load(open(sys.argv[1])); j["intent"]["path"]="clean-slate"; j["intent"]["path_reason"]="rig: a job from before item 20"; json.dump(j,open(sys.argv[2],"w"),indent=2)' artifacts/v1/job.json "$A/job-clean-slate.json"
+    PS copy "$(wslpath -w "$A/job-clean-slate.json")" "${L}:\\upgrade_\\job.json" | tr -d '\r'
+    guest "(Get-Partition -DriveLetter C).Size" | tr -d ' \r\n' > "$A/c-size-before.txt"
+    guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --confirm-word CONVERT; 'exit ' + \$LASTEXITCODE" | tee "$A/convert.log"
+    sleep 20
+    guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV' || { echo "prologue: the guest went away: the prologue restarted instead of stopping" >&2; exit 1; }
+    guest "(Get-Partition -DriveLetter C).Size" | tr -d ' \r\n' > "$A/c-size-after.txt"
+    guest "((bcdedit /enum '{fwbootmgr}' 2>&1 | Select-String bootsequence) -join ' ')" > "$A/bootsequence-after.txt"
+    pull_all clean-slate
+    echo "C: before $(cat "$A/c-size-before.txt"), after $(cat "$A/c-size-after.txt"); bootsequence: '$(tr -d '\r\n' < "$A/bootsequence-after.txt")'"
+    grep -i "revalidate\|clean slate" "$A/convert.log" | head -3
     ;;
 restore)
     need_off

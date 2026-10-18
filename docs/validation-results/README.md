@@ -358,7 +358,7 @@ session 0 interactive False explorer False` and the bench line reads `=0`
 | Result | Meaning | Verdict |
 |---|---|---|
 | `pass-plumbing` | flag confirmed by the scan, health `Healthy`, a rung scheduled, restart taken, flag clear after, re-measured by a read-only path, fork `keep-windows`, C: shrunk by exactly the request (GPT agrees), handoff armed and fired, install completed, `outcome.json` valid and carrying the prologue's record | **pass for the firmware in the row**. A rig row closes plumbing, never the real-hardware clause (a real flag is the residue) |
-| `stopped-<stage>` | the prologue wrote a stopped `outcome.json` at that stage: an honest refusal, the reason in `notes`. Seen: `stopped-arm-handoff`, `stopped-volume-check`, `stopped-shrink`, `stopped-confirm` | read it: on the rig a harness or product bug, on a real machine possibly the refusal working |
+| `stopped-<stage>` | the prologue wrote a stopped `outcome.json` at that stage: an honest refusal, the reason in `notes`. Seen: `stopped-arm-handoff`, `stopped-volume-check`, `stopped-shrink`, `stopped-confirm`, `stopped-revalidate` | read it: on the rig a harness or product bug, on a real machine possibly the refusal working |
 | `prologue-not-run` | no record on the stick: the flow never reached the prologue | fail: read `convert.log` |
 | `flag-not-confirmed` | the flag was injected but the prologue did not find it | fail: the scan or the fsutil read is wrong |
 | `check-not-run` | the check was needed but no Wininit 1001 appeared and the flag did not clear | fail: the scheduling did not take |

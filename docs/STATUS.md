@@ -89,7 +89,7 @@ keep-Windows run that day still had 0.9.0 and the detector fired again
 | R23 | the acknowledged-data-loss path | `[####]` held-on-machine | `r18-prologue.csv` line 16, `pass-plumbing` (in use on the Aspire since run 4) | nothing to widen; it stays two refusals (rule #1) |
 | R24 | the walk-away resume as SYSTEM | `[####]` held-on-machine | `walkaway-probe.csv` line 5, `resumed-unattended` (2026-10-10, the Rust prologue) | BitLocker with a PIN |
 | R25 | Windows Update restarts during the prologue | `[####]` held-on-machine | `r18-prologue.csv` line 18, `pass-plumbing` (2026-10-11, keep-Windows: the update let finish, then shrink and handoff) | Windows 11's CBS markers; the injected rig row |
-| R26 | the offer to discard Windows | `[#...]` planned | none yet (the harvest half: `harvest-folder-map.csv`) | staging on the exFAT partition; the live-session check; build it |
+| R26 | the offer to discard Windows | `[#...]` planned | none for the offer (the harvest half: `harvest-folder-map.csv`); the stop it starts from: `r18-prologue.csv` line 23, `stopped-revalidate` (2026-10-18, rig) | staging on the exFAT partition; the live-session check; build it |
 | R27 | one-click erase and install | `[####]` held-on-machine | `v9-erase.csv` line 32, `cancelled-untouched` (2026-10-06) | other vendors; carrying files |
 | R28 | `settle-in` runs on any Linux | `[####]` held-on-machine, Fedora | `settle-in-first-start.csv` line 20, `pass` | a non-Fedora distribution; the old-entry button on real firmware |
 | R29 | the third-party UEFI CA off on Secured-core PCs | `[#...]` planned | none yet | Microsoft's own document; a Secured-core machine; reading the setting from Windows |
