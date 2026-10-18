@@ -635,8 +635,7 @@ pub fn summary_lines(j: &Value, facts: &Value, job_path: &Path, verify_only: boo
     }
     let shrink = at(j, "storage.shrinkable_gb");
     if st("intent.path") == "keep-windows" && (shrink.is_null() || num(shrink).is_some_and(|g| g < LINUX_MIN_GB)) {
-        let choice = if st("fork.if_cannot_keep") == "stop" { "stops, as you chose" } else { "takes the clean slate you chose" };
-        l.push(format!("  not enough room measured yet: the prologue measures again before it changes anything, and if Linux still does not fit it {choice}"));
+        l.push("  not enough room measured yet: the prologue measures again before it changes anything, and if Linux still does not fit it stops, Windows untouched".to_string());
     }
     l.push(format!("  path {} ({})   desktop {}, starts at the {}   locale {} {} {}", st("intent.path"), st("intent.path_reason"), st("intent.desktop"), st("intent.start_at"), st("intent.locale.lang"), st("intent.locale.keymap"), st("intent.locale.timezone")));
     l.push(format!("  stick {} {} GB '{}'", st("stick.friendly_name"), n1(vint(at(j, "stick.size_bytes")) as f64 / 1e9), st("stick.label")));

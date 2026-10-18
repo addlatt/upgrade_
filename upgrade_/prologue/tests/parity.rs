@@ -97,13 +97,10 @@ fn run(fn_name: &str, a: &Value) -> Value {
         "ConvertFrom-PrologueDiskpartQueryMax" => json!(upgrade_scan::parse::diskpart_query_max(&lines(arg("Lines")))),
         "ConvertFrom-PrologueManageBde" => json!(judge::manage_bde(&lines(arg("Lines")))),
         "Get-PrologueShrinkPlan" => judge::shrink_plan(int(arg("PartSize")), int(arg("SizeMin")), int(arg("FreeBytes")), arg("LinuxMinGB").as_f64().unwrap_or(0.0), int(arg("FilesBytes"))),
-        "Get-PrologueFork" => json!(judge::fork(&text(a, "JobPath"), flag(a, "Fits"), &text(a, "IfCannotKeep"), &text(a, "PathReason"))),
+        "Get-PrologueFork" => json!(judge::fork(&text(a, "JobPath"), flag(a, "Fits"))),
         "Get-PrologueEraseStartRefusal" => json!(judge::erase_start_refusal(arg("Job"), &text(a, "ConfirmWord"), &text(a, "EraseConsent"))),
         "Compare-PrologueEraseDisks" => json!(judge::compare_erase_disks(arg("Job"), arg("F"))),
         "Get-PrologueEraseReturn" => judge::erase_return(arg("Countdown"), arg("Verify")),
-        "Get-PrologueStageRefusal" => json!(judge::stage_refusal(int(arg("Folders")), opt_int(a, "StagedFiles"))),
-        "Get-PrologueTimeEstimate" => json!(judge::time_estimate(int(arg("Bytes")), arg("Mbps").as_f64())),
-        "Format-PrologueDuration" => json!(judge::duration(opt_int(a, "Seconds"))),
         "Get-HandoffResult" => json!(judge::handoff_result(flag(a, "Fired"), flag(a, "SequenceCleared"), flag(a, "OrderUnchanged"))),
         "grubenv-clean" => {
             let b = judge::grub_env_block();
@@ -218,7 +215,9 @@ fn every_call_matches_powershell() {
 #[test]
 fn the_self_test_is_all_here() {
     let n = cases().iter().filter(|c| c["origin"] == "selftest").count();
-    assert!(n >= 144, "only {n} self-test cases in cases.json");
+    // 144 until 2026-10-17, when the seven of the forced clean slate, its
+    // staging and the staging time estimate left with them (roadmap item 20)
+    assert!(n >= 137, "only {n} self-test cases in cases.json");
 }
 
 /// Every stopped outcome this code writes from real-shaped inputs passes

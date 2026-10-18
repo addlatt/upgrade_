@@ -1,6 +1,6 @@
 //! The stages, following `Invoke-Prologue.ps1` 0.12.2: start, the disk
-//! check and its return, the re-measure and the fork, the shrink or the
-//! staging, the arm, the return to Windows, the walk-away probe, the notice,
+//! check and its return, the re-measure and the fork, the shrink, the arm,
+//! the return to Windows, the walk-away probe, the notice,
 //! the abort, and the stop that undoes what it can. Every decision is the
 //! judging half's; every tool call is kept by the recorder; the record on
 //! the stick (`upgrade_/prologue.json`, `prologue-return.json`,
@@ -401,8 +401,14 @@ fn check_return(ctx: &mut Ctx, st: &mut Value, root: &str, job: &Value) -> &'sta
     "restart"
 }
 
-/// Invoke-Continue: re-measure, take the fork, shrink or stage, then arm.
+/// Invoke-Continue: re-measure, take the fork, shrink, then arm.
 fn continue_stage(ctx: &mut Ctx, st: &mut Value, root: &str, job: &Value) {
+    // Only the erase wipes, through its own stage and sentence (R27). A
+    // clean-slate job here is the forced fallback, which left the product on
+    // 2026-10-17 (roadmap item 20): it stops before anything is changed.
+    if s(at(job, "intent.path")).eq_ignore_ascii_case("clean-slate") {
+        stop(ctx, st, root, Some(job), "revalidate", &format!("this job asks for a clean slate ({}) without the erase sentence; this version wipes Windows only through the erase, so nothing was changed", s(at(job, "intent.path_reason"))));
+    }
     ctx.log("  1b. re-measuring shrinkable space by both read-only paths...");
     let measure_start = upgrade_scan::collect::utc_to_local(upgrade_scan::collect::utc_from_seconds(upgrade_scan::collect::now().0.seconds() - 5));
     let m = match live::measure_shrink(&mut ctx.rec) {
@@ -495,9 +501,9 @@ fn continue_stage(ctx: &mut Ctx, st: &mut Value, root: &str, job: &Value) {
             return;
         }
     }
-    let fork = judge::fork(&s(at(job, "intent.path")), fits, &s(at(job, "fork.if_cannot_keep")), &s(at(job, "intent.path_reason")));
+    let fork = judge::fork(&s(at(job, "intent.path")), fits);
     st["Shrink"]["ForkTaken"] = json!(fork);
-    ctx.log(&format!("      fork: {fork} (job path {}, if_cannot_keep {})", s(at(job, "intent.path")), s(at(job, "fork.if_cannot_keep"))));
+    ctx.log(&format!("      fork: {fork} (job path {})", s(at(job, "intent.path"))));
     if fork == "stop" {
         save_state(ctx, st);
         let measured = if !st["Shrink"]["RemeasuredGB"].is_null() { format!("{} GB", s(&st["Shrink"]["RemeasuredGB"])) } else { "no figure".to_string() };
@@ -538,32 +544,6 @@ fn continue_stage(ctx: &mut Ctx, st: &mut Value, root: &str, job: &Value) {
         }
         save_state(ctx, st);
         write_record(ctx, st, root);
-    } else {
-        ctx.log("  2.  clean slate: staging your files to the stick");
-        let n_folders = items(at(job, "harvest.folders")).into_iter().filter(|fo| truthy(at(fo, "exists")) && truthy(at(fo, "path"))).count() as i64;
-        if let Some(why) = judge::stage_refusal(n_folders, None) {
-            save_state(ctx, st);
-            stop(ctx, st, root, Some(job), "stage-files", &why);
-        }
-        let mut lines = Vec::new();
-        let staged = live::stage(job, root, &mut |l| lines.push(l));
-        for l in &lines {
-            ctx.log(l);
-        }
-        st["Staged"] = staged.clone();
-        save_state(ctx, st);
-        write_record(ctx, st, root);
-        if truthy(&staged["Error"]) {
-            stop(ctx, st, root, Some(job), "stage-files", &s(&staged["Error"]));
-        }
-        if int(&staged["Failed"]) > 0 {
-            stop(ctx, st, root, Some(job), "stage-files", &format!("{} file(s) could not be staged to the stick", int(&staged["Failed"])));
-        }
-        if let Some(why) = judge::stage_refusal(n_folders, Some(int(&staged["Files"]))) {
-            stop(ctx, st, root, Some(job), "stage-files", &why);
-        }
-        ctx.log(&format!("      staged {} files, {} GB, checksums in {}", int(&staged["Files"]), upgrade_scan::ps::fmt_n(int(&staged["Bytes"]) as f64 / GB, 2), s(&staged["Manifest"])));
-        stop(ctx, st, root, Some(job), "confirm", &format!("clean slate needs the live session's two-minute human check before the wipe, and that gate is not built in this version; the prologue will not arm an unattended wipe. {} file(s), {} GB, are staged on the stick with checksums; Windows is untouched.", int(&staged["Files"]), upgrade_scan::ps::fmt_n(int(&staged["Bytes"]) as f64 / GB, 2)));
     }
     arm(ctx, st, root, job);
 }

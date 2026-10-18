@@ -2563,21 +2563,6 @@
   ]
  },
  {
-  "name": "fork: keep-windows job that does not fit takes if_cannot_keep=clean-slate",
-  "origin": "selftest",
-  "calls": [
-   {
-    "fn": "Get-PrologueFork",
-    "args": {
-     "JobPath": "keep-windows",
-     "Fits": false,
-     "IfCannotKeep": "clean-slate",
-     "PathReason": ""
-    }
-   }
-  ]
- },
- {
   "name": "fork: keep-windows job that does not fit takes if_cannot_keep=stop",
   "origin": "selftest",
   "calls": [
@@ -2608,21 +2593,6 @@
   ]
  },
  {
-  "name": "fork: a clean-slate job the person chose is clean slate whatever the number",
-  "origin": "selftest",
-  "calls": [
-   {
-    "fn": "Get-PrologueFork",
-    "args": {
-     "JobPath": "clean-slate",
-     "Fits": true,
-     "IfCannotKeep": "stop",
-     "PathReason": "user-chose-clean-slate"
-    }
-   }
-  ]
- },
- {
   "name": "fork (R18, 2026-09-22): a forced clean-slate job under if_cannot_keep=stop stops - the Aspire run 5 job",
   "origin": "selftest",
   "calls": [
@@ -2641,21 +2611,6 @@
      "JobPath": "clean-slate",
      "Fits": false,
      "IfCannotKeep": "ask",
-     "PathReason": "forced-no-room"
-    }
-   }
-  ]
- },
- {
-  "name": "fork: a forced clean-slate job the person allowed (if_cannot_keep=clean-slate) is clean slate",
-  "origin": "selftest",
-  "calls": [
-   {
-    "fn": "Get-PrologueFork",
-    "args": {
-     "JobPath": "clean-slate",
-     "Fits": false,
-     "IfCannotKeep": "clean-slate",
      "PathReason": "forced-no-room"
     }
    }
@@ -3001,102 +2956,6 @@
      "StoppedAt": "countdown",
      "Reason": "r",
      "WindowsPartition": null
-    }
-   }
-  ]
- },
- {
-  "name": "stage (R18, 2026-09-22): no folders in the job refuses before anything is staged, and says why",
-  "origin": "selftest",
-  "calls": [
-   {
-    "fn": "Get-PrologueStageRefusal",
-    "args": {
-     "Folders": 0,
-     "StagedFiles": null
-    }
-   }
-  ]
- },
- {
-  "name": "stage (R18, 2026-09-22): folders listed but 0 files staged refuses",
-  "origin": "selftest",
-  "calls": [
-   {
-    "fn": "Get-PrologueStageRefusal",
-    "args": {
-     "Folders": 3,
-     "StagedFiles": 0
-    }
-   }
-  ]
- },
- {
-  "name": "stage: folders listed, before staging, and files staged, after, are not refusals",
-  "origin": "selftest",
-  "calls": [
-   {
-    "fn": "Get-PrologueStageRefusal",
-    "args": {
-     "Folders": 3,
-     "StagedFiles": null
-    }
-   },
-   {
-    "fn": "Get-PrologueStageRefusal",
-    "args": {
-     "Folders": 3,
-     "StagedFiles": 1204
-    }
-   }
-  ]
- },
- {
-  "name": "estimate: 20 GB at 20 MB/s is 1000 s, shown as about 17 minutes",
-  "origin": "selftest",
-  "calls": [
-   {
-    "fn": "Get-PrologueTimeEstimate",
-    "args": {
-     "Bytes": 20000000000,
-     "Mbps": 20
-    }
-   },
-   {
-    "fn": "Format-PrologueDuration",
-    "args": {
-     "Seconds": 1000
-    }
-   }
-  ]
- },
- {
-  "name": "estimate: no measurement gives null, shown as unknown",
-  "origin": "selftest",
-  "calls": [
-   {
-    "fn": "Get-PrologueTimeEstimate",
-    "args": {
-     "Bytes": 1,
-     "Mbps": null
-    }
-   },
-   {
-    "fn": "Format-PrologueDuration",
-    "args": {
-     "Seconds": null
-    }
-   }
-  ]
- },
- {
-  "name": "estimate: hours when it is hours",
-  "origin": "selftest",
-  "calls": [
-   {
-    "fn": "Format-PrologueDuration",
-    "args": {
-     "Seconds": 7200
     }
    }
   ]
@@ -3922,62 +3781,6 @@
   ]
  },
  {
-  "name": "port: duration edges - 89 s, 90 s, 5399 s, 5400 s, 9000 s",
-  "origin": "port",
-  "calls": [
-   {
-    "fn": "Format-PrologueDuration",
-    "args": {
-     "Seconds": 89
-    }
-   },
-   {
-    "fn": "Format-PrologueDuration",
-    "args": {
-     "Seconds": 90
-    }
-   },
-   {
-    "fn": "Format-PrologueDuration",
-    "args": {
-     "Seconds": 5399
-    }
-   },
-   {
-    "fn": "Format-PrologueDuration",
-    "args": {
-     "Seconds": 5400
-    }
-   },
-   {
-    "fn": "Format-PrologueDuration",
-    "args": {
-     "Seconds": 9000
-    }
-   }
-  ]
- },
- {
-  "name": "port: estimate - zero and negative speeds give nothing",
-  "origin": "port",
-  "calls": [
-   {
-    "fn": "Get-PrologueTimeEstimate",
-    "args": {
-     "Bytes": 5,
-     "Mbps": 0
-    }
-   },
-   {
-    "fn": "Get-PrologueTimeEstimate",
-    "args": {
-     "Bytes": 5,
-     "Mbps": -1
-    }
-   }
-  ]
- },
- {
   "name": "port: classify - the error cell (not fired, not cleared, order unchanged is ignored; fired, cleared, reordered)",
   "origin": "port",
   "calls": [
@@ -4279,6 +4082,48 @@
       "x",
       "This volume will be checked the next time the system restarts."
      ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "fork (roadmap item 20, 2026-10-17): every clean-slate job reaching the fork stops - the forced fallback the person once allowed, and a clean slate the person chose without the erase, fits or not",
+  "origin": "port",
+  "calls": [
+   {
+    "fn": "Get-PrologueFork",
+    "args": {
+     "JobPath": "clean-slate",
+     "Fits": true,
+     "IfCannotKeep": "clean-slate",
+     "PathReason": "forced-no-room"
+    }
+   },
+   {
+    "fn": "Get-PrologueFork",
+    "args": {
+     "JobPath": "clean-slate",
+     "Fits": false,
+     "IfCannotKeep": "clean-slate",
+     "PathReason": "forced-no-room"
+    }
+   },
+   {
+    "fn": "Get-PrologueFork",
+    "args": {
+     "JobPath": "clean-slate",
+     "Fits": true,
+     "IfCannotKeep": "stop",
+     "PathReason": "user-chose-clean-slate"
+    }
+   },
+   {
+    "fn": "Get-PrologueFork",
+    "args": {
+     "JobPath": "clean-slate",
+     "Fits": false,
+     "IfCannotKeep": "stop",
+     "PathReason": "user-chose-clean-slate"
     }
    }
   ]
