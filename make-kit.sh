@@ -265,7 +265,7 @@ upgrade_ kit  -  one stick, both payloads, the Windows side in Rust
 built:            $(date -u +%Y-%m-%dT%H:%M:%SZ)
 commit:           $GIT_REV ($GIT_STATE)
 prologue:         upgrade-prologue.exe $PROLOGUE_VERSION (the handoff, the resume, the return, the slot and its guard)
-window:           UPGRADE.exe $(grep -m1 '^version' "$ROOT/upgrade_/windows/window/Cargo.toml" | cut -d'"' -f2)  $(sha256sum "$UPGRADE_EXE" | cut -c1-64)   (verify flow; RUN-VERIFY.cmd stays as the fallback)
+window:           UPGRADE.exe $(grep -m1 '^version' "$ROOT/upgrade_/windows/window/Cargo.toml" | cut -d'"' -f2)  $(sha256sum "$UPGRADE_EXE" | cut -c1-64)   (Verify and the probe behind --developer)
 settle-in:        $SETTLE_IN_VERSION  $(sha256sum "$SETTLE_IN_BIN" | cut -c1-64)   -> upgrade_/settle-in/settle-in
 rust programs:    $(for e in upgrade-scan upgrade-harvest upgrade-job upgrade-prologue; do printf '%s %s  ' "$e.exe" "$(sha256sum "$D/$e.exe" | cut -c1-64)"; done)
 toolchain:        $("$ROOT/build-rust.sh" --toolchain)   (RISKS R14: rebuild-check.sh proves a second checkout gives these bytes)

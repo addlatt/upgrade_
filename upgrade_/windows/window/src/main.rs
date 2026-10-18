@@ -16,8 +16,9 @@
 //! (RUN-ERASE-AND-INSTALL.cmd), roll back (a pointer to Linux since 2026-10-17), the walk-away
 //! probe (RUN-PROBE.cmd) and cancel (CANCEL-CONVERSION.cmd). The data-loss
 //! variants of convert and erase are reached only by starting the window
-//! with --accepting-data-loss, its own launcher, as rule #1 asks. The .cmd
-//! launchers stay on the stick as the fallback.
+//! with --accepting-data-loss, its own launcher, as rule #1 asks. Verify and
+//! the probe show only with --developer (roadmap item 20, 2026-10-17): they
+//! make the rows, and a person converting never needs them.
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod flow;
@@ -474,6 +475,28 @@ enum Flow {
     Cancel,
 }
 
+/// The first screen's buttons. Verify and Probe make the rows (V0, V1, R24)
+/// and a person converting never needs them: they show only with
+/// --developer (roadmap item 20, R31). The data-loss launcher shows only
+/// its own two (rule #1, R23).
+fn first_screen(accepting_data_loss: bool, developer: bool) -> Vec<(&'static str, &'static str, Flow)> {
+    if accepting_data_loss {
+        return vec![(words::CHOOSE_CONVERT_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Convert), (words::CHOOSE_ERASE_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Erase)];
+    }
+    let mut v = vec![];
+    if developer {
+        v.push((words::CHOOSE_VERIFY, words::CHOOSE_VERIFY_LINE, Flow::Verify));
+    }
+    v.push((words::CHOOSE_CONVERT, words::CHOOSE_CONVERT_LINE, Flow::Convert));
+    v.push((words::CHOOSE_ERASE, words::CHOOSE_ERASE_LINE, Flow::Erase));
+    v.push((words::CHOOSE_ROLLBACK, words::CHOOSE_ROLLBACK_LINE, Flow::Rollback));
+    if developer {
+        v.push((words::CHOOSE_PROBE, words::CHOOSE_PROBE_LINE, Flow::Probe));
+    }
+    v.push((words::CHOOSE_CANCEL, words::CHOOSE_CANCEL_LINE, Flow::Cancel));
+    v
+}
+
 enum Screen {
     Choose,
     Welcome,
@@ -511,6 +534,8 @@ struct App {
     flow: Flow,
     /// started with --accepting-data-loss: the convert flow asks the sentence (RISKS R23)
     accepting_data_loss: bool,
+    /// started with --developer: Verify and Probe on the first screen (roadmap item 20)
+    developer: bool,
     setup: Setup,
     word: String,
     word_tx: Option<Sender<String>>,
@@ -521,7 +546,7 @@ struct App {
 
 impl App {
     fn new(screen: Screen, stick: String, after: bool, accepting_data_loss: bool, rx: Option<Receiver<Msg>>, guard: Shared) -> App {
-        App { screen, stick, after, arming: false, flow: Flow::Verify, accepting_data_loss, setup: Setup::default(), word: String::new(), word_tx: None, log: vec![], rx, guard }
+        App { screen, stick, after, arming: false, flow: Flow::Verify, accepting_data_loss, developer: false, setup: Setup::default(), word: String::new(), word_tx: None, log: vec![], rx, guard }
     }
 
     fn channel(&mut self, ctx: &egui::Context) -> Sender<Msg> {
@@ -733,16 +758,8 @@ impl eframe::App for App {
                             para(ui, line);
                             ui.add_space(8.0);
                         };
-                        if !self.accepting_data_loss {
-                            choice(ui, words::CHOOSE_VERIFY, words::CHOOSE_VERIFY_LINE, Flow::Verify);
-                            choice(ui, words::CHOOSE_CONVERT, words::CHOOSE_CONVERT_LINE, Flow::Convert);
-                            choice(ui, words::CHOOSE_ERASE, words::CHOOSE_ERASE_LINE, Flow::Erase);
-                            choice(ui, words::CHOOSE_ROLLBACK, words::CHOOSE_ROLLBACK_LINE, Flow::Rollback);
-                            choice(ui, words::CHOOSE_PROBE, words::CHOOSE_PROBE_LINE, Flow::Probe);
-                            choice(ui, words::CHOOSE_CANCEL, words::CHOOSE_CANCEL_LINE, Flow::Cancel);
-                        } else {
-                            choice(ui, words::CHOOSE_CONVERT_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Convert);
-                            choice(ui, words::CHOOSE_ERASE_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Erase);
+                        for (label, line, f) in first_screen(self.accepting_data_loss, self.developer) {
+                            choice(ui, label, line, f);
                         }
                         ui.add_space(12.0);
                         if ui.button(words::CLOSE).clicked() {
@@ -1211,13 +1228,38 @@ fn main() {
         return open(App::new(Screen::Waiting, stick, true, false, Some(rx), guard));
     }
 
+    let developer = args.iter().any(|a| a == "--developer");
     if !win::is_elevated() {
         // the one administrator prompt; if it is declined nothing has happened
-        win::relaunch_elevated(if accepting { "--accepting-data-loss" } else { "" });
+        let pass: Vec<&str> = [(accepting, "--accepting-data-loss"), (developer, "--developer")].iter().filter(|(on, _)| *on).map(|(_, a)| *a).collect();
+        win::relaunch_elevated(&pass.join(" "));
         return;
     }
     let exe = std::env::current_exe().unwrap_or_default();
     let s = exe.to_string_lossy().to_string();
     let stick = if s.len() >= 2 && s.as_bytes()[1] == b':' { s[..2].to_uppercase() } else { String::new() };
-    open(App::new(Screen::Choose, stick, false, accepting, None, guard));
+    let mut app = App::new(Screen::Choose, stick, false, accepting, None, guard);
+    app.developer = developer;
+    open(app);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn flows(a: bool, d: bool) -> Vec<&'static str> {
+        first_screen(a, d).iter().map(|(_, _, f)| match f { Flow::Verify => "verify", Flow::Convert => "convert", Flow::Erase => "erase", Flow::Rollback => "rollback", Flow::Probe => "probe", Flow::Cancel => "cancel" }).collect()
+    }
+
+    #[test]
+    fn verify_and_probe_only_with_the_developer_flag() {
+        assert_eq!(flows(false, false), ["convert", "erase", "rollback", "cancel"]);
+        assert_eq!(flows(false, true), ["verify", "convert", "erase", "rollback", "probe", "cancel"]);
+    }
+
+    #[test]
+    fn the_data_loss_launcher_shows_only_its_own_two() {
+        assert_eq!(flows(true, false), ["convert", "erase"]);
+        assert_eq!(flows(true, true), ["convert", "erase"], "the developer flag adds nothing to the data-loss screen");
+    }
 }

@@ -14,7 +14,7 @@
 #
 #   v12.sh stick         VM off: the kit's stick with NO boot-verify marker (the window writes it)
 #   v12.sh windows       power on, wait for PS Direct and the autologon session
-#   v12.sh start         launch F:\UPGRADE.exe in the signed-in session (a one-shot task, elevated:
+#   v12.sh start         launch F:\UPGRADE.exe --developer (Verify sits behind the flag since 2026-10-17) in the signed-in session (a one-shot task, elevated:
 #                        the UAC click is not on this path), screenshot, Tab + Enter, screenshot
 #   v12.sh wait [secs]   poll until the window has logged "after the restart:" on the stick
 #   v12.sh close         Tab + Enter on the result window's Close, then check what it left behind
@@ -73,7 +73,7 @@ start)
     guest "if (-not (Test-Path ${L}:\\UPGRADE.exe)) { 'no UPGRADE.exe on the stick' }; & ${L}:\\UPGRADE.exe --version | Out-String" | tee "$A/version.txt"
     date -u +%Y-%m-%dT%H:%M:%SZ > "$A/started_utc.txt"
     # the signed-in session, not PS Direct's: a one-shot interactive task, removed at once
-    guest "schtasks /Create /TN '$LAUNCH_TASK' /TR '${L}:\\UPGRADE.exe' /SC ONCE /ST 23:59 /RU rig /IT /RL HIGHEST /F | Out-Null; schtasks /Run /TN '$LAUNCH_TASK' | Out-Null; Start-Sleep 2; schtasks /Delete /TN '$LAUNCH_TASK' /F | Out-Null; 'launched'"
+    guest "schtasks /Create /TN '$LAUNCH_TASK' /TR '${L}:\\UPGRADE.exe --developer' /SC ONCE /ST 23:59 /RU rig /IT /RL HIGHEST /F | Out-Null; schtasks /Run /TN '$LAUNCH_TASK' | Out-Null; Start-Sleep 2; schtasks /Delete /TN '$LAUNCH_TASK' /F | Out-Null; 'launched'"
     sleep 12; shot 1-welcome
     # a window started by a task does not get the keyboard focus (run 1, 2026-09-27: Tab + Enter
     # went nowhere); AppActivate from inside the same session brings it to the front
