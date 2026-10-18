@@ -19,7 +19,6 @@ pub mod judge;
 #[cfg(windows)]
 pub mod live;
 pub mod random;
-pub mod rollback;
 pub mod state;
 pub mod storage_mode;
 pub mod tools;

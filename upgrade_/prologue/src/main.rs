@@ -8,7 +8,6 @@
 //!   upgrade-prologue notify [--state-dir <dir>]       (RunOnce at sign-in, as the person)
 //!   upgrade-prologue abort  [--state-dir <dir>]
 //!   upgrade-prologue probe --stick <X:> [--state-dir <dir>]
-//!   upgrade-prologue rollback --stick <X:>           (Windows first again; Invoke-Rollback.ps1)
 //!   upgrade-prologue facts --stick <X:> [--out <file>]   (read-only: what Get-PrologueFacts reads, for the side-by-side)
 //!   upgrade-prologue compare-facts <rust.json> <powershell.json>
 //!   upgrade-prologue storage-mode start --stick <X:> [--bench] [--no-prompt] [--state-dir <dir>]   (RUN-STORAGE-MODE.cmd; V5)
@@ -27,7 +26,6 @@ fn usage() -> ExitCode {
     eprintln!("       upgrade-prologue resume|notify [--state-dir <dir>]");
     eprintln!("       upgrade-prologue abort [--stick <X:>] [--state-dir <dir>]   (--stick: the before-cancel capture onto the stick first)");
     eprintln!("       upgrade-prologue probe --stick <X:> [--state-dir <dir>]");
-    eprintln!("       upgrade-prologue rollback --stick <X:>");
     eprintln!("       upgrade-prologue verify-arm --stick <X:> [--payload shim|shell] [--auto] [--suspend-bitlocker] [--fail-mode NoFile|SecureBootUnsigned|NoSuspend] [--state-dir <dir>] [--results-csv <file>]");
     eprintln!("       upgrade-prologue verify-check [--auto] [--restore-bcd] [--state-dir <dir>] [--results-csv <file>]");
     eprintln!("       upgrade-prologue windows-slot [--stick <X:>] [--state-dir <dir>]   (shim in Windows' slot, by hand; architecture step 12)");
@@ -109,13 +107,6 @@ fn run(args: &[String]) -> ExitCode {
         return ExitCode::from(1);
     }
     let r = match mode {
-        "rollback" => match value_of("--stick") {
-            Some(d) => match upgrade_prologue::rollback::live::rollback(&mut ctx.rec, &d, &upgrade_prologue::flow_version(), &ctx.state_dir.clone()) {
-                Ok(code) => return ExitCode::from(code as u8),
-                Err(e) => Err(e),
-            },
-            None => Err("give --stick <X:>".into()),
-        },
         "abort" => {
             // CANCEL-CONVERSION.cmd: the evidence first, read-only, onto the stick when one is given
             if let Some(d) = value_of("--stick") {

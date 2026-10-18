@@ -202,7 +202,7 @@ prologue shrinks, `%pre` (the verify step) snapshots the ESP to the stick,
 `liveimg` installs the stick's squashfs into the freed space reusing the
 Windows ESP unformatted, `%post` (the outcome step) runs the checklist and writes
 `outcome.json`; `v2-verdict.py` writes the row, `rollback-verdict.py` the
-rollback's (`upgrade-prologue rollback`). The Secure-Boot-on chainload is proven on
+rollback's (`settle-in rollback`, from Linux). The Secure-Boot-on chainload is proven on
 a UEFI-CA Hyper-V guest with Windows' PCA enrolled in shim's MokList
 ([log](log/2026-08.md#2026-08-31-secure-boot-on-chainload-via-mok-on-hyper-v-v1b-r21)). A real machine has
 no bench marker: its evidence comes from `rig/hyperv/physical/` (the

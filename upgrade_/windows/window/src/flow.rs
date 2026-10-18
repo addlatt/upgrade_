@@ -233,18 +233,6 @@ pub fn erase_prologue_call(stick: &str, erase: &str, ack: &str) -> Call {
     call(4, false, stick, "upgrade-prologue.exe", &a)
 }
 
-/// ROLLBACK.cmd: the word, the snapshot the stick must hold, the call.
-pub const ROLLBACK_WORD: &str = "ROLLBACK";
-pub fn rollback_ok(typed: &str) -> bool {
-    typed == ROLLBACK_WORD
-}
-pub fn rollback_snapshot_present(root: &Path) -> bool {
-    root.join("upgrade_").join("esp-snapshot").join("SHA256SUMS").exists()
-}
-pub fn rollback_call(stick: &str) -> Call {
-    call(1, false, stick, "upgrade-prologue.exe", &["rollback", "--stick", "{stick}"])
-}
-
 /// RUN-PROBE.cmd: the walk-away probe (it restarts the computer itself).
 pub fn probe_call(stick: &str) -> Call {
     call(1, false, stick, "upgrade-prologue.exe", &["probe", "--stick", "{stick}"])
@@ -653,20 +641,9 @@ mod tests {
     }
 
     #[test]
-    fn rollback_probe_and_cancel_calls() {
-        assert_eq!(command_line(&rollback_call("E:")), r"E:\upgrade-prologue.exe rollback --stick E:");
+    fn probe_and_cancel_calls() {
         assert_eq!(command_line(&probe_call("E:")), r"E:\upgrade-prologue.exe probe --stick E:");
         assert_eq!(command_line(&abort_call("E:")), r"E:\upgrade-prologue.exe abort --stick E:");
-        assert!(rollback_ok("ROLLBACK"));
-        assert!(!rollback_ok("rollback"));
-        let d = std::env::temp_dir().join(format!("upg-window-rb-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
-        assert!(!rollback_snapshot_present(&d));
-        std::fs::create_dir_all(d.join("upgrade_").join("esp-snapshot")).unwrap();
-        std::fs::write(d.join("upgrade_").join("esp-snapshot").join("SHA256SUMS"), "x").unwrap();
-        assert!(rollback_snapshot_present(&d));
-        let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]

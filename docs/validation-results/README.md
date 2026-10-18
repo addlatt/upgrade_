@@ -384,8 +384,8 @@ test setup can fake (rule #5); `fsutil dirty set` is only our model of it.
 Rollback undoes the boot changes so the machine starts Windows again as it
 did before the conversion. One row per run, by `rig/hyperv/rollback-verdict.py`
 from the rollback's record (`upgrade_/rollback.json`, by `settle-in rollback`
-from Linux since 2026-10-12, or `upgrade-prologue rollback` from the kept
-Windows), the offline ESP manifests before the conversion, after the cycles and
+from Linux since 2026-10-12; rows 2 to 6 came from `upgrade-prologue
+rollback` in the kept Windows, which left the product 2026-10-17), the offline ESP manifests before the conversion, after the cycles and
 after the rollback, the guard's answer in the ESP marker `rolled-back.json`, and
 the bench's marker when Windows comes up with **no key pressed**. Bench: `rig/hyperv/prologue.sh rollback`.
 `--physical`: the ESP before is the stick's snapshot sums, the captures come from

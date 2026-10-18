@@ -198,21 +198,12 @@ pub const ERASE_RESTARTING_LINES: [&str; 2] = [
     "When the countdown ends, the drives are erased and Fedora is installed. You can walk away.",
 ];
 
-// ---------------------------------------------------------------- roll back (ROLLBACK.cmd)
+// ---------------------------------------------------------------- roll back (from Linux; decided 2026-10-17, the owner)
 
 pub const CHOOSE_ROLLBACK: &str = "Roll back: Windows first again";
-pub const CHOOSE_ROLLBACK_LINE: &str = "For a computer converted with Windows kept. Puts Windows Boot Manager first and its fallback boot file back. Deletes nothing.";
-pub const ROLLBACK_HEADING: &str = "Roll back to Windows first";
-pub const ROLLBACK_LINES: [&str; 2] = [
-    "For a computer converted with Windows kept. It puts Windows Boot Manager first in the firmware's boot order and puts Windows' own fallback boot file back from the copy this stick took before the conversion.",
-    "It deletes NOTHING: Linux stays on the disk and in the firmware's boot menu; its space is only returned when you ask for that separately.",
-];
-pub const ROLLBACK_NO_SNAPSHOT: &str = "This stick holds no copy of the boot files (upgrade_\\esp-snapshot): it was not the stick this computer was converted with. Nothing was changed.";
-pub const ROLLBACK_TYPE: &str = "Type ROLLBACK (in capitals) to continue. Anything else stops.";
-pub const ROLLBACK_RUNNING: &str = "Rolling back";
-pub const ROLLBACK_DONE_HEADING: &str = "Done";
-pub const ROLLBACK_DONE_LINE: &str = "Restart the computer; it boots Windows directly.";
-pub const ROLLBACK_FAILED_HEADING: &str = "The rollback did not complete";
+pub const CHOOSE_ROLLBACK_LINE: &str = "For a computer converted with Windows kept. It is done from Linux; this shows how. Deletes nothing.";
+pub const ROLLBACK_HEADING: &str = "Roll back from Linux";
+pub const ROLLBACK_FROM_LINUX: &str = "Start the computer into Linux with this USB stick plugged in, open \"Go back to Windows\" from the app menu, and follow it. It puts Windows first again and deletes nothing: Linux stays on the disk until you ask for its space back. It runs from Linux because a change made from Windows did not hold on every computer. Nothing was changed here.";
 
 // ---------------------------------------------------------------- the walk-away probe (RUN-PROBE.cmd)
 
