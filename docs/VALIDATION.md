@@ -790,8 +790,8 @@ one success of the PowerShell process on `main`; the order is every
 `selftest`, `corpus` and differential line `pass` first, then the `rig`
 lines re-run with the Rust build, then the `physical` ones.
 
-**Where it stands.** `[####]` held-on-machine: 904 ledger lines `pass`,
-168 `owed`, none `fail` (counted 2026-10-14). The Rust scanner's reads and
+**Where it stands.** `[####]` held-on-machine; the ledger's pass and owed
+counts are in [STATUS.md](STATUS.md), row V13. The Rust scanner's reads and
 report matched the PowerShell's on the G16 and the Aspire in the same
 minute (`v13-rust-scanner.csv` lines 4 and 5, `SAME`); the Rust prologue
 ran the Aspire's keep-Windows conversions (`v2-install.csv` lines 11 and
@@ -801,7 +801,7 @@ resume (`walkaway-probe.csv` line 5). Fresh-clone rebuilds match
 leaving are done (2026-10-11 and 2026-10-14: no PowerShell on the stick or
 in `data/`), and the installer's two steps are Rust (2026-10-14: 42 faked
 machines through a sandbox, the program's every line, file, tool call and
-screen equal to the scripts'). Owed: the 168 lines (the rig's and the
+screen equal to the scripts'). Owed: the ledger's `owed` lines (the rig's and the
 Aspire's rows for each piece, the installer's first), the stick writer's
 write rows, settle-in's starter, and the second-person rebuild
 ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).

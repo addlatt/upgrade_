@@ -182,13 +182,17 @@ its own sentence and drive list (R27). Kept on purpose: KDE or GNOME, the
 console start, items 8 and 12. A refusal is never trimmed (rule #1).
 Proves: V11, V12. Stands: see [STATUS.md](STATUS.md).
 
-## 21. Test optimization
+## 21. Test optimization: one click test
 
-Faster, steadier proof, never less of it. A check on every pull request
-that runs `./port-check.sh` (R9); a rig whose guest channel survives fast
-power cycles; the 45 `owed` ledger lines. No case or frozen golden is
-dropped to save time (rule #5). Proves: R9, V13. Stands: see
-[STATUS.md](STATUS.md).
+Faster, steadier proof, never less of it, on any machine. A test stick runs
+the whole chain by itself (look, keep Windows, erase, way back), every
+approval typed once at kickoff, nobody watching; Wi-Fi and SSH to a test
+manager computer are the setup. The stick and the manager keep the
+evidence, and a fail is a fix's input (log 2026-10-17, "one click test").
+Also a pull-request check running `./port-check.sh` (R9) and the 87 `owed`
+ledger lines. No case or frozen golden is dropped (rule #5). First: the
+Aspire. Proves: R9, V13, then V0, V1, V1b, V9, V10, V11 per machine.
+Stands: see [STATUS.md](STATUS.md).
 
 ## 22. Open firmware, for the curious (parked)
 
@@ -220,8 +224,9 @@ is decided, the dated line goes in its home and the item here is removed.
 - The shape of a table of machine models and generations, the thing
   hundreds of supported models will need: waits on enough real captures to
   see what the rules look like (R32; `data/README.md`).
-- What item 21 (test optimization) covers beyond the pull-request check,
-  the rig and the owed ledger lines (R9).
+- Whose one-click test results count (item 21): whether a pass from an
+  unknown contributor can mark a model as working, or only one from an
+  approved developer or a second run that agrees (rule #1; R9).
 - Choosing among several Linux releases on one stick, and fetching a release
   from Windows: not built, not scheduled (V14, R34).
 - Whether reclaim switches the kept-Windows machine's clock back to UTC once
