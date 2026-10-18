@@ -3,10 +3,9 @@ upgrade_  -  the kit stick
 
 Everything on the Windows side is one program, UPGRADE.exe. Double-click
 UPGRADE.cmd to start it. It scans this computer, says what it found, asks
-what you want, and does it: a verify run (boots the installer once and
-comes back, nothing installed), the conversion (Fedora beside your
-Windows, or an erase if you choose that), the rollback (undo before the
-commit line), a probe (one restart, read-only), or a cancel. It says
+what you want, and does it: the conversion (Fedora beside your Windows,
+or a clean slate that erases the computer if you choose that), how to
+roll back (from Linux), or a cancel. It says
 "you can still cancel" until the one moment that is true no longer.
 
 If the scanner refused this computer because its drive is failing or its

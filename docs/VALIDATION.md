@@ -145,7 +145,8 @@ Vocabulary: `validation-results/README.md`.
 
 **How it is run.** `rig/hyperv/v1.sh run` on the Hyper-V rig (Secure Boot
 off: Hyper-V's template refuses shim, the usual rig clause). On a real
-machine, `RUN-VERIFY.cmd` from the stick: scanner, job writer, kickstart
+machine, the window's Verify (`UPGRADE.exe --developer` since 2026-10-17;
+`RUN-VERIFY.cmd` before the window): scanner, job writer, kickstart
 (`upgrade_/windows/New-Kickstart.ps1`, now the Rust `upgrade_/kickstart`),
 handoff, the live session, the return. The stick carries Fedora's own
 Workstation and KDE live `squashfs.img`, unmodified, checked against
@@ -480,10 +481,8 @@ steps, each on the rig before a real machine:
    licence facts and proves a key handed to it never reaches `job.json`;
 2. the Aspire's hand reinstall: only an "after", since the licence before
    the erase was never recorded (R30);
-3. the guided stick (`settle-in go-back`): Microsoft's installer
-   downloaded, checked against its published hash, written to the named
-   stick and no other drive, started with Secure Boot on, installed, the
-   activation state read on the new Windows (`v11-way-back.csv`);
+3. the guided stick (`settle-in go-back`), rig only (`v11-way-back.csv`);
+   it left the product on 2026-10-17 (roadmap item 20), so no more rows;
 4. the walk-away reinstall (R33), four arms as V9 has, in
    `v11-walkaway.csv`: refuse before any countdown, both disks unchanged,
    Linux starting again; cancel on a key, untouched
@@ -513,8 +512,8 @@ kind. The Aspire: `v11-walkaway.csv` line 2, `fail` (2026-10-03: Windows
 11 reached and activated by its digital licence, four defects, all fixed
 that day); line 3, `windows-reached` (2026-10-04); line 4,
 `cancelled-untouched` (2026-10-06); line 5, `windows-reached` (2026-10-11,
-driven over ssh, a second stick). The guided stick: `v11-way-back.csv`
-line 3, `pass-plumbing` (rig, 2026-09-27). Owed: a second machine with a
+driven over ssh, a second stick). The guided stick, gone since 2026-10-17:
+`v11-way-back.csv` line 3, `pass-plumbing` (rig, 2026-09-27). Owed: a second machine with a
 firmware key, the Windows 10 path on a machine that cannot run Windows 11,
 the licence harvest as a row ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
 

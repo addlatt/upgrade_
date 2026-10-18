@@ -562,9 +562,10 @@ in one way that matters: the person said up front that nothing is to be kept.
                                             reboot into Fedora
 ```
 
-1. **Its own launcher, its own sentence.** `RUN-ERASE-AND-INSTALL.cmd` (for a
-   RED machine, `RUN-ERASE-AND-INSTALL-ACCEPTING-DATA-LOSS.cmd`, which also asks
-   for the R23 sentence; neither stands in for the other). The consent is typed
+1. **Its own sentence, behind Convert's clean-slate answer** (since
+   2026-10-17, roadmap item 20; before, its own launcher). A RED machine gets
+   there through `UPGRADE-ACCEPTING-DATA-LOSS.cmd`, which also asks for the
+   R23 sentence; neither stands in for the other. The consent is typed
    word for word, first: *"I confirm that everything on this computer will be
    deleted and nothing will be kept"*. Then the Linux password (twice, hidden);
    the job holds only its SHA-512 crypt hash. **The person is told the account's
