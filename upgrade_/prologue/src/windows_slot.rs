@@ -7,7 +7,7 @@
 //! aside (same folder, so it still finds its BCD) and Fedora's signed shim is
 //! put in its place; GRUB's Windows entry chainloads the kept name. The
 //! judging half is here and replayed in tests; the live half (`live`) does the
-//! files, the guard task and the undo.
+//! files, the guard task and the guard's stand-down.
 
 use crate::val::{at, s, truthy};
 use serde_json::{json, Value};
@@ -303,36 +303,6 @@ pub mod live {
         })();
         dismount_esp(rec, &esp);
         result
-    }
-
-    /// The undo (the rollback): Windows' loader back from its kept name, the
-    /// kept name removed, the guard gone, the record kept as history.
-    /// Returns what was done, or None when the arrangement was never applied.
-    pub fn undo(rec: &mut Recorder, state_dir: &str, log: &mut dyn FnMut(String)) -> Result<Option<Value>, String> {
-        let esp = mount_esp(rec)?;
-        let result = undo_at(rec, &esp, state_dir, log);
-        dismount_esp(rec, &esp);
-        result
-    }
-
-    /// The undo on an ESP the caller has already mounted (`esp` is its root,
-    /// e.g. `S:\`). The rollback mounts the ESP once for all its work; a
-    /// second mount of the same partition is refused by Windows ("The
-    /// parameter is incorrect": the rig, 2026-10-10, the first slot rollback).
-    pub fn undo_at(rec: &mut Recorder, esp: &str, state_dir: &str, log: &mut dyn FnMut(String)) -> Result<Option<Value>, String> {
-        let slot = Path::new(esp).join(WINDOWS_SLOT_REL);
-        let kept = Path::new(esp).join(KEPT_REL);
-        if !kept.exists() {
-            return Ok(None);
-        }
-        let before = sha(&slot);
-        let n = copy_checked(&kept, &slot, "putting Windows' loader back into its slot")?;
-        std::fs::remove_file(&kept).map_err(|e| format!("removing the kept name: {e}"))?;
-        let removed = unregister_guard(rec);
-        log(format!("      Windows' loader back in its slot ({}); kept name removed; guard task removed: {removed}", &n[..12]));
-        let p = record_path(state_dir);
-        let _ = std::fs::rename(&p, Path::new(state_dir).join("windows-slot-undone.json"));
-        Ok(Some(json!({"slot_sha_before": before, "slot_sha_after": n, "guard_removed": removed})))
     }
 }
 

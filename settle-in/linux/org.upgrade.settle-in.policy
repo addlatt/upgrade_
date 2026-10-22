@@ -6,8 +6,9 @@
      desktop shows the program's path. Installed in /usr/share/polkit-1/actions/
      by the installer adapter. Two actions, told apart by the first argument:
      `settle-in remove-old-boot-entry` and `settle-in go-back` (its root
-     steps: `write`, and since 2026-09-29 `walkaway prepare` and `walkaway
-     undo`, RISKS R33; the go-back words are a DRAFT). -->
+     steps: `walkaway prepare` and `walkaway undo`, RISKS R33; the guided
+     stick's `write` left with roadmap item 20, the action id kept; the
+     go-back words are a DRAFT). -->
 <policyconfig>
   <vendor>upgrade_</vendor>
   <action id="org.upgrade.settle-in.remove-old-boot-entry">
