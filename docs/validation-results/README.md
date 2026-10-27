@@ -698,3 +698,32 @@ pinned toolchain, `--locked`, paths remapped) and compares their sha256 with
 this checkout's. `commit`, `program`, `sha256_here`, `sha256_fresh_clone`,
 `toolchain` say what was compared; `same` is the result: `y` (the bytes
 match) or `n` (they differ). A pass is `y` for every program at one commit.
+
+## `oneclick-runs.csv`: every stage of a one click test run (roadmap item 21; risks R9, R21, R27, gates V1b, V9, V10, V11)
+
+One row per finished stage of a one click test run (`rig/oneclick/oneclick.py`,
+the test manager on the G16). Written by `oneclick.py promote RUN_DIR`, never
+by hand, from the run folder alone: the manager's journal, the facts the
+machine reported about itself at the run's start, and each stage folder's
+`SHA256SUMS`. Before a row is written, every personal value the run knows
+(the test password, account names, Wi-Fi names, disk serials and ids, the
+computer's name) is replaced by a placeholder (`<name>`, `<wifi>`,
+`<serial>`, `<disk-id>`, `<computer>`) and the rows are scanned again; a run
+whose rows still hold one is refused. A run is promoted once. The evidence
+itself stays in the run folder under `rig/hyperv/artifacts/runs/`, which git
+ignores.
+
+| Column | Meaning |
+|---|---|
+| `timestamp`, `manager` | when the stage ended (UTC); the manager's version |
+| `harness` | `rig` (the Hyper-V guest, over PowerShell Direct and SSH) or `physical` (a real machine over SSH): the transport, never typed |
+| `machine`, `firmware`, `os_build` | `Win32_ComputerSystem` (or Linux's DMI) maker and model, BIOS maker and version, Windows build: what the machine said, never typed. A run that recorded no facts says `unknown`, or names the run it borrowed them from in `notes` |
+| `run` | the run folder and stage folder, `<run>/<NN>-<stage>` |
+| `stage`, `result` | the plan's stage and the manager's word for how it ended (`scanned-<verdict>`, `kept-both-start`, `not-installed-again`, `rolled-back`, `erased-installed`, `windows-reached`, `cancelled-untouched`, `refused-before-countdown`, `rig-standin-fresh-windows`, or the word of what went wrong: `hang-install`, `windows-not-first`, `stick-not-started`, `disk-changed`, `not-built`, `manager-error` and the others in `oneclick.py`) |
+| `class` | `pass` (a real machine, as the plan expects), `pass-plumbing` (the rig, as the plan expects), `stand-in` (the rig's fresh Windows image in place of the walk-away it cannot run: it closes nothing), `fail` (anything else) |
+| `evidence_sha256` | the sha256 of the stage folder's `SHA256SUMS`: the row points at exactly one set of evidence |
+| `notes` | the manager's one line, markup removed, scrubbed |
+
+A pass is `class` `pass` for the stage on that machine. A `pass-plumbing`
+row closes no real-hardware clause (rule #5). A `fail` caused by the manager
+itself stays, and the log names the fix.

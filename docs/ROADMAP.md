@@ -185,15 +185,14 @@ Proves: V11, V12. Stands: see [STATUS.md](STATUS.md).
 
 ## 21. Test optimization: one click test
 
-Faster, steadier proof, never less of it, on any machine. A test stick runs
-the whole chain by itself (look, keep Windows, erase, way back), every
-approval typed once at kickoff, nobody watching; Wi-Fi and SSH to a test
-manager computer are the setup. The stick and the manager keep the
-evidence, and a fail is a fix's input (log 2026-10-17, "one click test").
-Also a pull-request check running `./port-check.sh` (R9) and the 87 `owed`
-ledger lines. No case or frozen golden is dropped (rule #5). First: the
-Aspire. Proves: R9, V13, then V0, V1, V1b, V9, V10, V11 per machine.
-Stands: see [STATUS.md](STATUS.md).
+Faster, steadier proof, never less of it, on any machine. The G16 drives
+the test machine over SSH through every stage, in the order of how likely
+each is in the wild, every approval typed once at kickoff (decided
+2026-10-17 and 2026-10-27, the owner; log 2026-10-27). Built
+(`rig/oneclick/`) and held on the rig, 2026-10-27. Owed: the Aspire's first
+run, the walk-away on a real machine, the window's screens (V12), the old
+verdicts wired to the run folder, and a pull-request check (R9). Proves:
+R9, V13, then V1b, V9, V10, V11 per machine. Stands: see [STATUS.md](STATUS.md).
 
 ## 22. Open firmware, for the curious (parked)
 
@@ -228,6 +227,12 @@ is decided, the dated line goes in its home and the item here is removed.
 - The shape of a table of machine models and generations, the thing
   hundreds of supported models will need: waits on enough real captures to
   see what the rules look like (R32; `data/README.md`).
+- Whether the return step may treat a Windows start the firmware chose (its
+  own boot menu, F12, or a BootNext) as InsydeH2O's symptom and put shim in
+  Windows' slot, or must ask, or wait for a second sign (R21; log 2026-10-27).
+- How the stick writer tells two serial-less sticks apart, which share one
+  `UniqueId` in the same port: the size and the planned partitions and
+  labels, or a refusal (R16; log 2026-10-27).
 - Whose one-click test results count (item 21): whether a pass from an
   unknown contributor can mark a model as working, or only one from an
   approved developer or a second run that agrees (rule #1; R9).

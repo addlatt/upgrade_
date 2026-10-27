@@ -489,6 +489,11 @@ list, and every file written is read back against `SHA256SUMS`.
 That is the one failure the whole architecture exists to prevent, done by
 the part that promised to be safe.
 
+**Decided (2026-10-27, the owner):** the kit works on the cheap sticks
+people own, not only branded ones. A stick that drops off USB, has no serial
+or reports a placeholder maker ID is the case to design for; a stick that
+cannot be verified is still refused (rule #1).
+
 **Closes when.** The physical write row: several sticks **and a USB hard
 drive attached at once**, `-Write` pointed at one stick. That one is
 erased, written and verified, and every other device is untouched. A VM
@@ -496,19 +501,16 @@ cannot run it (no USB emulation; every VHDX is refused for its bus first).
 That row is exactly the rule-#5 residue.
 
 **Where it stands.** `[####]` held-on-machine, one device at a time. The
-refusal matrix fired read-only on the G16 and the rig 2026-09-08 (23
-self-test cases; `r16-stick-writer.csv` lines 2 to 7: the stick chosen
-only at its real size, the system NVMe refused on five counts, every VHDX
-refused for its bus). First physical write 2026-09-13 from the G16: one
-8 GB General UDisk written and verified (lines 11 and 12); writer 0.1.1
-learned that `Clear-Disk` leaves a real stick MBR-initialized where a VHDX
-comes back RAW. One finding for `job.json`: a stick's `UniqueId` carries
-the host name on the end and its `SerialNumber` can be empty. The writer
-in Rust (`upgrade-stick`, 2026-10-14) holds the matrix and wrote the G16's
-read-only rows again (lines 13 and 14); its write rows are owed. Owed: the
-several-devices write. Log:
+refusal matrix (lines 2 to 7, 13, 14), the PowerShell writer's first write
+(2026-09-13, lines 11, 12), and `upgrade-stick` 0.2.0's first write
+(2026-10-27, line 18, `verified` = y), after three defects found on the
+Aspire's stick and fixed (`copy` deleted a stick's rollback input, `write`
+labelled it `UPGRADE`, a failed write logged `written n`). Owed: the
+several-devices write; a drop mid-write as a pause and a resume; an identity
+for serial-less sticks, which share a `UniqueId` in one port. Log:
 [built](log/2026-09.md#2026-09-08-the-stick-writer-built-and-the-refusal-matrix-fired-r16),
-[first write](log/2026-09.md#2026-09-13-first-physical-stick-write-r16).
+[first write](log/2026-09.md#2026-09-13-first-physical-stick-write-r16),
+[the Rust writer's](log/2026-10.md#2026-10-27-the-one-click-test-built-and-held-on-the-rig-all-nine-stages-the-aspires-stick-died-roadmap-item-21-r9-r16-r17-r21-r27-v1b-v9-v13).
 
 ## R17: Counterfeit or failing flash as the sole data carrier · high · held-on-machine
 
@@ -877,19 +879,20 @@ with R23's also typed on a RED machine; carrying files across is stage 2.
 **Decided (2026-09-27, the owner):** the launcher asks what the computer
 starts at (KDE, GNOME or the text console) and names the sign-in on screen.
 
+**Decided (2026-10-17, the owner):** a one click test's cancel is a marker
+that can only cancel (`upgrade-installer` 0.1.4): `upgrade_/test-cancel-countdown`
+cancels after its seconds as a key would, still cancels when unreadable,
+never shortens the wait, and `countdown.json` says `by: test-marker`.
+
 **Closes when.** The rig arms (refuse, cancel, erase) and one physical row:
 one click, the sentences, nobody at the keyboard, Fedora signing in with the
 chosen password at the graphical sign-in screen. Met 2026-10-04 (run 11).
 
-**Where it stands.** `[####]` `v9-erase.csv` lines 30 and 31 (the Aspire,
-run 11, 2026-10-04: `erased-installed` with the stick left in, then
-`not-installed-again`) and line 32 (2026-10-06, `cancelled-untouched`, a key
-during the countdown, Windows back untouched). Two physical `fail` rows stay
-in the record: line 11 (run 9, a text login) and line 22 (run 10, installed
-twice, R35). Rig arms from line 2 on, with the Rust prologue since
-2026-10-08 (lines 33 to 36). Kept open for: other firmware, a healthy drive, a
-plain-words screen when an install fails after the line, the installer hang
-of arm C5 (once), and the computer kept awake (R33)
+**Where it stands.** `[####]` `v9-erase.csv` lines 30 to 32 (the Aspire,
+2026-10-04 and 2026-10-06: installed, not installed again, cancelled
+untouched); two physical fails stay (lines 11 and 22). Kept open for: other
+firmware, a healthy drive, a plain-words screen after a failed install, the
+arm C5 hang, the computer kept awake (R33)
 ([log](log/2026-10.md#2026-10-04-the-aspires-run-11-the-first-clean-conversion-r27-r35-v9)).
 
 ## R28: settle-in runs on any Linux · high · held-on-machine
