@@ -572,7 +572,20 @@ class StickLeftIn:
         link = ctx.link
         if link.probe() != "linux":
             return Outcome("wrong-system", False, "the stick-left-in test starts in the installed Linux")
-        tables = "for d in $(lsblk -dno NAME,TRAN | awk '$2!=\"usb\"{print $1}'); do echo \"$d $(head -c 1048576 /dev/$d | sha256sum | cut -c1-64)\"; done"
+        # the internal drives only: real disks, not the USB stick, not zram (Fedora's swap in
+        # memory, new every boot: the rig, 2026-10-27, read it as "a partition table changed")
+        tables = ("s=$(lsblk -no PKNAME \"$(readlink -f /dev/disk/by-label/UPGV0)\" | head -1); "
+                  "for d in $(lsblk -dno NAME,TYPE,TRAN | awk '$2==\"disk\" && $3!=\"usb\" && $1!~/^zram/{print $1}'); do "
+                  "[ \"$d\" = \"$s\" ] && continue; echo \"$d $(head -c 1048576 /dev/$d | sha256sum | cut -c1-64)\"; done")
+        # proof the stick really started: its GRUB writes upg_fired=1 at every start; set it to 0
+        # first, so a firmware that ignores the one-time entry is a fail, never a hollow pass
+        fired = ("m=$(findmnt -no TARGET /dev/disk/by-label/UPGV0 | head -1); "
+                 "if [ -z \"$m\" ]; then mkdir -p /mnt/upgtest && mount /dev/disk/by-label/UPGV0 /mnt/upgtest && m=/mnt/upgtest; fi; "
+                 "grub2-editenv \"$m/EFI/BOOT/grubenv\" {op}; grub2-editenv \"$m/EFI/BOOT/grubenv\" list | grep '^upg_fired='; sync")
+        z = sudo(ctx, fired.format(op="set upg_fired=0"), 120)
+        ctx.save("fired-before.txt", z.out + z.err)
+        if "upg_fired=0" not in z.out:
+            return Outcome("stick-env-unwritable", False, "the stick's grubenv could not be set before the start")
         t0 = sudo(ctx, tables, 120)
         ctx.save("tables-before.txt", t0.out)
         before = boot_mark(ctx, "linux")
@@ -592,6 +605,10 @@ class StickLeftIn:
         m = re.search(r"ENTRY=([0-9A-F]{4})", r.out)
         if m:
             sudo(ctx, f"efibootmgr -b {m.group(1)} -B >/dev/null; echo REMOVED", 60)
+        z = sudo(ctx, fired.format(op="list >/dev/null"), 120)
+        ctx.save("fired-after.txt", z.out + z.err)
+        if "upg_fired=1" not in z.out:
+            return Outcome("stick-not-started", False, "the stick's GRUB did not run: the firmware did not start the stick (upg_fired still 0)")
         t1 = sudo(ctx, tables, 120)
         ctx.save("tables-after.txt", t1.out)
         if not t0.out.strip() or t0.out != t1.out:
