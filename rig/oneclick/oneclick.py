@@ -1044,6 +1044,13 @@ def status(run_dir, out=print):
         word = "-" if e is None else (e.get("word") or e["event"])
         out(f"  {i + 1:2d}. {st['stage']:<14} {word}")
     action, arg = next_action(run["plan"], entries)
+    lock = os.path.join(run_dir, ".awake")
+    live = os.path.exists(lock) and time.time() - os.path.getmtime(lock) < 180
+    last = entries[-1] if entries else {}
+    if live and last.get("event") in ("stage-start", "heartbeat", "note", "hang"):
+        open_stage = [e for e in entries if e["event"] == "stage-start"][-1]
+        out(f"  now: RUNNING stage {open_stage['index'] + 1} {open_stage['stage']} (the manager refreshed its lock {int(time.time() - os.path.getmtime(lock))} s ago)")
+        return
     out(f"  next: {action}{' - ' + str(arg) if arg is not None else ''}")
 
 
