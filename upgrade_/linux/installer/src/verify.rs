@@ -545,8 +545,11 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
         if !home_disk.is_empty() {
             names = format!("{names} and {}", model(&home_disk));
         }
-        let record = |result: &str| {
-            let rec = json!({"schema": "countdown/1", "result": result, "seconds": count_secs as i64, "ended_utc": utc_now()});
+        let record = |result: &str, by: Option<&str>| {
+            let mut rec = json!({"schema": "countdown/1", "result": result, "seconds": count_secs as i64, "ended_utc": utc_now()});
+            if let Some(b) = by {
+                rec["by"] = json!(b);
+            }
             let _ = std::fs::write(format!("{REPORT}/countdown.json"), serde_json::to_string_pretty(&rec).unwrap_or_default());
             let _ = std::fs::copy(LOG, format!("{REPORT}/verify.log"));
             sync();
@@ -605,7 +608,28 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
         // and no other program opens it while the countdown runs: checked once a
         // second; one that does ends the countdown and refuses (R38)
         con.guard = Some(Box::new(|| other_holders(CTTY)));
-        let waited = con.wait(count_secs, &screen, true);
+        // The one click test's cancel (roadmap item 21; decided 2026-10-17, the owner): a
+        // file on the stick that can only CANCEL, after the seconds it holds, as a key
+        // would. Its only power is the safe direction (rule #1): unreadable, it still
+        // cancels; it never shortens the wait before an erase. The screen shows the
+        // real countdown, a real key still cancels, and the record says which it was.
+        let marker = format!("{STICK}/upgrade_/test-cancel-countdown");
+        let test_cancel = exists(&marker).then(|| {
+            let n = std::fs::read_to_string(&marker).ok().and_then(|t| t.trim().parse::<f64>().ok()).unwrap_or(5.0);
+            n.clamp(1.0, (count_secs - 1.0).max(1.0))
+        });
+        let waited = match test_cancel {
+            None => con.wait(count_secs, &screen, true),
+            Some(n) => {
+                c.log.say(&format!("== countdown: the stick's test marker cancels it after {n:.0} s, as a key would"));
+                let shown = move |left: u64| screen(left + (count_secs - n) as u64);
+                match con.wait(n, &shown, true) {
+                    Ok((false, e)) => Ok((true, e)),
+                    other => other,
+                }
+            }
+        };
+        let by_marker = test_cancel.is_some() && con.key_bytes.borrow().is_empty();
         let held = con.held_by.borrow().clone();
         if !held.is_empty() {
             drop(con);
@@ -635,10 +659,18 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
         drop(con);
         if keyed {
             say_on(CTTY, "\x1b[2J\x1b[H\n\n   CANCELLED. Nothing was erased. Restarting into Windows...\n");
-            c.log.say("== countdown CANCELLED by a key press - nothing erased; restarting into Windows");
-            record("cancelled");
+            if by_marker {
+                c.log.say("== countdown CANCELLED by the stick's test marker, not a key - nothing erased; restarting into Windows");
+                record("cancelled", Some("test-marker"));
+            } else {
+                c.log.say("== countdown CANCELLED by a key press - nothing erased; restarting into Windows");
+                record("cancelled", None);
+            }
             run("mount", &["-o", "remount,rw", STICK]);
             let _ = std::fs::remove_file(format!("{STICK}/upgrade_/boot-install"));
+            if by_marker {
+                let _ = std::fs::remove_file(&marker);
+            }
             sync();
             if exists(&format!("{STICK}/upgrade_/boot-install")) {
                 c.log.say("!! boot-install could not be removed after the cancel");
@@ -654,7 +686,7 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
         }
         say_on(CTTY, "\x1b[2J\x1b[H\n\n   Erasing and installing Fedora. This takes a while; you can walk away.\n");
         c.log.say(&format!("== countdown ELAPSED - the commit line: the installer now erases {what}"));
-        record("elapsed");
+        record("elapsed", None);
         run("chvt", &["1"]);
     }
 

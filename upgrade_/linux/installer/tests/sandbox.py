@@ -286,6 +286,9 @@ def run(case, cmd, out):
     out = os.path.abspath(out)
     if out.startswith("/tmp/"):
         raise SystemExit("sandbox: the output folder cannot be under /tmp (the run gets a private /tmp)")
+    # a fresh folder every run: the run's /tmp is copied into out/tmp, and a file another case left
+    # at the same case number read as this case's (2026-10-27, two cases inserted mid-list)
+    shutil.rmtree(out, ignore_errors=True)
     world = build_world(case, os.path.join(out, "world"))
     os.makedirs(out, exist_ok=True)
     tty_path = None

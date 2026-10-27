@@ -9826,6 +9826,620 @@
   "holder": "countdown"
  },
  {
+  "name": "erase: the stick's test marker cancels the countdown after its 2 s as a key would: exit 27, the record says test-marker, the marker and boot-install removed",
+  "mode": "verify",
+  "job": {
+   "schema": "job/1",
+   "job_id": "9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e",
+   "created_utc": "2026-09-08T21:00:00Z",
+   "evaluate": {
+    "version": "0.1.0",
+    "scanner_version": "0.1.0",
+    "harvest_version": "0.1.0",
+    "ran_as_admin": true
+   },
+   "identity": {
+    "vendor": "Microsoft Corporation",
+    "model": "Virtual Machine",
+    "system_uuid": "11111111-2222-3333-4444-555555555555",
+    "bios_serial": "0000-0000-0000-0000-0000-0000-00",
+    "bios_version": "Hyper-V UEFI Release v4.1",
+    "firmware_mode": "UEFI",
+    "secure_boot": "on",
+    "os_caption": "Microsoft Windows 10 Pro",
+    "os_build": 19045,
+    "system_disk": {
+     "number": 0,
+     "serial_number": "",
+     "unique_id": "60022480000000000000000000000001",
+     "friendly_name": "Msft Virtual Disk",
+     "size_bytes": 137438953472,
+     "partition_style": "GPT"
+    }
+   },
+   "scan": {
+    "verdict": "GREEN",
+    "required_kernel": null,
+    "report": "reports/upgrade-report.txt"
+   },
+   "intent": {
+    "path": "clean-slate",
+    "path_reason": "user-chose-fresh-start",
+    "desktop": "gnome",
+    "start_at": "desktop",
+    "distro": {
+     "name": "fedora",
+     "release": "42"
+    },
+    "account": {
+     "windows_name": "rig",
+     "full_name": null,
+     "linux_name": "rig",
+     "password_hash": "$6$saltsalt$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./abcdefghijklmnopqrstuv"
+    },
+    "locale": {
+     "lang": "en_GB.UTF-8",
+     "timezone": "Europe/London",
+     "keymap": "gb"
+    }
+   },
+   "fork": {
+    "if_cannot_keep": "stop",
+    "volume_check_consented": false
+   },
+   "storage": {
+    "shrinkable_gb": 10.0,
+    "shrink_source": "storage-api",
+    "shrink_error": null,
+    "linux_min_gb": 25,
+    "volume_health": {
+     "dirty": "clean",
+     "repair_queued": false,
+     "scan": null
+    },
+    "physical_disk": {
+     "health_status": "Healthy",
+     "operational_status": "OK"
+    },
+    "esp": {
+     "size_bytes": 104857600,
+     "free_bytes": 72219648,
+     "fits_alongside_install": true
+    }
+   },
+   "harvest": {
+    "clock": {
+     "windows_zone": "GMT Standard Time",
+     "iana": "Europe/London",
+     "rtc_is_local": true,
+     "real_time_is_universal": null,
+     "dst_auto_adjust": true,
+     "utc_offset_minutes": 60,
+     "base_utc_offset_minutes": 0,
+     "dst_active": true,
+     "observed_utc": "2026-09-08T21:00:00Z"
+    },
+    "folders": [
+     {
+      "name": "Documents",
+      "path": "C:\\Users\\rig\\Documents",
+      "exists": true,
+      "is_onedrive": false,
+      "files": 2850,
+      "bytes": 1610612736,
+      "cloud_only_files": 0,
+      "truncated": false
+     }
+    ],
+    "cloud_files": {
+     "placeholders_found": 0,
+     "materialized": 0,
+     "failed": 0,
+     "result": "none-found"
+    },
+    "stick_fit": {
+     "filesystem": "exFAT",
+     "cluster_bytes": 32768,
+     "free_bytes": 30000000000,
+     "files_bytes": 1610612736,
+     "needed_bytes": 1709933855,
+     "files_over_4gib": 0,
+     "fits": true,
+     "gap_bytes": 0
+    },
+    "browsers": [],
+    "wifi": {
+     "result": "exported",
+     "secrets_dir": "artifacts/credentials/wifi",
+     "profiles": [
+      {
+       "name": "Home Net",
+       "ssid": "Home Net",
+       "ssid_hex": "486F6D65204E6574",
+       "hidden": false,
+       "windows_auth": "WPA3SAE/AES",
+       "key_mgmt": "wpa-psk",
+       "supported": true,
+       "autoconnect": true,
+       "why_not": null,
+       "secrets_file": "artifacts/credentials/wifi/01.xml"
+      },
+      {
+       "name": "Cafe Guest",
+       "ssid": "Cafe Guest",
+       "ssid_hex": "43616665204775657374",
+       "hidden": false,
+       "windows_auth": "open/none",
+       "key_mgmt": "none",
+       "supported": true,
+       "autoconnect": false,
+       "why_not": null,
+       "secrets_file": null
+      },
+      {
+       "name": "Work",
+       "ssid": "Work",
+       "ssid_hex": "576F726B",
+       "hidden": false,
+       "windows_auth": "WPA2/AES",
+       "key_mgmt": "UNSUPPORTED",
+       "supported": false,
+       "autoconnect": true,
+       "why_not": "an enterprise network (a company or school sign-in)",
+       "secrets_file": null
+      }
+     ]
+    },
+    "bitlocker": {
+     "status": "off",
+     "recovery_key_file": null
+    },
+    "firmware_artifacts": [],
+    "software": {
+     "desktop": [
+      {
+       "name": "Google Chrome",
+       "version": "128.0",
+       "publisher": "Google LLC"
+      }
+     ],
+     "store": [],
+     "truncated": false
+    },
+    "windows_license": {
+     "result": "read",
+     "reason": null,
+     "windows_version": "11",
+     "edition_id": "Core",
+     "product_name": "Windows 10 Home",
+     "display_version": "24H2",
+     "build": 26100,
+     "activated": true,
+     "license_status": 1,
+     "channel": "OEM:DM",
+     "firmware_key_present": true,
+     "firmware_key_description": "[4.0] Core OEM:DM",
+     "observed_utc": "2026-09-27T12:00:00Z"
+    }
+   },
+   "stick": {
+    "unique_id": "{e981b5d9-d866-46a0-8b3f-000000000000}",
+    "serial_number": "",
+    "size_bytes": 34359738368,
+    "friendly_name": "Msft Virtual Disk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   },
+   "erase_consent": {
+    "statement": "I confirm that everything on this computer will be deleted and nothing will be kept",
+    "accepted_utc": "2026-09-26T21:00:00Z",
+    "disks": [
+     {
+      "role": "system",
+      "serial_number": "",
+      "unique_id": "60022480000000000000000000000001",
+      "size_bytes": 137438953472,
+      "friendly_name": "Msft Virtual Disk",
+      "health_status": "Healthy"
+     }
+    ]
+   }
+  },
+  "cmdline": "BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet",
+  "stick": {
+   "files": {
+    "upgrade_/LiveOS/gnome.squashfs": "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+    "KIT-MANIFEST.txt": "k",
+    "upgrade_/test-cancel-countdown": "2"
+   },
+   "markers": [
+    "boot-install:v9"
+   ]
+  },
+  "disks": [
+   {
+    "dev": "sdb",
+    "byid": [
+     "wwn-0x60022480000000000000000000000001",
+     "scsi-360022480000000000000000000000001"
+    ],
+    "size": 137438953472,
+    "model": "Msft Virtual Disk",
+    "parts": [
+     {
+      "n": 1,
+      "parttype": "c12a7328-f81f-11d2-ba4b-00a0c93ec93b",
+      "parttypename": "EFI System",
+      "size": 104857600,
+      "fstype": "vfat",
+      "partuuid": "22222222-0001-4000-8000-000000000001",
+      "esp": {
+       "EFI/Microsoft/Boot/bootmgfw.efi": "MZ-bootmgfw-windows-loader-bytes-0001",
+       "EFI/Microsoft/Boot/BCD": "BCD-store-bytes",
+       "EFI/Boot/bootx64.efi": "MZ-bootx64-windows-fallback-bytes-0002"
+      }
+     },
+     {
+      "n": 2,
+      "parttype": "ebd0a0a2-b9e5-4433-87c0-68b6b72699c7",
+      "parttypename": "Microsoft basic data",
+      "size": 137000000000,
+      "fstype": "ntfs",
+      "partuuid": "22222222-0002-4000-8000-000000000002"
+     }
+    ]
+   }
+  ],
+  "drm": [
+   {
+    "name": "card0-eDP-1",
+    "status": "connected",
+    "modes": [
+     "1920x1080",
+     "1280x720"
+    ]
+   },
+   {
+    "name": "card0-HDMI-A-1",
+    "status": "disconnected",
+    "modes": []
+   }
+  ],
+  "graphics": [
+   "fb0"
+  ],
+  "nmcli": {
+   "devices": [
+    [
+     "wlp2s0",
+     "wifi"
+    ],
+    [
+     "enp1s0",
+     "ethernet"
+    ]
+   ],
+   "ssids": [
+    "Home Net",
+    "Neighbour",
+    "CoffeeShop"
+   ]
+  },
+  "secureboot": 1,
+  "chvt_ok": true,
+  "keys": [],
+  "countdown_secs": 5,
+  "refusal_secs": 1,
+  "tty": true
+ },
+ {
+  "name": "erase: an unreadable test marker still only cancels (5 s, inside the countdown), never an erase",
+  "mode": "verify",
+  "job": {
+   "schema": "job/1",
+   "job_id": "9b7c1d2e-3f4a-4b5c-8d6e-7f8a9b0c1d2e",
+   "created_utc": "2026-09-08T21:00:00Z",
+   "evaluate": {
+    "version": "0.1.0",
+    "scanner_version": "0.1.0",
+    "harvest_version": "0.1.0",
+    "ran_as_admin": true
+   },
+   "identity": {
+    "vendor": "Microsoft Corporation",
+    "model": "Virtual Machine",
+    "system_uuid": "11111111-2222-3333-4444-555555555555",
+    "bios_serial": "0000-0000-0000-0000-0000-0000-00",
+    "bios_version": "Hyper-V UEFI Release v4.1",
+    "firmware_mode": "UEFI",
+    "secure_boot": "on",
+    "os_caption": "Microsoft Windows 10 Pro",
+    "os_build": 19045,
+    "system_disk": {
+     "number": 0,
+     "serial_number": "",
+     "unique_id": "60022480000000000000000000000001",
+     "friendly_name": "Msft Virtual Disk",
+     "size_bytes": 137438953472,
+     "partition_style": "GPT"
+    }
+   },
+   "scan": {
+    "verdict": "GREEN",
+    "required_kernel": null,
+    "report": "reports/upgrade-report.txt"
+   },
+   "intent": {
+    "path": "clean-slate",
+    "path_reason": "user-chose-fresh-start",
+    "desktop": "gnome",
+    "start_at": "desktop",
+    "distro": {
+     "name": "fedora",
+     "release": "42"
+    },
+    "account": {
+     "windows_name": "rig",
+     "full_name": null,
+     "linux_name": "rig",
+     "password_hash": "$6$saltsalt$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./abcdefghijklmnopqrstuv"
+    },
+    "locale": {
+     "lang": "en_GB.UTF-8",
+     "timezone": "Europe/London",
+     "keymap": "gb"
+    }
+   },
+   "fork": {
+    "if_cannot_keep": "stop",
+    "volume_check_consented": false
+   },
+   "storage": {
+    "shrinkable_gb": 10.0,
+    "shrink_source": "storage-api",
+    "shrink_error": null,
+    "linux_min_gb": 25,
+    "volume_health": {
+     "dirty": "clean",
+     "repair_queued": false,
+     "scan": null
+    },
+    "physical_disk": {
+     "health_status": "Healthy",
+     "operational_status": "OK"
+    },
+    "esp": {
+     "size_bytes": 104857600,
+     "free_bytes": 72219648,
+     "fits_alongside_install": true
+    }
+   },
+   "harvest": {
+    "clock": {
+     "windows_zone": "GMT Standard Time",
+     "iana": "Europe/London",
+     "rtc_is_local": true,
+     "real_time_is_universal": null,
+     "dst_auto_adjust": true,
+     "utc_offset_minutes": 60,
+     "base_utc_offset_minutes": 0,
+     "dst_active": true,
+     "observed_utc": "2026-09-08T21:00:00Z"
+    },
+    "folders": [
+     {
+      "name": "Documents",
+      "path": "C:\\Users\\rig\\Documents",
+      "exists": true,
+      "is_onedrive": false,
+      "files": 2850,
+      "bytes": 1610612736,
+      "cloud_only_files": 0,
+      "truncated": false
+     }
+    ],
+    "cloud_files": {
+     "placeholders_found": 0,
+     "materialized": 0,
+     "failed": 0,
+     "result": "none-found"
+    },
+    "stick_fit": {
+     "filesystem": "exFAT",
+     "cluster_bytes": 32768,
+     "free_bytes": 30000000000,
+     "files_bytes": 1610612736,
+     "needed_bytes": 1709933855,
+     "files_over_4gib": 0,
+     "fits": true,
+     "gap_bytes": 0
+    },
+    "browsers": [],
+    "wifi": {
+     "result": "exported",
+     "secrets_dir": "artifacts/credentials/wifi",
+     "profiles": [
+      {
+       "name": "Home Net",
+       "ssid": "Home Net",
+       "ssid_hex": "486F6D65204E6574",
+       "hidden": false,
+       "windows_auth": "WPA3SAE/AES",
+       "key_mgmt": "wpa-psk",
+       "supported": true,
+       "autoconnect": true,
+       "why_not": null,
+       "secrets_file": "artifacts/credentials/wifi/01.xml"
+      },
+      {
+       "name": "Cafe Guest",
+       "ssid": "Cafe Guest",
+       "ssid_hex": "43616665204775657374",
+       "hidden": false,
+       "windows_auth": "open/none",
+       "key_mgmt": "none",
+       "supported": true,
+       "autoconnect": false,
+       "why_not": null,
+       "secrets_file": null
+      },
+      {
+       "name": "Work",
+       "ssid": "Work",
+       "ssid_hex": "576F726B",
+       "hidden": false,
+       "windows_auth": "WPA2/AES",
+       "key_mgmt": "UNSUPPORTED",
+       "supported": false,
+       "autoconnect": true,
+       "why_not": "an enterprise network (a company or school sign-in)",
+       "secrets_file": null
+      }
+     ]
+    },
+    "bitlocker": {
+     "status": "off",
+     "recovery_key_file": null
+    },
+    "firmware_artifacts": [],
+    "software": {
+     "desktop": [
+      {
+       "name": "Google Chrome",
+       "version": "128.0",
+       "publisher": "Google LLC"
+      }
+     ],
+     "store": [],
+     "truncated": false
+    },
+    "windows_license": {
+     "result": "read",
+     "reason": null,
+     "windows_version": "11",
+     "edition_id": "Core",
+     "product_name": "Windows 10 Home",
+     "display_version": "24H2",
+     "build": 26100,
+     "activated": true,
+     "license_status": 1,
+     "channel": "OEM:DM",
+     "firmware_key_present": true,
+     "firmware_key_description": "[4.0] Core OEM:DM",
+     "observed_utc": "2026-09-27T12:00:00Z"
+    }
+   },
+   "stick": {
+    "unique_id": "{e981b5d9-d866-46a0-8b3f-000000000000}",
+    "serial_number": "",
+    "size_bytes": 34359738368,
+    "friendly_name": "Msft Virtual Disk",
+    "label": "UPGRADE",
+    "manifest": "SHA256SUMS"
+   },
+   "erase_consent": {
+    "statement": "I confirm that everything on this computer will be deleted and nothing will be kept",
+    "accepted_utc": "2026-09-26T21:00:00Z",
+    "disks": [
+     {
+      "role": "system",
+      "serial_number": "",
+      "unique_id": "60022480000000000000000000000001",
+      "size_bytes": 137438953472,
+      "friendly_name": "Msft Virtual Disk",
+      "health_status": "Healthy"
+     }
+    ]
+   }
+  },
+  "cmdline": "BOOT_IMAGE=/images/pxeboot/vmlinuz inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet",
+  "stick": {
+   "files": {
+    "upgrade_/LiveOS/gnome.squashfs": "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+    "KIT-MANIFEST.txt": "k",
+    "upgrade_/test-cancel-countdown": "soon"
+   },
+   "markers": [
+    "boot-install:v9"
+   ]
+  },
+  "disks": [
+   {
+    "dev": "sdb",
+    "byid": [
+     "wwn-0x60022480000000000000000000000001",
+     "scsi-360022480000000000000000000000001"
+    ],
+    "size": 137438953472,
+    "model": "Msft Virtual Disk",
+    "parts": [
+     {
+      "n": 1,
+      "parttype": "c12a7328-f81f-11d2-ba4b-00a0c93ec93b",
+      "parttypename": "EFI System",
+      "size": 104857600,
+      "fstype": "vfat",
+      "partuuid": "22222222-0001-4000-8000-000000000001",
+      "esp": {
+       "EFI/Microsoft/Boot/bootmgfw.efi": "MZ-bootmgfw-windows-loader-bytes-0001",
+       "EFI/Microsoft/Boot/BCD": "BCD-store-bytes",
+       "EFI/Boot/bootx64.efi": "MZ-bootx64-windows-fallback-bytes-0002"
+      }
+     },
+     {
+      "n": 2,
+      "parttype": "ebd0a0a2-b9e5-4433-87c0-68b6b72699c7",
+      "parttypename": "Microsoft basic data",
+      "size": 137000000000,
+      "fstype": "ntfs",
+      "partuuid": "22222222-0002-4000-8000-000000000002"
+     }
+    ]
+   }
+  ],
+  "drm": [
+   {
+    "name": "card0-eDP-1",
+    "status": "connected",
+    "modes": [
+     "1920x1080",
+     "1280x720"
+    ]
+   },
+   {
+    "name": "card0-HDMI-A-1",
+    "status": "disconnected",
+    "modes": []
+   }
+  ],
+  "graphics": [
+   "fb0"
+  ],
+  "nmcli": {
+   "devices": [
+    [
+     "wlp2s0",
+     "wifi"
+    ],
+    [
+     "enp1s0",
+     "ethernet"
+    ]
+   ],
+   "ssids": [
+    "Home Net",
+    "Neighbour",
+    "CoffeeShop"
+   ]
+  },
+  "secureboot": 1,
+  "chvt_ok": true,
+  "keys": [],
+  "countdown_secs": 8,
+  "refusal_secs": 1,
+  "tty": true
+ },
+ {
   "name": "hardware: no connectors, no wifi device, firmware artifacts listed and present; verify mode",
   "mode": "verify",
   "job": {
