@@ -297,7 +297,7 @@ class KeepWindowsTests(unittest.TestCase):
     def test_the_password_hash_reaches_the_machine_and_the_password_never_does(self):
         link = keep_link("  stopped\n")
         pushed = []
-        link.push = lambda local, remote, kind, **k: (pushed.append(open(local).read()), tr.Result(0, "", ""))[1]
+        link.push = lambda local, remote, kind, **k: (pushed.append(__import__("pathlib").Path(local).read_text()), tr.Result(0, "", ""))[1]
         oneclick.KeepWindows().run(self.ctx(link, Clock()), {})
         self.assertTrue(pushed and pushed[0].startswith("$6$"))
         self.assertFalse(any("pw-for-the-test" in c for c in link.commands))

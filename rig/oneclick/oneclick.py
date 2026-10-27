@@ -851,6 +851,31 @@ def load(run_dir):
     return run, secrets
 
 
+def record_facts(run_dir, link, journal):
+    """What the machine says it is, once, at the run's start: every row names
+    its machine and firmware from this, never from a typed name."""
+    who = link.probe()
+    if who == "windows":
+        r = link.run("$b = Get-CimInstance Win32_BIOS; $c = Get-CimInstance Win32_ComputerSystem; $o = Get-CimInstance Win32_OperatingSystem; "
+                     "[ordered]@{ manufacturer = $c.Manufacturer; model = $c.Model; bios_vendor = $b.Manufacturer; bios_version = $b.SMBIOSBIOSVersion; "
+                     "os_caption = $o.Caption; os_build = $o.BuildNumber; read_from = 'windows' } | ConvertTo-Json", "windows", 120)
+    elif who == "linux":
+        r = link.run("python3 -c 'import json,os,platform; d=\"/sys/class/dmi/id/\"; g=lambda n: open(d+n).read().strip() if os.path.exists(d+n) else \"\"; "
+                     "print(json.dumps(dict(manufacturer=g(\"sys_vendor\"), model=g(\"product_name\"), bios_vendor=g(\"bios_vendor\"), "
+                     "bios_version=g(\"bios_version\"), os_caption=platform.platform(), os_build=\"\", read_from=\"linux\")))'", "linux", 120)
+    else:
+        journal.write("note", text="the machine's facts were not read at the start: nothing answered")
+        return
+    try:
+        facts = json.loads(r.out)
+    except ValueError:
+        journal.write("note", text="the machine's facts did not read as JSON", out=r.out[-200:])
+        return
+    with open(os.path.join(run_dir, "facts.json"), "w", encoding="utf-8") as f:
+        json.dump(facts, f, indent=2)
+    journal.write("facts", firmware=f"{facts.get('bios_vendor', '')} {facts.get('bios_version', '')}".strip(), read_from=facts.get("read_from"))
+
+
 class KeepAwake:
     """The manager's own computer stays awake for the run (the G16 went into
     Modern Standby 16:16Z-20:31Z on 2026-10-27, freezing WSL and the run).
@@ -912,6 +937,7 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
     ctx = Context(run_dir, plan, secrets, link, journal, sleep, clock)
     if not journal.entries():
         journal.write("run-start", manager=VERSION, transport=link.describe(), machine=plan.get("machine", ""))
+        record_facts(run_dir, link, journal)
     while True:
         action, arg = next_action(plan, journal.entries())
         if action == "finished":
@@ -1067,6 +1093,11 @@ def main(argv=None):
     s.add_argument("run_dir")
     c = sub.add_parser("consent")
     c.add_argument("run_dir")
+    pr = sub.add_parser("promote", help="the run's rows, scrubbed, into docs/validation-results/oneclick-runs.csv")
+    pr.add_argument("run_dir")
+    pr.add_argument("--csv", default=os.path.join(REPO, "docs", "validation-results", "oneclick-runs.csv"))
+    pr.add_argument("--facts", help="another run's facts.json, for a run that recorded none (said in the notes)")
+    pr.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
     if a.cmd == "kickoff":
         d = kickoff(a.plan, a.transport)
@@ -1077,6 +1108,9 @@ def main(argv=None):
         return run_chain(a.run_dir)
     if a.cmd == "consent":
         return consent(a.run_dir)
+    if a.cmd == "promote":
+        import rows
+        return rows.promote(a.run_dir, a.csv, a.facts, a.dry_run)
     status(a.run_dir)
     return 0
 
