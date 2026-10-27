@@ -203,6 +203,11 @@ pub fn erase_start_refusal(job: &Value, confirm_word: &str, erase_consent: &str)
 /// Get-PrologueEraseReturn: Windows came back on the erase path; say why.
 pub fn erase_return(countdown: &Value, verify: &Value) -> Value {
     if truthy(countdown) && eq_ci(&s(at(countdown, "result")), "cancelled") {
+        // the one click test's marker (upgrade-installer 0.1.4) cancels as a key would; the
+        // record says which, never "a key was pressed" when none was (the rig, 2026-10-27)
+        if eq_ci(&s(at(countdown, "by")), "test-marker") {
+            return json!({"StoppedAt": "countdown", "Reason": format!("the USB stick's test marker cancelled the countdown in the installer ({}); nothing was erased and Windows is as it was", s(at(countdown, "ended_utc")))});
+        }
         return json!({"StoppedAt": "countdown", "Reason": format!("a key was pressed during the countdown in the installer ({}); nothing was erased and Windows is as it was", s(at(countdown, "ended_utc")))});
     }
     if truthy(countdown) && eq_ci(&s(at(countdown, "result")), "elapsed") {

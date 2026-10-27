@@ -244,3 +244,14 @@ fn stopped_outcomes_pass_the_contract() {
     assert!(checked >= 4, "{checked} outcomes checked");
     assert!(wrong.is_empty(), "{} stopped outcomes do not pass the contract:\n{}", wrong.len(), wrong.join("\n"));
 }
+
+#[test]
+fn a_countdown_the_test_marker_cancelled_never_says_a_key_was_pressed() {
+    // upgrade-installer 0.1.4's one click test marker (the rig, 2026-10-27): the record says which it was
+    let by_marker = judge::erase_return(&json!({"schema": "countdown/1", "result": "cancelled", "seconds": 120, "ended_utc": "2026-10-27T22:22:57Z", "by": "test-marker"}), &Value::Null);
+    assert_eq!(s(&by_marker["StoppedAt"]), "countdown");
+    assert!(s(&by_marker["Reason"]).starts_with("the USB stick's test marker cancelled the countdown"), "{by_marker}");
+    assert!(!s(&by_marker["Reason"]).contains("a key was pressed"));
+    let by_key = judge::erase_return(&json!({"schema": "countdown/1", "result": "cancelled", "seconds": 120, "ended_utc": "2026-10-27T22:22:57Z"}), &Value::Null);
+    assert!(s(&by_key["Reason"]).starts_with("a key was pressed during the countdown"), "a real key keeps its words: {by_key}");
+}
