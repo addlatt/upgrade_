@@ -145,7 +145,8 @@ Vocabulary: `validation-results/README.md`.
 
 **How it is run.** `rig/hyperv/v1.sh run` on the Hyper-V rig (Secure Boot
 off: Hyper-V's template refuses shim, the usual rig clause). On a real
-machine, `RUN-VERIFY.cmd` from the stick: scanner, job writer, kickstart
+machine, the window's Verify (`UPGRADE.exe --developer` since 2026-10-17;
+`RUN-VERIFY.cmd` before the window): scanner, job writer, kickstart
 (`upgrade_/windows/New-Kickstart.ps1`, now the Rust `upgrade_/kickstart`),
 handoff, the live session, the return. The stick carries Fedora's own
 Workstation and KDE live `squashfs.img`, unmodified, checked against
@@ -202,7 +203,7 @@ prologue shrinks, `%pre` (the verify step) snapshots the ESP to the stick,
 `liveimg` installs the stick's squashfs into the freed space reusing the
 Windows ESP unformatted, `%post` (the outcome step) runs the checklist and writes
 `outcome.json`; `v2-verdict.py` writes the row, `rollback-verdict.py` the
-rollback's (`upgrade-prologue rollback`). The Secure-Boot-on chainload is proven on
+rollback's (`settle-in rollback`, from Linux). The Secure-Boot-on chainload is proven on
 a UEFI-CA Hyper-V guest with Windows' PCA enrolled in shim's MokList
 ([log](log/2026-08.md#2026-08-31-secure-boot-on-chainload-via-mok-on-hyper-v-v1b-r21)). A real machine has
 no bench marker: its evidence comes from `rig/hyperv/physical/` (the
@@ -480,10 +481,8 @@ steps, each on the rig before a real machine:
    licence facts and proves a key handed to it never reaches `job.json`;
 2. the Aspire's hand reinstall: only an "after", since the licence before
    the erase was never recorded (R30);
-3. the guided stick (`settle-in go-back`): Microsoft's installer
-   downloaded, checked against its published hash, written to the named
-   stick and no other drive, started with Secure Boot on, installed, the
-   activation state read on the new Windows (`v11-way-back.csv`);
+3. the guided stick (`settle-in go-back`), rig only (`v11-way-back.csv`);
+   it left the product on 2026-10-17 (roadmap item 20), so no more rows;
 4. the walk-away reinstall (R33), four arms as V9 has, in
    `v11-walkaway.csv`: refuse before any countdown, both disks unchanged,
    Linux starting again; cancel on a key, untouched
@@ -499,8 +498,8 @@ steps, each on the rig before a real machine:
 
 Vocabulary: `validation-results/README.md`.
 
-**How it is run.** The rig: `settle-in go-back write --image` writes a
-file, never a disk, and `rig/hyperv/v11-stick.ps1` boots it in a new
+**How it is run.** The rig: `settle-in go-back walkaway prepare --image`
+writes a file, never a disk, and `rig/hyperv/v11-stick.ps1` boots it in a new
 Generation 2 VM, Secure Boot on, offline, with an empty 64 GB target; the
 walk-away arms start from a Fedora the V9 rig installed, two disks,
 spoofed networks. The Aspire: a real stick, a physical cancel first, then
@@ -513,8 +512,8 @@ kind. The Aspire: `v11-walkaway.csv` line 2, `fail` (2026-10-03: Windows
 11 reached and activated by its digital licence, four defects, all fixed
 that day); line 3, `windows-reached` (2026-10-04); line 4,
 `cancelled-untouched` (2026-10-06); line 5, `windows-reached` (2026-10-11,
-driven over ssh, a second stick). The guided stick: `v11-way-back.csv`
-line 3, `pass-plumbing` (rig, 2026-09-27). Owed: a second machine with a
+driven over ssh, a second stick). The guided stick, gone since 2026-10-17:
+`v11-way-back.csv` line 3, `pass-plumbing` (rig, 2026-09-27). Owed: a second machine with a
 firmware key, the Windows 10 path on a machine that cannot run Windows 11,
 the licence harvest as a row ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
 
@@ -699,7 +698,8 @@ screen need the Aspire.
 drew via wgpu on the guest (OpenGL 1.1 only), ran the scan, showed the job
 writer's refusal in its words and left nothing behind: `v12-window.csv`
 line 2, `stopped-before-arm` (2026-09-28, window 0.1.1), and line 3, the
-same over the Rust programs (2026-10-08). The Aspire's run of 2026-10-10
+same over the Rust programs (2026-10-08), and line 4, window 0.2.0 after
+item 20 (2026-10-18; `v12.sh screens` shot its new screens, no row). The Aspire's run of 2026-10-10
 started from `UPGRADE.exe --accepting-data-loss` (`r18-prologue.csv` line
 16's harness column), but no `v12-window.csv` row records the reopen or
 the result screen. Owed: steps 2 and 3

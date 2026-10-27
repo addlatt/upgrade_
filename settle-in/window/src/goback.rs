@@ -1,9 +1,10 @@
 //! "Go back to Windows" (architecture.md, "The way back to Windows"): the
 //! same window program, opened from the app menu with `--go-back`. Like the
 //! summary window it decides nothing and has no words of its own: the core
-//! (`settle-in go-back screen`) gives the words, `check` judges the file,
-//! `sticks` lists the sticks with every refusal, and the one write runs as
-//! `pkexec settle-in go-back write`, which checks everything again as root.
+//! (`settle-in go-back screen`) gives the words, `sticks` lists the sticks
+//! with every refusal, and the one write runs as `pkexec settle-in go-back
+//! walkaway prepare`, which checks everything again as root. (The guided
+//! stick, `go-back check` and `write`, left with roadmap item 20.)
 //!
 //! Decided 2026-09-29 (the owner): the way back is 100% managed (RISKS R33).
 //! The pages are now: the cost, what happens (both drives by name), the stick,

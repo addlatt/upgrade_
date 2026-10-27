@@ -989,8 +989,8 @@ split by wimlib, Windows Setup installed in a Gen 2 VM with Secure Boot on.
 The licence harvest (job writer 0.16.0) was read once by hand on the G16, not
 a row. The Aspire's firmware carries a maker's key (`MSDM`); its Windows 11
 Home came back activated with a digital licence on 2026-10-03, through R33's
-path, not the guided stick. Owed: the guided stick on a real machine, Windows
-11's ISO, a digital licence without a firmware key, the words approved
+path, not the guided stick, which left the product on 2026-10-17 (item 20).
+Owed: a digital licence without a firmware key, the words approved
 ([log](log/2026-10.md#2026-10-03-the-first-after-reinstall-licence-data-point-r30)).
 
 ## R31: The window in front of the scripts · medium · built

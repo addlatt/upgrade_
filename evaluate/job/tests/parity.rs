@@ -1,6 +1,8 @@
 //! The Rust job writer's judging half against New-Job.ps1 (RISKS R32;
-//! VALIDATION V13). `cases.json` lists the calls: all 126 cases of the
-//! PowerShell self-test under their own names, with the same inputs, plus
+//! VALIDATION V13). `cases.json` lists the calls: 115 of the 126 cases of the
+//! PowerShell self-test under their own names, with the same inputs (the 11
+//! that chose the forced clean slate left with it on 2026-10-17, roadmap item
+//! 20, as did the port cases calling with `IfCannotKeep` clean-slate), plus
 //! more. `golden.json` is what the PowerShell returned for each (written by
 //! `golden.ps1`). Every return must be equal in full, so everything the
 //! self-test asserts about these returns holds here too.
@@ -70,7 +72,7 @@ fn run(fn_name: &str, a: &Value) -> Value {
             }
         }
         "Get-JobPath" => {
-            let p = decide::path(&text(a, "DiskHealth"), arg("EspFits").as_bool().unwrap(), arg("ShrinkableGB").as_f64(), &text(a, "Dirty"), arg("DiskHealthAcknowledged").as_bool().unwrap(), arg("RepairQueued").as_bool().unwrap(), arg("Mitigable").as_bool().unwrap(), &text(a, "IfCannotKeep"));
+            let p = decide::path(&text(a, "DiskHealth"), arg("EspFits").as_bool().unwrap(), arg("DiskHealthAcknowledged").as_bool().unwrap());
             json!({"Path": p.map(|x| x.0), "Reason": p.map(|x| x.1)})
         }
         "Test-JobRepairQueued" => {
@@ -90,8 +92,8 @@ fn run(fn_name: &str, a: &Value) -> Value {
         },
         "Get-JobReleaseRefusal" => json!(decide::release_refusal(arg("Kit"), arg("Releases"))),
         "New-JobDocument" => {
-            let (desktop, start_at, hash, fork, rel, ack, erase) = (text(a, "Desktop"), a.get("StartAt").map_or("desktop".to_string(), s), text(a, "PasswordHash"), text(a, "IfCannotKeep"), text(a, "ReportRel"), text(a, "AcknowledgeDataLoss"), text(a, "EraseEverything"));
-            let choice = Choices { desktop: &desktop, start_at: &start_at, password_hash: &hash, if_cannot_keep: &fork, report_rel: &rel, acknowledge_data_loss: &ack, erase_everything: &erase };
+            let (desktop, start_at, hash, rel, ack, erase) = (text(a, "Desktop"), a.get("StartAt").map_or("desktop".to_string(), s), text(a, "PasswordHash"), text(a, "ReportRel"), text(a, "AcknowledgeDataLoss"), text(a, "EraseEverything"));
+            let choice = Choices { desktop: &desktop, start_at: &start_at, password_hash: &hash, report_rel: &rel, acknowledge_data_loss: &ack, erase_everything: &erase };
             match job_document(&facts(arg("F")), &choice, &Stamp { job_id: JOB_ID, now_utc: NOW, writer_version: FOLLOWS_JOB_WRITER }) {
                 Ok(job) => json!({"Refusals": [], "Job": job}),
                 Err(why) => json!({"Refusals": why, "Job": null}),
@@ -177,7 +179,7 @@ fn every_call_matches_powershell() {
             }
         }
     }
-    assert!(calls > 900 && jobs > 80, "{calls} calls, {jobs} jobs");
+    assert!(calls > 650 && jobs > 70, "{calls} calls, {jobs} jobs");
     wrong.truncate(12);
     assert!(wrong.is_empty(), "differences from New-Job.ps1 (first {}):\n\n{}", wrong.len(), wrong.join("\n\n"));
 }
@@ -185,7 +187,7 @@ fn every_call_matches_powershell() {
 #[test]
 fn the_self_test_is_all_here() {
     let n = cases().iter().filter(|c| c["origin"] == "selftest").count();
-    assert!(n >= 126, "only {n} self-test cases in cases.json");
+    assert!(n >= 115, "only {n} self-test cases in cases.json");
 }
 
 /// A job this code writes passes the contract, when its facts are real
@@ -208,6 +210,6 @@ fn the_jobs_pass_the_contract() {
     }
     wrong.sort();
     wrong.dedup();
-    assert!(checked > 75, "{checked} jobs checked");
+    assert!(checked > 65, "{checked} jobs checked");
     assert!(wrong.is_empty(), "{} of {checked} jobs do not pass the contract:\n{}", wrong.len(), wrong[..wrong.len().min(10)].join("\n"));
 }

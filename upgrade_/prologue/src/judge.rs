@@ -4,7 +4,7 @@
 use crate::val::{at, eq_ci, int, items, s, truthy};
 use crate::{CONFIRM_EXPECTED, ERASE_STATEMENT, FILES_MARGIN, GRUB_FIRED_VAR, UPDATE_MAX_RESTARTS, WINDOWS_KEEP_FREE_BYTES};
 use serde_json::{json, Value};
-use upgrade_scan::ps::{capture, matches, round1, Stamp};
+use upgrade_scan::ps::{capture, matches, Stamp};
 
 const MIB: f64 = 1048576.0;
 const GB: f64 = 1073741824.0;
@@ -229,42 +229,15 @@ pub fn shrink_plan(part_size: i64, size_min: i64, free_bytes: i64, linux_min_gb:
     json!({"ShrinkableBytes": shrinkable, "TargetBytes": target, "MaxByFreeBytes": by_free, "Fits": fits, "RequestedBytes": if fits { json!(target) } else { Value::Null }, "Reason": reason})
 }
 
-/// Get-PrologueFork: the fork exactly as the job pre-chose it (RISKS R18).
-pub fn fork(job_path: &str, fits: bool, if_cannot_keep: &str, path_reason: &str) -> &'static str {
-    if eq_ci(job_path, "clean-slate") {
-        if eq_ci(path_reason, "forced-no-room") && !eq_ci(if_cannot_keep, "clean-slate") {
-            return "stop";
-        }
-        return "clean-slate";
-    }
-    if fits {
+/// Get-PrologueFork (RISKS R18): keep Windows when Linux fits, else stop.
+/// Only the erase wipes, through its own stage and sentence; a clean-slate
+/// job reaching here (the forced fallback, which left the product on
+/// 2026-10-17, roadmap item 20) stops, Windows untouched.
+pub fn fork(job_path: &str, fits: bool) -> &'static str {
+    if !eq_ci(job_path, "clean-slate") && fits {
         return "keep-windows";
     }
-    if eq_ci(if_cannot_keep, "clean-slate") {
-        return "clean-slate";
-    }
     "stop"
-}
-
-/// Get-PrologueTimeEstimate: seconds at a measured speed; nothing without one.
-pub fn time_estimate(bytes: i64, mbps: Option<f64>) -> Option<i64> {
-    let m = mbps?;
-    if m <= 0.0 {
-        return None;
-    }
-    Some((bytes as f64 / 1e6 / m).ceil() as i64)
-}
-
-/// Format-PrologueDuration.
-pub fn duration(seconds: Option<i64>) -> String {
-    let Some(s) = seconds else { return "unknown (no write speed measured)".to_string() };
-    if s < 90 {
-        return format!("about {s} seconds");
-    }
-    if s < 5400 {
-        return format!("about {} minutes", (s as f64 / 60.0).ceil() as i64);
-    }
-    format!("about {} hours", upgrade_scan::ps::num(round1(s as f64 / 3600.0)))
 }
 
 /// Get-HandoffResult: the harness's classifier, unchanged.
@@ -507,16 +480,6 @@ pub fn restore_plan(shrink: &Value, keep_hibernation_off: bool) -> Vec<&'static 
     plan
 }
 
-/// Get-PrologueStageRefusal: nothing to stage, or nothing staged, is a refusal.
-pub fn stage_refusal(folders: i64, staged_files: Option<i64>) -> Option<String> {
-    if folders < 1 {
-        return Some("the job lists none of your folders (none of the six was found on this computer), so there is nothing to copy to the stick; refusing to prepare a wipe with no copy of your files".to_string());
-    }
-    if staged_files.is_some_and(|n| n < 1) {
-        return Some(format!("no files were copied to the stick from the {folders} folder(s) the job lists; refusing to prepare a wipe with no copy of your files"));
-    }
-    None
-}
 
 /// Get-PrologueStopSentence: "as it was" only when that is true.
 pub fn stop_sentence(restored: &[String]) -> String {

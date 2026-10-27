@@ -13,11 +13,13 @@
 //! The launchers as flows (2026-10-08): verify (RUN-VERIFY.cmd: nothing is
 //! installed and nothing on the internal drive is changed), convert
 //! (RUN-CONVERT.cmd: keep Windows, install Linux beside it), erase
-//! (RUN-ERASE-AND-INSTALL.cmd), roll back (ROLLBACK.cmd), the walk-away
+//! (RUN-ERASE-AND-INSTALL.cmd; since 2026-10-17 Convert's clean-slate answer,
+//! not a button of its own), roll back (a pointer to Linux since 2026-10-17), the walk-away
 //! probe (RUN-PROBE.cmd) and cancel (CANCEL-CONVERSION.cmd). The data-loss
 //! variants of convert and erase are reached only by starting the window
-//! with --accepting-data-loss, its own launcher, as rule #1 asks. The .cmd
-//! launchers stay on the stick as the fallback.
+//! with --accepting-data-loss, its own launcher, as rule #1 asks. Verify and
+//! the probe show only with --developer (roadmap item 20, 2026-10-17): they
+//! make the rows, and a person converting never needs them.
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod flow;
@@ -401,7 +403,7 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
     }
 }
 
-/// ROLLBACK.cmd, RUN-PROBE.cmd and CANCEL-CONVERSION.cmd are one call each;
+/// RUN-PROBE.cmd and CANCEL-CONVERSION.cmd are one call each;
 /// the probe restarts the computer itself, so the window cannot close while
 /// it runs.
 fn one_call(stick: String, c: flow::Call, restarts: bool, tx: Sender<Msg>, guard: Shared) {
@@ -474,6 +476,28 @@ enum Flow {
     Cancel,
 }
 
+/// The first screen's buttons. Verify and Probe make the rows (V0, V1, R24)
+/// and a person converting never needs them: they show only with
+/// --developer (roadmap item 20, R31). Erase is no longer a button: it is
+/// Convert's clean-slate answer, on the set-up screen. The data-loss launcher
+/// shows only its own convert (rule #1, R23).
+fn first_screen(accepting_data_loss: bool, developer: bool) -> Vec<(&'static str, &'static str, Flow)> {
+    if accepting_data_loss {
+        return vec![(words::CHOOSE_CONVERT_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Convert)];
+    }
+    let mut v = vec![];
+    if developer {
+        v.push((words::CHOOSE_VERIFY, words::CHOOSE_VERIFY_LINE, Flow::Verify));
+    }
+    v.push((words::CHOOSE_CONVERT, words::CHOOSE_CONVERT_LINE, Flow::Convert));
+    v.push((words::CHOOSE_ROLLBACK, words::CHOOSE_ROLLBACK_LINE, Flow::Rollback));
+    if developer {
+        v.push((words::CHOOSE_PROBE, words::CHOOSE_PROBE_LINE, Flow::Probe));
+    }
+    v.push((words::CHOOSE_CANCEL, words::CHOOSE_CANCEL_LINE, Flow::Cancel));
+    v
+}
+
 enum Screen {
     Choose,
     Welcome,
@@ -511,6 +535,8 @@ struct App {
     flow: Flow,
     /// started with --accepting-data-loss: the convert flow asks the sentence (RISKS R23)
     accepting_data_loss: bool,
+    /// started with --developer: Verify and Probe on the first screen (roadmap item 20)
+    developer: bool,
     setup: Setup,
     word: String,
     word_tx: Option<Sender<String>>,
@@ -521,7 +547,7 @@ struct App {
 
 impl App {
     fn new(screen: Screen, stick: String, after: bool, accepting_data_loss: bool, rx: Option<Receiver<Msg>>, guard: Shared) -> App {
-        App { screen, stick, after, arming: false, flow: Flow::Verify, accepting_data_loss, setup: Setup::default(), word: String::new(), word_tx: None, log: vec![], rx, guard }
+        App { screen, stick, after, arming: false, flow: Flow::Verify, accepting_data_loss, developer: false, setup: Setup::default(), word: String::new(), word_tx: None, log: vec![], rx, guard }
     }
 
     fn channel(&mut self, ctx: &egui::Context) -> Sender<Msg> {
@@ -596,7 +622,6 @@ impl App {
                 Msg::Done(code, lines) => {
                     self.arming = false;
                     self.screen = match (self.flow, code) {
-                        (Flow::Rollback, 0) => Screen::Done(words::ROLLBACK_DONE_HEADING.into(), words::ROLLBACK_DONE_LINE.into()),
                         (Flow::Probe, 0) => Screen::Done(words::PROBE_RESTARTING_HEADING.into(), words::PROBE_RESTARTING_LINE.into()),
                         (Flow::Cancel, 0) => Screen::Done(words::CANCEL_DONE_HEADING.into(), words::CANCEL_DONE_LINE.into()),
                         (_, _) => Screen::Stopped(Stop::Refused(flow::refusal_lines(&lines))),
@@ -734,16 +759,8 @@ impl eframe::App for App {
                             para(ui, line);
                             ui.add_space(8.0);
                         };
-                        if !self.accepting_data_loss {
-                            choice(ui, words::CHOOSE_VERIFY, words::CHOOSE_VERIFY_LINE, Flow::Verify);
-                            choice(ui, words::CHOOSE_CONVERT, words::CHOOSE_CONVERT_LINE, Flow::Convert);
-                            choice(ui, words::CHOOSE_ERASE, words::CHOOSE_ERASE_LINE, Flow::Erase);
-                            choice(ui, words::CHOOSE_ROLLBACK, words::CHOOSE_ROLLBACK_LINE, Flow::Rollback);
-                            choice(ui, words::CHOOSE_PROBE, words::CHOOSE_PROBE_LINE, Flow::Probe);
-                            choice(ui, words::CHOOSE_CANCEL, words::CHOOSE_CANCEL_LINE, Flow::Cancel);
-                        } else {
-                            choice(ui, words::CHOOSE_CONVERT_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Convert);
-                            choice(ui, words::CHOOSE_ERASE_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Erase);
+                        for (label, line, f) in first_screen(self.accepting_data_loss, self.developer) {
+                            choice(ui, label, line, f);
                         }
                         ui.add_space(12.0);
                         if ui.button(words::CLOSE).clicked() {
@@ -781,6 +798,19 @@ impl eframe::App for App {
                             }
                             ui.add_space(8.0);
                         }
+                        // Convert's one switch: keep Windows, or the clean slate (the erase
+                        // flow, unchanged). A switch clears the typed erase sentence, so it is
+                        // always typed under the words it answers.
+                        ui.label(egui::RichText::new(words::PATH_HEADING).strong().size(17.0));
+                        let before = self.flow;
+                        ui.radio_value(&mut self.flow, Flow::Convert, words::PATH_KEEP);
+                        para(ui, words::PATH_KEEP_LINE);
+                        ui.radio_value(&mut self.flow, Flow::Erase, words::PATH_CLEAN);
+                        para(ui, words::PATH_CLEAN_LINE);
+                        if self.flow != before {
+                            self.setup.erase.clear();
+                        }
+                        ui.add_space(10.0);
                         if self.flow == Flow::Erase {
                             heading(ui, words::ERASE_HEADING);
                             ui.label(egui::RichText::new(words::ERASE_READ_FIRST).strong().size(17.0));
@@ -848,7 +878,7 @@ impl eframe::App for App {
                             Flow::Verify => (words::RUNNING_HEADING, &words::STEPS),
                             Flow::Convert => (words::CONVERT_RUNNING_HEADING, &words::CONVERT_STEPS),
                             Flow::Erase => (words::ERASE_RUNNING_HEADING, &words::ERASE_STEPS),
-                            Flow::Rollback => (words::ROLLBACK_RUNNING, &[]),
+                            Flow::Rollback => (words::ROLLBACK_HEADING, &[]),
                             Flow::Probe => (words::PROBE_RUNNING, &[]),
                             Flow::Cancel => (words::CANCEL_RUNNING, &[]),
                         };
@@ -946,7 +976,6 @@ impl eframe::App for App {
                                     ui,
                                     match self.flow {
                                         Flow::Convert | Flow::Erase => words::CONVERT_STOPPED_HEADING,
-                                        Flow::Rollback => words::ROLLBACK_FAILED_HEADING,
                                         Flow::Cancel => words::CANCEL_FAILED_HEADING,
                                         _ => words::STOPPED_HEADING,
                                     },
@@ -990,7 +1019,6 @@ impl eframe::App for App {
                     }
                     Screen::Ask => {
                         let (h, lines, button): (&str, &[&str], &str) = match self.flow {
-                            Flow::Rollback => (words::ROLLBACK_HEADING, &words::ROLLBACK_LINES, words::CONVERT_CONTINUE),
                             Flow::Probe => (words::PROBE_HEADING, &words::PROBE_LINES, words::PROBE_GO),
                             _ => (words::CANCEL_HEADING, &words::CANCEL_LINES, words::CANCEL_GO),
                         };
@@ -999,14 +1027,9 @@ impl eframe::App for App {
                             para(ui, l);
                         }
                         ui.add_space(8.0);
-                        if self.flow == Flow::Rollback {
-                            ui.label(egui::RichText::new(words::ROLLBACK_TYPE).strong());
-                            ui.add(egui::TextEdit::singleline(&mut self.word).desired_width(200.0));
-                            ui.add_space(8.0);
-                        }
                         ui.horizontal(|ui| {
                             if ui.add(egui::Button::new(egui::RichText::new(button).size(17.0))).clicked() {
-                                press = if self.flow == Flow::Rollback { Press::Word } else { Press::Go };
+                                press = Press::Go;
                             }
                             if ui.button(words::CLOSE).clicked() {
                                 press = Press::Close;
@@ -1057,8 +1080,8 @@ impl eframe::App for App {
             self.screen = match f {
                 Flow::Verify => Screen::Welcome,
                 Flow::Convert | Flow::Erase => Screen::ConvertSetup,
-                Flow::Rollback if !flow::rollback_snapshot_present(&stick_root(&self.stick)) => Screen::Stopped(Stop::Refused(vec![words::ROLLBACK_NO_SNAPSHOT.into()])),
-                Flow::Rollback | Flow::Probe | Flow::Cancel => Screen::Ask,
+                Flow::Rollback => Screen::Done(words::ROLLBACK_HEADING.into(), words::ROLLBACK_FROM_LINUX.into()),
+                Flow::Probe | Flow::Cancel => Screen::Ask,
             };
         }
         match press {
@@ -1074,17 +1097,6 @@ impl eframe::App for App {
                     self.start_convert(&ctx);
                 }
             },
-            Press::Word if self.flow == Flow::Rollback => {
-                let root = stick_root(&self.stick);
-                if flow::rollback_ok(&self.word) {
-                    log_line(&root, "the rollback word was typed");
-                    let c = flow::rollback_call(&self.stick);
-                    self.start_one(&ctx, c, false);
-                } else {
-                    log_line(&root, "the rollback word was not typed; stopped");
-                    self.screen = Screen::Stopped(Stop::Refused(vec![words::DECIDE_NOT_CONFIRMED.into()]));
-                }
-            }
             Press::Word => {
                 let root = stick_root(&self.stick);
                 if flow::confirm_ok(&self.word) {
@@ -1157,8 +1169,7 @@ fn preview(name: &str) -> (Screen, Flow, bool) {
         "erase" => (Screen::ConvertSetup, Flow::Erase, false),
         "erase-decide" => (Screen::Decide { linux_name: "ann".into() }, Flow::Erase, false),
         "erase-restarting" => (Screen::ConvertRestarting, Flow::Erase, false),
-        "rollback" => (Screen::Ask, Flow::Rollback, false),
-        "rollback-done" => (Screen::Done(words::ROLLBACK_DONE_HEADING.into(), words::ROLLBACK_DONE_LINE.into()), Flow::Rollback, false),
+        "rollback" => (Screen::Done(words::ROLLBACK_HEADING.into(), words::ROLLBACK_FROM_LINUX.into()), Flow::Rollback, false),
         "probe" => (Screen::Ask, Flow::Probe, false),
         "cancel" => (Screen::Ask, Flow::Cancel, false),
         "convert-stopped" => (Screen::Stopped(Stop::Prologue(vec!["STOPPED at revalidate: job.json no longer matches this machine: volume_health.repair_queued: job says 'False', machine says 'True'".into(), "outcome.json (stopped) written to the stick".into()])), Flow::Convert, false),
@@ -1231,13 +1242,38 @@ fn main() {
         return open(App::new(Screen::Waiting, stick, true, false, Some(rx), guard));
     }
 
+    let developer = args.iter().any(|a| a == "--developer");
     if !win::is_elevated() {
         // the one administrator prompt; if it is declined nothing has happened
-        win::relaunch_elevated(if accepting { "--accepting-data-loss" } else { "" });
+        let pass: Vec<&str> = [(accepting, "--accepting-data-loss"), (developer, "--developer")].iter().filter(|(on, _)| *on).map(|(_, a)| *a).collect();
+        win::relaunch_elevated(&pass.join(" "));
         return;
     }
     let exe = std::env::current_exe().unwrap_or_default();
     let s = exe.to_string_lossy().to_string();
     let stick = if s.len() >= 2 && s.as_bytes()[1] == b':' { s[..2].to_uppercase() } else { String::new() };
-    open(App::new(Screen::Choose, stick, false, accepting, None, guard));
+    let mut app = App::new(Screen::Choose, stick, false, accepting, None, guard);
+    app.developer = developer;
+    open(app);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn flows(a: bool, d: bool) -> Vec<&'static str> {
+        first_screen(a, d).iter().map(|(_, _, f)| match f { Flow::Verify => "verify", Flow::Convert => "convert", Flow::Erase => "erase", Flow::Rollback => "rollback", Flow::Probe => "probe", Flow::Cancel => "cancel" }).collect()
+    }
+
+    #[test]
+    fn verify_and_probe_only_with_the_developer_flag() {
+        assert_eq!(flows(false, false), ["convert", "rollback", "cancel"]);
+        assert_eq!(flows(false, true), ["verify", "convert", "rollback", "probe", "cancel"]);
+    }
+
+    #[test]
+    fn the_data_loss_launcher_shows_only_its_own_convert() {
+        assert_eq!(flows(true, false), ["convert"]);
+        assert_eq!(flows(true, true), ["convert"], "the developer flag adds nothing to the data-loss screen");
+    }
 }

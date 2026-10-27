@@ -1,11 +1,11 @@
-//! "Go back to Windows": write Microsoft's installer to the one USB stick the
-//! person named (RISKS R16, R30). The only part of this program that writes
-//! to a disk, so rule #4: it re-checks everything itself, and any doubt stops
-//! it before the first byte.
+//! "Go back to Windows": write the walk-away's Windows stick to the one USB
+//! stick the person named (RISKS R16, R33). The part of this program that
+//! writes to a stick, so rule #4: it re-checks everything itself, and any
+//! doubt stops it before the first byte.
 //!
 //! Before anything is written:
-//!   1. the file is hashed again and must be in Microsoft's table, and be the
-//!      Windows this computer was offered;
+//!   1. the folder built from Microsoft's catalog file (walkaway::build_tree,
+//!      checked there) must hold Setup's files and the job;
 //!   2. the stick is found again from a FRESH list by serial number, its size
 //!      must match to the byte, the typed word must be its model name, and it
 //!      must break none of R16's rules (sticks::choose);
@@ -32,10 +32,10 @@ const LABEL: &str = "WINSETUP";
 const PATH_ENV: &str = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 
 pub struct Request {
-    pub iso: String,
     /// The walk-away way back (R33): a folder already built from Microsoft's
-    /// catalog file (walkaway::build_tree), checked there, instead of an ISO.
-    pub tree: Option<String>,
+    /// catalog file (walkaway::build_tree), checked there. (The guided stick's
+    /// downloaded ISO left with roadmap item 20.)
+    pub tree: String,
     pub want: Option<String>,
     pub serial: String,
     pub size_bytes: u64,
@@ -211,25 +211,16 @@ pub fn write(req: &Request) -> Value {
         }
     }
 
-    // 1. the file, again (or the built folder: its source was checked against
-    //    Microsoft's catalog when it was built, and it must look like Setup's)
-    let (chk, min) = if let Some(t) = &req.tree {
-        let need = ["setup.exe", "bootmgr.efi", "efi/boot/bootx64.efi", "sources/boot.wim", "sources/install.wim", "upgrade_/go-back.json"];
-        if let Some(m) = need.iter().find(|n| !std::path::Path::new(&format!("{}/{}", t, n)).exists()) {
-            return log.stop("check-file", format!("the prepared Windows files are incomplete ({} is missing)", m), false);
-        }
-        let total: u64 = walk(t).map(|f| f.iter().map(|x| x.1).sum()).unwrap_or(0);
-        log.ok("check-file", json!({ "tree": t, "bytes": total }));
-        (json!({ "media": { "windows": req.want, "language": null } }), total + 256 * 1024 * 1024)
-    } else {
-        let chk = goback::check_report(&req.iso, req.want.as_deref(), &goback::media());
-        if chk["result"] != "verified" {
-            return log.stop("check-file", chk["why"].as_str().unwrap_or("the file is not Microsoft's installer").to_string(), false);
-        }
-        let iso_size = chk["size"].as_u64().unwrap_or(0);
-        log.ok("check-file", json!({ "sha256": chk["sha256"], "media": chk["media"] }));
-        (chk, iso_size + 256 * 1024 * 1024)
-    };
+    // 1. the built folder: its source was checked against Microsoft's catalog
+    //    when it was built, and it must look like Setup's
+    let t = &req.tree;
+    let need = ["setup.exe", "bootmgr.efi", "efi/boot/bootx64.efi", "sources/boot.wim", "sources/install.wim", "upgrade_/go-back.json"];
+    if let Some(m) = need.iter().find(|n| !std::path::Path::new(&format!("{}/{}", t, n)).exists()) {
+        return log.stop("check-file", format!("the prepared Windows files are incomplete ({} is missing)", m), false);
+    }
+    let total: u64 = walk(t).map(|f| f.iter().map(|x| x.1).sum()).unwrap_or(0);
+    log.ok("check-file", json!({ "tree": t, "bytes": total }));
+    let (chk, min) = (json!({ "media": { "windows": req.want, "language": null } }), total + 256 * 1024 * 1024);
 
     let mut mounts = Mounts { points: Vec::new(), loops: Vec::new() };
     // 2. the stick, found again
@@ -322,24 +313,14 @@ pub fn write(req: &Request) -> Value {
 
     // mount both, in a private folder
     let base = format!("/run/upgrade_-go-back.{}", std::process::id());
-    let (isodir, stickdir) = (format!("{}/iso", base), format!("{}/stick", base));
-    for d in [&isodir, &stickdir] {
+    let stickdir = format!("{}/stick", base);
+    for d in [&stickdir] {
         if let Err(e) = std::fs::create_dir_all(d) {
             return log.stop("mount", format!("{}: {}", d, e), true);
         }
     }
     let _ = std::fs::set_permissions(&base, std::os::unix::fs::PermissionsExt::from_mode(0o700));
-    let isodir = if let Some(t) = &req.tree {
-        t.clone()
-    } else {
-        if run("mount", &["-o", "ro,loop", "-t", "udf", &req.iso, &isodir]).is_err() {
-            if let Err(e) = run("mount", &["-o", "ro,loop", "-t", "iso9660", &req.iso, &isodir]) {
-                return log.stop("mount", e, true);
-            }
-        }
-        mounts.points.push(isodir.clone());
-        isodir
-    };
+    let isodir = req.tree.clone();
     if let Err(e) = run("mount", &["-t", "vfat", "-o", "flush", &part, &stickdir]) {
         return log.stop("mount", e, true);
     }
@@ -484,7 +465,7 @@ mod tests {
         if unsafe { libc::geteuid() } == 0 {
             return;
         }
-        let r = write(&Request { iso: "/nonexistent".into(), tree: None, want: None, serial: "X".into(), size_bytes: 1, typed: "X".into(), image: None, wimlib: "/nonexistent".into(), root: "/".into() });
+        let r = write(&Request { tree: "/nonexistent".into(), want: None, serial: "X".into(), size_bytes: 1, typed: "X".into(), image: None, wimlib: "/nonexistent".into(), root: "/".into() });
         assert_eq!(r["result"], "stopped");
         assert_eq!(r["stopped_at"], "rights");
         assert_eq!(r["stick_changed"], false);

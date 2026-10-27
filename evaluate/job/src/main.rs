@@ -3,7 +3,7 @@
 //!
 //!   upgrade-job write --stick <X:> --out <stick>\upgrade_ --scan <reports dir>
 //!                     --desktop kde|gnome --start-at desktop|console
-//!                     [--password-hash-file <file>] [--if-cannot-keep stop|clean-slate]
+//!                     [--password-hash-file <file>] [--if-cannot-keep stop]
 //!                     [--acknowledge-data-loss "<sentence>"] [--erase-everything "<sentence>"]
 //!                     [--verify-only] [--materialize]
 //!                     [--kickstart <file> --stick-label <label> --manifest <SHA256SUMS>]
@@ -183,8 +183,9 @@ mod on_windows {
             return ExitCode::from(2);
         }
         let if_cannot_keep = value_of("--if-cannot-keep").unwrap_or_else(|| "stop".to_string());
-        if if_cannot_keep != "stop" && if_cannot_keep != "clean-slate" {
-            eprintln!("--if-cannot-keep must be stop or clean-slate");
+        // the forced clean slate left the product (decided 2026-10-17, the owner)
+        if if_cannot_keep != "stop" {
+            eprintln!("--if-cannot-keep takes only stop: a computer that cannot keep Windows stops, untouched");
             return ExitCode::from(2);
         }
         let verify_only = has("--verify-only");
@@ -242,7 +243,7 @@ mod on_windows {
         let now = live::now_utc_z();
         let ack = value_of("--acknowledge-data-loss").unwrap_or_default();
         let erase = value_of("--erase-everything").unwrap_or_default();
-        let choice = Choices { desktop: &desktop, start_at: &start_at, password_hash: &password_hash, if_cannot_keep: &if_cannot_keep, report_rel: &report_rel, acknowledge_data_loss: &ack, erase_everything: &erase };
+        let choice = Choices { desktop: &desktop, start_at: &start_at, password_hash: &password_hash, report_rel: &report_rel, acknowledge_data_loss: &ack, erase_everything: &erase };
         let mut job = match job_document(&facts, &choice, &Stamp { job_id: &job_id, now_utc: &now, writer_version: env!("CARGO_PKG_VERSION") }) {
             Ok(j) => j,
             Err(refusals) => return refused(&refusals),
