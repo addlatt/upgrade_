@@ -167,14 +167,13 @@ class HyperV:
         ip = self.guest_ip()
         if not ip:
             return None
-        common = ["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "LogLevel=ERROR"]
-        wsl = Ssh(f"{self.user}@{ip}", extra=["-i", self.key, *common])
+        # the rig's guest is reinstalled every run: its host key is never remembered
+        common = ["-o", "StrictHostKeyChecking=no", "-o", "LogLevel=ERROR"]
+        wsl = Ssh(f"{self.user}@{ip}", extra=["-i", self.key, *common, "-o", "UserKnownHostsFile=/dev/null"])
         if "Linux" in wsl.raw("uname -s", timeout=20).out:
             return wsl
-        wkey = self._windows_key()
-        win = Ssh(f"{self.user}@{ip}", extra=["-i", wkey, *common, "-o", "UserKnownHostsFile=NUL"],
+        win = Ssh(f"{self.user}@{ip}", extra=["-i", self._windows_key(), *common, "-o", "UserKnownHostsFile=NUL"],
                   ssh=self.WIN_SSH, scp=self.WIN_SCP, windows_client=True)
-        win.opts = [o for o in win.opts if o != "UserKnownHostsFile=/dev/null"]
         if "Linux" in win.raw("uname -s", timeout=20).out:
             return win
         return None

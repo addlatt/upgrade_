@@ -34,6 +34,7 @@ import json
 import os
 import re
 import secrets as pysecrets
+import shutil
 import subprocess
 import sys
 import time
@@ -824,7 +825,60 @@ def load(run_dir):
     return run, secrets
 
 
+class KeepAwake:
+    """The manager's own computer stays awake for the run (the G16 went into
+    Modern Standby 16:16Z-20:31Z on 2026-10-27, freezing WSL and the run).
+    A Windows helper holds ES_SYSTEM_REQUIRED while a lock file in the run
+    folder is fresh; a thread here refreshes it every minute, so a manager
+    that dies lets the computer sleep again within 10 minutes. It stops idle
+    sleep, not a closed lid or the power button."""
+
+    def __init__(self, run_dir):
+        self.lock = os.path.join(run_dir, ".awake")
+        self.proc, self.thread, self.stop = None, None, None
+
+    def __enter__(self):
+        import threading
+        if not shutil.which("powershell.exe"):
+            return self
+        with open(self.lock, "w") as f:
+            f.write(utc())
+        win = subprocess.run(["wslpath", "-w", self.lock], capture_output=True, text=True).stdout.strip()
+        script = ("Add-Type -Name P -Namespace W -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern uint SetThreadExecutionState(uint f);'; "
+                  "[W.P]::SetThreadExecutionState([uint32]2147483649) | Out-Null; "
+                  f"while ((Test-Path '{win}') -and (((Get-Date) - (Get-Item '{win}').LastWriteTime).TotalMinutes -lt 10)) {{ Start-Sleep 30 }}")
+        self.proc = subprocess.Popen(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", tr.encoded(script)],
+                                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.stop = threading.Event()
+
+        def touch():
+            while not self.stop.wait(60):
+                try:
+                    os.utime(self.lock)
+                except OSError:
+                    return
+        self.thread = threading.Thread(target=touch, daemon=True)
+        self.thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        if self.stop:
+            self.stop.set()
+        try:
+            os.remove(self.lock)
+        except OSError:
+            pass
+        return False
+
+
 def run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=print):
+    if link is not None:   # a test's made-up machine: no helper on the real computer
+        return _run_chain(run_dir, link, sleep, clock, out)
+    with KeepAwake(run_dir):
+        return _run_chain(run_dir, link, sleep, clock, out)
+
+
+def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=print):
     run, secrets = load(run_dir)
     plan = run["plan"]
     link = link or tr.from_spec(run["transport"])
