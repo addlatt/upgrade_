@@ -4,8 +4,8 @@
 //!   upgrade-stick list
 //!   upgrade-stick plan  --target <unique id> (--expected-bytes N | --expected-gb X) [--results-csv <file>]
 //!   upgrade-stick write --target <unique id> (--expected-bytes N | --expected-gb X) --source <dist/kit/stick>
-//!                       [--label UPGRADE] [--boot-size-gb 4] [--confirmed-label <word>] [--results-csv <file>]
-//!   upgrade-stick copy  --drive <X:> [--kit <dist/kit/stick>]
+//!                       [--label UPGV0] [--boot-size-gb 4] [--confirmed-label <word>] [--results-csv <file>]
+//!   upgrade-stick copy  --drive <X:> [--kit <dist/kit/stick>] [--save-to <dir>]
 //!
 //! Never a disk number: --target is the disk's UniqueId from `list`. plan
 //! is read-only and records a row; write refuses by default, re-resolves
@@ -19,8 +19,8 @@ fn usage() -> ExitCode {
     eprintln!("upgrade-stick {} (Rust; follows Write-UpgradeStick.ps1 {})", upgrade_stick::VERSION, upgrade_stick::FOLLOWS_WRITER);
     eprintln!("usage: upgrade-stick list");
     eprintln!("       upgrade-stick plan  --target <unique id> (--expected-bytes N | --expected-gb X) [--results-csv <file>]");
-    eprintln!("       upgrade-stick write --target <unique id> (--expected-bytes N | --expected-gb X) --source <dir> [--label UPGRADE] [--boot-size-gb 4] [--confirmed-label <word>] [--results-csv <file>]");
-    eprintln!("       upgrade-stick copy  --drive <X:> [--kit <dir>]");
+    eprintln!("       upgrade-stick write --target <unique id> (--expected-bytes N | --expected-gb X) --source <dir> [--label UPGV0] [--boot-size-gb 4] [--confirmed-label <word>] [--results-csv <file>]");
+    eprintln!("       upgrade-stick copy  --drive <X:> [--kit <dir>] [--save-to <dir>]");
     ExitCode::from(2)
 }
 
@@ -35,7 +35,7 @@ fn run(args: &[String]) -> ExitCode {
             eprintln!("give --drive <X:>");
             return ExitCode::from(2);
         };
-        return match upgrade_stick::live::copy_kit(&drive, value_of("--kit").as_deref()) {
+        return match upgrade_stick::live::copy_kit(&drive, value_of("--kit").as_deref(), value_of("--save-to").as_deref()) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("  {e}");
@@ -52,7 +52,10 @@ fn run(args: &[String]) -> ExitCode {
         expected_size_bytes: value_of("--expected-bytes").and_then(|v| v.parse().ok()).unwrap_or(0),
         expected_size_gb: value_of("--expected-gb").and_then(|v| v.parse().ok()).unwrap_or(0.0),
         source: value_of("--source").unwrap_or_default(),
-        label: value_of("--label").unwrap_or_else(|| "UPGRADE".into()),
+        // UPGV0: the label the installer's boot line, the rollback and the boot marker find
+        // the stick by (grub.cfg inst.stage2=hd:LABEL=UPGV0); UPGRADE made a stick that
+        // starts but cannot find its own installer (2026-10-27, the owner)
+        label: value_of("--label").unwrap_or_else(|| upgrade_stick::BOOT_LABEL.into()),
         boot_size_gb: value_of("--boot-size-gb").and_then(|v| v.parse().ok()).unwrap_or(4),
         confirmed_label: value_of("--confirmed-label"),
     };

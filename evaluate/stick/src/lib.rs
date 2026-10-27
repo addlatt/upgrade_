@@ -15,3 +15,7 @@ pub mod live;
 /// The PowerShell writer this port follows.
 pub const FOLLOWS_WRITER: &str = "0.1.1";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+/// The boot volume's label when `write` is given none: the one the product
+/// finds the stick by (the installer's boot line, `settle-in rollback`, the
+/// boot marker).
+pub const BOOT_LABEL: &str = "UPGV0";
