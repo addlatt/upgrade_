@@ -622,6 +622,133 @@ class CancelCountdown:
         return Outcome("cancelled-untouched", True, "the countdown was cancelled by the test marker; Windows came back; the system drive's partition table is unchanged")
 
 
+BOGUS_HOME = {"role": "home", "serial_number": "NOSUCHDISK01", "unique_id": "60022480ffffffffffffffffffffffff",
+              "size_bytes": 68719476736, "friendly_name": "a disk that is not attached", "health_status": "Healthy"}
+
+
+class RefusedBeforeCountdown:
+    """Stage 9 (V9 arm A), the rarest: an erase job that names a drive this
+    computer does not have. It must be refused before any countdown (by the
+    prologue's re-validation or the installer's identity check), Windows must
+    come back, and the system drive must be untouched."""
+    writes = True
+    needs = ("password", "erase")
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "windows":
+            return Outcome("wrong-system", False, "the refusal test starts in Windows")
+        L = find_stick(ctx)
+        if not L:
+            return Outcome("stick-not-found", False, "no single volume labelled UPGV0")
+        before = boot_mark(ctx, "windows")
+        if link.kind == "hyperv":
+            stop = write_job(ctx, L, dict(args, rig_job_args=["--bogus-home"]), erase=True)
+        else:
+            stop = write_job(ctx, L, args, erase=True)
+            if not stop:
+                jp = os.path.join(ctx.stage_dir, "job.json")
+                with open(jp, encoding="utf-8-sig") as f:
+                    job = json.load(f)
+                job["erase_consent"]["disks"].append(dict(BOGUS_HOME))
+                bad = os.path.join(ctx.stage_dir, "job-bogus-home.json")
+                with open(bad, "w", encoding="utf-8") as f:
+                    json.dump(job, f, indent=2)
+                if not link.push(bad, f"{L}\\upgrade_\\job.json", "windows").ok:
+                    return Outcome("push-failed", False, "the job naming a missing drive did not reach the stick")
+        if stop:
+            return stop
+        stop = arm(ctx, L, erase=True)
+        if stop and stop.word == "prologue-stopped":
+            words = "the prologue's re-validation refused the job before any restart"
+        elif stop:
+            return stop
+        else:
+            got = wait_after_arm(ctx, L, "windows", int(args.get("limit_s", 3600)))
+            if got not in ("windows", "stopped"):
+                return Outcome("hang-refusal", False, "Windows did not come back after the job naming a missing drive")
+            if boot_mark(ctx, "windows") == before:
+                return Outcome("not-restarted", False, "the same Windows boot answered")
+            words = "the installer refused before any countdown"
+        link.pull(f"{L}\\upgrade_\\report", os.path.join(ctx.stage_dir, "stick-report"), "windows")
+        if os.path.exists(os.path.join(ctx.stage_dir, "stick-report", "countdown.json")):
+            return Outcome("countdown-shown", False, "a countdown ran for a job naming a drive that is not attached")
+        if not collect_windows(ctx, "direct", "after-refusal"):
+            return Outcome("collect-failed", False, "the Windows collector after the refusal")
+        a, b = first_mib(ctx, "windows-before"), first_mib(ctx, "windows-after-refusal")
+        if not a or a != b:
+            return Outcome("disk-changed", False, f"the system drive's first MiB before {a} after {b}")
+        return Outcome("refused-before-countdown", True, words + "; the system drive is unchanged")
+
+
+class WalkAway:
+    """Stage 7 (V11, R33): from the erased computer's Linux, the walk-away
+    back to a fresh Windows, through settle-in's own CLI with every word
+    typed at kickoff, then Windows Setup and the first sign-in by
+    themselves; the manager reaches the new Windows over the SSH key the
+    walk-away carries. The rig cannot hold it (Hyper-V has no USB stick with
+    a serial): there it is a stand-in, a fresh copy of the rig's Windows
+    image, named so, never a walk-away row."""
+    writes = True
+    needs = ("password", "walkaway", "walkaway-stick", "walkaway-account")
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.kind == "hyperv":
+            return self.rig_standin(ctx)
+        if link.probe() != "linux":
+            return Outcome("wrong-system", False, "the walk-away starts in Linux")
+        plan = sudo(ctx, f"{SETTLE_IN} go-back walkaway plan", 300)
+        ctx.save("walkaway-plan.json", plan.out + plan.err)
+        try:
+            drives = json.loads(plan.out.strip().splitlines()[-1]).get("drives")
+        except (ValueError, IndexError):
+            return Outcome("walkaway-plan-unread", False, (plan.out + plan.err).strip()[-300:])
+        if not isinstance(drives, list):
+            return Outcome("walkaway-no-stick", False, f"settle-in offered no drive: {drives}")
+        word = ctx.secrets["walkaway-stick"]
+        picks = [d for d in drives if d.get("offered") and d.get("confirm_word") == word]
+        if len(picks) != 1:
+            return Outcome("walkaway-stick-not-confirmed", False, f"{len(picks)} offered drives answer to the word typed at kickoff")
+        d = picks[0]
+        user = link.run("id -un", "linux", 30).out.strip()
+        prep = sudo(ctx, f"{SETTLE_IN} go-back walkaway prepare --sentence '{ctx.secrets['walkaway']}' --account '{ctx.secrets['walkaway-account']}' "
+                         f"--serial '{d['serial']}' --size {d['size_bytes']} --typed '{word}' --linux-user '{user}'", int(args.get("prepare_limit_s", 14400)))
+        ctx.save("walkaway-prepare.out", prep.out + prep.err)
+        if '"ready"' not in prep.out:
+            return Outcome("walkaway-not-ready", False, (prep.out + prep.err).strip()[-300:])
+        before = boot_mark(ctx, "linux")
+        sudo(ctx, "systemd-run --on-active=5 systemctl reboot >/dev/null; echo REBOOTING")
+        # Setup, the first sign-in, then Windows' SSH (installed from Windows Update by the walk-away's
+        # task); the new account has the SSH login's own name (kickoff), so the same host reaches it
+        got = wait_new_boot(ctx, "the fresh Windows after the walk-away", before, int(args.get("limit_s", 14400)), every_s=60)
+        if got != "windows":
+            return Outcome("hang-walkaway" if got is None else "walkaway-wrong-system", False, f"{got or 'nothing'} answered after the walk-away")
+        found = link.run("$v = Get-Volume | Where-Object { $_.DriveLetter -and (Test-Path \"$($_.DriveLetter):\\upgrade_\\go-back.json\") } | Select-Object -First 1; "
+                         "if ($v) { Write-Output \"WSTICK=$($v.DriveLetter):\" }", "windows", 60)
+        m = re.search(r"WSTICK=(\w:)", found.out)
+        if m:
+            for n in ("go-back.json", "go-back-gate.json", "go-back-installed.txt", "go-back-wifi.log", "go-back-ssh.log"):
+                link.pull(f"{m.group(1)}\\upgrade_\\{n}", os.path.join(ctx.stage_dir, "walkaway-stick", n), "windows")
+        if not collect_windows(ctx, "direct", "after-walkaway"):
+            return Outcome("collect-failed", False, "the Windows collector after the walk-away")
+        return Outcome("windows-reached", True, "the walk-away gave a fresh Windows, reached over the carried SSH key")
+
+    def rig_standin(self, ctx):
+        hv = os.path.join(REPO, "rig", "hyperv")
+        logs = []
+        for cmd in (["powershell.exe", "-NoProfile", "-Command", f"Stop-VM -Name '{ctx.link.vm}' -TurnOff -Force"], ["./v9.sh", "prepare"], ["./v9.sh", "windows"]):
+            r = subprocess.run(cmd, cwd=hv, capture_output=True, text=True, timeout=3600, stdin=subprocess.DEVNULL)
+            logs.append(f"$ {' '.join(cmd)}\n{r.stdout}{r.stderr}")
+            if r.returncode != 0:
+                ctx.save("rig-standin.log", "\n".join(logs))
+                return Outcome("rig-standin-failed", False, f"{cmd[-1]} exit {r.returncode}")
+        ctx.save("rig-standin.log", "\n".join(logs))
+        if ctx.link.probe() != "windows":
+            return Outcome("rig-standin-failed", False, "the fresh image's Windows did not answer")
+        return Outcome("rig-standin-fresh-windows", True, "the rig cannot hold the walk-away (no USB stick with a serial): a fresh copy of the rig's Windows image stands in; not a walk-away row")
+
+
 SETTLE_IN = "/usr/local/libexec/upgrade_/settle-in"
 
 
@@ -666,7 +793,7 @@ class Rollback:
 
 STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(), "rollback-existing": Rollback(),
           "stick-left-in": StickLeftIn(), "clean-slate": CleanSlate(), "stick-left-in-erased": StickLeftIn(),
-          "cancel-countdown": CancelCountdown()}
+          "cancel-countdown": CancelCountdown(), "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown()}
 
 
 def stage_impl(name):
@@ -736,6 +863,32 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None):
     for key in needed:
         if key == "password":
             secrets["password"] = pysecrets.token_urlsafe(12)
+            continue
+        if key == "walkaway-account":
+            # the fresh Windows gets the SSH login's own name, so the manager reaches it the same way
+            if link.kind == "ssh":
+                g = subprocess.run(["ssh", "-G", link.host], capture_output=True, text=True).stdout
+                m = re.search(r"^user (\S+)$", g, re.M)
+                secrets[key] = m.group(1) if m else ""
+            else:
+                secrets[key] = "rig"
+            if not secrets[key]:
+                out("oneclick: no SSH user for the machine; the walk-away cannot name its account. Nothing started.")
+                return None
+            continue
+        if key == "walkaway-stick":
+            if link.kind != "ssh":
+                secrets[key] = ""   # the rig's stand-in uses no stick
+                continue
+            hint = ""
+            if link.probe() == "windows":
+                hint = link.run("Get-PhysicalDisk | Where-Object BusType -eq 'USB' | ForEach-Object { \"  $($_.Model)  ($([math]::Round($_.Size/1e9,1)) GB)\" }", "windows", 60).out
+            out("\nType the walk-away stick's model word exactly, to approve writing Windows' installer onto it."
+                "\nUSB drives on the machine now (the kit stick is one of them):\n" + (hint or "  (none listed)"))
+            secrets[key] = ask("> ").strip()
+            if not secrets[key]:
+                out("oneclick: no word typed. Nothing started.")
+                return None
             continue
         s = sentence(key)
         out(f"\nType this sentence exactly, to approve the {key} step for every loop of this run:\n  {s}")

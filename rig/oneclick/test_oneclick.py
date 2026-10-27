@@ -171,7 +171,7 @@ class ChainTests(unittest.TestCase):
         oneclick.STAGES.pop("writer-x", None)
 
     def test_look_runs_records_and_the_unbuilt_stage_stops_the_chain(self):
-        d = make_run(self.tmp, [{"stage": "look", "expect": ["YELLOW", "RED"]}, {"stage": "walk-away"}])
+        d = make_run(self.tmp, [{"stage": "look", "expect": ["YELLOW", "RED"]}, {"stage": "no-such-stage"}])
         rc = oneclick.run_chain(d, link=look_link("YELLOW"), out=lambda *_: None)
         self.assertEqual(rc, 1)
         done = [e for e in journal(d) if e["event"] == "stage-done"]
