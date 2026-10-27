@@ -119,7 +119,7 @@ class HyperV:
         return f"hyperv:{self.vm}"
 
     def _host(self, script, timeout):
-        return _call(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded(script)], timeout, stdin="")
+        return _call(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded("$ProgressPreference = 'SilentlyContinue'; " + script)], timeout, stdin="")
 
     def _session(self):
         return ("$sec = ConvertTo-SecureString 'rig' -AsPlainText -Force; "
@@ -193,6 +193,14 @@ class HyperV:
         if os_kind == "linux":
             lx = self._lx()
             return lx.pull(remote, local, "linux", timeout) if lx else Result(None, "", "the guest's Linux does not answer")
+        # Copy-Item -FromSession fails on the stick's FAT32 volume ("The parameter is incorrect",
+        # 2026-10-27): stage the copy on the guest's own NTFS drive first
+        stage = f"C:\\upgrade_oneclick\\out\\{uuid.uuid4().hex}"
+        st = self.run(f"New-Item -ItemType Directory -Force '{stage}' | Out-Null; Copy-Item -Path '{remote}' -Destination '{stage}' -Recurse -ErrorAction Stop; 'STAGED'",
+                      "windows", timeout)
+        if "STAGED" not in st.out:
+            return Result(1, "", f"staging {remote} in the guest: {st.err.strip()[-300:]}")
+        remote = stage + "\\*"
         tmp = f"C:\\upgrade-rig\\oneclick-pull\\{uuid.uuid4().hex}"
         script = (self._session() +
                   f"New-Item -ItemType Directory -Force '{tmp}' | Out-Null; "
@@ -200,6 +208,7 @@ class HyperV:
                   f"try {{ Copy-Item -FromSession $s -Path '{remote}' -Destination '{tmp}' -Recurse -ErrorAction Stop }} "
                   f"finally {{ Remove-PSSession $s }}")
         r = self._host(script, timeout)
+        self.run(f"Remove-Item '{stage}' -Recurse -Force -ErrorAction SilentlyContinue", "windows", 120)
         if not r.ok:
             return r
         src = "/mnt/c/" + tmp[3:].replace("\\", "/")
