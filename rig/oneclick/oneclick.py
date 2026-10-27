@@ -341,6 +341,114 @@ def boot_windows_from_linux(ctx):
     return "REBOOTING" in r.out, r.out + r.err
 
 
+def first_mib(ctx, folder):
+    """sha256 of the system drive's first MiB in a Windows collector's folder."""
+    for root, _, files in os.walk(os.path.join(ctx.stage_dir, folder)):
+        if "first-mib-system.raw" in files:
+            with open(os.path.join(root, "first-mib-system.raw"), "rb") as f:
+                return hashlib.sha256(f.read()).hexdigest()
+    return None
+
+
+def find_stick(ctx):
+    r = ctx.link.run(FIND_STICK + "Write-Output \"STICK=$L\"", "windows", timeout=60)
+    m = re.search(r"^STICK=(\w:)$", r.out, re.M)
+    return m.group(1) if m else None
+
+
+def write_job(ctx, L, args, erase=False):
+    """The job. A real machine: the product's job writer over SSH, with the
+    sentences typed at kickoff. The rig: the stand-in (the writer refuses the
+    rig's SCSI "stick", R16; rig/hyperv/prologue.sh convert says why).
+    Returns None, or the Outcome that stops the stage."""
+    link = ctx.link
+    hashed = subprocess.run(["openssl", "passwd", "-6", "-stdin"], input=ctx.secrets["password"], capture_output=True, text=True).stdout.strip()
+    if not hashed.startswith("$6$"):
+        return Outcome("manager-error", False, "openssl gave no SHA-512 crypt hash")
+    if link.kind == "hyperv":
+        pub = os.path.expanduser("~/.ssh/upgrade_rig.pub")
+        env = dict(os.environ, ONECLICK_HASH=hashed, ONECLICK_SSH_PUB=pub)
+        cmd = ["./v9.sh", "job", f"--spoof-ssh={pub}", *args.get("rig_job_args", [])] if erase else ["./v1.sh", "job"]
+        j = subprocess.run(cmd, cwd=os.path.join(REPO, "rig", "hyperv"), env=env, capture_output=True, text=True, timeout=1800)
+        ctx.save("job-standin.log", j.stdout + j.stderr)
+        if j.returncode != 0:
+            return Outcome("job-failed", False, "the rig's job stand-in failed: read job-standin.log")
+    else:
+        hf = os.path.join(ctx.stage_dir, ".hash")
+        with open(hf, "w") as f:
+            f.write(hashed + "\n")
+        link.push(hf, "C:\\upgrade_oneclick\\pw.txt", "windows")
+        os.remove(hf)
+        ack = ctx.secrets.get("data-loss")
+        jw = link.run(
+            f"& {L}\\upgrade-job.exe write --stick {L} --out {L}\\upgrade_ --scan {L}\\upgrade_\\reports --desktop {args.get('desktop', 'kde')} "
+            f"--start-at {args.get('start_at', 'desktop')} --if-cannot-keep stop --password-hash-file C:\\upgrade_oneclick\\pw.txt "
+            f"--kickstart {L}\\upgrade_\\ks.cfg --stick-label UPGV0 --manifest {L}\\SHA256SUMS" +
+            (f" --erase-everything '{ctx.secrets['erase']}'" if erase else "") +
+            (f" --acknowledge-data-loss '{ack}'" if ack else "") +
+            "; $rc = $LASTEXITCODE; Remove-Item C:\\upgrade_oneclick\\pw.txt -Force; Write-Output \"JOB_RC=$rc\"", "windows", timeout=1800)
+        ctx.save("job-writer.out", jw.out + jw.err)
+        if "JOB_RC=0" not in jw.out:
+            return Outcome("job-refused", False, (jw.out + jw.err).strip()[-300:])
+    link.pull(f"{L}\\upgrade_\\job.json", os.path.join(ctx.stage_dir, "job.json"), "windows")
+    return None
+
+
+def arm(ctx, L, erase=False, markers=()):
+    """The bench marker (boot captures and boots.log; never autoshutdown:
+    the manager restarts nothing by power), any test markers, the Windows
+    collector, then the prologue exactly as the window runs it. Returns
+    None when the prologue reached its restart, else the stopping Outcome."""
+    link = ctx.link
+    extra = "".join(f"Set-Content -Path {L}\\upgrade_\\{n} -Value '{v}'; " for n, v in markers)
+    link.run(f"Set-Content -Path {L}\\upgrade_\\bench -Value oneclick; Remove-Item {L}\\upgrade_\\autoshutdown,{L}\\upgrade_\\test-cancel-countdown -ErrorAction SilentlyContinue; " + extra +
+             f"Add-Content -Path {L}\\upgrade_\\boots.log -Value ('windows-clock-before,' + (Get-Date).ToUniversalTime().ToString('o') + ',host-utc={utc()}')",
+             "windows", timeout=60)
+    if not collect_windows(ctx, "before-install", "before"):
+        return Outcome("collect-failed", False, "the Windows collector before the conversion")
+    ack = ctx.secrets.get("data-loss")
+    consent = f"--erase-consent '{ctx.secrets['erase']}'" if erase else "--confirm-word CONVERT"
+    conv = link.run(f"& {L}\\upgrade-prologue.exe start --stick {L} {consent}" + (f" --acknowledge-data-loss '{ack}'" if ack else ""),
+                    "windows", timeout=7200)
+    ctx.save("convert.log", conv.out + conv.err)
+    if "restarting in 15 s" not in conv.out:
+        link.pull(f"{L}\\upgrade_\\outcome.json", os.path.join(ctx.stage_dir, "outcome-stopped.json"), "windows")
+        return Outcome("prologue-stopped", False, (conv.out + conv.err).strip()[-300:])
+    return None
+
+
+def wait_after_arm(ctx, L, want, limit_s):
+    """Through the restarts and the installer to the system `want`
+    ('linux' after an install, 'windows' after a cancel or a refusal):
+    Windows may answer in between (an update, the disk check, the return);
+    a stopped outcome ends the wait early. Returns 'linux' | 'windows' |
+    'stopped' | None (a hang)."""
+    link = ctx.link
+    def arrived():
+        who = link.probe()
+        if who == "linux" and want == "linux":
+            return "linux"
+        if who == "windows":
+            st = link.run(FIND_STICK + "if (Test-Path \"$L\\upgrade_\\outcome.json\") { (Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json).status }; "
+                          "if (Test-Path \"$L\\upgrade_\\report\\countdown.json\") { 'COUNTDOWN=' + (Get-Content \"$L\\upgrade_\\report\\countdown.json\" -Raw | ConvertFrom-Json).result }; "
+                          "if (Test-Path \"$L\\upgrade_\\report\\refusal.json\") { 'REFUSED' }", "windows", timeout=60)
+            if "stopped" in st.out:
+                return "stopped"
+            if want == "windows" and ("COUNTDOWN=cancelled" in st.out or "REFUSED" in st.out):
+                return "windows"
+        return None
+    return ctx.wait_for(f"the conversion, until {want} answers", arrived, limit_s, every_s=60)
+
+
+def installed_outcome(ctx):
+    out = sudo(ctx, "cat /var/lib/upgrade_/outcome.json", 60)
+    ctx.save("outcome.json", out.out)
+    try:
+        return json.loads(out.out)
+    except ValueError:
+        return None
+
+
 class KeepWindows:
     """Stage 2, the default path: the job (keep Windows), the prologue's
     convert, the install beside Windows, settle-in's first start, then both
@@ -352,66 +460,13 @@ class KeepWindows:
         link = ctx.link
         if link.probe() != "windows":
             return Outcome("wrong-system", False, "keep-windows starts in Windows")
-        lr = link.run(FIND_STICK + "Write-Output \"STICK=$L\"", "windows", timeout=60)
-        m = re.search(r"^STICK=(\w:)$", lr.out, re.M)
-        if not m:
-            return Outcome("stick-not-found", False, lr.out.strip()[:200])
-        L = m.group(1)
-        # the job: the product's job writer on a real machine; on the rig the stand-in (the writer
-        # refuses the rig's SCSI "stick", R16 - rig/hyperv/prologue.sh convert says why)
-        pw = ctx.secrets["password"]
-        hashed = subprocess.run(["openssl", "passwd", "-6", "-stdin"], input=pw, capture_output=True, text=True).stdout.strip()
-        if not hashed.startswith("$6$"):
-            return Outcome("manager-error", False, "openssl gave no SHA-512 crypt hash")
-        if link.kind == "hyperv":
-            env = dict(os.environ, ONECLICK_HASH=hashed, ONECLICK_SSH_PUB=os.path.expanduser("~/.ssh/upgrade_rig.pub"))
-            j = subprocess.run(["./v1.sh", "job"], cwd=os.path.join(REPO, "rig", "hyperv"), env=env, capture_output=True, text=True, timeout=1800)
-            ctx.save("job-standin.log", j.stdout + j.stderr)
-            if j.returncode != 0:
-                return Outcome("job-failed", False, "the rig's job stand-in failed: read job-standin.log")
-        else:
-            hf = os.path.join(ctx.stage_dir, ".hash")
-            with open(hf, "w") as f:
-                f.write(hashed + "\n")
-            link.push(hf, "C:\\upgrade_oneclick\\pw.txt", "windows")
-            os.remove(hf)
-            ack = ctx.secrets.get("data-loss")
-            jw = link.run(
-                f"& {L}\\upgrade-job.exe write --stick {L} --out {L}\\upgrade_ --scan {L}\\upgrade_\\reports --desktop {args.get('desktop', 'kde')} "
-                f"--start-at {args.get('start_at', 'desktop')} --if-cannot-keep stop --password-hash-file C:\\upgrade_oneclick\\pw.txt "
-                f"--kickstart {L}\\upgrade_\\ks.cfg --stick-label UPGV0 --manifest {L}\\SHA256SUMS" +
-                (f" --acknowledge-data-loss '{ack}'" if ack else "") +
-                "; $rc = $LASTEXITCODE; Remove-Item C:\\upgrade_oneclick\\pw.txt -Force; Write-Output \"JOB_RC=$rc\"", "windows", timeout=1800)
-            ctx.save("job-writer.out", jw.out + jw.err)
-            if "JOB_RC=0" not in jw.out:
-                return Outcome("job-refused", False, (jw.out + jw.err).strip()[-300:])
-        link.pull(f"{L}\\upgrade_\\job.json", os.path.join(ctx.stage_dir, "job.json"), "windows")
-        # the bench marker: the boot captures and boots.log (never autoshutdown: the manager restarts nothing by power)
-        link.run(f"Set-Content -Path {L}\\upgrade_\\bench -Value oneclick; Remove-Item {L}\\upgrade_\\autoshutdown -ErrorAction SilentlyContinue; "
-                 f"Add-Content -Path {L}\\upgrade_\\boots.log -Value ('windows-clock-before,' + (Get-Date).ToUniversalTime().ToString('o') + ',host-utc={utc()}')",
-                 "windows", timeout=60)
-        if not collect_windows(ctx, "before-install", "before"):
-            return Outcome("collect-failed", False, "the Windows collector before the install")
-        ack = ctx.secrets.get("data-loss")
-        conv = link.run(f"& {L}\\upgrade-prologue.exe start --stick {L} --confirm-word CONVERT" + (f" --acknowledge-data-loss '{ack}'" if ack else ""),
-                        "windows", timeout=7200)
-        ctx.save("convert.log", conv.out + conv.err)
-        if "restarting in 15 s" not in conv.out:
-            link.pull(f"{L}\\upgrade_\\outcome.json", os.path.join(ctx.stage_dir, "outcome-stopped.json"), "windows")
-            return Outcome("prologue-stopped", False, (conv.out + conv.err).strip()[-300:])
-        # the restarts, the installer, the first Linux start: Windows may answer in between (an
-        # update, the disk check, the return); a stop it writes ends the wait early
-        def arrived():
-            who = link.probe()
-            if who == "linux":
-                return "linux"
-            if who == "windows":
-                st = link.run(FIND_STICK + "if (Test-Path \"$L\\upgrade_\\outcome.json\") { (Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json).status }",
-                              "windows", timeout=60)
-                if "stopped" in st.out:
-                    return "stopped"
-            return None
-        got = ctx.wait_for("the install and the first Linux start", arrived, int(args.get("limit_s", 10800)), every_s=60)
+        L = find_stick(ctx)
+        if not L:
+            return Outcome("stick-not-found", False, "no single volume labelled UPGV0")
+        stop = write_job(ctx, L, args) or arm(ctx, L)
+        if stop:
+            return stop
+        got = wait_after_arm(ctx, L, "linux", int(args.get("limit_s", 10800)))
         if got is None:
             return Outcome("hang-install", False, "no Linux within the limit (the journal has the heartbeats)")
         if got == "stopped":
@@ -443,15 +498,128 @@ class KeepWindows:
                 return Outcome("linux-not-reached", False, f"cycle {n}: {got or 'nothing'} answered; the firmware's default should reach Linux")
             if not collect_linux(ctx, f"l{n + 1}"):
                 return Outcome("collect-failed", False, f"the Linux collector, cycle {n}")
-        out = sudo(ctx, "cat /var/lib/upgrade_/outcome.json", 60)
-        ctx.save("outcome.json", out.out)
-        try:
-            o = json.loads(out.out)
-        except ValueError:
+        o = installed_outcome(ctx)
+        if o is None:
             return Outcome("outcome-unread", False, "the installed system's outcome.json did not read as JSON")
         if o.get("path_taken") != "keep-windows" or not (o.get("windows") or {}).get("kept"):
             return Outcome("outcome-wrong", False, f"path_taken {o.get('path_taken')}, windows.kept {(o.get('windows') or {}).get('kept')}")
         return Outcome("kept-both-start", True, "installed beside Windows; Windows and Linux each started twice with no key")
+
+
+class CleanSlate:
+    """Stage 5: erase and install (V9 arm C, R27). The countdown runs out by
+    itself (no marker), the installer erases the drives the job names, and
+    the new Linux answers."""
+    writes = True
+    needs = ("password", "erase")
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "windows":
+            return Outcome("wrong-system", False, "the clean slate starts in Windows")
+        L = find_stick(ctx)
+        if not L:
+            return Outcome("stick-not-found", False, "no single volume labelled UPGV0")
+        stop = write_job(ctx, L, args, erase=True) or arm(ctx, L, erase=True)
+        if stop:
+            return stop
+        got = wait_after_arm(ctx, L, "linux", int(args.get("limit_s", 10800)))
+        if got is None:
+            return Outcome("hang-install", False, "no Linux within the limit (the journal has the heartbeats)")
+        if got == "stopped":
+            return Outcome("prologue-stopped", False, "the prologue stopped after a restart")
+        if not ctx.wait_for("settle-in's first start", lambda: "done" in sudo(
+                ctx, "test -e /var/lib/upgrade_/settle-in/first-start.done && echo done", 60).out, 1200, every_s=30):
+            return Outcome("first-start-missing", False, "Linux answered but settle-in's first start did not finish")
+        if not collect_linux(ctx, "l1"):
+            return Outcome("collect-failed", False, "the Linux collector after the install")
+        o = installed_outcome(ctx)
+        if o is None:
+            return Outcome("outcome-unread", False, "the installed system's outcome.json did not read as JSON")
+        if (o.get("windows") or {}).get("kept"):
+            return Outcome("outcome-wrong", False, "the outcome says Windows was kept after an erase")
+        return Outcome("erased-installed", True, f"path_taken {o.get('path_taken')}; the countdown ran out and the installer erased what the job named")
+
+
+class StickLeftIn:
+    """Stages 3 and 6: the stick left in and started again (R35, V9 arm D).
+    A one-time start from the stick (an entry made for it, removed after);
+    it must not install again: the installed Linux answers, from a new boot,
+    with its partition tables unchanged. Counted as a writer: interrupted, the
+    installer may have started, so it is never run again blind."""
+    writes = True
+    needs = ("password",)
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "linux":
+            return Outcome("wrong-system", False, "the stick-left-in test starts in the installed Linux")
+        tables = "for d in $(lsblk -dno NAME,TRAN | awk '$2!=\"usb\"{print $1}'); do echo \"$d $(head -c 1048576 /dev/$d | sha256sum | cut -c1-64)\"; done"
+        t0 = sudo(ctx, tables, 120)
+        ctx.save("tables-before.txt", t0.out)
+        before = boot_mark(ctx, "linux")
+        r = sudo(ctx, "s=$(readlink -f /dev/disk/by-label/UPGV0); [ -n \"$s\" ] || { echo NO_STICK; exit 3; }; "
+                      "d=/dev/$(lsblk -no PKNAME \"$s\" | head -1); p=$(cat /sys/class/block/$(basename $s)/partition); "
+                      "efibootmgr -c -d $d -p $p -l '\\EFI\\BOOT\\BOOTX64.EFI' -L 'upgrade_ test stick' >/dev/null || { echo NO_ENTRY; exit 4; }; "
+                      "n=$(efibootmgr | sed -n 's/^Boot\\([0-9A-F]\\{4\\}\\)\\*\\? upgrade_ test stick.*/\\1/p' | head -1); "
+                      "efibootmgr -n $n >/dev/null && echo ENTRY=$n; systemd-run --on-active=5 systemctl reboot >/dev/null; echo REBOOTING", 120)
+        ctx.save("to-stick.out", r.out + r.err)
+        if "REBOOTING" not in r.out:
+            return Outcome("stick-entry-failed", False, (r.out + r.err).strip()[:200])
+        got = wait_new_boot(ctx, "the installed Linux after the stick's start", before, int(args.get("limit_s", 2700)))
+        if got is None:
+            return Outcome("hang-after-stick", False, "nothing answered after the start from the stick (an install would be silent too)")
+        if got != "linux":
+            return Outcome("wrong-system-after-stick", False, f"{got} answered after the start from the stick")
+        m = re.search(r"ENTRY=([0-9A-F]{4})", r.out)
+        if m:
+            sudo(ctx, f"efibootmgr -b {m.group(1)} -B >/dev/null; echo REMOVED", 60)
+        t1 = sudo(ctx, tables, 120)
+        ctx.save("tables-after.txt", t1.out)
+        if not t0.out.strip() or t0.out != t1.out:
+            return Outcome("installed-again", False, "a partition table changed after the stick started (or was not read)")
+        collect_linux(ctx, "after-stick")
+        return Outcome("not-installed-again", True, "the stick started, did not install, and the installed Linux came back unchanged")
+
+
+class CancelCountdown:
+    """Stage 8 (V9 arm B, R27, R38): an erase armed for real, cancelled at
+    the countdown by the test marker that can only cancel (upgrade-installer
+    0.1.4). Windows must come back, the record must say test-marker, and the
+    internal drives must be untouched."""
+    writes = True
+    needs = ("password", "erase")
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "windows":
+            return Outcome("wrong-system", False, "the cancel starts in Windows")
+        L = find_stick(ctx)
+        if not L:
+            return Outcome("stick-not-found", False, "no single volume labelled UPGV0")
+        before = boot_mark(ctx, "windows")
+        stop = write_job(ctx, L, args, erase=True) or arm(ctx, L, erase=True, markers=[("test-cancel-countdown", str(args.get("cancel_after_s", 10)))])
+        if stop:
+            return stop
+        got = wait_after_arm(ctx, L, "windows", int(args.get("limit_s", 3600)))
+        if got != "windows":
+            return Outcome("hang-cancel" if got is None else f"cancel-{got}", False, "Windows did not come back with a cancelled countdown")
+        if boot_mark(ctx, "windows") == before:
+            return Outcome("not-restarted", False, "the same Windows boot answered: the installer never ran")
+        link.pull(f"{L}\\upgrade_\\report", os.path.join(ctx.stage_dir, "stick-report"), "windows")
+        try:
+            with open(os.path.join(ctx.stage_dir, "stick-report", "countdown.json"), encoding="utf-8-sig") as f:
+                cd = json.load(f)
+        except (OSError, ValueError):
+            cd = {}
+        if cd.get("result") != "cancelled" or cd.get("by") != "test-marker":
+            return Outcome("cancel-unrecorded", False, f"countdown.json: {cd}")
+        if not collect_windows(ctx, "direct", "after-cancel"):
+            return Outcome("collect-failed", False, "the Windows collector after the cancel")
+        a, b = first_mib(ctx, "windows-before"), first_mib(ctx, "windows-after-cancel")
+        if not a or a != b:
+            return Outcome("disk-changed", False, f"the system drive's first MiB before {a} after {b}")
+        return Outcome("cancelled-untouched", True, "the countdown was cancelled by the test marker; Windows came back; the system drive's partition table is unchanged")
 
 
 SETTLE_IN = "/usr/local/libexec/upgrade_/settle-in"
@@ -496,7 +664,9 @@ class Rollback:
         return Outcome("rolled-back", True, "Windows started first with no key; the guard stood down")
 
 
-STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(), "rollback-existing": Rollback()}
+STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(), "rollback-existing": Rollback(),
+          "stick-left-in": StickLeftIn(), "clean-slate": CleanSlate(), "stick-left-in-erased": StickLeftIn(),
+          "cancel-countdown": CancelCountdown()}
 
 
 def stage_impl(name):
