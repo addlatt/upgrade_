@@ -26,6 +26,31 @@ def encoded(script):
     return base64.b64encode(script.encode("utf-16-le")).decode("ascii")
 
 
+# Windows caps a command line at 32,767 characters, and cmd.exe (Windows' SSH
+# login shell) at 8,191: the collector script, encoded, is past both (the rig,
+# 2026-10-27: "powershell.exe: Invalid argument"). A long script goes to the
+# machine as a file and runs as a script block read from it - the execution
+# policy applies to script files, not to script blocks, so it is never touched.
+LONG = 6000
+
+
+def long_script_wrapper(link, script, timeout):
+    import tempfile
+    name = f"C:\\upgrade_oneclick\\scripts\\{uuid.uuid4().hex}.ps1"
+    fd, local = tempfile.mkstemp(suffix=".ps1")
+    with os.fdopen(fd, "w", encoding="utf-8-sig") as f:
+        f.write(script)
+    try:
+        link.run("New-Item -ItemType Directory -Force C:\\upgrade_oneclick\\scripts | Out-Null", "windows", 60)
+        p = link.push(local, name, "windows")
+        if not p.ok:
+            return Result(p.rc, p.out, f"sending the script: {p.err}")
+        return link.run(f"try {{ & ([scriptblock]::Create((Get-Content -Raw -Encoding UTF8 '{name}'))) }} "
+                        f"finally {{ Remove-Item '{name}' -Force -ErrorAction SilentlyContinue }}", "windows", timeout)
+    finally:
+        os.remove(local)
+
+
 class Result:
     def __init__(self, rc, out, err):
         self.rc, self.out, self.err = rc, out, err
@@ -77,6 +102,8 @@ class Ssh:
 
     def run(self, script, os_kind, timeout=600):
         if os_kind == "windows":
+            if len(encoded(script)) > LONG:
+                return long_script_wrapper(self, script, timeout)
             return self.raw(f"powershell -NoProfile -NonInteractive -EncodedCommand {encoded(script)}", timeout)
         return self.raw(script, timeout)
 
@@ -181,6 +208,8 @@ class HyperV:
         if os_kind == "linux":
             lx = self._lx()
             return lx.run(script, "linux", timeout) if lx else Result(None, "", "the guest's Linux does not answer")
+        if len(encoded(script)) > LONG:
+            return long_script_wrapper(self, script, timeout)
         inner = encoded(script)
         outer = (self._session() +
                  f"Invoke-Command -VMName '{self.vm}' -Credential $cred -ErrorAction Stop -ScriptBlock {{ "
