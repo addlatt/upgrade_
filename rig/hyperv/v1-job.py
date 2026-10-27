@@ -16,7 +16,7 @@ harvest.clock, harvest.wifi and harvest.windows_license are taken from it
 as they are, and the
 locale's time zone is its IANA name - never made up here.
 """
-import json, sys, uuid, datetime, pathlib
+import json, os, sys, uuid, datetime, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "schemas"))
 from jsonschema import Draft7Validator, FormatChecker
 
@@ -66,6 +66,12 @@ job["harvest"]["browsers"] = []
 job["harvest"]["clock"] = settings["clock"]
 job["harvest"]["wifi"] = settings["wifi"]
 job["harvest"]["windows_license"] = settings["windows_license"]
+# ONECLICK_SSH_PUB (the one click test, 2026-10-27): the rig's Windows has no SSH server, so
+# harvest.ssh is made up as v9-job.py --spoof-ssh makes it, and settle-in carries the test
+# manager's key into the installed Fedora - the rig's Linux channel, the same as a real machine's
+if os.environ.get("ONECLICK_SSH_PUB"):
+    k = pathlib.Path(os.environ["ONECLICK_SSH_PUB"]).read_text().strip()
+    job["harvest"]["ssh"] = {"result": "carried", "keys": [k], "sources": ["(rig spoof) C:\\ProgramData\\ssh\\administrators_authorized_keys"], "why": None}
 bl = facts.get("bitlocker", "off")
 job["harvest"]["bitlocker"] = {"status": bl, "recovery_key_file": "artifacts/credentials/bitlocker-C.txt" if bl == "on" else None}
 job["harvest"]["firmware_artifacts"] = []

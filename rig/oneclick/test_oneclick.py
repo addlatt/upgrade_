@@ -171,7 +171,7 @@ class ChainTests(unittest.TestCase):
         oneclick.STAGES.pop("writer-x", None)
 
     def test_look_runs_records_and_the_unbuilt_stage_stops_the_chain(self):
-        d = make_run(self.tmp, [{"stage": "look", "expect": ["YELLOW", "RED"]}, {"stage": "keep-windows"}])
+        d = make_run(self.tmp, [{"stage": "look", "expect": ["YELLOW", "RED"]}, {"stage": "walk-away"}])
         rc = oneclick.run_chain(d, link=look_link("YELLOW"), out=lambda *_: None)
         self.assertEqual(rc, 1)
         done = [e for e in journal(d) if e["event"] == "stage-done"]
@@ -231,6 +231,99 @@ class ChainTests(unittest.TestCase):
         oneclick.Journal(os.path.join(d, "journal.jsonl")).write("stage-start", index=0, stage="look", folder="01-look")
         oneclick.run_chain(d, link=look_link(), out=lambda *_: None)
         self.assertTrue(os.path.isdir(os.path.join(d, "stages", "01-look-try2")))
+
+
+def keep_link(convert_out, probes=("windows",)):
+    link = FakeLink(probes=probes, runs={
+        "STICK=$L": tr.Result(0, "STICK=E:\n", ""),
+        "COLLECTED=": tr.Result(0, "COLLECTED=C:\\upgrade_oneclick\\collect\\T\n", ""),
+        "upgrade-job.exe write": tr.Result(0, "JOB_RC=0\n", ""),
+        "upgrade-prologue.exe start": tr.Result(0, convert_out, ""),
+        "bench": tr.Result(0, "", ""),
+    }, files={"E:\\upgrade_\\job.json": "{}", "C:\\upgrade_oneclick\\collect\\T": "x",
+              "E:\\upgrade_\\outcome.json": '{"status": "stopped"}'})
+    link.kind = "ssh"
+    link.push = lambda *a, **k: tr.Result(0, "", "")
+    return link
+
+
+class KeepWindowsTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def ctx(self, link, clock):
+        d = os.path.join(self.tmp, "stage")
+        os.makedirs(d)
+        c = oneclick.Context(self.tmp, {"heartbeat_s": 300}, {"password": "pw-for-the-test"}, link,
+                             oneclick.Journal(os.path.join(self.tmp, "j")), clock.sleep, clock)
+        c.stage_dir = d
+        return c
+
+    def test_a_prologue_that_does_not_reach_its_restart_is_a_stop_with_the_record_kept(self):
+        link = keep_link("  stopped at revalidate: the job is from another computer\n")
+        o = oneclick.KeepWindows().run(self.ctx(link, Clock()), {})
+        self.assertEqual((o.word, o.expected), ("prologue-stopped", False))
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, "stage", "outcome-stopped.json")))
+
+    def test_silence_after_the_restart_is_a_hang_never_a_pass(self):
+        link = keep_link("  restarting in 15 s: starting the installer from the USB stick\n", probes=("windows", None))
+        c = Clock()
+        o = oneclick.KeepWindows().run(self.ctx(link, c), {"limit_s": 3600})
+        self.assertEqual((o.word, o.expected), ("hang-install", False))
+        self.assertGreaterEqual(c.t, 3600)
+
+    def test_the_password_hash_reaches_the_machine_and_the_password_never_does(self):
+        link = keep_link("  stopped\n")
+        pushed = []
+        link.push = lambda local, remote, kind, **k: (pushed.append(open(local).read()), tr.Result(0, "", ""))[1]
+        oneclick.KeepWindows().run(self.ctx(link, Clock()), {})
+        self.assertTrue(pushed and pushed[0].startswith("$6$"))
+        self.assertFalse(any("pw-for-the-test" in c for c in link.commands))
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, "stage", ".hash")), "the local hash file is removed")
+
+
+class RollbackTests(KeepWindowsTests):
+    def rb_link(self, after):
+        link = FakeLink(probes=("linux", "linux", after), runs={
+            "base64 -d": tr.Result(0, '{"result": "plan"}', ""),
+        })
+        state = {"n": 0, "boot": 0, "rebooted": False}
+        def run(script, kind, timeout=600):
+            link.commands.append(script)
+            if "boot_id" in script or "LastBootUpTime" in script:
+                return tr.Result(0, f"boot-{state['boot']}", "")
+            state["n"] += 1
+            if "c3lzdGVtZC1ydW4" in script:   # base64 of 'systemd-run': the restart asked for
+                state["rebooted"] = True
+            if state["n"] == 2:   # the real rollback
+                return tr.Result(0, '{"result": "done"}', "")
+            return tr.Result(0, '{"result": "plan"}', "")
+        def probe():
+            if len(link.probes) > 1:
+                return link.probes.pop(0)   # the boot that was already up
+            if state["rebooted"]:
+                state["boot"] = 1           # only the last answer comes from a new boot
+            return link.probes[0]
+        link.probe = probe
+        link.run = run
+        link.pull = lambda *a, **k: tr.Result(0, "", "")
+        return link
+
+    def test_linux_answering_first_after_the_rollback_is_a_fail(self):
+        o = oneclick.Rollback().run(self.ctx(self.rb_link("linux"), Clock()), {})
+        self.assertEqual((o.word, o.expected), ("windows-not-first", False))
+
+    def test_the_old_linux_still_answering_is_not_the_new_boot(self):
+        # probes: the start (linux), the old boot still up (linux, same boot_id), then the new boot
+        o = oneclick.Rollback().run(self.ctx(self.rb_link("linux"), Clock()), {})
+        self.assertEqual(o.word, "windows-not-first", "judged on the NEW boot's answer, not the old one's")
+
+    def test_silence_after_the_rollback_is_a_hang(self):
+        o = oneclick.Rollback().run(self.ctx(self.rb_link(None), Clock()), {})
+        self.assertEqual((o.word, o.expected), ("hang-after-rollback", False))
 
 
 class KickoffTests(unittest.TestCase):

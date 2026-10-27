@@ -260,7 +260,243 @@ class Look:
         return Outcome(word, level.lower() in want, f"scan exit {kv.get('SCAN_RC')}; verdict {level}")
 
 
-STAGES = {"look": Look()}
+def b64(text):
+    import base64
+    return base64.b64encode(text.encode("utf-8")).decode("ascii")
+
+
+def sudo(ctx, script, timeout=600):
+    """A root command on the machine's Linux: the test account's password
+    on sudo's stdin (approved at kickoff, the owner, 2026-10-27). The
+    password and the script travel base64, never as shell words."""
+    pw = ctx.secrets.get("password") or ctx.secrets.get("rig_password", "")
+    return ctx.link.run(f"echo {b64(pw + chr(10))} | base64 -d | sudo -S -p '' bash -c \"$(echo {b64(script)} | base64 -d)\"",
+                        "linux", timeout)
+
+
+def windows_script(name, *args):
+    """A rig/hyperv/physical PowerShell script run as a script block: the
+    machine's execution policy is never touched."""
+    with open(os.path.join(REPO, "rig", "hyperv", "physical", name), encoding="utf-8") as f:
+        body = f.read()
+    return "& {\n" + body + "\n} " + " ".join(args)
+
+
+def collect_windows(ctx, via, tag):
+    r = ctx.link.run(windows_script("collect-windows.ps1", "-OutRoot", "C:\\upgrade_oneclick\\collect", "-Via", via) +
+                     "; $d = Get-ChildItem C:\\upgrade_oneclick\\collect -Directory | Sort-Object Name | Select-Object -Last 1; "
+                     "Write-Output \"COLLECTED=$($d.FullName)\"", "windows", timeout=900)
+    ctx.save(f"collect-{tag}.out", r.out + r.err)
+    m = re.search(r"^COLLECTED=(.+)$", r.out, re.M)
+    if not m:
+        return False
+    return ctx.link.pull(m.group(1).strip(), os.path.join(ctx.stage_dir, f"windows-{tag}"), "windows").ok
+
+
+def collect_linux(ctx, tag):
+    """collect-linux.sh as root, then its folder as one tarball pulled back.
+    (It also copies the stick's upgrade_/: the privacy step, roadmap item
+    21 step 6, filters before anything leaves the run folder.)"""
+    with open(os.path.join(REPO, "rig", "hyperv", "physical", "collect-linux.sh"), encoding="utf-8") as f:
+        body = f.read()
+    r = sudo(ctx, f"cat > /tmp/upg-collect.sh <<'UPGEOF'\n{body}\nUPGEOF\n"
+                  "bash /tmp/upg-collect.sh --esp >/tmp/upg-collect.out 2>&1; rc=$?; "
+                  "tar -C \"/home/$SUDO_USER\" -czf /tmp/upg-evidence.tgz upgrade-evidence && rm -rf \"/home/$SUDO_USER/upgrade-evidence\"; "
+                  "chmod 644 /tmp/upg-evidence.tgz /tmp/upg-collect.out; echo COLLECT_RC=$rc", timeout=1800)
+    ctx.save(f"collect-{tag}.out", r.out + r.err)
+    ok = ctx.link.pull("/tmp/upg-evidence.tgz", os.path.join(ctx.stage_dir, f"linux-{tag}.tgz"), "linux").ok
+    ctx.link.pull("/tmp/upg-collect.out", os.path.join(ctx.stage_dir, f"linux-{tag}-collect.log"), "linux")
+    sudo(ctx, "rm -f /tmp/upg-evidence.tgz /tmp/upg-collect.out /tmp/upg-collect.sh")
+    return ok
+
+
+def boot_mark(ctx, os_kind):
+    """Which boot this is: Linux's boot_id, Windows' last boot time."""
+    if os_kind == "linux":
+        r = ctx.link.run("cat /proc/sys/kernel/random/boot_id", "linux", 30)
+    else:
+        r = ctx.link.run("(Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToUniversalTime().ToString('o')", "windows", 30)
+    return (os_kind, r.out.strip()) if r.ok and r.out.strip() else None
+
+
+def wait_new_boot(ctx, what, before, limit_s, every_s=30):
+    """After a restart was asked for: the system that answers from a NEW
+    boot, or None on a hang. The old boot still answering is not an
+    answer (a slow restart must never read as 'Linux came up first')."""
+    def answered():
+        who = ctx.link.probe()
+        if who is None:
+            return None
+        mark = boot_mark(ctx, who)
+        return who if mark is not None and mark != before else None
+    return ctx.wait_for(what, answered, limit_s, every_s)
+
+
+def boot_windows_from_linux(ctx):
+    """Linux -> Windows with no key: a one-time BootNext to the firmware's
+    Windows Boot Manager entry, then a restart."""
+    r = sudo(ctx, "n=$(efibootmgr | sed -n 's/^Boot\\([0-9A-F]\\{4\\}\\)\\*\\? Windows Boot Manager.*/\\1/p' | head -1); "
+                  "[ -n \"$n\" ] || { echo NO_WINDOWS_ENTRY; exit 3; }; efibootmgr -n $n >/dev/null && echo BOOTNEXT=$n; "
+                  "systemd-run --on-active=5 systemctl reboot >/dev/null; echo REBOOTING")
+    return "REBOOTING" in r.out, r.out + r.err
+
+
+class KeepWindows:
+    """Stage 2, the default path: the job (keep Windows), the prologue's
+    convert, the install beside Windows, settle-in's first start, then both
+    systems started twice with no key pressed (V1b, R21, R36, V10)."""
+    writes = True
+    needs = ("password",)
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "windows":
+            return Outcome("wrong-system", False, "keep-windows starts in Windows")
+        lr = link.run(FIND_STICK + "Write-Output \"STICK=$L\"", "windows", timeout=60)
+        m = re.search(r"^STICK=(\w:)$", lr.out, re.M)
+        if not m:
+            return Outcome("stick-not-found", False, lr.out.strip()[:200])
+        L = m.group(1)
+        # the job: the product's job writer on a real machine; on the rig the stand-in (the writer
+        # refuses the rig's SCSI "stick", R16 - rig/hyperv/prologue.sh convert says why)
+        pw = ctx.secrets["password"]
+        hashed = subprocess.run(["openssl", "passwd", "-6", "-stdin"], input=pw, capture_output=True, text=True).stdout.strip()
+        if not hashed.startswith("$6$"):
+            return Outcome("manager-error", False, "openssl gave no SHA-512 crypt hash")
+        if link.kind == "hyperv":
+            env = dict(os.environ, ONECLICK_HASH=hashed, ONECLICK_SSH_PUB=os.path.expanduser("~/.ssh/upgrade_rig.pub"))
+            j = subprocess.run(["./v1.sh", "job"], cwd=os.path.join(REPO, "rig", "hyperv"), env=env, capture_output=True, text=True, timeout=1800)
+            ctx.save("job-standin.log", j.stdout + j.stderr)
+            if j.returncode != 0:
+                return Outcome("job-failed", False, "the rig's job stand-in failed: read job-standin.log")
+        else:
+            hf = os.path.join(ctx.stage_dir, ".hash")
+            with open(hf, "w") as f:
+                f.write(hashed + "\n")
+            link.push(hf, "C:\\upgrade_oneclick\\pw.txt", "windows")
+            os.remove(hf)
+            ack = ctx.secrets.get("data-loss")
+            jw = link.run(
+                f"& {L}\\upgrade-job.exe write --stick {L} --out {L}\\upgrade_ --scan {L}\\upgrade_\\reports --desktop {args.get('desktop', 'kde')} "
+                f"--start-at {args.get('start_at', 'desktop')} --if-cannot-keep stop --password-hash-file C:\\upgrade_oneclick\\pw.txt "
+                f"--kickstart {L}\\upgrade_\\ks.cfg --stick-label UPGV0 --manifest {L}\\SHA256SUMS" +
+                (f" --acknowledge-data-loss '{ack}'" if ack else "") +
+                "; $rc = $LASTEXITCODE; Remove-Item C:\\upgrade_oneclick\\pw.txt -Force; Write-Output \"JOB_RC=$rc\"", "windows", timeout=1800)
+            ctx.save("job-writer.out", jw.out + jw.err)
+            if "JOB_RC=0" not in jw.out:
+                return Outcome("job-refused", False, (jw.out + jw.err).strip()[-300:])
+        link.pull(f"{L}\\upgrade_\\job.json", os.path.join(ctx.stage_dir, "job.json"), "windows")
+        # the bench marker: the boot captures and boots.log (never autoshutdown: the manager restarts nothing by power)
+        link.run(f"Set-Content -Path {L}\\upgrade_\\bench -Value oneclick; Remove-Item {L}\\upgrade_\\autoshutdown -ErrorAction SilentlyContinue; "
+                 f"Add-Content -Path {L}\\upgrade_\\boots.log -Value ('windows-clock-before,' + (Get-Date).ToUniversalTime().ToString('o') + ',host-utc={utc()}')",
+                 "windows", timeout=60)
+        if not collect_windows(ctx, "before-install", "before"):
+            return Outcome("collect-failed", False, "the Windows collector before the install")
+        ack = ctx.secrets.get("data-loss")
+        conv = link.run(f"& {L}\\upgrade-prologue.exe start --stick {L} --confirm-word CONVERT" + (f" --acknowledge-data-loss '{ack}'" if ack else ""),
+                        "windows", timeout=7200)
+        ctx.save("convert.log", conv.out + conv.err)
+        if "restarting in 15 s" not in conv.out:
+            link.pull(f"{L}\\upgrade_\\outcome.json", os.path.join(ctx.stage_dir, "outcome-stopped.json"), "windows")
+            return Outcome("prologue-stopped", False, (conv.out + conv.err).strip()[-300:])
+        # the restarts, the installer, the first Linux start: Windows may answer in between (an
+        # update, the disk check, the return); a stop it writes ends the wait early
+        def arrived():
+            who = link.probe()
+            if who == "linux":
+                return "linux"
+            if who == "windows":
+                st = link.run(FIND_STICK + "if (Test-Path \"$L\\upgrade_\\outcome.json\") { (Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json).status }",
+                              "windows", timeout=60)
+                if "stopped" in st.out:
+                    return "stopped"
+            return None
+        got = ctx.wait_for("the install and the first Linux start", arrived, int(args.get("limit_s", 10800)), every_s=60)
+        if got is None:
+            return Outcome("hang-install", False, "no Linux within the limit (the journal has the heartbeats)")
+        if got == "stopped":
+            link.pull(f"{L}\\upgrade_\\outcome.json", os.path.join(ctx.stage_dir, "outcome-stopped.json"), "windows")
+            return Outcome("prologue-stopped", False, "the prologue stopped after a restart: outcome-stopped.json")
+        if not ctx.wait_for("settle-in's first start", lambda: "done" in sudo(
+                ctx, "test -e /var/lib/upgrade_/settle-in/first-start.done && echo done", 60).out, 1200, every_s=30):
+            return Outcome("first-start-missing", False, "Linux answered but settle-in's first start did not finish")
+        if not collect_linux(ctx, "l1"):
+            return Outcome("collect-failed", False, "the Linux collector after the install")
+        # both systems, twice, no key
+        for n in (1, 2):
+            before = boot_mark(ctx, "linux")
+            ok, why = boot_windows_from_linux(ctx)
+            ctx.save(f"to-windows-{n}.out", why)
+            if not ok:
+                return Outcome("windows-entry-missing", False, why.strip()[:200])
+            got = wait_new_boot(ctx, f"Windows, cycle {n}", before, 1800)
+            if got != "windows":
+                return Outcome("windows-not-reached", False, f"cycle {n}: {got or 'nothing'} answered after the BootNext to Windows")
+            link.run(FIND_STICK + f"Add-Content -Path \"$L\\upgrade_\\boots.log\" -Value ('windows-boot,' + (Get-Date).ToUniversalTime().ToString('o') + ',host-utc={utc()}')",
+                     "windows", timeout=60)
+            if not collect_windows(ctx, "direct", f"w{n}"):
+                return Outcome("collect-failed", False, f"the Windows collector, cycle {n}")
+            before = boot_mark(ctx, "windows")
+            link.run("shutdown /r /t 5", "windows", timeout=60)
+            got = wait_new_boot(ctx, f"Linux, cycle {n}", before, 1800)
+            if got != "linux":
+                return Outcome("linux-not-reached", False, f"cycle {n}: {got or 'nothing'} answered; the firmware's default should reach Linux")
+            if not collect_linux(ctx, f"l{n + 1}"):
+                return Outcome("collect-failed", False, f"the Linux collector, cycle {n}")
+        out = sudo(ctx, "cat /var/lib/upgrade_/outcome.json", 60)
+        ctx.save("outcome.json", out.out)
+        try:
+            o = json.loads(out.out)
+        except ValueError:
+            return Outcome("outcome-unread", False, "the installed system's outcome.json did not read as JSON")
+        if o.get("path_taken") != "keep-windows" or not (o.get("windows") or {}).get("kept"):
+            return Outcome("outcome-wrong", False, f"path_taken {o.get('path_taken')}, windows.kept {(o.get('windows') or {}).get('kept')}")
+        return Outcome("kept-both-start", True, "installed beside Windows; Windows and Linux each started twice with no key")
+
+
+SETTLE_IN = "/usr/local/libexec/upgrade_/settle-in"
+
+
+class Rollback:
+    """Stage 4 (and the Aspire's stage 0, on the install it already has):
+    settle-in's rollback from Linux, the way the person's click runs it, then
+    one restart with no key and no BootNext. Windows must come up first, and
+    the guard must stand down (R21, R22, V1b)."""
+    writes = True
+    needs = ("password",)
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "linux":
+            return Outcome("wrong-system", False, "the rollback starts in Linux")
+        dry = sudo(ctx, f"{SETTLE_IN} rollback --dry-run", 300)
+        ctx.save("rollback-dry-run.json", dry.out + dry.err)
+        if dry.rc != 0 or '"plan"' not in dry.out:
+            return Outcome("rollback-refused", False, (dry.out + dry.err).strip()[-300:])
+        real = sudo(ctx, f"{SETTLE_IN} rollback", 600)
+        ctx.save("rollback.json", real.out + real.err)
+        if real.rc != 0 or '"done"' not in real.out:
+            return Outcome("rollback-failed", False, (real.out + real.err).strip()[-300:])
+        if not collect_linux(ctx, "after-rollback"):
+            return Outcome("collect-failed", False, "the Linux collector after the rollback")
+        before = boot_mark(ctx, "linux")
+        sudo(ctx, "systemd-run --on-active=5 systemctl reboot >/dev/null; echo REBOOTING")
+        got = wait_new_boot(ctx, "the first start after the rollback", before, 1800)
+        if got is None:
+            return Outcome("hang-after-rollback", False, "nothing answered after the restart")
+        if got != "windows":
+            return Outcome("windows-not-first", False, f"{got} answered first after the rollback, with no key pressed")
+        if not collect_windows(ctx, "direct", "after-rollback"):
+            return Outcome("collect-failed", False, "the Windows collector after the rollback")
+        gone = ctx.wait_for("the guard to stand down", lambda: "ABSENT" in link.run(
+            "if (Get-ScheduledTask -TaskName 'upgrade_ windows-slot guard' -ErrorAction SilentlyContinue) { 'PRESENT' } else { 'ABSENT' }",
+            "windows", 60).out, 600, every_s=30)
+        if not gone:
+            return Outcome("guard-not-removed", False, "the guard task is still registered 10 minutes after Windows came back")
+        return Outcome("rolled-back", True, "Windows started first with no key; the guard stood down")
+
+
+STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(), "rollback-existing": Rollback()}
 
 
 def stage_impl(name):
