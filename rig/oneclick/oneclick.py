@@ -345,11 +345,17 @@ def wait_new_boot(ctx, what, before, limit_s, every_s=30):
 
 
 def boot_windows_from_linux(ctx):
-    """Linux -> Windows with no key: a one-time BootNext to the firmware's
-    Windows Boot Manager entry, then a restart."""
-    r = sudo(ctx, "n=$(efibootmgr | sed -n 's/^Boot\\([0-9A-F]\\{4\\}\\)\\*\\? Windows Boot Manager.*/\\1/p' | head -1); "
-                  "[ -n \"$n\" ] || { echo NO_WINDOWS_ENTRY; exit 3; }; efibootmgr -n $n >/dev/null && echo BOOTNEXT=$n; "
-                  "systemd-run --on-active=5 systemctl reboot >/dev/null; echo REBOOTING")
+    """Linux -> Windows the way a person does it in the product: GRUB's
+    'Windows (kept)' entry, chosen for one start (grub2-reboot). Choosing it
+    sets GRUB's upg_windows_chosen flag, which the return step reads so it
+    does not mistake the start for a firmware that ignores Linux.
+
+    Not a firmware BootNext: the rig, 2026-10-27, showed the return step
+    reads a firmware-chosen Windows start as InsydeH2O's symptom, puts shim in
+    Windows' slot and restarts, on a firmware that honours Fedora's entry
+    (R21: the detector cannot tell that from a person's F12 menu)."""
+    r = sudo(ctx, "grub2-reboot 'Windows (kept)' && grub2-editenv list | grep -q '^next_entry=Windows (kept)$' || { echo NO_GRUB_WINDOWS_ENTRY; exit 3; }; "
+                  "echo NEXT_ENTRY=Windows-kept; systemd-run --on-active=5 systemctl reboot >/dev/null; echo REBOOTING")
     return "REBOOTING" in r.out, r.out + r.err
 
 
@@ -495,7 +501,7 @@ class KeepWindows:
             ok, why = boot_windows_from_linux(ctx)
             ctx.save(f"to-windows-{n}.out", why)
             if not ok:
-                return Outcome("windows-entry-missing", False, why.strip()[:200])
+                return Outcome("grub-windows-entry-missing", False, why.strip()[:200])
             got = wait_new_boot(ctx, f"Windows, cycle {n}", before, 1800)
             if got != "windows":
                 return Outcome("windows-not-reached", False, f"cycle {n}: {got or 'nothing'} answered after the BootNext to Windows")
