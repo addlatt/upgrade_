@@ -132,6 +132,25 @@ class NextActionTests(unittest.TestCase):
         self.assertEqual(a, "stop")
         self.assertIn("state is unknown", why)
 
+    def test_a_stage_built_since_its_not_built_stop_runs_and_nothing_else_reopens(self):
+        e = [{"event": "stage-done", "index": 0, "stage": "look", "expected": True},
+             {"event": "stage-start", "index": 1, "stage": "writer-x"},
+             {"event": "stage-done", "index": 1, "stage": "writer-x", "word": "not-built", "expected": False},
+             {"event": "run-stopped", "why": "not built"}]
+        self.assertEqual(oneclick.next_action(self.plan, e), ("run", 1))
+        oneclick.STAGES.pop("writer-x")
+        self.assertEqual(oneclick.next_action(self.plan, e)[0], "stop", "still not built: still stopped")
+        oneclick.STAGES["writer-x"] = Writer()
+        e[2]["word"] = "job-refused"
+        self.assertEqual(oneclick.next_action(self.plan, e)[0], "stop", "a real stop never reopens")
+
+    def test_a_run_stopped_for_a_missing_approval_goes_on_only_once_it_is_given(self):
+        e = [{"event": "stage-done", "index": 0, "stage": "look", "expected": True},
+             {"event": "run-stopped", "why": "stage 1 (writer-x) needs an approval this run was not given: erase"}]
+        self.assertEqual(oneclick.next_action(self.plan, e)[0], "stop")
+        e.append({"event": "consent-given", "keys": ["erase"]})
+        self.assertEqual(oneclick.next_action(self.plan, e), ("run", 1))
+
     def test_a_stopped_run_stays_stopped(self):
         e = [{"event": "run-stopped", "why": "x"}]
         self.assertEqual(oneclick.next_action(self.plan, e), ("stop", "x"))

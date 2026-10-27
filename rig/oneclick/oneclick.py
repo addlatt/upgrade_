@@ -117,10 +117,21 @@ def stage_states(entries):
 def next_action(plan, entries):
     """What the run does now, from its journal alone:
     ('run', i) | ('stop', why) | ('finished', None)."""
+    states = stage_states(entries)
     if any(e["event"] == "run-stopped" for e in entries):
         last = [e for e in entries if e["event"] == "run-stopped"][-1]
-        return ("stop", last.get("why", "stopped"))
-    states = stage_states(entries)
+        # the one stop a run goes on from: a stage that was not built then and is now. It
+        # changed nothing on the machine, so the chain stands exactly where it stood
+        done = [e for e in entries if e["event"] == "stage-done"]
+        tail = done[-1] if done else None
+        rebuilt = tail and tail.get("word") == "not-built" and tail["stage"] in STAGES and entries.index(last) > entries.index(tail)
+        # and one stopped for an approval it was not given, once `consent` gave it (nothing ran)
+        approved = "needs an approval" in last.get("why", "") and any(
+            e["event"] == "consent-given" and entries.index(e) > entries.index(last) for e in entries)
+        if not (rebuilt or approved):
+            return ("stop", last.get("why", "stopped"))
+    states = {i: e for i, e in states.items()
+              if not (e["event"] == "stage-done" and e.get("word") == "not-built" and e["stage"] in STAGES)}
     for i, st in enumerate(plan["stages"]):
         e = states.get(i)
         if e is None:
@@ -837,8 +848,13 @@ def run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=pr
         tries = sum(1 for e in journal.entries() if e["event"] == "stage-start" and e["index"] == i)
         name = f"{i + 1:02d}-{st['stage']}" + (f"-try{tries + 1}" if tries else "")
         ctx.stage_dir = os.path.join(run_dir, "stages", name)
-        os.makedirs(ctx.stage_dir, exist_ok=False)
         impl = stage_impl(st["stage"])
+        missing = [k for k in impl.needs if k not in secrets]
+        if missing:
+            journal.write("run-stopped", why=f"stage {i} ({st['stage']}) needs an approval this run was not given: {', '.join(missing)} (oneclick.py consent RUN_DIR)")
+            out(f"oneclick: stopped - stage {i + 1} {st['stage']} needs {', '.join(missing)}; give it with: oneclick.py consent {run_dir}")
+            return 1
+        os.makedirs(ctx.stage_dir, exist_ok=False)
         journal.write("stage-start", index=i, stage=st["stage"], folder=name)
         out(f"oneclick: stage {i + 1} {st['stage']} ...")
         try:
@@ -850,16 +866,9 @@ def run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=pr
         out(f"oneclick: stage {i + 1} {st['stage']}: {o.word}{'' if o.expected else ' (NOT expected)'} - {o.notes}")
 
 
-def kickoff(plan_path, spec, ask=input, out=print, root=None):
-    with open(plan_path, encoding="utf-8") as f:
-        plan = json.load(f)
-    link = tr.from_spec(spec)
-    secrets = {}
-    needed = sorted({n for st in plan["stages"] for n in stage_impl(st["stage"]).needs})
-    out(f"oneclick {VERSION}: {len(plan['stages'])} stages on {plan.get('machine', '?')} over {link.describe()}")
-    for i, st in enumerate(plan["stages"]):
-        built = "" if st["stage"] in STAGES else "   (not built yet: the run stops here)"
-        out(f"  {i + 1:2d}. {st['stage']}{built}")
+def ask_consents(needed, link, secrets, ask=input, out=print):
+    """Every approval a stage needs, typed in full (kickoff, or `consent`
+    for one a newer stage added). Returns False when one was not given."""
     for key in needed:
         if key == "password":
             secrets["password"] = pysecrets.token_urlsafe(12)
@@ -874,7 +883,7 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None):
                 secrets[key] = "rig"
             if not secrets[key]:
                 out("oneclick: no SSH user for the machine; the walk-away cannot name its account. Nothing started.")
-                return None
+                return False
             continue
         if key == "walkaway-stick":
             if link.kind != "ssh":
@@ -888,14 +897,29 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None):
             secrets[key] = ask("> ").strip()
             if not secrets[key]:
                 out("oneclick: no word typed. Nothing started.")
-                return None
+                return False
             continue
         s = sentence(key)
         out(f"\nType this sentence exactly, to approve the {key} step for every loop of this run:\n  {s}")
         if ask("> ") != s:
             out("oneclick: that is not the sentence. Nothing started.")
-            return None
+            return False
         secrets[key] = s
+    return True
+
+
+def kickoff(plan_path, spec, ask=input, out=print, root=None):
+    with open(plan_path, encoding="utf-8") as f:
+        plan = json.load(f)
+    link = tr.from_spec(spec)
+    secrets = {}
+    needed = sorted({n for st in plan["stages"] for n in stage_impl(st["stage"]).needs})
+    out(f"oneclick {VERSION}: {len(plan['stages'])} stages on {plan.get('machine', '?')} over {link.describe()}")
+    for i, st in enumerate(plan["stages"]):
+        built = "" if st["stage"] in STAGES else "   (not built yet: the run stops here)"
+        out(f"  {i + 1:2d}. {st['stage']}{built}")
+    if not ask_consents(needed, link, secrets, ask, out):
+        return None
     run_dir = os.path.join(root or runs_root(), f"{plan.get('machine', 'machine')}-{stamp()}")
     os.makedirs(run_dir, exist_ok=False)
     commit = subprocess.run(["git", "-C", REPO, "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -908,6 +932,27 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None):
             json.dump(secrets, f)
     out(f"oneclick: run folder {run_dir}")
     return run_dir
+
+
+def consent(run_dir, ask=input, out=print):
+    """The approvals a run's stages need that it was not given at kickoff."""
+    run, secrets = load(run_dir)
+    link = tr.from_spec(run["transport"])
+    needed = sorted({n for st in run["plan"]["stages"] for n in stage_impl(st["stage"]).needs} - set(secrets))
+    if not needed:
+        out("oneclick: nothing is missing")
+        return 0
+    if not ask_consents(needed, link, secrets, ask, out):
+        return 2
+    p = os.path.join(run_dir, "secrets.json")
+    tmp = p + ".new"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(secrets, f)
+    os.replace(tmp, p)
+    Journal(os.path.join(run_dir, "journal.jsonl")).write("consent-given", keys=needed)
+    out(f"oneclick: given: {', '.join(needed)}")
+    return 0
 
 
 def status(run_dir, out=print):
@@ -933,6 +978,8 @@ def main(argv=None):
     r.add_argument("run_dir")
     s = sub.add_parser("status")
     s.add_argument("run_dir")
+    c = sub.add_parser("consent")
+    c.add_argument("run_dir")
     a = ap.parse_args(argv)
     if a.cmd == "kickoff":
         d = kickoff(a.plan, a.transport)
@@ -941,6 +988,8 @@ def main(argv=None):
         return 0 if a.no_run else run_chain(d)
     if a.cmd == "run":
         return run_chain(a.run_dir)
+    if a.cmd == "consent":
+        return consent(a.run_dir)
     status(a.run_dir)
     return 0
 
