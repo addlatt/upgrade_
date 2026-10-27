@@ -450,10 +450,13 @@ def wait_after_arm(ctx, L, want, limit_s):
             st = link.run(FIND_STICK + "if (Test-Path \"$L\\upgrade_\\outcome.json\") { (Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json).status }; "
                           "if (Test-Path \"$L\\upgrade_\\report\\countdown.json\") { 'COUNTDOWN=' + (Get-Content \"$L\\upgrade_\\report\\countdown.json\" -Raw | ConvertFrom-Json).result }; "
                           "if (Test-Path \"$L\\upgrade_\\report\\refusal.json\") { 'REFUSED' }", "windows", timeout=60)
-            if "stopped" in st.out:
-                return "stopped"
+            # a cancel or a refusal is ALSO a stopped outcome (the prologue's return writes one,
+            # stopped_at countdown): when Windows is what the stage waits for, they come first
+            # (the rig, 2026-10-27: the cancel worked and the wait read it as a stop)
             if want == "windows" and ("COUNTDOWN=cancelled" in st.out or "REFUSED" in st.out):
                 return "windows"
+            if "stopped" in st.out:
+                return "stopped"
         return None
     return ctx.wait_for(f"the conversion, until {want} answers", arrived, limit_s, every_s=60)
 
