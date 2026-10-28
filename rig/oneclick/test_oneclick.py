@@ -151,6 +151,37 @@ class NextActionTests(unittest.TestCase):
         e.append({"event": "consent-given", "keys": ["erase"]})
         self.assertEqual(oneclick.next_action(self.plan, e), ("run", 1))
 
+    def test_a_stage_with_an_owner_step_waits_until_the_owner_is_done(self):
+        plan = {"stages": [{"stage": "look"}, {"stage": "writer-x", "owner_step": "swap the sticks"}]}
+        e = [{"event": "stage-done", "index": 0, "stage": "look", "expected": True}]
+        self.assertEqual(oneclick.next_action(plan, e), ("wait", 1))
+        e.append({"event": "owner-done", "index": 0})
+        self.assertEqual(oneclick.next_action(plan, e), ("wait", 1), "done for another stage is not done for this one")
+        e.append({"event": "owner-done", "index": 1})
+        self.assertEqual(oneclick.next_action(plan, e), ("run", 1))
+
+    def test_a_waiting_run_starts_nothing_and_done_lets_it_go_on(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        d = make_run(tmp, [{"stage": "look"}, {"stage": "writer-x", "owner_step": "swap the sticks"}])
+        oneclick.Journal(os.path.join(d, "journal.jsonl")).write("stage-done", index=0, stage="look", word="scanned-red", expected=True)
+        self.assertEqual(oneclick.run_chain(d, link=FakeLink(), out=lambda *_: None), 3)
+        self.assertEqual(oneclick.run_chain(d, link=FakeLink(), out=lambda *_: None), 3)
+        e = oneclick.Journal(os.path.join(d, "journal.jsonl")).entries()
+        self.assertFalse([x for x in e if x["event"] == "stage-start"])
+        self.assertEqual(len([x for x in e if x["event"] == "owner-wait"]), 1, "the wait is written once")
+        self.assertEqual(oneclick.done(d, out=lambda *_: None), 0)
+        self.assertEqual(oneclick.done(d, out=lambda *_: None), 2, "nothing waits any more")
+        self.assertEqual(oneclick.next_action({"stages": [{"stage": "look"}, {"stage": "writer-x", "owner_step": "x"}]},
+                                              oneclick.Journal(os.path.join(d, "journal.jsonl")).entries()), ("run", 1))
+
+    def test_the_aspire_plan_swaps_the_sticks_around_the_walk_away(self):
+        with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", "aspire.json")) as f:
+            stages = json.load(f)["stages"]
+        names = [st["stage"] for st in stages]
+        self.assertIn("owner_step", stages[names.index("walk-away")])
+        self.assertIn("owner_step", stages[names.index("walk-away") + 1])
+
     def test_a_stopped_run_stays_stopped(self):
         e = [{"event": "run-stopped", "why": "x"}]
         self.assertEqual(oneclick.next_action(self.plan, e), ("stop", "x"))

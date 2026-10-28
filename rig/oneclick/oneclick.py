@@ -117,7 +117,9 @@ def stage_states(entries):
 
 def next_action(plan, entries):
     """What the run does now, from its journal alone:
-    ('run', i) | ('stop', why) | ('finished', None)."""
+    ('run', i) | ('wait', i) | ('stop', why) | ('finished', None).
+    'wait': the plan names a step only the owner's hands can do before stage
+    i (a stick swapped), and `oneclick.py done` has not said it is done."""
     states = stage_states(entries)
     if any(e["event"] == "run-stopped" for e in entries):
         last = [e for e in entries if e["event"] == "run-stopped"][-1]
@@ -136,6 +138,8 @@ def next_action(plan, entries):
     for i, st in enumerate(plan["stages"]):
         e = states.get(i)
         if e is None:
+            if st.get("owner_step") and not any(x["event"] == "owner-done" and x.get("index") == i for x in entries):
+                return ("wait", i)
             return ("run", i)
         if e["event"] == "stage-done":
             if e.get("expected"):
@@ -960,6 +964,13 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
             journal.write("run-finished")
             out("oneclick: every stage ran and ended as the plan expects")
             return 0
+        if action == "wait":
+            st = plan["stages"][arg]
+            if not any(e["event"] == "owner-wait" and e.get("index") == arg for e in journal.entries()):
+                journal.write("owner-wait", index=arg, stage=st["stage"], step=st["owner_step"])
+            out(f"oneclick: waiting for the owner before stage {arg + 1} {st['stage']}:\n  {st['owner_step']}\n"
+                f"then: oneclick.py done {run_dir} && oneclick.py run {run_dir}")
+            return 3
         if action == "stop":
             if not any(e["event"] == "run-stopped" for e in journal.entries()):
                 journal.write("run-stopped", why=arg)
@@ -1039,6 +1050,8 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None):
     out(f"oneclick {VERSION}: {len(plan['stages'])} stages on {plan.get('machine', '?')} over {link.describe()}")
     for i, st in enumerate(plan["stages"]):
         built = "" if st["stage"] in STAGES else "   (not built yet: the run stops here)"
+        if st.get("owner_step"):
+            out(f"      (waits for you: {st['owner_step']})")
         out(f"  {i + 1:2d}. {st['stage']}{built}")
     if not ask_consents(needed, link, secrets, ask, out):
         return None
@@ -1086,6 +1099,9 @@ def status(run_dir, out=print):
         word = "-" if e is None else (e.get("word") or e["event"])
         out(f"  {i + 1:2d}. {st['stage']:<14} {word}")
     action, arg = next_action(run["plan"], entries)
+    if action == "wait":
+        out(f"  next: WAITING for the owner before stage {arg + 1}: {run['plan']['stages'][arg]['owner_step']}")
+        return
     lock = os.path.join(run_dir, ".awake")
     live = os.path.exists(lock) and time.time() - os.path.getmtime(lock) < 180
     last = entries[-1] if entries else {}
@@ -1094,6 +1110,20 @@ def status(run_dir, out=print):
         out(f"  now: RUNNING stage {open_stage['index'] + 1} {open_stage['stage']} (the manager refreshed its lock {int(time.time() - os.path.getmtime(lock))} s ago)")
         return
     out(f"  next: {action}{' - ' + str(arg) if arg is not None else ''}")
+
+
+def done(run_dir, out=print):
+    """The owner did the step the run waits for (said by the owner, typed
+    by whoever runs this): the chain may go on at its next `run`."""
+    run, _ = load(run_dir)
+    journal = Journal(os.path.join(run_dir, "journal.jsonl"))
+    action, arg = next_action(run["plan"], journal.entries())
+    if action != "wait":
+        out("oneclick: nothing waits for the owner")
+        return 2
+    journal.write("owner-done", index=arg, stage=run["plan"]["stages"][arg]["stage"])
+    out(f"oneclick: done: {run['plan']['stages'][arg]['owner_step']}")
+    return 0
 
 
 def main(argv=None):
@@ -1109,6 +1139,8 @@ def main(argv=None):
     s.add_argument("run_dir")
     c = sub.add_parser("consent")
     c.add_argument("run_dir")
+    dn = sub.add_parser("done", help="the owner did the step the run waits for")
+    dn.add_argument("run_dir")
     pr = sub.add_parser("promote", help="the run's rows, scrubbed, into docs/validation-results/oneclick-runs.csv")
     pr.add_argument("run_dir")
     pr.add_argument("--csv", default=os.path.join(REPO, "docs", "validation-results", "oneclick-runs.csv"))
@@ -1124,6 +1156,8 @@ def main(argv=None):
         return run_chain(a.run_dir)
     if a.cmd == "consent":
         return consent(a.run_dir)
+    if a.cmd == "done":
+        return done(a.run_dir)
     if a.cmd == "promote":
         import rows
         return rows.promote(a.run_dir, a.csv, a.facts, a.dry_run)

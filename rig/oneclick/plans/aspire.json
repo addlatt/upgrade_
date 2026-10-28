@@ -13,8 +13,8 @@
     {"stage": "rollback", "why": "someone changes their mind"},
     {"stage": "clean-slate", "needs": ["data-loss"], "why": "erase and install (V9 arm C)"},
     {"stage": "stick-left-in-erased", "why": "V9 arm D"},
-    {"stage": "walk-away", "why": "back to a fresh Windows after a clean slate"},
-    {"stage": "cancel-countdown", "needs": ["data-loss"], "why": "V9 arm B, rare"},
+    {"stage": "walk-away", "owner_step": "Take the kit stick out of the Aspire and put the walk-away stick in (both are serial-less General UDisks: with both in, the walk-away rightly refuses both).", "why": "back to a fresh Windows after a clean slate"},
+    {"stage": "cancel-countdown", "owner_step": "Take the walk-away stick out (it starts Windows Setup) and put the kit stick back in.", "needs": ["data-loss"], "why": "V9 arm B, rare"},
     {"stage": "refused-before-countdown", "needs": ["data-loss"], "why": "V9 arm A, the rarest"}
   ]
 }
