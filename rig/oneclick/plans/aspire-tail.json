@@ -11,8 +11,18 @@
       "why": "back to a fresh Windows after a clean slate"
     },
     {
-      "stage": "cancel-countdown",
+      "stage": "look",
       "owner_step": "Take the walk-away stick out (it starts Windows Setup) and put the kit stick back in.",
+      "expect": [
+        "GREEN",
+        "YELLOW",
+        "RED"
+      ],
+      "limit_s": 900,
+      "why": "a fresh scan of the fresh Windows: the cancel and the refusal write jobs from it"
+    },
+    {
+      "stage": "cancel-countdown",
       "needs": [
         "data-loss"
       ],
