@@ -453,6 +453,20 @@ class KickoffTests(unittest.TestCase):
                 self.assertIn("data-loss", oneclick.stage_needs(st), st["stage"])
         self.assertIn("data-loss", oneclick.plan_needs(plan["stages"]))
 
+    def test_a_plan_with_a_test_password_uses_it(self):
+        with open(self.plan, "w") as f:
+            json.dump({"machine": "fake", "test_password": "password", "stages": [{"stage": "writer-x"}]}, f)
+        d = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: oneclick.sentence("erase"), out=lambda *_: None, root=self.tmp)
+        with open(os.path.join(d, "secrets.json")) as f:
+            self.assertEqual(json.load(f)["password"], "password")
+
+    def test_a_tail_run_keeps_the_earlier_runs_password(self):
+        s = oneclick.sentence("erase")
+        first = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: s, out=lambda *_: None, root=self.tmp)
+        tail = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: s, out=lambda *_: None, root=os.path.join(self.tmp, "t"), password_from=first)
+        with open(os.path.join(first, "secrets.json")) as f, open(os.path.join(tail, "secrets.json")) as g:
+            self.assertEqual(json.load(f)["password"], json.load(g)["password"])
+
     def test_a_sentence_missing_from_the_source_refuses(self):
         os.makedirs(os.path.join(self.tmp, "evaluate/job/src"))
         with open(os.path.join(self.tmp, "evaluate/job/src/lib.rs"), "w") as f:

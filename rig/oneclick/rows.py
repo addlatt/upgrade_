@@ -25,7 +25,7 @@ import os
 import re
 
 # the bench's own made-up names: no person's (the rig's account is "rig", rig/hyperv/v1-job.py)
-BENCH_NAMES = {"rig"}
+BENCH_NAMES = {"rig", "password"}   # the rig's account; the Aspire's fixed test password (the owner, 2026-10-28), a word, not a secret
 # the columns a person's detail can reach: the rest are the judge's own words and numbers
 FREE_TEXT = ("machine", "firmware", "notes")
 

@@ -1079,7 +1079,8 @@ def ask_consents(needed, link, secrets, ask=input, out=print):
     for one a newer stage added). Returns False when one was not given."""
     for key in needed:
         if key == "password":
-            secrets["password"] = pysecrets.token_urlsafe(12)
+            # kickoff may have set it: the plan's fixed test password, or an earlier run's
+            secrets.setdefault("password", pysecrets.token_urlsafe(12))
             continue
         if key == "walkaway-account":
             # the fresh Windows gets the SSH login's own name, so the manager reaches it the same way
@@ -1116,11 +1117,24 @@ def ask_consents(needed, link, secrets, ask=input, out=print):
     return True
 
 
-def kickoff(plan_path, spec, ask=input, out=print, root=None):
+def kickoff(plan_path, spec, ask=input, out=print, root=None, password_from=None):
+    """password_from: an earlier run on the same machine, whose installed
+    Linux this run goes on with (a tail run): its account keeps that run's
+    password. Else the plan's test_password (the owner, 2026-10-28: the
+    Aspire's test account is 'password' from its next install on), else a
+    random one."""
     with open(plan_path, encoding="utf-8") as f:
         plan = json.load(f)
     link = tr.from_spec(spec)
     secrets = {}
+    if password_from:
+        _, earlier = load(password_from)
+        if not earlier.get("password"):
+            out(f"oneclick: {password_from} holds no password. Nothing started.")
+            return None
+        secrets["password"] = earlier["password"]
+    elif plan.get("test_password"):
+        secrets["password"] = plan["test_password"]
     needed = plan_needs(plan["stages"])
     out(f"oneclick {VERSION}: {len(plan['stages'])} stages on {plan.get('machine', '?')} over {link.describe()}")
     for i, st in enumerate(plan["stages"]):
@@ -1208,6 +1222,7 @@ def main(argv=None):
     k.add_argument("--plan", required=True)
     k.add_argument("--transport", required=True)
     k.add_argument("--no-run", action="store_true", help="make the run folder only")
+    k.add_argument("--password-from", help="an earlier run on this machine whose installed Linux this run goes on with")
     r = sub.add_parser("run")
     r.add_argument("run_dir")
     s = sub.add_parser("status")
@@ -1223,7 +1238,7 @@ def main(argv=None):
     pr.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
     if a.cmd == "kickoff":
-        d = kickoff(a.plan, a.transport)
+        d = kickoff(a.plan, a.transport, password_from=a.password_from)
         if d is None:
             return 2
         return 0 if a.no_run else run_chain(d)
