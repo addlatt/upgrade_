@@ -287,6 +287,7 @@ def keep_link(convert_out, probes=("windows",)):
     link = FakeLink(probes=probes, runs={
         "STICK=$L": tr.Result(0, "STICK=E:\n", ""),
         "COLLECTED=": tr.Result(0, "COLLECTED=C:\\upgrade_oneclick\\collect\\T\n", ""),
+        "explorer.exe": tr.Result(0, "SIGNED_IN\n", ""),
         "upgrade-job.exe write": tr.Result(0, "JOB_RC=0\n", ""),
         "upgrade-prologue.exe start": tr.Result(0, convert_out, ""),
         "bench": tr.Result(0, "", ""),
@@ -457,6 +458,33 @@ class KickoffTests(unittest.TestCase):
             f.write("nothing here")
         with self.assertRaises(SystemExit):
             oneclick.sentence("erase", repo=self.tmp)
+
+
+class SignInTests(unittest.TestCase):
+    def ctx(self, answers):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        link = FakeLink()
+        seq = list(answers)
+        link.run = lambda script, os_kind, timeout=600: tr.Result(0, seq.pop(0) if len(seq) > 1 else seq[0], "")
+        clock = Clock()
+        c = oneclick.Context(tmp, {"heartbeat_s": 300}, {}, link, oneclick.Journal(os.path.join(tmp, "j")), clock.sleep, clock)
+        return c
+
+    def test_a_signed_in_desktop_goes_straight_on(self):
+        c = self.ctx(["SIGNED_IN"])
+        self.assertTrue(oneclick.wait_signed_in(c))
+        self.assertEqual(c.journal.entries(), [])
+
+    def test_the_sign_in_screen_waits_for_the_owner_and_says_so(self):
+        c = self.ctx(["NOBODY", "NOBODY", "NOBODY", "SIGNED_IN"])
+        self.assertTrue(oneclick.wait_signed_in(c))
+        self.assertIn("sign in", c.journal.entries()[0]["text"])
+
+    def test_nobody_signing_in_is_a_hang_never_a_job(self):
+        c = self.ctx(["NOBODY"])
+        self.assertFalse(oneclick.wait_signed_in(c, limit_s=600))
+        self.assertTrue(any(e["event"] == "hang" for e in c.journal.entries()))
 
 
 class TransportTests(unittest.TestCase):

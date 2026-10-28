@@ -378,6 +378,25 @@ def find_stick(ctx):
     return m.group(1) if m else None
 
 
+SIGNED_IN = ("$me = $env:USERNAME; $d = @(Get-CimInstance Win32_Process -Filter \"Name='explorer.exe'\" | "
+             "ForEach-Object { (Invoke-CimMethod -InputObject $_ -MethodName GetOwner).User } | Where-Object { $_ -eq $me }); "
+             "if ($d.Count -gt 0) { 'SIGNED_IN' } else { 'NOBODY' }")
+
+
+def wait_signed_in(ctx, limit_s=21600):
+    """The job writer reads the folders of whoever is signed in on the
+    screen, and refuses when nobody is (it cannot tell whose folders they
+    are). A person is at their desktop when they click; after the manager's
+    restarts the screen sits at the sign-in. So the manager waits for the
+    owner to sign in (the Aspire, 2026-10-28: refused at the sign-in screen,
+    nothing changed), and the journal says what it waits for."""
+    if "SIGNED_IN" in ctx.link.run(SIGNED_IN, "windows", 60).out:
+        return True
+    ctx.note("waiting for the owner to sign in on the machine's screen (the job writer needs the person at the desktop)")
+    return bool(ctx.wait_for("someone signed in on the screen",
+                             lambda: "SIGNED_IN" in ctx.link.run(SIGNED_IN, "windows", 60).out, limit_s, every_s=30))
+
+
 def write_job(ctx, L, args, erase=False):
     """The job. A real machine: the product's job writer over SSH, with the
     sentences typed at kickoff. The rig: the stand-in (the writer refuses the
@@ -396,6 +415,8 @@ def write_job(ctx, L, args, erase=False):
         if j.returncode != 0:
             return Outcome("job-failed", False, "the rig's job stand-in failed: read job-standin.log")
     else:
+        if not wait_signed_in(ctx, int(args.get("signin_limit_s", 21600))):
+            return Outcome("nobody-signed-in", False, "nobody signed in on the machine's screen within the limit; no job was written")
         hf = os.path.join(ctx.stage_dir, ".hash")
         with open(hf, "w") as f:
             f.write(hashed + "\n")
