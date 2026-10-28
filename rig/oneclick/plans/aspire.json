@@ -3,10 +3,10 @@
   "version": 1,
   "machine": "acer-aspire-a515-51g",
   "why_this_order": "most likely in the wild first (the owner, 2026-10-27); state forces the rollback before the erase and the cancel and refusal after the walk-away",
+  "why_no_stage_0": "the 2026-10-11 install was already rolled back on 2026-10-12 (Windows side; rollback.json on the stick) and its settle-in predates 'settle-in rollback': the old Fedora is cleared by hand before the run (the owner, 2026-10-28), so the run starts at the look",
   "heartbeat_s": 300,
   "why_data_loss": "the Aspire's scan is RED (its dying drive, R23): every stage that writes a job names the sentence, so the owner types it at kickoff, never added in silence",
   "stages": [
-    {"stage": "rollback-existing", "why": "state prep, the Aspire only: the 2026-10-11 install is still on it (R21 row owed)"},
     {"stage": "look", "expect": ["GREEN", "YELLOW", "RED"], "limit_s": 900},
     {"stage": "keep-windows", "needs": ["data-loss"], "why": "the default path: install beside Windows, settle-in's first start, both systems start"},
     {"stage": "stick-left-in", "why": "people forget the stick: it must not install again"},
