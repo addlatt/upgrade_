@@ -838,6 +838,22 @@ def stage_impl(name):
     return STAGES.get(name) or NotBuilt(name)
 
 
+def stage_needs(st):
+    """The approvals a plan stage needs: its own, and the sentences the plan
+    names for this machine (the Aspire's scan is RED, so its job writer and
+    prologue need R23's sentence; it is never added in silence). A plan may
+    name only a sentence the product itself asks for."""
+    extra = st.get("needs", [])
+    unknown = [n for n in extra if n not in SENTENCE_SOURCES]
+    if unknown:
+        raise SystemExit(f"oneclick: stage '{st['stage']}' names approvals the manager does not know: {', '.join(unknown)}")
+    return tuple(stage_impl(st["stage"]).needs) + tuple(n for n in extra if n not in stage_impl(st["stage"]).needs)
+
+
+def plan_needs(stages):
+    return sorted({n for st in stages for n in stage_needs(st)})
+
+
 # --- the run ---------------------------------------------------------------
 
 def load(run_dir):
@@ -955,7 +971,7 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
         name = f"{i + 1:02d}-{st['stage']}" + (f"-try{tries + 1}" if tries else "")
         ctx.stage_dir = os.path.join(run_dir, "stages", name)
         impl = stage_impl(st["stage"])
-        missing = [k for k in impl.needs if k not in secrets]
+        missing = [k for k in stage_needs(st) if k not in secrets]
         if missing:
             journal.write("run-stopped", why=f"stage {i} ({st['stage']}) needs an approval this run was not given: {', '.join(missing)} (oneclick.py consent RUN_DIR)")
             out(f"oneclick: stopped - stage {i + 1} {st['stage']} needs {', '.join(missing)}; give it with: oneclick.py consent {run_dir}")
@@ -1019,7 +1035,7 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None):
         plan = json.load(f)
     link = tr.from_spec(spec)
     secrets = {}
-    needed = sorted({n for st in plan["stages"] for n in stage_impl(st["stage"]).needs})
+    needed = plan_needs(plan["stages"])
     out(f"oneclick {VERSION}: {len(plan['stages'])} stages on {plan.get('machine', '?')} over {link.describe()}")
     for i, st in enumerate(plan["stages"]):
         built = "" if st["stage"] in STAGES else "   (not built yet: the run stops here)"
@@ -1044,7 +1060,7 @@ def consent(run_dir, ask=input, out=print):
     """The approvals a run's stages need that it was not given at kickoff."""
     run, secrets = load(run_dir)
     link = tr.from_spec(run["transport"])
-    needed = sorted({n for st in run["plan"]["stages"] for n in stage_impl(st["stage"]).needs} - set(secrets))
+    needed = [n for n in plan_needs(run["plan"]["stages"]) if n not in secrets]
     if not needed:
         out("oneclick: nothing is missing")
         return 0

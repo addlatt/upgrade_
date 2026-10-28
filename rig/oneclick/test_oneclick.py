@@ -374,6 +374,52 @@ class KickoffTests(unittest.TestCase):
         self.assertEqual(kept["erase"], s)
         self.assertGreaterEqual(len(kept["password"]), 16)
 
+    def test_a_sentence_the_plan_names_is_asked_at_kickoff_and_kept(self):
+        with open(self.plan, "w") as f:
+            json.dump({"machine": "fake", "stages": [{"stage": "writer-x", "needs": ["data-loss"]}]}, f)
+        shown, asked = [], []
+        sentences = {oneclick.sentence(k): k for k in ("erase", "data-loss")}
+
+        def ask(_):   # types whichever sentence the manager just showed
+            s = [t for t in sentences if t in shown[-1]][0]
+            asked.append(sentences[s])
+            return s
+        d = oneclick.kickoff(self.plan, "ssh:fake", ask=ask, out=shown.append, root=self.tmp)
+        self.assertEqual(sorted(asked), ["data-loss", "erase"])
+        with open(os.path.join(d, "secrets.json")) as f:
+            self.assertEqual(json.load(f)["data-loss"], oneclick.sentence("data-loss"))
+
+    def test_the_data_loss_sentence_typed_wrong_starts_nothing(self):
+        with open(self.plan, "w") as f:
+            json.dump({"machine": "fake", "stages": [{"stage": "writer-x", "needs": ["data-loss"]}]}, f)
+        erase = oneclick.sentence("erase")
+        d = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: erase, out=lambda *_: None, root=self.tmp)
+        self.assertIsNone(d, "the erase sentence is not the data-loss sentence")
+        self.assertEqual(sorted(os.listdir(self.tmp)), ["plan.json"])
+
+    def test_a_plan_naming_an_approval_the_manager_does_not_know_refuses(self):
+        with open(self.plan, "w") as f:
+            json.dump({"machine": "fake", "stages": [{"stage": "writer-x", "needs": ["override"]}]}, f)
+        with self.assertRaises(SystemExit):
+            oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: "", out=lambda *_: None, root=self.tmp)
+
+    def test_a_run_missing_a_plan_named_sentence_stops_before_the_stage(self):
+        d = make_run(self.tmp, [{"stage": "writer-x", "needs": ["data-loss"]}])
+        with open(os.path.join(d, "secrets.json"), "w") as f:
+            json.dump({"password": "x" * 16, "erase": oneclick.sentence("erase")}, f)
+        self.assertEqual(oneclick.run_chain(d, link=FakeLink(), out=lambda *_: None), 1)
+        e = oneclick.Journal(os.path.join(d, "journal.jsonl")).entries()
+        self.assertFalse([x for x in e if x["event"] == "stage-start"])
+        self.assertIn("data-loss", e[-1]["why"])
+
+    def test_the_aspire_plan_asks_for_the_data_loss_sentence_wherever_a_job_is_written(self):
+        with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", "aspire.json")) as f:
+            plan = json.load(f)
+        for st in plan["stages"]:
+            if st["stage"] in ("keep-windows", "clean-slate", "cancel-countdown", "refused-before-countdown"):
+                self.assertIn("data-loss", oneclick.stage_needs(st), st["stage"])
+        self.assertIn("data-loss", oneclick.plan_needs(plan["stages"]))
+
     def test_a_sentence_missing_from_the_source_refuses(self):
         os.makedirs(os.path.join(self.tmp, "evaluate/job/src"))
         with open(os.path.join(self.tmp, "evaluate/job/src/lib.rs"), "w") as f:
