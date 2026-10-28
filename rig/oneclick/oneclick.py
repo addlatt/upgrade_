@@ -1050,9 +1050,9 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None):
     out(f"oneclick {VERSION}: {len(plan['stages'])} stages on {plan.get('machine', '?')} over {link.describe()}")
     for i, st in enumerate(plan["stages"]):
         built = "" if st["stage"] in STAGES else "   (not built yet: the run stops here)"
-        if st.get("owner_step"):
-            out(f"      (waits for you: {st['owner_step']})")
         out(f"  {i + 1:2d}. {st['stage']}{built}")
+        if st.get("owner_step"):
+            out(f"      (first waits for you: {st['owner_step']})")
     if not ask_consents(needed, link, secrets, ask, out):
         return None
     run_dir = os.path.join(root or runs_root(), f"{plan.get('machine', 'machine')}-{stamp()}")
