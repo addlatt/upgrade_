@@ -805,19 +805,30 @@ class WalkAway:
         plan = sudo(ctx, f"{SETTLE_IN} go-back walkaway plan", 300)
         ctx.save("walkaway-plan.json", plan.out + plan.err)
         try:
-            drives = json.loads(plan.out.strip().splitlines()[-1]).get("drives")
-        except (ValueError, IndexError):
+            plan_v = json.loads(plan.out.strip().splitlines()[-1])
+            drives, language = plan_v.get("drives"), plan_v.get("language") or "en-us"
+        except (ValueError, IndexError, AttributeError):
             return Outcome("walkaway-plan-unread", False, (plan.out + plan.err).strip()[-300:])
-        if not isinstance(drives, list):
-            return Outcome("walkaway-no-stick", False, f"settle-in offered no drive: {drives}")
+        # the plan's drives are the ones the walk-away erases (the window's drives_ok); the
+        # sticks come from `go-back sticks`, as the window asks for them (the Aspire, 2026-10-28:
+        # the manager read the plan's drives as sticks, and no stick could ever match)
+        if not isinstance(drives, list) or not drives:
+            return Outcome("walkaway-no-drives", False, f"settle-in's plan names no drive to install Windows on: {drives}")
+        st = sudo(ctx, f"{SETTLE_IN} go-back sticks --min-bytes {WALKAWAY_MIN_STICK}", 120)
+        ctx.save("walkaway-sticks.json", st.out + st.err)
+        try:
+            sticks = json.loads(st.out.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return Outcome("walkaway-sticks-unread", False, (st.out + st.err).strip()[-300:])
         word = ctx.secrets["walkaway-stick"]
-        picks = [d for d in drives if d.get("offered") and d.get("confirm_word") == word]
+        picks = [d for d in sticks if isinstance(d, dict) and d.get("offered") and d.get("confirm_word") == word]
         if len(picks) != 1:
             return Outcome("walkaway-stick-not-confirmed", False, f"{len(picks)} offered drives answer to the word typed at kickoff")
         d = picks[0]
         user = link.run("id -un", "linux", 30).out.strip()
         prep = sudo(ctx, f"{SETTLE_IN} go-back walkaway prepare --sentence '{ctx.secrets['walkaway']}' --account '{ctx.secrets['walkaway-account']}' "
-                         f"--serial '{d['serial']}' --size {d['size_bytes']} --typed '{word}' --linux-user '{user}'", int(args.get("prepare_limit_s", 14400)))
+                         f"--serial '{d['serial']}' --size {d['size_bytes']} --typed '{word}' --linux-user '{user}' --language '{language}'",
+                    int(args.get("prepare_limit_s", 14400)))
         ctx.save("walkaway-prepare.out", prep.out + prep.err)
         if '"ready"' not in prep.out:
             return Outcome("walkaway-not-ready", False, (prep.out + prep.err).strip()[-300:])
@@ -854,6 +865,8 @@ class WalkAway:
 
 
 SETTLE_IN = "/usr/local/libexec/upgrade_/settle-in"
+# the window's own floor (settle-in/window/src/goback.rs refresh_sticks): Windows 11 takes about 7 GB, 16 GB sticks
+WALKAWAY_MIN_STICK = 14_000_000_000
 
 
 class Rollback:

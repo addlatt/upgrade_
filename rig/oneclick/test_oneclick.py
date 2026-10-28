@@ -4,6 +4,7 @@
 """
 
 import json
+import re
 import os
 import shutil
 import stat
@@ -458,6 +459,57 @@ class KickoffTests(unittest.TestCase):
             f.write("nothing here")
         with self.assertRaises(SystemExit):
             oneclick.sentence("erase", repo=self.tmp)
+
+
+class WalkAwayStickTests(unittest.TestCase):
+    """The walk-away picks its stick from `go-back sticks`, as the window does;
+    the plan's drives are the ones it erases (the Aspire, 2026-10-28)."""
+
+    PLAN = json.dumps({"drives": [{"name": "sdb", "role": "system", "serial": "EI8", "size_bytes": 256060514304}], "language": "en-us"})
+
+    def run_with(self, sticks):
+        import base64
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        link = FakeLink(probes=("linux",))
+        link.kind = "ssh"
+        sent = []
+
+        def run(script, kind, timeout=600):
+            m = re.search(r"echo (\S+) \| base64 -d\)", script)
+            body = base64.b64decode(m.group(1)).decode() if m else script
+            sent.append(body)
+            if "walkaway plan" in body:
+                return tr.Result(0, self.PLAN, "")
+            if "go-back sticks" in body:
+                return tr.Result(0, json.dumps(sticks), "")
+            if "walkaway prepare" in body:
+                return tr.Result(1, '{"result": "stopped"}', "")
+            return tr.Result(0, "user", "")
+        link.run = run
+        c = oneclick.Context(tmp, {"heartbeat_s": 300}, {"password": "p", "walkaway": "s", "walkaway-stick": "UDisk", "walkaway-account": "a"},
+                             link, oneclick.Journal(os.path.join(tmp, "j")))
+        c.stage_dir = tmp
+        return oneclick.WalkAway().run(c, {}), sent
+
+    def test_the_offered_stick_with_the_typed_word_is_the_one_prepared(self):
+        o, sent = self.run_with([{"confirm_word": "HFS256G39TND-N21", "offered": False, "serial": "EI8", "size_bytes": 1},
+                                 {"confirm_word": "UDisk", "offered": True, "serial": "General_UDisk-0:0", "size_bytes": 15728640000}])
+        self.assertEqual(o.word, "walkaway-not-ready", "it reached prepare")
+        prep = [b for b in sent if "walkaway prepare" in b][0]
+        self.assertIn("--serial 'General_UDisk-0:0' --size 15728640000 --typed 'UDisk'", prep)
+        self.assertIn("--min-bytes 14000000000", [b for b in sent if "go-back sticks" in b][0])
+
+    def test_a_refused_stick_is_never_prepared_even_with_the_word(self):
+        o, sent = self.run_with([{"confirm_word": "UDisk", "offered": False, "serial": "x", "size_bytes": 1}])
+        self.assertEqual(o.word, "walkaway-stick-not-confirmed")
+        self.assertFalse([b for b in sent if "walkaway prepare" in b])
+
+    def test_two_offered_sticks_with_one_word_are_never_guessed(self):
+        both = {"confirm_word": "UDisk", "offered": True, "serial": "General_UDisk-0:0", "size_bytes": 15728640000}
+        o, sent = self.run_with([both, dict(both)])
+        self.assertEqual(o.word, "walkaway-stick-not-confirmed")
+        self.assertFalse([b for b in sent if "walkaway prepare" in b])
 
 
 class DesktopTests(unittest.TestCase):
