@@ -288,7 +288,7 @@ def keep_link(convert_out, probes=("windows",)):
         "STICK=$L": tr.Result(0, "STICK=E:\n", ""),
         "COLLECTED=": tr.Result(0, "COLLECTED=C:\\upgrade_oneclick\\collect\\T\n", ""),
         "explorer.exe": tr.Result(0, "SIGNED_IN\n", ""),
-        "upgrade-job.exe write": tr.Result(0, "JOB_RC=0\n", ""),
+        "upgrade-job.exe write": tr.Result(0, "  written: E:\\upgrade_\\job.json\nDESKTOP_RC=0\n", ""),
         "upgrade-prologue.exe start": tr.Result(0, convert_out, ""),
         "bench": tr.Result(0, "", ""),
     }, files={"E:\\upgrade_\\job.json": "{}", "C:\\upgrade_oneclick\\collect\\T": "x",
@@ -458,6 +458,27 @@ class KickoffTests(unittest.TestCase):
             f.write("nothing here")
         with self.assertRaises(SystemExit):
             oneclick.sentence("erase", repo=self.tmp)
+
+
+class DesktopTests(unittest.TestCase):
+    def test_the_command_runs_as_a_desktop_task_and_the_answer_is_its_log(self):
+        link = FakeLink(runs={"upgrade-job.exe write": tr.Result(0, "#< CLIXML\n<Objs>noise</Objs>  written\nDESKTOP_RC=2\n", "")})
+        r = oneclick.on_desktop(link, 'E:\\upgrade-job.exe write --acknowledge-data-loss "I confirm"', "DESKTOP_RC=", 1800)
+        sent = link.commands[0]
+        self.assertIn("-LogonType Interactive -RunLevel Highest", sent)
+        self.assertIn("-DontStopIfGoingOnBatteries", sent)
+        self.assertNotIn("I confirm", sent.split("<#")[0], "the command travels encoded")
+        self.assertNotIn("CLIXML", r.out)
+        self.assertIn("DESKTOP_RC=2", r.out)
+
+    def test_a_refusing_job_writer_on_the_desktop_is_job_refused(self):
+        link = keep_link("x")
+        link.runs["upgrade-job.exe write"] = tr.Result(0, "REFUSED - no job written\nDESKTOP_RC=2\n", "")
+        t = KeepWindowsTests()
+        t.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, t.tmp)
+        o = oneclick.KeepWindows().run(t.ctx(link, Clock()), {})
+        self.assertEqual((o.word, o.expected), ("job-refused", False))
 
 
 class SignInTests(unittest.TestCase):

@@ -397,6 +397,42 @@ def wait_signed_in(ctx, limit_s=21600):
                              lambda: "SIGNED_IN" in ctx.link.run(SIGNED_IN, "windows", 60).out, limit_s, every_s=30))
 
 
+DESKTOP_TASK = "upgrade_ oneclick desktop"
+DESKTOP_DIR = "C:\\upgrade_oneclick"
+
+
+def clean(text):
+    """PowerShell's progress records over SSH (#< CLIXML ...) are noise, not the answer."""
+    return re.sub(r"#< CLIXML.*?</Objs>", "", text, flags=re.S)
+
+
+def on_desktop(link, command, until, timeout):
+    """`command` (a cmd.exe line) run the way the window runs the product: in
+    the signed-in person's own session, as administrator. An SSH login is a
+    session of its own, with no desktop, and the job writer rightly refuses
+    there: it compares its session's desktop owner with itself (the Aspire,
+    2026-10-28). So a task with an interactive principal runs it, writing a
+    log; this waits on the machine until the log holds `until` or the
+    command's exit (DESKTOP_RC=n), then returns the log. The prologue's
+    `until` is its restart line: the log stops there, the machine restarts."""
+    log = f"{DESKTOP_DIR}\\desktop.log"
+    # brackets: a compound command is logged whole, and "RC=0>>" is never read as handle 0's redirect
+    body = f"@echo off\r\ncd /d {DESKTOP_DIR}\r\n({command}) > {log} 2>&1\r\n(echo DESKTOP_RC=%ERRORLEVEL%)>> {log}\r\n"
+    ps = (f"$c = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{b64(body)}')); "
+          f"New-Item -ItemType Directory -Force {DESKTOP_DIR} | Out-Null; Set-Content -Path {DESKTOP_DIR}\\desktop.cmd -Value $c -Encoding ASCII; "
+          f"Remove-Item {log} -ErrorAction SilentlyContinue; "
+          f"$a = New-ScheduledTaskAction -Execute cmd.exe -Argument '/c {DESKTOP_DIR}\\desktop.cmd'; "
+          "$p = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest; "
+          "$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 3); "
+          f"Register-ScheduledTask -TaskName '{DESKTOP_TASK}' -Action $a -Principal $p -Settings $s -Force | Out-Null; "
+          f"Start-ScheduledTask -TaskName '{DESKTOP_TASK}'; $end = (Get-Date).AddSeconds({max(60, timeout - 60)}); $log = ''; "
+          f"while ((Get-Date) -lt $end) {{ Start-Sleep 5; $log = [string](Get-Content {log} -Raw -ErrorAction SilentlyContinue); "
+          f"if ($log -match '{re.escape(until)}|DESKTOP_RC=') {{ break }} }}; Write-Output $log"
+          f" <# on the desktop: {command.split(' --')[0]} #>")
+    r = link.run(ps, "windows", timeout)
+    return tr.Result(r.rc, clean(r.out), clean(r.err))
+
+
 def write_job(ctx, L, args, erase=False):
     """The job. A real machine: the product's job writer over SSH, with the
     sentences typed at kickoff. The rig: the stand-in (the writer refuses the
@@ -423,15 +459,15 @@ def write_job(ctx, L, args, erase=False):
         link.push(hf, "C:\\upgrade_oneclick\\pw.txt", "windows")
         os.remove(hf)
         ack = ctx.secrets.get("data-loss")
-        jw = link.run(
-            f"& {L}\\upgrade-job.exe write --stick {L} --out {L}\\upgrade_ --scan {L}\\upgrade_\\reports --desktop {args.get('desktop', 'kde')} "
+        jw = on_desktop(link,
+            f"{L}\\upgrade-job.exe write --stick {L} --out {L}\\upgrade_ --scan {L}\\upgrade_\\reports --desktop {args.get('desktop', 'kde')} "
             f"--start-at {args.get('start_at', 'desktop')} --if-cannot-keep stop --password-hash-file C:\\upgrade_oneclick\\pw.txt "
             f"--kickstart {L}\\upgrade_\\ks.cfg --stick-label UPGV0 --manifest {L}\\SHA256SUMS" +
-            (f" --erase-everything '{ctx.secrets['erase']}'" if erase else "") +
-            (f" --acknowledge-data-loss '{ack}'" if ack else "") +
-            "; $rc = $LASTEXITCODE; Remove-Item C:\\upgrade_oneclick\\pw.txt -Force; Write-Output \"JOB_RC=$rc\"", "windows", timeout=1800)
+            (f" --erase-everything \"{ctx.secrets['erase']}\"" if erase else "") +
+            (f" --acknowledge-data-loss \"{ack}\"" if ack else ""), "DESKTOP_RC=", 1800)
+        link.run("Remove-Item C:\\upgrade_oneclick\\pw.txt -Force -ErrorAction SilentlyContinue", "windows", timeout=60)
         ctx.save("job-writer.out", jw.out + jw.err)
-        if "JOB_RC=0" not in jw.out:
+        if not re.search(r"DESKTOP_RC=0\b", jw.out):
             return Outcome("job-refused", False, (jw.out + jw.err).strip()[-300:])
     link.pull(f"{L}\\upgrade_\\job.json", os.path.join(ctx.stage_dir, "job.json"), "windows")
     return None
@@ -450,9 +486,14 @@ def arm(ctx, L, erase=False, markers=()):
     if not collect_windows(ctx, "before-install", "before"):
         return Outcome("collect-failed", False, "the Windows collector before the conversion")
     ack = ctx.secrets.get("data-loss")
-    consent = f"--erase-consent '{ctx.secrets['erase']}'" if erase else "--confirm-word CONVERT"
-    conv = link.run(f"& {L}\\upgrade-prologue.exe start --stick {L} {consent}" + (f" --acknowledge-data-loss '{ack}'" if ack else ""),
-                    "windows", timeout=7200)
+    if link.kind == "ssh":   # the person's desktop, as the window runs it (on_desktop)
+        consent = f"--erase-consent \"{ctx.secrets['erase']}\"" if erase else "--confirm-word CONVERT"
+        conv = on_desktop(link, f"{L}\\upgrade-prologue.exe start --stick {L} {consent}" + (f" --acknowledge-data-loss \"{ack}\"" if ack else ""),
+                          "restarting in 15 s", 7200)
+    else:
+        consent = f"--erase-consent '{ctx.secrets['erase']}'" if erase else "--confirm-word CONVERT"
+        conv = link.run(f"& {L}\\upgrade-prologue.exe start --stick {L} {consent}" + (f" --acknowledge-data-loss '{ack}'" if ack else ""),
+                        "windows", timeout=7200)
     ctx.save("convert.log", conv.out + conv.err)
     if "restarting in 15 s" not in conv.out:
         link.pull(f"{L}\\upgrade_\\outcome.json", os.path.join(ctx.stage_dir, "outcome-stopped.json"), "windows")
