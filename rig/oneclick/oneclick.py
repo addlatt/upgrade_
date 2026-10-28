@@ -1098,9 +1098,11 @@ def ask_consents(needed, link, secrets, ask=input, out=print):
             if link.kind != "ssh":
                 secrets[key] = ""   # the rig's stand-in uses no stick
                 continue
-            hint = ""
-            if link.probe() == "windows":
+            hint, who = "", link.probe()
+            if who == "windows":
                 hint = link.run("Get-PhysicalDisk | Where-Object BusType -eq 'USB' | ForEach-Object { \"  $($_.Model)  ($([math]::Round($_.Size/1e9,1)) GB)\" }", "windows", 60).out
+            elif who == "linux":   # the word settle-in checks is Linux's own model name
+                hint = link.run("lsblk -dno MODEL,SIZE,TRAN | awk '$NF==\"usb\" {$NF=\"\"; print \"  \" $0}'", "linux", 60).out
             out("\nType the walk-away stick's model word exactly, to approve writing Windows' installer onto it."
                 "\nUSB drives on the machine now (the kit stick is one of them):\n" + (hint or "  (none listed)"))
             secrets[key] = ask("> ").strip()
