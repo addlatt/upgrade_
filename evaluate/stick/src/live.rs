@@ -143,7 +143,25 @@ pub fn write_stick(disk: &Value, source: &str, boot_label: &str, boot_gb: i64, h
     if u(&live["Size"]) != crate::judge::int(disk, "SizeBytes") {
         return Err("re-resolve: the disk size changed; refusing".into());
     }
-    let mut result = WriteResult::default();
+    // From the first destructive call on, the disk is written whatever happens next: an
+    // error after it is a written, unverified stick, never "written n" (the G16, 2026-10-27:
+    // the stick dropped off the bus mid-copy and the row said written n).
+    let mut result = WriteResult { written: true, ..Default::default() };
+    match write_cleared(&w, live, &id, source, boot_label, boot_gb, host, &mut result) {
+        Ok(()) => Ok(result),
+        Err(e) => {
+            host(&format!("  ! {e}"));
+            result.verified = false;
+            result.notes.push(format!("stopped after the disk was cleared: {e}"));
+            Ok(result)
+        }
+    }
+}
+
+/// The destructive half of `write_stick`, from the clear to the read-back.
+#[allow(clippy::too_many_arguments)]
+fn write_cleared(w: &Wmi, live: &Value, id: &str, source: &str, boot_label: &str, boot_gb: i64, host: &mut dyn FnMut(&str), result: &mut WriteResult) -> Result<(), String> {
+    let id = id.to_string();
     host(&format!("  clearing disk {} ({})...", u(&live["Number"]), text(&live["FriendlyName"])));
     call(&w, "MSFT_Disk", &text(&live["__RELPATH"]), "Clear", &[("RemoveData", json!(true)), ("RemoveOEM", json!(true)), ("ZeroOutEntireDisk", json!(false))], &["ReturnValue", "ExtendedStatus"])?;
     let live = one_disk(&w, &id)?;
@@ -185,7 +203,6 @@ pub fn write_stick(disk: &Value, source: &str, boot_label: &str, boot_gb: i64, h
     } else {
         result.notes.push("no room for a staging partition".into());
     }
-    result.written = true;
     // copy, then verify by reading every file back against SHA256SUMS
     let root = PathBuf::from(format!("{}:\\", result.boot_letter));
     host(&format!("  copying {source} -> {} ...", root.display()));
@@ -216,7 +233,7 @@ pub fn write_stick(disk: &Value, source: &str, boot_label: &str, boot_gb: i64, h
         "unique_id": text(&live["UniqueId"]), "serial_number": text(&live["SerialNumber"]).split_whitespace().collect::<String>(), "size_bytes": u(&live["Size"]),
         "friendly_name": text(&live["FriendlyName"]), "label": boot_label, "manifest": "SHA256SUMS",
     });
-    Ok(result)
+    Ok(())
 }
 
 fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -319,7 +336,9 @@ impl Live for WinLive {
 }
 
 /// Copy-Kit.ps1: refresh a removable USB volume from the kit and eject it.
-pub fn copy_kit(drive: &str, kit: Option<&str>) -> Result<(), String> {
+/// The previous run's records go to `save_to` first (default: a dated folder
+/// beside the kit), read back, before anything is removed.
+pub fn copy_kit(drive: &str, kit: Option<&str>, save_to: Option<&str>) -> Result<(), String> {
     let l = drive.trim_end_matches([':', '\\']).to_uppercase();
     let w = storage_wmi()?;
     let vol = w.query_where("MSFT_Volume", &["FileSystemLabel", "DriveType", "SizeRemaining"], &format!("DriveLetter='{l}'"))?.into_iter().next().ok_or_else(|| format!("No MSFT_Volume objects found with property 'DriveLetter' equal to '{l}'. Verify the value of the property and retry."))?;
@@ -338,7 +357,12 @@ pub fn copy_kit(drive: &str, kit: Option<&str>) -> Result<(), String> {
     let kit_dir = kit.map(PathBuf::from).unwrap_or_else(default_kit);
     println!("  stick {l}: '{}' {} {} GB, {} GB free", text(&vol["FileSystemLabel"]), text(&disk["FriendlyName"]), upgrade_scan::ps::num(upgrade_scan::ps::round1(u(&disk["Size"]) as f64 / 1e9)), upgrade_scan::ps::fmt_n(u(&vol["SizeRemaining"]) as f64 / 1e9, 2).replace(',', ""));
     let root = PathBuf::from(format!("{l}:\\"));
-    copy::refresh(&kit_dir, &root, &mut |line| println!("{line}"))?;
+    let save_dir = save_to.map(PathBuf::from).unwrap_or_else(|| {
+        // 2026-10-27T14:53:39.4607517Z -> 20261027T145339Z (no ':' in a Windows name)
+        let stamp: String = upgrade_scan::collect::now().1.chars().take(19).filter(|c| c.is_ascii_alphanumeric()).collect::<String>() + "Z";
+        kit_dir.parent().unwrap_or(&kit_dir).join(format!("stick-saved-{stamp}"))
+    });
+    copy::refresh(&kit_dir, &root, &save_dir, &mut |line| println!("{line}"))?;
     match eject(&l) {
         Ok(()) => println!("  ejected {l}: - safe to unplug"),
         Err(e) => println!("  could not eject automatically ({e}); eject from the tray icon"),

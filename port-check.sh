@@ -18,8 +18,9 @@
 #      oracle). The data tables are JSON since 2026-10-14 and the scanner's
 #      own tests check their shape; nothing here needs PowerShell.
 #   2. the frozen goldens are unchanged
-#   3. cargo test in every crate of the product, the harvester's filesystem
-#      cases on Windows, and the schema differential against check.py
+#   3. cargo test in every crate of the product, the one click test
+#      manager's cases, the harvester's filesystem cases on Windows, and the
+#      schema differential against check.py
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
@@ -63,6 +64,9 @@ for crate in settle-in settle-in/gate upgrade_/linux/installer; do
     if (cd "$crate" && cargo test --locked --quiet) > "$TMP/cargo.txt" 2>&1; then pass "cargo test in $crate"
     else fail "cargo test in $crate"; sed 's/^/          /' "$TMP/cargo.txt" | tail -40; fi
 done
+# the one click test's manager (tooling, roadmap item 21): its cases on a made-up machine
+if python3 -W error -m unittest rig/oneclick/test_oneclick.py rig/oneclick/test_rows.py > "$TMP/oneclick.txt" 2>&1; then pass "the one click test manager ($(grep -o 'Ran [0-9]* tests' "$TMP/oneclick.txt"))"
+else fail "the one click test manager's cases"; tail -30 "$TMP/oneclick.txt" | sed 's/^/          /'; fi
 if [ "$HAVE_PS" = 1 ]; then
     if (cd evaluate/harvest && ./windows-tests.sh) > "$TMP/wintests.txt" 2>&1 && grep -q "test result: ok. 12 passed" "$TMP/wintests.txt"; then pass "the harvester's 12 filesystem cases on this Windows machine"
     else fail "the harvester's filesystem cases on Windows"; tail -20 "$TMP/wintests.txt" | sed 's/^/          /'; fi

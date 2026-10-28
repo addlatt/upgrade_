@@ -3231,7 +3231,7 @@ dependencies = [
 
 [[package]]
 name = "upgrade-prologue"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "regress",
  "serde_json",
@@ -3263,7 +3263,7 @@ dependencies = [
 
 [[package]]
 name = "upgrade-stick"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde_json",
  "sha2",

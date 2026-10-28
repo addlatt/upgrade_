@@ -143,7 +143,8 @@ try { if (@(Get-WinEvent -FilterHashtable @{ LogName="System"; Id=98; StartTime=
   esp=@{size=[long]$esp.Size; free=[long]$(if ($espVol) { $espVol.SizeRemaining } else { 0 })}
   stick=@{unique_id="$($stick.UniqueId)"; size=[long]$stick.Size}} | ConvertTo-Json -Depth 4' > "$A/facts.json"
     python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$A/facts.json" || { echo "v1: facts.json is not JSON:"; cat "$A/facts.json"; exit 1; }
-    HASH=$(openssl passwd -6 rig)
+    # ONECLICK_HASH: the one click test's own account password (2026-10-27); the bench default otherwise
+    HASH=${ONECLICK_HASH:-$(openssl passwd -6 rig)}
     SUID=$(python3 -c 'import json,sys; f=json.load(open(sys.argv[1])); print(f["stick"]["unique_id"])' "$A/facts.json")
     SSIZE=$(python3 -c 'import json,sys; f=json.load(open(sys.argv[1])); print(f["stick"]["size"])' "$A/facts.json")
     # the clock and Wi-Fi come from the PRODUCT harvest, run in the guest from the stick (job writer 0.15.0);

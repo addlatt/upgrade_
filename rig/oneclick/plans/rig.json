@@ -1,0 +1,50 @@
+{
+  "plan": "rig",
+  "version": 1,
+  "machine": "rig-upgrighv",
+  "why_this_order": "the same order as a real machine, minus the Aspire's state prep",
+  "heartbeat_s": 300,
+  "stages": [
+    {
+      "stage": "look",
+      "expect": [
+        "GREEN",
+        "YELLOW",
+        "RED"
+      ],
+      "limit_s": 900
+    },
+    {
+      "stage": "keep-windows",
+      "why": "the default path: install beside Windows, settle-in's first start, both systems start"
+    },
+    {
+      "stage": "stick-left-in",
+      "why": "people forget the stick: it must not install again"
+    },
+    {
+      "stage": "rollback",
+      "why": "someone changes their mind"
+    },
+    {
+      "stage": "clean-slate",
+      "why": "erase and install (V9 arm C)"
+    },
+    {
+      "stage": "stick-left-in-erased",
+      "why": "V9 arm D"
+    },
+    {
+      "stage": "walk-away",
+      "why": "back to a fresh Windows after a clean slate"
+    },
+    {
+      "stage": "cancel-countdown",
+      "why": "V9 arm B, rare"
+    },
+    {
+      "stage": "refused-before-countdown",
+      "why": "V9 arm A, the rarest"
+    }
+  ]
+}
