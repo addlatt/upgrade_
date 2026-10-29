@@ -526,6 +526,53 @@ class WalkAwayStickTests(unittest.TestCase):
         self.assertFalse([b for b in sent if "walkaway prepare" in b])
 
 
+class HoldAwakeTests(unittest.TestCase):
+    def chain(self, stage):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        d = make_run(tmp, [stage])
+        calls = []
+        held, released = oneclick.hold_awake, oneclick.release_awake
+        oneclick.hold_awake = lambda ctx: (calls.append("hold"), True)[1]
+        oneclick.release_awake = lambda ctx: calls.append("release")
+        try:
+            oneclick.run_chain(d, link=look_link(), out=lambda *_: None)
+        finally:
+            oneclick.hold_awake, oneclick.release_awake = held, released
+        done = [x for x in oneclick.Journal(os.path.join(d, "journal.jsonl")).entries() if x["event"] == "stage-done"][0]
+        return calls, done
+
+    def test_a_stage_without_hold_awake_takes_no_lock(self):
+        calls, done = self.chain({"stage": "look"})
+        self.assertEqual(calls, [])
+        self.assertNotIn("sleep lock", done["notes"])
+
+    def test_hold_awake_takes_the_lock_releases_it_and_the_row_says_the_test_did(self):
+        calls, done = self.chain({"stage": "look", "hold_awake": True})
+        self.assertEqual(calls, ["hold", "release"])
+        self.assertIn("the TEST held a sleep lock", done["notes"])
+
+    def test_no_linux_means_no_lock_and_says_so(self):
+        ctx = oneclick.Context("/tmp", {}, {"password": "p"}, FakeLink(probes=("windows",)), oneclick.Journal(os.devnull))
+        notes = []
+        ctx.note = lambda text, **kv: notes.append(text)
+        self.assertFalse(oneclick.hold_awake(ctx))
+        self.assertIn("no sleep lock", notes[0])
+
+    def test_a_held_lock_is_said_in_the_stage_notes(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        ctx = oneclick.Context(tmp, {}, {"password": "p"}, FakeLink(probes=("linux",), runs={"base64 -d": tr.Result(0, "HELD", "")}), oneclick.Journal(os.path.join(tmp, "j")))
+        self.assertTrue(oneclick.hold_awake(ctx))
+        self.assertIn("TEST holds a sleep lock", ctx.journal.entries()[0]["text"])
+
+    def test_the_aspire_plans_hold_the_walk_away_awake(self):
+        for name in ("aspire.json", "aspire-tail.json"):
+            with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", name)) as f:
+                st = [x for x in json.load(f)["stages"] if x["stage"] == "walk-away"][0]
+            self.assertTrue(st.get("hold_awake"), name)
+
+
 class DesktopTests(unittest.TestCase):
     def test_the_command_runs_as_a_desktop_task_and_the_answer_is_its_log(self):
         link = FakeLink(runs={"upgrade-job.exe write": tr.Result(0, "#< CLIXML\n<Objs>noise</Objs>  written\nDESKTOP_RC=2\n", "")})

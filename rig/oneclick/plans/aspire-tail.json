@@ -8,7 +8,8 @@
   "stages": [
     {
       "stage": "walk-away",
-      "why": "back to a fresh Windows after a clean slate"
+      "why": "back to a fresh Windows after a clean slate; the test keeps Linux awake through the prepare (the owner, 2026-10-28: KDE slept 45 minutes in, settle-in holds no lock)",
+      "hold_awake": true
     },
     {
       "stage": "look",

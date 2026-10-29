@@ -1017,6 +1017,33 @@ class KeepAwake:
         return False
 
 
+AWAKE_UNIT = "upgrade-oneclick-awake"
+
+
+def hold_awake(ctx):
+    """The plan's hold_awake: the machine's Linux kept from sleeping for this
+    stage, by the TEST, never by the product. The walk-away's prepare runs
+    an hour and settle-in holds no sleep lock: on 2026-10-28 KDE put the
+    Aspire to sleep 45 minutes in and the manager lost it (the same finding
+    as 2026-10-04, owed in settle-in). The owner chose (2026-10-28) to hold
+    the lock from the test and say so in the journal and the row. A
+    transient unit outlives the SSH call; the next restart ends it."""
+    if ctx.link.probe() != "linux":
+        ctx.note("hold_awake: Linux does not answer; no sleep lock was taken")
+        return False
+    r = sudo(ctx, f"systemctl stop {AWAKE_UNIT} 2>/dev/null; systemd-run --unit={AWAKE_UNIT} systemd-inhibit --what=sleep:idle --mode=block "
+                  "--who=upgrade_oneclick --why='one click test: the stage runs long; settle-in holds no sleep lock' sleep 21600 >/dev/null && "
+                  "sleep 1 && systemd-inhibit --list --no-legend | grep -q upgrade_oneclick && echo HELD", 60)
+    held = "HELD" in r.out
+    ctx.note("the TEST holds a sleep lock on Linux for this stage" if held else "hold_awake: the sleep lock was not taken", out=(r.out + r.err)[-200:])
+    return held
+
+
+def release_awake(ctx):
+    if ctx.link.probe() == "linux":
+        sudo(ctx, f"systemctl stop {AWAKE_UNIT} 2>/dev/null; echo RELEASED", 60)
+
+
 def run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=print):
     if link is not None:   # a test's made-up machine: no helper on the real computer
         return _run_chain(run_dir, link, sleep, clock, out)
@@ -1065,10 +1092,14 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
         os.makedirs(ctx.stage_dir, exist_ok=False)
         journal.write("stage-start", index=i, stage=st["stage"], folder=name)
         out(f"oneclick: stage {i + 1} {st['stage']} ...")
+        held = hold_awake(ctx) if st.get("hold_awake") else False
         try:
             o = impl.run(ctx, st)
         except Exception as e:  # a manager bug is a stop, never a pass
             o = Outcome("manager-error", False, f"{type(e).__name__}: {e}")
+        if held:
+            release_awake(ctx)
+            o.notes = (o.notes + "; " if o.notes else "") + "the TEST held a sleep lock on Linux for this stage (settle-in holds none: 2026-10-04, 2026-10-28)"
         n = sha256sums(ctx.stage_dir)
         journal.write("stage-done", index=i, stage=st["stage"], word=o.word, expected=bool(o.expected), notes=o.notes, files=n)
         out(f"oneclick: stage {i + 1} {st['stage']}: {o.word}{'' if o.expected else ' (NOT expected)'} - {o.notes}")
