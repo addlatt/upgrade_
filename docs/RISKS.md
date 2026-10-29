@@ -1287,6 +1287,28 @@ the shell is logind's, tty1 to tty6 ([log](log/2026-10.md#2026-10-17-later-r38-b
 machine. No filter can tell half a cursor report from a key,
 so none is tried. The two console faults the port met on the way are fixed ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
 
+## R39: A keep-Windows conversion lands beside a Linux already on the disk · high · planned
+
+**What.** Nothing in the scanner, the job writer or the prologue looks for
+a Linux already on the disk. A machine converted once, rolled back and
+converted again (or one that had Linux before) keeps the old Linux's
+partitions, its firmware entries and its ESP folder, and the new install
+is placed beside all of it.
+
+**If real.** At best the shrink finds no room and the prologue stops. At
+worst a second Linux is installed: two `Fedora` entries, two GRUB folders,
+and a rollback that refuses or restores the wrong one; the person's old
+Linux files are not touched, but which system starts is no longer known.
+Nothing is erased that was not named, so high, not critical.
+
+**Closes when.** The scanner reports a Linux already on the disk and the
+job writer refuses a keep-Windows job beside it (or the owner decides what
+the product does instead), with a rig row and one real machine.
+
+**Where it stands.** `[#...]` planned. Found on the Aspire, 2026-10-28: its
+2026-10-11 Fedora was still on the disk after the 2026-10-12 rollback, and
+was cleared by hand before the one click test ([log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)).
+
 # Closed
 
 ## F1: `break` inside `ForEach-Object` terminated the whole script · high · closed
