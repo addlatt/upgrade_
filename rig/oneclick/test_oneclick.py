@@ -4,6 +4,7 @@
 """
 
 import json
+import re
 import os
 import shutil
 import stat
@@ -151,6 +152,37 @@ class NextActionTests(unittest.TestCase):
         e.append({"event": "consent-given", "keys": ["erase"]})
         self.assertEqual(oneclick.next_action(self.plan, e), ("run", 1))
 
+    def test_a_stage_with_an_owner_step_waits_until_the_owner_is_done(self):
+        plan = {"stages": [{"stage": "look"}, {"stage": "writer-x", "owner_step": "swap the sticks"}]}
+        e = [{"event": "stage-done", "index": 0, "stage": "look", "expected": True}]
+        self.assertEqual(oneclick.next_action(plan, e), ("wait", 1))
+        e.append({"event": "owner-done", "index": 0})
+        self.assertEqual(oneclick.next_action(plan, e), ("wait", 1), "done for another stage is not done for this one")
+        e.append({"event": "owner-done", "index": 1})
+        self.assertEqual(oneclick.next_action(plan, e), ("run", 1))
+
+    def test_a_waiting_run_starts_nothing_and_done_lets_it_go_on(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        d = make_run(tmp, [{"stage": "look"}, {"stage": "writer-x", "owner_step": "swap the sticks"}])
+        oneclick.Journal(os.path.join(d, "journal.jsonl")).write("stage-done", index=0, stage="look", word="scanned-red", expected=True)
+        self.assertEqual(oneclick.run_chain(d, link=FakeLink(), out=lambda *_: None), 3)
+        self.assertEqual(oneclick.run_chain(d, link=FakeLink(), out=lambda *_: None), 3)
+        e = oneclick.Journal(os.path.join(d, "journal.jsonl")).entries()
+        self.assertFalse([x for x in e if x["event"] == "stage-start"])
+        self.assertEqual(len([x for x in e if x["event"] == "owner-wait"]), 1, "the wait is written once")
+        self.assertEqual(oneclick.done(d, out=lambda *_: None), 0)
+        self.assertEqual(oneclick.done(d, out=lambda *_: None), 2, "nothing waits any more")
+        self.assertEqual(oneclick.next_action({"stages": [{"stage": "look"}, {"stage": "writer-x", "owner_step": "x"}]},
+                                              oneclick.Journal(os.path.join(d, "journal.jsonl")).entries()), ("run", 1))
+
+    def test_the_aspire_plan_swaps_the_sticks_around_the_walk_away(self):
+        with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", "aspire.json")) as f:
+            stages = json.load(f)["stages"]
+        names = [st["stage"] for st in stages]
+        self.assertIn("owner_step", stages[names.index("walk-away")])
+        self.assertIn("owner_step", stages[names.index("walk-away") + 1])
+
     def test_a_stopped_run_stays_stopped(self):
         e = [{"event": "run-stopped", "why": "x"}]
         self.assertEqual(oneclick.next_action(self.plan, e), ("stop", "x"))
@@ -256,7 +288,8 @@ def keep_link(convert_out, probes=("windows",)):
     link = FakeLink(probes=probes, runs={
         "STICK=$L": tr.Result(0, "STICK=E:\n", ""),
         "COLLECTED=": tr.Result(0, "COLLECTED=C:\\upgrade_oneclick\\collect\\T\n", ""),
-        "upgrade-job.exe write": tr.Result(0, "JOB_RC=0\n", ""),
+        "explorer.exe": tr.Result(0, "SIGNED_IN\n", ""),
+        "upgrade-job.exe write": tr.Result(0, "  written: E:\\upgrade_\\job.json\nDESKTOP_RC=0\n", ""),
         "upgrade-prologue.exe start": tr.Result(0, convert_out, ""),
         "bench": tr.Result(0, "", ""),
     }, files={"E:\\upgrade_\\job.json": "{}", "C:\\upgrade_oneclick\\collect\\T": "x",
@@ -374,12 +407,218 @@ class KickoffTests(unittest.TestCase):
         self.assertEqual(kept["erase"], s)
         self.assertGreaterEqual(len(kept["password"]), 16)
 
+    def test_a_sentence_the_plan_names_is_asked_at_kickoff_and_kept(self):
+        with open(self.plan, "w") as f:
+            json.dump({"machine": "fake", "stages": [{"stage": "writer-x", "needs": ["data-loss"]}]}, f)
+        shown, asked = [], []
+        sentences = {oneclick.sentence(k): k for k in ("erase", "data-loss")}
+
+        def ask(_):   # types whichever sentence the manager just showed
+            s = [t for t in sentences if t in shown[-1]][0]
+            asked.append(sentences[s])
+            return s
+        d = oneclick.kickoff(self.plan, "ssh:fake", ask=ask, out=shown.append, root=self.tmp)
+        self.assertEqual(sorted(asked), ["data-loss", "erase"])
+        with open(os.path.join(d, "secrets.json")) as f:
+            self.assertEqual(json.load(f)["data-loss"], oneclick.sentence("data-loss"))
+
+    def test_the_data_loss_sentence_typed_wrong_starts_nothing(self):
+        with open(self.plan, "w") as f:
+            json.dump({"machine": "fake", "stages": [{"stage": "writer-x", "needs": ["data-loss"]}]}, f)
+        erase = oneclick.sentence("erase")
+        d = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: erase, out=lambda *_: None, root=self.tmp)
+        self.assertIsNone(d, "the erase sentence is not the data-loss sentence")
+        self.assertEqual(sorted(os.listdir(self.tmp)), ["plan.json"])
+
+    def test_a_plan_naming_an_approval_the_manager_does_not_know_refuses(self):
+        with open(self.plan, "w") as f:
+            json.dump({"machine": "fake", "stages": [{"stage": "writer-x", "needs": ["override"]}]}, f)
+        with self.assertRaises(SystemExit):
+            oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: "", out=lambda *_: None, root=self.tmp)
+
+    def test_a_run_missing_a_plan_named_sentence_stops_before_the_stage(self):
+        d = make_run(self.tmp, [{"stage": "writer-x", "needs": ["data-loss"]}])
+        with open(os.path.join(d, "secrets.json"), "w") as f:
+            json.dump({"password": "x" * 16, "erase": oneclick.sentence("erase")}, f)
+        self.assertEqual(oneclick.run_chain(d, link=FakeLink(), out=lambda *_: None), 1)
+        e = oneclick.Journal(os.path.join(d, "journal.jsonl")).entries()
+        self.assertFalse([x for x in e if x["event"] == "stage-start"])
+        self.assertIn("data-loss", e[-1]["why"])
+
+    def test_the_aspire_plan_asks_for_the_data_loss_sentence_wherever_a_job_is_written(self):
+        with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", "aspire.json")) as f:
+            plan = json.load(f)
+        for st in plan["stages"]:
+            if st["stage"] in ("keep-windows", "clean-slate", "cancel-countdown", "refused-before-countdown"):
+                self.assertIn("data-loss", oneclick.stage_needs(st), st["stage"])
+        self.assertIn("data-loss", oneclick.plan_needs(plan["stages"]))
+
+    def test_a_plan_with_a_test_password_uses_it(self):
+        with open(self.plan, "w") as f:
+            json.dump({"machine": "fake", "test_password": "password", "stages": [{"stage": "writer-x"}]}, f)
+        d = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: oneclick.sentence("erase"), out=lambda *_: None, root=self.tmp)
+        with open(os.path.join(d, "secrets.json")) as f:
+            self.assertEqual(json.load(f)["password"], "password")
+
+    def test_a_tail_run_keeps_the_earlier_runs_password(self):
+        s = oneclick.sentence("erase")
+        first = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: s, out=lambda *_: None, root=self.tmp)
+        tail = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: s, out=lambda *_: None, root=os.path.join(self.tmp, "t"), password_from=first)
+        with open(os.path.join(first, "secrets.json")) as f, open(os.path.join(tail, "secrets.json")) as g:
+            self.assertEqual(json.load(f)["password"], json.load(g)["password"])
+
     def test_a_sentence_missing_from_the_source_refuses(self):
         os.makedirs(os.path.join(self.tmp, "evaluate/job/src"))
         with open(os.path.join(self.tmp, "evaluate/job/src/lib.rs"), "w") as f:
             f.write("nothing here")
         with self.assertRaises(SystemExit):
             oneclick.sentence("erase", repo=self.tmp)
+
+
+class WalkAwayStickTests(unittest.TestCase):
+    """The walk-away picks its stick from `go-back sticks`, as the window does;
+    the plan's drives are the ones it erases (the Aspire, 2026-10-28)."""
+
+    PLAN = json.dumps({"drives": [{"name": "sdb", "role": "system", "serial": "EI8", "size_bytes": 256060514304}], "language": "en-us"})
+
+    def run_with(self, sticks):
+        import base64
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        link = FakeLink(probes=("linux",))
+        link.kind = "ssh"
+        sent = []
+
+        def run(script, kind, timeout=600):
+            m = re.search(r"echo (\S+) \| base64 -d\)", script)
+            body = base64.b64decode(m.group(1)).decode() if m else script
+            sent.append(body)
+            if "walkaway plan" in body:
+                return tr.Result(0, self.PLAN, "")
+            if "go-back sticks" in body:
+                return tr.Result(0, json.dumps(sticks), "")
+            if "walkaway prepare" in body:
+                return tr.Result(1, '{"result": "stopped"}', "")
+            return tr.Result(0, "user", "")
+        link.run = run
+        c = oneclick.Context(tmp, {"heartbeat_s": 300}, {"password": "p", "walkaway": "s", "walkaway-stick": "UDisk", "walkaway-account": "a"},
+                             link, oneclick.Journal(os.path.join(tmp, "j")))
+        c.stage_dir = tmp
+        return oneclick.WalkAway().run(c, {}), sent
+
+    def test_the_offered_stick_with_the_typed_word_is_the_one_prepared(self):
+        o, sent = self.run_with([{"confirm_word": "HFS256G39TND-N21", "offered": False, "serial": "EI8", "size_bytes": 1},
+                                 {"confirm_word": "UDisk", "offered": True, "serial": "General_UDisk-0:0", "size_bytes": 15728640000}])
+        self.assertEqual(o.word, "walkaway-not-ready", "it reached prepare")
+        prep = [b for b in sent if "walkaway prepare" in b][0]
+        self.assertIn("--serial 'General_UDisk-0:0' --size 15728640000 --typed 'UDisk'", prep)
+        self.assertIn("--min-bytes 14000000000", [b for b in sent if "go-back sticks" in b][0])
+
+    def test_a_refused_stick_is_never_prepared_even_with_the_word(self):
+        o, sent = self.run_with([{"confirm_word": "UDisk", "offered": False, "serial": "x", "size_bytes": 1}])
+        self.assertEqual(o.word, "walkaway-stick-not-confirmed")
+        self.assertFalse([b for b in sent if "walkaway prepare" in b])
+
+    def test_two_offered_sticks_with_one_word_are_never_guessed(self):
+        both = {"confirm_word": "UDisk", "offered": True, "serial": "General_UDisk-0:0", "size_bytes": 15728640000}
+        o, sent = self.run_with([both, dict(both)])
+        self.assertEqual(o.word, "walkaway-stick-not-confirmed")
+        self.assertFalse([b for b in sent if "walkaway prepare" in b])
+
+
+class HoldAwakeTests(unittest.TestCase):
+    def chain(self, stage):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        d = make_run(tmp, [stage])
+        calls = []
+        held, released = oneclick.hold_awake, oneclick.release_awake
+        oneclick.hold_awake = lambda ctx: (calls.append("hold"), True)[1]
+        oneclick.release_awake = lambda ctx: calls.append("release")
+        try:
+            oneclick.run_chain(d, link=look_link(), out=lambda *_: None)
+        finally:
+            oneclick.hold_awake, oneclick.release_awake = held, released
+        done = [x for x in oneclick.Journal(os.path.join(d, "journal.jsonl")).entries() if x["event"] == "stage-done"][0]
+        return calls, done
+
+    def test_a_stage_without_hold_awake_takes_no_lock(self):
+        calls, done = self.chain({"stage": "look"})
+        self.assertEqual(calls, [])
+        self.assertNotIn("sleep lock", done["notes"])
+
+    def test_hold_awake_takes_the_lock_releases_it_and_the_row_says_the_test_did(self):
+        calls, done = self.chain({"stage": "look", "hold_awake": True})
+        self.assertEqual(calls, ["hold", "release"])
+        self.assertIn("the TEST held a sleep lock", done["notes"])
+
+    def test_no_linux_means_no_lock_and_says_so(self):
+        ctx = oneclick.Context("/tmp", {}, {"password": "p"}, FakeLink(probes=("windows",)), oneclick.Journal(os.devnull))
+        notes = []
+        ctx.note = lambda text, **kv: notes.append(text)
+        self.assertFalse(oneclick.hold_awake(ctx))
+        self.assertIn("no sleep lock", notes[0])
+
+    def test_a_held_lock_is_said_in_the_stage_notes(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        ctx = oneclick.Context(tmp, {}, {"password": "p"}, FakeLink(probes=("linux",), runs={"base64 -d": tr.Result(0, "HELD", "")}), oneclick.Journal(os.path.join(tmp, "j")))
+        self.assertTrue(oneclick.hold_awake(ctx))
+        self.assertIn("TEST holds a sleep lock", ctx.journal.entries()[0]["text"])
+
+    def test_the_aspire_plans_hold_the_walk_away_awake(self):
+        for name in ("aspire.json", "aspire-tail.json"):
+            with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", name)) as f:
+                st = [x for x in json.load(f)["stages"] if x["stage"] == "walk-away"][0]
+            self.assertTrue(st.get("hold_awake"), name)
+
+
+class DesktopTests(unittest.TestCase):
+    def test_the_command_runs_as_a_desktop_task_and_the_answer_is_its_log(self):
+        link = FakeLink(runs={"upgrade-job.exe write": tr.Result(0, "#< CLIXML\n<Objs>noise</Objs>  written\nDESKTOP_RC=2\n", "")})
+        r = oneclick.on_desktop(link, 'E:\\upgrade-job.exe write --acknowledge-data-loss "I confirm"', "DESKTOP_RC=", 1800)
+        sent = link.commands[0]
+        self.assertIn("-LogonType Interactive -RunLevel Highest", sent)
+        self.assertIn("-DontStopIfGoingOnBatteries", sent)
+        self.assertNotIn("I confirm", sent.split("<#")[0], "the command travels encoded")
+        self.assertNotIn("CLIXML", r.out)
+        self.assertIn("DESKTOP_RC=2", r.out)
+
+    def test_a_refusing_job_writer_on_the_desktop_is_job_refused(self):
+        link = keep_link("x")
+        link.runs["upgrade-job.exe write"] = tr.Result(0, "REFUSED - no job written\nDESKTOP_RC=2\n", "")
+        t = KeepWindowsTests()
+        t.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, t.tmp)
+        o = oneclick.KeepWindows().run(t.ctx(link, Clock()), {})
+        self.assertEqual((o.word, o.expected), ("job-refused", False))
+
+
+class SignInTests(unittest.TestCase):
+    def ctx(self, answers):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        link = FakeLink()
+        seq = list(answers)
+        link.run = lambda script, os_kind, timeout=600: tr.Result(0, seq.pop(0) if len(seq) > 1 else seq[0], "")
+        clock = Clock()
+        c = oneclick.Context(tmp, {"heartbeat_s": 300}, {}, link, oneclick.Journal(os.path.join(tmp, "j")), clock.sleep, clock)
+        return c
+
+    def test_a_signed_in_desktop_goes_straight_on(self):
+        c = self.ctx(["SIGNED_IN"])
+        self.assertTrue(oneclick.wait_signed_in(c))
+        self.assertEqual(c.journal.entries(), [])
+
+    def test_the_sign_in_screen_waits_for_the_owner_and_says_so(self):
+        c = self.ctx(["NOBODY", "NOBODY", "NOBODY", "SIGNED_IN"])
+        self.assertTrue(oneclick.wait_signed_in(c))
+        self.assertIn("sign in", c.journal.entries()[0]["text"])
+
+    def test_nobody_signing_in_is_a_hang_never_a_job(self):
+        c = self.ctx(["NOBODY"])
+        self.assertFalse(oneclick.wait_signed_in(c, limit_s=600))
+        self.assertTrue(any(e["event"] == "hang" for e in c.journal.entries()))
 
 
 class TransportTests(unittest.TestCase):

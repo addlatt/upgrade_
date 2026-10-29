@@ -189,9 +189,11 @@ Faster, steadier proof, never less of it, on any machine. The G16 drives
 the test machine over SSH through every stage, in the order of how likely
 each is in the wild, every approval typed once at kickoff (decided
 2026-10-17 and 2026-10-27, the owner; log 2026-10-27). Built
-(`rig/oneclick/`) and held on the rig, 2026-10-27. Owed: the Aspire's first
-run, the walk-away on a real machine, the window's screens (V12), the old
-verdicts wired to the run folder, and a pull-request check (R9). Proves:
+(`rig/oneclick/`) and held on the rig, 2026-10-27; every stage held on the
+Aspire, 2026-10-28/29. Owed: a run with no hand at the keyboard (the manager
+follows the machine across its addresses and new host keys; the sign-ins,
+see "Decisions owed"), the window's screens (V12), the old verdicts wired to
+the run folder, and a pull-request check (R9). Proves:
 R9, V13, then V1b, V9, V10, V11 per machine. Stands: see [STATUS.md](STATUS.md).
 
 ## 22. Open firmware, for the curious (parked)
@@ -230,6 +232,11 @@ is decided, the dated line goes in its home and the item here is removed.
 - Whether the return step may treat a Windows start the firmware chose (its
   own boot menu, F12, or a BootNext) as InsydeH2O's symptom and put shim in
   Windows' slot, or must ask, or wait for a second sign (R21; log 2026-10-27).
+- Whether the test machine signs itself in during a one click run (Windows'
+  automatic sign-in, on at kickoff, off at the end) so the job stages need
+  no hand at the keyboard, against anyone near it getting the desktop
+  (item 21; log 2026-10-28). The person converting is always at their
+  desktop already; only the test meets the sign-in screen.
 - How the stick writer tells two serial-less sticks apart, which share one
   `UniqueId` in the same port: the size and the planned partitions and
   labels, or a refusal (R16; log 2026-10-27).

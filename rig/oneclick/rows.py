@@ -25,7 +25,7 @@ import os
 import re
 
 # the bench's own made-up names: no person's (the rig's account is "rig", rig/hyperv/v1-job.py)
-BENCH_NAMES = {"rig"}
+BENCH_NAMES = {"rig", "password"}   # the rig's account; the Aspire's fixed test password (the owner, 2026-10-28), a word, not a secret
 # the columns a person's detail can reach: the rest are the judge's own words and numbers
 FREE_TEXT = ("machine", "firmware", "notes")
 
@@ -138,9 +138,15 @@ def stage_rows(run_dir, run, entries, facts):
 def clean_notes(text):
     """A stage's note for a row: markup (PowerShell's CLIXML) out, one line, short."""
     text = re.sub(r"#< CLIXML.*", "", text, flags=re.S)
+    # a note cut from the middle of PowerShell's progress records has no header: everything up to their end goes
+    if "</Objs>" in text:
+        text = text.rsplit("</Objs>", 1)[1]
     text = re.sub(r"<[^>]{0,200}>", " ", text)
+    # settle-in's download and copy progress lines ({"progress":n,"total":m}), whole or cut, say nothing about the end
+    text = re.sub(r'\{?"?(?:ogress|progress)"?:\d+,"total":\d+\}', " ", text.replace('""', '"'))
+    text = re.sub(r'^\S*?\d+,"total":\d+\}', " ", text)
     text = " ".join(text.split())
-    return text[:300]
+    return text[:300] or "(no words: the stage folder holds the output)"
 
 
 def scrub_rows(rows, values):

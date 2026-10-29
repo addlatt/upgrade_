@@ -1,0 +1,41 @@
+{
+  "plan": "aspire-tail",
+  "version": 1,
+  "machine": "acer-aspire-a515-51g",
+  "why_this_order": "most likely in the wild first (the owner, 2026-10-27); state forces the rollback before the erase and the cancel and refusal after the walk-away",
+  "heartbeat_s": 300,
+  "why_data_loss": "the Aspire's scan is RED (its dying drive, R23): every stage that writes a job names the sentence, so the owner types it at kickoff, never added in silence",
+  "stages": [
+    {
+      "stage": "walk-away",
+      "why": "back to a fresh Windows after a clean slate; the test keeps Linux awake through the prepare (the owner, 2026-10-28: KDE slept 45 minutes in, settle-in holds no lock)",
+      "hold_awake": true
+    },
+    {
+      "stage": "look",
+      "owner_step": "Take the walk-away stick out (it starts Windows Setup) and put the kit stick back in.",
+      "expect": [
+        "GREEN",
+        "YELLOW",
+        "RED"
+      ],
+      "limit_s": 900,
+      "why": "a fresh scan of the fresh Windows: the cancel and the refusal write jobs from it"
+    },
+    {
+      "stage": "cancel-countdown",
+      "needs": [
+        "data-loss"
+      ],
+      "why": "V9 arm B, rare"
+    },
+    {
+      "stage": "refused-before-countdown",
+      "needs": [
+        "data-loss"
+      ],
+      "why": "V9 arm A, the rarest"
+    }
+  ],
+  "why_tail": "the Aspire's run of 2026-10-28 stopped at the walk-away on a manager defect (the stick was looked for in the plan's drives) after stages 1-6 passed: the stages left, from the erased computer's Linux"
+}

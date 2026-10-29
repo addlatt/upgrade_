@@ -117,7 +117,9 @@ def stage_states(entries):
 
 def next_action(plan, entries):
     """What the run does now, from its journal alone:
-    ('run', i) | ('stop', why) | ('finished', None)."""
+    ('run', i) | ('wait', i) | ('stop', why) | ('finished', None).
+    'wait': the plan names a step only the owner's hands can do before stage
+    i (a stick swapped), and `oneclick.py done` has not said it is done."""
     states = stage_states(entries)
     if any(e["event"] == "run-stopped" for e in entries):
         last = [e for e in entries if e["event"] == "run-stopped"][-1]
@@ -136,6 +138,8 @@ def next_action(plan, entries):
     for i, st in enumerate(plan["stages"]):
         e = states.get(i)
         if e is None:
+            if st.get("owner_step") and not any(x["event"] == "owner-done" and x.get("index") == i for x in entries):
+                return ("wait", i)
             return ("run", i)
         if e["event"] == "stage-done":
             if e.get("expected"):
@@ -374,6 +378,61 @@ def find_stick(ctx):
     return m.group(1) if m else None
 
 
+SIGNED_IN = ("$me = $env:USERNAME; $d = @(Get-CimInstance Win32_Process -Filter \"Name='explorer.exe'\" | "
+             "ForEach-Object { (Invoke-CimMethod -InputObject $_ -MethodName GetOwner).User } | Where-Object { $_ -eq $me }); "
+             "if ($d.Count -gt 0) { 'SIGNED_IN' } else { 'NOBODY' }")
+
+
+def wait_signed_in(ctx, limit_s=21600):
+    """The job writer reads the folders of whoever is signed in on the
+    screen, and refuses when nobody is (it cannot tell whose folders they
+    are). A person is at their desktop when they click; after the manager's
+    restarts the screen sits at the sign-in. So the manager waits for the
+    owner to sign in (the Aspire, 2026-10-28: refused at the sign-in screen,
+    nothing changed), and the journal says what it waits for."""
+    if "SIGNED_IN" in ctx.link.run(SIGNED_IN, "windows", 60).out:
+        return True
+    ctx.note("waiting for the owner to sign in on the machine's screen (the job writer needs the person at the desktop)")
+    return bool(ctx.wait_for("someone signed in on the screen",
+                             lambda: "SIGNED_IN" in ctx.link.run(SIGNED_IN, "windows", 60).out, limit_s, every_s=30))
+
+
+DESKTOP_TASK = "upgrade_ oneclick desktop"
+DESKTOP_DIR = "C:\\upgrade_oneclick"
+
+
+def clean(text):
+    """PowerShell's progress records over SSH (#< CLIXML ...) are noise, not the answer."""
+    return re.sub(r"#< CLIXML.*?</Objs>", "", text, flags=re.S)
+
+
+def on_desktop(link, command, until, timeout):
+    """`command` (a cmd.exe line) run the way the window runs the product: in
+    the signed-in person's own session, as administrator. An SSH login is a
+    session of its own, with no desktop, and the job writer rightly refuses
+    there: it compares its session's desktop owner with itself (the Aspire,
+    2026-10-28). So a task with an interactive principal runs it, writing a
+    log; this waits on the machine until the log holds `until` or the
+    command's exit (DESKTOP_RC=n), then returns the log. The prologue's
+    `until` is its restart line: the log stops there, the machine restarts."""
+    log = f"{DESKTOP_DIR}\\desktop.log"
+    # brackets: a compound command is logged whole, and "RC=0>>" is never read as handle 0's redirect
+    body = f"@echo off\r\ncd /d {DESKTOP_DIR}\r\n({command}) > {log} 2>&1\r\n(echo DESKTOP_RC=%ERRORLEVEL%)>> {log}\r\n"
+    ps = (f"$c = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{b64(body)}')); "
+          f"New-Item -ItemType Directory -Force {DESKTOP_DIR} | Out-Null; Set-Content -Path {DESKTOP_DIR}\\desktop.cmd -Value $c -Encoding ASCII; "
+          f"Remove-Item {log} -ErrorAction SilentlyContinue; "
+          f"$a = New-ScheduledTaskAction -Execute cmd.exe -Argument '/c {DESKTOP_DIR}\\desktop.cmd'; "
+          "$p = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest; "
+          "$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 3); "
+          f"Register-ScheduledTask -TaskName '{DESKTOP_TASK}' -Action $a -Principal $p -Settings $s -Force | Out-Null; "
+          f"Start-ScheduledTask -TaskName '{DESKTOP_TASK}'; $end = (Get-Date).AddSeconds({max(60, timeout - 60)}); $log = ''; "
+          f"while ((Get-Date) -lt $end) {{ Start-Sleep 5; $log = [string](Get-Content {log} -Raw -ErrorAction SilentlyContinue); "
+          f"if ($log -match '{re.escape(until)}|DESKTOP_RC=') {{ break }} }}; Write-Output $log"
+          f" <# on the desktop: {command.split(' --')[0]} #>")
+    r = link.run(ps, "windows", timeout)
+    return tr.Result(r.rc, clean(r.out), clean(r.err))
+
+
 def write_job(ctx, L, args, erase=False):
     """The job. A real machine: the product's job writer over SSH, with the
     sentences typed at kickoff. The rig: the stand-in (the writer refuses the
@@ -392,21 +451,23 @@ def write_job(ctx, L, args, erase=False):
         if j.returncode != 0:
             return Outcome("job-failed", False, "the rig's job stand-in failed: read job-standin.log")
     else:
+        if not wait_signed_in(ctx, int(args.get("signin_limit_s", 21600))):
+            return Outcome("nobody-signed-in", False, "nobody signed in on the machine's screen within the limit; no job was written")
         hf = os.path.join(ctx.stage_dir, ".hash")
         with open(hf, "w") as f:
             f.write(hashed + "\n")
         link.push(hf, "C:\\upgrade_oneclick\\pw.txt", "windows")
         os.remove(hf)
         ack = ctx.secrets.get("data-loss")
-        jw = link.run(
-            f"& {L}\\upgrade-job.exe write --stick {L} --out {L}\\upgrade_ --scan {L}\\upgrade_\\reports --desktop {args.get('desktop', 'kde')} "
+        jw = on_desktop(link,
+            f"{L}\\upgrade-job.exe write --stick {L} --out {L}\\upgrade_ --scan {L}\\upgrade_\\reports --desktop {args.get('desktop', 'kde')} "
             f"--start-at {args.get('start_at', 'desktop')} --if-cannot-keep stop --password-hash-file C:\\upgrade_oneclick\\pw.txt "
             f"--kickstart {L}\\upgrade_\\ks.cfg --stick-label UPGV0 --manifest {L}\\SHA256SUMS" +
-            (f" --erase-everything '{ctx.secrets['erase']}'" if erase else "") +
-            (f" --acknowledge-data-loss '{ack}'" if ack else "") +
-            "; $rc = $LASTEXITCODE; Remove-Item C:\\upgrade_oneclick\\pw.txt -Force; Write-Output \"JOB_RC=$rc\"", "windows", timeout=1800)
+            (f" --erase-everything \"{ctx.secrets['erase']}\"" if erase else "") +
+            (f" --acknowledge-data-loss \"{ack}\"" if ack else ""), "DESKTOP_RC=", 1800)
+        link.run("Remove-Item C:\\upgrade_oneclick\\pw.txt -Force -ErrorAction SilentlyContinue", "windows", timeout=60)
         ctx.save("job-writer.out", jw.out + jw.err)
-        if "JOB_RC=0" not in jw.out:
+        if not re.search(r"DESKTOP_RC=0\b", jw.out):
             return Outcome("job-refused", False, (jw.out + jw.err).strip()[-300:])
     link.pull(f"{L}\\upgrade_\\job.json", os.path.join(ctx.stage_dir, "job.json"), "windows")
     return None
@@ -425,9 +486,14 @@ def arm(ctx, L, erase=False, markers=()):
     if not collect_windows(ctx, "before-install", "before"):
         return Outcome("collect-failed", False, "the Windows collector before the conversion")
     ack = ctx.secrets.get("data-loss")
-    consent = f"--erase-consent '{ctx.secrets['erase']}'" if erase else "--confirm-word CONVERT"
-    conv = link.run(f"& {L}\\upgrade-prologue.exe start --stick {L} {consent}" + (f" --acknowledge-data-loss '{ack}'" if ack else ""),
-                    "windows", timeout=7200)
+    if link.kind == "ssh":   # the person's desktop, as the window runs it (on_desktop)
+        consent = f"--erase-consent \"{ctx.secrets['erase']}\"" if erase else "--confirm-word CONVERT"
+        conv = on_desktop(link, f"{L}\\upgrade-prologue.exe start --stick {L} {consent}" + (f" --acknowledge-data-loss \"{ack}\"" if ack else ""),
+                          "restarting in 15 s", 7200)
+    else:
+        consent = f"--erase-consent '{ctx.secrets['erase']}'" if erase else "--confirm-word CONVERT"
+        conv = link.run(f"& {L}\\upgrade-prologue.exe start --stick {L} {consent}" + (f" --acknowledge-data-loss '{ack}'" if ack else ""),
+                        "windows", timeout=7200)
     ctx.save("convert.log", conv.out + conv.err)
     if "restarting in 15 s" not in conv.out:
         link.pull(f"{L}\\upgrade_\\outcome.json", os.path.join(ctx.stage_dir, "outcome-stopped.json"), "windows")
@@ -739,19 +805,30 @@ class WalkAway:
         plan = sudo(ctx, f"{SETTLE_IN} go-back walkaway plan", 300)
         ctx.save("walkaway-plan.json", plan.out + plan.err)
         try:
-            drives = json.loads(plan.out.strip().splitlines()[-1]).get("drives")
-        except (ValueError, IndexError):
+            plan_v = json.loads(plan.out.strip().splitlines()[-1])
+            drives, language = plan_v.get("drives"), plan_v.get("language") or "en-us"
+        except (ValueError, IndexError, AttributeError):
             return Outcome("walkaway-plan-unread", False, (plan.out + plan.err).strip()[-300:])
-        if not isinstance(drives, list):
-            return Outcome("walkaway-no-stick", False, f"settle-in offered no drive: {drives}")
+        # the plan's drives are the ones the walk-away erases (the window's drives_ok); the
+        # sticks come from `go-back sticks`, as the window asks for them (the Aspire, 2026-10-28:
+        # the manager read the plan's drives as sticks, and no stick could ever match)
+        if not isinstance(drives, list) or not drives:
+            return Outcome("walkaway-no-drives", False, f"settle-in's plan names no drive to install Windows on: {drives}")
+        st = sudo(ctx, f"{SETTLE_IN} go-back sticks --min-bytes {WALKAWAY_MIN_STICK}", 120)
+        ctx.save("walkaway-sticks.json", st.out + st.err)
+        try:
+            sticks = json.loads(st.out.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return Outcome("walkaway-sticks-unread", False, (st.out + st.err).strip()[-300:])
         word = ctx.secrets["walkaway-stick"]
-        picks = [d for d in drives if d.get("offered") and d.get("confirm_word") == word]
+        picks = [d for d in sticks if isinstance(d, dict) and d.get("offered") and d.get("confirm_word") == word]
         if len(picks) != 1:
             return Outcome("walkaway-stick-not-confirmed", False, f"{len(picks)} offered drives answer to the word typed at kickoff")
         d = picks[0]
         user = link.run("id -un", "linux", 30).out.strip()
         prep = sudo(ctx, f"{SETTLE_IN} go-back walkaway prepare --sentence '{ctx.secrets['walkaway']}' --account '{ctx.secrets['walkaway-account']}' "
-                         f"--serial '{d['serial']}' --size {d['size_bytes']} --typed '{word}' --linux-user '{user}'", int(args.get("prepare_limit_s", 14400)))
+                         f"--serial '{d['serial']}' --size {d['size_bytes']} --typed '{word}' --linux-user '{user}' --language '{language}'",
+                    int(args.get("prepare_limit_s", 14400)))
         ctx.save("walkaway-prepare.out", prep.out + prep.err)
         if '"ready"' not in prep.out:
             return Outcome("walkaway-not-ready", False, (prep.out + prep.err).strip()[-300:])
@@ -788,6 +865,8 @@ class WalkAway:
 
 
 SETTLE_IN = "/usr/local/libexec/upgrade_/settle-in"
+# the window's own floor (settle-in/window/src/goback.rs refresh_sticks): Windows 11 takes about 7 GB, 16 GB sticks
+WALKAWAY_MIN_STICK = 14_000_000_000
 
 
 class Rollback:
@@ -836,6 +915,22 @@ STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(),
 
 def stage_impl(name):
     return STAGES.get(name) or NotBuilt(name)
+
+
+def stage_needs(st):
+    """The approvals a plan stage needs: its own, and the sentences the plan
+    names for this machine (the Aspire's scan is RED, so its job writer and
+    prologue need R23's sentence; it is never added in silence). A plan may
+    name only a sentence the product itself asks for."""
+    extra = st.get("needs", [])
+    unknown = [n for n in extra if n not in SENTENCE_SOURCES]
+    if unknown:
+        raise SystemExit(f"oneclick: stage '{st['stage']}' names approvals the manager does not know: {', '.join(unknown)}")
+    return tuple(stage_impl(st["stage"]).needs) + tuple(n for n in extra if n not in stage_impl(st["stage"]).needs)
+
+
+def plan_needs(stages):
+    return sorted({n for st in stages for n in stage_needs(st)})
 
 
 # --- the run ---------------------------------------------------------------
@@ -922,6 +1017,33 @@ class KeepAwake:
         return False
 
 
+AWAKE_UNIT = "upgrade-oneclick-awake"
+
+
+def hold_awake(ctx):
+    """The plan's hold_awake: the machine's Linux kept from sleeping for this
+    stage, by the TEST, never by the product. The walk-away's prepare runs
+    an hour and settle-in holds no sleep lock: on 2026-10-28 KDE put the
+    Aspire to sleep 45 minutes in and the manager lost it (the same finding
+    as 2026-10-04, owed in settle-in). The owner chose (2026-10-28) to hold
+    the lock from the test and say so in the journal and the row. A
+    transient unit outlives the SSH call; the next restart ends it."""
+    if ctx.link.probe() != "linux":
+        ctx.note("hold_awake: Linux does not answer; no sleep lock was taken")
+        return False
+    r = sudo(ctx, f"systemctl stop {AWAKE_UNIT} 2>/dev/null; systemd-run --unit={AWAKE_UNIT} systemd-inhibit --what=sleep:idle --mode=block "
+                  "--who=upgrade_oneclick --why='one click test: the stage runs long; settle-in holds no sleep lock' sleep 21600 >/dev/null && "
+                  "sleep 1 && systemd-inhibit --list --no-legend | grep -q upgrade_oneclick && echo HELD", 60)
+    held = "HELD" in r.out
+    ctx.note("the TEST holds a sleep lock on Linux for this stage" if held else "hold_awake: the sleep lock was not taken", out=(r.out + r.err)[-200:])
+    return held
+
+
+def release_awake(ctx):
+    if ctx.link.probe() == "linux":
+        sudo(ctx, f"systemctl stop {AWAKE_UNIT} 2>/dev/null; echo RELEASED", 60)
+
+
 def run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=print):
     if link is not None:   # a test's made-up machine: no helper on the real computer
         return _run_chain(run_dir, link, sleep, clock, out)
@@ -944,6 +1066,13 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
             journal.write("run-finished")
             out("oneclick: every stage ran and ended as the plan expects")
             return 0
+        if action == "wait":
+            st = plan["stages"][arg]
+            if not any(e["event"] == "owner-wait" and e.get("index") == arg for e in journal.entries()):
+                journal.write("owner-wait", index=arg, stage=st["stage"], step=st["owner_step"])
+            out(f"oneclick: waiting for the owner before stage {arg + 1} {st['stage']}:\n  {st['owner_step']}\n"
+                f"then: oneclick.py done {run_dir} && oneclick.py run {run_dir}")
+            return 3
         if action == "stop":
             if not any(e["event"] == "run-stopped" for e in journal.entries()):
                 journal.write("run-stopped", why=arg)
@@ -955,7 +1084,7 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
         name = f"{i + 1:02d}-{st['stage']}" + (f"-try{tries + 1}" if tries else "")
         ctx.stage_dir = os.path.join(run_dir, "stages", name)
         impl = stage_impl(st["stage"])
-        missing = [k for k in impl.needs if k not in secrets]
+        missing = [k for k in stage_needs(st) if k not in secrets]
         if missing:
             journal.write("run-stopped", why=f"stage {i} ({st['stage']}) needs an approval this run was not given: {', '.join(missing)} (oneclick.py consent RUN_DIR)")
             out(f"oneclick: stopped - stage {i + 1} {st['stage']} needs {', '.join(missing)}; give it with: oneclick.py consent {run_dir}")
@@ -963,10 +1092,14 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
         os.makedirs(ctx.stage_dir, exist_ok=False)
         journal.write("stage-start", index=i, stage=st["stage"], folder=name)
         out(f"oneclick: stage {i + 1} {st['stage']} ...")
+        held = hold_awake(ctx) if st.get("hold_awake") else False
         try:
             o = impl.run(ctx, st)
         except Exception as e:  # a manager bug is a stop, never a pass
             o = Outcome("manager-error", False, f"{type(e).__name__}: {e}")
+        if held:
+            release_awake(ctx)
+            o.notes = (o.notes + "; " if o.notes else "") + "the TEST held a sleep lock on Linux for this stage (settle-in holds none: 2026-10-04, 2026-10-28)"
         n = sha256sums(ctx.stage_dir)
         journal.write("stage-done", index=i, stage=st["stage"], word=o.word, expected=bool(o.expected), notes=o.notes, files=n)
         out(f"oneclick: stage {i + 1} {st['stage']}: {o.word}{'' if o.expected else ' (NOT expected)'} - {o.notes}")
@@ -977,7 +1110,8 @@ def ask_consents(needed, link, secrets, ask=input, out=print):
     for one a newer stage added). Returns False when one was not given."""
     for key in needed:
         if key == "password":
-            secrets["password"] = pysecrets.token_urlsafe(12)
+            # kickoff may have set it: the plan's fixed test password, or an earlier run's
+            secrets.setdefault("password", pysecrets.token_urlsafe(12))
             continue
         if key == "walkaway-account":
             # the fresh Windows gets the SSH login's own name, so the manager reaches it the same way
@@ -995,9 +1129,11 @@ def ask_consents(needed, link, secrets, ask=input, out=print):
             if link.kind != "ssh":
                 secrets[key] = ""   # the rig's stand-in uses no stick
                 continue
-            hint = ""
-            if link.probe() == "windows":
+            hint, who = "", link.probe()
+            if who == "windows":
                 hint = link.run("Get-PhysicalDisk | Where-Object BusType -eq 'USB' | ForEach-Object { \"  $($_.Model)  ($([math]::Round($_.Size/1e9,1)) GB)\" }", "windows", 60).out
+            elif who == "linux":   # the word settle-in checks is Linux's own model name
+                hint = link.run("lsblk -dno MODEL,SIZE,TRAN | awk '$NF==\"usb\" {$NF=\"\"; print \"  \" $0}'", "linux", 60).out
             out("\nType the walk-away stick's model word exactly, to approve writing Windows' installer onto it."
                 "\nUSB drives on the machine now (the kit stick is one of them):\n" + (hint or "  (none listed)"))
             secrets[key] = ask("> ").strip()
@@ -1014,16 +1150,31 @@ def ask_consents(needed, link, secrets, ask=input, out=print):
     return True
 
 
-def kickoff(plan_path, spec, ask=input, out=print, root=None):
+def kickoff(plan_path, spec, ask=input, out=print, root=None, password_from=None):
+    """password_from: an earlier run on the same machine, whose installed
+    Linux this run goes on with (a tail run): its account keeps that run's
+    password. Else the plan's test_password (the owner, 2026-10-28: the
+    Aspire's test account is 'password' from its next install on), else a
+    random one."""
     with open(plan_path, encoding="utf-8") as f:
         plan = json.load(f)
     link = tr.from_spec(spec)
     secrets = {}
-    needed = sorted({n for st in plan["stages"] for n in stage_impl(st["stage"]).needs})
+    if password_from:
+        _, earlier = load(password_from)
+        if not earlier.get("password"):
+            out(f"oneclick: {password_from} holds no password. Nothing started.")
+            return None
+        secrets["password"] = earlier["password"]
+    elif plan.get("test_password"):
+        secrets["password"] = plan["test_password"]
+    needed = plan_needs(plan["stages"])
     out(f"oneclick {VERSION}: {len(plan['stages'])} stages on {plan.get('machine', '?')} over {link.describe()}")
     for i, st in enumerate(plan["stages"]):
         built = "" if st["stage"] in STAGES else "   (not built yet: the run stops here)"
         out(f"  {i + 1:2d}. {st['stage']}{built}")
+        if st.get("owner_step"):
+            out(f"      (first waits for you: {st['owner_step']})")
     if not ask_consents(needed, link, secrets, ask, out):
         return None
     run_dir = os.path.join(root or runs_root(), f"{plan.get('machine', 'machine')}-{stamp()}")
@@ -1044,7 +1195,7 @@ def consent(run_dir, ask=input, out=print):
     """The approvals a run's stages need that it was not given at kickoff."""
     run, secrets = load(run_dir)
     link = tr.from_spec(run["transport"])
-    needed = sorted({n for st in run["plan"]["stages"] for n in stage_impl(st["stage"]).needs} - set(secrets))
+    needed = [n for n in plan_needs(run["plan"]["stages"]) if n not in secrets]
     if not needed:
         out("oneclick: nothing is missing")
         return 0
@@ -1070,6 +1221,9 @@ def status(run_dir, out=print):
         word = "-" if e is None else (e.get("word") or e["event"])
         out(f"  {i + 1:2d}. {st['stage']:<14} {word}")
     action, arg = next_action(run["plan"], entries)
+    if action == "wait":
+        out(f"  next: WAITING for the owner before stage {arg + 1}: {run['plan']['stages'][arg]['owner_step']}")
+        return
     lock = os.path.join(run_dir, ".awake")
     live = os.path.exists(lock) and time.time() - os.path.getmtime(lock) < 180
     last = entries[-1] if entries else {}
@@ -1080,6 +1234,20 @@ def status(run_dir, out=print):
     out(f"  next: {action}{' - ' + str(arg) if arg is not None else ''}")
 
 
+def done(run_dir, out=print):
+    """The owner did the step the run waits for (said by the owner, typed
+    by whoever runs this): the chain may go on at its next `run`."""
+    run, _ = load(run_dir)
+    journal = Journal(os.path.join(run_dir, "journal.jsonl"))
+    action, arg = next_action(run["plan"], journal.entries())
+    if action != "wait":
+        out("oneclick: nothing waits for the owner")
+        return 2
+    journal.write("owner-done", index=arg, stage=run["plan"]["stages"][arg]["stage"])
+    out(f"oneclick: done: {run['plan']['stages'][arg]['owner_step']}")
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="oneclick.py")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -1087,12 +1255,15 @@ def main(argv=None):
     k.add_argument("--plan", required=True)
     k.add_argument("--transport", required=True)
     k.add_argument("--no-run", action="store_true", help="make the run folder only")
+    k.add_argument("--password-from", help="an earlier run on this machine whose installed Linux this run goes on with")
     r = sub.add_parser("run")
     r.add_argument("run_dir")
     s = sub.add_parser("status")
     s.add_argument("run_dir")
     c = sub.add_parser("consent")
     c.add_argument("run_dir")
+    dn = sub.add_parser("done", help="the owner did the step the run waits for")
+    dn.add_argument("run_dir")
     pr = sub.add_parser("promote", help="the run's rows, scrubbed, into docs/validation-results/oneclick-runs.csv")
     pr.add_argument("run_dir")
     pr.add_argument("--csv", default=os.path.join(REPO, "docs", "validation-results", "oneclick-runs.csv"))
@@ -1100,7 +1271,7 @@ def main(argv=None):
     pr.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
     if a.cmd == "kickoff":
-        d = kickoff(a.plan, a.transport)
+        d = kickoff(a.plan, a.transport, password_from=a.password_from)
         if d is None:
             return 2
         return 0 if a.no_run else run_chain(d)
@@ -1108,6 +1279,8 @@ def main(argv=None):
         return run_chain(a.run_dir)
     if a.cmd == "consent":
         return consent(a.run_dir)
+    if a.cmd == "done":
+        return done(a.run_dir)
     if a.cmd == "promote":
         import rows
         return rows.promote(a.run_dir, a.csv, a.facts, a.dry_run)
