@@ -138,9 +138,15 @@ def stage_rows(run_dir, run, entries, facts):
 def clean_notes(text):
     """A stage's note for a row: markup (PowerShell's CLIXML) out, one line, short."""
     text = re.sub(r"#< CLIXML.*", "", text, flags=re.S)
+    # a note cut from the middle of PowerShell's progress records has no header: everything up to their end goes
+    if "</Objs>" in text:
+        text = text.rsplit("</Objs>", 1)[1]
     text = re.sub(r"<[^>]{0,200}>", " ", text)
+    # settle-in's download and copy progress lines ({"progress":n,"total":m}), whole or cut, say nothing about the end
+    text = re.sub(r'\{?"?(?:ogress|progress)"?:\d+,"total":\d+\}', " ", text.replace('""', '"'))
+    text = re.sub(r'^\S*?\d+,"total":\d+\}', " ", text)
     text = " ".join(text.split())
-    return text[:300]
+    return text[:300] or "(no words: the stage folder holds the output)"
 
 
 def scrub_rows(rows, values):

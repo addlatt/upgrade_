@@ -141,5 +141,18 @@ class RowTests(unittest.TestCase):
         self.assertIn(want, self.read())
 
 
+class CleanNotesTests(unittest.TestCase):
+    def test_a_note_cut_inside_powershell_progress_keeps_only_what_follows(self):
+        n = '</PI><PC>-1</PC><T>Completed</T></PR></MS></Obj></Objs>'
+        self.assertEqual(rows.clean_notes(n), "(no words: the stage folder holds the output)")
+        self.assertEqual(rows.clean_notes(n + " REFUSED - nobody signed in"), "REFUSED - nobody signed in")
+
+    def test_progress_lines_go_and_the_last_words_stay(self):
+        n = 'ogress":844032643,"total":6417274001}\n{"progress":845135638,"total":6417274001}\n{"ok":true,"step":"copy"}\nTimeout, server aspire not responding.'
+        out = rows.clean_notes(n)
+        self.assertNotIn("total", out)
+        self.assertTrue(out.endswith("Timeout, server aspire not responding."))
+
+
 if __name__ == "__main__":
     unittest.main()
