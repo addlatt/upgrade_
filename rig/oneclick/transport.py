@@ -15,7 +15,10 @@ machine said, and silence is an answer too (rc None).
 """
 
 import base64
+import datetime
+import json
 import os
+import re
 import shutil
 import subprocess
 import uuid
@@ -34,7 +37,7 @@ def encoded(script):
 LONG = 6000
 
 
-def long_script_wrapper(link, script, timeout):
+def long_script_wrapper(link, script, timeout, stdin=""):
     import tempfile
     name = f"C:\\upgrade_oneclick\\scripts\\{uuid.uuid4().hex}.ps1"
     fd, local = tempfile.mkstemp(suffix=".ps1")
@@ -46,7 +49,8 @@ def long_script_wrapper(link, script, timeout):
         if not p.ok:
             return Result(p.rc, p.out, f"sending the script: {p.err}")
         return link.run(f"try {{ & ([scriptblock]::Create((Get-Content -Raw -Encoding UTF8 '{name}'))) }} "
-                        f"finally {{ Remove-Item '{name}' -Force -ErrorAction SilentlyContinue }}", "windows", timeout)
+                        f"finally {{ Remove-Item '{name}' -Force -ErrorAction SilentlyContinue }}", "windows", timeout,
+                        **({"stdin": stdin} if stdin else {}))
     finally:
         os.remove(local)
 
@@ -85,8 +89,8 @@ class Ssh:
     def describe(self):
         return f"ssh:{self.host}"
 
-    def raw(self, remote, timeout=60):
-        return _call([self.ssh, *self.opts, self.host, remote], timeout, stdin="")
+    def raw(self, remote, timeout=60, stdin=""):
+        return _call([self.ssh, *self.opts, self.host, remote], timeout, stdin=stdin)
 
     def probe(self):
         """Which system answers: 'windows', 'linux' or None (silence).
@@ -100,12 +104,14 @@ class Ssh:
             return "linux"
         return None
 
-    def run(self, script, os_kind, timeout=600):
+    def run(self, script, os_kind, timeout=600, stdin=""):
+        """stdin: what the command reads (a secret travels here, never on a
+        command line another program on the machine could read)."""
         if os_kind == "windows":
             if len(encoded(script)) > LONG:
-                return long_script_wrapper(self, script, timeout)
-            return self.raw(f"powershell -NoProfile -NonInteractive -EncodedCommand {encoded(script)}", timeout)
-        return self.raw(script, timeout)
+                return long_script_wrapper(self, script, timeout, stdin)
+            return self.raw(f"powershell -NoProfile -NonInteractive -EncodedCommand {encoded(script)}", timeout, stdin)
+        return self.raw(script, timeout, stdin)
 
     def pull(self, remote, local, os_kind, timeout=1800):
         """Copy a remote file or folder to local. Windows paths become
@@ -125,6 +131,260 @@ class Ssh:
         if self.windows_client:
             src = subprocess.run(["wslpath", "-w", os.path.abspath(local)], capture_output=True, text=True).stdout.strip()
         return _call([self.scp, "-q", *self.opts, src, f"{self.host}:{remote}"], timeout, stdin="")
+
+
+# --- following a real machine across its systems ---------------------------
+#
+# The Aspire, 2026-10-28/29: its Windows and its Linux get different addresses
+# from the router (192.168.0.211, .79, then .245 after the clean slate), and
+# every install has a new SSH host key. Three times the owner ran a script by
+# hand so `ssh aspire` reached the machine again. Follow does what those
+# scripts did, the same way: host-key checks stay on, in the run's own
+# known_hosts (the owner's ~/.ssh is never touched), and a NEW key is trusted
+# only after the system behind it proves it is the same computer: the same
+# model, and a network card or an internal drive with the same serial as the
+# ones read at kickoff over the owner's trusted login. It must also accept the
+# key the job carried (it is a login like any other).
+
+IDENTITY_WINDOWS = (
+    "$ProgressPreference = 'SilentlyContinue'; $c = Get-CimInstance Win32_ComputerSystem; "
+    "$m = @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue | ForEach-Object { $_.PermanentAddress, $_.MacAddress }); "
+    "$d = @(Get-PhysicalDisk | Where-Object BusType -ne 'USB' | ForEach-Object { $_.SerialNumber }); "
+    "[ordered]@{ os = 'windows'; model = $c.Model; macs = $m; disks = $d } | ConvertTo-Json -Compress")
+IDENTITY_LINUX = (
+    "python3 -c 'import json,os,subprocess as s\n"
+    "n=\"/sys/class/net/\"; m=[]\n"
+    "for i in os.listdir(n):\n"
+    " if os.path.exists(n+i+\"/device\"):\n"
+    "  m.append(open(n+i+\"/address\").read().strip())\n"
+    "  p=s.run([\"ip\",\"-d\",\"-o\",\"link\",\"show\",i],capture_output=True,text=True).stdout.split()\n"
+    "  m+= [p[p.index(\"permaddr\")+1]] if \"permaddr\" in p else []\n"
+    "d=[l.split()[0] for l in s.run([\"lsblk\",\"-dno\",\"SERIAL,TRAN\"],capture_output=True,text=True).stdout.splitlines() if l.split() and l.split()[-1]!=\"usb\" and len(l.split())>1]\n"
+    "g=lambda f: open(\"/sys/class/dmi/id/\"+f).read().strip() if os.path.exists(\"/sys/class/dmi/id/\"+f) else \"\"\n"
+    "print(json.dumps(dict(os=\"linux\",model=g(\"product_name\"),macs=m,disks=d)))'")
+
+
+def _norm(v):
+    return re.sub(r"[^0-9A-Z]", "", str(v or "").upper())
+
+
+def same_machine(known, seen):
+    """(True, why) when `seen` is the computer `known` was read from: the
+    same model, and at least one network card address or internal drive
+    serial in common (normalised: Windows writes AA-BB-.., Linux aa:bb:..).
+    Zeroed or empty values never count."""
+    if not known or not seen:
+        return False, "no identity to compare"
+    if _norm(known.get("model")) != _norm(seen.get("model")) or not _norm(known.get("model")):
+        return False, f"model {seen.get('model')!r}, not {known.get('model')!r}"
+    def vals(d, k):
+        return {x for x in (_norm(v) for v in (d.get(k) or [])) if len(x) >= 6 and set(x) != {"0"}}
+    macs = vals(known, "macs") & vals(seen, "macs")
+    disks = vals(known, "disks") & vals(seen, "disks")
+    if not (macs or disks):
+        return False, "the same model, but no network card or drive in common"
+    return True, f"model {seen.get('model')}; {len(macs)} network card(s) and {len(disks)} drive(s) in common"
+
+
+def read_identity(link):
+    """The identity of whatever answers on `link` (read-only), or None."""
+    who = link.probe()
+    if who is None:
+        return None
+    r = link.run(IDENTITY_WINDOWS if who == "windows" else IDENTITY_LINUX, who, 90)
+    for line in reversed(r.out.splitlines()):   # PowerShell's progress records may come after it
+        if line.startswith("{") and '"model"' in line:
+            try:
+                return json.loads(line)
+            except ValueError:
+                return None
+    return None
+
+
+def sweep(prefix, port=22, timeout=1.0):
+    """Every address prefix.1-254 with `port` open (the router's /24)."""
+    import socket
+    from concurrent.futures import ThreadPoolExecutor
+
+    def open_(ip):
+        try:
+            socket.create_connection((ip, port), timeout=timeout).close()
+            return ip
+        except OSError:
+            return None
+    with ThreadPoolExecutor(64) as ex:
+        return [ip for ip in ex.map(open_, [f"{prefix}.{n}" for n in range(1, 255)]) if ip]
+
+
+def keyscan(ip, timeout=8):
+    """{(type, key)} the SSH server at ip presents."""
+    r = _call(["ssh-keyscan", "-T", "5", ip], timeout)
+    return {(p[1], p[2]) for p in (l.split() for l in r.out.splitlines() if l and not l.startswith("#")) if len(p) >= 3}
+
+
+class Follow(Ssh):
+    """ssh:<host> inside a run: the machine is followed by address and
+    host key, as above. State in the run folder: machine.json (the identity,
+    the addresses seen, the one in use) and known_hosts (the keys trusted
+    for this machine, under one alias)."""
+    RELOCATE_EVERY_S = 120
+
+    def __init__(self, host, run_dir, clock=None, **kw):
+        import time as _t
+        self.run_dir = run_dir
+        self.state_path = os.path.join(run_dir, "machine.json")
+        self.kh = os.path.join(run_dir, "known_hosts")
+        with open(self.state_path, encoding="utf-8") as f:
+            self.state = json.load(f)
+        self.clock = clock or _t.monotonic
+        self._last_relocate = None
+        self.on_event = lambda event, **kv: None
+        super().__init__(host, **kw)
+
+    @property
+    def opts(self):
+        return ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=4",
+                "-o", "ProxyCommand=none", "-o", f"HostName={self.state['address']}", "-o", f"HostKeyAlias={self.state['alias']}",
+                "-o", f"UserKnownHostsFile={self.kh}", "-o", "GlobalKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=yes"]
+
+    @opts.setter
+    def opts(self, _):
+        pass   # Ssh.__init__ sets its own; Follow's are computed
+
+    def describe(self):
+        return f"ssh:{self.host}"
+
+    def _save(self):
+        tmp = self.state_path + ".new"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(self.state, f, indent=2)
+        os.replace(tmp, self.state_path)
+
+    def trusted(self):
+        if not os.path.exists(self.kh):
+            return set()
+        with open(self.kh, encoding="utf-8") as f:
+            return {(p[1], p[2]) for p in (l.split() for l in f) if len(p) >= 3}
+
+    def raw(self, remote, timeout=60, stdin=""):
+        r = super().raw(remote, timeout, stdin)
+        if r.rc == 255 and self.relocate():
+            r = super().raw(remote, timeout, stdin)
+        return r
+
+    def relocate(self):
+        """After a failed connection: find the machine again. True when the
+        address or the trusted keys changed (so the call is worth trying again)."""
+        now = self.clock()
+        if self._last_relocate is not None and now - self._last_relocate < self.RELOCATE_EVERY_S:
+            return False
+        self._last_relocate = now
+        known = self.state.get("addresses", [])
+        cands = list(dict.fromkeys([self.state["address"], *known, *self.sweep()]))
+        trusted = self.trusted()
+        unknown = []
+        for ip in cands:
+            keys = keyscan(ip)
+            if not keys:
+                continue
+            if keys & trusted:
+                if ip == self.state["address"]:
+                    return False   # where it was, with a key we trust: it is just not answering yet
+                return self._move(ip, "a key this run already trusts")
+            unknown.append((ip, keys))
+        for ip, keys in unknown:
+            if self._try_new_key(ip):
+                return True
+        return False
+
+    def sweep(self):
+        return sweep(self.state["prefix"]) if self.state.get("prefix") else []
+
+    def _move(self, ip, why):
+        old = self.state["address"]
+        self.state["address"] = ip
+        if ip not in self.state.setdefault("addresses", []):
+            self.state["addresses"].append(ip)
+        self._save()
+        self.on_event("machine-moved", **{"from": old, "to": ip, "why": why})
+        return True
+
+    def _try_new_key(self, ip):
+        """Connect once to ip with a quarantine known_hosts (its key accepted
+        for this one look), read who it is, and trust the key only if it is
+        the same computer."""
+        import tempfile
+        fd, q = tempfile.mkstemp(prefix="oneclick-kh-", dir=self.run_dir)
+        os.close(fd)
+        try:
+            look = Ssh(self.host, extra=["-o", "ProxyCommand=none", "-o", f"HostName={ip}", "-o", f"HostKeyAlias={self.state['alias']}",
+                                         "-o", f"UserKnownHostsFile={q}", "-o", "GlobalKnownHostsFile=/dev/null",
+                                         "-o", "StrictHostKeyChecking=accept-new"], ssh=self.ssh, scp=self.scp)
+            seen = read_identity(look)
+            ok, why = same_machine(self.state.get("identity"), seen)
+            stamp_ = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            with open(os.path.join(self.run_dir, f"follow-{stamp_}-{ip}.json"), "w", encoding="utf-8") as f:
+                json.dump({"address": ip, "seen": seen, "same_machine": ok, "why": why}, f, indent=2)
+            if not ok:
+                self.on_event("host-key-refused", address=ip, why=why)
+                return False
+            with open(q, encoding="utf-8") as f:
+                lines = [l for l in f if l.strip()]
+            with open(self.kh, "a", encoding="utf-8") as f:
+                f.writelines(lines)
+            fps = _call(["ssh-keygen", "-l", "-f", q], 20).out.split("\n")
+            self.on_event("host-key-trusted", address=ip, system=(seen or {}).get("os"), why=why,
+                          fingerprints=[l.split()[1] for l in fps if len(l.split()) > 1])
+            self._move(ip, f"a new system that proved it is the same computer ({why})")
+            return True
+        finally:
+            os.remove(q)
+
+
+def seed_follow(host, run_dir, machine, out=print):
+    """At kickoff, over the owner's own trusted login: who the machine is,
+    where it answers, and the keys the owner trusts for it, copied into the
+    run. Returns True when the run can follow the machine."""
+    plain = Ssh(host)
+    who = plain.probe()
+    if who is None:
+        out("oneclick: the machine does not answer; the run will not follow it across addresses")
+        return False
+    conn = plain.raw("echo [%SSH_CONNECTION%] [$SSH_CONNECTION]", 25).out
+    m = re.findall(r"\[(\S+) \d+ (\d+\.\d+\.\d+\.\d+) \d+\]", conn)
+    if not m:
+        out("oneclick: the machine did not say its address; the run will not follow it")
+        return False
+    ip = m[0][1]
+    ident = read_identity(plain)
+    if not ident:
+        out("oneclick: the machine's identity did not read; the run will not follow it")
+        return False
+    g = _call(["ssh", "-G", host], 20).out
+    opt = dict((l.split(" ", 1) + [""])[:2] for l in g.splitlines() if l)
+    names = [opt.get("hostkeyalias") or opt.get("hostname") or host]
+    files = [os.path.expanduser(f) for f in (opt.get("userknownhostsfile") or "~/.ssh/known_hosts").split()]
+    owned = set()
+    for f in files:
+        if os.path.exists(f):
+            for n in names:
+                r = _call(["ssh-keygen", "-F", n, "-f", f], 20)
+                owned |= {(p[1], p[2]) for p in (l.split() for l in r.out.splitlines() if l and not l.startswith("#")) if len(p) >= 3}
+    now = keyscan(ip)
+    keep = owned & now if now else owned
+    if not keep:
+        out("oneclick: none of the keys you trust for this machine is the one it shows now; the run will not follow it")
+        return False
+    alias = f"oneclick-{machine}"
+    fd = os.open(os.path.join(run_dir, "known_hosts"), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.writelines(f"{alias} {t} {k}\n" for t, k in sorted(keep))
+    state = {"alias": alias, "address": ip, "addresses": [ip], "prefix": ip.rsplit(".", 1)[0], "identity": ident, "read_from": who}
+    with open(os.path.join(run_dir, "machine.json"), "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2)
+    out(f"oneclick: following the machine by its identity ({ident.get('model')}; {len(ident.get('macs') or [])} network address(es), "
+        f"{len(ident.get('disks') or [])} drive serial(s)); it answers at {ip} now")
+    return True
 
 
 class HyperV:
@@ -257,10 +517,13 @@ class HyperV:
                           "-FileSource Host -CreateFullPath -Force", timeout)
 
 
-def from_spec(spec):
-    """'ssh:aspire' or 'hyperv:UPGRIGHV'."""
+def from_spec(spec, run_dir=None):
+    """'ssh:aspire' or 'hyperv:UPGRIGHV'. Inside a run whose kickoff read the
+    machine's identity (machine.json), ssh follows the machine (Follow)."""
     kind, _, target = spec.partition(":")
     if kind == "ssh" and target:
+        if run_dir and os.path.exists(os.path.join(run_dir, "machine.json")):
+            return Follow(target, run_dir)
         return Ssh(target)
     if kind == "hyperv" and target:
         return HyperV(target)

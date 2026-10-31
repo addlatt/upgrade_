@@ -9,6 +9,8 @@ full once, at kickoff.
   oneclick.py kickoff --plan PLAN.json --transport ssh:aspire|hyperv:UPGRIGHV
   oneclick.py run    RUN_DIR      (resume a run where its journal stopped)
   oneclick.py status RUN_DIR
+  oneclick.py retry  RUN_DIR [--undone WHAT]   (try a stopped stage again, in the same run)
+  oneclick.py ssh    RUN_DIR [COMMAND]         (reach the machine where the run last found it)
 
 The rules it keeps:
   - Stages run in the plan's order, most likely in the wild first (the
@@ -106,6 +108,13 @@ class Journal:
             return [json.loads(line) for line in f if line.strip()]
 
 
+def stopped_since_retry(entries):
+    """A run-stopped line written after the last retry (or ever, with none)."""
+    retries = [n for n, e in enumerate(entries) if e["event"] == "stage-retry"]
+    start = retries[-1] if retries else -1
+    return any(e["event"] == "run-stopped" for e in entries[start + 1:])
+
+
 def stage_states(entries):
     """index -> the last event for that stage ('stage-start', 'stage-done' ...)."""
     states = {}
@@ -131,12 +140,17 @@ def next_action(plan, entries):
         # and one stopped for an approval it was not given, once `consent` gave it (nothing ran)
         approved = "needs an approval" in last.get("why", "") and any(
             e["event"] == "consent-given" and entries.index(e) > entries.index(last) for e in entries)
-        if not (rebuilt or approved):
+        # and one the owner chose to try again (`oneclick.py retry`, which refuses a stage that may
+        # have changed the machine unless the owner says what was undone)
+        retried = any(e["event"] == "stage-retry" and entries.index(e) > entries.index(last) for e in entries)
+        if not (rebuilt or approved or retried):
             return ("stop", last.get("why", "stopped"))
     states = {i: e for i, e in states.items()
               if not (e["event"] == "stage-done" and e.get("word") == "not-built" and e["stage"] in STAGES)}
     for i, st in enumerate(plan["stages"]):
         e = states.get(i)
+        if e is not None and e["event"] == "stage-retry":
+            return ("run", i)
         if e is None:
             if st.get("owner_step") and not any(x["event"] == "owner-done" and x.get("index") == i for x in entries):
                 return ("wait", i)
@@ -192,8 +206,16 @@ class Context:
 
 
 class Outcome:
-    def __init__(self, word, expected, notes=""):
-        self.word, self.expected, self.notes = word, expected, notes
+    """untouched: the stage stopped before it changed anything on the
+    machine's drives (a job refused, a stick not found, the wrong system
+    answering). Only such a stop may be tried again without the owner saying
+    what was undone (`oneclick.py retry`)."""
+    def __init__(self, word, expected, notes="", untouched=False):
+        self.word, self.expected, self.notes, self.untouched = word, expected, notes, untouched
+
+
+def untouched(word, notes):
+    return Outcome(word, False, notes, untouched=True)
 
 
 def sha256sums(folder):
@@ -242,7 +264,7 @@ class Look:
     def run(self, ctx, args):
         link = ctx.link
         if link.probe() != "windows":
-            return Outcome("wrong-system", False, "look needs Windows to answer")
+            return untouched("wrong-system", "look needs Windows to answer")
         facts = link.run(
             "$b = Get-CimInstance Win32_BIOS; $c = Get-CimInstance Win32_ComputerSystem; $o = Get-CimInstance Win32_OperatingSystem; "
             "$sb = try { Confirm-SecureBootUEFI } catch { 'unknown' }; "
@@ -261,7 +283,7 @@ class Look:
         ctx.save("scan.out", scan.out + scan.err)
         kv = dict(re.findall(r"^(\w+)=(.*)$", scan.out, re.M))
         if "STICKS" in kv:
-            return Outcome("stick-not-found", False, f"{kv['STICKS']} volumes labelled UPGV0 (want exactly 1)")
+            return untouched("stick-not-found", f"{kv['STICKS']} volumes labelled UPGV0 (want exactly 1)")
         if not kv.get("REPORT"):
             return Outcome("scan-failed", False, (scan.out + scan.err).strip()[-300:])
         for remote, local in ((kv["REPORT"], "report.json"), (kv["REPORT"][:-5] + ".txt", "report.txt"),
@@ -390,11 +412,211 @@ def wait_signed_in(ctx, limit_s=21600):
     restarts the screen sits at the sign-in. So the manager waits for the
     owner to sign in (the Aspire, 2026-10-28: refused at the sign-in screen,
     nothing changed), and the journal says what it waits for."""
-    if "SIGNED_IN" in ctx.link.run(SIGNED_IN, "windows", 60).out:
+    if signed_in(ctx):
         return True
+    if ctx.plan.get("test_autologon") and getattr(ctx.link, "kind", "") == "ssh":
+        how = sign_in_by_itself(ctx)
+        if how == "signed-in":
+            return True
+        if how == "wrong-system":
+            return False
     ctx.note("waiting for the owner to sign in on the machine's screen (the job writer needs the person at the desktop)")
-    return bool(ctx.wait_for("someone signed in on the screen",
-                             lambda: "SIGNED_IN" in ctx.link.run(SIGNED_IN, "windows", 60).out, limit_s, every_s=30))
+    return bool(ctx.wait_for("someone signed in on the screen", lambda: signed_in(ctx), limit_s, every_s=30))
+
+
+def signed_in(ctx):
+    return "SIGNED_IN" in ctx.link.run(SIGNED_IN, "windows", 60).out
+
+
+# --- the owner's hands, seen by the machine ----------------------------------
+#
+# The Aspire, 2026-10-28/29: twice the run waited for the owner to say "sticks
+# swapped". A plan's owner_check names what the machine itself can see once
+# the step is done; the manager polls it, wants it true twice in a row (a stick
+# half in is not a swap), writes owner-done, and goes on by itself.
+
+def kit_stick_in(ctx):
+    """Windows answers, sees exactly one kit stick, and no walk-away stick
+    (the one holding upgrade_\\go-back.json starts Windows Setup if left in)."""
+    if ctx.link.probe() != "windows":
+        return False
+    r = ctx.link.run(FIND_STICK + "$w = @(Get-Volume | Where-Object { $_.DriveLetter -and (Test-Path \"$($_.DriveLetter):\\upgrade_\\go-back.json\") }); "
+                     "if ($w.Count -eq 0) { 'KIT_ONLY' }", "windows", 60)
+    return "KIT_ONLY" in r.out
+
+
+def walkaway_stick_in(ctx):
+    """Linux answers, the kit stick is out, and settle-in offers exactly one
+    stick for the walk-away (with both in, it rightly refuses both)."""
+    if ctx.link.probe() != "linux":
+        return False
+    r = sudo(ctx, f"test -e /dev/disk/by-label/UPGV0 && echo KIT_IN; {SETTLE_IN} go-back sticks --min-bytes {WALKAWAY_MIN_STICK}", 120)
+    if "KIT_IN" in r.out:
+        return False
+    try:
+        sticks = json.loads(r.out.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return False
+    return sum(1 for d in sticks if isinstance(d, dict) and d.get("offered")) == 1
+
+
+OWNER_CHECKS = {"kit-stick-in": kit_stick_in, "walkaway-stick-in": walkaway_stick_in}
+
+
+def wait_owner_seen(ctx, st, limit_s):
+    """True once the plan's owner_check holds twice in a row, 30 s apart."""
+    check = OWNER_CHECKS[st["owner_check"]]
+    seen = [0]
+
+    def ready():
+        seen[0] = seen[0] + 1 if check(ctx) else 0
+        return seen[0] >= 2
+    return bool(ctx.wait_for(f"the owner: {st['owner_step']}", ready, limit_s, every_s=30))
+
+
+# --- the test's automatic sign-in --------------------------------------------
+#
+# The owner, 2026-10-28, after signing in by hand twice: "that kinda kills the
+# thought of '1 click'". A person is at their desktop when they click; the
+# test's restarts leave the screen at the sign-in. With the plan's
+# test_autologon the manager signs Windows in the way Windows' own automatic
+# sign-in does (Sysinternals Autologon's way: the password as the LSA secret
+# DefaultPassword, never in the registry as text), restarts once, and says so
+# in every row. It is switched off when the run finishes. A fresh walk-away
+# Windows has an account with no password that Windows asks to choose at the
+# first sign-in (settle-in/gate, /logonpasswordchg:yes): the test chooses the
+# run's test password there, as the person would, and says so.
+
+LSA = r"""
+using System; using System.Runtime.InteropServices;
+public static class UpgLsa {
+  [StructLayout(LayoutKind.Sequential)] struct U { public ushort Length; public ushort MaximumLength; public IntPtr Buffer; }
+  [StructLayout(LayoutKind.Sequential)] struct A { public int Length; public IntPtr RootDirectory; public IntPtr ObjectName; public uint Attributes; public IntPtr SecurityDescriptor; public IntPtr SecurityQualityOfService; }
+  [DllImport("advapi32.dll")] static extern uint LsaOpenPolicy(IntPtr s, ref A a, uint access, out IntPtr h);
+  [DllImport("advapi32.dll")] static extern uint LsaStorePrivateData(IntPtr h, ref U key, IntPtr data);
+  [DllImport("advapi32.dll")] static extern uint LsaRetrievePrivateData(IntPtr h, ref U key, out IntPtr data);
+  [DllImport("advapi32.dll")] static extern uint LsaClose(IntPtr h);
+  [DllImport("advapi32.dll")] static extern uint LsaFreeMemory(IntPtr p);
+  [DllImport("advapi32.dll")] static extern int LsaNtStatusToWinError(uint s);
+  static U Str(string s) { U u = new U(); u.Buffer = Marshal.StringToHGlobalUni(s); u.Length = (ushort)(s.Length * 2); u.MaximumLength = (ushort)(s.Length * 2 + 2); return u; }
+  static IntPtr Open() { A a = new A(); a.Length = Marshal.SizeOf(typeof(A)); IntPtr h; uint r = LsaOpenPolicy(IntPtr.Zero, ref a, 0x00000F0FFF, out h); if (r != 0) throw new Exception("LsaOpenPolicy " + LsaNtStatusToWinError(r)); return h; }
+  public static int Store(string name, string value) {
+    IntPtr h = Open(); U k = Str(name);
+    try {
+      if (value == null) { int e = LsaNtStatusToWinError(LsaStorePrivateData(h, ref k, IntPtr.Zero)); return e == 2 ? 0 : e; }
+      U v = Str(value); IntPtr p = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(U))); Marshal.StructureToPtr(v, p, false);
+      try { return LsaNtStatusToWinError(LsaStorePrivateData(h, ref k, p)); } finally { Marshal.FreeHGlobal(p); Marshal.FreeHGlobal(v.Buffer); }
+    } finally { Marshal.FreeHGlobal(k.Buffer); LsaClose(h); }
+  }
+  public static bool Has(string name) {
+    IntPtr h = Open(); U k = Str(name); IntPtr d;
+    try { uint r = LsaRetrievePrivateData(h, ref k, out d); if (r == 0 && d != IntPtr.Zero) { LsaFreeMemory(d); return true; } return false; }
+    finally { Marshal.FreeHGlobal(k.Buffer); LsaClose(h); }
+  }
+}
+"""
+
+WINLOGON = "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon"
+
+AUTOLOGON_ON = ("$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; $pw = [Console]::In.ReadLine(); $me = $env:USERNAME; "
+                f"$k = '{WINLOGON}'; $cur = Get-ItemProperty $k; "
+                "if ($cur.DefaultPassword) { 'AUTOLOGON=PLAINTEXT-PRESENT'; exit 3 }; "
+                "if ($cur.AutoAdminLogon -eq '1' -and $cur.DefaultUserName -ne $me) { 'AUTOLOGON=SOMEONE-ELSE'; exit 3 }; "
+                "'BEFORE=' + ([ordered]@{ AutoAdminLogon = $cur.AutoAdminLogon; DefaultUserName = $cur.DefaultUserName; DefaultDomainName = $cur.DefaultDomainName } | ConvertTo-Json -Compress); "
+                "$u = [ADSI]\"WinNT://./$me,user\"; "
+                "if ($u.PasswordExpired.Value -eq 1) { $u.SetPassword($pw); $u.PasswordExpired = 0; $u.SetInfo(); 'FIRST_PASSWORD=CHOSEN' } else { "
+                "Add-Type -AssemblyName System.DirectoryServices.AccountManagement; "
+                "$pc = New-Object System.DirectoryServices.AccountManagement.PrincipalContext('Machine'); "
+                "if (-not $pc.ValidateCredentials($me, $pw)) { 'AUTOLOGON=WRONG-PASSWORD'; exit 4 } }; "
+                "Add-Type -TypeDefinition $lsa; $e = [UpgLsa]::Store('DefaultPassword', $pw); if ($e -ne 0) { \"AUTOLOGON=LSA-$e\"; exit 5 }; "
+                "Set-ItemProperty $k AutoAdminLogon '1'; Set-ItemProperty $k DefaultUserName $me; Set-ItemProperty $k DefaultDomainName $env:COMPUTERNAME; "
+                "if ([UpgLsa]::Has('DefaultPassword') -and (Get-ItemProperty $k).AutoAdminLogon -eq '1') { 'AUTOLOGON=SET' }")
+
+
+def autologon_off_script(before):
+    """Winlogon's three values put back as they were, and the secret removed."""
+    sets = []
+    for name in ("AutoAdminLogon", "DefaultUserName", "DefaultDomainName"):
+        v = (before or {}).get(name)
+        sets.append(f"Remove-ItemProperty $k {name} -ErrorAction SilentlyContinue" if v is None
+                    else f"Set-ItemProperty $k {name} ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{b64(v)}')))")
+    return ("$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
+            f"$k = '{WINLOGON}'; " + "; ".join(sets) + "; "
+            "Add-Type -TypeDefinition $lsa; $e = [UpgLsa]::Store('DefaultPassword', $null); "
+            "if ($e -eq 0 -and -not [UpgLsa]::Has('DefaultPassword')) { 'AUTOLOGON=OFF' } else { \"AUTOLOGON=LSA-$e\" }")
+
+
+def with_lsa(script):
+    return f"$lsa = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{b64(LSA)}')); " + script
+
+
+def autologon_state(entries):
+    """The automatic sign-in this run set and has not switched off: the
+    journal's last autologon-set (with what was there before), or None."""
+    on = None
+    for e in entries:
+        if e["event"] == "autologon-set":
+            on = e
+        elif e["event"] == "autologon-off":
+            on = None
+    return on
+
+
+def autologon_on(ctx):
+    """Windows' automatic sign-in for the SSH login's account. Returns
+    'SET' or the word that refused it (nothing changed then)."""
+    pw = ctx.secrets.get("windows-password")
+    if not pw:
+        return "NO-PASSWORD"
+    r = ctx.link.run(with_lsa(AUTOLOGON_ON), "windows", 120, stdin=pw + "\n")
+    word = (re.findall(r"^AUTOLOGON=(\S+)", r.out, re.M) or ["UNKNOWN"])[-1]
+    if word != "SET":
+        ctx.note(f"the test's automatic sign-in was not set: {word}", out=clean(r.out + r.err)[-200:])
+        return word
+    m = re.search(r"^BEFORE=(\{.*\})$", r.out, re.M)
+    before = json.loads(m.group(1)) if m else {}
+    if not autologon_state(ctx.journal.entries()):
+        ctx.journal.write("autologon-set", before=before, first_password="FIRST_PASSWORD=CHOSEN" in r.out)
+    if "FIRST_PASSWORD=CHOSEN" in r.out:
+        ctx.note("the TEST chose the fresh Windows account's password at its first sign-in (the run's test password), as the person would")
+    return "SET"
+
+
+def autologon_off(ctx_or_link, journal, out=print):
+    on = autologon_state(journal.entries())
+    if not on:
+        return True
+    link = ctx_or_link
+    if link.probe() != "windows":
+        out("oneclick: the test's automatic sign-in is still set in the machine's Windows (Windows does not answer now): "
+            "oneclick.py autologon-off RUN_DIR once it does")
+        return False
+    r = link.run(with_lsa(autologon_off_script(on.get("before"))), "windows", 120)
+    if "AUTOLOGON=OFF" not in r.out:
+        out(f"oneclick: switching the automatic sign-in off did not finish: {clean(r.out + r.err).strip()[-200:]}")
+        return False
+    journal.write("autologon-off")
+    out("oneclick: the test's automatic sign-in is off again")
+    return True
+
+
+def sign_in_by_itself(ctx):
+    """'signed-in', 'not-signed-in' (the owner can still sign in) or
+    'wrong-system' (the restart reached something else: the stage stops)."""
+    if autologon_on(ctx) != "SET":
+        return "not-signed-in"
+    before = boot_mark(ctx, "windows")
+    ctx.note("restarting Windows once so the test's automatic sign-in signs it in")
+    ctx.link.run("shutdown /r /t 5", "windows", 60)
+    got = wait_new_boot(ctx, "Windows, restarted to sign itself in", before, 1800)
+    if got != "windows":
+        ctx.note(f"after the restart for the automatic sign-in, {got or 'nothing'} answered")
+        return "wrong-system"
+    if ctx.wait_for("Windows to sign itself in", lambda: signed_in(ctx), 600, every_s=20):
+        ctx.note("the TEST signed Windows in by itself (automatic sign-in)")
+        return "signed-in"
+    ctx.note("the automatic sign-in did not reach the desktop within 10 minutes")
+    return "not-signed-in"
 
 
 DESKTOP_TASK = "upgrade_ oneclick desktop"
@@ -441,7 +663,7 @@ def write_job(ctx, L, args, erase=False):
     link = ctx.link
     hashed = subprocess.run(["openssl", "passwd", "-6", "-stdin"], input=ctx.secrets["password"], capture_output=True, text=True).stdout.strip()
     if not hashed.startswith("$6$"):
-        return Outcome("manager-error", False, "openssl gave no SHA-512 crypt hash")
+        return untouched("manager-error", "openssl gave no SHA-512 crypt hash")
     if link.kind == "hyperv":
         pub = os.path.expanduser("~/.ssh/upgrade_rig.pub")
         env = dict(os.environ, ONECLICK_HASH=hashed, ONECLICK_SSH_PUB=pub)
@@ -449,10 +671,10 @@ def write_job(ctx, L, args, erase=False):
         j = subprocess.run(cmd, cwd=os.path.join(REPO, "rig", "hyperv"), env=env, capture_output=True, text=True, timeout=1800)
         ctx.save("job-standin.log", j.stdout + j.stderr)
         if j.returncode != 0:
-            return Outcome("job-failed", False, "the rig's job stand-in failed: read job-standin.log")
+            return untouched("job-failed", "the rig's job stand-in failed: read job-standin.log")
     else:
         if not wait_signed_in(ctx, int(args.get("signin_limit_s", 21600))):
-            return Outcome("nobody-signed-in", False, "nobody signed in on the machine's screen within the limit; no job was written")
+            return untouched("nobody-signed-in", "nobody signed in on the machine's screen within the limit; no job was written")
         hf = os.path.join(ctx.stage_dir, ".hash")
         with open(hf, "w") as f:
             f.write(hashed + "\n")
@@ -468,7 +690,7 @@ def write_job(ctx, L, args, erase=False):
         link.run("Remove-Item C:\\upgrade_oneclick\\pw.txt -Force -ErrorAction SilentlyContinue", "windows", timeout=60)
         ctx.save("job-writer.out", jw.out + jw.err)
         if not re.search(r"DESKTOP_RC=0\b", jw.out):
-            return Outcome("job-refused", False, (jw.out + jw.err).strip()[-300:])
+            return untouched("job-refused", (jw.out + jw.err).strip()[-300:])
     link.pull(f"{L}\\upgrade_\\job.json", os.path.join(ctx.stage_dir, "job.json"), "windows")
     return None
 
@@ -484,7 +706,7 @@ def arm(ctx, L, erase=False, markers=()):
              f"Add-Content -Path {L}\\upgrade_\\boots.log -Value ('windows-clock-before,' + (Get-Date).ToUniversalTime().ToString('o') + ',host-utc={utc()}')",
              "windows", timeout=60)
     if not collect_windows(ctx, "before-install", "before"):
-        return Outcome("collect-failed", False, "the Windows collector before the conversion")
+        return untouched("collect-failed", "the Windows collector before the conversion")
     ack = ctx.secrets.get("data-loss")
     if link.kind == "ssh":   # the person's desktop, as the window runs it (on_desktop)
         consent = f"--erase-consent \"{ctx.secrets['erase']}\"" if erase else "--confirm-word CONVERT"
@@ -546,10 +768,10 @@ class KeepWindows:
     def run(self, ctx, args):
         link = ctx.link
         if link.probe() != "windows":
-            return Outcome("wrong-system", False, "keep-windows starts in Windows")
+            return untouched("wrong-system", "keep-windows starts in Windows")
         L = find_stick(ctx)
         if not L:
-            return Outcome("stick-not-found", False, "no single volume labelled UPGV0")
+            return untouched("stick-not-found", "no single volume labelled UPGV0")
         stop = write_job(ctx, L, args) or arm(ctx, L)
         if stop:
             return stop
@@ -603,10 +825,10 @@ class CleanSlate:
     def run(self, ctx, args):
         link = ctx.link
         if link.probe() != "windows":
-            return Outcome("wrong-system", False, "the clean slate starts in Windows")
+            return untouched("wrong-system", "the clean slate starts in Windows")
         L = find_stick(ctx)
         if not L:
-            return Outcome("stick-not-found", False, "no single volume labelled UPGV0")
+            return untouched("stick-not-found", "no single volume labelled UPGV0")
         stop = write_job(ctx, L, args, erase=True) or arm(ctx, L, erase=True)
         if stop:
             return stop
@@ -640,7 +862,7 @@ class StickLeftIn:
     def run(self, ctx, args):
         link = ctx.link
         if link.probe() != "linux":
-            return Outcome("wrong-system", False, "the stick-left-in test starts in the installed Linux")
+            return untouched("wrong-system", "the stick-left-in test starts in the installed Linux")
         # the internal drives only: real disks, not the USB stick, not zram (Fedora's swap in
         # memory, new every boot: the rig, 2026-10-27, read it as "a partition table changed")
         tables = ("s=$(lsblk -no PKNAME \"$(readlink -f /dev/disk/by-label/UPGV0)\" | head -1); "
@@ -654,7 +876,7 @@ class StickLeftIn:
         z = sudo(ctx, fired.format(op="set upg_fired=0"), 120)
         ctx.save("fired-before.txt", z.out + z.err)
         if "upg_fired=0" not in z.out:
-            return Outcome("stick-env-unwritable", False, "the stick's grubenv could not be set before the start")
+            return untouched("stick-env-unwritable", "the stick's grubenv could not be set before the start")
         t0 = sudo(ctx, tables, 120)
         ctx.save("tables-before.txt", t0.out)
         before = boot_mark(ctx, "linux")
@@ -697,10 +919,10 @@ class CancelCountdown:
     def run(self, ctx, args):
         link = ctx.link
         if link.probe() != "windows":
-            return Outcome("wrong-system", False, "the cancel starts in Windows")
+            return untouched("wrong-system", "the cancel starts in Windows")
         L = find_stick(ctx)
         if not L:
-            return Outcome("stick-not-found", False, "no single volume labelled UPGV0")
+            return untouched("stick-not-found", "no single volume labelled UPGV0")
         before = boot_mark(ctx, "windows")
         stop = write_job(ctx, L, args, erase=True) or arm(ctx, L, erase=True, markers=[("test-cancel-countdown", str(args.get("cancel_after_s", 10)))])
         if stop:
@@ -741,10 +963,10 @@ class RefusedBeforeCountdown:
     def run(self, ctx, args):
         link = ctx.link
         if link.probe() != "windows":
-            return Outcome("wrong-system", False, "the refusal test starts in Windows")
+            return untouched("wrong-system", "the refusal test starts in Windows")
         L = find_stick(ctx)
         if not L:
-            return Outcome("stick-not-found", False, "no single volume labelled UPGV0")
+            return untouched("stick-not-found", "no single volume labelled UPGV0")
         before = boot_mark(ctx, "windows")
         if link.kind == "hyperv":
             stop = write_job(ctx, L, dict(args, rig_job_args=["--bogus-home"]), erase=True)
@@ -801,29 +1023,29 @@ class WalkAway:
         if link.kind == "hyperv":
             return self.rig_standin(ctx)
         if link.probe() != "linux":
-            return Outcome("wrong-system", False, "the walk-away starts in Linux")
+            return untouched("wrong-system", "the walk-away starts in Linux")
         plan = sudo(ctx, f"{SETTLE_IN} go-back walkaway plan", 300)
         ctx.save("walkaway-plan.json", plan.out + plan.err)
         try:
             plan_v = json.loads(plan.out.strip().splitlines()[-1])
             drives, language = plan_v.get("drives"), plan_v.get("language") or "en-us"
         except (ValueError, IndexError, AttributeError):
-            return Outcome("walkaway-plan-unread", False, (plan.out + plan.err).strip()[-300:])
+            return untouched("walkaway-plan-unread", (plan.out + plan.err).strip()[-300:])
         # the plan's drives are the ones the walk-away erases (the window's drives_ok); the
         # sticks come from `go-back sticks`, as the window asks for them (the Aspire, 2026-10-28:
         # the manager read the plan's drives as sticks, and no stick could ever match)
         if not isinstance(drives, list) or not drives:
-            return Outcome("walkaway-no-drives", False, f"settle-in's plan names no drive to install Windows on: {drives}")
+            return untouched("walkaway-no-drives", f"settle-in's plan names no drive to install Windows on: {drives}")
         st = sudo(ctx, f"{SETTLE_IN} go-back sticks --min-bytes {WALKAWAY_MIN_STICK}", 120)
         ctx.save("walkaway-sticks.json", st.out + st.err)
         try:
             sticks = json.loads(st.out.strip().splitlines()[-1])
         except (ValueError, IndexError):
-            return Outcome("walkaway-sticks-unread", False, (st.out + st.err).strip()[-300:])
+            return untouched("walkaway-sticks-unread", (st.out + st.err).strip()[-300:])
         word = ctx.secrets["walkaway-stick"]
         picks = [d for d in sticks if isinstance(d, dict) and d.get("offered") and d.get("confirm_word") == word]
         if len(picks) != 1:
-            return Outcome("walkaway-stick-not-confirmed", False, f"{len(picks)} offered drives answer to the word typed at kickoff")
+            return untouched("walkaway-stick-not-confirmed", f"{len(picks)} offered drives answer to the word typed at kickoff")
         d = picks[0]
         user = link.run("id -un", "linux", 30).out.strip()
         prep = sudo(ctx, f"{SETTLE_IN} go-back walkaway prepare --sentence '{ctx.secrets['walkaway']}' --account '{ctx.secrets['walkaway-account']}' "
@@ -880,11 +1102,11 @@ class Rollback:
     def run(self, ctx, args):
         link = ctx.link
         if link.probe() != "linux":
-            return Outcome("wrong-system", False, "the rollback starts in Linux")
+            return untouched("wrong-system", "the rollback starts in Linux")
         dry = sudo(ctx, f"{SETTLE_IN} rollback --dry-run", 300)
         ctx.save("rollback-dry-run.json", dry.out + dry.err)
         if dry.rc != 0 or '"plan"' not in dry.out:
-            return Outcome("rollback-refused", False, (dry.out + dry.err).strip()[-300:])
+            return untouched("rollback-refused", (dry.out + dry.err).strip()[-300:])
         real = sudo(ctx, f"{SETTLE_IN} rollback", 600)
         ctx.save("rollback.json", real.out + real.err)
         if real.rc != 0 or '"done"' not in real.out:
@@ -1020,7 +1242,7 @@ class KeepAwake:
 AWAKE_UNIT = "upgrade-oneclick-awake"
 
 
-def hold_awake(ctx):
+def hold_awake(ctx, quiet=False):
     """The plan's hold_awake: the machine's Linux kept from sleeping for this
     stage, by the TEST, never by the product. The walk-away's prepare runs
     an hour and settle-in holds no sleep lock: on 2026-10-28 KDE put the
@@ -1029,7 +1251,8 @@ def hold_awake(ctx):
     the lock from the test and say so in the journal and the row. A
     transient unit outlives the SSH call; the next restart ends it."""
     if ctx.link.probe() != "linux":
-        ctx.note("hold_awake: Linux does not answer; no sleep lock was taken")
+        if not quiet:
+            ctx.note("hold_awake: Linux does not answer; no sleep lock was taken")
         return False
     r = sudo(ctx, f"systemctl stop {AWAKE_UNIT} 2>/dev/null; systemd-run --unit={AWAKE_UNIT} systemd-inhibit --what=sleep:idle --mode=block "
                   "--who=upgrade_oneclick --why='one click test: the stage runs long; settle-in holds no sleep lock' sleep 21600 >/dev/null && "
@@ -1054,8 +1277,10 @@ def run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=pr
 def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=print):
     run, secrets = load(run_dir)
     plan = run["plan"]
-    link = link or tr.from_spec(run["transport"])
+    link = link or tr.from_spec(run["transport"], run_dir)
     journal = Journal(os.path.join(run_dir, "journal.jsonl"))
+    if hasattr(link, "on_event"):   # Follow: a new address or a newly trusted key goes in the journal
+        link.on_event = lambda event, **kv: journal.write(event, **kv)
     ctx = Context(run_dir, plan, secrets, link, journal, sleep, clock)
     if not journal.entries():
         journal.write("run-start", manager=VERSION, transport=link.describe(), machine=plan.get("machine", ""))
@@ -1065,18 +1290,38 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
         if action == "finished":
             journal.write("run-finished")
             out("oneclick: every stage ran and ended as the plan expects")
+            autologon_off(link, journal, out)
             return 0
         if action == "wait":
             st = plan["stages"][arg]
             if not any(e["event"] == "owner-wait" and e.get("index") == arg for e in journal.entries()):
                 journal.write("owner-wait", index=arg, stage=st["stage"], step=st["owner_step"])
-            out(f"oneclick: waiting for the owner before stage {arg + 1} {st['stage']}:\n  {st['owner_step']}\n"
-                f"then: oneclick.py done {run_dir} && oneclick.py run {run_dir}")
-            return 3
+            if st.get("owner_check") not in OWNER_CHECKS:
+                out(f"oneclick: waiting for the owner before stage {arg + 1} {st['stage']}:\n  {st['owner_step']}\n"
+                    f"then: oneclick.py done {run_dir} && oneclick.py run {run_dir}")
+                return 3
+            out(f"oneclick: waiting for you before stage {arg + 1} {st['stage']}:\n  {st['owner_step']}\n"
+                "  (no need to say so: the manager sees it on the machine and goes on)")
+            # an idle Linux sleeps while it waits for hands (KDE, 2026-10-28): the test holds it awake
+            held = hold_awake(ctx, quiet=True)
+            seen = wait_owner_seen(ctx, st, int(st.get("owner_limit_s", 21600)))
+            if held:
+                release_awake(ctx)
+            if not seen:
+                out(f"oneclick: still waiting for: {st['owner_step']}\n  oneclick.py run {run_dir} looks again")
+                return 3
+            journal.write("owner-done", index=arg, stage=st["stage"], by="seen on the machine", check=st["owner_check"])
+            out(f"oneclick: seen on the machine: {st['owner_step']}")
+            continue
         if action == "stop":
-            if not any(e["event"] == "run-stopped" for e in journal.entries()):
+            if not stopped_since_retry(journal.entries()):
                 journal.write("run-stopped", why=arg)
             out(f"oneclick: stopped - {arg}")
+            last = [e for e in journal.entries() if e["event"] == "stage-done"]
+            if last and not last[-1].get("expected"):
+                out(f"  try it again in this run: oneclick.py retry {run_dir}" + ("" if last[-1].get("untouched") else " --undone 'WHAT WAS PUT BACK'"))
+            if autologon_state(journal.entries()):
+                out(f"  the test's automatic sign-in is still on in the machine's Windows (for the retry); off: oneclick.py autologon-off {run_dir}")
             return 1
         i = arg
         st = plan["stages"][i]
@@ -1091,6 +1336,7 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
             return 1
         os.makedirs(ctx.stage_dir, exist_ok=False)
         journal.write("stage-start", index=i, stage=st["stage"], folder=name)
+        autologon_before = bool(autologon_state(journal.entries()))
         out(f"oneclick: stage {i + 1} {st['stage']} ...")
         held = hold_awake(ctx) if st.get("hold_awake") else False
         try:
@@ -1100,8 +1346,11 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
         if held:
             release_awake(ctx)
             o.notes = (o.notes + "; " if o.notes else "") + "the TEST held a sleep lock on Linux for this stage (settle-in holds none: 2026-10-04, 2026-10-28)"
+        if autologon_before or autologon_state(journal.entries()):
+            o.notes = (o.notes + "; " if o.notes else "") + "the TEST's automatic sign-in was on in Windows for this stage (test_autologon; the person signs in by hand)"
         n = sha256sums(ctx.stage_dir)
-        journal.write("stage-done", index=i, stage=st["stage"], word=o.word, expected=bool(o.expected), notes=o.notes, files=n)
+        journal.write("stage-done", index=i, stage=st["stage"], word=o.word, expected=bool(o.expected), notes=o.notes, files=n,
+                      untouched=bool(o.untouched or not impl.writes))
         out(f"oneclick: stage {i + 1} {st['stage']}: {o.word}{'' if o.expected else ' (NOT expected)'} - {o.notes}")
 
 
@@ -1150,12 +1399,21 @@ def ask_consents(needed, link, secrets, ask=input, out=print):
     return True
 
 
-def kickoff(plan_path, spec, ask=input, out=print, root=None, password_from=None):
+def kickoff(plan_path, spec, ask=input, out=print, root=None, password_from=None, ask_secret=None, follow=None):
     """password_from: an earlier run on the same machine, whose installed
     Linux this run goes on with (a tail run): its account keeps that run's
     password. Else the plan's test_password (the owner, 2026-10-28: the
     Aspire's test account is 'password' from its next install on), else a
-    random one."""
+    random one.
+
+    test_autologon: the Windows account's password for the test's automatic
+    sign-in. The plan's "windows_password": "test_password" when Windows'
+    account has the test password (the Aspire's since 2026-10-29), else typed
+    here, hidden.
+
+    follow: an ssh run reads the machine's identity now, over the owner's own
+    login, so it can follow the machine to new addresses and keys (default
+    on for ssh; tr.seed_follow)."""
     with open(plan_path, encoding="utf-8") as f:
         plan = json.load(f)
     link = tr.from_spec(spec)
@@ -1168,17 +1426,33 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None, password_from=None
         secrets["password"] = earlier["password"]
     elif plan.get("test_password"):
         secrets["password"] = plan["test_password"]
+    bad = [st["owner_check"] for st in plan["stages"] if "owner_check" in st and st["owner_check"] not in OWNER_CHECKS]
+    if bad:
+        raise SystemExit(f"oneclick: the plan names owner checks the manager does not know: {', '.join(bad)}")
     needed = plan_needs(plan["stages"])
     out(f"oneclick {VERSION}: {len(plan['stages'])} stages on {plan.get('machine', '?')} over {link.describe()}")
     for i, st in enumerate(plan["stages"]):
         built = "" if st["stage"] in STAGES else "   (not built yet: the run stops here)"
         out(f"  {i + 1:2d}. {st['stage']}{built}")
         if st.get("owner_step"):
-            out(f"      (first waits for you: {st['owner_step']})")
+            out(f"      (first waits for you: {st['owner_step']}" + (" The manager sees when it is done.)" if st.get("owner_check") else ")"))
     if not ask_consents(needed, link, secrets, ask, out):
         return None
+    if plan.get("test_autologon") and link.kind == "ssh":
+        if plan.get("windows_password") == "test_password":
+            secrets["windows-password"] = secrets["password"]
+        else:
+            import getpass
+            pw = (ask_secret or getpass.getpass)("\nThe Windows account's password, for the test's automatic sign-in (kept in the run folder only; hidden): ")
+            if not pw:
+                out("oneclick: no password typed. Nothing started.")
+                return None
+            secrets["windows-password"] = pw
+        out("oneclick: the test signs Windows in by itself when a stage needs the desktop (automatic sign-in, off again when the run finishes)")
     run_dir = os.path.join(root or runs_root(), f"{plan.get('machine', 'machine')}-{stamp()}")
     os.makedirs(run_dir, exist_ok=False)
+    if (follow if follow is not None else link.kind == "ssh") and not tr.seed_follow(link.host, run_dir, plan.get("machine", "machine"), out):
+        out("  (the run reaches the machine as `ssh " + link.host + "` does; a new address or key stops it)")
     commit = subprocess.run(["git", "-C", REPO, "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
     with open(os.path.join(run_dir, "run.json"), "w", encoding="utf-8") as f:
         json.dump({"manager": VERSION, "commit": commit, "created": utc(), "transport": spec, "plan": plan}, f, indent=2)
@@ -1194,7 +1468,7 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None, password_from=None
 def consent(run_dir, ask=input, out=print):
     """The approvals a run's stages need that it was not given at kickoff."""
     run, secrets = load(run_dir)
-    link = tr.from_spec(run["transport"])
+    link = tr.from_spec(run["transport"], run_dir)
     needed = [n for n in plan_needs(run["plan"]["stages"]) if n not in secrets]
     if not needed:
         out("oneclick: nothing is missing")
@@ -1220,9 +1494,18 @@ def status(run_dir, out=print):
         e = states.get(i)
         word = "-" if e is None else (e.get("word") or e["event"])
         out(f"  {i + 1:2d}. {st['stage']:<14} {word}")
+    mj = os.path.join(run_dir, "machine.json")
+    if os.path.exists(mj):
+        with open(mj, encoding="utf-8") as f:
+            m = json.load(f)
+        out(f"  machine: last found at {m['address']} (seen at {', '.join(m.get('addresses', []))})")
+    if autologon_state(entries):
+        out("  the test's automatic sign-in is ON in the machine's Windows")
     action, arg = next_action(run["plan"], entries)
     if action == "wait":
-        out(f"  next: WAITING for the owner before stage {arg + 1}: {run['plan']['stages'][arg]['owner_step']}")
+        st = run["plan"]["stages"][arg]
+        how = " (the manager watches for it)" if st.get("owner_check") in OWNER_CHECKS else f" (then: oneclick.py done {run_dir})"
+        out(f"  next: WAITING for you before stage {arg + 1}: {st['owner_step']}{how}")
         return
     lock = os.path.join(run_dir, ".awake")
     live = os.path.exists(lock) and time.time() - os.path.getmtime(lock) < 180
@@ -1248,6 +1531,55 @@ def done(run_dir, out=print):
     return 0
 
 
+def retry(run_dir, undone=None, out=print):
+    """Try the stage the run stopped at again, in the same run: the
+    approvals typed at kickoff stand, the stage gets a new folder (-tryN),
+    and the fail stays in the journal and the rows. A stage that stopped
+    before changing anything goes again as it is; one that may have changed
+    the machine (the prologue started, the walk-away prepared, a writer was
+    interrupted) goes again only with `--undone`, the owner's words for what
+    was put back (the Aspire, 2026-10-29: `walkaway undo`), written down."""
+    run, _ = load(run_dir)
+    journal = Journal(os.path.join(run_dir, "journal.jsonl"))
+    entries = journal.entries()
+    action, why = next_action(run["plan"], entries)
+    if action != "stop":
+        out(f"oneclick: nothing to try again: the run is not stopped ({action})")
+        return 2
+    marks = [e for e in entries if e["event"] in ("stage-start", "stage-done")]
+    if not marks:
+        out("oneclick: no stage has run yet")
+        return 2
+    e = stage_states(entries)[marks[-1]["index"]]
+    i, stage = e["index"], e["stage"]
+    if e["event"] == "stage-done" and e.get("expected"):
+        out(f"oneclick: the run stopped for another reason, not a stage's result: {why}")
+        return 2
+    clean_stop = e["event"] == "stage-done" and e.get("untouched")
+    word = e.get("word") or "interrupted"
+    if not clean_stop and not (undone or "").strip():
+        out(f"oneclick: stage {i + 1} {stage} ended '{word}' and may have changed the machine. Put it back first, then say what you did:\n"
+            f"  oneclick.py retry {run_dir} --undone 'WHAT WAS PUT BACK'")
+        return 2
+    journal.write("stage-retry", index=i, stage=stage, after=word, untouched=bool(clean_stop), undone=(undone or "").strip())
+    out(f"oneclick: stage {i + 1} {stage} goes again at the next run (after '{word}'" + ("" if clean_stop else f"; undone: {undone.strip()}") + ")")
+    return 0
+
+
+def ssh_to(run_dir, command, out=print):
+    """The machine, reached the way the run reaches it (its address and
+    trusted keys), for a look by hand. Nothing is recorded."""
+    run, _ = load(run_dir)
+    link = tr.from_spec(run["transport"], run_dir)
+    if not command:
+        if isinstance(link, tr.Follow):
+            os.execvp("ssh", ["ssh", *link.opts, link.host])
+        os.execvp("ssh", ["ssh", link.host])
+    r = link.raw(" ".join(command), timeout=600)
+    out(r.out + r.err, end="")
+    return 255 if r.rc is None else r.rc
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="oneclick.py")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -1264,6 +1596,14 @@ def main(argv=None):
     c.add_argument("run_dir")
     dn = sub.add_parser("done", help="the owner did the step the run waits for")
     dn.add_argument("run_dir")
+    rt = sub.add_parser("retry", help="try the stage the run stopped at again, in the same run")
+    rt.add_argument("run_dir")
+    rt.add_argument("--undone", help="what was put back, when the stage may have changed the machine")
+    sh = sub.add_parser("ssh", help="reach the machine where the run last found it")
+    sh.add_argument("run_dir")
+    sh.add_argument("command", nargs=argparse.REMAINDER)
+    ao = sub.add_parser("autologon-off", help="switch the test's automatic sign-in off in the machine's Windows")
+    ao.add_argument("run_dir")
     pr = sub.add_parser("promote", help="the run's rows, scrubbed, into docs/validation-results/oneclick-runs.csv")
     pr.add_argument("run_dir")
     pr.add_argument("--csv", default=os.path.join(REPO, "docs", "validation-results", "oneclick-runs.csv"))
@@ -1281,6 +1621,13 @@ def main(argv=None):
         return consent(a.run_dir)
     if a.cmd == "done":
         return done(a.run_dir)
+    if a.cmd == "retry":
+        return retry(a.run_dir, a.undone)
+    if a.cmd == "ssh":
+        return ssh_to(a.run_dir, a.command)
+    if a.cmd == "autologon-off":
+        run, _ = load(a.run_dir)
+        return 0 if autologon_off(tr.from_spec(run["transport"], a.run_dir), Journal(os.path.join(a.run_dir, "journal.jsonl"))) else 1
     if a.cmd == "promote":
         import rows
         return rows.promote(a.run_dir, a.csv, a.facts, a.dry_run)

@@ -7,6 +7,9 @@
   "heartbeat_s": 300,
   "test_password": "password",
   "why_test_password": "the owner, 2026-10-28: the test account's password is 'password' on a test machine, so the owner can sign in at the screen",
+  "test_autologon": true,
+  "windows_password": "test_password",
+  "why_test_autologon": "the owner, 2026-10-28 and 2026-10-31: signing in by hand after each restart is not one click; the test signs Windows in by itself (the password as Windows' own LSA secret), says so in every row, and switches it off when the run finishes. Windows' account has the test password since the walk-away of 2026-10-29; a fresh walk-away account gets it at its first sign-in",
   "why_data_loss": "the Aspire's scan is RED (its dying drive, R23): every stage that writes a job names the sentence, so the owner types it at kickoff, never added in silence",
   "stages": [
     {
@@ -47,8 +50,9 @@
     {
       "stage": "walk-away",
       "owner_step": "Take the kit stick out of the Aspire and put the walk-away stick in (both are serial-less General UDisks: with both in, the walk-away rightly refuses both).",
-      "why": "back to a fresh Windows after a clean slate",
-      "hold_awake": true
+      "why": "back to a fresh Windows after a clean slate; the test keeps Linux awake through the prepare (the owner, 2026-10-28: KDE slept 45 minutes in, settle-in holds no lock)",
+      "hold_awake": true,
+      "owner_check": "walkaway-stick-in"
     },
     {
       "stage": "cancel-countdown",
@@ -56,7 +60,8 @@
       "needs": [
         "data-loss"
       ],
-      "why": "V9 arm B, rare"
+      "why": "V9 arm B, rare",
+      "owner_check": "kit-stick-in"
     },
     {
       "stage": "refused-before-countdown",
@@ -65,5 +70,6 @@
       ],
       "why": "V9 arm A, the rarest"
     }
-  ]
+  ],
+  "why_retry": "a stage that stops is tried again in the same run (oneclick.py retry), with the approvals typed at kickoff; the tail plan of 2026-10-28 that did this by hand is gone (its copy is in its run folder's run.json)"
 }

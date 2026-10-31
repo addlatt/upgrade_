@@ -31,8 +31,9 @@ class FakeLink:
     def probe(self):
         return self.probes.pop(0) if len(self.probes) > 1 else self.probes[0]
 
-    def run(self, script, os_kind, timeout=600):
+    def run(self, script, os_kind, timeout=600, stdin=""):
         self.commands.append(script)
+        self.stdins = getattr(self, "stdins", []) + [stdin]
         for key, res in self.runs.items():
             if key in script:
                 return res
@@ -381,6 +382,9 @@ class RollbackTests(KeepWindowsTests):
 class KickoffTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
+        self._seed = tr.seed_follow
+        tr.seed_follow = lambda *a, **k: False
+        self.addCleanup(setattr, tr, "seed_follow", self._seed)
         w = Writer()
         w.needs = ("erase", "password")
         oneclick.STAGES["writer-x"] = w
@@ -567,7 +571,7 @@ class HoldAwakeTests(unittest.TestCase):
         self.assertIn("TEST holds a sleep lock", ctx.journal.entries()[0]["text"])
 
     def test_the_aspire_plans_hold_the_walk_away_awake(self):
-        for name in ("aspire.json", "aspire-tail.json"):
+        for name in ("aspire.json",):
             with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", name)) as f:
                 st = [x for x in json.load(f)["stages"] if x["stage"] == "walk-away"][0]
             self.assertTrue(st.get("hold_awake"), name)
@@ -628,6 +632,348 @@ class TransportTests(unittest.TestCase):
     def test_unknown_transports_refuse(self):
         with self.assertRaises(ValueError):
             tr.from_spec("telnet:x")
+
+
+ASPIRE = {"os": "windows", "model": "Aspire A515-51G", "macs": ["A0C589112233", "A0-C5-89-11-22-33"], "disks": ["FS83N008110", "WD-WCC4J1234567"]}
+
+
+class SameMachineTests(unittest.TestCase):
+    def test_linux_and_windows_spellings_of_one_computer_match(self):
+        seen = {"os": "linux", "model": "Aspire A515-51G", "macs": ["a0:c5:89:11:22:33"], "disks": ["WD-WCC4J1234567"]}
+        ok, why = tr.same_machine(ASPIRE, seen)
+        self.assertTrue(ok, why)
+        self.assertIn("1 network card(s) and 1 drive(s)", why)
+
+    def test_another_model_never_matches_even_with_a_common_card(self):
+        seen = dict(ASPIRE, model="Aspire A515-52")
+        self.assertFalse(tr.same_machine(ASPIRE, seen)[0])
+
+    def test_the_same_model_with_nothing_in_common_is_another_computer(self):
+        seen = {"model": "Aspire A515-51G", "macs": ["a0:c5:89:99:99:99"], "disks": ["OTHERDISK01"]}
+        self.assertFalse(tr.same_machine(ASPIRE, seen)[0])
+
+    def test_empty_and_zeroed_values_never_count(self):
+        known = {"model": "X", "macs": ["00-00-00-00-00-00", ""], "disks": [None, "0000_0000"]}
+        self.assertFalse(tr.same_machine(known, dict(known))[0])
+        self.assertFalse(tr.same_machine({"model": ""}, {"model": ""})[0])
+        self.assertFalse(tr.same_machine(None, ASPIRE)[0])
+
+
+class FollowTests(unittest.TestCase):
+    """The machine followed across addresses and new host keys (the Aspire,
+    2026-10-28/29: .211, .79, .245 and a new key at every install)."""
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        with open(os.path.join(self.tmp, "machine.json"), "w") as f:
+            json.dump({"alias": "oneclick-fake", "address": "10.0.0.11", "addresses": ["10.0.0.11"], "prefix": "10.0.0", "identity": ASPIRE}, f)
+        with open(os.path.join(self.tmp, "known_hosts"), "w") as f:
+            f.write("oneclick-fake ssh-ed25519 OLDKEY\n")
+        self.keys, self.who = {}, {}
+        saved = (tr.keyscan, tr.read_identity, tr.Follow.sweep)
+        self.addCleanup(lambda: (setattr(tr, "keyscan", saved[0]), setattr(tr, "read_identity", saved[1]), setattr(tr.Follow, "sweep", saved[2])))
+        tr.keyscan = lambda ip: self.keys.get(ip, set())
+        tr.Follow.sweep = lambda me: sorted(self.keys)
+
+        def identity(look):   # what ssh's accept-new would write, then the machine's answer
+            ip = [o.split("=", 1)[1] for o in look.opts if o.startswith("HostName=")][0]
+            q = [o.split("=", 1)[1] for o in look.opts if o.startswith("UserKnownHostsFile=")][0]
+            with open(q, "w") as f:
+                f.writelines(f"oneclick-fake {t} {k}\n" for t, k in self.keys[ip])
+            return self.who.get(ip)
+        tr.read_identity = identity
+        self.events = []
+        self.link = tr.Follow("fake", self.tmp, clock=lambda: self.t)
+        self.link.on_event = lambda ev, **kv: self.events.append((ev, kv))
+        self.t = 0
+
+    def trusted(self):
+        with open(os.path.join(self.tmp, "known_hosts")) as f:
+            return f.read()
+
+    def test_every_call_uses_the_runs_own_address_and_known_hosts_with_checks_on(self):
+        o = " ".join(self.link.opts)
+        for want in ("ProxyCommand=none", "HostName=10.0.0.11", "HostKeyAlias=oneclick-fake", "StrictHostKeyChecking=yes",
+                     f"UserKnownHostsFile={os.path.join(self.tmp, 'known_hosts')}"):
+            self.assertIn(want, o)
+
+    def test_a_known_key_at_a_new_address_is_followed(self):
+        self.keys = {"10.0.0.79": {("ssh-ed25519", "OLDKEY")}}
+        self.assertTrue(self.link.relocate())
+        self.assertIn("HostName=10.0.0.79", self.link.opts)
+        self.assertEqual(self.events[0][0], "machine-moved")
+        with open(os.path.join(self.tmp, "machine.json")) as f:
+            self.assertEqual(json.load(f)["address"], "10.0.0.79", "the new address outlives the manager")
+
+    def test_a_new_key_is_trusted_only_after_it_proves_it_is_the_same_computer(self):
+        self.keys = {"10.0.0.245": {("ssh-ed25519", "NEWKEY")}}
+        self.who = {"10.0.0.245": {"os": "linux", "model": "Aspire A515-51G", "macs": ["a0:c5:89:11:22:33"], "disks": []}}
+        self.assertTrue(self.link.relocate())
+        self.assertIn("NEWKEY", self.trusted())
+        self.assertIn("OLDKEY", self.trusted())
+        self.assertEqual([e[0] for e in self.events], ["host-key-trusted", "machine-moved"])
+        self.assertTrue([n for n in os.listdir(self.tmp) if n.startswith("follow-")], "the look that decided it is kept")
+        self.assertFalse([n for n in os.listdir(self.tmp) if n.startswith("oneclick-kh-")], "the quarantine file is removed")
+
+    def test_another_computer_with_a_new_key_is_never_trusted(self):
+        self.keys = {"10.0.0.50": {("ssh-ed25519", "STRANGER")}}
+        self.who = {"10.0.0.50": {"os": "linux", "model": "Some Other PC", "macs": ["a0:c5:89:11:22:33"], "disks": []}}
+        self.assertFalse(self.link.relocate())
+        self.assertNotIn("STRANGER", self.trusted())
+        self.assertIn("HostName=10.0.0.11", self.link.opts)
+        self.assertEqual(self.events[0][0], "host-key-refused")
+
+    def test_a_silent_machine_is_looked_for_at_most_every_two_minutes(self):
+        self.assertFalse(self.link.relocate())
+        self.keys = {"10.0.0.79": {("ssh-ed25519", "OLDKEY")}}
+        self.t = 60
+        self.assertFalse(self.link.relocate(), "too soon: no sweep")
+        self.t = 121
+        self.assertTrue(self.link.relocate())
+
+    def test_a_run_with_a_machine_file_follows_and_one_without_does_not(self):
+        self.assertIsInstance(tr.from_spec("ssh:fake", self.tmp), tr.Follow)
+        self.assertNotIsInstance(tr.from_spec("ssh:fake", tempfile.gettempdir() + "/no-such-run"), tr.Follow)
+
+
+class RetryTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.addCleanup(oneclick.STAGES.pop, "writer-x", None)
+
+    def stopped(self, outcome):
+        class Once(Writer):
+            def __init__(self):
+                super().__init__()
+                self.n = 0
+
+            def run(self, ctx, args):
+                self.n += 1
+                return outcome if self.n == 1 else oneclick.Outcome("done", True)
+        w = Once()
+        oneclick.STAGES["writer-x"] = w
+        d = make_run(self.tmp, [{"stage": "look"}, {"stage": "writer-x"}])
+        oneclick.Journal(os.path.join(d, "journal.jsonl")).write("stage-done", index=0, stage="look", word="scanned-red", expected=True)
+        self.assertEqual(oneclick.run_chain(d, link=FakeLink(), out=lambda *_: None), 1)
+        return d, w
+
+    def test_a_stage_that_changed_nothing_goes_again_in_the_same_run_with_its_fail_kept(self):
+        d, w = self.stopped(oneclick.untouched("job-refused", "nobody at the desktop"))
+        self.assertEqual(oneclick.retry(d, out=lambda *_: None), 0)
+        self.assertEqual(oneclick.run_chain(d, link=FakeLink(), out=lambda *_: None), 0)
+        done = [(e["word"], e["expected"]) for e in journal(d) if e["event"] == "stage-done" and e["index"] == 1]
+        self.assertEqual(done, [("job-refused", False), ("done", True)], "the fail stays in the record")
+        self.assertTrue(os.path.isdir(os.path.join(d, "stages", "02-writer-x-try2")))
+
+    def test_a_stage_that_may_have_changed_the_machine_needs_the_owners_words(self):
+        d, _ = self.stopped(oneclick.Outcome("walkaway-not-ready", False, "slept"))
+        self.assertEqual(oneclick.retry(d, out=lambda *_: None), 2)
+        self.assertEqual(oneclick.next_action({"stages": [{"stage": "look"}, {"stage": "writer-x"}]}, journal(d))[0], "stop")
+        self.assertEqual(oneclick.retry(d, undone="settle-in go-back walkaway undo", out=lambda *_: None), 0)
+        r = [e for e in journal(d) if e["event"] == "stage-retry"][0]
+        self.assertEqual((r["untouched"], r["undone"]), (False, "settle-in go-back walkaway undo"))
+
+    def test_an_interrupted_writer_is_never_retried_blind(self):
+        oneclick.STAGES["writer-x"] = Writer(boom=KeyboardInterrupt())
+        d = make_run(self.tmp, [{"stage": "writer-x"}])
+        with self.assertRaises(KeyboardInterrupt):
+            oneclick.run_chain(d, link=FakeLink(), out=lambda *_: None)
+        self.assertEqual(oneclick.run_chain(d, link=FakeLink(), out=lambda *_: None), 1)
+        self.assertEqual(oneclick.retry(d, out=lambda *_: None), 2)
+
+    def test_a_running_run_has_nothing_to_retry(self):
+        d = make_run(self.tmp, [{"stage": "look"}])
+        self.assertEqual(oneclick.retry(d, out=lambda *_: None), 2)
+
+    def test_a_retried_stage_that_stops_again_stops_the_run_again(self):
+        d, w = self.stopped(oneclick.untouched("job-refused", "x"))
+        w.n = -5   # it fails again
+        w.run = lambda ctx, args: oneclick.untouched("job-refused", "again")
+        oneclick.retry(d, out=lambda *_: None)
+        self.assertEqual(oneclick.run_chain(d, link=FakeLink(), out=lambda *_: None), 1)
+        self.assertEqual(sum(1 for e in journal(d) if e["event"] == "run-stopped"), 2)
+        self.assertEqual(oneclick.retry(d, out=lambda *_: None), 0, "and can be tried once more")
+
+    def test_early_stops_are_marked_untouched_and_a_prologue_stop_is_not(self):
+        self.assertTrue(oneclick.untouched("job-refused", "x").untouched)
+        link = keep_link("  stopped at shrink\n")
+        t = KeepWindowsTests()
+        t.tmp = self.tmp
+        o = oneclick.KeepWindows().run(t.ctx(link, Clock()), {})
+        self.assertEqual(o.word, "prologue-stopped")
+        self.assertFalse(o.untouched)
+
+
+class OwnerCheckTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        oneclick.STAGES["writer-x"] = Writer()
+        self.addCleanup(oneclick.STAGES.pop, "writer-x", None)
+        self.addCleanup(oneclick.OWNER_CHECKS.pop, "fake-swap", None)
+
+    def test_a_swap_the_machine_can_see_needs_no_word_from_the_owner(self):
+        seq = [False, True, False, True, True]
+        oneclick.OWNER_CHECKS["fake-swap"] = lambda ctx: seq.pop(0) if seq else True
+        d = make_run(self.tmp, [{"stage": "writer-x", "owner_step": "swap the sticks", "owner_check": "fake-swap"}])
+        c = Clock()
+        said = []
+        self.assertEqual(oneclick.run_chain(d, link=FakeLink(), sleep=c.sleep, clock=c, out=said.append), 0)
+        od = [e for e in journal(d) if e["event"] == "owner-done"][0]
+        self.assertEqual(od["by"], "seen on the machine")
+        self.assertGreaterEqual(c.t, 4 * 30, "true twice in a row, never a half-in stick")
+        self.assertTrue(any("no need to say so" in x for x in said))
+
+    def test_a_swap_not_seen_keeps_waiting_and_starts_nothing(self):
+        oneclick.OWNER_CHECKS["fake-swap"] = lambda ctx: False
+        d = make_run(self.tmp, [{"stage": "writer-x", "owner_step": "swap", "owner_check": "fake-swap", "owner_limit_s": 600}])
+        c = Clock()
+        self.assertEqual(oneclick.run_chain(d, link=FakeLink(), sleep=c.sleep, clock=c, out=lambda *_: None), 3)
+        self.assertFalse([e for e in journal(d) if e["event"] in ("stage-start", "owner-done")])
+
+    def test_the_kit_check_wants_the_kit_and_no_walk_away_stick(self):
+        ctx = oneclick.Context(self.tmp, {}, {}, FakeLink(runs={"go-back.json": tr.Result(0, "KIT_ONLY\n", "")}), oneclick.Journal(os.devnull))
+        self.assertTrue(oneclick.kit_stick_in(ctx))
+        ctx.link = FakeLink(runs={"go-back.json": tr.Result(0, "", "")})
+        self.assertFalse(oneclick.kit_stick_in(ctx))
+        ctx.link = FakeLink(probes=("linux",))
+        self.assertFalse(oneclick.kit_stick_in(ctx))
+
+    def test_the_walk_away_check_wants_the_kit_out_and_one_offered_stick(self):
+        one = json.dumps([{"offered": True}, {"offered": False}])
+        ctx = oneclick.Context(self.tmp, {}, {"password": "p"}, FakeLink(probes=("linux",), runs={"base64 -d": tr.Result(0, one + "\n", "")}), oneclick.Journal(os.devnull))
+        self.assertTrue(oneclick.walkaway_stick_in(ctx))
+        ctx.link = FakeLink(probes=("linux",), runs={"base64 -d": tr.Result(0, "KIT_IN\n" + one + "\n", "")})
+        self.assertFalse(oneclick.walkaway_stick_in(ctx), "the kit stick still in")
+        ctx.link = FakeLink(probes=("linux",), runs={"base64 -d": tr.Result(0, json.dumps([{"offered": True}, {"offered": True}]) + "\n", "")})
+        self.assertFalse(oneclick.walkaway_stick_in(ctx), "two offered: the walk-away would refuse")
+
+    def test_the_aspire_plan_sees_both_swaps_itself(self):
+        with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", "aspire.json")) as f:
+            stages = {st["stage"]: st for st in json.load(f)["stages"]}
+        self.assertEqual(stages["walk-away"]["owner_check"], "walkaway-stick-in")
+        self.assertEqual(stages["cancel-countdown"]["owner_check"], "kit-stick-in")
+
+    def test_a_plan_naming_an_unknown_check_refuses(self):
+        plan = os.path.join(self.tmp, "plan.json")
+        with open(plan, "w") as f:
+            json.dump({"machine": "fake", "stages": [{"stage": "look", "owner_step": "x", "owner_check": "no-such-check"}]}, f)
+        with self.assertRaises(SystemExit):
+            oneclick.kickoff(plan, "ssh:fake", ask=lambda _: "", out=lambda *_: None, root=self.tmp, follow=False)
+
+
+class AutologonTests(unittest.TestCase):
+    def ctx(self, answers, plan=None, secrets=None):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        link = FakeLink(probes=("windows",), runs=answers)
+        link.kind = "ssh"
+        c = Clock()
+        bm = iter(["2026-10-31T10:00:00", "2026-10-31T10:05:00"] + ["2026-10-31T10:05:00"] * 50)
+        link.runs.setdefault("LastBootUpTime", None)
+        orig = link.run
+
+        def run(script, os_kind, timeout=600, stdin=""):
+            if "LastBootUpTime" in script:
+                return tr.Result(0, next(bm), "")
+            return orig(script, os_kind, timeout, stdin)
+        link.run = run
+        ctx = oneclick.Context(tmp, {"test_autologon": True} if plan is None else plan, secrets or {"windows-password": "password"}, link,
+                               oneclick.Journal(os.path.join(tmp, "j")), c.sleep, c)
+        return ctx
+
+    def signed_after_restart(self):
+        state = {"restarted": False}
+
+        def explorer():
+            return tr.Result(0, "SIGNED_IN" if state["restarted"] else "NOBODY", "")
+        return state, explorer
+
+    def test_the_sign_in_screen_signs_itself_in_and_says_so(self):
+        ctx = self.ctx({"AutoAdminLogon": tr.Result(0, 'BEFORE={"AutoAdminLogon":"0","DefaultUserName":"bk","DefaultDomainName":null}\nAUTOLOGON=SET\n', ""),
+                        "shutdown /r": tr.Result(0, "", ""), "explorer.exe": tr.Result(0, "NOBODY", "")})
+        calls = {"n": 0}
+        base = ctx.link.run
+
+        def run(script, os_kind, timeout=600, stdin=""):
+            if "explorer.exe" in script:
+                calls["n"] += 1
+                return tr.Result(0, "SIGNED_IN" if any("shutdown /r" in c for c in ctx.link.commands) else "NOBODY", "")
+            return base(script, os_kind, timeout, stdin)
+        ctx.link.run = run
+        self.assertTrue(oneclick.wait_signed_in(ctx))
+        sent = [c for c in ctx.link.commands if "AutoAdminLogon" in c][0]
+        self.assertNotIn("password'", sent.replace("$pw", ""), "the password is never in the command")
+        self.assertIn("password\n", ctx.link.stdins, "it travels on stdin")
+        self.assertIn("UpgLsa", sent.split("FromBase64String")[0] + __import__("base64").b64decode(re.search(r"FromBase64String\('([^']+)'\)", sent).group(1)).decode(),
+                      "the password is stored as the LSA secret, not registry text")
+        notes = [e.get("text", "") for e in ctx.journal.entries()]
+        self.assertTrue(any("signed Windows in by itself" in n for n in notes))
+        self.assertTrue(oneclick.autologon_state(ctx.journal.entries()))
+
+    def test_without_the_plans_word_the_owner_signs_in(self):
+        ctx = self.ctx({"explorer.exe": tr.Result(0, "NOBODY", "")}, plan={})
+        self.assertFalse(oneclick.wait_signed_in(ctx, limit_s=60))
+        self.assertFalse([c for c in ctx.link.commands if "AutoAdminLogon" in c])
+
+    def test_a_wrong_password_changes_nothing_and_falls_back_to_the_owner(self):
+        ctx = self.ctx({"AutoAdminLogon": tr.Result(4, "AUTOLOGON=WRONG-PASSWORD\n", ""), "explorer.exe": tr.Result(0, "NOBODY", "")})
+        self.assertFalse(oneclick.wait_signed_in(ctx, limit_s=60))
+        self.assertFalse([c for c in ctx.link.commands if "shutdown /r" in c], "no restart for a sign-in that cannot work")
+        self.assertFalse(oneclick.autologon_state(ctx.journal.entries()))
+
+    def test_someone_elses_automatic_sign_in_is_left_alone(self):
+        self.assertIn("AUTOLOGON=SOMEONE-ELSE", oneclick.AUTOLOGON_ON)
+        self.assertIn("AUTOLOGON=PLAINTEXT-PRESENT", oneclick.AUTOLOGON_ON)
+
+    def test_a_fresh_walk_away_account_gets_the_test_password_and_the_row_says_so(self):
+        ctx = self.ctx({"AutoAdminLogon": tr.Result(0, "BEFORE={}\nFIRST_PASSWORD=CHOSEN\nAUTOLOGON=SET\n", "")})
+        self.assertEqual(oneclick.autologon_on(ctx), "SET")
+        self.assertTrue(any("chose the fresh Windows account's password" in e.get("text", "") for e in ctx.journal.entries()))
+
+    def test_off_puts_back_what_was_there_and_removes_the_secret(self):
+        ctx = self.ctx({"AUTOLOGON=OFF": tr.Result(0, "AUTOLOGON=OFF\n", "")})
+        ctx.journal.write("autologon-set", before={"AutoAdminLogon": "0", "DefaultUserName": "bk", "DefaultDomainName": None})
+        self.assertTrue(oneclick.autologon_off(ctx.link, ctx.journal, out=lambda *_: None))
+        sent = ctx.link.commands[-1]
+        self.assertIn("Remove-ItemProperty $k DefaultDomainName", sent)
+        self.assertIn(f"FromBase64String('{oneclick.b64('bk')}')", sent)
+        self.assertIn("Store('DefaultPassword', $null)", sent)
+        self.assertIsNone(oneclick.autologon_state(ctx.journal.entries()))
+
+    def test_every_stage_run_with_it_on_says_the_test_signed_in(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        d = make_run(tmp, [{"stage": "look"}])
+        oneclick.Journal(os.path.join(d, "journal.jsonl")).write("autologon-set", before={})
+        link = look_link()
+        link.runs["AUTOLOGON=OFF"] = tr.Result(0, "AUTOLOGON=OFF\n", "")
+        self.assertEqual(oneclick.run_chain(d, link=link, out=lambda *_: None), 0)
+        done = [e for e in journal(d) if e["event"] == "stage-done"][0]
+        self.assertIn("automatic sign-in was on", done["notes"])
+        self.assertEqual(journal(d)[-1]["event"], "autologon-off", "a finished run switches it off")
+
+    def test_kickoff_takes_the_windows_password_from_the_plan_or_hidden(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        plan = os.path.join(tmp, "plan.json")
+        with open(plan, "w") as f:
+            json.dump({"machine": "fake", "test_password": "password", "test_autologon": True, "windows_password": "test_password", "stages": [{"stage": "look"}]}, f)
+        d = oneclick.kickoff(plan, "ssh:fake", out=lambda *_: None, root=tmp, follow=False)
+        with open(os.path.join(d, "secrets.json")) as f:
+            self.assertEqual(json.load(f)["windows-password"], "password")
+        with open(plan, "w") as f:
+            json.dump({"machine": "fake2", "test_autologon": True, "stages": [{"stage": "look"}]}, f)
+        d = oneclick.kickoff(plan, "ssh:fake", out=lambda *_: None, root=tmp, follow=False, ask_secret=lambda _: "owners-own")
+        with open(os.path.join(d, "secrets.json")) as f:
+            self.assertEqual(json.load(f)["windows-password"], "owners-own")
+
+    def test_the_aspire_plan_signs_itself_in_with_the_test_password(self):
+        with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", "aspire.json")) as f:
+            plan = json.load(f)
+        self.assertTrue(plan["test_autologon"])
+        self.assertEqual(plan["windows_password"], "test_password")
 
 
 if __name__ == "__main__":
