@@ -16,14 +16,15 @@ is the one in that heading. "Line N" is the CSV's line as an editor shows
 it; line 1 is the header. One real machine is one data point, not proof:
 nearly every `[####]` below is the Acer Aspire A515-51G, Secure Boot on.
 
-## Right now (2026-10-29)
+## Right now (2026-10-31)
 
 The one click test ran every stage on the Aspire: keep Windows, the stick
 left in, the rollback, the clean slate, the walk-away, the cancel and the
 refusal (`oneclick-runs.csv` lines 26 to 37; the walk-away kept awake by the
-test, line 34). Next: settle-in's own sleep lock (R33), a refusal for a disk
-that already holds a Linux (R39), and a run that needs no hand at the
-keyboard. The order: `ROADMAP.md`; the story: [log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39).
+test, line 34). Its manager is now built to need no hand but the stick
+swaps, untried on a machine ([log](log/2026-10.md#2026-10-31-the-one-click-test-built-to-need-no-hand-but-the-stick-swaps-roadmap-item-21-r9-v13)).
+Next: that run, settle-in's own sleep lock (R33), and a refusal for a disk
+that already holds a Linux (R39). The order: `ROADMAP.md`; the story: [log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39).
 
 ## Gates
 
