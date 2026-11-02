@@ -1034,10 +1034,10 @@ directs the work; it does not redo it:** it runs the kit's four programs
 (`upgrade-scan`, `upgrade-job`, `upgrade-harvest`, `upgrade-prologue`) as child
 processes with fixed arguments, shows their progress in plain words, and stops
 where they stop. It adds exactly two things of its own: it stops on a RED scan before the job writer
-runs (more cautious than before, never less), and before the restart it
-registers a one-shot sign-in task that opens it again, so the person sees the
-result without looking for it; a restart the window cannot follow is not
-started. It cannot show anything before a sign-in (the walk-away resume runs as
+runs (more cautious than before, never less), and in the Verify flow (behind
+`--developer` since roadmap item 20) a one-shot sign-in task that opens it
+again after the restart; Convert registers none, and the prologue's own resume
+carries on. It cannot show anything before a sign-in (the walk-away resume runs as
 SYSTEM with no screen). If its graphics cannot draw on a machine, it says so in
 a plain Windows message box and names the programs on the stick, which a
 helper can run from a command prompt.

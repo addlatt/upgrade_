@@ -21,7 +21,7 @@ knowledge needed to get there. This project carries that knowledge for them.
 
 **The vision works from any source; the code is Windows-only.** The docs and README
 describe conversion as `Source → Linux`, but every line today reads a Windows
-machine (PowerShell, `bcdedit`, BitLocker, `netsh`). Other source systems are a
+machine (WMI, `bcdedit`, BitLocker, `netsh`). Other source systems are a
 future direction, not a v1 promise. Where the docs say "Windows", they mean the one
 source that works now.
 
@@ -85,11 +85,10 @@ someone.
 The standing priority, above all feature work: validate the killers before building
 anything that writes. Several things the whole project depends on exist only as
 argument, which by rule #2 counts for nothing, so no component that writes to a disk
-is built until the spine it depends on is proven on real hardware. The one current
-target (as of 2026-10-11) is the keep-Windows path on the Aspire with shim in
-Windows' slot. The return applied it by itself and the clock held on 2026-10-11
-(R21, R36); still owed there: a real Windows update under the guard (R22) and the
-rollback on this machine. Where every gate stands:
+is built until the spine it depends on is proven on real hardware. As of
+2026-11-01: every stage of the one click test held on the Aspire (2026-10-28/29);
+next is that run with no hand but the stick swaps, then a sleep lock (R33) and
+R39's refusal, then settle-in's file pull, which is not written. Where every gate stands:
 `docs/STATUS.md`. What is next, and the decisions owed: `docs/ROADMAP.md`. What
 happened, run by run: `docs/log/`.
 
@@ -120,10 +119,10 @@ data/            the knowledge tables, JSON, compiled into the scanner; communit
   distros.json     distro kernel table (goes stale; verify against release notes)
   releases.json    the Linux releases the kit can carry, and what Secure Boot needs of each (measured by tools/measure-release.py, never typed)
 evaluate/windows/  the corpus of machine recordings; the one PowerShell holdover (the stick writer; its port `evaluate/stick` is built and retires it when R16's rows read pass)
-evaluate/scan/, harvest/, job/  the scanner, the harvester and the job writer in Rust (the product since 2026-10-11)
-evaluate/scan/, evaluate/harvest/, evaluate/job/  the scanner's, harvester's and job writer's judging halves in Rust (held to the PowerShell word for word)
-upgrade_/          the converter: prologue/ the prologue, handoff, rollback and the slot in Rust; kickstart/ the kickstart generator in Rust; windows/window/ the window (UPGRADE.exe), windows/handoff-payload/ the stick's EFI payload and the two .cmd starters; linux/installer/ the installer's verify (%pre) and outcome (%post) steps in Rust
-settle-in/         first-boot verify + file pull + reclaim (the file pull and reclaim are not built)
+evaluate/scan/, harvest/, job/, stick/  the scanner, harvester, job writer and stick writer in Rust; their judging halves held to the frozen PowerShell goldens
+upgrade_/          the converter: prologue/ the prologue, handoff, the slot and its guard in Rust (the rollback runs from Linux, settle-in); kickstart/ the kickstart generator in Rust; windows/window/ the window (UPGRADE.exe), windows/handoff-payload/ the stick's EFI payload and the two .cmd starters; linux/installer/ the installer's verify (%pre) and outcome (%post) steps in Rust
+settle-in/         first start, the Linux-side rollback, the walk-away way back; gate/ its Windows program; window/; the file pull and reclaim are not written (audit 2026-11-01)
+rig/               the test benches: hyperv/ and vm/ (the rig), oneclick/ (the one click test manager, tooling)
 schemas/           job.json / outcome.json contracts (change rarely, review hard); rust/ reads them in Rust
 docs/              architecture.md (how it works), RISKS.md (what is unproven), VALIDATION.md (how it is proven), research/ (devices, future paths)
   STATUS.md          where every gate and open risk stands: the one home for state
@@ -233,11 +232,12 @@ stands" line linking there.
 ## Environment
 
 This runs on a Windows machine via WSL. **`powershell.exe` (Windows PowerShell 5.1)
-is reachable from the shell.** Use it to parse-check and run the scanner and harness
-against the real target engine (`wslpath -w <file>` translates paths). Two real test
+is reachable from the shell.** It runs the Windows `.exe` programs, the rig and the
+stick writer's self-test (`wslpath -w <file>` translates paths). Two real test
 machines so far. The ASUS ROG Zephyrus G16 (Ryzen AI 9 HX 370, RTX 4060, MediaTek
 MT7925, Cirrus CS35L56) is the development machine the scanner was built on. The
 Acer Aspire A515-51G (InsydeH2O, dying SATA SSD) has run the conversion itself: the
 handoff, the live boot, the prologue's stops, the erase and install (runs 9, 10 and
-11), the way back, and the install beside Windows (2026-10-06). Most `fail` paths
+11), the way back, the install beside Windows, and every stage of the one click
+test including the Linux-side rollback (2026-10-28/29). Most `fail` paths
 are still synthetic (R2), so treat one green run as one data point, not proof.
