@@ -1,3 +1,5 @@
+Archived 2026-11-01: the sessions it was written for have run (roadmap items 19, 20 and 21 are built). Its unmet clauses (the 87 owed lines of port-parity.csv, R32 closed) are RUST-PORT.md's own expiry condition and are tracked there. Nothing below this line changes.
+
 # Prompt for the Rust unification sessions (roadmap item 19)
 
 Expires when: roadmap item 19 is done (no PowerShell on the stick or in `data/`, the installer's `verify.sh` and `outcome.sh` and settle-in's starter in Rust, `port-parity.csv` all `pass`, RISKS R32 closed). Then this file moves to `docs/archive/`.

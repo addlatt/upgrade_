@@ -16,15 +16,25 @@ is the one in that heading. "Line N" is the CSV's line as an editor shows
 it; line 1 is the header. One real machine is one data point, not proof:
 nearly every `[####]` below is the Acer Aspire A515-51G, Secure Boot on.
 
-## Right now (2026-10-31)
+## Right now (2026-11-01)
 
 The one click test ran every stage on the Aspire: keep Windows, the stick
 left in, the rollback, the clean slate, the walk-away, the cancel and the
 refusal (`oneclick-runs.csv` lines 26 to 37; the walk-away kept awake by the
 test, line 34). Its manager is now built to need no hand but the stick
 swaps, untried on a machine ([log](log/2026-10.md#2026-10-31-the-one-click-test-built-to-need-no-hand-but-the-stick-swaps-roadmap-item-21-r9-v13)).
-Next: that run, settle-in's own sleep lock (R33), and a refusal for a disk
-that already holds a Linux (R39). The order: `ROADMAP.md`; the story: [log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39).
+
+An audit of the code against these rows (2026-11-01, [log](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13)):
+every program the person's computer runs is Rust, and none is a stub. Not
+written at all: settle-in's file pull and reclaim (item 2), its own sleep
+lock (R33; Windows' side has none either), its refusal of a OneDrive stub (R8), a refusal for a disk that
+already holds a Linux (R39), the discard offer (R26), and any automatic
+check (R9). Written but with no row on a real machine: the window (R31,
+V12), the way back's first sign-in with gate 0.4.0 (R33), settle-in 0.6.0
+(V10). Verified on a machine means one machine, the Aspire.
+
+Next: the one click run with no hand, then settle-in's sleep lock and R39,
+then the file pull. The order: `ROADMAP.md`.
 
 ## Gates
 
@@ -41,9 +51,9 @@ that already holds a Linux (R39). The order: `ROADMAP.md`; the story: [log](log/
 | V7 | the scanner generalizes beyond one laptop | `[#...]` planned | none yet | ship it, collect reports |
 | V8 | OneDrive placeholders are never copied as files | `[###.]` held-on-rig | `v8-materialize.csv` line 5, `pass-plumbing` (2026-09-08, a synthetic provider on the G16) | a signed-in OneDrive; `settle-in`'s refusal (not built) |
 | V9 | one-click erase and install | `[####]` held-on-machine, one vendor | `v9-erase.csv` line 32, `cancelled-untouched` (2026-10-06); the install, lines 30 and 31 (2026-10-04); the rig with kickstart 0.11.0 and `upgrade-installer` 0.1.3 (2026-10-17): line 45, `refused-before-countdown`; line 46, `cancelled-untouched`; line 47, `erased-installed`; line 48, `not-installed-again`; line 49, `erased-installed` (the text console asked for; [log](log/2026-10.md#2026-10-17-night-the-test-pass-on-the-rig-the-rows-the-rust-conversion-made-owed-again-v1-v1b-v9-v10-v11-v13-r21-r32-r33)); the one click test on the rig (2026-10-27): `oneclick-runs.csv` line 16, `erased-installed`; line 17, `not-installed-again`; line 20, `cancelled-untouched` (the test marker, `upgrade-installer` 0.1.4); line 21, `refused-before-countdown` (by the prologue's re-validation); on the Aspire (2026-10-28/29): line 30, `erased-installed`; line 31, `not-installed-again`; line 36, `cancelled-untouched`; line 37, `refused-before-countdown` | a real key at the countdown on a real machine (R38); other vendors; carrying files (stage 2) |
-| V10 | `settle-in`'s first start on any Linux | `[####]` held-on-machine, Fedora only | `settle-in-first-start.csv` line 20, `pass` (2026-10-04) | a non-Fedora distribution; the old-entry button on real firmware; the file pull |
+| V10 | `settle-in`'s first start on any Linux | `[####]` held-on-machine, Fedora only | `settle-in-first-start.csv` line 20, `pass` (2026-10-04) | a non-Fedora distribution; the old-entry button on real firmware; the file pull (not written); a row for settle-in 0.6.0 (the last row is 0.5.0, line 21, the rig) |
 | V11 | the way back to Windows | `[####]` held-on-machine, one licence kind | `oneclick-runs.csv` line 34, `windows-reached` (2026-10-29, the Aspire: a fresh Windows reached over the carried SSH key; the test held a sleep lock, [log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)); `v11-walkaway.csv` line 5, `windows-reached` (2026-10-11, run 3); line 4 `cancelled-untouched` (2026-10-06) | settle-in's own sleep lock (R33); the walk-away first sign-in with gate 0.4.0 on a real machine (on the rig 2026-10-17 it held: Wi-Fi off the stick, the SSH task, sshd keys-only, the firewall rule, the task gone; no row, the CSV is real runs only, [log](log/2026-10.md#2026-10-17-night-the-test-pass-on-the-rig-the-rows-the-rust-conversion-made-owed-again-v1-v1b-v9-v10-v11-v13-r21-r32-r33)); a machine with a firmware key; a cancel started by the program's own restart |
-| V12 | the window in front of the programs | `[###.]` held-on-rig, the stop path only | `v12-window.csv` line 4, `stopped-before-arm` (2026-10-18, window 0.2.0; item 20's screens shot, no row) | a row on the Aspire: the reopen after restart, the result screen |
+| V12 | the window in front of the programs | `[###.]` held-on-rig, the stop path only | `v12-window.csv` line 4, `stopped-before-arm` (2026-10-18, window 0.2.0; item 20's screens shot, no row) | a row on the Aspire: the reopen after restart, the result screen (both now behind `--developer`; Convert, the person's path, has no reopen and no step in this gate: a decision owed); the one click test drives the programs, not the window |
 | V13 | the port from PowerShell to Rust | `[####]` held-on-machine | `v2-install.csv` line 15, `pass` (2026-10-11, the whole conversion through the Rust prologue); `r18-prologue.csv` line 19, `pass-plumbing` (the Rust-only bench); the rig rows owed again re-earned 2026-10-17 (`v2-install.csv` line 20, `pass-plumbing`; `v9-erase.csv` lines 45 to 49); ledger 985 pass, 87 owed ([log](log/2026-10.md#2026-10-17-night-the-test-pass-on-the-rig-the-rows-the-rust-conversion-made-owed-again-v1-v1b-v9-v10-v11-v13-r21-r32-r33)) | the Aspire's rows with `upgrade-installer` 0.1.3; the 87 owed lines; the stick writer's write rows and the rig's refusals (the owner's run card); the prologue's disk-check arm (blocked on the bench's update read); the second-person rebuild |
 | V14 | the kit's Linux release starts where it is used | `[####]` held-on-machine, one firmware | `v9-erase.csv` line 30, `erased-installed` (2026-10-04, Fedora 44, Secure Boot on) | Fedora 42's measured record; a second firmware; the next SBAT level |
 
@@ -58,8 +68,8 @@ that already holds a Linux (R39). The order: `ROADMAP.md`; the story: [log](log/
 | R5 | single-user assumption | `[##..]` built | none yet | the refusal fired on a machine with other profiles; reclaim's refusal |
 | R6 | truncated sizing undersizes the backup | `[##..]` built | none yet | the refusal fired for real |
 | R7 | Broadcom fallback over-refuses | `[#...]` planned | none yet | a Broadcom machine |
-| R8 | cloud-only files copied as stubs | `[##..]` built | `v8-materialize.csv` line 5, `pass-plumbing` (materializer, unused) | `settle-in`'s refusal; a signed-in OneDrive |
-| R9 | no CI; `dist/` can drift | `[#...]` planned | none yet | a workflow |
+| R8 | cloud-only files copied as stubs | `[##..]` built | `v8-materialize.csv` line 5, `pass-plumbing` (materializer, unused) | `settle-in`'s refusal (not written: there is no pull yet); a signed-in OneDrive |
+| R9 | no CI; the kit can drift | `[#...]` planned | none yet (no `.github/`, audit 2026-11-01) | a workflow running `./port-check.sh`; the settle-in window's test, in neither `port-check.sh` nor `make-kit.sh` |
 | R10 | NVIDIA detection matches display text | `[#...]` planned | none yet | a PCI-ID match |
 | R11 | the Secure Boot check verifies nothing | `[#...]` planned | none yet | the owner's call whether R34's check meets this clause |
 | R12 | code signing and antivirus | `[#...]` planned | none yet | a certificate (V6) |
@@ -81,7 +91,7 @@ that already holds a Linux (R39). The order: `ROADMAP.md`; the story: [log](log/
 | R28 | `settle-in` runs on any Linux | `[####]` held-on-machine, Fedora | `settle-in-first-start.csv` line 20, `pass` | a non-Fedora distribution; the old-entry button on real firmware |
 | R29 | the third-party UEFI CA off on Secured-core PCs | `[#...]` planned | none yet | Microsoft's own document; a Secured-core machine; reading the setting from Windows |
 | R30 | the way back to Windows | `[###.]` held-on-rig | `v11-way-back.csv` line 3, `pass-plumbing` (2026-09-27) | a machine with a firmware key; `install.swm` with Secure Boot on |
-| R31 | the window in front of the programs | `[##..]` built | `v12-window.csv` line 3, `stopped-before-arm` | a passing row; the words approved |
+| R31 | the window in front of the programs (critical since 2026-11-01: it fronts convert and the erase) | `[##..]` built | `v12-window.csv` line 4, `stopped-before-arm` (2026-10-18, window 0.2.0) | a passing row; the words approved; what Convert shows after the restart (V12) |
 | R32 | the port from PowerShell to Rust | `[####]` held-on-machine, the scripts gone (2026-10-11), the installer's two steps Rust (2026-10-14) | `v2-install.csv` line 15, `pass` (the Rust prologue, the whole path); `r18-prologue.csv` line 19, `pass-plumbing` (the Rust-only bench); the last shell and PowerShell out of the product (2026-10-17), their rig rows earned the same night: `v2-install.csv` line 20, `pass-plumbing`; `v9-erase.csv` lines 45 to 49; `settle-in-first-start.csv` line 21 (settle-in's starter at a console; [log](log/2026-10.md#2026-10-17-night-the-test-pass-on-the-rig-the-rows-the-rust-conversion-made-owed-again-v1-v1b-v9-v10-v11-v13-r21-r32-r33)) | the Aspire rows for each piece; the stick writer's write rows (the script goes when its R16 rows read pass); the walk-away first sign-in on a real machine; the rebuild by someone else |
 | R33 | the walk-away way back | `[####]` held-on-machine | `oneclick-runs.csv` line 34, `windows-reached` (2026-10-29, the Aspire, the test holding a sleep lock); `v11-walkaway.csv` line 5, `windows-reached` (2026-10-11) | the first sign-in with gate 0.4.0 on a real machine (held on the rig 2026-10-17, no row: [log](log/2026-10.md#2026-10-17-night-the-test-pass-on-the-rig-the-rows-the-rust-conversion-made-owed-again-v1-v1b-v9-v10-v11-v13-r21-r32-r33)); a cancel from the program's own restart; a machine that stops at the key page; keeping the machine awake (KDE slept 45 minutes into the prepare, 2026-10-28) |
 | R34 | Secure Boot revokes the kit's boot files | `[####]` held-on-machine | `v9-erase.csv` line 30, `erased-installed` (Fedora 44, Secure Boot on) | the next level (`grub,6`); Fedora 42's record |

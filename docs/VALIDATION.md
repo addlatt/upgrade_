@@ -702,8 +702,12 @@ same over the Rust programs (2026-10-08), and line 4, window 0.2.0 after
 item 20 (2026-10-18; `v12.sh screens` shot its new screens, no row). The Aspire's run of 2026-10-10
 started from `UPGRADE.exe --accepting-data-loss` (`r18-prologue.csv` line
 16's harness column), but no `v12-window.csv` row records the reopen or
-the result screen. Owed: steps 2 and 3
-([log](log/2026-09.md#2026-09-27-the-windows-rig-run-1-v12-r31-r16)).
+the result screen. Since item 20 the verify flow these steps name, and its
+reopen, are behind `--developer`; Convert, the person's own path, is no
+step of this gate and opens nothing after the restart (a decision owed,
+`ROADMAP.md`). Owed: steps 2 and 3
+([log](log/2026-09.md#2026-09-27-the-windows-rig-run-1-v12-r31-r16),
+[audit](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13)).
 
 ## V14: The kit's Linux release starts where it is used · kills: the one click, and after an erase, the machine · RISKS R34 · held-on-machine
 

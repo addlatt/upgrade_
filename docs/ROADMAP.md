@@ -48,7 +48,9 @@ Hardware check on first boot, copying the person's files (unlock BitLocker,
 copy, double-check), a "you used these programs, here is the Linux version"
 list, undo from the Linux side (the rollback, built 2026-10-12, held on
 the rig; waits on an Aspire row), clean-up. The clock, Wi-Fi and remote
-access are done (2026-10-04, the Aspire). Proves: V10, R28, V3, R19, R13.
+access are done (2026-10-04, the Aspire). Not written yet (audit
+2026-11-01): the file pull, reclaim, and the refusal of a OneDrive stub;
+settle-in has no command for any of them. Proves: V10, R28, V3, R19, R13.
 Waits on: V3 for the pull's integrity; V8 for never copying a stub (R8).
 Stands: see [STATUS.md](STATUS.md).
 
@@ -62,10 +64,12 @@ on). Stands: see [STATUS.md](STATUS.md).
 ## 4. A proper window instead of the black console
 
 `UPGRADE.exe`, a Rust window that runs the programs on the stick (decided
-2026-09-27, the owner, replacing the 2026-09-13 WPF plan). The verify and
-stop flows are built; convert and erase come next; its words are drafts
-until the owner approves them. Proves: V12, R31. Stands: see
-[STATUS.md](STATUS.md).
+2026-09-27, the owner, replacing the 2026-09-13 WPF plan). Built (window
+0.2.0): Convert with its keep-Windows and clean-slate answers, the
+data-loss launcher, the cancel, the rollback's pointer to Linux; Verify and
+Probe behind `--developer`. Owed: a row past the arm, what Convert shows
+after the restart (decision owed below), the owner's approval of its words.
+Proves: V12, R31. Stands: see [STATUS.md](STATUS.md).
 
 ## 5. More brands
 
@@ -135,8 +139,11 @@ collects and settles in around it. Proves: V10. Waits on: item 11. Together,
 ## 16. Keep the computer awake while it works
 
 On Windows and on Linux (decided 2026-10-05, the owner, under R33). Nothing
-stops the machine going to sleep halfway through; it happened once on the
-Aspire. Proves: R33, R24. Stands: see [STATUS.md](STATUS.md).
+stops the machine going to sleep halfway through: no program on either
+side takes a sleep lock (audit 2026-11-01). It happened on the Aspire, and
+KDE slept 45 minutes into the walk-away's prepare (2026-10-28). Not
+started. Proves: R33, R24. Stands: see
+[STATUS.md](STATUS.md).
 
 ## 17. Finish the Rust port: the PowerShell leaves the product
 
@@ -246,6 +253,7 @@ is decided, the dated line goes in its home and the item here is removed.
   Windows is gone (R36 says "may").
 - Who owns `shutdown /g` (Automatic Restart Sign-On), named in
   `architecture.md` as a courtesy to add later (R24).
-- `architecture.md`'s Stack still describes the window running the
-  PowerShell scripts as child processes (2026-09-27); it needs a dated line
-  once the cut-over to Rust lands (R32).
+- What the person sees after Convert's restart. Decided 2026-09-27 (R31):
+  the window "must reopen after the restart"; since item 20 only the
+  developer's Verify flow does, and Convert leaves it to the prologue.
+  Reopen Convert too, or amend the decision (R31, V12).

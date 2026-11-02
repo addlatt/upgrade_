@@ -294,20 +294,27 @@ copying them. Log:
 
 ## R9: No CI; dist can drift from source · medium · planned
 
-**What.** `dist/upgrade-scan.ps1` is committed so people can download one
-file. Nothing makes sure it matches `data/` and `evaluate/`. The self-test
-never runs automatically. (CI, continuous integration, means tests that run
-by themselves on every change.)
+**What.** Nothing runs the checks by themselves. `./port-check.sh` (every
+crate's tests, the frozen goldens, the schemas, the data tables, the one
+click test's own cases) and `./docs-check.sh` are run by hand before a pull
+request. The kit (`dist/kit/`, built by `./make-kit.sh`) is built on the
+developer's machine, and nothing proves it was built from a tree that
+passed. (CI, continuous integration, means tests that run by themselves on
+every change.) `dist/upgrade-scan.ps1`, which this risk first named, was
+deleted 2026-10-11.
 
 **If real.** A contributor edits `data/devices/wifi.json` with a status
-the checks do not know, or a pattern that does not read, and the published
-scanner carries it.
+the checks do not know, or a pattern that does not read, and a kit built
+from it carries it. A crate the check forgets is never tested: the
+settle-in window's test is in neither `port-check.sh` nor `make-kit.sh`
+(found 2026-11-01).
 
-**Closes when.** A GitHub Action runs `./port-check.sh` on every PR.
+**Closes when.** A GitHub Action runs `./port-check.sh` on every PR, and
+every crate in the tree is in it.
 
-**Where it stands.** `[#...]` planned. No workflow exists; `./build.sh`,
-`./port-check.sh` and `./docs-check.sh` are run by hand before a pull
-request, and nothing enforces it. No log entry yet.
+**Where it stands.** `[#...]` planned. No `.github/` folder, no workflow;
+GitHub enforces the pull request, not the checks
+([log](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13)).
 
 ## R10: NVIDIA detection matches rendered display text · low · planned
 
@@ -996,21 +1003,23 @@ path, not the guided stick, which left the product on 2026-10-17 (item 20).
 Owed: a digital licence without a firmware key, the words approved
 ([log](log/2026-10.md#2026-10-03-the-first-after-reinstall-licence-data-point-r30)).
 
-## R31: The window in front of the scripts · medium · built
+## R31: The window in front of the scripts · critical · built
 
 **What.** `UPGRADE.exe` (`upgrade_/windows/window/`) replaces the black
 console with a window. It runs the kit's flows with the launchers' arguments
-and shows their progress; before the restart it registers a one-shot sign-in
-task that opens it again to show the result (`architecture.md`, "Stack").
-Since the port (R32) the launchers are flows inside it.
+and shows their progress; in the Verify flow it registers a one-shot sign-in
+task that opens it again to show the result, and Convert registers none
+(`architecture.md`, "Stack"). Since the port (R32) the launchers are flows
+inside it, and since item 20 it fronts convert and the erase.
 
 **If real.** The window says something the scripts did not: a softer word, a
 forward button after a refusal, "you can still cancel" at the wrong moment
 (rules #1 and #3 in a new place); it cannot draw (egui needs OpenGL, and a
 basic display driver may give no context); it does not come back after the
 restart; closing it mid-run; antivirus, since an unsigned `.exe` that
-elevates and registers a sign-in task is R12's pattern. Once it fronts
-convert and erase its words sit on the commit line and this risk is critical.
+elevates and registers a sign-in task is R12's pattern. It fronts convert
+and the erase (since 2026-10-17), so its words sit on the commit line: this
+risk is critical (raised 2026-11-01 by its own clause; it was medium).
 
 **Decided (2026-09-27, the owner):** a Rust window calling the scripts from
 the stick, the verify flow first; it must reopen after the restart. The
@@ -1024,13 +1033,15 @@ clean-slate answer, its sentence and drive list unchanged (R27;
 basic display driver.
 
 **Where it stands.** `[##..]` built; no row has passed. `v12-window.csv`
-lines 2 and 3 (the rig, 2026-09-28 and 2026-10-08) read `stopped-before-arm`:
+lines 2 to 4 (the rig, 2026-09-28 to 2026-10-18) read `stopped-before-arm`:
 the window could not open with OpenGL in the guest ("egui_glow requires
 opengl 2.0+"), tried wgpu, and stopped at step 2. On the Aspire the window
 launched the Rust prologue on 2026-10-10 (`r18-prologue.csv` lines 15 and
 16, "from UPGRADE.exe --accepting-data-loss"), but no V12 row records that
-run or its reopening after the restart. Owed: a rig row that reaches the
-arm, the Aspire's row, the basic-display machine, and signing.
+run or its reopening after the restart. The one click test drives the
+programs, not the window. Owed: a rig row that reaches the arm, the
+Aspire's row, the basic-display machine, and signing
+([log](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13)).
 
 ## R32: The port from PowerShell to Rust · critical · held-on-machine
 
@@ -1100,17 +1111,15 @@ product keeps the computer awake while it works, on both sides; backlog.
 nobody at the keyboard, ending at the Windows sign-in; then one real machine
 (the Aspire, under R23) with a physical cancel before the erase. V11, step 4.
 
-**Where it stands.** `[####]` `v11-walkaway.csv` line 2 (2026-10-03, `fail`
-on four defects, all fixed that day: the start through the firmware's own USB
-entry, the password forced at first sign-in, Wi-Fi carried, progress shown),
-line 3 (2026-10-04, `windows-reached`, nobody at the keyboard, activated),
-line 4 (2026-10-05, `cancelled-untouched`; gate 0.3.0 had lost its writes
-silently, 0.3.1 reads every write back), line 5 (2026-10-11,
-`windows-reached`, driven over ssh on a second stick, the carried Wi-Fi up
-30 min after the restart). Owed: a cancel started by the program's own
-restart; never-twice on real firmware; the sleep inhibitor; the program
-findable from the desktop and a no-serial stick refused (the owner's call);
-the stale entry each Prepare leaves ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
+**Where it stands.** `[####]` `oneclick-runs.csv` line 34 (2026-10-29,
+`windows-reached`, the one click test holding the sleep lock settle-in
+lacks: no inhibitor exists in its code, audit 2026-11-01); `v11-walkaway.csv`
+lines 2 to 5 (2026-10-03 to 2026-10-11, one `fail` fixed the same day; the
+full list moved to the [log](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13)). Owed: a
+cancel started by the program's own restart; never-twice on real firmware;
+settle-in's own sleep lock; the program findable from the desktop and a
+no-serial stick refused (the owner's call); the stale entry each Prepare
+leaves ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
 
 ## R34: Secure Boot revokes the kit's boot files · critical · held-on-machine
 

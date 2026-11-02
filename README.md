@@ -24,8 +24,8 @@ and set to one side until you're sure you don't need it.
 
 > [!IMPORTANT]
 > **Not ready for your machine yet.** One real laptop has gone from Windows
-> to Fedora in one click with nobody touching it, on the "erase and keep
-> nothing" path. It does not carry your files yet, and nothing is signed.
+> to Fedora with nobody touching it, both erasing and keeping Windows beside
+> it. It does not carry your files yet, and nothing is signed.
 > Where every step stands, failures included: [docs/STATUS.md](docs/STATUS.md).
 
 ---
@@ -74,7 +74,7 @@ flowchart LR
 > [!NOTE]
 > **Right now it only works from Windows.** Nothing about the idea (look,
 > commit, settle in) needs Windows, but all the code today reads a Windows
-> machine: PowerShell, `bcdedit`, BitLocker, `netsh`. Other systems may be supported in the future.
+> machine: WMI, `bcdedit`, BitLocker, `netsh`. Other systems may be supported in the future.
 
 ### The commit line
 
@@ -102,9 +102,10 @@ The full design is in [docs/architecture.md](docs/architecture.md).
 
 One real laptop, an Acer Aspire A515-51G with a dying drive, has done the whole
 conversion for real: one click on Windows, nobody at the keyboard, a Fedora desktop
-at the end with the clock set, Wi-Fi joined and remote access kept. It has gone back
-to Windows the same way. Two runs failed first; both are in the record. One machine
-is one data point, not proof. Every step, with the test row behind each bar:
+at the end with the clock set, Wi-Fi joined and remote access kept. It has kept
+Windows beside Linux and undone that from Linux, and gone back to Windows. Runs
+failed on the way; every one is in the record. Copying your files over is not
+written yet. One machine is one data point, not proof. Every step, with the test row behind each bar:
 [docs/STATUS.md](docs/STATUS.md). The story, run by run: [docs/log/](docs/log/).
 
 ---
@@ -150,10 +151,10 @@ stick (`./make-kit.sh` builds the kit). Run it in PowerShell from the stick:
 ```
 
 ```text
--Json          also save a JSON copy
--NoFile        just print it, don't save
--OutDir <path> save it somewhere other than the Desktop
--SelfTest      run the built-in tests
+--json         also save a JSON copy
+--no-file      just print it, don't save
+--out <dir>    save it somewhere other than the Desktop
+--kit <dir>    where the stick's boot files are (default: beside the program)
 ```
 
 > [!TIP]
