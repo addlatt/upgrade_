@@ -5,15 +5,15 @@
 ### Move your computer to Linux. One stick, one click, done.
 
 Plug in a USB stick, pick a desktop, hit convert, and walk away. When you
-come back it's a working Linux machine, with your files, Wi-Fi and browsers
-still there. By default Windows doesn't get deleted either. It gets shrunk
-and set to one side until you're sure you don't need it.
+come back it's a working Linux machine, already on your Wi-Fi. By default
+Windows doesn't get deleted: it gets shrunk and set to one side, with all
+your files still in it, one pick away in the boot menu.
 
 [![Licence: GPL-3.0](https://img.shields.io/badge/licence-GPL--3.0-blue)](LICENSE)
 ![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)
 ![Source: Windows 10/11](https://img.shields.io/badge/source-Windows%2010%20%2F%2011-0078D6)
 ![Target: Fedora](https://img.shields.io/badge/target-Fedora-51A2DA)
-![Windows PowerShell 5.1](https://img.shields.io/badge/PowerShell-5.1%20only-5391FE)
+![Built in Rust](https://img.shields.io/badge/built%20in-Rust-B7410E)
 ![Secure Boot: on](https://img.shields.io/badge/Secure%20Boot-stays%20on-2ea44f)
 
 [Why](#why) · [How it works](#how-it-works) · [Where it stands](#where-it-stands) ·
@@ -25,7 +25,7 @@ and set to one side until you're sure you don't need it.
 > [!IMPORTANT]
 > **Not ready for your machine yet.** One real laptop has gone from Windows
 > to Fedora with nobody touching it, both erasing and keeping Windows beside
-> it. It does not carry your files yet, and nothing is signed.
+> it. It does not copy your files into Linux, and nothing is signed.
 > Where every step stands, failures included: [docs/STATUS.md](docs/STATUS.md).
 
 ---
@@ -49,20 +49,20 @@ be undone?
 
 ```mermaid
 flowchart LR
-    subgraph W["On Windows · can be undone"]
-        E["<b>evaluate</b><br/>scan · harvest · ask you<br/>write the stick · refuse"]
+    subgraph W["On Windows"]
+        E["<b>evaluate</b><br/>scan · ask you<br/>write the stick · refuse"]
+        C{{"YOUR LAST CLICK<br/>no turning back after it"}}
         P["<b>upgrade_</b> prologue<br/>disk check · shrink<br/>BitLocker · boot handoff"]
     end
     subgraph I["Fedora installer on the stick"]
         V["check it's the right machine<br/>and the hardware works"]
-        C{{"THE COMMIT LINE"}}
         X["install · check it boots<br/>write outcome.json"]
     end
     subgraph L["On Linux · first boot"]
         S["<b>settle-in</b><br/>check again · Wi-Fi, clock, SSH<br/>undo, if you want"]
     end
-    E --> P --> V --> C --> X --> S
-    V -. "anything wrong" .-> R["back to Windows,<br/>nothing changed"]
+    E --> C --> P --> V --> X --> S
+    V -. "any check fails" .-> R["back to Windows,<br/>nothing erased"]
 ```
 
 | Part | Runs on | What it does |
@@ -84,7 +84,7 @@ right up until then.
 | Path | The point of no return | What protects you |
 |---|---|---|
 | **Keep Windows** (the default) | **Clean-up**, deleting the old Windows part. It isn't built yet, so for now there is no point of no return: Windows, with your files, stays one pick away in the boot menu. | You decide, after Linux is already running |
-| **Erase and install** | **Your last click.** After the typed sentence and the drive list, the button you click is the point of no return. There's no countdown and no cancel after it. | Its own launcher, a sentence you type out, and hardware checks that have to pass first |
+| **Erase and install** | **Your last click.** After the typed sentence and the drive list, the button you click is the point of no return. There's no countdown and no cancel after it. | A sentence you type out, every drive named, and checks that must all pass before anything is erased |
 
 That leads to two rules:
 
@@ -104,8 +104,9 @@ One real laptop, an Acer Aspire A515-51G with a dying drive, has done the whole
 conversion for real: one click on Windows, nobody at the keyboard, a Fedora desktop
 at the end with the clock set, Wi-Fi joined and remote access kept. It has kept
 Windows beside Linux and undone that from Linux, and gone back to Windows. Runs
-failed on the way; every one is in the record. Copying your files over is not
-written yet. One machine is one data point, not proof. Every step, with the test row behind each bar:
+failed on the way; every one is in the record. Not built yet: copying your files
+into Linux (it waits until the project has users) and the clean-up that deletes the
+old Windows. One machine is one data point, not proof. Every step, with the test row behind each bar:
 [docs/STATUS.md](docs/STATUS.md). The story, run by run: [docs/log/](docs/log/).
 
 ---
@@ -178,8 +179,8 @@ refusals, drive health and volume health, and nothing else. From then on
 every screen says **DATA LOSS ACCEPTED**. Making that exception any bigger
 is exactly what this rule is here to stop.
 
-When it says no, it tells you what would change its mind: how many GB to
-free up, or what size stick you'd need. It'll still turn away machines with
+When it says no, it tells you what would change its mind, like how many GB
+to free up. It'll still turn away machines with
 Intel RST/VMD switched on, because that setting can't be changed safely from
 software on every brand of laptop.
 
