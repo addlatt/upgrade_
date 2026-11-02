@@ -88,10 +88,11 @@ pub const CHOOSE_VERIFY_LINE: &str = "Nothing is installed and nothing on this c
 pub const CHOOSE_CONVERT: &str = "Convert this computer to Linux";
 pub const CHOOSE_CONVERT_LINE: &str = "Keep Windows beside Linux (the default), or erase this computer for a clean slate. You choose on the next screen, and you type before anything changes.";
 // What happens to Windows: Convert's one switch (roadmap item 20, 2026-10-17). The clean
-// slate is the erase flow, its sentence, countdown and drive list unchanged (R27).
+// slate is the erase flow, its sentence and drive list unchanged (R27). No countdown
+// since 2026-11-02 (the owner): the last click in this window is the commit line.
 pub const PATH_HEADING: &str = "What happens to Windows";
 pub const PATH_KEEP: &str = "Keep Windows beside Linux (recommended)";
-pub const PATH_KEEP_LINE: &str = "Windows is shrunk to make room and stays on the computer, so you can roll back. Your files stay where they are.";
+pub const PATH_KEEP_LINE: &str = "Windows is shrunk to make room and stays on the computer, so you can roll back. Your files stay where they are, on the Windows side: nothing is copied into Linux for you yet.";
 pub const PATH_CLEAN: &str = "Clean slate: erase this computer";
 pub const PATH_CLEAN_LINE: &str = "Everything on this computer's drives is deleted and Fedora is installed alone. Nothing is kept. You type one sentence before anything changes.";
 pub const CHOOSE_CONVERT_ACK: &str = "Convert this computer, ACCEPTING DATA LOSS";
@@ -155,7 +156,7 @@ pub const DECIDE_HEADING: &str = "Your decision";
 pub const DECIDE_LINES: [&str; 3] = [
     "This will change the internal disk of this computer: Windows' disk check may run (with a restart), the Windows partition will be shrunk, and Linux will be installed beside it. Windows stays bootable from the boot menu until you reclaim it later. If the disk check runs it may be slow: do not switch the computer off while it runs. If Windows has an update waiting to finish, the computer restarts first to let it finish, then carries on by itself.",
     "If Windows' restore points are what stops the partition shrinking, they will be deleted. Restore points are Windows' own undo history for system changes, not your files, and deleting them cannot be undone. The same goes for Windows' change journal, its running list of which files changed recently: if it is what stops the shrinking, it is deleted and started again empty. Your files are not touched, but search and sync programs will look through them again afterwards.",
-    "Nothing else is deleted before Linux is installed.",
+    "Nothing else is deleted before Linux is installed. Your files stay on the Windows side; this version does not copy them into Linux.",
 ];
 pub const DECIDE_TYPE: &str = "Type CONVERT (in capitals) to continue. Anything else stops.";
 pub const DECIDE_NOT_CONFIRMED: &str = "Not confirmed. Nothing was changed.";
@@ -177,7 +178,7 @@ pub const ERASE_READ_FIRST: &str = "Read this first";
 pub const ERASE_LINES: [&str; 5] = [
     "This deletes EVERYTHING on this computer's drives: Windows, every program, every setting and every file. Nothing is kept and nothing is copied anywhere. Fedora Linux is installed in its place.",
     "Before you type anything, copy every file you want to keep OFF this computer.",
-    "Nothing changes until the very end: the computer restarts into the installer, and a 2-minute countdown appears on the screen. Press any key during the countdown to cancel: Windows comes back untouched. When the countdown ends, the drives are erased. You can walk away.",
+    "The last button you click in this window is the last moment to stop. When you click it, the computer restarts into the installer and the drives are erased. There is no countdown and no way to stop it after that click. You can walk away.",
     "If you change your mind later, you can put Windows back, but it will be a new, empty Windows: nothing on this computer today comes back. On many older computers that means Windows 10, which no longer gets free security updates.",
     "Your saved Wi-Fi networks and their passwords are copied onto this stick, so Fedora can connect to them on its own. They are removed from the stick at the end of the install and from Fedora once it has set them up.",
 ];
@@ -192,14 +193,14 @@ pub const ERASE_STEPS: [&str; 5] = [
 pub const ERASE_RUNNING_HEADING: &str = "Preparing to erase this computer";
 pub const ERASE_DECIDE_HEADING: &str = "Restarting into the installer";
 pub const ERASE_DECIDE_LINES: [&str; 2] = [
-    "Leave the USB stick in. After the restart a 2-minute countdown appears: press any key during it to cancel and come back to Windows, untouched.",
+    "This is the last moment to stop. When you click the button below, the computer restarts and the drives are erased. There is no countdown and no turning back after this click. Leave the USB stick in.",
     "If Windows has an update waiting, the computer restarts first to let it finish, then carries on by itself.",
 ];
 pub const ERASE_GO: &str = "Restart into the installer";
 pub const ERASE_RESTARTING_HEADING: &str = "Restarting into the installer in about 15 seconds";
 pub const ERASE_RESTARTING_LINES: [&str; 2] = [
-    "Leave the USB stick in. The 2-minute countdown comes first: press any key during it to cancel and come back to Windows, untouched.",
-    "When the countdown ends, the drives are erased and Fedora is installed. You can walk away.",
+    "Leave the USB stick in. There is no turning back now: the drives are erased and Fedora is installed.",
+    "If a safety check fails in the installer, it stops before erasing anything and Windows comes back untouched. You can walk away.",
 ];
 
 // ---------------------------------------------------------------- roll back (from Linux; decided 2026-10-17, the owner)
@@ -224,18 +225,3 @@ pub const PROBE_RUNNING: &str = "Setting up the probe";
 pub const PROBE_RESTARTING_HEADING: &str = "Restarting in about 15 seconds";
 pub const PROBE_RESTARTING_LINE: &str = "Leave the stick in. When Windows comes back, do not sign in for two minutes.";
 
-// ---------------------------------------------------------------- cancel (CANCEL-CONVERSION.cmd)
-
-pub const CHOOSE_CANCEL: &str = "Cancel a conversion in progress";
-pub const CHOOSE_CANCEL_LINE: &str = "For a computer back in Windows with a conversion still marked as in progress. Nothing is erased; Windows stays as it is.";
-pub const CANCEL_HEADING: &str = "Cancel the conversion";
-pub const CANCEL_LINES: [&str; 3] = [
-    "This is the safe direction: it only undoes what the prologue did on the Windows side. It removes the one-time boot entry to the stick, turns BitLocker protection back on if it was paused, puts the pagefile and hibernation back, deletes the Wi-Fi passwords from the stick and moves the state aside. Nothing is erased.",
-    "A shrink already made stays (Disk Management can extend C: again).",
-    "Before it changes anything, it copies the firmware's boot list and the prologue's state onto this stick.",
-];
-pub const CANCEL_GO: &str = "Cancel the conversion";
-pub const CANCEL_RUNNING: &str = "Cancelling";
-pub const CANCEL_DONE_HEADING: &str = "The conversion is cancelled";
-pub const CANCEL_DONE_LINE: &str = "Windows is as it is. The record of what was undone is in upgrade_\\convert.log on this stick.";
-pub const CANCEL_FAILED_HEADING: &str = "The cancel did not complete";

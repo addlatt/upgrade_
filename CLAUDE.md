@@ -11,8 +11,9 @@ trustworthy, and you can't see it in the code.
 
 Move an ordinary computer from Windows to Linux, in one go, for someone who does not
 know how. Plug in a USB stick, pick a desktop, click convert. Come back to a working
-Linux machine with your files, Wi-Fi and browsers intact, and (by default) the old
-system shrunk safely aside until they're sure.
+Linux machine with Wi-Fi intact and (by default) the old system, files and all,
+shrunk safely aside. **Decided (2026-11-02, the owner): copying the files into
+Linux waits until the project has traction.**
 
 The audience is non-technical people whose working Windows 10 machines were stranded
 by Windows 11's hardware requirements and the October 2025 end of security updates.
@@ -53,10 +54,11 @@ someone.
    a good paragraph.
 
 3. **The commit line.** Exactly one moment per conversion is irreversible (a one-way
-   door), and the source OS stays bootable until it. The interface must say "you can
-   still cancel" until that exact moment, and stop the instant it's crossed. And
-   **everything that can refuse must refuse before the line.** After it, the only
-   safety left is a slow recovery that depends on hardware that might itself fail.
+   door), and the source OS stays bootable until it. **Amended (2026-11-02, the
+   owner): the person's last click in a window is that moment.** No countdown and
+   no cancel after it. The window says plainly, at that click, that there is no
+   turning back. **Every check still refuses before anything is erased.** After
+   that, the only safety left is a slow recovery on hardware that might itself fail.
 
 4. **Trust is spent once.** This tool earns trust once and loses it for good the
    first time it destroys someone's photos. Any component that writes to a disk must
@@ -88,7 +90,7 @@ argument, which by rule #2 counts for nothing, so no component that writes to a 
 is built until the spine it depends on is proven on real hardware. As of
 2026-11-01: every stage of the one click test held on the Aspire (2026-10-28/29);
 next is that run with no hand but the stick swaps, then a sleep lock (R33) and
-R39's refusal, then settle-in's file pull, which is not written. Where every gate stands:
+R39's refusal. The file pull waits (decided 2026-11-02). Where every gate stands:
 `docs/STATUS.md`. What is next, and the decisions owed: `docs/ROADMAP.md`. What
 happened, run by run: `docs/log/`.
 
@@ -99,9 +101,9 @@ Three modules, split on **commitment** (can this step still be undone?), not on 
 folder map, materialized cloud files, firmware, the BitLocker key), captures intent,
 writes the stick, and refuses. `upgrade_` (the converter; Windows → Linux) does the
 move. By **default** it shrinks Windows aside and installs Linux alongside, keeping
-Windows as a rollback. Only on opt-in or a too-full disk does it wipe and stage
-files to the stick instead. `settle-in` (Linux, first boot) verifies the hardware,
-**pulls the user's files from the kept Windows partition** (default path), and
+Windows as a rollback. Only on opt-in does it erase everything instead, carrying
+no files (a too-full disk is refused). `settle-in` (Linux, first boot) verifies the hardware,
+will **pull the user's files from the kept Windows partition** (deferred 2026-11-02), and
 offers reclaim once everything is confirmed. No external drive anywhere: one stick
 is the whole kit.
 
@@ -121,7 +123,7 @@ data/            the knowledge tables, JSON, compiled into the scanner; communit
 evaluate/windows/  the corpus of machine recordings; the one PowerShell holdover (the stick writer; its port `evaluate/stick` is built and retires it when R16's rows read pass)
 evaluate/scan/, harvest/, job/, stick/  the scanner, harvester, job writer and stick writer in Rust; their judging halves held to the frozen PowerShell goldens
 upgrade_/          the converter: prologue/ the prologue, handoff, the slot and its guard in Rust (the rollback runs from Linux, settle-in); kickstart/ the kickstart generator in Rust; windows/window/ the window (UPGRADE.exe), windows/handoff-payload/ the stick's EFI payload and the two .cmd starters; linux/installer/ the installer's verify (%pre) and outcome (%post) steps in Rust
-settle-in/         first start, the Linux-side rollback, the walk-away way back; gate/ its Windows program; window/; the file pull and reclaim are not written (audit 2026-11-01)
+settle-in/         first start, the Linux-side rollback, the walk-away way back; gate/ its Windows program; window/; the file pull (deferred 2026-11-02) and reclaim are not written
 rig/               the test benches: hyperv/ and vm/ (the rig), oneclick/ (the one click test manager, tooling)
 schemas/           job.json / outcome.json contracts (change rarely, review hard); rust/ reads them in Rust
 docs/              architecture.md (how it works), RISKS.md (what is unproven), VALIDATION.md (how it is proven), research/ (devices, future paths)

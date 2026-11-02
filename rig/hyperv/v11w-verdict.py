@@ -10,18 +10,15 @@ Reads what was copied off the stick: go-back.json (the job), go-back-gate.json
 go-back-installed.txt (written by SetupComplete.cmd, if Windows ran it).
 What only a person at the machine can see is passed as --observed and the row
 says so: started (how the stick was started), key_page (y/n), password_forced
-(y/n), wifi_at_first_start (y/n), activation (Windows' own words), cancel
-(tested-cancelled / not-tested).
+(y/n), wifi_at_first_start (y/n), activation (Windows' own words).
 
-A cancelled run (the gate's record says "cancelled") is judged as its own arm:
-the key came before the countdown ran out, the gate removed the Wi-Fi files
-from the stick, no wipe-and-install followed (no installed marker, no boots on
-the Windows side), and, when the evidence dir holds disks-before.sha256 and
-disks-after.sha256 (sha256sum of each drive's first MiB before and after), the
-drives are unchanged. That row reads "cancelled-untouched".
+No cancel since gate 0.5.0 (the owner, 2026-11-02: the last click is the
+commit line; the gate has no countdown). The CSV keeps its header: a new row's
+countdown_s and cancel read n/a. A record from an older gate with a countdown
+must still show the full two minutes.
 
-A row passes ("windows-reached") only if: the gate crossed after a full
-countdown, every job drive matched one disk by serial or world-wide name, the
+A row passes ("windows-reached") only if: the gate crossed (after a full
+countdown, for a gate that had one), every job drive matched one disk by serial or world-wide name, the
 answer file wipes exactly those disks and never the stick, Windows ran
 SetupComplete (installed marker), no product key page, the password was
 forced, the program itself started the stick (not a tester step), and the new
@@ -55,10 +52,10 @@ spared = "y" if stick is not None and stick not in wiped else "n"
 wipes = "y" if wiped and wiped == want else "n"
 installed = "y" if (D / "go-back-installed.txt").exists() else "n"
 cd = (gate.get("countdown") or {}).get("elapsed_s")
-crossed = gate.get("result") == "crossed" and (cd or 0) >= 119.5
+crossed = gate.get("result") == "crossed" and ("countdown" not in gate or (cd or 0) >= 119.5)
 
 why = []
-if not crossed: why.append("the gate did not cross after a full countdown")
+if not crossed: why.append("the gate did not cross" + (" after a full countdown" if "countdown" in gate else ""))
 if matched != "y": why.append("not every job drive was matched")
 if spared != "y": why.append("the stick was not spared")
 if wipes != "y": why.append("the answer file does not wipe exactly the found drives")
@@ -68,27 +65,10 @@ if obs.get("password_forced") != "y": why.append("the account was not forced to 
 if obs.get("started", "") != "program": why.append("the stick was started by %s, not by the program's own restart" % obs.get("started", "?"))
 if obs.get("wifi_at_first_start") != "y": why.append("Windows was not online at its first start")
 result = "windows-reached" if not why else "fail"
-if gate.get("result") == "cancelled":
-    why = []
-    c = gate.get("countdown") or {}
-    cd = c.get("cancelled_after_s")
-    if cd is None or cd >= float(c.get("seconds") or 0): why.append("the countdown was not cancelled by a key before it ran out")
-    if gate.get("wifi_on_stick") not in ("removed", "none on the stick"): why.append("the Wi-Fi files were not removed from the stick (%s)" % gate.get("wifi_on_stick"))
-    if installed == "y": why.append("Windows ran SetupComplete.cmd after a cancel")
-    same = "not-checked"
-    try:
-        b4 = dict(l.split()[::-1] for l in (D / "disks-before.sha256").read_text().splitlines() if l.strip())
-        af = dict(l.split()[::-1] for l in (D / "disks-after.sha256").read_text().splitlines() if l.strip())
-        same = "y" if b4 and {k.split("/")[-1]: v for k, v in b4.items()} == {k.split("/")[-1]: v for k, v in af.items()} else "n"
-    except Exception: pass
-    if same == "n": why.append("a drive's first MiB changed across the cancel")
-    notes.append("cancel: key at %.1f s of %s; Wi-Fi on the stick: %s; drives unchanged: %s" % (cd or -1, c.get("seconds"), gate.get("wifi_on_stick"), same))
-    result = "cancelled-untouched" if not why else "fail"
-
 row = {"timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "machine": MACHINE, "firmware": FIRMWARE,
        "gate_version": gate.get("gate_version", "n/a"), "job_id": job.get("job_id", "n/a"), "started": obs.get("started", "not-observed"),
        "stick_wait_s": gate.get("stick_wait_s", "n/a"), "gate_result": gate.get("result", "none"), "drives_matched": matched,
-       "stick_spared": spared, "countdown_s": "%.1f" % cd if cd else "n/a", "cancel": ("tested-cancelled" if gate.get("result") == "cancelled" else obs.get("cancel", "not-tested")),
+       "stick_spared": spared, "countdown_s": "%.1f" % cd if cd else "n/a", "cancel": obs.get("cancel", "not-tested") if "countdown" in gate else "n/a",
        "wipes": wipes, "installed_marker": installed, "key_page": obs.get("key_page", "not-observed"),
        "password_forced": obs.get("password_forced", "not-observed"), "wifi_at_first_start": obs.get("wifi_at_first_start", "not-observed"),
        "activation": obs.get("activation", "not-observed"), "result": result,

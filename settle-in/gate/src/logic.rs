@@ -2,7 +2,7 @@
 //! Linux (rule #5, the logic level). RISKS R33; architecture.md, "The way
 //! back to Windows", stage 2.
 //!
-//! Everything that can refuse refuses here, before the countdown (rule #3):
+//! Everything that can refuse refuses here, before the commit line (rule #3):
 //! a job that is not ours, a job that already ran, a drive that is not
 //! there, a drive that is there twice, the stick named as a drive to erase.
 //! The words on the screens are drafts until the owner approves them.
@@ -12,7 +12,6 @@ use serde_json::{json, Value};
 pub const SCHEMA: &str = "go-back-job/1";
 /// DRAFT, awaiting the owner's approval (the Linux program asks for the same words).
 pub const SENTENCE: &str = "I confirm that Linux and everything on this computer will be deleted and nothing will be kept";
-pub const COUNT_SECS: u64 = 120;
 
 /// A drive as the gate sees it in WinPE.
 #[derive(Clone, Debug, PartialEq)]
@@ -364,41 +363,7 @@ pub fn first_logon(account: &str) -> String {
         i + 1, esc(c))).collect()
 }
 
-/// The countdown screen. DRAFT words.
-pub fn countdown_screen(left: u64, found: &[Found]) -> String {
-    let names: Vec<String> = found.iter().map(|f| if f.model.is_empty() { f.role.clone() } else { f.model.clone() }).collect();
-    let what = if found.len() > 1 { "BOTH DRIVES" } else { "THIS COMPUTER'S DRIVE" };
-    format!(
-        "\n\n   ERASING {} IN {}:{:02}\n\n   Linux and everything on this computer will be deleted, and Windows installed.\n   ({})\n\n   Press any key to CANCEL and restart into Linux.\n",
-        what,
-        left / 60,
-        left % 60,
-        names.join(" and ")
-    )
-}
-
 /// The refusal screen. DRAFT words.
-/// After a key cancelled the countdown: what was and was not written to the
-/// stick. A write that did not take is said in words, never hidden (0.3.1).
-pub fn cancelled_screen(record_error: Option<&str>, wifi_gone: bool, wifi_said: &str) -> String {
-    let mut s = String::from("\n\n   CANCELLED. Nothing was erased.\n");
-    match record_error {
-        None => s.push_str("   The record of this cancel is on the USB stick.\n"),
-        Some(e) => s.push_str(&format!("   !! The record of this cancel could NOT be written to the USB stick ({}).\n", e)),
-    }
-    if wifi_gone {
-        s.push_str("   The Wi-Fi passwords were removed from the stick.\n");
-    } else {
-        s.push_str(&format!("   !! The Wi-Fi passwords are STILL on the USB stick ({}). Delete upgrade_\\wifi from it yourself.\n", wifi_said));
-    }
-    if record_error.is_some() || !wifi_gone {
-        s.push_str("\n   Photograph this screen. Press any key to restart into Linux (or wait 10 minutes).\n");
-    } else {
-        s.push_str("\n   Restarting into Linux...\n");
-    }
-    s
-}
-
 pub fn refusal_screen(why: &str) -> String {
     format!(
         "\n\n   NOTHING WAS ERASED.\n\n   Going back to Windows stopped before changing anything, because\n   {}.\n\n   This computer restarts into Linux in a minute (or press any key).\n",
@@ -408,14 +373,6 @@ pub fn refusal_screen(why: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn cancelled_screen_says_what_did_not_take() {
-        let ok = super::cancelled_screen(None, true, "removed");
-        assert!(ok.contains("Nothing was erased") && ok.contains("record of this cancel is on") && !ok.contains("!!"));
-        let bad = super::cancelled_screen(Some("sync D:\\upgrade_\\go-back-gate.json: I/O error"), false, "NOT removed (I/O error)");
-        assert!(bad.contains("could NOT be written") && bad.contains("STILL on the USB stick") && bad.contains("Photograph"));
-    }
-
     use super::*;
 
     fn job() -> Value {
@@ -598,15 +555,10 @@ mod tests {
         let f = find_drives(&j, &seen(), None).unwrap();
         let x = unattend(&j, &f);
         assert_eq!(x.matches("<WillWipeDisk>true</WillWipeDisk>").count(), 1);
-        assert!(countdown_screen(120, &f).contains("THIS COMPUTER'S DRIVE IN 2:00"));
     }
 
     #[test]
-    fn the_screens_say_cancel_and_nothing_erased() {
-        let f = find_drives(&job(), &seen(), None).unwrap();
-        let c = countdown_screen(75, &f);
-        assert!(c.contains("ERASING BOTH DRIVES IN 1:15") && c.contains("Press any key to CANCEL"));
-        assert!(c.contains("HFS256G39TND-N210A and WDC WD10SPZX-21Z10T0"));
+    fn the_refusal_screen_says_nothing_erased() {
         assert!(refusal_screen("x").contains("NOTHING WAS ERASED"));
     }
 }

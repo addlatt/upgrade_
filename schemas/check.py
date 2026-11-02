@@ -341,12 +341,16 @@ def main():
         ("outcome", "a staged block without the measured write speed is refused",
          set_path(out2, ["prologue", "staged"], {"files": 1, "bytes": 1, "failed": 0, "manifest": "upgrade_/staging/SHA256SUMS"})),
         # the one-click erase and install (2026-09-26, R27)
-        ("outcome", "a completed erase with neither a countdown nor restored files is refused",
-         del_path(out3, ["cutover", "countdown"])),
-        ("outcome", "a completed erase whose countdown was cancelled is refused",
-         set_path(out3, ["cutover", "countdown", "result"], "cancelled")),
+        # since 2026-11-02 the window's last click is the commit line: the gate is
+        # human_gate typed-in-the-window; a countdown block is a record from before
+        ("outcome", "a completed erase with neither the window's gate, a countdown nor restored files is refused",
+         del_path(out3, ["cutover", "hardware", "human_gate"])),
+        ("outcome", "a completed erase whose gate is not-required is refused",
+         set_path(out3, ["cutover", "hardware", "human_gate"], "not-required")),
+        ("outcome", "an older completed erase whose countdown was cancelled is refused",
+         set_path(set_path(out3, ["cutover", "hardware", "human_gate"], "countdown-elapsed"), ["cutover", "countdown"], {"seconds": 120, "result": "cancelled", "ended_utc": "2026-09-26T21:12:00Z"})),
         ("outcome", "a cancelled countdown that claims the line was crossed is refused",
-         set_path(set_path(set_path(set_path(out3, ["status"], "stopped"), ["stopped_at"], "countdown"), ["reason"], "a key was pressed"), ["cutover", "countdown", "result"], "cancelled")),
+         set_path(set_path(set_path(set_path(out3, ["status"], "stopped"), ["stopped_at"], "countdown"), ["reason"], "a key was pressed"), ["cutover", "countdown"], {"seconds": 120, "result": "cancelled", "ended_utc": "2026-09-26T21:12:00Z"})),
         ("outcome", "a completed conversion that boots to a text console is refused (2026-09-26, Aspire run 9)",
          set_path(out3, ["cutover", "install", "boot_target"], "multi-user.target")),
         ("outcome", "a text console the person did not choose is refused",

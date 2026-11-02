@@ -9,11 +9,11 @@
 //!   2. refuses, before anything changes, a job that is not ours, a job
 //!      that already crossed its commit line, and any drive it cannot find
 //!      by serial and exact size (or finds twice, or finds on the stick);
-//!   3. shows a 2-minute countdown. Any key cancels: nothing erased, a
-//!      restart into Linux (the stick's boot was one-time);
-//!   4. when the countdown ends (the commit line), records the crossing on
-//!      the stick FIRST, so this stick never starts twice, writes Setup's
-//!      answer file naming the drives it found, and starts Windows Setup.
+//!   3. with every check passed, records the crossing on the stick FIRST, so
+//!      this stick never starts twice, writes Setup's answer file naming the
+//!      drives it found, and starts Windows Setup. There is no countdown
+//!      (decided 2026-11-02, the owner): the commit line is the person's last
+//!      click in the settle-in window, "Restart now" after the typed sentence.
 //!
 //! Its only writes are its own records on the stick. Setup does the erase.
 //!
@@ -66,8 +66,8 @@ fn load(p: &str) -> Option<Value> {
 }
 
 /// Write the record and read it back. A write the stick silently dropped is
-/// what 0.3.0 could not see (the Aspire, 2026-10-05: a cancelled countdown left
-/// no record and the Wi-Fi file in place; nothing on screen said so).
+/// what 0.3.0 could not see (the Aspire, 2026-10-05: a cancelled countdown, gone
+/// since 0.5.0, left no record and the Wi-Fi file in place; nothing on screen said so).
 fn save(p: &str, v: &Value) -> Result<(), String> {
     use std::io::Write;
     let text = serde_json::to_string_pretty(v).unwrap_or_default();
@@ -94,9 +94,6 @@ fn wipe_wifi(stick: &str) -> Value {
         return json!(format!("NOT removed ({})", r.err().map(|e| e.to_string()).unwrap_or_else(|| "still present after the removal".into())));
     }
     json!("removed")
-}
-fn wifi_gone(v: &Value) -> bool {
-    matches!(v.as_str(), Some("removed") | Some("none on the stick"))
 }
 
 fn refuse_and_restart(record_path: Option<&str>, mut rec: Value, why: &str) -> i32 {
@@ -198,56 +195,26 @@ fn run() -> i32 {
     };
     rec["found"] = found_json(&found);
 
-    // The stick must take a write before the countdown starts (0.3.1): the crossing
+    // The stick must take a write before the commit line (0.3.1): the crossing
     // is recorded there first, and a stick that cannot hold the record cannot be
     // kept from erasing twice. Checked by reading the record back.
-    rec["result"] = json!("counting-down");
+    rec["result"] = json!("checked");
     if let Err(e) = save(&rec_path, &rec) {
         return refuse_and_restart(Some(&rec_path), rec, &format!("this USB stick did not keep what was written to it ({}), so it could not record a decision", e));
     }
 
-    // The countdown: the last exit (rule #3). Keys pressed before it do not count.
-    win::flush_keys();
-    let t0 = std::time::Instant::now();
-    let total = logic::COUNT_SECS;
-    loop {
-        let spent = t0.elapsed().as_secs();
-        if spent >= total {
-            break;
-        }
-        win::clear();
-        print!("{}", logic::countdown_screen(total - spent, &found));
-        let to_next = 1000 - (t0.elapsed().as_millis() % 1000) as u32;
-        if win::key_within(to_next.max(50)) {
-            rec["result"] = json!("cancelled");
-            rec["wifi_on_stick"] = wipe_wifi(&stick);
-            rec["countdown"] = json!({ "seconds": total, "cancelled_after_s": t0.elapsed().as_secs_f64() });
-            rec["ended_utc"] = json!(now_utc());
-            let saved = save(&rec_path, &rec);
-            win::clear();
-            print!("{}", logic::cancelled_screen(saved.as_ref().err().map(String::as_str), wifi_gone(&rec["wifi_on_stick"]), rec["wifi_on_stick"].as_str().unwrap_or("?")));
-            if saved.is_err() || !wifi_gone(&rec["wifi_on_stick"]) {
-                // something to photograph: wait for a key, up to 10 minutes
-                win::flush_keys();
-                win::key_within(600_000);
-            } else {
-                std::thread::sleep(std::time::Duration::from_secs(3));
-            }
-            win::reboot();
-            return 1;
-        }
-    }
-
+    // No countdown (decided 2026-11-02, the owner): the person's last click in
+    // the settle-in window ("Restart now", after the typed sentence) is the
+    // commit line. Every check above still refuses before anything is erased.
     // ---- the commit line ----
     rec["result"] = json!("crossed");
-    rec["countdown"] = json!({ "seconds": total, "elapsed_s": t0.elapsed().as_secs_f64() });
     rec["crossed_utc"] = json!(now_utc());
     if let Err(e) = save(&rec_path, &rec) {
         // never cross on a stick that does not hold the crossing: it could erase twice
         rec["result"] = json!("refused");
         return refuse_and_restart(Some(&rec_path), rec, &format!("this USB stick did not keep the record of the decision ({}); nothing was erased", e));
     }
-    // the clock (2026-10-04): only after the line, so a cancel leaves Linux's clock as it was
+    // the clock (2026-10-04): only after the line, so a refusal leaves Linux's clock as it was
     let wall = win::local_wall();
     rec["clock"] = match logic::clock_fix(&job, &wall) {
         Some(w) => json!({ "hardware_clock_read": format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", wall[0], wall[1], wall[2], wall[3], wall[4], wall[5]), "taken_as": "utc",

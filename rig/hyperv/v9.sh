@@ -3,20 +3,18 @@
 # V9 / RISKS R27 - the one-click erase and install, on the Hyper-V rig.
 # The guest under test is a COPY of UPGRIGHV.fresh.vhdx (install-day
 # Windows, Windows only) at SCSI 0:0 plus a new blank 64 GiB home disk at
-# 0:4 (0:1-2 hold empty DVD drives); the real UPGRIGHV.vhdx is swapped out and untouched. Three arms, in
-# this order (only the last one erases):
+# 0:4 (0:1-2 hold empty DVD drives); the real UPGRIGHV.vhdx is swapped out and untouched. Two arms, in
+# this order (only the last one erases); arm B, the cancel at the countdown, left with the
+# countdown on 2026-11-02 (the owner: the last click in the window is the commit line):
 #
 #   A  refuse   a job naming a home disk that is not attached, armed by the
 #               V0 harness (the prologue would refuse it first, in Windows):
-#               the verify step must refuse before any countdown; both disks unchanged
-#   B  cancel   armed by the product prologue (-EraseConsent); a key during the
-#               countdown: back to Windows, the prologue's return writes a
-#               stopped outcome (stopped_at countdown); both disks unchanged
-#   C  erase    armed by the prologue; the countdown left alone: both disks
-#               erased, Fedora on the system disk, /home on the home disk,
-#               outcome.json completed with the commit line at the countdown's
-#               end; the first Linux boot's marker records the account's
-#               password fingerprint and where /home lives
+#               the verify step must refuse before the erase (no commit.json); both disks unchanged
+#   C  erase    armed by the prologue: every refusal passes, the installer writes
+#               commit.json and erases both disks, Fedora on the system disk, /home on
+#               the home disk, outcome.json completed with the commit line at the
+#               commit's time and human_gate typed-in-the-window; the first Linux boot's
+#               marker records the account's password fingerprint and where /home lives
 #
 #   v9.sh prepare          VM off: copy fresh.vhdx -> UPGRIGHV.erase.vhdx, new blank home.vhdx,
 #                          attach both (main disk out), Windows Boot Manager first
@@ -28,11 +26,10 @@
 #   v9.sh convert          the product prologue: -Start -StickDrive X: -EraseConsent <sentence>
 #   v9.sh watch TAG [s]    screenshots every 10 s into artifacts/v9/TAG/ until Windows answers,
 #                          the VM is Off, or s seconds (default 900)
-#   v9.sh key              one key press (space) - the cancel
 #   v9.sh pull TAG         the records from the stick and the guest (Windows must be up)
 #   v9.sh inspect LABEL    v9-inspect.py on both disks (VM off)
 #   v9.sh stick-pull TAG   VM off: the stick's records read offline (after the erase there is no Windows)
-#   v9.sh verdict ARM [NOTE]  v9-verdict.py (ARM B3 = arm B again) -> docs/validation-results/v9-erase.csv
+#   v9.sh verdict ARM [NOTE]  v9-verdict.py (ARM C2 = arm C again) -> docs/validation-results/v9-erase.csv
 #   v9.sh stick-first      VM off: the stick first in the firmware's boot order - what the Aspire's firmware
 #                          did after its install (run 10, R35). Arm D: start, the stick must hand over to the
 #                          installed Fedora and never install again (inspect before-D / after-D, verdict D)
@@ -92,8 +89,6 @@ job)
     python3 v9-job.py artifacts/v1/job.json "$A/disks.json" "$A/job.json" "${@:2}"
     KICKSTART="$(cd ../.. && pwd)/target/release/upgrade-kickstart"; (cd ../.. && cargo build --release --quiet -p upgrade-kickstart)
     "$KICKSTART" --job "$A/job.json" --out "$A/ks.cfg" --label UPGV0 --manifest ../../dist/kit/stick/SHA256SUMS
-    # R38CAP=1: the rig-only console capture (r38-consoles.ks) goes in front of the installer's %pre
-    if [ -n "${R38CAP:-}" ]; then cat r38-consoles.ks "$A/ks.cfg" > "$A/ks.cfg.cap" && mv "$A/ks.cfg.cap" "$A/ks.cfg"; echo "v9: R38 console capture in front of ks.cfg"; fi
     L=$(stick_letter); [ -n "$L" ] || { echo "v9: no UPGV0 volume in the guest" >&2; exit 1; }
     PS copy "$(wslpath -w "$A/job.json")" "${L}:\\upgrade_\\job.json" | tr -d '\r'
     PS copy "$(wslpath -w "$A/ks.cfg")" "${L}:\\upgrade_\\ks.cfg" | tr -d '\r'
@@ -123,12 +118,11 @@ watch)
         sleep 10; n=$((n+1))
     done
     ;;
-key) PS key 32 ;;
 pull)
     tag=${2:?tag}; mkdir -p "$A/$tag"; L=$(stick_letter)
     if [ -n "$L" ]; then
         for f in outcome.json prologue.json prologue-return.json job.json boots.log; do pull "${L}:\\upgrade_\\$f" "$A/$tag/$f"; done
-        for f in verify.json verify.log countdown.json storage.ks prologue.log post.log refusal.json r38-pre.txt r38-consoles-1-pre-start.txt r38-consoles-2-countdown-3s.txt r38-consoles-3-countdown-30s.txt r38-consoles-2-no-countdown.txt r38cap.log; do pull "${L}:\\upgrade_\\report\\$f" "$A/$tag/$f"; done
+        for f in verify.json verify.log commit.json storage.ks prologue.log post.log refusal.json; do pull "${L}:\\upgrade_\\report\\$f" "$A/$tag/$f"; done
     fi
     for f in state-returned.json prologue.log; do pull "$GUEST_STATE\\$f" "$A/$tag/guest-$f"; done
     pull 'C:\upgrade_\v1\v0-handoff.csv' "$A/$tag/v0-handoff.csv"
@@ -140,7 +134,7 @@ stick-pull)
     qemu-img convert -f vhdx -O raw "$STICK_VHDX" "$A/stick.raw"
     for f in outcome.json prologue.json boots.log job.json converted boot-install; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/$f" "$A/$tag/$f" 2>/dev/null || true; done
     mdir -b -i "$A/stick.raw@@1M" "::/upgrade_" > "$A/$tag/stick-upgrade-dir.txt" 2>&1 || true   # which markers the stick carries (R35)
-    for f in verify.json verify.log countdown.json storage.ks outcome.log post.log grub.cfg anaconda.log storage.log efibootmgr-after.txt refusal.json r38-pre.txt r38-consoles-1-pre-start.txt r38-consoles-2-countdown-3s.txt r38-consoles-3-countdown-30s.txt r38-consoles-2-no-countdown.txt r38cap.log; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/report/$f" "$A/$tag/$f" 2>/dev/null || true; done
+    for f in verify.json verify.log commit.json storage.ks outcome.log post.log grub.cfg anaconda.log storage.log efibootmgr-after.txt refusal.json; do mcopy -o -i "$A/stick.raw@@1M" "::/upgrade_/report/$f" "$A/$tag/$f" 2>/dev/null || true; done
     # settle-in's first startup, captured by the bench marker (2026-09-27)
     mkdir -p "$A/$tag/settle-in"; mcopy -s -o -i "$A/stick.raw@@1M" "::/upgrade_/settle-in-capture/*" "$A/$tag/settle-in/" 2>/dev/null || true
     mdir -i "$A/stick.raw@@1M" "::/upgrade_/artifacts/credentials" > "$A/$tag/stick-credentials-dir.txt" 2>&1 || true

@@ -525,15 +525,15 @@ Hand-written from the harvester's JSON. Personal file names stay out.
 ## `v9-erase.csv`: the one-click erase and install (gate V9, risk R27)
 
 The path that erases every internal drive and installs Fedora, keeping
-nothing; a 2-minute countdown in the installer is the last chance to cancel.
+nothing; the window's last click is the commit line (until 2026-11-02, a countdown).
 One row per arm, written by `rig/hyperv/v9-verdict.py` from the arm's own
 evidence (`rig/hyperv/v9.sh`; never by hand). The rig guest is a copy of the
 install-day Windows disk plus a blank 64 GiB second disk.
 
 | Column | Meaning |
 |---|---|
-| `arm` | A refuse (a job naming an absent disk, armed by the V0 harness), B cancel (a key during the countdown), C erase (the countdown left alone), D not again (after C, the stick put first in the boot order and left in). An arm named with a number (`B3`, `C7`, `D3`) is judged by its letter |
-| `prologue_version`, `verify_version`, `identity`, `countdown` | the code under test (`harness` = armed by Test-Handoff, not the prologue); verify.json: every drive the job names found by id and exact size; countdown.json: `elapsed`, `cancelled`, or `none` (never shown) |
+| `arm` | A refuse (a job naming an absent disk, armed by the V0 harness), B cancel (a key during the countdown; no new rows since 2026-11-02), C erase, D not again (after C, the stick put first in the boot order and left in). An arm named with a number (`B3`, `C7`, `D3`) is judged by its letter |
+| `prologue_version`, `verify_version`, `identity`, `countdown` | the code under test (`harness` = armed by Test-Handoff, not the prologue); verify.json: every drive the job names found by id and exact size; countdown.json: `elapsed`, `cancelled`, or `none` (never shown); from 2026-11-02, `committed` (commit.json written) or `none` |
 | `outcome_status`, `stopped_at`, `commit_crossed`, `outcome_valid` | outcome.json, and whether it validates against the schema |
 | `disks_unchanged`, `system_gpt_after`, `home_gpt_after` | both disks' GPT and first MiB identical before and after (v9-inspect.py, offline; partition tables only on a physical row); the partition tables afterwards |
 | `fedora_booted`, `password_matches`, `home_on_second_disk` | the first Linux boot's marker line (rig-only bench instrumentation): it booted, the account's stored hash is the job's, `/home` is on the second disk |
@@ -544,8 +544,8 @@ install-day Windows disk plus a blank 64 GiB second disk.
 |---|---|---|
 | `refused-before-countdown` | arm A: verify.json `identity=fail`, no countdown record, disks unchanged | **pass for arm A** |
 | `cancelled-untouched` | arm B: the countdown record says cancelled, `outcome.json` stopped at the countdown and schema-valid, disks unchanged | **pass for arm B** |
-| `erased-installed` | arm C: the countdown elapsed, `outcome.json` completed and schema-valid with `crossed_utc` the countdown's end, the system disk = EFI + `/boot` + root, the home disk = one Linux filesystem, the first boot's password fingerprint = the job's hash, `/home` on the second disk | **pass for arm C** |
-| `not-installed-again` | arm D: the stick carries `converted` and no `boot-install`, no new countdown ran, both disks unchanged, Linux booted again | **pass for arm D** (R35) |
+| `erased-installed` | arm C: the countdown elapsed (from 2026-11-02: `commit.json` written and `human_gate` `typed-in-the-window`), `outcome.json` completed and schema-valid with `crossed_utc` that record's time, the system disk = EFI + `/boot` + root, the home disk = one Linux filesystem, the first boot's password fingerprint = the job's hash, `/home` on the second disk | **pass for arm C** |
+| `not-installed-again` | arm D: the stick carries `converted` and no `boot-install`, no new countdown or commit record, both disks unchanged, Linux booted again | **pass for arm D** (R35) |
 | `fail` | anything else, every reason in `notes`. Kept, never removed | **fail** |
 
 **What a pass requires.** All four arms on the rig for the kit under test,
@@ -619,14 +619,14 @@ by hand.
 | Column | Meaning |
 |---|---|
 | `gate_version`, `job_id`, `started` | the gate on the stick; the job it ran; how the stick was started (observed) |
-| `stick_wait_s`, `countdown_s`, `gate_result` | seconds the gate waited for the stick; seconds of countdown before the cross or the cancel; `crossed` (the countdown ran out) or `cancelled` (a key came first) |
-| `drives_matched`, `stick_spared`, `wipes`, `cancel`, `installed_marker` | every job drive matched one disk by serial or world-wide name; the answer file never names the stick; y/n: it wipes exactly the job's drives; `tested-cancelled` / `not-tested` (observed); y/n: Windows ran `SetupComplete` |
+| `stick_wait_s`, `countdown_s`, `gate_result` | seconds the gate waited for the stick; seconds of countdown before the cross or the cancel (`n/a` from gate 0.5.0, 2026-11-02: no countdown); `crossed` or `cancelled` (a key came first; none since) |
+| `drives_matched`, `stick_spared`, `wipes`, `cancel`, `installed_marker` | every job drive matched one disk by serial or world-wide name; the answer file never names the stick; y/n: it wipes exactly the job's drives; `tested-cancelled` / `not-tested` (observed; `n/a` from gate 0.5.0); y/n: Windows ran `SetupComplete` |
 | `key_page`, `password_forced`, `wifi_at_first_start`, `activation` | observed: a product key page showed; the password was forced at the first sign-in; the new Windows was online at its first start; Windows' own activation words |
 
 | Result | Meaning | Verdict |
 |---|---|---|
-| `windows-reached` | the gate crossed after a full countdown, every drive matched, the answer file wipes exactly those drives and never the stick, Windows ran `SetupComplete`, no product key page, the password forced, the program itself started the stick, the new Windows online at its first start | **pass** |
-| `cancelled-untouched` | the key came before the countdown ran out, the gate removed the Wi-Fi files from the stick, no wipe-and-install followed, and the drives are unchanged (each drive's first MiB before and after) | **pass for the cancel arm** |
+| `windows-reached` | the gate crossed (after a full countdown, before gate 0.5.0), every drive matched, the answer file wipes exactly those drives and never the stick, Windows ran `SetupComplete`, no product key page, the password forced, the program itself started the stick, the new Windows online at its first start | **pass** |
+| `cancelled-untouched` | (no new rows since 2026-11-02) the key came before the countdown ran out, the gate removed the Wi-Fi files from the stick, no wipe-and-install followed, and the drives are unchanged (each drive's first MiB before and after) | **pass for the cancel arm** |
 | `fail` | anything less, every reason in `notes` | **fail** |
 
 ## `v11-way-back.csv`: the guided stick for the way back (gate V11 step 3, risk R30)
@@ -719,7 +719,7 @@ ignores.
 | `harness` | `rig` (the Hyper-V guest, over PowerShell Direct and SSH) or `physical` (a real machine over SSH): the transport, never typed |
 | `machine`, `firmware`, `os_build` | `Win32_ComputerSystem` (or Linux's DMI) maker and model, BIOS maker and version, Windows build: what the machine said, never typed. A run that recorded no facts says `unknown`, or names the run it borrowed them from in `notes` |
 | `run` | the run folder and stage folder, `<run>/<NN>-<stage>` |
-| `stage`, `result` | the plan's stage and the manager's word for how it ended (`scanned-<verdict>`, `kept-both-start`, `not-installed-again`, `rolled-back`, `erased-installed`, `windows-reached`, `cancelled-untouched`, `refused-before-countdown`, `rig-standin-fresh-windows`, or the word of what went wrong: `hang-install`, `windows-not-first`, `stick-not-started`, `disk-changed`, `not-built`, `manager-error` and the others in `oneclick.py`) |
+| `stage`, `result` | the plan's stage and the manager's word for how it ended (`scanned-<verdict>`, `kept-both-start`, `not-installed-again`, `rolled-back`, `erased-installed`, `windows-reached`, `cancelled-untouched` (no stage since 2026-11-02), `refused-before-countdown`, `rig-standin-fresh-windows`, or the word of what went wrong: `hang-install`, `windows-not-first`, `stick-not-started`, `disk-changed`, `not-built`, `manager-error` and the others in `oneclick.py`) |
 | `class` | `pass` (a real machine, as the plan expects), `pass-plumbing` (the rig, as the plan expects), `stand-in` (the rig's fresh Windows image in place of the walk-away it cannot run: it closes nothing), `fail` (anything else) |
 | `evidence_sha256` | the sha256 of the stage folder's `SHA256SUMS`: the row points at exactly one set of evidence |
 | `notes` | the manager's one line, markup removed, scrubbed |

@@ -15,8 +15,6 @@ command sees only the world's processes) where every one of those paths is a bin
 mount of the world's copy, the tools are fakes answering from the world
 (tests/faketool.py), and /dev/tty9 is a pseudo-terminal this driver holds
 the other end of (it records what was drawn and presses the case's keys).
-A case's "holder" starts another program holding the console open, at
-once or when the countdown starts (R38).
 Nothing on this computer is read or changed.
 
     sandbox.py <cases.json> <case name> <command...> --out <dir>
@@ -153,7 +151,7 @@ def build_world(case, world):
     return world
 
 
-def inner_script(world, cmd, out, tty_path, holder=None):
+def inner_script(world, cmd, out, tty_path):
     binds = [
         (f"{world}/proc-cmdline", "/proc/cmdline"),
         (f"{world}/sys/class/drm", "/sys/class/drm"),
@@ -172,12 +170,6 @@ def inner_script(world, cmd, out, tty_path, holder=None):
     else:
         # no console: a plain file where the character device would be
         lines.append(f"mount --bind {world}/no-tty /dev/tty9")
-    # another program reading the console (R38): tail opens it itself, so it is
-    # named tail whenever it holds it
-    if holder == "before":
-        lines.append("/usr/bin/tail -f /dev/tty9 > /dev/null 2>&1 &")
-    elif holder == "countdown":
-        lines.append("( until /bin/grep -q '== countdown: ' /tmp/upgrade_-verify.log 2>/dev/null; do /bin/sleep 0.1; done; /bin/sleep 0.3; exec /usr/bin/tail -f /dev/tty9 > /dev/null 2>&1 ) &")
     lines += [f"export PATH={world}/bin:$PATH WORLD={world}", "cd /", "set +e",
               " ".join(cmd) + f" > {out}/stdout.txt 2>&1", f"echo $? > {out}/exit.txt", "set -e",
               f"mkdir -p {out}/tmp && cp -a /tmp/. {out}/tmp/ 2>/dev/null || true"]
@@ -300,8 +292,8 @@ def run(case, cmd, out):
     job = "/run/install/repo/upgrade_/job.json"
     cmd = [job if w == "JOB" else case.get("label", "UPGV0") if w == "LABEL" else w for w in cmd]
     inner = os.path.join(out, "inner.sh")
-    write(inner, inner_script(world, cmd, out, tty_path, case.get("holder")))
-    env = dict(os.environ, UPG_TEST_COUNTDOWN=str(case.get("countdown_secs", 2)), UPG_TEST_REFUSAL_SECS=str(case.get("refusal_secs", 1)), LC_ALL="C", LANG="C")
+    write(inner, inner_script(world, cmd, out, tty_path))
+    env = dict(os.environ, UPG_TEST_REFUSAL_SECS=str(case.get("refusal_secs", 1)), LC_ALL="C", LANG="C")
     # the world's own path (a tool's location in a message, say) reads the same wherever the world was built
     RULES.insert(0, (re.compile(re.escape(world)), "<world>"))
     captured = bytearray()

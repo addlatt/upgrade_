@@ -201,25 +201,21 @@ pub fn erase_start_refusal(job: &Value, confirm_word: &str, erase_consent: &str)
 }
 
 /// Get-PrologueEraseReturn: Windows came back on the erase path; say why.
-pub fn erase_return(countdown: &Value, verify: &Value) -> Value {
-    if truthy(countdown) && eq_ci(&s(at(countdown, "result")), "cancelled") {
-        // the one click test's marker (upgrade-installer 0.1.4) cancels as a key would; the
-        // record says which, never "a key was pressed" when none was (the rig, 2026-10-27)
-        if eq_ci(&s(at(countdown, "by")), "test-marker") {
-            return json!({"StoppedAt": "countdown", "Reason": format!("the USB stick's test marker cancelled the countdown in the installer ({}); nothing was erased and Windows is as it was", s(at(countdown, "ended_utc")))});
-        }
-        return json!({"StoppedAt": "countdown", "Reason": format!("a key was pressed during the countdown in the installer ({}); nothing was erased and Windows is as it was", s(at(countdown, "ended_utc")))});
-    }
-    if truthy(countdown) && eq_ci(&s(at(countdown, "result")), "elapsed") {
-        return json!({"StoppedAt": "install", "Reason": format!("the countdown ended ({}) but Windows started again: the install did not complete - the drives may be partly erased; read upgrade_/report on the stick", s(at(countdown, "ended_utc")))});
+/// There is no countdown since upgrade-installer 0.2.0 (decided 2026-11-02,
+/// the owner: the last click in the window is the commit line). The
+/// installer writes `commit.json` once every refusal has passed, just
+/// before the erase; with it on the stick, the drives may be partly erased.
+pub fn erase_return(commit: &Value, verify: &Value) -> Value {
+    if truthy(commit) {
+        return json!({"StoppedAt": "install", "Reason": format!("the installer passed every check and started erasing ({}) but Windows started again: the install did not complete - the drives may be partly erased; read upgrade_/report on the stick", s(at(commit, "crossed_utc")))});
     }
     if truthy(verify) && eq_ci(&s(at(verify, "identity.result")), "fail") {
-        return json!({"StoppedAt": "identity", "Reason": "the installer did not find the drives the job names, by identity and exact size; it refused before the countdown and nothing was erased"});
+        return json!({"StoppedAt": "identity", "Reason": "the installer did not find the drives the job names, by identity and exact size; it refused before erasing anything and nothing was erased"});
     }
     if truthy(verify) && eq_ci(&s(at(verify, "payload.result")), "fail") {
-        return json!({"StoppedAt": "verify-stick", "Reason": format!("the desktop image on the stick did not read back correctly ({}); the installer refused before the countdown and nothing was erased", s(at(verify, "payload.detail")))});
+        return json!({"StoppedAt": "verify-stick", "Reason": format!("the desktop image on the stick did not read back correctly ({}); the installer refused before erasing anything and nothing was erased", s(at(verify, "payload.detail")))});
     }
-    json!({"StoppedAt": "install", "Reason": "Windows came back before the countdown ended (the installer stopped, or the computer was restarted); nothing was erased - upgrade_/report/verify.log on the stick says where it stopped"})
+    json!({"StoppedAt": "install", "Reason": "Windows came back before the installer started erasing (it stopped, or the computer was restarted); nothing was erased - upgrade_/report/verify.log on the stick says where it stopped"})
 }
 
 /// Get-PrologueShrinkPlan: the keep-windows shrink's arithmetic.

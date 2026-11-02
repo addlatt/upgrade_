@@ -2,7 +2,7 @@
   "plan": "aspire",
   "version": 1,
   "machine": "acer-aspire-a515-51g",
-  "why_this_order": "most likely in the wild first (the owner, 2026-10-27); state forces the rollback before the erase and the cancel and refusal after the walk-away",
+  "why_this_order": "most likely in the wild first (the owner, 2026-10-27); state forces the rollback before the erase and the refusal after the walk-away",
   "why_no_stage_0": "the 2026-10-11 install was already rolled back on 2026-10-12 (Windows side; rollback.json on the stick) and its settle-in predates 'settle-in rollback': the old Fedora is cleared by hand before the run (the owner, 2026-10-28), so the run starts at the look",
   "heartbeat_s": 300,
   "test_password": "password",
@@ -55,21 +55,15 @@
       "owner_check": "walkaway-stick-in"
     },
     {
-      "stage": "cancel-countdown",
+      "stage": "refused-before-countdown",
       "owner_step": "Take the walk-away stick out (it starts Windows Setup) and put the kit stick back in.",
       "needs": [
         "data-loss"
       ],
-      "why": "V9 arm B, rare",
+      "why": "V9 arm A, the rarest",
       "owner_check": "kit-stick-in"
-    },
-    {
-      "stage": "refused-before-countdown",
-      "needs": [
-        "data-loss"
-      ],
-      "why": "V9 arm A, the rarest"
     }
   ],
-  "why_retry": "a stage that stops is tried again in the same run (oneclick.py retry), with the approvals typed at kickoff; the tail plan of 2026-10-28 that did this by hand is gone (its copy is in its run folder's run.json)"
+  "why_retry": "a stage that stops is tried again in the same run (oneclick.py retry), with the approvals typed at kickoff; the tail plan of 2026-10-28 that did this by hand is gone (its copy is in its run folder's run.json)",
+  "why_no_cancel": "the owner, 2026-11-02: the last click in the window is the commit line; no countdown and no cancel after it, so the cancel stage (V9 arm B) is gone"
 }

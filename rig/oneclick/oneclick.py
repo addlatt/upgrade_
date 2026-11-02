@@ -702,7 +702,7 @@ def arm(ctx, L, erase=False, markers=()):
     None when the prologue reached its restart, else the stopping Outcome."""
     link = ctx.link
     extra = "".join(f"Set-Content -Path {L}\\upgrade_\\{n} -Value '{v}'; " for n, v in markers)
-    link.run(f"Set-Content -Path {L}\\upgrade_\\bench -Value oneclick; Remove-Item {L}\\upgrade_\\autoshutdown,{L}\\upgrade_\\test-cancel-countdown -ErrorAction SilentlyContinue; " + extra +
+    link.run(f"Set-Content -Path {L}\\upgrade_\\bench -Value oneclick; Remove-Item {L}\\upgrade_\\autoshutdown -ErrorAction SilentlyContinue; " + extra +
              f"Add-Content -Path {L}\\upgrade_\\boots.log -Value ('windows-clock-before,' + (Get-Date).ToUniversalTime().ToString('o') + ',host-utc={utc()}')",
              "windows", timeout=60)
     if not collect_windows(ctx, "before-install", "before"):
@@ -725,7 +725,7 @@ def arm(ctx, L, erase=False, markers=()):
 
 def wait_after_arm(ctx, L, want, limit_s):
     """Through the restarts and the installer to the system `want`
-    ('linux' after an install, 'windows' after a cancel or a refusal):
+    ('linux' after an install, 'windows' after a refusal):
     Windows may answer in between (an update, the disk check, the return);
     a stopped outcome ends the wait early. Returns 'linux' | 'windows' |
     'stopped' | None (a hang)."""
@@ -736,12 +736,10 @@ def wait_after_arm(ctx, L, want, limit_s):
             return "linux"
         if who == "windows":
             st = link.run(FIND_STICK + "if (Test-Path \"$L\\upgrade_\\outcome.json\") { (Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json).status }; "
-                          "if (Test-Path \"$L\\upgrade_\\report\\countdown.json\") { 'COUNTDOWN=' + (Get-Content \"$L\\upgrade_\\report\\countdown.json\" -Raw | ConvertFrom-Json).result }; "
                           "if (Test-Path \"$L\\upgrade_\\report\\refusal.json\") { 'REFUSED' }", "windows", timeout=60)
-            # a cancel or a refusal is ALSO a stopped outcome (the prologue's return writes one,
-            # stopped_at countdown): when Windows is what the stage waits for, they come first
-            # (the rig, 2026-10-27: the cancel worked and the wait read it as a stop)
-            if want == "windows" and ("COUNTDOWN=cancelled" in st.out or "REFUSED" in st.out):
+            # a refusal is ALSO a stopped outcome (the prologue's return writes one): when
+            # Windows is what the stage waits for, it comes first (the rig, 2026-10-27)
+            if want == "windows" and "REFUSED" in st.out:
                 return "windows"
             if "stopped" in st.out:
                 return "stopped"
@@ -816,9 +814,10 @@ class KeepWindows:
 
 
 class CleanSlate:
-    """Stage 5: erase and install (V9 arm C, R27). The countdown runs out by
-    itself (no marker), the installer erases the drives the job names, and
-    the new Linux answers."""
+    """Stage 5: erase and install (V9 arm C, R27). No countdown since
+    2026-11-02 (the owner: the last click in the window is the commit line):
+    every refusal passes, the installer records commit.json, erases the drives
+    the job names, and the new Linux answers."""
     writes = True
     needs = ("password", "erase")
 
@@ -847,7 +846,10 @@ class CleanSlate:
             return Outcome("outcome-unread", False, "the installed system's outcome.json did not read as JSON")
         if (o.get("windows") or {}).get("kept"):
             return Outcome("outcome-wrong", False, "the outcome says Windows was kept after an erase")
-        return Outcome("erased-installed", True, f"path_taken {o.get('path_taken')}; the countdown ran out and the installer erased what the job named")
+        gate = ((o.get("cutover") or {}).get("hardware") or {}).get("human_gate")
+        if gate != "typed-in-the-window":
+            return Outcome("outcome-wrong", False, f"the outcome's human_gate is {gate!r}, not typed-in-the-window")
+        return Outcome("erased-installed", True, f"path_taken {o.get('path_taken')}; committed at the window's click, the installer erased what the job named")
 
 
 class StickLeftIn:
@@ -908,53 +910,13 @@ class StickLeftIn:
         return Outcome("not-installed-again", True, "the stick started, did not install, and the installed Linux came back unchanged")
 
 
-class CancelCountdown:
-    """Stage 8 (V9 arm B, R27, R38): an erase armed for real, cancelled at
-    the countdown by the test marker that can only cancel (upgrade-installer
-    0.1.4). Windows must come back, the record must say test-marker, and the
-    internal drives must be untouched."""
-    writes = True
-    needs = ("password", "erase")
-
-    def run(self, ctx, args):
-        link = ctx.link
-        if link.probe() != "windows":
-            return untouched("wrong-system", "the cancel starts in Windows")
-        L = find_stick(ctx)
-        if not L:
-            return untouched("stick-not-found", "no single volume labelled UPGV0")
-        before = boot_mark(ctx, "windows")
-        stop = write_job(ctx, L, args, erase=True) or arm(ctx, L, erase=True, markers=[("test-cancel-countdown", str(args.get("cancel_after_s", 10)))])
-        if stop:
-            return stop
-        got = wait_after_arm(ctx, L, "windows", int(args.get("limit_s", 3600)))
-        if got != "windows":
-            return Outcome("hang-cancel" if got is None else f"cancel-{got}", False, "Windows did not come back with a cancelled countdown")
-        if boot_mark(ctx, "windows") == before:
-            return Outcome("not-restarted", False, "the same Windows boot answered: the installer never ran")
-        link.pull(f"{L}\\upgrade_\\report", os.path.join(ctx.stage_dir, "stick-report"), "windows")
-        try:
-            with open(os.path.join(ctx.stage_dir, "stick-report", "countdown.json"), encoding="utf-8-sig") as f:
-                cd = json.load(f)
-        except (OSError, ValueError):
-            cd = {}
-        if cd.get("result") != "cancelled" or cd.get("by") != "test-marker":
-            return Outcome("cancel-unrecorded", False, f"countdown.json: {cd}")
-        if not collect_windows(ctx, "direct", "after-cancel"):
-            return Outcome("collect-failed", False, "the Windows collector after the cancel")
-        a, b = first_mib(ctx, "windows-before"), first_mib(ctx, "windows-after-cancel")
-        if not a or a != b:
-            return Outcome("disk-changed", False, f"the system drive's first MiB before {a} after {b}")
-        return Outcome("cancelled-untouched", True, "the countdown was cancelled by the test marker; Windows came back; the system drive's partition table is unchanged")
-
-
 BOGUS_HOME = {"role": "home", "serial_number": "NOSUCHDISK01", "unique_id": "60022480ffffffffffffffffffffffff",
               "size_bytes": 68719476736, "friendly_name": "a disk that is not attached", "health_status": "Healthy"}
 
 
 class RefusedBeforeCountdown:
-    """Stage 9 (V9 arm A), the rarest: an erase job that names a drive this
-    computer does not have. It must be refused before any countdown (by the
+    """Stage 8 (V9 arm A), the rarest: an erase job that names a drive this
+    computer does not have. It must be refused before the erase (by the
     prologue's re-validation or the installer's identity check), Windows must
     come back, and the system drive must be untouched."""
     writes = True
@@ -995,10 +957,10 @@ class RefusedBeforeCountdown:
                 return Outcome("hang-refusal", False, "Windows did not come back after the job naming a missing drive")
             if boot_mark(ctx, "windows") == before:
                 return Outcome("not-restarted", False, "the same Windows boot answered")
-            words = "the installer refused before any countdown"
+            words = "the installer refused before the erase"
         link.pull(f"{L}\\upgrade_\\report", os.path.join(ctx.stage_dir, "stick-report"), "windows")
-        if os.path.exists(os.path.join(ctx.stage_dir, "stick-report", "countdown.json")):
-            return Outcome("countdown-shown", False, "a countdown ran for a job naming a drive that is not attached")
+        if os.path.exists(os.path.join(ctx.stage_dir, "stick-report", "commit.json")):
+            return Outcome("committed", False, "the installer recorded the commit for a job naming a drive that is not attached")
         if not collect_windows(ctx, "direct", "after-refusal"):
             return Outcome("collect-failed", False, "the Windows collector after the refusal")
         a, b = first_mib(ctx, "windows-before"), first_mib(ctx, "windows-after-refusal")
@@ -1132,7 +1094,7 @@ class Rollback:
 
 STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(), "rollback-existing": Rollback(),
           "stick-left-in": StickLeftIn(), "clean-slate": CleanSlate(), "stick-left-in-erased": StickLeftIn(),
-          "cancel-countdown": CancelCountdown(), "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown()}
+          "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown()}
 
 
 def stage_impl(name):

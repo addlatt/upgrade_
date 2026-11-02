@@ -658,9 +658,9 @@ pub fn summary_lines(j: &Value, facts: &Value, job_path: &Path, verify_only: boo
             let what = if role == "system" { "Fedora system" } else { "your home folder" };
             l.push(format!("    {:<7} {}  {} GB  serial {}  ({what})", role, s(at(d, "friendly_name")), fmt_n(vint(at(d, "size_bytes")) as f64 / 1e9, 1), s(at(d, "serial_number"))));
         }
-        l.push("  In the installer a 2-minute countdown comes first: press any key there to cancel and go back to Windows.".to_string());
+        l.push("  There is no countdown: the last click in the window is the last moment to stop. After it, once the installer's checks pass, these drives are erased.".to_string());
     }
-    l.push(if truthy(at(j, "erase_consent")) { "  your folders now (all of these will be DELETED):" } else { "  your folders (settle-in copies these; a clean slate stages them to the stick):" }.to_string());
+    l.push(if truthy(at(j, "erase_consent")) { "  your folders now (all of these will be DELETED):" } else { "  your folders (they stay on the Windows side; nothing is copied into Linux for you yet):" }.to_string());
     for fo in at(j, "harvest.folders").as_array().into_iter().flatten() {
         if !truthy(at(fo, "exists")) {
             l.push(format!("    {:<10} not found", s(at(fo, "name"))));

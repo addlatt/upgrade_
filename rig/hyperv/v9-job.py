@@ -22,7 +22,7 @@ Native Wifi API returns, to DIR/01.xml for the stick. A spoof closes
 plumbing only (rule #5): real Wi-Fi stays a physical row.
 
 --bogus-home names a home disk that is not attached (arm A: the installer
-must refuse before any countdown). Nothing here is product code.
+must refuse before the erase). Nothing here is product code.
 """
 import json, sys, datetime, pathlib
 from jsonschema import Draft7Validator, FormatChecker

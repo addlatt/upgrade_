@@ -28,9 +28,10 @@ folder map and the stick-fit gate (R5, R6).
 
 ## 0. One-click erase and install
 
-Erase every internal drive, install Fedora, keep nothing, a 2-minute
-cancellable countdown as the commit line. Proves: V9, R27, R35. Done on the
-Aspire 2026-10-04 (run 11) and the cancel 2026-10-06. Still owed: other
+Erase every internal drive, install Fedora, keep nothing. The commit line
+is the last click in the window (decided 2026-11-02, the owner: the 2-minute
+countdown left the product). Proves: V9, R27, R35. Done on the Aspire
+2026-10-04 (run 11). Still owed: `upgrade-installer` 0.2.0's rows, other
 brands. Stands: see [STATUS.md](STATUS.md).
 
 ## 1. A real keep-Windows install with Secure Boot on
@@ -44,20 +45,20 @@ Aspire's drive is dying, R23). Stands: see [STATUS.md](STATUS.md).
 
 ## 2. settle-in
 
-Hardware check on first boot, copying the person's files (unlock BitLocker,
-copy, double-check), a "you used these programs, here is the Linux version"
-list, undo from the Linux side (the rollback, built 2026-10-12, held on
+Hardware check on first boot, a "you used these programs, here is the Linux
+version" list, undo from the Linux side (the rollback, built 2026-10-12, held on
 the rig; waits on an Aspire row), clean-up. The clock, Wi-Fi and remote
 access are done (2026-10-04, the Aspire). Not written yet (audit
-2026-11-01): the file pull, reclaim, and the refusal of a OneDrive stub;
-settle-in has no command for any of them. Proves: V10, R28, V3, R19, R13.
-Waits on: V3 for the pull's integrity; V8 for never copying a stub (R8).
-Stands: see [STATUS.md](STATUS.md).
+2026-11-01): reclaim. **Decided (2026-11-02, the owner): copying the
+person's files (unlock BitLocker, copy, double-check, never a OneDrive stub)
+waits until the project has traction;** the files stay on the kept Windows.
+When it comes back it waits on V3 and V8 (R8). Proves: V10, R28; the pull,
+V3, R19, R13. Stands: see [STATUS.md](STATUS.md).
 
 ## 3. The rest of the collecting
 
 Browsers (R20), the BitLocker key, staging on the exFAT partition, a screen
-that asks what the person wants. Wi-Fi, the clock and remote access are
+that asks what the person wants. Waits with item 2's file copy (2026-11-02). Wi-Fi, the clock and remote access are
 done. Proves: R20, R13, R26 (the staging is what the discard offer waits
 on). Stands: see [STATUS.md](STATUS.md).
 
@@ -65,8 +66,9 @@ on). Stands: see [STATUS.md](STATUS.md).
 
 `UPGRADE.exe`, a Rust window that runs the programs on the stick (decided
 2026-09-27, the owner, replacing the 2026-09-13 WPF plan). Built (window
-0.2.0): Convert with its keep-Windows and clean-slate answers, the
-data-loss launcher, the cancel, the rollback's pointer to Linux; Verify and
+0.3.0): Convert with its keep-Windows and clean-slate answers, the
+data-loss launcher, the rollback's pointer to Linux (the "Cancel a
+conversion in progress" button left 2026-11-02, the owner); Verify and
 Probe behind `--developer`. Owed: a row past the arm, what Convert shows
 after the restart (decision owed below), the owner's approval of its words.
 Proves: V12, R31. Stands: see [STATUS.md](STATUS.md).
@@ -87,7 +89,7 @@ hold the certificate. Proves: V6, R12, R14. Stands: see
 
 For machines turned down because of their drive (R23's case): copy off
 whatever can still be read, and check every copy. Proves: R17, R23. Waits
-on: item 2's file pull. Stands: see [STATUS.md](STATUS.md).
+on: item 2's file pull, deferred (2026-11-02). Stands: see [STATUS.md](STATUS.md).
 
 ## 8. Offer to delete Windows when it cannot be kept
 
@@ -176,7 +178,7 @@ marker and the stick's `.cmd` starters stay as they are (decided
 2026-10-17, the owner; `RUST-PORT.md`, "What comes next"). The stick
 writer writes disks, so R16's rows run again (rule #4); the installer
 re-earns V1's, V9's and R21's rows. After this item the work turns to the
-mission's open killers, starting with item 2's file pull.
+mission's open killers (item 2's file pull deferred 2026-11-02).
 Proves: V13, R32. Stands: see [STATUS.md](STATUS.md).
 
 ## 20. Product unification: fewer choices, one way through
@@ -201,7 +203,8 @@ Aspire, 2026-10-28/29. Decided (2026-10-31, the owner): the test machine
 signs itself in for the test, as Windows' own automatic sign-in does, said
 in every row and switched off at the end. Built 2026-10-31: following the
 machine, the sign-in, the stick swaps seen, a stop tried again in the same
-run (log 2026-10-31). Owed: that run on the Aspire, the window's screens
+run (log 2026-10-31). The cancel stage left with the countdown (2026-11-02):
+eight stages. Owed: that run on the Aspire, the window's screens
 (V12), the old verdicts wired to the run folder, a pull-request check (R9). Proves:
 R9, V13, then V1b, V9, V10, V11 per machine. Stands: see [STATUS.md](STATUS.md).
 

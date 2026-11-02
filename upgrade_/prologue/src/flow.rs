@@ -552,7 +552,7 @@ fn continue_stage(ctx: &mut Ctx, st: &mut Value, root: &str, job: &Value) {
 fn erase_continue(ctx: &mut Ctx, st: &mut Value, root: &str, job: &Value) {
     st["Shrink"]["ForkTaken"] = json!("clean-slate");
     let names: Vec<String> = items(at(job, "erase_consent.disks")).into_iter().map(|d| format!("{} ({})", s(at(d, "friendly_name")), s(at(d, "role")))).collect();
-    ctx.log(&format!("  2.  erase and install: nothing is changed here. In the installer a 2-minute countdown comes first; when it ends, {} are erased.", names.join(" and ")));
+    ctx.log(&format!("  2.  erase and install: nothing is changed here. After the restart there is no turning back: once the installer's checks pass, {} are erased.", names.join(" and ")));
     save_state(ctx, st);
     write_record(ctx, st, root);
     arm(ctx, st, root, job);
@@ -629,7 +629,7 @@ fn arm(ctx: &mut Ctx, st: &mut Value, root: &str, job: &Value) {
     ctx.log("");
     ctx.log("  This computer restarts into the installer in 15 seconds. Leave the stick in.");
     if erase {
-        ctx.log("  In the installer a 2-minute countdown comes first. Press any key during it to cancel and come back to this Windows, untouched. When it ends, everything is erased and Fedora is installed.");
+        ctx.log("  There is no turning back now. Once the installer's checks pass, everything is erased and Fedora is installed; if a check fails, it stops and this Windows comes back untouched.");
     } else {
         ctx.log("  Windows is still here and still bootable; it stays that way until you reclaim it in Linux.");
     }
@@ -695,17 +695,19 @@ fn return_stage(ctx: &mut Ctx, st: &mut Value, root: &str) {
     let _ = std::fs::copy(sd.join("state.json"), sd.join("state-returned.json"));
     let _ = std::fs::remove_file(sd.join("state.json"));
     ctx.log("      boot entry removed, task removed; record on the stick");
-    // the erase path (R27): Windows is back, so nothing was erased - record why
+    // the erase path (R27): Windows is back - record why, and whether the erase had begun
     let erase_job = if root.is_empty() { None } else { read_job(&Path::new(root).join("upgrade_").join("job.json")).ok().filter(|j| is_erase(j) && s(&j["job_id"]) == s(&st["JobId"])) };
     if let Some(j) = erase_job {
         let rd = Path::new(root).join("upgrade_").join("report");
-        let cd = read_json(&rd.join("countdown.json")).unwrap_or(Value::Null);
+        let cd = read_json(&rd.join("commit.json")).unwrap_or(Value::Null);
         let vf = read_json(&rd.join("verify.json")).unwrap_or(Value::Null);
         let er = judge::erase_return(&cd, &vf);
         let o = state::stopped_outcome(&j, st, &s(&er["StoppedAt"]), &s(&er["Reason"]), &Value::Null, &format!("prologue {FOLLOWS_PROLOGUE} ({})", version_line()), &live::now_z());
         let _ = write_json(&Path::new(root).join("upgrade_").join("outcome.json"), &o);
         ctx.log(&format!("  STOPPED at {}: {}", s(&er["StoppedAt"]), s(&er["Reason"])));
-        live::show_or_queue(&ctx.state_dir, "upgrade_ - nothing was erased", &format!("Windows is back and nothing was erased.\n\n{}.\n\nThe record is on the USB stick (upgrade_\\outcome.json).", s(&er["Reason"])), 300, 64);
+        // with commit.json on the stick the erase had begun: never "nothing was erased" (rule #1)
+        let (title, head) = if truthy(&cd) { ("upgrade_ - the install did not complete", "Windows is back, but the install did not complete and the drives may be partly erased.") } else { ("upgrade_ - nothing was erased", "Windows is back and nothing was erased.") };
+        live::show_or_queue(&ctx.state_dir, title, &format!("{head}\n\n{}.\n\nThe record is on the USB stick (upgrade_\\outcome.json).", s(&er["Reason"])), 300, 64);
         return;
     }
     // shim in Windows' slot (architecture step 12, decided 2026-10-10): the firmware chose
@@ -839,7 +841,7 @@ pub fn start(ctx: &mut Ctx, a: &StartArgs) -> Result<(), String> {
     save_state(ctx, &mut st);
     write_record(ctx, &st, &root);
     if erase {
-        ctx.log(&format!("  ERASE AND INSTALL (typed {}): every drive named in the job is erased in the installer, after its countdown.", s(at(&job, "erase_consent.accepted_utc"))));
+        ctx.log(&format!("  ERASE AND INSTALL (typed {}): every drive named in the job is erased in the installer, once its checks pass; there is no turning back after this.", s(at(&job, "erase_consent.accepted_utc"))));
         if update_gate(ctx, &mut st, &root, &job, "before-changes", Some("erase")) == "restart" {
             return Ok(());
         }
