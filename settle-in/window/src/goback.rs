@@ -10,8 +10,8 @@
 //! The pages are now: the cost, what happens (both drives by name), the stick,
 //! the typed sentence, then `pkexec settle-in go-back walkaway prepare`, which
 //! downloads Windows from Microsoft's catalog, writes the stick and sets a
-//! one-time start from it. Then "Restart now". The countdown that is the
-//! commit line runs on the stick, after the restart (settle-in/gate).
+//! one-time start from it. Then "Restart now", the commit line: no countdown
+//! after it (decided 2026-11-02, the owner); the gate still refuses before it erases.
 
 use eframe::egui;
 use serde_json::{json, Value};

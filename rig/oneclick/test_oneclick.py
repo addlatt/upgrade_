@@ -453,7 +453,7 @@ class KickoffTests(unittest.TestCase):
         with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", "aspire.json")) as f:
             plan = json.load(f)
         for st in plan["stages"]:
-            if st["stage"] in ("keep-windows", "clean-slate", "cancel-countdown", "refused-before-countdown"):
+            if st["stage"] in ("keep-windows", "clean-slate", "refused-before-countdown"):
                 self.assertIn("data-loss", oneclick.stage_needs(st), st["stage"])
         self.assertIn("data-loss", oneclick.plan_needs(plan["stages"]))
 
@@ -853,7 +853,8 @@ class OwnerCheckTests(unittest.TestCase):
         with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", "aspire.json")) as f:
             stages = {st["stage"]: st for st in json.load(f)["stages"]}
         self.assertEqual(stages["walk-away"]["owner_check"], "walkaway-stick-in")
-        self.assertEqual(stages["cancel-countdown"]["owner_check"], "kit-stick-in")
+        self.assertEqual(stages["refused-before-countdown"]["owner_check"], "kit-stick-in")
+        self.assertNotIn("cancel-countdown", stages, "no cancel after the window's click (the owner, 2026-11-02)")
 
     def test_a_plan_naming_an_unknown_check_refuses(self):
         plan = os.path.join(self.tmp, "plan.json")

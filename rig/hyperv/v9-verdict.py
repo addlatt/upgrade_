@@ -7,17 +7,20 @@ arm's own evidence (RISKS R27). Never by hand.
 
 Reads <dir>/<X>/ (else <dir>/arm-<X>/; what `v9.sh pull` / `stick-pull` copied) and the
 offline disk inspections v9-pre.json and v9-after-<X>.json.
-  A refuse: verify.json identity=fail, no countdown.json, disks unchanged -> refused-before-countdown
-  B cancel: countdown.json cancelled, outcome.json stopped at countdown and schema-valid,
-            disks unchanged -> cancelled-untouched
+  A refuse: verify.json identity=fail, no commit.json, disks unchanged -> refused-before-countdown
   D again:  after C, the stick first in the boot order and left in: the stick carries
-            'converted', no 'boot-install', no new countdown, disks unchanged, Linux booted
+            'converted', no 'boot-install', no new commit, disks unchanged, Linux booted
             again -> not-installed-again (RISKS R35)
-  C erase:  countdown.json elapsed, outcome.json completed + schema-valid with crossed_utc =
-            the countdown's end, system disk = EFI + /boot + root, home disk = one Linux
+  C erase:  commit.json written, outcome.json completed + schema-valid with crossed_utc =
+            the commit's, human_gate typed-in-the-window, system disk = EFI + /boot + root, home disk = one Linux
             filesystem, first Linux boot marker: password fingerprint = the job's hash,
             /home present on the second disk -> erased-installed
 Anything else is named, never smoothed over.
+
+No arm B since 2026-11-02 (the owner: the last click in the window is the commit
+line; the installer has no countdown and no cancel). The CSV keeps its header: the
+`countdown` column of a new row says `committed` (commit.json written) or `none`;
+rows before that day hold the countdown's own words.
 """
 import csv, datetime, hashlib, json, pathlib, sys
 from jsonschema import Draft7Validator, FormatChecker
@@ -57,7 +60,7 @@ def same(a, b):
     return v if not missing else "%s (%s only; no before image of the %s disk)" % (v, "+".join(roles), "+".join(missing))
 
 notes = [sys.argv[5]] if len(sys.argv) > 5 else []
-v = load(D / "verify.json"); cd = load(D / "countdown.json"); o = load(D / "outcome.json"); job = load(D / "job.json") or load(A / "job.json")
+v = load(D / "verify.json"); cm = load(D / "commit.json"); o = load(D / "outcome.json"); job = load(D / "job.json") or load(A / "job.json")
 pre = load(A / "v9-pre.json"); after = load(A / ("v9-after-%s.json" % ARM))
 pro = load(D / "prologue.json")
 # the records must be this run's: the job v9.sh job wrote last (<dir>/job.json) is the job on the stick, in
@@ -69,20 +72,11 @@ seen = {"stick job.json": (load(D / "job.json") or {}).get("job_id"), "verify.js
 stale = {k: j for k, j in seen.items() if j is not None and j != current}
 if not current or stale:
     sys.exit("v9-verdict: %s holds records of another job (current %s; %s); no row written" % (D, current, ", ".join("%s %s" % kv for kv in stale.items()) or "no current job"))
-# a cancel must be a key: the installer logs the bytes that ended its countdown (upgrade-installer, 2026-10-15);
-# the console's own cursor-position reports (ESC [ n ; m R) are not a key (lines 38 and 39, 2026-10-14/15)
-import re
-key_read = None
-if (D / "verify.log").exists():
-    m = re.search(r"== countdown key read: ([0-9a-f ]+)", (D / "verify.log").read_text(errors="replace"))
-    key_read = bytes.fromhex(m.group(1)) if m else None
-# R38: the build since upgrade-installer 0.1.2 says the countdown's console was free, or refuses (exit 30)
-if (D / "verify.log").exists():
-    m = re.search(r"== countdown console (\S+): no other process holds it", (D / "verify.log").read_text(errors="replace"))
-    if m: notes.append("countdown console %s: no other holder" % m.group(1))
-key_is_report = key_read is not None and re.fullmatch(rb"(\x1b\[[0-9]+;[0-9]+R)+", key_read) is not None
 identity = (v or {}).get("identity", {}).get("result", "n/a")
-countdown = (cd or {}).get("result", "none")
+countdown = "committed" if cm else "none"
+committed_at = (cm or {}).get("crossed_utc")
+crossed_utc = (o or {}).get("commit_line", {}).get("crossed_utc")
+human_gate = ((o or {}).get("cutover") or {}).get("hardware", {}).get("human_gate")
 status = (o or {}).get("status", "none"); stopped_at = (o or {}).get("stopped_at") or ""
 crossed = str((o or {}).get("commit_line", {}).get("crossed", "n/a")).lower()
 ov = valid(o, "outcome")
@@ -110,43 +104,34 @@ if boots.exists():
         # a real person's account name never goes into a tracked row (the rig's account is "rig")
         notes.append("boot marker: user=%s home_disk=%s root_disk=%s" % (f.get("user") if f.get("user") == "rig" else "<name>", f.get("home_disk"), f.get("root_disk")))
 
-# a re-run is named by its arm letter and a number (B3 = arm B again); judge it by the letter (2026-09-29)
+# a re-run is named by its arm letter and a number (C2 = arm C again); judge it by the letter (2026-09-29)
 KIND = ARM[:1]
+if KIND == "B":
+    sys.exit("v9-verdict: arm B (the cancel) left with the countdown on 2026-11-02; no row written")
 if KIND == "D":
     # the stick started again after a finished install (RISKS R35; the Aspire's run 10):
-    # it carries 'converted' and no 'boot-install', the countdown record is the install's own
-    # (no new countdown ran), both disks are byte-for-byte as before this start (v9-before-<ARM>
+    # it carries 'converted' and no 'boot-install', the commit record is the install's own
+    # (no new commit), both disks are byte-for-byte as before this start (v9-before-<ARM>
     # vs v9-after-<ARM>), and Linux booted again (a second linux-boot line)
     listing = (D / "stick-upgrade-dir.txt").read_text(errors="replace") if (D / "stick-upgrade-dir.txt").exists() else ""
     conv = (D / "converted").exists(); armed = (D / "boot-install").exists() or "boot-install" in listing
     before = load(A / ("v9-before-%s.json" % ARM)); unchanged = same(before, after)
     nboots = len([l for l in open(boots, encoding="utf-8-sig", errors="replace") if l.startswith("linux-boot")]) if boots.exists() else 0
-    elapsed_at = (cd or {}).get("ended_utc"); same_cd = bool(elapsed_at) and (o or {}).get("commit_line", {}).get("crossed_utc") == elapsed_at
-    notes.append("stick: converted=%s boot-install=%s; countdown record still the install's=%s; linux boots=%d" % ("y" if conv else "n", "y" if armed else "n", "y" if same_cd else "n", nboots))
-    ok = conv and not armed and unchanged.startswith("y") and same_cd and countdown == "elapsed" and nboots >= 2
+    same_cm = bool(committed_at) and crossed_utc == committed_at
+    notes.append("stick: converted=%s boot-install=%s; commit record still the install's=%s; linux boots=%d" % ("y" if conv else "n", "y" if armed else "n", "y" if same_cm else "n", nboots))
+    ok = conv and not armed and unchanged.startswith("y") and same_cm and nboots >= 2
     result = "not-installed-again" if ok else "fail"
 elif KIND == "A":
     ok = identity == "fail" and countdown == "none" and unchanged.startswith("y")
     result = "refused-before-countdown" if ok else "fail"
-elif KIND == "B":
-    # R38 (2026-10-17): when the driver sent several keys, it writes keys-sent.txt (one line per key:
-    # "<seconds after the countdown was seen> <hex the console sends>"); the cancel must be the FIRST
-    # key sent. A later one ending it means an earlier key went to another reader
-    first_ok = True
-    if (D / "keys-sent.txt").exists():
-        sent = [l.split() for l in (D / "keys-sent.txt").read_text().splitlines() if l.strip()]
-        first_ok = bool(sent) and key_read is not None and key_read.hex() == sent[0][1]
-        notes.append("keys sent: %s; the first one read: %s" % (", ".join("%s at +%s s" % (k[1], k[0]) for k in sent), "y" if first_ok else "n"))
-    ok = countdown == "cancelled" and status == "stopped" and stopped_at == "countdown" and ov == "y" and unchanged.startswith("y") and not key_is_report and first_ok
-    result = "cancelled-untouched" if ok else "fail"
-    if key_read is not None: notes.append("countdown ended by bytes %s%s" % (key_read.hex(" "), " (the console's own cursor report, not a key)" if key_is_report else ""))
 else:
-    elapsed_at = (cd or {}).get("ended_utc")
-    same_time = elapsed_at and (o or {}).get("commit_line", {}).get("crossed_utc") == elapsed_at
+    same_time = bool(committed_at) and crossed_utc == committed_at
     sys_ok = sys_after.startswith("EFI_System") and sys_after.count("Linux") >= 2 and "Microsoft" not in sys_after
     home_gpt_ok = home_after.count("Linux") == 1 and "+" not in home_after
-    ok = countdown == "elapsed" and status == "completed" and ov == "y" and same_time and sys_ok and home_gpt_ok and booted == "y" and pw_ok == "y" and home_ok == "y" and gui_ok == "y"
-    if not same_time: notes.append("crossed_utc %s vs countdown end %s" % ((o or {}).get("commit_line", {}).get("crossed_utc"), elapsed_at))
+    gate_ok = human_gate == "typed-in-the-window"
+    if not gate_ok: notes.append("human_gate %s, not typed-in-the-window" % human_gate)
+    ok = countdown == "committed" and gate_ok and status == "completed" and ov == "y" and same_time and sys_ok and home_gpt_ok and booted == "y" and pw_ok == "y" and home_ok == "y" and gui_ok == "y"
+    if not same_time: notes.append("crossed_utc %s vs commit.json %s" % (crossed_utc, committed_at))
     # upgrade-installer 0.1.3+ (post.rs): the start target set by `outcome`'s post step, as the job asked
     vlog = (D / "verify.log").read_text(errors="replace") if (D / "verify.log").exists() else ""
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent)); import postlog

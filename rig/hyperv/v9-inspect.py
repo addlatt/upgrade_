@@ -7,7 +7,7 @@ v9-inspect.py - offline, read-only look at the V9 rig's two disks (RISKS R27).
 For each disk: the GPT (via rig/vm/v1b-inspect.py's reader - qemu-img dd,
 no loop devices) or null when the disk has none (a blank disk), and the
 sha256 of its first MiB. Written to <outdir>/v9-<label>.json. "Untouched"
-for the refusal and cancel arms is: the same JSON before and after.
+for the refusal arm is: the same JSON before and after.
 """
 import hashlib, importlib.util, json, os, sys, tempfile, pathlib
 

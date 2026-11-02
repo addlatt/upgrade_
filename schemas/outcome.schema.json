@@ -521,7 +521,7 @@
           }
         },
         "hardware": {
-          "description": "Automated checks before anything is destroyed; the human two-minute gate (clean-slate) is recorded as `human_gate`.",
+          "description": "Automated checks before anything is destroyed; the human gate is recorded as `human_gate`: `typed-in-the-window` since 2026-11-02 (the window's last click is the commit line, no countdown after it), `countdown-elapsed` in records written before.",
           "type": "object",
           "additionalProperties": false,
           "required": [
@@ -545,6 +545,7 @@
                 "declined",
                 "not-required",
                 "countdown-elapsed",
+                "typed-in-the-window",
                 null
               ]
             }
@@ -667,7 +668,7 @@
           }
         },
         "countdown": {
-          "description": "The one-click erase and install (RISKS R27): the on-screen countdown in the installer that is the last exit. `elapsed` - nobody pressed a key and its end is the commit line (commit_line.crossed_utc); `cancelled` - a key was pressed and nothing on the internal drives was written.",
+          "description": "Records written before 2026-11-02 only (the countdown left the installer in upgrade-installer 0.2.0). The one-click erase and install (RISKS R27): the on-screen countdown in the installer that was the last exit. `elapsed` - nobody pressed a key and its end is the commit line (commit_line.crossed_utc); `cancelled` - a key was pressed and nothing on the internal drives was written.",
           "type": "object",
           "additionalProperties": false,
           "required": [
@@ -1108,7 +1109,7 @@
       }
     },
     {
-      "description": "clean-slate: a completed run crossed the line at the wipe and Windows is gone; it either restored the staged files or was an erase-and-install whose countdown elapsed (R27).",
+      "description": "clean-slate: a completed run crossed the line at the wipe and Windows is gone; it either restored the staged files, or was an erase-and-install whose sentence was typed in the window (since 2026-11-02) or whose countdown elapsed (records before) (R27).",
       "if": {
         "properties": {
           "path_taken": {
@@ -1160,6 +1161,23 @@
                     "properties": {
                       "result": {
                         "const": "elapsed"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "required": [
+                  "hardware"
+                ],
+                "properties": {
+                  "hardware": {
+                    "required": [
+                      "human_gate"
+                    ],
+                    "properties": {
+                      "human_gate": {
+                        "const": "typed-in-the-window"
                       }
                     }
                   }

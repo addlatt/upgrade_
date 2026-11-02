@@ -63,7 +63,7 @@ def vjob(base, **over):
 
 def verify(name, job, disks, mode="install", **kw):
     c = {"name": name, "mode": "verify", "job": job, "cmdline": f"BOOT_IMAGE=/images/pxeboot/vmlinuz{' upg.mode=verify' if mode == 'verify' else ''} inst.ks=hd:LABEL=UPGV0:/ks.cfg quiet",
-         "stick": copy.deepcopy(STICK_KEEP), "disks": disks, "drm": DRM, "graphics": ["fb0"], "nmcli": NM, "secureboot": 1, "chvt_ok": True, "keys": [], "countdown_secs": 2, "refusal_secs": 1, "tty": True}
+         "stick": copy.deepcopy(STICK_KEEP), "disks": disks, "drm": DRM, "graphics": ["fb0"], "nmcli": NM, "secureboot": 1, "chvt_ok": True, "keys": [], "refusal_secs": 1, "tty": True}
     for k, v in kw.items():
         if k == "stick":
             c["stick"].update(v)
@@ -107,18 +107,11 @@ cases = [
     verify("keep-windows: the ESP cannot be mounted: no include, refused 21", KEEP, [disk_sda(esp={})], keys=REFUSAL_KEY),
     verify("clean-slate without erase consent: the include is written, install refuses 25", CLEAN_JOB, [disk_sda()], keys=REFUSAL_KEY),
     verify("clean-slate, verify mode: the clean-slate include and the report", CLEAN_JOB, [disk_sda()], mode="verify"),
-    verify("erase, two drives, the countdown runs out: the commit line, the stick disarmed", ERASE_JOB, [disk_vm(), home_disk()], stick={"markers": ["boot-install:v9", "bench:"], "files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k"}}),
-    verify("erase, two drives, a key during the countdown: cancelled, exit 27, boot-install removed", ERASE_JOB, [disk_vm(), home_disk()], stick={"markers": ["boot-install:v9"], "files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k"}}, keys=[{"after": 1.0, "data": "q"}], countdown_secs=5),
-    verify("erase, one drive, the countdown runs out", ERASE_ONE, [disk_vm()], stick={"markers": ["boot-install:v9"], "files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k"}}),
-    verify("erase: the home drive the job names is not attached: identity fail, refused 20, no countdown", ERASE_JOB, [disk_vm()], stick={"files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k"}}, keys=REFUSAL_KEY),
+    verify("erase, two drives: no countdown, the commit record, the stick disarmed (the window's last click was the commit line, 2026-11-02)", ERASE_JOB, [disk_vm(), home_disk()], stick={"markers": ["boot-install:v9", "bench:"], "files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k"}}),
+    verify("erase, one drive: no countdown, straight on to the install", ERASE_ONE, [disk_vm()], stick={"markers": ["boot-install:v9"], "files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k"}}),
+    verify("erase: the home drive the job names is not attached: identity fail, refused 20, nothing erased", ERASE_JOB, [disk_vm()], stick={"files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k"}}, keys=REFUSAL_KEY),
     verify("erase: the home drive's size differs", ERASE_JOB, [disk_vm(), home_disk(size=68719476737)], stick={"files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k"}}, keys=REFUSAL_KEY),
     verify("erase: disks[0] is not the system disk the job identifies", vjob(ERASE_JOB, **{"erase_consent.disks": [dict(ERASE_JOB["erase_consent"]["disks"][0], unique_id="60022480000000000000000000000009")]}), [disk_vm()], stick={"files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k"}}, keys=REFUSAL_KEY),
-    verify("erase: the countdown cannot be shown (no console switch): refused 26", ERASE_ONE, [disk_vm()], stick={"files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k"}}, chvt_ok=False, keys=REFUSAL_KEY),
-    verify("erase: another program holds the countdown's console open (R38): refused 30, no countdown", ERASE_ONE, [disk_vm()], stick={"markers": ["boot-install:v9"], "files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k"}}, holder="before", keys=REFUSAL_KEY),
-    verify("erase: another program opens the console during the countdown (R38): the countdown stops, refused 30, nothing erased", ERASE_ONE, [disk_vm()], stick={"markers": ["boot-install:v9"], "files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k"}}, holder="countdown", countdown_secs=5),
-    # the one click test's cancel (roadmap item 21, 2026-10-27): a marker that can only cancel
-    verify("erase: the stick's test marker cancels the countdown after its 2 s as a key would: exit 27, the record says test-marker, the marker and boot-install removed", ERASE_ONE, [disk_vm()], stick={"markers": ["boot-install:v9"], "files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k", "upgrade_/test-cancel-countdown": "2"}}, countdown_secs=5),
-    verify("erase: an unreadable test marker still only cancels (5 s, inside the countdown), never an erase", ERASE_ONE, [disk_vm()], stick={"markers": ["boot-install:v9"], "files": {"upgrade_/LiveOS/gnome.squashfs": "g" * 600, "KIT-MANIFEST.txt": "k", "upgrade_/test-cancel-countdown": "soon"}}, countdown_secs=8),
     verify("hardware: no connectors, no wifi device, firmware artifacts listed and present; verify mode", FW_JOB, [disk_sda()], mode="verify", drm=[], graphics=[], nmcli={"devices": [["enp1s0", "ethernet"]], "ssids": []},
            stick={"files": {"upgrade_/LiveOS/kde.squashfs": "k" * 600, "KIT-MANIFEST.txt": "k", "upgrade_/artifacts/firmware/cs35l41/cs35l41-dsp1-spk-prot.wmfw": "fw1", "upgrade_/artifacts/firmware/cs35l41/cs35l41-dsp1-spk-prot.bin": "fw2"}}),
     verify("hardware: connectors but none driving a mode, wifi sees nothing, an artifact missing; install mode still goes on", FW_JOB, [disk_sda()], drm=[{"name": "card1-DP-1", "status": "disconnected", "modes": []}], nmcli={"devices": [["wlp2s0", "wifi"]], "ssids": []}, secureboot=0,
@@ -181,10 +174,10 @@ cases += [
             stick={"files": dict(STICK_KEEP["files"], **{"upgrade_/prologue.json": json.dumps(dict(PROLOGUE_REC, job_id="other-job"), indent=2)}), "markers": ["converted:x", "bench:"]}),
     outcome("keep-windows: no prologue record, no Wi-Fi expected, a text console system", vjob(KEEP, **{"harvest.wifi.profiles": [], "intent.start_at": "console"}), stick={"files": dict(STICK_KEEP["files"])},
             sysroot={"files": SYSROOT["files"], "links": {"etc/systemd/system/default.target": "/usr/lib/systemd/system/multi-user.target"}}),
-    outcome("erase-and-install: the countdown's end is the commit line, the credentials scrubbed, no Windows partition", ERASE_JOB,
-            stick={"files": dict(STICK_KEEP["files"], **WIFI_FILES), "report": {"verify.json": ERASE_VERIFY, "countdown.json": {"schema": "countdown/1", "result": "elapsed", "seconds": 120, "ended_utc": "2026-10-14T20:02:00Z"}}, "esp_snapshot": None},
+    outcome("erase-and-install: the commit record names the line, the credentials scrubbed, no Windows partition", ERASE_JOB,
+            stick={"files": dict(STICK_KEEP["files"], **WIFI_FILES), "report": {"verify.json": ERASE_VERIFY, "commit.json": {"schema": "commit/1", "by": "the-window", "crossed_utc": "2026-10-14T20:02:00Z"}}, "esp_snapshot": None},
             disks=[disk_vm(dev="sda"), home_disk(dev="sdc")], findmnt={"/mnt/sysroot": "/dev/sda3", "/mnt/sysroot/boot/efi": "/dev/sda1"}, efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"}),
-    outcome("erase-and-install: no countdown record: said, the outcome written anyway", ERASE_JOB, stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": ERASE_VERIFY}, "esp_snapshot": None}, disks=[disk_vm(dev="sda")], efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"}),
+    outcome("erase-and-install: no commit record: said, the outcome written anyway", ERASE_JOB, stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": ERASE_VERIFY}, "esp_snapshot": None}, disks=[disk_vm(dev="sda")], efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"}),
     outcome("clean-slate without erase: the commit line crossed by the wipe", CLEAN_JOB, stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": dict(VERIFY_JSON, job_id=CLEAN_JOB["job_id"])}, "esp_snapshot": None}, efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"}),
     outcome("the clock: no rtc, time service not synchronized, chronyc silent", KEEP, clock={"rtc": "", "ntp": "no", "chronyc": ""}),
     # the installed system's last settings, the chroot %post's shell until upgrade-installer 0.1.3 (kickstart 0.11.0)
@@ -194,11 +187,11 @@ cases += [
     outcome("post, keep-windows: the ESP's UUID cannot be read: the entry written without it, said in post.log", KEEP, findmnt_uuid={}),
     outcome("post, keep-windows: no /etc/default/grub at all: written with os-prober off", KEEP, sysroot={"files": {k: v for k, v in SYSROOT["files"].items() if k != "etc/default/grub"}, "links": SYSROOT["links"]}),
     outcome("post, erase, console: no GRUB changes, the start target multi-user, Plasma Setup absent", vjob(ERASE_JOB, **{"intent.start_at": "console"}), plasma_setup_present=False,
-            stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": ERASE_VERIFY, "countdown.json": {"schema": "countdown/1", "result": "elapsed", "seconds": 120, "ended_utc": "2026-10-14T20:02:00Z"}}, "esp_snapshot": None},
+            stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": ERASE_VERIFY, "commit.json": {"schema": "commit/1", "by": "the-window", "crossed_utc": "2026-10-14T20:02:00Z"}}, "esp_snapshot": None},
             disks=[disk_vm(dev="sda")], findmnt={"/mnt/sysroot": "/dev/sda3", "/mnt/sysroot/boot/efi": "/dev/sda1"}, efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"},
             sysroot={"files": {k: v for k, v in SYSROOT["files"].items() if k != "boot/grub2/grub.cfg"}, "links": SYSROOT["links"]}),
     outcome("post, erase, desktop: no GRUB changes, the start target graphical over a multi-user link", ERASE_JOB,
-            stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": ERASE_VERIFY, "countdown.json": {"schema": "countdown/1", "result": "elapsed", "seconds": 120, "ended_utc": "2026-10-14T20:02:00Z"}}, "esp_snapshot": None},
+            stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": ERASE_VERIFY, "commit.json": {"schema": "commit/1", "by": "the-window", "crossed_utc": "2026-10-14T20:02:00Z"}}, "esp_snapshot": None},
             disks=[disk_vm(dev="sda")], findmnt={"/mnt/sysroot": "/dev/sda3", "/mnt/sysroot/boot/efi": "/dev/sda1"}, efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"},
             sysroot={"files": {k: v for k, v in SYSROOT["files"].items() if k != "boot/grub2/grub.cfg"}, "links": {"etc/systemd/system/default.target": "/usr/lib/systemd/system/multi-user.target"}}),
 ]

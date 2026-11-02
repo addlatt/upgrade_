@@ -37,13 +37,18 @@ one-way door. Which moment that is depends on the path the person chose when
   meaning deleting the Windows partition, in `settle-in`, only after the checks
   pass and the person clearly says yes. Until reclaim, Windows is there and
   boots; rolling back means restoring a boot entry, not a disk image.
-- **Erase path** (nothing kept): the end of a two-minute countdown on the stick
-  ("Erase and install", below).
+- **Erase path** (nothing kept): the last click in the window, "Restart into
+  the installer" ("Erase and install", below).
+
+**Decided (2026-11-02, the owner): the last click in a window is the last
+moment the person can turn back.** No countdown, no key that cancels after it
+(the installer's and the gate's two-minute countdowns left the product). The
+checks still refuse after the click, before anything is erased.
 
 Two rules follow. They are not negotiable:
 
-1. **The screen must say "you can still cancel" right up to that exact moment**,
-   and must stop saying it the instant the line is crossed.
+1. **The screen must say "you can still stop" right up to the last click**,
+   and must say plainly at that click that there is no turning back after it.
 2. **Everything that could refuse must refuse before the line:** identity,
    checksum, capacity and hardware refusals; on the clean-slate path, a
    live-session hardware check with a person present too, since there is no
@@ -279,9 +284,8 @@ for only once the answer is known:
    measured speed, refuses on 0 folders or 0 files, and arms the handoff only if
    no Windows update is waiting (RISKS R25).
 7. **The wipe is where it always was:** in the live session, after the identity
-   check, the staged checksums read back (RISKS R17), the hardware checks, and
-   the two-minute human check. "You can still cancel" is on screen until that
-   moment (rule #3); cancelling boots back into an untouched Windows.
+   check, the staged checksums read back (RISKS R17) and the hardware checks.
+   The person's last chance was the last click (decided 2026-11-02).
 
 Stop stays the default at every step, and the extra prompt exists only on the
 branch where keep-Windows failed. The build waits for the harvest and a first
@@ -548,14 +552,12 @@ in one way that matters: the person said up front that nothing is to be kept.
 ```text
  Windows (nothing on disk changes)          installer on the stick
  --------------------------------           ----------------------
+        ===== COMMIT LINE: the last click (2026-11-02) =====
  launcher: typed sentence, password,  -->   %pre: find each drive by
  desktop menu; job names the drives         identity + exact size,
- prologue: re-validate, let update          read image back (R17)
- finish (R25), arm one-time boot,                 |
- restart                                    2:00 countdown on screen
-                                            any key -> back to Windows
-                                                  |
-                                     ===== COMMIT LINE (reaches 0) =====
+ prologue: re-validate, let update          read image back (R17);
+ finish (R25), arm one-time boot,           a refusal: back to Windows,
+ restart                                    nothing erased
                                                   |
                                             erase, install Fedora,
                                             %post writes outcome.json,
@@ -587,19 +589,16 @@ in one way that matters: the person said up front that nothing is to be kept.
 3. **The prologue changes nothing on the disks:** it re-validates the job (both
    drives by identity), lets a waiting Windows update finish (RISKS R25), arms
    the one-time boot to the stick and restarts. Windows still boots if anything
-   stops before the countdown ends.
-4. **The installer checks, then counts down.** `%pre` (`upgrade-installer verify`, which runs
+   stops before the installer's checks pass.
+4. **The installer checks, then erases.** `%pre` (`upgrade-installer verify`, which runs
    inside the installer before it does anything) finds each listed drive by
    identity and exact size and refuses on any mismatch (a stick moved to another
    computer never erases it); reads the desktop image back against its checksum
-   (RISKS R17); then shows a **two-minute countdown: "Erasing both drives in
-   1:59 - press any key to cancel and restart into Windows."** Any key cancels:
-   the report goes to the stick and the machine restarts into an untouched
-   Windows. The moment it reaches zero is **the commit line**: the verify step
-   writes the time to the stick, writes `upgrade_/converted` and removes
+   (RISKS R17). With every check passed, the verify step writes
+   `report/commit.json` (the time), writes `upgrade_/converted` and removes
    `upgrade_/boot-install` (a converted stick only ever hands over to the
    installed system, never installs again; RISKS R35), and the installer erases
-   and installs. **Every refusal before the countdown is a plain screen**
+   and installs. **Every refusal is a plain screen**
    (decided 2026-09-27, the owner; `verify.sh` 0.5.0, now `upgrade-installer verify`), not Anaconda's raw
    traceback, for 60 s (any key: now), then the computer restarts unchanged with
    `report/refusal.json` on the stick:
@@ -615,22 +614,22 @@ in one way that matters: the person said up front that nothing is to be kept.
    The details are saved on the USB stick, in upgrade_\report.
    ```
 
-   The eight reasons, approved verbatim: this USB stick was prepared for a
+   The reasons, approved verbatim: this USB stick was prepared for a
    different computer, or one of its drives has changed since · the installer
    could not work out where to put Linux · Windows' startup files were not where
    the preparation found them · the copy of Linux on this USB stick is damaged ·
    a safety copy of Windows' startup files could not be made · this version
-   cannot yet put your files back on an erased computer · the last-chance
-   countdown could not be shown, and nothing is erased without it · this USB
-   stick was prepared by a different version of this tool.
+   cannot yet put your files back on an erased computer · this USB stick was
+   prepared by a different version of this tool.
 5. **After it:** Anaconda (Fedora's installer) clears both drives and installs
    Fedora (EFI, `/boot` and `/` on the system drive, `/home` on the home drive);
-   `%post` writes `outcome.json` (`commit_line.crossed = true`, the countdown's
-   end as `crossed_utc`, `act = wipe`) to the stick, and the machine reboots
+   `%post` writes `outcome.json` (`commit_line.crossed = true`, `commit.json`'s
+   time as `crossed_utc`, `act = wipe`, `human_gate = typed-in-the-window`) to
+   the stick, and the machine reboots
    into Fedora with the person's account.
 
 It carries no files, browsers or programs (stage 2) and keeps no Windows to fall
-back on: the countdown is the last exit. Going back later means a new, empty
+back on: the last click is the last exit. Going back later means a new, empty
 Windows ("The way back to Windows"), and the launcher says so before the
 sentence is typed (draft words, awaiting the owner's approval):
 
@@ -647,15 +646,17 @@ sentence is typed (draft words, awaiting the owner's approval):
 
 **Runs on Linux at first boot. Starts by itself, once.** It looks like a welcome
 screen. It is a safety gate: it does not teach Linux, install applications, run
-a tour or check in later. Checking the hardware and bringing the files home are
-the two reasons it exists; the pull belongs here only because it is the first
-safe moment (Linux proven, Windows intact). Where it stands: see
-[STATUS.md](STATUS.md).
+a tour or check in later. Checking the hardware is why it exists; the file
+copy, when it comes (step 2), belongs here as the first safe moment. Where it
+stands: see [STATUS.md](STATUS.md).
 
 1. **Check the hardware.** Speakers (*not headphones*), Wi-Fi, display and
    brightness, suspend/resume. A silent smart amp is the most common complaint
    after an install, and you can't hear it with headphones in.
-2. **Bring the files home** (keep-Windows path). Safe here because the hardware
+2. **Bring the files home** (keep-Windows path). **Decided (2026-11-02, the
+   owner): not built until the project has traction;** until then the files
+   stay on the kept Windows, one boot-menu pick away. The design, kept for
+   then: safe here because the hardware
    is proven and Windows is still whole as a complete backup. Following the
    folder map from `job.json`, `settle-in` mounts the shrunk-aside Windows
    partition, unlocking BitLocker with the harvested recovery key (`cryptsetup`
@@ -837,7 +838,7 @@ might want to keep is a button, never automatic.**
   the stick; on first startup `settle-in` creates the NetworkManager connections
   (WPA/WPA2/WPA3 personal and open; enterprise networks listed, not guessed) and
   deletes its copy. **Every stop removes them from the stick too** (decided
-  2026-09-27, the owner): a prologue stop, a cancelled countdown, a return to
+  2026-09-27, the owner): a prologue stop, a return to
   Windows, an abort, or a launcher that fails after the job was written; a
   re-run exports again.
 - **The old boot entry.** At the end of `settle-in`, on the erase and
@@ -881,7 +882,7 @@ the person to start by hand; rig only (`v11-way-back.csv` line 3). **Decided
 
 **Stage 2, a walk-away reinstall. Decided (2026-09-29, the owner): the way back
 is 100% managed, and it comes now.** An unattended Windows install with its own
-sentence and a countdown as its commit line: the erase path in reverse. It
+sentence, its last click ("Restart now") as its commit line: the erase path in reverse. It
 deletes Linux and `/home`, so (rule #4) it is reviewed hardest. Three answers:
 
 - **Windows comes from Microsoft's catalog, not a browser** (reversing the
@@ -907,13 +908,12 @@ Linux, the "Go back to Windows" program            (nothing changed yet)
   -> choose the stick (R16's rules) -> download from Microsoft's catalog
   -> check size + SHA-1 -> build the stick from the .esd -> read it back
   -> start from the stick once (BootNext: the firmware's own USB entry
-     when it has one, else our own) -> restart
-The stick, WinPE: the gate                         (nothing changed yet)
+     when it has one, else our own) -> "Restart now": THE COMMIT LINE
+The stick, WinPE: the gate                         (nothing erased yet)
   wait for the stick to appear (up to 90 s) -> find each drive by serial
   or world-wide name and exact size, or refuse (plain screen,
-  restart into Linux) -> 2-minute any-key countdown (a key: restart into
-  Linux, untouched)
-  ---- countdown ends: the commit line ----
+  restart into Linux) -> the stick takes a write, read back
+  (the commit line was "Restart now"; no countdown since 2026-11-02)
   record the crossing on the stick -> write the answer file naming the
   drives it found -> Windows Setup, unattended: wipe both drives,
   install -> the account is created and signs in once by itself: the

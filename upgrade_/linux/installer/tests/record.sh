@@ -20,6 +20,7 @@
 #   tests/record.sh --program <upgrade-installer> [<out dir>]
 # Recorded so again for 0.1.3 (2026-10-17: the kickstart's chroot %post
 # moved into `outcome`).
+# Recorded so again for 0.2.0 (2026-11-02: the erase countdown removed).
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROGRAM=

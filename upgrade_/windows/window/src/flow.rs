@@ -198,7 +198,7 @@ pub fn prologue_stop_lines(output: &[String]) -> Vec<String> {
     refusal_lines(output)
 }
 
-// ---------------------------------------------------------------- erase, roll back, probe, cancel
+// ---------------------------------------------------------------- erase, roll back, probe
 
 /// The erase sentence (RISKS R27), byte for byte: the job writer's own.
 pub fn erase_ok(typed: &str) -> bool {
@@ -236,12 +236,6 @@ pub fn erase_prologue_call(stick: &str, erase: &str, ack: &str) -> Call {
 /// RUN-PROBE.cmd: the walk-away probe (it restarts the computer itself).
 pub fn probe_call(stick: &str) -> Call {
     call(1, false, stick, "upgrade-prologue.exe", &["probe", "--stick", "{stick}"])
-}
-
-/// CANCEL-CONVERSION.cmd: the abort, with the stick so the prologue writes
-/// its before-cancel capture there first.
-pub fn abort_call(stick: &str) -> Call {
-    call(1, false, stick, "upgrade-prologue.exe", &["abort", "--stick", "{stick}"])
 }
 
 /// The window's own temporary file for the hash, in %TEMP% as the launcher
@@ -641,9 +635,8 @@ mod tests {
     }
 
     #[test]
-    fn probe_and_cancel_calls() {
+    fn the_probe_call() {
         assert_eq!(command_line(&probe_call("E:")), r"E:\upgrade-prologue.exe probe --stick E:");
-        assert_eq!(command_line(&abort_call("E:")), r"E:\upgrade-prologue.exe abort --stick E:");
     }
 
     #[test]

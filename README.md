@@ -59,7 +59,7 @@ flowchart LR
         X["install · check it boots<br/>write outcome.json"]
     end
     subgraph L["On Linux · first boot"]
-        S["<b>settle-in</b><br/>check again · bring files home<br/>offer to clean up"]
+        S["<b>settle-in</b><br/>check again · Wi-Fi, clock, SSH<br/>undo, if you want"]
     end
     E --> P --> V --> C --> X --> S
     V -. "anything wrong" .-> R["back to Windows,<br/>nothing changed"]
@@ -69,7 +69,7 @@ flowchart LR
 |---|---|---|
 | **`evaluate`** | Windows, read-only | Looks the machine over and asks what you want. Grabs the stuff only Windows knows (where your folders are, the BitLocker key and so on), writes the stick, and says no to anything it can't do safely. |
 | **`upgrade_`** | Windows → Linux | Does the actual move. Normally it shrinks Windows and puts Linux next to it. It only erases the disk if you ask it to. |
-| **`settle-in`** | Linux | Makes sure the hardware works, copies your files over from the old Windows side, then gets out of your way. |
+| **`settle-in`** | Linux | Makes sure the hardware works, sets up Wi-Fi and the clock, then gets out of your way. Your files stay on the Windows side for now: copying them over comes later. |
 
 > [!NOTE]
 > **Right now it only works from Windows.** Nothing about the idea (look,
@@ -83,14 +83,14 @@ right up until then.
 
 | Path | The point of no return | What protects you |
 |---|---|---|
-| **Keep Windows** (the default) | **Clean-up.** Once Linux is working and your files are confirmed, you choose to delete the old Windows part. Until you do, Windows is one pick away in the boot menu. | You decide, after Linux is already running |
-| **Erase and install** | **The wipe.** The installer shows a **2-minute countdown** you can cancel. Until it hits zero, nothing on your disks has changed. | Its own launcher, a sentence you type out, and hardware checks that have to pass first |
+| **Keep Windows** (the default) | **Clean-up**, deleting the old Windows part. It isn't built yet, so for now there is no point of no return: Windows, with your files, stays one pick away in the boot menu. | You decide, after Linux is already running |
+| **Erase and install** | **Your last click.** After the typed sentence and the drive list, the button you click is the point of no return. There's no countdown and no cancel after it. | Its own launcher, a sentence you type out, and hardware checks that have to pass first |
 
 That leads to two rules:
 
-1. The screen says *"you can still cancel"* right up to that moment, and
-   stops saying it the second it's crossed.
-2. **Anything that might say no has to say it before the line.** After it,
+1. The screen says *"you can still stop"* right up to your last click, and
+   says plainly at that click that there's no turning back.
+2. **Anything that might say no has to say it before anything is erased.** After that,
    the only way back is a slow recovery, from a drive that might be the
    thing that's failing.
 

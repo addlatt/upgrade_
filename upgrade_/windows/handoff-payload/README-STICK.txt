@@ -5,8 +5,11 @@ Everything on the Windows side is one program, UPGRADE.exe. Double-click
 UPGRADE.cmd to start it. It scans this computer, says what it found, asks
 what you want, and does it: the conversion (Fedora beside your Windows,
 or a clean slate that erases the computer if you choose that), how to
-roll back (from Linux), or a cancel. It says
-"you can still cancel" until the one moment that is true no longer.
+roll back (from Linux), or a cancel. The last button you click in the
+window is the last moment to stop: after it there is no countdown and no
+turning back. If a safety check fails after that, it stops before
+erasing anything. Your files are not copied into Linux: with Windows
+kept they stay on the Windows side, and a clean slate erases them.
 
 If the scanner refused this computer because its drive is failing or its
 Windows volume needs a repair, there is a separate launcher:

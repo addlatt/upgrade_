@@ -100,7 +100,7 @@ fn run(fn_name: &str, a: &Value) -> Value {
         "Get-PrologueFork" => json!(judge::fork(&text(a, "JobPath"), flag(a, "Fits"))),
         "Get-PrologueEraseStartRefusal" => json!(judge::erase_start_refusal(arg("Job"), &text(a, "ConfirmWord"), &text(a, "EraseConsent"))),
         "Compare-PrologueEraseDisks" => json!(judge::compare_erase_disks(arg("Job"), arg("F"))),
-        "Get-PrologueEraseReturn" => judge::erase_return(arg("Countdown"), arg("Verify")),
+        "Get-PrologueEraseReturn" => judge::erase_return(arg("Commit"), arg("Verify")),
         "Get-HandoffResult" => json!(judge::handoff_result(flag(a, "Fired"), flag(a, "SequenceCleared"), flag(a, "OrderUnchanged"))),
         "grubenv-clean" => {
             let b = judge::grub_env_block();
@@ -216,8 +216,10 @@ fn every_call_matches_powershell() {
 fn the_self_test_is_all_here() {
     let n = cases().iter().filter(|c| c["origin"] == "selftest").count();
     // 144 until 2026-10-17, when the seven of the forced clean slate, its
-    // staging and the staging time estimate left with them (roadmap item 20)
-    assert!(n >= 137, "only {n} self-test cases in cases.json");
+    // staging and the staging time estimate left with them (roadmap item 20);
+    // 137 until 2026-11-02, when the key in the countdown left with the
+    // countdown (the owner: the last click in the window is the commit line)
+    assert!(n >= 136, "only {n} self-test cases in cases.json");
 }
 
 /// Every stopped outcome this code writes from real-shaped inputs passes
@@ -246,12 +248,12 @@ fn stopped_outcomes_pass_the_contract() {
 }
 
 #[test]
-fn a_countdown_the_test_marker_cancelled_never_says_a_key_was_pressed() {
-    // upgrade-installer 0.1.4's one click test marker (the rig, 2026-10-27): the record says which it was
-    let by_marker = judge::erase_return(&json!({"schema": "countdown/1", "result": "cancelled", "seconds": 120, "ended_utc": "2026-10-27T22:22:57Z", "by": "test-marker"}), &Value::Null);
-    assert_eq!(s(&by_marker["StoppedAt"]), "countdown");
-    assert!(s(&by_marker["Reason"]).starts_with("the USB stick's test marker cancelled the countdown"), "{by_marker}");
-    assert!(!s(&by_marker["Reason"]).contains("a key was pressed"));
-    let by_key = judge::erase_return(&json!({"schema": "countdown/1", "result": "cancelled", "seconds": 120, "ended_utc": "2026-10-27T22:22:57Z"}), &Value::Null);
-    assert!(s(&by_key["Reason"]).starts_with("a key was pressed during the countdown"), "a real key keeps its words: {by_key}");
+fn a_crossed_commit_never_says_nothing_was_erased() {
+    // upgrade-installer 0.2.0 writes commit.json just before the erase (2026-11-02)
+    let crossed = judge::erase_return(&json!({"schema": "commit/1", "by": "the-window", "crossed_utc": "2026-11-02T12:00:00Z"}), &json!({"identity": {"result": "pass"}, "payload": {"result": "pass"}}));
+    assert_eq!(s(&crossed["StoppedAt"]), "install");
+    assert!(s(&crossed["Reason"]).contains("may be partly erased"), "{crossed}");
+    assert!(!s(&crossed["Reason"]).contains("nothing was erased"), "{crossed}");
+    let none = judge::erase_return(&Value::Null, &Value::Null);
+    assert!(s(&none["Reason"]).contains("nothing was erased"), "{none}");
 }

@@ -7,8 +7,9 @@
 //!
 //! Both are started by the kickstart upgrade-kickstart writes, run inside
 //! Anaconda's stage 2, and leave everything they learn on the stick under
-//! upgrade_/report/. Two environment variables shorten the waits for the
-//! parity test only: UPG_TEST_COUNTDOWN and UPG_TEST_REFUSAL_SECS.
+//! upgrade_/report/. One environment variable shortens the wait for the
+//! parity test only: UPG_TEST_REFUSAL_SECS (the countdown and its UPG_TEST_COUNTDOWN
+//! left in 0.2.0, 2026-11-02).
 
 mod outcome;
 mod post;

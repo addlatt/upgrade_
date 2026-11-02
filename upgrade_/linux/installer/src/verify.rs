@@ -9,13 +9,13 @@
 //!   2b. the desktop image read back against the stick's manifest (R17);
 //!   2c. the ESP snapshot the rollback restores from (R21);
 //!   3. STORAGE: the kickstart %include for the path the job chose;
-//!   4. COUNTDOWN (erase jobs, R27): two minutes on the console, a key
-//!      cancels, zero is the commit line;
-//!   5. the stick disarms itself at the commit line (R35).
+//!   4. the stick disarms itself (R35);
+//!   5. COMMIT (erase jobs, R27): the window's last click was the commit
+//!      line (decided 2026-11-02); the record goes to the stick, no countdown.
 //! Everything it learns goes to the stick under upgrade_/report/. With
 //! upg.mode=verify on the command line it reports and reboots: no install.
 
-use crate::tty::{is_char_device, other_holders, say_on, Console};
+use crate::tty::{is_char_device, Console};
 use crate::util::*;
 use serde_json::{json, Value};
 use std::path::Path;
@@ -26,9 +26,9 @@ const REPORT: &str = "/run/install/repo/upgrade_/report";
 const STORAGE_KS: &str = "/tmp/upgrade_-storage.ks";
 const LOG: &str = "/tmp/upgrade_-verify.log";
 const ESP_TYPE: &str = "c12a7328-f81f-11d2-ba4b-00a0c93ec93b";
-/// The refusal screen's and the countdown's console: tty9, outside the six
-/// consoles the installer's shell is started on (R38, decided 2026-10-17;
-/// it was tty6, where that shell read the countdown's input)
+/// The refusal screen's console: tty9, outside the six consoles the
+/// installer's shell is started on (decided 2026-10-17; it was tty6). The
+/// countdown that also drew here left on 2026-11-02
 const CTTY: &str = "/dev/tty9";
 const CVT: &str = "9";
 
@@ -458,7 +458,7 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
             esp_result = "skipped";
             let hdev = if home_disk.is_empty() { String::new() } else { Path::new(&home_disk).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default() };
             let drives = if hdev.is_empty() { dev.clone() } else { format!("{dev},{hdev}") };
-            let mut t = format!("# written by verify.sh: erase-and-install on {drives} - the countdown before this is the commit line (R27)\nzerombr\nignoredisk --only-use={drives}\nclearpart --all --initlabel --drives={drives}\nbootloader --location=mbr --boot-drive={dev}\npart /boot/efi --fstype=efi --size=600 --ondisk={dev}\npart /boot     --fstype=ext4 --size=1024 --ondisk={dev}\npart /         --fstype=ext4 --size=4096 --grow --ondisk={dev}\n");
+            let mut t = format!("# written by verify.sh: erase-and-install on {drives} - the window's last click was the commit line (R27)\nzerombr\nignoredisk --only-use={drives}\nclearpart --all --initlabel --drives={drives}\nbootloader --location=mbr --boot-drive={dev}\npart /boot/efi --fstype=efi --size=600 --ondisk={dev}\npart /boot     --fstype=ext4 --size=1024 --ondisk={dev}\npart /         --fstype=ext4 --size=4096 --grow --ondisk={dev}\n");
             if !hdev.is_empty() {
                 t.push_str(&format!("part /home     --fstype=ext4 --size=1024 --grow --ondisk={hdev}\n"));
             }
@@ -536,161 +536,7 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
         refuse(&c, 25, "this version cannot yet put your files back on an erased computer", "a clean slate with staged files needs the restore, which this version does not have");
     }
 
-    // --- 4. the countdown: the last exit before the erase (R27, rule #3)
-    if erase {
-        let count_secs = test_secs("UPG_TEST_COUNTDOWN", 120);
-        let what = if home_disk.is_empty() { "THIS COMPUTER'S DRIVE" } else { "BOTH DRIVES" };
-        let model = |d: &str| run("lsblk", &["-dno", "MODEL", d]).out.split_whitespace().collect::<Vec<_>>().join(" ");
-        let mut names = model(&disk);
-        if !home_disk.is_empty() {
-            names = format!("{names} and {}", model(&home_disk));
-        }
-        let record = |result: &str, by: Option<&str>| {
-            let mut rec = json!({"schema": "countdown/1", "result": result, "seconds": count_secs as i64, "ended_utc": utc_now()});
-            if let Some(b) = by {
-                rec["by"] = json!(b);
-            }
-            let _ = std::fs::write(format!("{REPORT}/countdown.json"), serde_json::to_string_pretty(&rec).unwrap_or_default());
-            let _ = std::fs::copy(LOG, format!("{REPORT}/verify.log"));
-            sync();
-            sync();
-        };
-        if !is_char_device(CTTY) || !run("chvt", &[CVT]).ok() {
-            let chvt = std::env::var_os("PATH").and_then(|p| std::env::split_paths(&p).map(|d| d.join("chvt")).find(|p| p.is_file())).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|| "missing".into());
-            refuse(&c, 26, "the last-chance countdown could not be shown, and nothing is erased without it", &format!("the countdown could not be shown on {CTTY} (chvt: {chvt}) - no erase without a visible last exit"));
-        }
-        // R38: a key meant to cancel must reach the countdown and nothing else.
-        // Another program holding the console open could read it first, so
-        // the countdown does not start (a refusal here erases nothing)
-        let held = other_holders(CTTY);
-        if !held.is_empty() {
-            refuse(&c, 30, "another program was reading the screen the last-chance countdown uses, so a key pressed to cancel might not be heard", &format!("another process holds {CTTY} open: {} - no countdown a cancel might not reach (R38)", held.join(", ")));
-        }
-        c.log.say(&format!("== countdown console {CTTY}: no other process holds it"));
-        c.log.say(&format!("== countdown: {} s on {CTTY}, erasing {what} ({names})", count_secs as i64));
-        let mut con = match Console::open(CTTY) {
-            Ok(k) => k,
-            Err(e) => {
-                c.log.say(&format!("== countdown could not open the console: {e}"));
-                refuse(&c, 26, "the last-chance countdown could not be shown, and nothing is erased without it", "the countdown could not run (python exit 1) - no erase without a visible last exit");
-            }
-        };
-        c.log.say(&format!("== countdown console {}x{}", con.cols, con.rows));
-        if con.cols < 40 {
-            match con.resize(25, 80) {
-                Ok(()) => c.log.say(&format!("== countdown console set to {}x{}", con.cols, con.rows)),
-                Err(e) => c.log.say(&format!("== countdown console could not be resized: {e}")),
-            }
-        }
-        let width = (con.cols as usize).min(100).saturating_sub(6).max(20);
-        let names_c = names.clone();
-        let screen = move |left: u64| {
-            let mut body = vec![format!("ERASING {what} IN {}:{:02}", left / 60, left % 60), String::new(), "Windows and everything on this computer will be deleted.".to_string()];
-            if !names_c.is_empty() {
-                body.push(format!("({names_c})"));
-            }
-            body.push(String::new());
-            body.push("Press any key to CANCEL and restart into Windows.".into());
-            let mut lines = Vec::new();
-            for b in &body {
-                let w = wrap(b, width);
-                if w.is_empty() {
-                    lines.push(String::new());
-                } else {
-                    lines.extend(w);
-                }
-            }
-            format!("\x1b[2J\x1b[H\n\n{}", lines.iter().map(|l| format!("   {l}\n")).collect::<String>())
-        };
-        // a console that stops taking writes ends the countdown as cancelled: the
-        // script's Python died there (exit 1), which bash read as a cancel. Never
-        // an erase behind a screen nobody can see (rule #3)
-        // and no other program opens it while the countdown runs: checked once a
-        // second; one that does ends the countdown and refuses (R38)
-        con.guard = Some(Box::new(|| other_holders(CTTY)));
-        // The one click test's cancel (roadmap item 21; decided 2026-10-17, the owner): a
-        // file on the stick that can only CANCEL, after the seconds it holds, as a key
-        // would. Its only power is the safe direction (rule #1): unreadable, it still
-        // cancels; it never shortens the wait before an erase. The screen shows the
-        // real countdown, a real key still cancels, and the record says which it was.
-        let marker = format!("{STICK}/upgrade_/test-cancel-countdown");
-        let test_cancel = exists(&marker).then(|| {
-            let n = std::fs::read_to_string(&marker).ok().and_then(|t| t.trim().parse::<f64>().ok()).unwrap_or(5.0);
-            n.clamp(1.0, (count_secs - 1.0).max(1.0))
-        });
-        let waited = match test_cancel {
-            None => con.wait(count_secs, &screen, true),
-            Some(n) => {
-                c.log.say(&format!("== countdown: the stick's test marker cancels it after {n:.0} s, as a key would"));
-                let shown = move |left: u64| screen(left + (count_secs - n) as u64);
-                match con.wait(n, &shown, true) {
-                    Ok((false, e)) => Ok((true, e)),
-                    other => other,
-                }
-            }
-        };
-        let by_marker = test_cancel.is_some() && con.key_bytes.borrow().is_empty();
-        let held = con.held_by.borrow().clone();
-        if !held.is_empty() {
-            drop(con);
-            refuse(&c, 30, "another program was reading the screen the last-chance countdown uses, so a key pressed to cancel might not be heard", &format!("another process opened {CTTY} during the countdown: {} - the countdown stopped, nothing erased (R38)", held.join(", ")));
-        }
-        for r in con.reports.borrow().iter() {
-            let hex: Vec<String> = r.iter().map(|b| format!("{b:02x}")).collect();
-            c.log.say(&format!("== countdown ignored the console's cursor report(s), not a key: {}", hex.join(" ")));
-        }
-        if matches!(waited, Ok((true, _))) {
-            let hex: Vec<String> = con.key_bytes.borrow().iter().map(|b| format!("{b:02x}")).collect();
-            c.log.say(&format!("== countdown key read: {}", hex.join(" ")));
-        }
-        if con.reopens.get() > 0 {
-            c.log.say(&format!("== countdown opened {CTTY} again {} time(s): it had been hung up", con.reopens.get()));
-        }
-        let keyed = match waited {
-            Ok((keyed, elapsed)) => {
-                c.log.say(&format!("== countdown {} after {elapsed:.1} s", if keyed { "cancelled" } else { "elapsed" }));
-                keyed
-            }
-            Err(e) => {
-                c.log.say(&format!("!! the countdown stopped: {CTTY} could not be written ({e}); taken as a cancel"));
-                true
-            }
-        };
-        drop(con);
-        if keyed {
-            say_on(CTTY, "\x1b[2J\x1b[H\n\n   CANCELLED. Nothing was erased. Restarting into Windows...\n");
-            if by_marker {
-                c.log.say("== countdown CANCELLED by the stick's test marker, not a key - nothing erased; restarting into Windows");
-                record("cancelled", Some("test-marker"));
-            } else {
-                c.log.say("== countdown CANCELLED by a key press - nothing erased; restarting into Windows");
-                record("cancelled", None);
-            }
-            run("mount", &["-o", "remount,rw", STICK]);
-            let _ = std::fs::remove_file(format!("{STICK}/upgrade_/boot-install"));
-            if by_marker {
-                let _ = std::fs::remove_file(&marker);
-            }
-            sync();
-            if exists(&format!("{STICK}/upgrade_/boot-install")) {
-                c.log.say("!! boot-install could not be removed after the cancel");
-            } else {
-                c.log.say("== boot-install removed from the stick");
-            }
-            let _ = std::fs::copy(LOG, format!("{REPORT}/verify.log"));
-            sync();
-            sleep("3");
-            reboot();
-            sleep("60");
-            return 27;
-        }
-        say_on(CTTY, "\x1b[2J\x1b[H\n\n   Erasing and installing Fedora. This takes a while; you can walk away.\n");
-        c.log.say(&format!("== countdown ELAPSED - the commit line: the installer now erases {what}"));
-        record("elapsed", None);
-        run("chvt", &["1"]);
-    }
-
-    // --- 5. the stick disarms itself at the commit line (R35)
+    // --- 4. the stick disarms itself (R35)
     run("mount", &["-o", "remount,rw", STICK]);
     let _ = std::fs::write(&converted, format!("verify {FOLLOWS} job {} committed {}\n", c.job_id, utc_now()));
     let _ = std::fs::remove_file(format!("{STICK}/upgrade_/boot-install"));
@@ -702,6 +548,18 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
         refuse(&c, 29, "this USB stick could not be switched off as an installer, and without that it could install again by itself", "could not write upgrade_/converted or remove upgrade_/boot-install on the stick - no install without a disarmed stick (R35)");
     }
     c.log.say("== the stick is disarmed: upgrade_/converted written, upgrade_/boot-install removed");
+    // --- 5. the commit record (erase jobs, R27). Decided 2026-11-02, the
+    // owner: the window's last click is the commit line, with no countdown
+    // and no key after it. Written only once every refusal above has passed
+    // and the stick is disarmed, so a stick that refused (29) never also says
+    // it committed (rule #1)
+    if erase {
+        let rec = json!({"schema": "commit/1", "by": "the-window", "crossed_utc": utc_now()});
+        let _ = std::fs::write(format!("{REPORT}/commit.json"), serde_json::to_string_pretty(&rec).unwrap_or_default());
+        sync();
+        sync();
+        c.log.say("== erase job: the commit line was the window's last click; no countdown (decided 2026-11-02)");
+    }
     let _ = std::fs::copy(LOG, format!("{REPORT}/verify.log"));
     sync();
     0

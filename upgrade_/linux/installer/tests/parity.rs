@@ -10,7 +10,12 @@
 //! %post moved into `outcome`, post.rs), reviewed as a diff: the 31 verify
 //! cases unchanged, no old case's outcome.json moved, the outcome cases
 //! gained the post step's tool calls, files and log lines, and six new
-//! cases (keep-Windows and erase, console and desktop). This
+//! cases (keep-Windows and erase, console and desktop). Recorded again
+//! from the program for 0.2.0 (2026-11-02: the erase countdown removed,
+//! the owner's decision that the window's last click is the commit line),
+//! reviewed as a diff: six countdown cases gone (52 to 46), the erase cases
+//! without the countdown's screens, tool calls and lines, `commit.json`
+//! in place of `countdown.json`, no keep-Windows case moved. This
 //! test runs the program through the same sandbox for every case and requires the same result: the exit code,
 //! every line printed, every file left on the stick, in the installed
 //! system and under /tmp, every tool called in order, every screen drawn

@@ -15,7 +15,8 @@
 //! (RUN-CONVERT.cmd: keep Windows, install Linux beside it), erase
 //! (RUN-ERASE-AND-INSTALL.cmd; since 2026-10-17 Convert's clean-slate answer,
 //! not a button of its own), roll back (a pointer to Linux since 2026-10-17), the walk-away
-//! probe (RUN-PROBE.cmd) and cancel (CANCEL-CONVERSION.cmd). The data-loss
+//! probe (RUN-PROBE.cmd). The cancel button (CANCEL-CONVERSION.cmd) left on
+//! 2026-11-02 (the owner: the last click is the last turn back). The data-loss
 //! variants of convert and erase are reached only by starting the window
 //! with --accepting-data-loss, its own launcher, as rule #1 asks. Verify and
 //! the probe show only with --developer (roadmap item 20, 2026-10-17): they
@@ -403,7 +404,7 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
     }
 }
 
-/// RUN-PROBE.cmd and CANCEL-CONVERSION.cmd are one call each;
+/// RUN-PROBE.cmd is one call;
 /// the probe restarts the computer itself, so the window cannot close while
 /// it runs.
 fn one_call(stick: String, c: flow::Call, restarts: bool, tx: Sender<Msg>, guard: Shared) {
@@ -473,7 +474,6 @@ enum Flow {
     Erase,
     Rollback,
     Probe,
-    Cancel,
 }
 
 /// The first screen's buttons. Verify and Probe make the rows (V0, V1, R24)
@@ -494,7 +494,6 @@ fn first_screen(accepting_data_loss: bool, developer: bool) -> Vec<(&'static str
     if developer {
         v.push((words::CHOOSE_PROBE, words::CHOOSE_PROBE_LINE, Flow::Probe));
     }
-    v.push((words::CHOOSE_CANCEL, words::CHOOSE_CANCEL_LINE, Flow::Cancel));
     v
 }
 
@@ -623,7 +622,6 @@ impl App {
                     self.arming = false;
                     self.screen = match (self.flow, code) {
                         (Flow::Probe, 0) => Screen::Done(words::PROBE_RESTARTING_HEADING.into(), words::PROBE_RESTARTING_LINE.into()),
-                        (Flow::Cancel, 0) => Screen::Done(words::CANCEL_DONE_HEADING.into(), words::CANCEL_DONE_LINE.into()),
                         (_, _) => Screen::Stopped(Stop::Refused(flow::refusal_lines(&lines))),
                     };
                 }
@@ -880,7 +878,6 @@ impl eframe::App for App {
                             Flow::Erase => (words::ERASE_RUNNING_HEADING, &words::ERASE_STEPS),
                             Flow::Rollback => (words::ROLLBACK_HEADING, &[]),
                             Flow::Probe => (words::PROBE_RUNNING, &[]),
-                            Flow::Cancel => (words::CANCEL_RUNNING, &[]),
                         };
                         heading(ui, h);
                         if names.is_empty() {
@@ -976,7 +973,6 @@ impl eframe::App for App {
                                     ui,
                                     match self.flow {
                                         Flow::Convert | Flow::Erase => words::CONVERT_STOPPED_HEADING,
-                                        Flow::Cancel => words::CANCEL_FAILED_HEADING,
                                         _ => words::STOPPED_HEADING,
                                     },
                                 );
@@ -1018,10 +1014,7 @@ impl eframe::App for App {
                         details(ui, &self.log);
                     }
                     Screen::Ask => {
-                        let (h, lines, button): (&str, &[&str], &str) = match self.flow {
-                            Flow::Probe => (words::PROBE_HEADING, &words::PROBE_LINES, words::PROBE_GO),
-                            _ => (words::CANCEL_HEADING, &words::CANCEL_LINES, words::CANCEL_GO),
-                        };
+                        let (h, lines, button): (&str, &[&str], &str) = (words::PROBE_HEADING, &words::PROBE_LINES, words::PROBE_GO);
                         heading(ui, h);
                         for l in lines {
                             para(ui, l);
@@ -1081,7 +1074,7 @@ impl eframe::App for App {
                 Flow::Verify => Screen::Welcome,
                 Flow::Convert | Flow::Erase => Screen::ConvertSetup,
                 Flow::Rollback => Screen::Done(words::ROLLBACK_HEADING.into(), words::ROLLBACK_FROM_LINUX.into()),
-                Flow::Probe | Flow::Cancel => Screen::Ask,
+                Flow::Probe => Screen::Ask,
             };
         }
         match press {
@@ -1122,10 +1115,6 @@ impl eframe::App for App {
                 Flow::Probe => {
                     let c = flow::probe_call(&self.stick);
                     self.start_one(&ctx, c, true);
-                }
-                Flow::Cancel => {
-                    let c = flow::abort_call(&self.stick);
-                    self.start_one(&ctx, c, false);
                 }
                 _ => {}
             },
@@ -1171,7 +1160,6 @@ fn preview(name: &str) -> (Screen, Flow, bool) {
         "erase-restarting" => (Screen::ConvertRestarting, Flow::Erase, false),
         "rollback" => (Screen::Done(words::ROLLBACK_HEADING.into(), words::ROLLBACK_FROM_LINUX.into()), Flow::Rollback, false),
         "probe" => (Screen::Ask, Flow::Probe, false),
-        "cancel" => (Screen::Ask, Flow::Cancel, false),
         "convert-stopped" => (Screen::Stopped(Stop::Prologue(vec!["STOPPED at revalidate: job.json no longer matches this machine: volume_health.repair_queued: job says 'False', machine says 'True'".into(), "outcome.json (stopped) written to the stick".into()])), Flow::Convert, false),
         _ => (Screen::Welcome, Flow::Verify, false),
     }
@@ -1262,13 +1250,13 @@ mod tests {
     use super::*;
 
     fn flows(a: bool, d: bool) -> Vec<&'static str> {
-        first_screen(a, d).iter().map(|(_, _, f)| match f { Flow::Verify => "verify", Flow::Convert => "convert", Flow::Erase => "erase", Flow::Rollback => "rollback", Flow::Probe => "probe", Flow::Cancel => "cancel" }).collect()
+        first_screen(a, d).iter().map(|(_, _, f)| match f { Flow::Verify => "verify", Flow::Convert => "convert", Flow::Erase => "erase", Flow::Rollback => "rollback", Flow::Probe => "probe" }).collect()
     }
 
     #[test]
     fn verify_and_probe_only_with_the_developer_flag() {
-        assert_eq!(flows(false, false), ["convert", "rollback", "cancel"]);
-        assert_eq!(flows(false, true), ["verify", "convert", "rollback", "probe", "cancel"]);
+        assert_eq!(flows(false, false), ["convert", "rollback"], "no cancel button since 2026-11-02");
+        assert_eq!(flows(false, true), ["verify", "convert", "rollback", "probe"]);
     }
 
     #[test]

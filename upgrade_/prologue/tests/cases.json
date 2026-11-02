@@ -2886,29 +2886,13 @@
   ]
  },
  {
-  "name": "erase return: a key in the countdown is stopped_at countdown, nothing erased",
-  "origin": "selftest",
-  "calls": [
-   {
-    "fn": "Get-PrologueEraseReturn",
-    "args": {
-     "Countdown": {
-      "result": "cancelled",
-      "ended_utc": "2026-09-26T22:00:00Z"
-     },
-     "Verify": null
-    }
-   }
-  ]
- },
- {
   "name": "erase return: the installer refusing on identity is stopped_at identity",
   "origin": "selftest",
   "calls": [
    {
     "fn": "Get-PrologueEraseReturn",
     "args": {
-     "Countdown": null,
+     "Commit": null,
      "Verify": {
       "identity": {
        "result": "fail"
@@ -2922,15 +2906,16 @@
   ]
  },
  {
-  "name": "erase return: a countdown that elapsed and still came back says the drives may be partly erased - never \"nothing\"",
+  "name": "erase return: a commit crossed and still came back says the drives may be partly erased - never \"nothing\"",
   "origin": "selftest",
   "calls": [
    {
     "fn": "Get-PrologueEraseReturn",
     "args": {
-     "Countdown": {
-      "result": "elapsed",
-      "ended_utc": "t"
+     "Commit": {
+      "schema": "commit/1",
+      "by": "the-window",
+      "crossed_utc": "t"
      },
      "Verify": null
     }
@@ -3759,7 +3744,7 @@
    {
     "fn": "Get-PrologueEraseReturn",
     "args": {
-     "Countdown": null,
+     "Commit": null,
      "Verify": {
       "identity": {
        "result": "pass"
@@ -3774,7 +3759,7 @@
    {
     "fn": "Get-PrologueEraseReturn",
     "args": {
-     "Countdown": null,
+     "Commit": null,
      "Verify": null
     }
    }

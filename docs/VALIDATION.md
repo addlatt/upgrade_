@@ -369,35 +369,35 @@ reports) and a healthy drive
 **Why it has its own gate.** The owner's first end-to-end destructive
 target (decided 2026-09-26): erase every internal drive, install Fedora,
 keep nothing (`architecture.md`, "Erase and install"). Its commit line is
-a 2-minute cancellable countdown in the installer, and it has its own
-launcher and typed sentence.
+the last click in the window (decided 2026-11-02, the owner; a 2-minute
+countdown in the installer until then), after its own typed sentence.
 
-**What passes.** Four arms in `v9-erase.csv`, one row each, written by
+**What passes.** Three arms in `v9-erase.csv`, one row each, written by
 `rig/hyperv/v9-verdict.py` from the arm's own evidence, never by hand:
 
 - A, refuse: a job naming a disk that is not attached; `%pre` refuses
-  before any countdown, on one plain screen in the owner's words, and the
-  machine restarts into an untouched Windows: `refused-before-countdown`;
-- B, cancel: a key during the countdown; Windows comes back, both disks
-  byte-unchanged at the partition table: `cancelled-untouched`;
-- C, erase: the countdown left alone; both disks cleared, Fedora on the
-  first, `/home` on the second, `outcome.json` with the commit line
-  crossed at the countdown's end, the account's password signs in, and the
+  before erasing anything, on one plain screen in the owner's words, and the
+  machine restarts into an untouched Windows: `refused-before-countdown`
+  (the word kept from before 2026-11-02, so old and new rows compare);
+- B, cancel: gone with the countdown (2026-11-02); its rows stay as history;
+- C, erase: both disks cleared, Fedora on the first, `/home` on the second,
+  `outcome.json` with the commit line crossed at `commit.json`'s time and
+  `human_gate` `typed-in-the-window`, the account's password signs in, and the
   chosen screen (KDE, GNOME or the text console, `graphical_login`) comes
   up: `erased-installed`;
 - D, not installed again (R35): the stick left in and first in the boot
-  order after C hands over to the installed Fedora, no countdown, both
+  order after C hands over to the installed Fedora, nothing erased, both
   disks unchanged: `not-installed-again`.
 
-`fail` is kept, never removed. The gate passes when all four hold on the
+`fail` is kept, never removed. The gate passes when all three hold on the
 rig, then on a real machine: one click, the two typed answers, nobody at
 the keyboard afterwards, Fedora signs in at the chosen screen. Vocabulary:
 `validation-results/README.md`.
 
 **How it is run.** `rig/hyperv/v9.sh` on a copy of the rig's Windows disk
 plus a blank second disk (arm A is armed by the V0 harness), with the
-installer's verify step (the countdown; the `converted` and `boot-install`
-markers on the stick) and its outcome step. Then the Aspire: the system on the
+installer's verify step (the `commit.json` record; the `converted` and
+`boot-install` markers on the stick) and its outcome step. Then the Aspire: the system on the
 failing SSD under R23, `/home` on the 1 TB drive, the rows written by the
 same verdict script from the machine's own records (`disks_unchanged`
 there compares partition tables only). Residue: a vendor's firmware
@@ -414,7 +414,7 @@ R35). The rig's latest, with the countdown on tty9 (R38): lines 41 and 42
 (`cancelled-untouched`), 43 (`erased-installed`) and 44
 (`not-installed-again`), 2026-10-17 ([log](log/2026-10.md#2026-10-17-later-r38-built-held-on-the-rig-arms-b-c-and-d-pass-r38-v9-r37-v13)); line 40 (`fail`, arm C
 cancelled itself) stays; lines 33 to 38 were judged from older runs'
-records ([log](log/2026-10.md#2026-10-16-the-rigs-v9-rows-since-2026-10-08-were-judged-from-older-runs-records-v9-r27-r37-r38-roadmap-item-19-step-5)). Owed: arm A again, other vendors' firmware, and the old-entry button on
+records ([log](log/2026-10.md#2026-10-16-the-rigs-v9-rows-since-2026-10-08-were-judged-from-older-runs-records-v9-r27-r37-r38-roadmap-item-19-step-5)). Owed: arms A, C and D with `upgrade-installer` 0.2.0 (no countdown), other vendors' firmware, and the old-entry button on
 real firmware (nothing was left for it to remove)
 ([log](log/2026-10.md#2026-10-04-the-aspires-run-11-passed-the-first-clean-conversion-v9-v10-r27-r35)).
 
@@ -484,12 +484,11 @@ steps, each on the rig before a real machine:
 3. the guided stick (`settle-in go-back`), rig only (`v11-way-back.csv`);
    it left the product on 2026-10-17 (roadmap item 20), so no more rows;
 4. the walk-away reinstall (R33), four arms as V9 has, in
-   `v11-walkaway.csv`: refuse before any countdown, both disks unchanged,
-   Linux starting again; cancel on a key, untouched
-   (`cancelled-untouched`); erase with nobody at the keyboard from the
-   restart to the Windows sign-in, both disks rewritten, the gate's record
-   on the stick (`windows-reached`); the stick left in never counts down
-   again. The erase arm also passes only when the new Windows shows the
+   `v11-walkaway.csv`: refuse before erasing anything, both disks
+   unchanged, Linux starting again; erase with nobody at the keyboard from
+   the restart to the Windows sign-in, both disks rewritten, the gate's
+   record on the stick (`windows-reached`); the stick left in never erases
+   again. The cancel arm left with the gate's countdown (2026-11-02). The erase arm also passes only when the new Windows shows the
    right time in the right zone before any network, is on the network the
    Linux side knew at its first start with no Wi-Fi password left on the
    stick (added 2026-10-02, the owner), and, where Linux had SSH on, its
@@ -502,8 +501,7 @@ Vocabulary: `validation-results/README.md`.
 writes a file, never a disk, and `rig/hyperv/v11-stick.ps1` boots it in a new
 Generation 2 VM, Secure Boot on, offline, with an empty 64 GB target; the
 walk-away arms start from a Fedora the V9 rig installed, two disks,
-spoofed networks. The Aspire: a real stick, a physical cancel first, then
-the erase, the rows written by `rig/hyperv/v11w-verdict.py` from the
+spoofed networks. The Aspire: a real stick, then the erase, the rows written by `rig/hyperv/v11w-verdict.py` from the
 records copied off the stick. Residue: activation on a real licence, a
 real network at first start, a real firmware's USB entry.
 
@@ -515,7 +513,7 @@ that day); line 3, `windows-reached` (2026-10-04); line 4,
 driven over ssh, a second stick). The guided stick, gone since 2026-10-17:
 `v11-way-back.csv` line 3, `pass-plumbing` (rig, 2026-09-27). Owed: a second machine with a
 firmware key, the Windows 10 path on a machine that cannot run Windows 11,
-the licence harvest as a row ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
+the licence harvest as a row, gate 0.5.0 (no countdown) on a machine ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
 
 # Tier 3: silent data loss (the trust-ending class)
 

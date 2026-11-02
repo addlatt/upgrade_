@@ -867,13 +867,12 @@ pull, and a first physical install row (rule #4)
 **What.** A launcher that, after one typed sentence and a password, erases
 every internal drive and installs Fedora with nothing kept
 (`architecture.md`, "Erase and install"). The first path whose commit line
-destroys everything on the machine; a 2-minute countdown in the installer is
-that line. The owner chose it as the first destructive path to prove end to
-end: the mechanism before the migration.
+(the last click in the window) destroys everything on the machine. The owner
+chose it as the first destructive path to prove end to end.
 
 **If real.** The wrong drive is erased (every drive is named by serial,
 unique id and size, checked in Windows and again in the installer); the
-countdown does not show, or does not cancel; the sentence is typed unread; a
+sentence is typed unread, with no second chance after the click; a
 failing drive fails the install after the line; a wrong password hash makes
 an account nobody can open.
 
@@ -886,20 +885,21 @@ with R23's also typed on a RED machine; carrying files across is stage 2.
 **Decided (2026-09-27, the owner):** the launcher asks what the computer
 starts at (KDE, GNOME or the text console) and names the sign-in on screen.
 
-**Decided (2026-10-17, the owner):** a one click test's cancel is a marker
-that can only cancel (`upgrade-installer` 0.1.4): `upgrade_/test-cancel-countdown`
-cancels after its seconds as a key would, still cancels when unreadable,
-never shortens the wait, and `countdown.json` says `by: test-marker`.
+**Decided (2026-11-02, the owner): no countdown.** The last click in the
+window is the commit line; the countdown and the one click test's cancel
+marker (decided 2026-10-17, its text in the log) left with
+`upgrade-installer` 0.2.0. Every refusal in the installer still comes first.
 
-**Closes when.** The rig arms (refuse, cancel, erase) and one physical row:
-one click, the sentences, nobody at the keyboard, Fedora signing in with the
+**Closes when.** The rig arms (refuse, erase) and one physical row: one
+click, the sentences, nobody at the keyboard, Fedora signing in with the
 chosen password at the graphical sign-in screen. Met 2026-10-04 (run 11).
 
 **Where it stands.** `[####]` `v9-erase.csv` lines 30 to 32 (the Aspire,
 2026-10-04 and 2026-10-06: installed, not installed again, cancelled
-untouched); two physical fails stay (lines 11 and 22). Kept open for: other
-firmware, a healthy drive, a plain-words screen after a failed install, the
-arm C5 hang, the computer kept awake (R33)
+untouched; the cancel is history since 2026-11-02); two physical fails stay
+(lines 11 and 22). Kept open for: other firmware, a healthy drive, a
+plain-words screen after a failed install, the arm C5 hang, the computer
+kept awake (R33)
 ([log](log/2026-10.md#2026-10-04-the-aspires-run-11-the-first-clean-conversion-r27-r35-v9)).
 
 ## R28: settle-in runs on any Linux · high · held-on-machine
@@ -1088,35 +1088,37 @@ write rows, settle-in's starter, the rebuild by someone else ([log](log/2026-10.
 **What.** "Go back to Windows", 100% managed (`architecture.md`, "The way
 back to Windows", stage 2). From the installed Linux: download Windows from
 Microsoft's catalog, build a stick, restart into it once; a gate of ours on
-the stick matches the drives and counts down 2 minutes; then Windows Setup
+the stick matches the drives (no countdown since 2026-11-02); then Windows Setup
 erases both internal drives and installs Windows with nobody at the
 keyboard. R27 in reverse, so it carries R27's bar and rule #4.
 
 **If real.** The wrong drive (WinPE's disk numbers differ, so the gate
 matches by serial or world-wide name and exact size); a download that is not
 Microsoft's (plain HTTP; size and SHA-1 against the catalog, whose signature
-is not checked yet); the countdown does not cancel; Setup waits at a screen
+is not checked yet); a click made in haste; Setup waits at a screen
 with Linux already erased; the firmware ignores `BootNext` (safe) or keeps
 it (Setup twice); Windows 11 refuses the processor; a passwordless account.
 
 **Decided (2026-09-29, the owner):** Microsoft's catalog; both drives erased,
 the second left empty; the commit line in the gate on the stick, before Setup.
+**Amended (2026-11-02, the owner):** the commit line is "Restart now", the
+last click; the gate's countdown left with `upgrade-gate` 0.5.0.
 
 **Decided (2026-10-02, the owner):** the way back carries Wi-Fi, as every OS
 switch does. **Decided (2026-10-04, the owner):** it carries the time and
 remote access (SSH, keys only) too. **Decided (2026-10-05, the owner):** the
 product keeps the computer awake while it works, on both sides; backlog.
 
-**Closes when.** Rig arms refuse, cancel and erase pass with Secure Boot on,
-nobody at the keyboard, ending at the Windows sign-in; then one real machine
-(the Aspire, under R23) with a physical cancel before the erase. V11, step 4.
+**Closes when.** Rig arms refuse and erase pass with Secure Boot on, nobody
+at the keyboard, ending at the Windows sign-in; then one real machine (the
+Aspire, under R23). V11, step 4.
 
 **Where it stands.** `[####]` `oneclick-runs.csv` line 34 (2026-10-29,
 `windows-reached`, the one click test holding the sleep lock settle-in
 lacks: no inhibitor exists in its code, audit 2026-11-01); `v11-walkaway.csv`
 lines 2 to 5 (2026-10-03 to 2026-10-11, one `fail` fixed the same day; the
-full list moved to the [log](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13)). Owed: a
-cancel started by the program's own restart; never-twice on real firmware;
+full list moved to the [log](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13)). Owed:
+gate 0.5.0 on a machine; never-twice on real firmware;
 settle-in's own sleep lock; the program findable from the desktop and a
 no-serial stick refused (the owner's call); the stale entry each Prepare
 leaves ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
@@ -1256,46 +1258,6 @@ rig and on one real machine.
 screens (`rig/hyperv/artifacts/v9/Bdiag-installer-boot-hung-2026-10-15/`,
 `B-installer-boot-hung-2026-10-17/`; [log](log/2026-10.md#2026-10-17-later-r38-built-held-on-the-rig-arms-b-c-and-d-pass-r38-v9-r37-v13)). Nothing is built.
 
-## R38: The installer's shell shares the countdown's console · critical · held-on-rig
-
-**What.** Fedora's installer starts a root shell on any console it is
-switched to. The verify step switches to tty6 for the refusal screen and
-the erase countdown, so that shell starts there and reads the same
-keyboard. A key the person presses to cancel can go to the shell instead.
-
-**If real.** The cancel is the commit line's only exit (rule #3). A key the
-shell takes is a cancel nobody hears; a person who presses once and waits
-sees the countdown run out, and both drives are erased. Critical.
-
-**Evidence so far (the rig).** The shell's prompt sat on tty6 during the
-verify step and read the console's own cursor reports out of the countdown's
-input: the countdown cancelled itself on the rest (`v9-erase.csv` line 40,
-`fail`, 2026-10-16; [log](log/2026-10.md#2026-10-16-the-rigs-v9-rows-since-2026-10-08-were-judged-from-older-runs-records-v9-r27-r37-r38-roadmap-item-19-step-5)).
-The false cancel is the safe direction; the same race the other way is an
-erase.
-
-**Decided (2026-10-17, the owner): the countdown moves to a console the
-installer never gives a shell.** The refusal screen and the countdown leave
-tty6 for tty9, outside the six consoles systemd starts a shell on (that
-this is how the shell starts is our reading of Fedora's installer, not yet
-seen on the rig). Before the countdown, `upgrade-installer` checks that no
-other process holds tty9 open, and refuses if one does: a refusal there
-erases nothing (rule #1). Not chosen: stopping the shell while the
-countdown runs (still a race, at the commit line) and turning the shell off
-with a boot option (it rests on the service's name in every release, and
-fails silently when the name is wrong).
-
-**Closes when.** The countdown's console has no other reader while it runs,
-and a rig row shows every key sent being read, then one real machine.
-
-**Where it stands.** `[###.]` held-on-rig. Built in `upgrade-installer`
-0.1.2 (it also checks once a second during the countdown). On the rig the
-first of three keys sent was read, twice (`v9-erase.csv` lines 41, 42), the
-countdown ran its 120 s with no key (line 43); tty9 had no other holder and
-the shell is logind's, tty1 to tty6 ([log](log/2026-10.md#2026-10-17-later-r38-built-held-on-the-rig-arms-b-c-and-d-pass-r38-v9-r37-v13)). Owed: a real
-machine. No filter can tell half a cursor report from a key,
-so none is tried. The two console faults the port met on the way are fixed ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
-
 ## R39: A keep-Windows conversion lands beside a Linux already on the disk · high · planned
 
 **What.** Nothing in the scanner, the job writer or the prologue looks for
@@ -1319,6 +1281,18 @@ the product does instead), with a rig row and one real machine.
 was cleared by hand before the one click test ([log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)).
 
 # Closed
+
+## R38: The installer's shell shares the countdown's console · critical · closed
+
+**What.** Fedora's installer starts a root shell on the console the erase
+countdown used, so a key pressed to cancel could go to the shell instead.
+**If real.** A cancel nobody hears; the drives erased anyway.
+**Closes when.** The countdown's console has no other reader.
+**Where it stands.** Closed by removal, not by a row: the countdown left the
+product (decided 2026-11-02, the owner; `upgrade-installer` 0.2.0, whose
+frozen golden has no countdown screen). Its rig rows stay as history
+(`v9-erase.csv` lines 40 to 43).
+[log](log/2026-11.md#2026-11-02-the-last-click-is-the-commit-line-no-countdowns-the-file-copy-waits-r27-r33-r38-v9-v11-roadmap-items-2-21)
 
 ## F1: `break` inside `ForEach-Object` terminated the whole script · high · closed
 

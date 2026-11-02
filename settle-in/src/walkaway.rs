@@ -16,7 +16,8 @@
 //!   job       upgrade_/go-back.json for the gate, which checks it all again.
 //!
 //! The stick is written by stickwrite (R16's rules). The commit line is the
-//! gate's countdown, on the stick, after the restart (settle-in/gate).
+//! window's "Restart now" (decided 2026-11-02, the owner: no countdown after
+//! the last click); the gate on the stick still refuses before it erases.
 
 use serde_json::{json, Value};
 use std::process::Command;
@@ -604,8 +605,8 @@ pub fn words(plan: &Value) -> Value {
             "heading": "What happens",
             "lines": [
                 "This program downloads Windows from Microsoft (about 5 GB), makes a USB stick from it, and restarts this computer from the stick.",
-                "After the restart a 2-minute countdown appears. Press any key during it to stop: nothing is deleted and Linux starts again.",
-                "If you leave it, these drives are erased and Windows is installed, with nobody at the keyboard:",
+                "You can still stop until you click Restart now. After that there is no turning back.",
+                "After the restart, these drives are erased and Windows is installed, with nobody at the keyboard:",
             ],
             "drives": named,
             "after": "At the end, Windows starts. Your account is there without a password: Windows asks you to choose one the first time you sign in.",
@@ -642,7 +643,7 @@ pub fn words(plan: &Value) -> Value {
             "heading": "Ready",
             "lines": [
                 "Everything is prepared. Nothing on this computer has been deleted.",
-                "Leave the USB stick in. When you restart, the countdown appears. Press any key during it to stop.",
+                "Leave the USB stick in. When you click Restart now, there is no turning back: the drives are erased and Windows is installed.",
             ],
             "restart": "Restart now",
             "undo": "Do not go back after all",
@@ -759,14 +760,15 @@ mod tests {
     }
 
     #[test]
-    fn the_words_name_both_drives_and_the_way_to_stop() {
+    fn the_words_name_both_drives_and_the_last_moment_to_stop() {
         let plan = json!({ "drives": [
             { "role": "system", "model": "HFS256G39TND-N21", "size_bytes": 256060514304u64 },
             { "role": "second", "model": "WDC WD10SPZX-21Z", "size_bytes": 1000204886016u64 } ] });
         let w = words(&plan);
         assert_eq!(w["what"]["drives"][0], "HFS256G39TND-N21 (256 GB, Linux is on it: Windows goes here)");
         assert!(w["what"]["drives"][1].as_str().unwrap().contains("1000 GB"));
-        assert!(w["what"]["lines"].to_string().contains("Press any key during it to stop"));
+        assert!(w["what"]["lines"].to_string().contains("until you click Restart now"));
+        assert!(!w.to_string().contains("countdown") && !w.to_string().contains("any key"));
         assert_eq!(w["consent"]["sentence"], SENTENCE);
         let w = words(&json!({ "drives": { "refused": "Linux here is spread over 2 drives" } }));
         assert!(w["what"]["drives"][0].as_str().unwrap().starts_with("None: Linux here is spread"));

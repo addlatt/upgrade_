@@ -368,13 +368,14 @@ pub fn main(job_path: &str) -> i32 {
         }
     }
     if erase {
-        let cd: Value = std::fs::read_to_string(format!("{REPORT}/countdown.json")).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or(json!({}));
-        if cd.get("result").and_then(Value::as_str) == Some("elapsed") {
-            o["commit_line"]["crossed_utc"] = cd["ended_utc"].clone();
-            o["cutover"]["countdown"] = json!({"seconds": cd.get("seconds").and_then(Value::as_i64).unwrap_or(0), "result": "elapsed", "ended_utc": cd["ended_utc"]});
-            o["cutover"]["hardware"]["human_gate"] = json!("countdown-elapsed");
+        // the window's last click was the commit line (decided 2026-11-02, the
+        // owner); verify's commit record says when the erase began
+        let cm: Value = std::fs::read_to_string(format!("{REPORT}/commit.json")).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or(json!({}));
+        if cm.get("schema").and_then(Value::as_str) == Some("commit/1") && cm.get("crossed_utc").and_then(Value::as_str).is_some() {
+            o["commit_line"]["crossed_utc"] = cm["crossed_utc"].clone();
+            o["cutover"]["hardware"]["human_gate"] = json!("typed-in-the-window");
         } else {
-            log.say(&format!("!! erase job but no elapsed countdown record - the outcome will not validate: {}", py_dict(&cd)));
+            log.say(&format!("!! erase job but no commit record - the outcome will not validate: {}", py_dict(&cm)));
         }
         o["erase_consent"] = job["erase_consent"].clone();
         o["credentials"] = json!({"scrubbed": scrubbed, "scrub_after": "cutover"});
