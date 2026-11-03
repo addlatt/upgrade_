@@ -44,7 +44,7 @@
 //!       must be in (--stick names its mount; else it is found by label).
 //!       --dry-run prints the plan and changes nothing. The result as JSON.
 //!   settle-in reclaim plan [--root DIR] [--windows-mount DIR]
-//!       Reclaim (RISKS R40), the plan only: which partitions are Windows',
+//!       Reclaim (RISKS R41), the plan only: which partitions are Windows',
 //!       where Linux moves, what is lost, or every reason to refuse. Reads
 //!       the disk and the Windows partition (mounted read-only by the caller
 //!       at DIR); writes nothing. No command moves or deletes yet.
@@ -59,7 +59,7 @@ mod goback;
 mod walkaway;
 mod gpt;
 // The writer half (the table writer, the move) is built and tested on images
-// but wired to no command until the rig has held it (RISKS R40).
+// but wired to no command until the rig has held it (RISKS R41).
 #[allow(dead_code)]
 mod gpttable;
 #[allow(dead_code)]

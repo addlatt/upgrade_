@@ -728,7 +728,7 @@ A pass is `class` `pass` for the stage on that machine. A `pass-plumbing`
 row closes no real-hardware clause (rule #5). A `fail` caused by the manager
 itself stays, and the log names the fix.
 
-## `r40-reclaim.csv`: reclaim, deleting the kept Windows and moving Linux (gate V15, risk R40)
+## `r41-reclaim.csv`: reclaim, deleting the kept Windows and moving Linux (gate V15, risk R41)
 
 One row per reclaim attempt, from settle-in's record of it (`reclaim.json`,
 not yet written), on the rig or a real machine. A disk-image test in

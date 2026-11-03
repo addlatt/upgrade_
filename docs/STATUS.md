@@ -29,7 +29,7 @@ a row yet.
 
 Every stage of the one click test held on the Aspire, 2026-10-28/29
 (`oneclick-runs.csv` lines 26 to 37). Not written at all (audit
-2026-11-01): reclaim (decided 2026-11-02, R40), a sleep lock on either side (R33), R39's refusal, the
+2026-11-01): reclaim (decided 2026-11-02, R41), a sleep lock on either side (R33), R39's refusal, the
 discard offer (R26), any automatic check (R9). Written but with no row on a
 real machine: the window (R31, V12), gate 0.4.0's first sign-in and now
 0.5.0 (R33), settle-in 0.6.0 and now 0.7.0 (V10).
@@ -101,6 +101,6 @@ no cancel), then a sleep lock and R39. The order: `ROADMAP.md`.
 | R36 | the kept Windows' clock after a Linux boot | `[####]` held-on-machine | `v2-install.csv` line 15, `pass` (2026-10-11, +1 s, +2 s, +1 s after each Linux boot); line 17, `windows-clock-wrong` (the rig, 2026-10-12: Hyper-V hands UTC to the guest's clock chip, so the guest reads 7 h off after a Linux boot; a rig trap, not the product's) | the rig's Time Synchronization service off, then the arm again |
 | R37 | the installer's own startup hangs before our checks | `[#...]` planned | none yet (five hangs on the rig, 2026-10-04, 2026-10-11, 2026-10-15 twice, 2026-10-17, screens kept) | the cause; a way back with plain words |
 | R39 | a keep-Windows conversion beside a Linux already on the disk | `[#...]` planned | none yet (found on the Aspire 2026-10-28, [log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)) | the scanner's report and the job writer's refusal, or the owner's decision |
-| R40 | reclaim deletes the kept Windows and moves Linux | `[##..]` built, the plan and the move on images (settle-in 0.8.0) | none yet (decided 2026-11-02) | the run from the stick, the grow, the entries' removal; every refusal on the rig, a power cut mid-move, a healthy-drive machine; the Aspire's row is its drive-health refusal |
+| R41 | reclaim deletes the kept Windows and moves Linux | `[##..]` built, the plan and the move on images (settle-in 0.8.0) | none yet (decided 2026-11-02) | the run from the stick, the grow, the entries' removal; every refusal on the rig, a power cut mid-move, a healthy-drive machine; the Aspire's row is its drive-health refusal |
 
 Closed: F1 to F4, the four fixed defects of 2026-08-22; R38, closed by removal 2026-11-02 (the countdown it was about left the product). `RISKS.md`, Closed.

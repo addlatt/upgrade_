@@ -1,4 +1,4 @@
-//! A whole GPT partition table, read and written (RISKS R40, reclaim). The
+//! A whole GPT partition table, read and written (RISKS R41, reclaim). The
 //! reader in `gpt.rs` only needs each partition's type and id; reclaim needs
 //! where each partition starts and ends, and has to write a new table. This
 //! is the only code in settle-in that writes a partition table, so it is

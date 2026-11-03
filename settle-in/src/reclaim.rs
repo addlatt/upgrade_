@@ -1,5 +1,5 @@
 //! Reclaim: delete the kept Windows and move Linux into the space (RISKS
-//! R40, VALIDATION V15).
+//! R41, VALIDATION V15).
 //!
 //! Decided (2026-11-02, the owner): everything on Windows goes, the person's
 //! files with it, after a typed sentence that names what is lost; Linux's
@@ -20,7 +20,7 @@
 //!     is never less than a chunk (proven below by cutting it at every
 //!     chunk and in the middle of one).
 //!
-//! Not here yet (owed, R40): running it from the kit stick, the file
+//! Not here yet (owed, R41): running it from the kit stick, the file
 //! system's own grow (`e2fsck` and `resize2fs`, offline), removing Windows'
 //! firmware entry, the 'Windows (kept)' GRUB entry and the R22 guard, and
 //! the clock (a decision owed, R36). No command writes to a disk.
@@ -464,7 +464,7 @@ pub mod live {
             rolled_back,
         };
         let mut p = plan(&f);
-        p["writes"] = json!("none: this is the plan only (RISKS R40; the move is not wired to any command)");
+        p["writes"] = json!("none: this is the plan only (RISKS R41; the move is not wired to any command)");
         p
     }
 }

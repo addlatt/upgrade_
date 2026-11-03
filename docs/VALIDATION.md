@@ -808,13 +808,13 @@ Aspire's rows for each piece, the installer's first), the stick writer's
 write rows, settle-in's starter, and the second-person rebuild
 ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
 
-## V15: Reclaim deletes only Windows and Linux starts in the whole disk · kills: the keep-Windows path's ending · RISKS R40 · planned
+## V15: Reclaim deletes only Windows and Linux starts in the whole disk · kills: the keep-Windows path's ending · RISKS R41 · planned
 
 **Why it has its own gate.** It is the only writer that runs after the
 person has lived in Linux, and the one that moves the system it runs beside.
 Nothing earlier in the conversion tests it.
 
-**What passes.** In `r40-reclaim.csv`: `refused` for each planted fault
+**What passes.** In `r41-reclaim.csv`: `refused` for each planted fault
 (the Windows partition's GUID not the one `outcome.json` names, a second
 disk, other profiles, a drive-health warning, BitLocker unreadable, shim in
 Windows' slot unaccounted for, too little room for a resumable move);
@@ -829,7 +829,7 @@ the rig: a Hyper-V keep-Windows guest, reclaimed, power cut by the host.
 Then a real machine with a healthy drive.
 
 **Where it stands.** `[#...]` planned (2026-11-02,
-[log](log/2026-11.md#2026-11-02-reclaim-decided-delete-everything-on-a-typed-sentence-move-linux-into-the-space-r40-v15)).
+[log](log/2026-11.md#2026-11-02-reclaim-decided-delete-everything-on-a-typed-sentence-move-linux-into-the-space-r41-v15)).
 
 # Lesser gates (validate when their component is built)
 

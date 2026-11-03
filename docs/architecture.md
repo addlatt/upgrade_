@@ -679,7 +679,7 @@ stands: see [STATUS.md](STATUS.md).
    only backup until they say otherwise.
 5. **Decide** (keep-Windows path): keep, or roll back to Windows (a boot-menu
    restore). Only after the person confirms things work does it offer the
-   **reclaim** (RISKS R40: all of Windows, the files too, on a typed sentence;
+   **reclaim** (RISKS R41: all of Windows, the files too, on a typed sentence;
    Linux moved into the space), stated plainly as the one irreversible act on
    this path, offered once and never nagged; no leaves a `reclaim` command.
 6. **Exit.**

@@ -1280,7 +1280,7 @@ the product does instead), with a rig row and one real machine.
 2026-10-11 Fedora was still on the disk after the 2026-10-12 rollback, and
 was cleared by hand before the one click test ([log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)).
 
-## R40: Reclaim deletes the kept Windows and moves Linux into the space · critical · built
+## R41: Reclaim deletes the kept Windows and moves Linux into the space · critical · built
 
 **What.** On the keep-Windows path, reclaim deletes Windows' partitions and
 moves Linux's `/boot` and `/` to the front of the freed space, then grows `/`
@@ -1313,12 +1313,12 @@ could already have reached.
 
 **Closes when.** On the rig, every planted fault refuses and a power cut
 mid-move resumes to a starting Linux; then a healthy-drive machine reclaims
-and starts Linux with no key (`r40-reclaim.csv`). The Aspire can only refuse.
+and starts Linux with no key (`r41-reclaim.csv`). The Aspire can only refuse.
 
 **Where it stands.** `[##..]` built on images only (settle-in 0.8.0): the
 read-only plan, the table writer, the resumable move; nothing runs the
 writers. Owed: the run from the stick, the grow, the entries, the rig
-([log](log/2026-11.md#2026-11-02-reclaim-decided-delete-everything-on-a-typed-sentence-move-linux-into-the-space-r40-v15)).
+([log](log/2026-11.md#2026-11-02-reclaim-decided-delete-everything-on-a-typed-sentence-move-linux-into-the-space-r41-v15)).
 
 # Closed
 
