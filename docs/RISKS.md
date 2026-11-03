@@ -1280,6 +1280,46 @@ the product does instead), with a rig row and one real machine.
 2026-10-11 Fedora was still on the disk after the 2026-10-12 rollback, and
 was cleared by hand before the one click test ([log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)).
 
+## R40: Reclaim deletes the kept Windows and moves Linux into the space · critical · planned
+
+**What.** On the keep-Windows path, reclaim deletes Windows' partitions and
+moves Linux's `/boot` and `/` to the front of the freed space, then grows `/`
+to the end. Linux sits after Windows on the disk (`upgrade-installer`
+`verify`, plain ext4), and ext4 only grows at its end, so the space is
+reached by moving every block of Linux, from outside the running system.
+
+**If real.** Everything that can go wrong destroys data. The wrong partition
+deleted (another disk, a second Windows, a data partition); the person's own
+files, which live only on Windows since 2026-11-02; another profile's files
+(R5); a BitLocker volume deleted without the person seeing what it held; a
+power cut, a bad sector or a cheap stick dropping in the middle of the move,
+which can wreck the new Linux as well; shim deleted with `EFI/Microsoft`
+while it sits in Windows' slot (R21), so nothing starts; the R22 guard, the
+'Windows (kept)' GRUB entry and the firmware entry left behind; a Linux that
+does not start after the move. Critical.
+
+**Decided (2026-11-02, the owner):** reclaim deletes everything on Windows,
+the person's files with it, after a typed sentence that names what is lost,
+in the erase's style; the commit line is the window's last click (rule #3).
+It refuses while other profiles are on the disk (R5), on any drive-health
+warning (R23's sentence does not lift it: it consented to the conversion,
+not to this), and while anything is unreadable.
+
+**Decided (2026-11-02, the owner):** Linux is moved to the front so `/`
+grows into all the space; not a second partition, not left empty. The move
+runs from the kit stick, records its progress off the disk being moved, and
+resumes after a power cut; it never copies a chunk whose source a write
+could already have reached.
+
+**Closes when.** On the rig, every refusal fires on a planted fault and a
+cut power mid-move resumes to a starting Linux; then one real machine with
+a healthy drive reclaims and starts Linux with no key pressed, recorded in
+`r40-reclaim.csv`. The Aspire's row can only be the drive-health refusal.
+
+**Where it stands.** `[#...]` planned. Promised on screen since the window's
+first words, never written (audit 2026-11-01); decided and opened 2026-11-02
+([log](log/2026-11.md#2026-11-02-reclaim-decided-delete-everything-on-a-typed-sentence-move-linux-into-the-space-r40-v15)).
+
 # Closed
 
 ## R38: The installer's shell shares the countdown's console · critical · closed
