@@ -43,6 +43,11 @@
 //!       firmware's order with Windows first. Deletes nothing. The kit stick
 //!       must be in (--stick names its mount; else it is found by label).
 //!       --dry-run prints the plan and changes nothing. The result as JSON.
+//!   settle-in reclaim plan [--root DIR] [--windows-mount DIR]
+//!       Reclaim (RISKS R40), the plan only: which partitions are Windows',
+//!       where Linux moves, what is lost, or every reason to refuse. Reads
+//!       the disk and the Windows partition (mounted read-only by the caller
+//!       at DIR); writes nothing. No command moves or deletes yet.
 //!   settle-in --version
 
 mod bootentry;
@@ -53,6 +58,12 @@ mod efi;
 mod goback;
 mod walkaway;
 mod gpt;
+// The writer half (the table writer, the move) is built and tested on images
+// but wired to no command until the rig has held it (RISKS R40).
+#[allow(dead_code)]
+mod gpttable;
+#[allow(dead_code)]
+mod reclaim;
 mod hw;
 mod rollback;
 mod sticks;
@@ -67,9 +78,9 @@ use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-const HANDOFF: &str = "var/lib/upgrade_";
+pub(crate) const HANDOFF: &str = "var/lib/upgrade_";
 
-fn read_json(path: &str) -> Result<Value, String> {
+pub(crate) fn read_json(path: &str) -> Result<Value, String> {
     let t = std::fs::read_to_string(path).map_err(|e| format!("{}: {}", path, e))?;
     serde_json::from_str(&t).map_err(|e| format!("{} is not JSON ({})", path, e))
 }
@@ -514,6 +525,12 @@ fn main() {
         Some("go-back") => std::process::exit(go_back(&args[1..], &opt("--root", "/"))),
         Some("remove-old-boot-entry") => std::process::exit(remove_old_boot_entry(&opt("--root", "/"))),
         Some("console-hook") => std::process::exit(console_hook::run(&opt("--root", "/"))),
+        Some("reclaim") if args.get(1).map(String::as_str) == Some("plan") => {
+            let wm = args.iter().position(|a| a == "--windows-mount").and_then(|i| args.get(i + 1)).cloned();
+            let r = reclaim::live::run(&opt("--root", "/"), wm.as_deref());
+            println!("{}", serde_json::to_string_pretty(&r).unwrap_or_default());
+            std::process::exit(if r["result"] == "plan" { 0 } else { 1 });
+        }
         Some("rollback") => {
             let root = opt("--root", "/");
             // SAFETY: geteuid has no preconditions.

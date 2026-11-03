@@ -1280,7 +1280,7 @@ the product does instead), with a rig row and one real machine.
 2026-10-11 Fedora was still on the disk after the 2026-10-12 rollback, and
 was cleared by hand before the one click test ([log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)).
 
-## R40: Reclaim deletes the kept Windows and moves Linux into the space · critical · planned
+## R40: Reclaim deletes the kept Windows and moves Linux into the space · critical · built
 
 **What.** On the keep-Windows path, reclaim deletes Windows' partitions and
 moves Linux's `/boot` and `/` to the front of the freed space, then grows `/`
@@ -1295,8 +1295,8 @@ files, which live only on Windows since 2026-11-02; another profile's files
 power cut, a bad sector or a cheap stick dropping in the middle of the move,
 which can wreck the new Linux as well; shim deleted with `EFI/Microsoft`
 while it sits in Windows' slot (R21), so nothing starts; the R22 guard, the
-'Windows (kept)' GRUB entry and the firmware entry left behind; a Linux that
-does not start after the move. Critical.
+'Windows (kept)' GRUB entry and the firmware entry left behind; a Linux not
+starting after the move. Critical.
 
 **Decided (2026-11-02, the owner):** reclaim deletes everything on Windows,
 the person's files with it, after a typed sentence that names what is lost,
@@ -1311,13 +1311,13 @@ runs from the kit stick, records its progress off the disk being moved, and
 resumes after a power cut; it never copies a chunk whose source a write
 could already have reached.
 
-**Closes when.** On the rig, every refusal fires on a planted fault and a
-cut power mid-move resumes to a starting Linux; then one real machine with
-a healthy drive reclaims and starts Linux with no key pressed, recorded in
-`r40-reclaim.csv`. The Aspire's row can only be the drive-health refusal.
+**Closes when.** On the rig, every planted fault refuses and a power cut
+mid-move resumes to a starting Linux; then a healthy-drive machine reclaims
+and starts Linux with no key (`r40-reclaim.csv`). The Aspire can only refuse.
 
-**Where it stands.** `[#...]` planned. Promised on screen since the window's
-first words, never written (audit 2026-11-01); decided and opened 2026-11-02
+**Where it stands.** `[##..]` built on images only (settle-in 0.8.0): the
+read-only plan, the table writer, the resumable move; nothing runs the
+writers. Owed: the run from the stick, the grow, the entries, the rig
 ([log](log/2026-11.md#2026-11-02-reclaim-decided-delete-everything-on-a-typed-sentence-move-linux-into-the-space-r40-v15)).
 
 # Closed
