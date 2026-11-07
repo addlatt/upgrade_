@@ -175,6 +175,23 @@ fn key_line(k: &Value) -> Option<String> {
     }
 }
 
+/// Where the bookmarks went and how to add them (draft words, 2026-11-07;
+/// the menu paths are Firefox's and Chrome's as of 2026, unchecked on a
+/// machine: R20).
+fn bookmark_lines(b: &Value) -> Vec<String> {
+    let done: Vec<&Value> = b.as_array().into_iter().flatten().filter(|x| x["result"] == "written").collect();
+    let mut l = Vec::new();
+    if !done.is_empty() {
+        l.push(format!("Your bookmarks are in Documents, one file per browser: {}.",
+            done.iter().map(|x| format!("{} ({} bookmarks)", x["file_name"].as_str().unwrap_or(""), x["bookmarks"])).collect::<Vec<_>>().join(", ")));
+        l.push("To add them in Firefox: Bookmarks, Manage bookmarks, Import and Backup, Import Bookmarks from HTML. In Chrome: Bookmarks and lists, Import bookmarks and settings, Bookmarks HTML file.".into());
+    }
+    for x in b.as_array().into_iter().flatten().filter(|x| x["result"] == "not-read" || x["result"] == "failed") {
+        l.push(format!("{}'s bookmarks were not brought over: {}.", x["browser"].as_str().unwrap_or(""), x["why"].as_str().unwrap_or("").trim_end_matches('.')));
+    }
+    l
+}
+
 /// "Your files", on the first screen (draft words, 2026-11-07).
 fn files_section(f: &Value) -> Value {
     let sum = |k: &str| f["folders"].as_array().map(|a| a.iter().map(|x| x[k].as_u64().unwrap_or(0)).sum::<u64>()).unwrap_or(0);
@@ -198,6 +215,7 @@ fn files_section(f: &Value) -> Value {
             } else {
                 button = None;
             }
+            l.extend(bookmark_lines(&f["bookmarks"]));
             if let Some(k) = key_line(&f["key"]) {
                 l.push(k);
                 button = button.or(Some("Delete the key from the stick"));
@@ -236,6 +254,16 @@ pub fn pull_words(p: &Value) -> Value {
             if skipped > 0 {
                 l.push(format!("{} things are not copied: links to other places, Windows' own system files and folder settings. The list is below.", skipped));
             }
+            for b in p["bookmarks"].as_array().cloned().unwrap_or_default() {
+                match (b["bookmarks"].as_u64(), b["why_not"].as_str()) {
+                    (Some(0), _) => {}
+                    (Some(n), _) => l.push(format!("{}: {} bookmarks, as a file in Documents to add to your browser here{}.", b["browser"].as_str().unwrap_or(""), n,
+                        b["dated"].as_str().map(|d| format!(" (from Firefox's own backup of {})", d)).unwrap_or_default())),
+                    (None, Some(w)) => l.push(format!("{}: its bookmarks cannot be read: {}.", b["browser"].as_str().unwrap_or(""), w.trim_end_matches('.'))),
+                    _ => {}
+                }
+            }
+            l.push("Only bookmarks come from the browsers: not saved passwords, history or open tabs. Sign in to the browser's own account to bring those.".into());
             l.push("Windows is only read: nothing on it changes, and it keeps its own copies. If the copy is stopped, it carries on next time.".into());
             json!({ "lines": l, "button": "Copy them", "button_note": "Keep the computer plugged in. It can take a while." })
         }
@@ -257,8 +285,10 @@ pub fn pull_words(p: &Value) -> Value {
 
 /// What the window shows after `settle-in pull run` (draft words, 2026-11-07).
 pub fn pull_done_words(o: &Value) -> Value {
+    let bookmarks: Vec<Value> = o["bookmarks"].as_array().cloned().unwrap_or_default().iter()
+        .map(|b| json!({ "browser": b["browser"], "result": b["result"], "bookmarks": b["bookmarks"], "why": b["why"], "file_name": b["file"].as_str().and_then(|f| f.rsplit('/').next()) })).collect();
     let mut sec = files_section(&json!({
-        "result": o["result"], "why": o["why"], "bytes": o["bytes"], "key": o["key"],
+        "result": o["result"], "why": o["why"], "bytes": o["bytes"], "key": o["key"], "bookmarks": bookmarks,
         "folders": o["folders"].as_array().cloned().unwrap_or_default().iter().map(|f| json!({
             "name": f["name"], "copied": f["copied"].as_u64().unwrap_or(0) + f["already_copied"].as_u64().unwrap_or(0),
             "failed": f["failed"].as_array().map_or(0, Vec::len), "renamed": f["renamed"].as_array().map_or(0, Vec::len), "in_onedrive": f["in_onedrive"] })).collect::<Vec<_>>(),
@@ -360,6 +390,11 @@ The old Windows startup entry
         s["files"]["key"]["stick"] = json!("deleted");
         let sec = sections(&s);
         assert!(sec["sections"].as_array().unwrap().iter().all(|x| x["action"] != "pull"), "no button once all is done");
+        s["files"]["bookmarks"] = json!([{ "browser": "Chrome", "result": "written", "bookmarks": 412, "file_name": "Bookmarks from Windows - Chrome.html" },
+            { "browser": "Firefox", "result": "not-read", "why": "Firefox made no backup of its bookmarks in this profile." }]);
+        let t = text(&sections(&s));
+        assert!(t.contains("Your bookmarks are in Documents, one file per browser: Bookmarks from Windows - Chrome.html (412 bookmarks)."), "{t}");
+        assert!(t.contains("Firefox's bookmarks were not brought over: Firefox made no backup of its bookmarks in this profile."), "{t}");
         s["files"]["result"] = json!("stopped");
         s["files"]["why"] = json!("this Linux's drive is full");
         assert!(text(&sections(&s)).contains("Stopped: this Linux's drive is full. Nothing already copied is lost"));

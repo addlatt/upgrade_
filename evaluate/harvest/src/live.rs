@@ -230,9 +230,9 @@ pub fn browsers(skip_sizes: bool) -> Vec<Value> {
     let appdata = std::env::var("APPDATA").unwrap_or_default();
     let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
     let candidates = [
-        ("Firefox", format!("{appdata}\\Mozilla\\Firefox"), "~/.mozilla/firefox", true, "Bookmarks, history, extensions and saved passwords all transfer. The Firefox password store is cross-platform."),
-        ("Chrome", format!("{local}\\Google\\Chrome\\User Data"), "~/.config/google-chrome", false, "Bookmarks, history and extensions transfer. Saved passwords do NOT - they are encrypted with Windows DPAPI, which has no Linux equivalent. Sign into Chrome sync or export passwords to CSV BEFORE converting."),
-        ("Edge", format!("{local}\\Microsoft\\Edge\\User Data"), "~/.config/microsoft-edge", false, "Bookmarks, history and extensions transfer. Saved passwords do NOT - Windows DPAPI encryption. Export them or enable sync BEFORE converting."),
+        ("Firefox", format!("{appdata}\\Mozilla\\Firefox"), "~/.mozilla/firefox", true, "Only bookmarks are brought over (decided 2026-11-07; RISKS R20). History, extensions, open tabs and saved passwords are not: sign in to a Firefox account BEFORE converting to keep them."),
+        ("Chrome", format!("{local}\\Google\\Chrome\\User Data"), "~/.config/google-chrome", false, "Only bookmarks are brought over (decided 2026-11-07; RISKS R20). History, extensions and saved passwords are not (the passwords are encrypted with Windows DPAPI, which has no Linux equivalent). Sign in to Chrome sync or export passwords to CSV BEFORE converting."),
+        ("Edge", format!("{local}\\Microsoft\\Edge\\User Data"), "~/.config/microsoft-edge", false, "Only bookmarks are brought over (decided 2026-11-07; RISKS R20). History, extensions and saved passwords are not (Windows DPAPI encryption). Export them or enable sync BEFORE converting."),
     ];
     let mut found = Vec::new();
     for (name, path, target, passwords_port, note) in candidates {

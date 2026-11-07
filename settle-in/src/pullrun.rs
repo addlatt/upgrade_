@@ -586,6 +586,18 @@ pub mod live {
             println!("progress {}", p);
             let _ = std::io::stdout().flush();
         });
+        // the bookmarks, into the person's Documents (R20: bookmarks only, as files to import)
+        if out["result"] != "stopped" && out["result"] != "refused" {
+            if let Some(u) = crate::bookmarks::user_dir(&job) {
+                let found = crate::bookmarks::find(&opened.dir, &u);
+                let docs = plan["folders"].as_array().into_iter().flatten().find(|f| f["name"] == "Documents").and_then(|f| f["to"].as_str()).map(PathBuf::from)
+                    .unwrap_or_else(|| crate::pull::destinations(&home).into_iter().find(|(n, _)| n == "Documents").map(|(_, p)| p).unwrap_or_else(|| home.join("Documents")));
+                out["bookmarks"] = match make_dirs(&docs, Path::new(""), Some(owner)) {
+                    Ok(d) => crate::bookmarks::write(&found, &d, Some(owner)),
+                    Err(e) => json!([{ "browser": "all", "result": "failed", "why": e.to_string() }]),
+                };
+            }
+        }
         drop(opened);
         if let Some(c) = inhibit.as_mut() {
             let _ = c.kill();

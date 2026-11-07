@@ -313,10 +313,12 @@ pub fn plan(f: &Facts, probe: &dyn Probe) -> Value {
         None => no.push("the free space on this Linux could not be read".into()),
         _ => {}
     }
+    // the browsers' bookmarks, read only (R20, decided 2026-11-07): never a reason to refuse
+    let bookmarks = crate::bookmarks::user_dir(f.job).map(|u| crate::bookmarks::summary(&crate::bookmarks::find(&win, &u))).unwrap_or(json!([]));
     if !no.is_empty() {
-        return json!({ "result": "refused", "why": no, "folders": out });
+        return json!({ "result": "refused", "why": no, "folders": out, "bookmarks": bookmarks });
     }
-    json!({ "result": "plan", "folders": out, "bytes": total, "free": f.free })
+    json!({ "result": "plan", "folders": out, "bytes": total, "free": f.free, "bookmarks": bookmarks })
 }
 
 pub fn gb(b: u64) -> String {

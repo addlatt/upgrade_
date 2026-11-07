@@ -79,6 +79,7 @@
 //!       lines, then the result. Windows is never written.
 //!   settle-in --version
 
+mod bookmarks;
 mod bootentry;
 mod civil;
 mod clock;
@@ -151,7 +152,9 @@ pub(crate) fn record_pull(r: &str, out: &Value) -> Result<(), String> {
         "bytes": f["bytes"], "failed": f["failed"].as_array().map_or(0, Vec::len),
         "renamed": f["renamed"].as_array().map_or(0, Vec::len), "in_onedrive": f["in_onedrive"],
     })).collect();
-    s["files"] = json!({ "result": out["result"], "why": out["why"], "folders": folders, "bytes": out["bytes"], "key": out["key"] });
+    let bookmarks: Vec<Value> = out["bookmarks"].as_array().cloned().unwrap_or_default().iter()
+        .map(|b| json!({ "browser": b["browser"], "result": b["result"], "bookmarks": b["bookmarks"], "why": b["why"], "file_name": b["file"].as_str().and_then(|f| f.rsplit('/').next()) })).collect();
+    s["files"] = json!({ "result": out["result"], "why": out["why"], "folders": folders, "bytes": out["bytes"], "key": out["key"], "bookmarks": bookmarks });
     save_public(root, &s)
 }
 
