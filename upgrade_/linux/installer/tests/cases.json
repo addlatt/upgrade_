@@ -10471,7 +10471,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -10959,7 +10960,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -11441,7 +11443,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -11881,7 +11884,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -12370,7 +12374,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -12858,7 +12863,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    },
    "wrong_sum_for": [
     "upgrade_-settle-in.service"
@@ -13349,7 +13355,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    },
    "wrong_sum_for": [
     "cabextract"
@@ -13841,7 +13848,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -14292,7 +14300,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -14717,7 +14726,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -15111,7 +15121,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -15442,7 +15453,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -15918,7 +15930,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -16407,7 +16420,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -16834,7 +16848,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -17295,7 +17310,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -17784,7 +17800,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -18272,7 +18289,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -18758,7 +18776,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -19183,7 +19202,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [
@@ -19572,7 +19592,8 @@
     "wimlib-imagex": "#!/bin/sh\necho wimlib\n",
     "cabextract": "#!/bin/sh\necho cab\n",
     "upgrade-gate.exe": "MZ-gate",
-    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"
+    "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n",
+    "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"
    }
   },
   "disks": [

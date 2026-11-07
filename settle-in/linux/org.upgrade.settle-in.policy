@@ -10,7 +10,9 @@
      stick's `write` left with roadmap item 20, the action id kept; the
      go-back words are a DRAFT). A third, `settle-in reclaim` (its check,
      arm and disarm, RISKS R41; words a DRAFT): auth_admin_keep, so the
-     check and the arm a minute later ask for the password once. -->
+     check and the arm a minute later ask for the password once. A fourth,
+     `settle-in pull` (its check and run, decided 2026-11-07; words a DRAFT):
+     auth_admin_keep, so the check and the copy ask once. -->
 <policyconfig>
   <vendor>upgrade_</vendor>
   <action id="org.upgrade.settle-in.remove-old-boot-entry">
@@ -56,5 +58,16 @@
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/local/libexec/upgrade_/settle-in</annotate>
     <annotate key="org.freedesktop.policykit.exec.argv1">reclaim</annotate>
+  </action>
+  <action id="org.upgrade.settle-in.pull">
+    <description>Bring your files over from Windows</description>
+    <message>Bringing your files over reads Windows' drive (unlocking it with its recovery key if it is locked) and copies your files into your folders here. Nothing on Windows changes. Type your password to allow it.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/libexec/upgrade_/settle-in</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">pull</annotate>
   </action>
 </policyconfig>

@@ -135,6 +135,10 @@ pub fn sections(s: &Value) -> Value {
         }
         _ => {}
     }
+    // --- the files (2026-11-07; words are a draft for the owner): only with Windows kept
+    if s["windows_kept"] == json!(true) {
+        out.push(files_section(&s["files"]));
+    }
     // --- the programs (2026-11-07; words are a draft for the owner): not for a job from before the inventory
     if s.pointer("/programs/result").and_then(Value::as_str).is_some_and(|r| r != "not-in-job") {
         out.push(json!({ "heading": "Your programs", "lines": crate::programs::lines(&s["programs"]) }));
@@ -154,6 +158,119 @@ pub fn sections(s: &Value) -> Value {
         out.push(json!({ "heading": "The old Windows startup entry", "lines": ["Removed."] }));
     }
     json!({ "title": format!("{} is ready", s["name"].as_str().unwrap_or("Linux")), "sections": out, "close": "Close" })
+}
+
+fn gb(b: &Value) -> String {
+    crate::pull::gb(b.as_u64().unwrap_or(0))
+}
+
+fn names(folders: &Value) -> String {
+    folders.as_array().map(|a| a.iter().filter(|f| f["copied"].as_u64().unwrap_or(0) > 0).filter_map(|f| f["name"].as_str()).collect::<Vec<_>>().join(", ")).unwrap_or_default()
+}
+
+fn key_line(k: &Value) -> Option<String> {
+    match k["stick"].as_str() {
+        Some("not-plugged-in") | Some("still-there") => Some("The USB stick still holds Windows' BitLocker recovery key. Plug the stick in and press the button again to delete it there too.".into()),
+        _ => None,
+    }
+}
+
+/// "Your files", on the first screen (draft words, 2026-11-07).
+fn files_section(f: &Value) -> Value {
+    let sum = |k: &str| f["folders"].as_array().map(|a| a.iter().map(|x| x[k].as_u64().unwrap_or(0)).sum::<u64>()).unwrap_or(0);
+    let mut l: Vec<String> = Vec::new();
+    let mut button = Some("Bring my files over");
+    match f["result"].as_str() {
+        None => {
+            l.push("Your files are still in Windows, untouched. This can copy them into your folders here (Documents, Pictures and the rest). Windows keeps its own copies.".into());
+        }
+        Some("done") | Some("done-with-failures") => {
+            l.push(format!("Brought over: {} files ({}) into {}. Windows still has its own copies.", sum("copied"), gb(&f["bytes"]), names(&f["folders"])));
+            if sum("renamed") > 0 {
+                l.push(format!("{} had the name of a file already here, so \"(from Windows)\" was added to their names.", sum("renamed")));
+            }
+            if sum("in_onedrive") > 0 {
+                l.push(format!("{} files live only in OneDrive and were not copied. Sign in at onedrive.live.com to reach them.", sum("in_onedrive")));
+            }
+            if f["result"] == "done-with-failures" {
+                l.push(format!("{} files could not be read from Windows. They are still there; pressing the button tries them again.", sum("failed")));
+                button = Some("Try the rest again");
+            } else {
+                button = None;
+            }
+            if let Some(k) = key_line(&f["key"]) {
+                l.push(k);
+                button = button.or(Some("Delete the key from the stick"));
+            }
+        }
+        Some("stopped") => {
+            l.push(format!("Stopped: {}. Nothing already copied is lost, and the copy carries on from where it stopped.", f["why"].as_str().unwrap_or("the reason was not recorded")));
+            button = Some("Carry on");
+        }
+        _ => {}
+    }
+    let mut s = json!({ "heading": "Your files", "lines": l });
+    if let Some(b) = button {
+        s["button"] = json!(b);
+        s["button_note"] = json!("You will be asked for your password.");
+        s["action"] = json!("pull");
+    }
+    s
+}
+
+/// What `settle-in pull check` shows before the copy (draft words, 2026-11-07).
+pub fn pull_words(p: &Value) -> Value {
+    let mut l: Vec<String> = Vec::new();
+    match p["result"].as_str() {
+        Some("plan") => {
+            let n: u64 = p["folders"].as_array().into_iter().flatten().map(|f| f["files"].as_u64().unwrap_or(0)).sum();
+            l.push(format!("This copies {} files ({}) from Windows into this computer's own folders:", n, gb(&p["bytes"])));
+            for f in p["folders"].as_array().cloned().unwrap_or_default() {
+                l.push(format!("  {}: {} files, {}, into {}", f["name"].as_str().unwrap_or(""), f["files"], gb(&f["bytes"]), f["to"].as_str().unwrap_or("")));
+            }
+            let skipped: usize = p["folders"].as_array().into_iter().flatten().map(|f| f["not_copied"].as_array().map_or(0, Vec::len)).sum();
+            let cloud: u64 = p["folders"].as_array().into_iter().flatten().map(|f| f["in_onedrive"].as_u64().unwrap_or(0)).sum();
+            if cloud > 0 {
+                l.push(format!("{} files live only in OneDrive, not on this computer; they stay there (onedrive.live.com).", cloud));
+            }
+            if skipped > 0 {
+                l.push(format!("{} things are not copied: links to other places, Windows' own system files and folder settings. The list is below.", skipped));
+            }
+            l.push("Windows is only read: nothing on it changes, and it keeps its own copies. If the copy is stopped, it carries on next time.".into());
+            json!({ "lines": l, "button": "Copy them", "button_note": "Keep the computer plugged in. It can take a while." })
+        }
+        Some("nothing-to-do") => json!({ "lines": p["why"].as_array().cloned().unwrap_or_default() }),
+        _ => {
+            l.push("Your files cannot be brought over yet:".into());
+            for w in p["why"].as_array().cloned().unwrap_or_default() {
+                l.push(format!("  - {}.", w.as_str().unwrap_or("").trim_end_matches('.')));
+            }
+            l.push("Nothing was copied and nothing changed. Your files are safe in Windows.".into());
+            let mut w = json!({ "lines": l });
+            if p["needs_key"] == json!(true) {
+                w["key_field"] = json!("BitLocker recovery key (eight groups of six digits)");
+            }
+            w
+        }
+    }
+}
+
+/// What the window shows after `settle-in pull run` (draft words, 2026-11-07).
+pub fn pull_done_words(o: &Value) -> Value {
+    let mut sec = files_section(&json!({
+        "result": o["result"], "why": o["why"], "bytes": o["bytes"], "key": o["key"],
+        "folders": o["folders"].as_array().cloned().unwrap_or_default().iter().map(|f| json!({
+            "name": f["name"], "copied": f["copied"].as_u64().unwrap_or(0) + f["already_copied"].as_u64().unwrap_or(0),
+            "failed": f["failed"].as_array().map_or(0, Vec::len), "renamed": f["renamed"].as_array().map_or(0, Vec::len), "in_onedrive": f["in_onedrive"] })).collect::<Vec<_>>(),
+    }));
+    if o["result"] == "refused" || o["result"] == "nothing-to-do" {
+        sec = json!({ "heading": "Your files", "lines": pull_words(o)["lines"].clone() });
+    }
+    let failed: Vec<String> = o["folders"].as_array().into_iter().flatten()
+        .flat_map(|f| f["failed"].as_array().cloned().unwrap_or_default().into_iter().map(move |x| format!("{}/{}: {}", f["name"].as_str().unwrap_or(""), x["path"].as_str().unwrap_or(""), x["why"].as_str().unwrap_or(""))))
+        .collect();
+    sec["failed_list"] = json!(failed);
+    sec
 }
 
 /// The same screen as text, for a console.
@@ -222,6 +339,43 @@ The old Windows startup entry
         assert!(t.contains("Remote access (SSH)") && t.contains("Turned on, as it was in Windows. Only the 1 key Windows allowed can sign in this way; passwords cannot."), "{}", t);
         s["ssh"] = json!({ "result": "no-ssh-server", "why": "this system has no SSH server installed; the keys were not set up" });
         assert!(text(&sections(&s)).contains("was not turned on here: this system has no SSH server installed"));
+    }
+
+    #[test]
+    fn the_files_section() {
+        let mut s = summary();
+        assert!(!text(&sections(&s)).contains("Your files"), "not when Windows is gone");
+        s["windows_kept"] = json!(true);
+        let sec = sections(&s);
+        let t = text(&sec);
+        assert!(t.contains("Your files\n  Your files are still in Windows, untouched."), "{t}");
+        assert!(sec["sections"].as_array().unwrap().iter().any(|x| x["action"] == "pull" && x["button"] == "Bring my files over"));
+        s["files"] = json!({ "result": "done", "bytes": 2_500_000_000u64, "key": { "deleted_here": true, "stick": "not-plugged-in" },
+            "folders": [{ "name": "Documents", "copied": 10, "failed": 0, "renamed": 1, "in_onedrive": 3 }, { "name": "Music", "copied": 0, "failed": 0, "renamed": 0, "in_onedrive": 0 }] });
+        let t = text(&sections(&s));
+        assert!(t.contains("Brought over: 10 files (2.5 GB) into Documents. Windows still has its own copies."), "{t}");
+        assert!(t.contains("1 had the name of a file already here"), "{t}");
+        assert!(t.contains("3 files live only in OneDrive"), "{t}");
+        assert!(t.contains("still holds Windows' BitLocker recovery key"), "{t}");
+        s["files"]["key"]["stick"] = json!("deleted");
+        let sec = sections(&s);
+        assert!(sec["sections"].as_array().unwrap().iter().all(|x| x["action"] != "pull"), "no button once all is done");
+        s["files"]["result"] = json!("stopped");
+        s["files"]["why"] = json!("this Linux's drive is full");
+        assert!(text(&sections(&s)).contains("Stopped: this Linux's drive is full. Nothing already copied is lost"));
+    }
+
+    #[test]
+    fn the_pull_words() {
+        let p = json!({ "result": "refused", "why": ["Windows' drive is locked with BitLocker, and its recovery key did not come across."], "needs_key": true });
+        let w = pull_words(&p);
+        assert_eq!(w["lines"][1], "  - Windows' drive is locked with BitLocker, and its recovery key did not come across.");
+        assert!(w["key_field"].is_string());
+        let p = json!({ "result": "plan", "bytes": 1_000_000_000u64, "folders": [{ "name": "Pictures", "files": 4, "bytes": 1_000_000_000u64, "to": "/home/ann/Bilder", "not_copied": [{ "path": "desktop.ini", "why": "x" }], "in_onedrive": 0 }] });
+        let w = pull_words(&p);
+        assert_eq!(w["lines"][0], "This copies 4 files (1.0 GB) from Windows into this computer's own folders:");
+        assert_eq!(w["lines"][1], "  Pictures: 4 files, 1.0 GB, into /home/ann/Bilder");
+        assert_eq!(w["button"], "Copy them");
     }
 
     #[test]

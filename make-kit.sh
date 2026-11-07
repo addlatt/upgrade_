@@ -236,6 +236,8 @@ cp "$WIMLIB" "$D/upgrade_/settle-in/wimlib-imagex"
 cp "$CABEXTRACT" "$D/upgrade_/settle-in/cabextract"
 cp "$GATE_EXE" "$D/upgrade_/settle-in/upgrade-gate.exe"
 sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-go-back-to-windows.desktop" > "$D/upgrade_/settle-in/upgrade_-go-back-to-windows.desktop"
+# "Bring my files from Windows" (the pull, 2026-11-07): installed only on keep-Windows
+sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-bring-files.desktop" > "$D/upgrade_/settle-in/upgrade_-bring-files.desktop"
 # the desktops: Fedora's own live squashfs images, unmodified, one per
 # desktop the intent capture offers (rig/vm/fetch-desktops.sh). The
 # kickstart's liveimg line names one of them; the verify step reads it back
