@@ -38,6 +38,9 @@ def last_json(text):
         return {}
 check, run = last_json(read("check.json")), last_json(read("run.out"))
 
+def home_copied(h):
+    return any(p.startswith(("Documents/", "Pictures/")) for p in h)
+
 miss = []
 copies = expected.get("copy", [])
 identical = 0
@@ -83,7 +86,8 @@ row = {
     "placeholders_copied": len(ph_home), "downloaded_copied": "yes" if downloaded else "no",
     "bookmarks": " ".join(f"{k}={v}" for k, v in sorted(marks.items())), "key_deleted": "yes" if facts.get("key_left_in_handoff") == "no" else "no",
     "check": check.get("result", ""), "run": run.get("result", ""),
-    "result": "pass-plumbing" if not miss and copies else "fail",
+    # not-reached: the Linux side never ran; refused: the product refused and copied nothing
+    "result": "pass-plumbing" if not miss and copies else "not-reached" if not facts.get("settle_in") else "refused" if run.get("result") == "refused" and not home_copied(home) else "fail",
     "notes": "; ".join(miss) if miss else f'{len(home)} files in the home; xattrs in pull/xattr.txt',
 }
 new = not os.path.exists(csv_path) or os.path.getsize(csv_path) == 0

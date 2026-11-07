@@ -188,7 +188,7 @@ the real harvester counted it. The recovery key appears in no file here.
 | `bookmarks` | per bookmarks file the count of links in it (Chrome must be 5, Firefox 3) |
 | `key_deleted` | the recovery key is gone from `/var/lib/upgrade_` after the run |
 | `check`, `run` | the product's own result words (`plan`, `done`) |
-| `result` | `pass-plumbing` when every planted file is home and identical and the person's, no placeholder, link, junction or `desktop.ini` came, the downloaded file did, the bookmarks counts hold, the key is gone and Windows is closed; else `fail` with every miss in `notes` |
+| `result` | `pass-plumbing` when every planted file is home and identical and the person's, no placeholder, link, junction or `desktop.ini` came, the downloaded file did, the bookmarks counts hold, the key is gone and Windows is closed; `refused` when the product refused and copied nothing; `not-reached` when the Linux side never ran; else `fail` with every miss in `notes`. Lines 2 and 3 (2026-11-07) predate the last two words and read `fail`: line 2 never reached Linux, line 3 is the product's refusal |
 | `notes` | the misses, or the home's file count; the ntfs-3g attribute record of each placeholder and link is kept in the run's `artifacts/v3/pull/xattr.txt` |
 
 A pass is plumbing: the placeholder provider is ours, not OneDrive, and the

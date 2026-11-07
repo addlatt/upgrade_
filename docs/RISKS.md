@@ -1356,6 +1356,31 @@ the arm, the run from the stick, the grow, the entries, held on disk images
 only. Owed: the rig, then a healthy-drive machine
 ([log](log/2026-11.md#2026-11-06-reclaim-built-whole-the-arm-the-run-from-the-stick-the-grow-the-entries-r41-v15)).
 
+## R42: ntfs-3g cannot read inside a OneDrive folder · high · planned
+
+**What.** Through ntfs-3g (2022.10.3, Fedora 42) a Cloud Files sync root,
+the folder OneDrive keeps its files in, is not shown as a folder, and
+nothing inside it can be opened ("No such file or directory"), whether a
+file there is only in the cloud or fully downloaded. OneDrive's folder
+backup, which many Windows 11 machines turn on at setup, moves Desktop,
+Documents and Pictures inside that folder.
+
+**If real.** (It is, on the rig: `v3-pull.csv` line 3.) The pull sees
+fewer files than the harvest counted and refuses (R8's rule), so it loses
+nothing, but on a OneDrive-backed machine none of the person's files come
+over, the feature most people check first. High: no data is lost, the
+feature fails for a large part of the audience.
+
+**Closes when.** A real OneDrive-backed profile is pulled, every
+downloaded file arriving identical and every cloud-only one listed, by
+whatever reader is chosen (decision owed: an ntfs-3g OneDrive plugin, a
+read-only NTFS reader of our own, or copying on the Windows side before
+the conversion), recorded in `v3-pull.csv`.
+
+**Where it stands.** `[#...]` found 2026-11-07 on the rig with V8's
+provider ([log](log/2026-11.md#2026-11-07-the-pull-on-the-rig-it-refused-ntfs-3g-hides-onedrive-folders-r42-r8-r19-r22-v3-v8)).
+Owed: the reader decision, then a signed-in OneDrive.
+
 # Closed
 
 ## R38: The installer's shell shares the countdown's console · critical · closed
