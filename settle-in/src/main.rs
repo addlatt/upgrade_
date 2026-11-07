@@ -63,6 +63,11 @@
 //!       On the kit stick (its reclaim kickstart, upg.mode=reclaim): checks
 //!       once more, commits, moves Linux, writes the table, grows /, puts the
 //!       startup back without Windows, restarts. Resumes after a power cut.
+//!   settle-in pull plan --windows-mount DIR --home DIR [--root DIR]
+//!       Bring the files home (decided 2026-11-07, the owner), the plan only:
+//!       the folder map walked on the Windows partition (mounted read-only by
+//!       the caller at DIR), what is copied where into the person's home, what
+//!       is not and why, or every reason to refuse. Writes nothing.
 //!   settle-in --version
 
 mod bootentry;
@@ -80,6 +85,7 @@ mod reclaim;
 mod reclaimrun;
 mod hw;
 mod programs;
+mod pull;
 mod rollback;
 mod sticks;
 mod stickwrite;
@@ -582,6 +588,23 @@ fn main() {
             };
             println!("{}", serde_json::to_string_pretty(&r).unwrap_or_default());
             std::process::exit(match r["result"].as_str() { Some("plan") | Some("ready") | Some("undone") => 0, None => 0, Some("refused") => 1, _ => 2 });
+        }
+        Some("pull") => {
+            // the file pull (decided 2026-11-07, the owner): the plan only, so far
+            let root = opt("--root", "/");
+            let r = match args.get(1).map(String::as_str) {
+                Some("plan") if args.iter().any(|a| a == "--windows-mount") && args.iter().any(|a| a == "--home") => {
+                    let mut r = pull::live::plan_at(&root, &opt("--windows-mount", ""), &opt("--home", ""));
+                    r["writes"] = json!("none: this is the plan only");
+                    r
+                }
+                _ => {
+                    eprintln!("usage: settle-in pull plan --windows-mount DIR --home DIR [--root DIR]");
+                    std::process::exit(64);
+                }
+            };
+            println!("{}", serde_json::to_string_pretty(&r).unwrap_or_default());
+            std::process::exit(match r["result"].as_str() { Some("plan") | Some("nothing-to-do") => 0, Some("refused") => 1, _ => 2 });
         }
         Some("rollback") => {
             let root = opt("--root", "/");
