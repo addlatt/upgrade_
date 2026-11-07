@@ -79,6 +79,7 @@ mod gpttable;
 mod reclaim;
 mod reclaimrun;
 mod hw;
+mod programs;
 mod rollback;
 mod sticks;
 mod stickwrite;

@@ -46,6 +46,9 @@ pub fn build(root: &str, report: &Value, job: &Value) -> Value {
         // for "Go back to Windows": a kept Windows means "Windows first again"
         // (the rollback), not a fresh install (decided 2026-10-12, the owner)
         "windows_kept": windows_kept(root, job),
+        // "you had these; here is the Linux version" (decided 2026-11-07, the
+        // owner): the person's own program names on their own machine, no secret
+        "programs": crate::programs::list(job),
     })
 }
 
@@ -131,6 +134,10 @@ pub fn sections(s: &Value) -> Value {
             out.push(json!({ "heading": "Remote access (SSH)", "lines": [format!("Windows had it on, but it was not turned on here: {}.", h["why"].as_str().unwrap_or("the reason was not recorded"))] }));
         }
         _ => {}
+    }
+    // --- the programs (2026-11-07; words are a draft for the owner): not for a job from before the inventory
+    if s.pointer("/programs/result").and_then(Value::as_str).is_some_and(|r| r != "not-in-job") {
+        out.push(json!({ "heading": "Your programs", "lines": crate::programs::lines(&s["programs"]) }));
     }
     // --- the old boot entry (approved 2026-09-27): only when offered
     let b = &s["old_boot_entry"];
