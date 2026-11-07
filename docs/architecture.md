@@ -1101,12 +1101,55 @@ new direction is not finished until it does this.
 | Installed applications | no | Out of scope for v1; the inventory names equivalents (Module 1). |
 | Windows settings, Outlook data, licences | no | Say so plainly in the handoff sheet. |
 
+## Linux releases beyond Fedora: one seam per installer (decided 2026-11-02, the owner)
+
+**Decided (2026-11-02, the owner):** the conversion becomes distro-agnostic
+(Ubuntu, Bazzite and others, not only Fedora). Fedora is written end to end;
+its owed rows stay owed (`STATUS.md`). A new Linux is added one *installer
+family* at a time, not one distribution at a time: the installer and the
+answer file that drives it are the only parts that know what is installed,
+and distributions share a handful of installers.
+
+```text
+                    job.json (one contract for every release)
+                                   |
+        +--------------------------+----------------------------+
+        |                          |                            |
+  anaconda-image            anaconda-container             subiquity
+  Fedora 44 (today)         Bazzite, Fedora Atomic         Ubuntu (to measure)
+  kickstart + liveimg       kickstart + ostreecontainer    autoinstall.yaml
+  a writable system         a read-only /usr               a writable system
+```
+
+- **Shared, written once:** the scanner, harvest, the job writer, the stick
+  writer, the window, the prologue and handoff, settle-in, `job.json` and
+  `outcome.json`.
+- **Per family:** the answer-file generator (today `upgrade_/kickstart/`),
+  the checks before and after the install (today `upgrade_/linux/installer/`,
+  Anaconda's %pre and %post), and the boot paths the stick and the
+  installed system use.
+- **Per release, measured, never typed:** its entry in `data/releases.json`,
+  which already carries `Family` and `Installer`. A release whose installer
+  would reach the network or stop for a question mid-install is refused
+  until its offline, unattended path is measured (RISKS R40).
+
+Fedora is still written into four places, so the seam is not cut there yet:
+the stick's `grub.cfg` and the handoff's `EFI/fedora` paths, `make-kit.sh`,
+the installer's `post.rs` (`grub2-mkconfig` in a writable system), and
+settle-in's `bootentry.rs`.
+
+Secure Boot per family is a fact to measure, not a promise. Fedora's shim
+is signed under Microsoft's third-party authority. Bazzite's kernel is
+signed with Universal Blue's own key, so with Secure Boot on a person
+enrolls it once on a blue MOK screen (`docs/research/future-paths.md`,
+"Other Linux distributions"). A release that needs a person at the keyboard
+says so on the screen before the last click, never after it (rule #3).
+
 ## Non-goals (v1)
 
-- Any distribution other than Fedora, **in v1.** The seams are cut for more (the
-  distribution lives in `job.json`, the kickstart generator is per target,
-  nothing outside `upgrade_/linux/` knows what is installed); multi-distro is an
-  intended open-source future, not a v1 promise.
+- Several releases on one stick, and a picker in the window, until a second
+  installer family has held on a real machine. "Fedora only" was lifted
+  2026-11-02 (the section above).
 - Dual-boot as a product. The keep-Windows path holds Windows *for a while*, as
   a rollback and a file source that both end at reclaim; it is not a supported
   two-OS machine, and `settle-in` nudges toward reclaim once the files are
