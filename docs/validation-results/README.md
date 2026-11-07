@@ -165,6 +165,36 @@ full-disk), from an **installed** Fedora with the driver `settle-in` uses
 on at least one physical BitLocker machine per Windows version targeted.
 Used-space-only on a fragmented real disk is the residue no VM row closes.
 
+## `v3-pull.csv`: settle-in's file pull on a BitLocker Windows (gates V3, V8; risks R8, R19, R20)
+
+The product's own pull (`settle-in pull check`, then `pull run`, as pkexec
+would start them for a new person with an empty home), run by the installed
+Fedora on the rig's BitLocker Windows partition (decided 2026-11-07, the
+owner). One row per run, appended by `rig/hyperv/v3.sh files-verdict`
+(`pull-verdict.py`). Windows planted the tree first (`guest/pull-plant.ps1`):
+ordinary files hashed before anything else, a hidden `desktop.ini`, a
+junction, a file symlink, two dehydrated Cloud Files placeholders and one
+downloaded one (V8's provider), a Chrome profile and a Firefox backup; then
+the real harvester counted it. The recovery key appears in no file here.
+
+| Column | Meaning |
+|---|---|
+| `harness`, `firmware`, `context` | v3.sh's version with `-pull`; the rig's firmware; where the pull ran |
+| `settle_in`, `windows_build`, `kernel`, `cryptsetup`, `ntfs3g` | the versions on each side |
+| `bitlocker_conversion` | `Win32_EncryptableVolume.ConversionStatus` at the plant (1 = fully encrypted) |
+| `planted_copies`, `copied_identical` | files that must arrive; those in the home with the same sha256 and size |
+| `placeholders_expected`, `placeholders_copied` | dehydrated placeholders planted; how many of them appear in the home (must be 0) |
+| `downloaded_copied` | the downloaded cloud file (tag kept, recall bit gone) arrived: yes / no |
+| `bookmarks` | per bookmarks file the count of links in it (Chrome must be 5, Firefox 3) |
+| `key_deleted` | the recovery key is gone from `/var/lib/upgrade_` after the run |
+| `check`, `run` | the product's own result words (`plan`, `done`) |
+| `result` | `pass-plumbing` when every planted file is home and identical and the person's, no placeholder, link, junction or `desktop.ini` came, the downloaded file did, the bookmarks counts hold, the key is gone and Windows is closed; else `fail` with every miss in `notes` |
+| `notes` | the misses, or the home's file count; the ntfs-3g attribute record of each placeholder and link is kept in the run's `artifacts/v3/pull/xattr.txt` |
+
+A pass is plumbing: the placeholder provider is ours, not OneDrive, and the
+disk is a VHDX. The residue is a signed-in OneDrive's own placeholders and a
+real disk.
+
 ## `v8-materialize.csv`: OneDrive placeholders are materialized at evaluate (gate V8, risk R8)
 
 A OneDrive "free up space" file is a **placeholder**: its directory entry

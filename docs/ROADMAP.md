@@ -53,15 +53,15 @@ access are done (2026-10-04, the Aspire). Reclaim, decided 2026-11-02
 space), is built whole and waits on the rig (V15). **Decided (2026-11-02, the owner): copying the
 person's files (unlock BitLocker, copy, double-check, never a OneDrive stub)
 waits until the project has traction.** **Amended (2026-11-07, the owner):**
-built now, keep-Windows only, with the programs list (a Linux or web version
-named, nothing installed) and the bookmarks; waits on V3, V8 and item 3's key. Proves: V10, R28, V15, R41; the pull,
+built whole 2026-11-07 (settle-in 0.10.0), keep-Windows only, with the
+programs list and the bookmarks; waits on the rig arm (V3, V8), then a machine. Proves: V10, R28, V15, R41; the pull,
 V3, R19, R13. Stands: see [STATUS.md](STATUS.md).
 
 ## 3. The rest of the collecting
 
 Browsers (R20), the BitLocker key, staging on the exFAT partition, a screen
-that asks what the person wants. The BitLocker key and the bookmarks come
-first, for item 2's file copy (2026-11-07); the staging still waits. Wi-Fi, the clock and remote access are
+that asks what the person wants. The BitLocker key and the bookmarks are
+built (2026-11-07, for item 2's copy); the staging still waits. Wi-Fi, the clock and remote access are
 done. Proves: R20, R13, R26 (the staging is what the discard offer waits
 on). Stands: see [STATUS.md](STATUS.md).
 

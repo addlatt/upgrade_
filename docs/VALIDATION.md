@@ -294,7 +294,9 @@ unlocks, mounts and hashes again (`guest/v3-read.sh`, three driver
 passes); `v3-verdict.py` writes the rows. Other configs are built with
 `guest/v3-encrypt.ps1` on a copy of the pristine disk in a throwaway VM
 (`v3.sh mkvm`), in the product's order (encrypt, then shrink), and read as
-data disks. Residue no VM row closes: real disks, Windows 11's BitLocker,
+data disks. The pull arm (2026-11-07) runs the product's own pull on the
+same partition: `v3.sh files-run` (`guest/pull-plant.ps1`,
+`guest/pull-read.sh`, `pull-verdict.py`, rows in `v3-pull.csv`). Residue no VM row closes: real disks, Windows 11's BitLocker,
 physical machines, and "full-disk" as a real disk experiences it (the
 rig's thin VHDX never had its free space rewritten).
 
@@ -538,16 +540,21 @@ launchers.
 and the NTFS bytes afterwards hash to the known content, with a refusal on
 any failure; the pinned and unpinned attribute bits (`0x00080000` /
 `0x00100000`) are not part of detection. For `settle-in` (the path now in
-use): it refuses to copy a stub as if it were the file (R8); that check is
-not yet written. Vocabulary: `validation-results/README.md`.
+use): it refuses to copy a stub as if it were the file (R8); built
+2026-11-07 (settle-in 0.10.0, the pull counts as the harvester does and
+refuses on any mismatch), held when a `v3-pull.csv` row reads
+`pass-plumbing`. Vocabulary: `validation-results/README.md`.
 
-**How it is run.** `evaluate/windows/Test-Materialize.ps1` is a real sync
+**How it is run.** `evaluate/windows/Test-Materialize.ps1` (left the tree
+with the PowerShell on 2026-10-11; `git show 20d9a10^:` keeps it) is a real sync
 provider on Windows' Cloud Files API (cfapi, the interface OneDrive itself
 uses): it creates dehydrated placeholders with known bytes, refuses to
 serve one, runs the harvester's `-Materialize` seam in a separate process,
 and hashes the NTFS bytes afterwards. It runs on the rig and on any Windows
-machine. Residue: `-OneDrive` against a signed-in client, and `settle-in`'s
-refusal against a real OneDrive folder; neither has run.
+machine. Its provider code plants the pull arm's placeholders
+(`rig/hyperv/guest/pull-plant.ps1`, V3). Residue: `-OneDrive` against a
+signed-in client, and `settle-in`'s refusal against a real OneDrive folder;
+neither has run.
 
 **If it fails.** `evaluate` refuses machines with placeholders it cannot
 handle, rather than silently copying empties. Refuse by default: better to

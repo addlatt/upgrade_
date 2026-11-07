@@ -34,6 +34,14 @@
 #                                 capture RECOVERY_KEY= into the host key file for NAME (never printed), full shutdown
 #   v3.sh run CONFIG [plant args] the whole cycle for one config: oemdrv -> windows -> plant -> read -> verdict
 #
+# The pull arm (settle-in's file pull, 2026-11-07; V3, V8; R8, R19, R20 -> v3-pull.csv):
+#   v3.sh files-oemdrv            a FRESH OEMDRV with guest/pull-read.sh as run.sh, the key, and
+#                                 settle-in (musl), upgrade-harvest.exe and a Firefox backup in v3/
+#   v3.sh files-plant             Windows up: guest/pull-plant.ps1 plants the tree (Cloud Files
+#                                 placeholders included), runs the harvester, full shutdown
+#   v3.sh files-verdict           pull/ off OEMDRV -> pull-verdict.py -> v3-pull.csv
+#   v3.sh files-run               the whole cycle: files-oemdrv -> windows -> files-plant -> read -> files-verdict
+#
 # Evidence rows are written by the harness (v3-verdict), never by hand.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
@@ -184,6 +192,34 @@ verdict)
     need_off; oem_pull
     mtype -i "$OEM@@1M" ::/run.log > "$A/read-run.log" 2>/dev/null || true
     python3 v3-verdict.py "$A" "$CSV" "$HARNESS_VERSION" "$FIRMWARE" "$CONTEXT"
+    ;;
+files-oemdrv)
+    # the product binaries, built from this checkout (settle-in as the kit builds it)
+    ( cd ../../settle-in && cargo build --locked --release --quiet --target x86_64-unknown-linux-musl )
+    ( cd ../../evaluate/harvest && PATH="$HOME/.local/opt/zig-linux-x86_64-0.13.0:$PATH" cargo zigbuild --locked --release --quiet --target x86_64-pc-windows-gnu )
+    mkdir -p "$A"; python3 pull-firefox.py "$A/firefox.jsonlz4"
+    "$0" oemdrv guest/pull-read.sh ../../settle-in/target/x86_64-unknown-linux-musl/release/settle-in \
+        ../../target/x86_64-pc-windows-gnu/release/upgrade-harvest.exe "$A/firefox.jsonlz4"
+    ;;
+files-plant)
+    PS copy "$(wslpath -w guest/pull-plant.ps1)" 'C:\upgrade_\rig\pull-plant.ps1'
+    PS ps "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\upgrade_\rig\pull-plant.ps1"
+    ;;
+files-verdict)
+    need_off; oem_pull
+    rm -rf "$A/pull"; mkdir -p "$A/pull"
+    mcopy -s -n -i "$OEM@@1M" ::/v3/pull/* "$A/pull/" 2>/dev/null || true
+    mtype -i "$OEM@@1M" ::/run.log > "$A/pull/run.log" 2>/dev/null || true
+    python3 pull-verdict.py "$A" ../../docs/validation-results/v3-pull.csv "$HARNESS_VERSION-pull" "$FIRMWARE" "$CONTEXT"
+    ;;
+files-run)
+    "$0" files-oemdrv
+    "$0" windows
+    "$0" files-plant
+    "$0" wait-off 900
+    "$0" read
+    "$0" wait-off 3600
+    "$0" files-verdict
     ;;
 backup)
     need_off
