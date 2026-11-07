@@ -1356,7 +1356,7 @@ the arm, the run from the stick, the grow, the entries, held on disk images
 only. Owed: the rig, then a healthy-drive machine
 ([log](log/2026-11.md#2026-11-06-reclaim-built-whole-the-arm-the-run-from-the-stick-the-grow-the-entries-r41-v15)).
 
-## R42: ntfs-3g cannot read inside a OneDrive folder · high · planned
+## R43: ntfs-3g cannot read inside a OneDrive folder · high · planned
 
 **What.** Through ntfs-3g (2022.10.3, Fedora 42) a Cloud Files sync root,
 the folder OneDrive keeps its files in, is not shown as a folder, and
@@ -1378,7 +1378,7 @@ read-only NTFS reader of our own, or copying on the Windows side before
 the conversion), recorded in `v3-pull.csv`.
 
 **Where it stands.** `[#...]` found 2026-11-07 on the rig with V8's
-provider ([log](log/2026-11.md#2026-11-07-the-pull-on-the-rig-it-refused-ntfs-3g-hides-onedrive-folders-r42-r8-r19-r22-v3-v8)).
+provider ([log](log/2026-11.md#2026-11-07-the-pull-on-the-rig-it-refused-ntfs-3g-hides-onedrive-folders-r43-r8-r19-r22-v3-v8)).
 Owed: the reader decision, then a signed-in OneDrive.
 
 # Closed

@@ -246,7 +246,7 @@ is decided, the dated line goes in its home and the item here is removed.
 - The words shown to people are drafts awaiting approval: the erase
   launcher's "If you change your mind later", `UPGRADE.exe`'s screens (R31),
   the go-back screen, its Wi-Fi sentence, the SSH line, "Your programs" (R30, R33).
-- The pull: a folder changed in Windows since `evaluate` is refused for good (R8); the stick's key kept (R13); how to read inside OneDrive folders, which ntfs-3g cannot: a plugin, our own NTFS reader, or a copy in Windows (R42).
+- The pull: a folder changed in Windows since `evaluate` is refused for good (R8); the stick's key kept (R13); how to read inside OneDrive folders, which ntfs-3g cannot: a plugin, our own NTFS reader, or a copy in Windows (R43).
 - Whether a wimlib-made `install.swm` split installs cleanly with Secure
   Boot on (R30).
 - What the way back does on a machine with no firmware product key, where
