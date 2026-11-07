@@ -8,7 +8,9 @@
      `settle-in remove-old-boot-entry` and `settle-in go-back` (its root
      steps: `walkaway prepare` and `walkaway undo`, RISKS R33; the guided
      stick's `write` left with roadmap item 20, the action id kept; the
-     go-back words are a DRAFT). -->
+     go-back words are a DRAFT). A third, `settle-in reclaim` (its check,
+     arm and disarm, RISKS R41; words a DRAFT): auth_admin_keep, so the
+     check and the arm a minute later ask for the password once. -->
 <policyconfig>
   <vendor>upgrade_</vendor>
   <action id="org.upgrade.settle-in.remove-old-boot-entry">
@@ -43,5 +45,16 @@
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/local/libexec/upgrade_/settle-in</annotate>
     <annotate key="org.freedesktop.policykit.exec.argv1">rollback</annotate>
+  </action>
+  <action id="org.upgrade.settle-in.reclaim">
+    <description>Free up Windows' space</description>
+    <message>Checking whether Windows' space can be given to Linux reads this computer's disk and Windows' drive. Nothing is deleted until you click Restart now. Type your password to allow it.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/libexec/upgrade_/settle-in</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">reclaim</annotate>
   </action>
 </policyconfig>

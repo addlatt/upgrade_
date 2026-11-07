@@ -29,9 +29,9 @@ a row yet.
 
 Every stage of the one click test held on the Aspire, 2026-10-28/29
 (`oneclick-runs.csv` lines 26 to 37). Not written at all (audit
-2026-11-01): reclaim (decided 2026-11-02, R41), a sleep lock on either side (R33), R39's refusal, the
+2026-11-01): a sleep lock on either side (R33), R39's refusal, the
 discard offer (R26), any automatic check (R9). Written but with no row on a
-real machine: the window (R31, V12), gate 0.4.0's first sign-in and now
+real machine: reclaim, whole but never run (settle-in 0.9.0, R41), the window (R31, V12), gate 0.4.0's first sign-in and now
 0.5.0 (R33), settle-in 0.6.0 and now 0.7.0 (V10).
 
 Next: the one click run on the Aspire with the new versions (eight stages,
@@ -57,7 +57,7 @@ no cancel), then a sleep lock and R39. The order: `ROADMAP.md`.
 | V12 | the window in front of the programs | `[###.]` held-on-rig, the stop path only | `v12-window.csv` line 4, `stopped-before-arm` (2026-10-18, window 0.2.0; item 20's screens shot, no row) | a row on the Aspire: the reopen after restart, the result screen (both now behind `--developer`; Convert, the person's path, has no reopen and no step in this gate: a decision owed); the one click test drives the programs, not the window |
 | V13 | the port from PowerShell to Rust | `[####]` held-on-machine | `v2-install.csv` line 15, `pass` (2026-10-11, the whole conversion through the Rust prologue); `r18-prologue.csv` line 19, `pass-plumbing` (the Rust-only bench); the rig rows owed again re-earned 2026-10-17 (`v2-install.csv` line 20, `pass-plumbing`; `v9-erase.csv` lines 45 to 49); ledger 985 pass, 87 owed ([log](log/2026-10.md#2026-10-17-night-the-test-pass-on-the-rig-the-rows-the-rust-conversion-made-owed-again-v1-v1b-v9-v10-v11-v13-r21-r32-r33)) | the Aspire's rows with `upgrade-installer` 0.1.3; the 87 owed lines; the stick writer's write rows and the rig's refusals (the owner's run card); the prologue's disk-check arm (blocked on the bench's update read); the second-person rebuild |
 | V14 | the kit's Linux release starts where it is used | `[####]` held-on-machine, one firmware | `v9-erase.csv` line 30, `erased-installed` (2026-10-04, Fedora 44, Secure Boot on) | Fedora 42's measured record; a second firmware; the next SBAT level |
-| V15 | reclaim deletes only Windows, Linux starts in the whole disk | `[#...]` planned | none yet | the plan and the move on disk images, the rig, a healthy-drive machine |
+| V15 | reclaim deletes only Windows, Linux starts in the whole disk | `[#...]` planned | none yet (the logic held on disk images, settle-in 0.9.0) | the rig: every planted fault, a power cut mid-move; then a healthy-drive machine |
 
 ## Open risks
 
@@ -101,6 +101,6 @@ no cancel), then a sleep lock and R39. The order: `ROADMAP.md`.
 | R36 | the kept Windows' clock after a Linux boot | `[####]` held-on-machine | `v2-install.csv` line 15, `pass` (2026-10-11, +1 s, +2 s, +1 s after each Linux boot); line 17, `windows-clock-wrong` (the rig, 2026-10-12: Hyper-V hands UTC to the guest's clock chip, so the guest reads 7 h off after a Linux boot; a rig trap, not the product's) | the rig's Time Synchronization service off, then the arm again |
 | R37 | the installer's own startup hangs before our checks | `[#...]` planned | none yet (five hangs on the rig, 2026-10-04, 2026-10-11, 2026-10-15 twice, 2026-10-17, screens kept) | the cause; a way back with plain words |
 | R39 | a keep-Windows conversion beside a Linux already on the disk | `[#...]` planned | none yet (found on the Aspire 2026-10-28, [log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)) | the scanner's report and the job writer's refusal, or the owner's decision |
-| R41 | reclaim deletes the kept Windows and moves Linux | `[##..]` built, the plan and the move on images (settle-in 0.8.0) | none yet (decided 2026-11-02) | the run from the stick, the grow, the entries' removal; every refusal on the rig, a power cut mid-move, a healthy-drive machine; the Aspire's row is its drive-health refusal |
+| R41 | reclaim deletes the kept Windows and moves Linux | `[##..]` built, whole: the arm, the run from the stick, the grow, the entries (settle-in 0.9.0), never run | none yet (decided 2026-11-02) | the rig: every refusal, a power cut mid-move, the stub keeping Linux from starting; then a healthy-drive machine; the Aspire's row is its drive-health refusal; the words and the clock (decisions owed) |
 
 Closed: F1 to F4, the four fixed defects of 2026-08-22; R38, closed by removal 2026-11-02 (the countdown it was about left the product). `RISKS.md`, Closed.

@@ -541,9 +541,17 @@ pub fn pick_boot_next(listing: &str, ours: &str, usb_disks: usize) -> (String, &
 /// added to the boot order), then BootNext at the entry pick_boot_next
 /// chooses. Linux starts again after it.
 pub fn boot_once(stick_disk: &str, usb_disks: usize) -> Result<Value, String> {
+    boot_once_as(stick_disk, usb_disks, "upgrade_ go back to Windows")
+}
+
+/// The same, under another entry name (reclaim's, RISKS R41).
+pub fn boot_once_as(stick_disk: &str, usb_disks: usize, label: &str) -> Result<Value, String> {
+    if stick_disk.is_empty() {
+        return Err("the stick's disk is not known".into());
+    }
     let dev = format!("/dev/{}", stick_disk);
-    let out = run("efibootmgr", &["-C", "-d", &dev, "-p", "1", "-L", "upgrade_ go back to Windows", "-l", "\\EFI\\BOOT\\BOOTX64.EFI"])?;
-    let ours = out.lines().filter_map(|l| l.strip_prefix("Boot")).filter(|l| l.contains("upgrade_ go back to Windows"))
+    let out = run("efibootmgr", &["-C", "-d", &dev, "-p", "1", "-L", label, "-l", "\\EFI\\BOOT\\BOOTX64.EFI"])?;
+    let ours = out.lines().filter_map(|l| l.strip_prefix("Boot")).filter(|l| l.contains(label))
         .filter_map(|l| l.get(0..4)).last().ok_or("the new firmware entry could not be found")?.to_string();
     let (num, why) = pick_boot_next(&run("efibootmgr", &[])?, &ours, usb_disks);
     run("efibootmgr", &["-n", &num])?;
@@ -553,8 +561,17 @@ pub fn boot_once(stick_disk: &str, usb_disks: usize) -> Result<Value, String> {
 /// Undo the one-time start: clear BootNext if it points at our entry, and
 /// delete our entries. Nothing else on the computer was changed before it.
 pub fn undo() -> Result<Value, String> {
+    let mut v = undo_as("upgrade_ go back to Windows")?;
+    // the Wi-Fi passwords leave the stick at every stop (if the stick is in)
+    v["stick_wifi"] = wipe_stick_wifi();
+    Ok(v)
+}
+
+/// Clear BootNext if it points at an entry named `label` (or the firmware's
+/// generic USB entry boot_once may have chosen), and delete those entries.
+pub fn undo_as(label: &str) -> Result<Value, String> {
     let out = run("efibootmgr", &[])?;
-    let ours: Vec<String> = out.lines().filter_map(|l| l.strip_prefix("Boot")).filter(|l| l.contains("upgrade_ go back to Windows"))
+    let ours: Vec<String> = out.lines().filter_map(|l| l.strip_prefix("Boot")).filter(|l| l.contains(label))
         .filter_map(|l| l.get(0..4)).map(str::to_string).collect();
     let next = out.lines().find_map(|l| l.strip_prefix("BootNext:")).map(|v| v.trim().to_string());
     // BootNext is ours to clear when it points at our entry, or at the
@@ -568,9 +585,7 @@ pub fn undo() -> Result<Value, String> {
     for n in &ours {
         run("efibootmgr", &["-b", n, "-B"])?;
     }
-    // the Wi-Fi passwords leave the stick at every stop (if the stick is in)
-    let wifi = wipe_stick_wifi();
-    Ok(json!({ "result": "undone", "removed": ours, "boot_next_was": next, "stick_wifi": wifi }))
+    Ok(json!({ "result": "undone", "removed": ours, "boot_next_was": next }))
 }
 
 /// Delete upgrade_/wifi from the WINSETUP stick, mounting it privately if needed.

@@ -47,7 +47,22 @@
 //!       Reclaim (RISKS R41), the plan only: which partitions are Windows',
 //!       where Linux moves, what is lost, or every reason to refuse. Reads
 //!       the disk and the Windows partition (mounted read-only by the caller
-//!       at DIR); writes nothing. No command moves or deletes yet.
+//!       at DIR); writes nothing.
+//!   settle-in reclaim words
+//!       The window's first page, before anything is read. No root.
+//!   settle-in reclaim check [--root DIR]
+//!       The plan with Windows read (root: it mounts Windows read-only with
+//!       ntfs-3g and unmounts it), and the words for it. Writes nothing.
+//!   settle-in reclaim arm --typed SENTENCE [--root DIR]
+//!   settle-in reclaim disarm [--root DIR]
+//!       The arm (root, through pkexec): everything checked again, then the
+//!       order and the marker onto the kit stick and a one-time start from
+//!       it. Nothing on the internal disk changes; disarm takes it back.
+//!       "Restart now" in the window is the commit line.
+//!   settle-in reclaim run --stick DIR
+//!       On the kit stick (its reclaim kickstart, upg.mode=reclaim): checks
+//!       once more, commits, moves Linux, writes the table, grows /, puts the
+//!       startup back without Windows, restarts. Resumes after a power cut.
 //!   settle-in --version
 
 mod bootentry;
@@ -58,12 +73,11 @@ mod efi;
 mod goback;
 mod walkaway;
 mod gpt;
-// The writer half (the table writer, the move) is built and tested on images
-// but wired to no command until the rig has held it (RISKS R41).
-#[allow(dead_code)]
+// Reclaim's writers (the table writer, the move, the run from the stick):
+// built and tested on images; not yet held on the rig (RISKS R41, V15).
 mod gpttable;
-#[allow(dead_code)]
 mod reclaim;
+mod reclaimrun;
 mod hw;
 mod rollback;
 mod sticks;
@@ -239,6 +253,11 @@ fn first_start(root: &str, rtc: &str) -> i32 {
     // --- the old boot entry: only looked at here; removing is the person's button
     report["old_boot_entry"] = bootentry::describe(&bootentry::plan(&bootentry::facts(root, &job)));
     println!("settle-in: old boot entry offered: {} {}", report["old_boot_entry"]["offered"], report["old_boot_entry"]["why_not"]);
+
+    // --- reclaim (RISKS R41): its app entry, on the keep-Windows path only.
+    // Placed here, not by the installer, so the installer's golden stays as it is.
+    report["reclaim_entry"] = json!(reclaim_entry(root, &job));
+    println!("settle-in: reclaim entry: {}", report["reclaim_entry"]);
     if let Err(e) = save_public(root, &summary::build(root, &report, &job)) {
         eprintln!("settle-in: the summary for the window could not be written: {}", e);
     }
@@ -254,6 +273,22 @@ fn first_start(root: &str, rtc: &str) -> i32 {
     }
     println!("settle-in: report written: {}", report_path);
     0
+}
+
+const RECLAIM_DESKTOP: &str = include_str!("../linux/upgrade_-reclaim.desktop");
+
+/// "Free up Windows' space" in the app menu, when Windows was kept.
+fn reclaim_entry(root: &str, job: &Value) -> &'static str {
+    use std::os::unix::fs::PermissionsExt;
+    if !job.pointer("/intent/path").and_then(Value::as_str).is_some_and(|p| p.eq_ignore_ascii_case("keep-windows")) {
+        return "not offered: Windows was not kept";
+    }
+    let dir = format!("{}/usr/share/applications", root.trim_end_matches('/'));
+    let path = format!("{}/upgrade_-reclaim.desktop", dir);
+    let ok = std::fs::create_dir_all(&dir).is_ok()
+        && std::fs::write(&path, RECLAIM_DESKTOP).is_ok()
+        && std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).is_ok();
+    if ok { "placed" } else { "could not be placed" }
 }
 
 fn go_back(args: &[String], root: &str) -> i32 {
@@ -525,11 +560,27 @@ fn main() {
         Some("go-back") => std::process::exit(go_back(&args[1..], &opt("--root", "/"))),
         Some("remove-old-boot-entry") => std::process::exit(remove_old_boot_entry(&opt("--root", "/"))),
         Some("console-hook") => std::process::exit(console_hook::run(&opt("--root", "/"))),
-        Some("reclaim") if args.get(1).map(String::as_str) == Some("plan") => {
-            let wm = args.iter().position(|a| a == "--windows-mount").and_then(|i| args.get(i + 1)).cloned();
-            let r = reclaim::live::run(&opt("--root", "/"), wm.as_deref());
+        Some("reclaim") => {
+            let root = opt("--root", "/");
+            let r = match args.get(1).map(String::as_str) {
+                Some("plan") => {
+                    let wm = args.iter().position(|a| a == "--windows-mount").and_then(|i| args.get(i + 1)).cloned();
+                    let mut r = reclaim::live::run(&root, wm.as_deref());
+                    r["writes"] = json!("none: this is the plan only");
+                    r
+                }
+                Some("words") => reclaimrun::words(&Value::Null),
+                Some("check") => reclaimrun::live::check(&root),
+                Some("arm") => reclaimrun::live::arm(&root, &opt("--typed", ""), &now_iso()),
+                Some("disarm") => reclaimrun::live::disarm(&root),
+                Some("run") => std::process::exit(reclaimrun::live::onstick(&opt("--stick", "/run/install/repo"), &now_iso())),
+                _ => {
+                    eprintln!("usage: settle-in reclaim plan [--windows-mount DIR] | words | check | arm --typed SENTENCE | disarm | run --stick DIR");
+                    std::process::exit(64);
+                }
+            };
             println!("{}", serde_json::to_string_pretty(&r).unwrap_or_default());
-            std::process::exit(if r["result"] == "plan" { 0 } else { 1 });
+            std::process::exit(match r["result"].as_str() { Some("plan") | Some("ready") | Some("undone") => 0, None => 0, Some("refused") => 1, _ => 2 });
         }
         Some("rollback") => {
             let root = opt("--root", "/");

@@ -126,6 +126,9 @@ CABEXTRACT="$ROOT/settle-in/target/cabextract/cabextract"
 GATE_EXE=$("$ROOT/settle-in/gate/build.sh") || fail "the gate (upgrade-gate.exe) does not build or its tests fail"
 step "settle-in $SETTLE_IN_VERSION: tests pass, static build; window built"
 grep -q 'boot-install' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the boot-install branch"
+grep -q 'boot-reclaim' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the reclaim branch (RISKS R41)"
+grep -q 'settle-in reclaim run' "$PAYLOAD/ks-reclaim.cfg" || fail "ks-reclaim.cfg does not run settle-in's reclaim"
+! grep -qE '^(liveimg|part|clearpart|autopart|%include|ignoredisk)' "$PAYLOAD/ks-reclaim.cfg" || fail "ks-reclaim.cfg must install nothing"
 # UPGRADE.exe: the window in front of the scripts (Rust, decided 2026-09-27);
 # its tests run before it is built for Windows (upgrade_/windows/window/build.sh)
 UPGRADE_EXE=$("$ROOT/upgrade_/windows/window/build.sh") || fail "the window (UPGRADE.exe) does not build or its tests fail"
@@ -219,6 +222,8 @@ cp "$RBITS/images/pxeboot/vmlinuz"    "$D/images/pxeboot/vmlinuz"
 cp "$RBITS/images/pxeboot/initrd.img" "$D/images/pxeboot/initrd.img"
 cp "$RBITS/images/install.img"        "$D/images/install.img"
 cp "$INSTALLER_BIN" "$D/upgrade_/upgrade-installer"
+# reclaim (R41): the kickstart grub.cfg starts on a converted stick Linux has marked; it installs nothing
+sed 's/\r$//' "$PAYLOAD/ks-reclaim.cfg" > "$D/upgrade_/ks-reclaim.cfg"
 # settle-in and its service; the outcome step installs them only if their checksums match SHA256SUMS
 mkdir -p "$D/upgrade_/settle-in"
 cp "$SETTLE_IN_BIN" "$D/upgrade_/settle-in/settle-in"
