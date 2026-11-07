@@ -212,9 +212,20 @@ files-verdict)
     mtype -i "$OEM@@1M" ::/run.log > "$A/pull/run.log" 2>/dev/null || true
     python3 pull-verdict.py "$A" ../../docs/validation-results/v3-pull.csv "$HARNESS_VERSION-pull" "$FIRMWARE" "$CONTEXT"
     ;;
+files-pick-windows)
+    # GRUB's countdown is 30 s; a Down as soon as the menu is up stops it (no screenshot in the way)
+    need_off; PS start; wait_secs 12
+    PS key 40; sleep 1; PS key 40; sleep 1; PS key 40; sleep 1; PS key 13
+    t0=$(date +%s)
+    until PS ps 'hostname' 2>/dev/null | grep -q UPGRIG; do
+        [ $(( $(date +%s) - t0 )) -ge 600 ] && { PS shot "C:\\upgrade-rig\\hv\\shots\\pull-win-stuck.png"; echo "v3: Windows did not answer within 10 min" >&2; exit 2; }
+        sleep 10
+    done
+    echo "v3: Windows up (PS Direct) after $(( $(date +%s) - t0 )) s"
+    ;;
 files-run)
     "$0" files-oemdrv
-    "$0" windows
+    "$0" files-pick-windows
     "$0" files-plant
     "$0" wait-off 900
     "$0" read

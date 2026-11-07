@@ -273,6 +273,7 @@ namespace UpgV8 {
             if (identity != IntPtr.Zero) { Marshal.FreeHGlobal(identity); identity = IntPtr.Zero; }
         }
     }
+}
 '@
 Add-Type -TypeDefinition $CfSource -Language CSharp
 $root = Join-Path $plant 'Cloud'

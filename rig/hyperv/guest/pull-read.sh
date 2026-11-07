@@ -19,7 +19,14 @@ OEM=/mnt/oemdrv
 V3=$OEM/v3
 P=$V3/pull
 F=$P/facts-linux.txt
-mkdir -p "$P"; : > "$F"
+mkdir -p "$P"
+# nothing planted yet (Fedora started before Windows): touch nothing, stay armed for the next start
+if [ ! -f "$P/expected.json" ] || [ ! -f "$P/folder-map.json" ]; then
+    echo "pull-read: no plant on OEMDRV yet; nothing done, run.sh kept" > "$P/not-planted.txt"; sync
+    echo poweroff > $OEM/next; exit 0
+fi
+rm -f "$P/not-planted.txt"
+: > "$F"
 fact() { printf '%s=%s\n' "$1" "$2" >> "$F"; sync; }
 rm -f "$OEM/run.sh"      # run once, whatever happens next
 KEY=$(grep -oE '[0-9]{6}(-[0-9]{6}){7}' "$V3/key.txt" 2>/dev/null | head -1)
