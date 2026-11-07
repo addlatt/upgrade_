@@ -633,13 +633,20 @@ extension state does not reliably survive a copy.
 **If real.** "Your stuff silently didn't arrive": the project's worst kind of
 failure, in the feature most people check first.
 
+**Decided (2026-11-07, the owner):** only bookmarks move. Cookies,
+passwords, history, extensions and whole profiles do not. Chrome and Edge
+keep bookmarks in a plain JSON file and Firefox in its own database and
+backups, none of it DPAPI-encrypted, so the claim narrows to: every
+bookmark the Windows browser showed is in the Linux browser.
+
 **Closes when.** Real Windows to Linux profile moves are checked for each
 browser and version pair, and `evaluate`'s claims are narrowed to what the
 evidence supports.
 
 **Where it stands.** `[#...]` nothing checked. The harvester lists the
-browsers in the folder map; no profile move has been tried on any machine.
-Owed: one move per browser and version pair, and the narrowed claim.
+browsers in the folder map; no move has been tried on any machine. Owed: a
+bookmarks move per browser (Chrome, Edge, Firefox) into the Linux browser,
+counted on both sides ([log](log/2026-11.md#2026-11-07-the-file-pull-is-back-keep-windows-only-an-app-list-bookmarks-only-r8-r13-r19-r20-v3-v8-v10-roadmap-items-2-3)).
 
 ## R21: Installing alongside a shrunk Windows may not leave Windows bootable · critical · held-on-machine
 

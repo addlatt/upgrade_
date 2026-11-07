@@ -655,8 +655,14 @@ stands: see [STATUS.md](STATUS.md).
    after an install, and you can't hear it with headphones in.
 2. **Bring the files home** (keep-Windows path). **Decided (2026-11-02, the
    owner): not built until the project has traction;** until then the files
-   stay on the kept Windows, one boot-menu pick away. The design, kept for
-   then: safe here because the hardware
+   stay on the kept Windows, one boot-menu pick away. **Amended (2026-11-07,
+   the owner): built now, on this path only.** The folders go into the
+   matching Linux folders (`~/Documents` and the rest, empty on a new
+   install); a name already there is kept and the copy renamed, never
+   overwritten. Of the browsers, only bookmarks move (RISKS R20). Next to
+   it, `settle-in` shows the programs the person had (`harvest.software`)
+   with the Linux or web version named for each, from a table in `data/`;
+   it installs nothing. The design: safe here because the hardware
    is proven and Windows is still whole as a complete backup. Following the
    folder map from `job.json`, `settle-in` mounts the shrunk-aside Windows
    partition, unlocking BitLocker with the harvested recovery key (`cryptsetup`
