@@ -49,10 +49,11 @@ Hardware check on first boot, a "you used these programs, here is the Linux
 version" list, undo from the Linux side (the rollback, built 2026-10-12, held on
 the rig; waits on an Aspire row), clean-up. The clock, Wi-Fi and remote
 access are done (2026-10-04, the Aspire). Not written yet (audit
-2026-11-01): reclaim. **Decided (2026-11-02, the owner): copying the
+2026-11-01): reclaim, decided 2026-11-02 (R41: delete all of Windows on a
+typed sentence, move Linux into the space). **Decided (2026-11-02, the owner): copying the
 person's files (unlock BitLocker, copy, double-check, never a OneDrive stub)
 waits until the project has traction;** the files stay on the kept Windows.
-When it comes back it waits on V3 and V8 (R8). Proves: V10, R28; the pull,
+When it comes back it waits on V3 and V8 (R8). Proves: V10, R28, V15, R41; the pull,
 V3, R19, R13. Stands: see [STATUS.md](STATUS.md).
 
 ## 3. The rest of the collecting
@@ -267,6 +268,8 @@ is decided, the dated line goes in its home and the item here is removed.
   release from Windows: after item 23 holds on a machine (V14, R34).
 - Whether reclaim switches the kept-Windows machine's clock back to UTC once
   Windows is gone (R36 says "may").
+- The words of reclaim's typed sentence and its screen, which names the
+  folders that will be lost from `job.json`'s folder map (R41).
 - Who owns `shutdown /g` (Automatic Restart Sign-On), named in
   `architecture.md` as a courtesy to add later (R24).
 - What the person sees after Convert's restart. Decided 2026-09-27 (R31):

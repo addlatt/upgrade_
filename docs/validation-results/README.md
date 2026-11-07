@@ -727,3 +727,24 @@ ignores.
 A pass is `class` `pass` for the stage on that machine. A `pass-plumbing`
 row closes no real-hardware clause (rule #5). A `fail` caused by the manager
 itself stays, and the log names the fix.
+
+## `r41-reclaim.csv`: reclaim, deleting the kept Windows and moving Linux (gate V15, risk R41)
+
+One row per reclaim attempt, from settle-in's record of it (`reclaim.json`,
+not yet written), on the rig or a real machine. A disk-image test in
+settle-in's own suite writes no row: it is logic, not evidence (rule #5).
+
+| Column | Meaning |
+|---|---|
+| `timestamp`, `harness` | when the attempt ended (UTC); `rig` or `physical` |
+| `machine`, `firmware` | what the machine said of itself (DMI), never typed |
+| `settle_in_version` | the program that ran |
+| `arm` | what was planted or done: `clean`, `wrong-guid`, `second-disk`, `other-profiles`, `drive-health`, `bitlocker-locked`, `slot-unaccounted`, `power-cut` |
+| `disk_bytes`, `windows_bytes`, `chunk_bytes` | the disk, the Windows partitions deleted, the move's chunk |
+| `result` | `refused` (nothing written; the reason in `notes`), `moved-started` (Linux started with no key, `/` fills the space, Windows' entries and the guard gone), `resumed-started` (a move cut mid-copy finished on the next start, then the same), or what went wrong: `not-started`, `space-not-used`, `left-behind`, `moved-broken` |
+| `class` | `pass` (a real machine, as the arm expects), `pass-plumbing` (the rig, as the arm expects), `fail` (anything else) |
+| `notes` | one line, no personal values |
+
+A pass is `moved-started` with `class` `pass` on a machine with a healthy
+drive, plus `refused` for every planted arm on the rig. A `pass-plumbing`
+row closes no real-hardware clause.
