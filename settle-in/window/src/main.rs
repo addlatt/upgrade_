@@ -11,6 +11,7 @@
 //! ordinary way (architecture.md, "It runs on any Linux").
 
 mod goback;
+mod reclaim;
 
 use eframe::egui;
 use serde_json::Value;
@@ -184,9 +185,46 @@ fn go_back() {
     }
 }
 
+/// "Free up Windows' space" (RISKS R41), from the app menu.
+struct ReclaimApp(reclaim::Reclaim);
+
+impl eframe::App for ReclaimApp {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+        egui::CentralPanel::default().show(ui, |ui| {
+            if self.0.ui(&ctx, ui) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+        });
+    }
+}
+
+fn reclaim_window() {
+    let words = match Command::new(core()).args(["reclaim", "words"]).output() {
+        Ok(o) if o.status.success() => serde_json::from_slice::<Value>(&o.stdout).ok(),
+        _ => None,
+    };
+    let Some(words) = words else {
+        eprintln!("settle-in-window: the reclaim words could not be read from {}", core());
+        std::process::exit(1);
+    };
+    let title = words["title"].as_str().unwrap_or("Free up Windows' space").to_string();
+    let opts = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_title(&title).with_inner_size([620.0, 620.0]),
+        ..Default::default()
+    };
+    if let Err(e) = eframe::run_native(&title, opts, Box::new(|_cc| Ok(Box::new(ReclaimApp(reclaim::Reclaim::new(words)))))) {
+        eprintln!("settle-in-window: could not open the window: {}", e);
+        std::process::exit(1);
+    }
+}
+
 fn main() {
     if std::env::args().any(|a| a == "--go-back") {
         return go_back();
+    }
+    if std::env::args().any(|a| a == "--reclaim") {
+        return reclaim_window();
     }
     let uid = std::fs::metadata("/proc/self").map(|m| std::os::unix::fs::MetadataExt::uid(&m)).unwrap_or(0);
     let class = std::env::var("XDG_SESSION_CLASS").ok();
