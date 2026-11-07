@@ -37,10 +37,12 @@
 # The pull arm (settle-in's file pull, 2026-11-07; V3, V8; R8, R19, R20 -> v3-pull.csv):
 #   v3.sh files-oemdrv            a FRESH OEMDRV with guest/pull-read.sh as run.sh, the key, and
 #                                 settle-in (musl), upgrade-harvest.exe and a Firefox backup in v3/
+#   v3.sh files-fixture           Windows up: guest/ntfs-fixture.ps1 makes the reader's test disk (R43)
 #   v3.sh files-plant             Windows up: guest/pull-plant.ps1 plants the tree (Cloud Files
 #                                 placeholders included), runs the harvester, full shutdown
-#   v3.sh files-verdict           pull/ off OEMDRV -> pull-verdict.py -> v3-pull.csv
-#   v3.sh files-run               the whole cycle: files-oemdrv -> windows -> files-plant -> read -> files-verdict
+#   v3.sh files-verdict           pull/ off OEMDRV -> pull-verdict.py -> v3-pull.csv (and the test disk
+#                                 -> settle-in/tests/ntfs-fixture/ through ntfs-fixture.py)
+#   v3.sh files-run               the whole cycle: files-oemdrv -> windows -> files-fixture -> files-plant -> read -> files-verdict
 #
 # Evidence rows are written by the harness (v3-verdict), never by hand.
 set -euo pipefail
@@ -201,7 +203,14 @@ files-oemdrv)
     "$0" oemdrv guest/pull-read.sh ../../settle-in/target/x86_64-unknown-linux-musl/release/settle-in \
         ../../target/x86_64-pc-windows-gnu/release/upgrade-harvest.exe "$A/firefox.jsonlz4"
     ;;
+files-fixture)
+    # the reader's test disk, made by Windows (guest/ntfs-fixture.ps1), onto OEMDRV:\v3\fixture\
+    PS copy "$(wslpath -w guest/cfprovider.cs)" 'C:\upgrade_\rig\cfprovider.cs'
+    PS copy "$(wslpath -w guest/ntfs-fixture.ps1)" 'C:\upgrade_\rig\ntfs-fixture.ps1'
+    PS ps "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\upgrade_\rig\ntfs-fixture.ps1"
+    ;;
 files-plant)
+    PS copy "$(wslpath -w guest/cfprovider.cs)" 'C:\upgrade_\rig\cfprovider.cs'
     PS copy "$(wslpath -w guest/pull-plant.ps1)" 'C:\upgrade_\rig\pull-plant.ps1'
     PS ps "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\upgrade_\rig\pull-plant.ps1"
     ;;
@@ -210,6 +219,12 @@ files-verdict)
     rm -rf "$A/pull"; mkdir -p "$A/pull"
     mcopy -s -n -i "$OEM@@1M" ::/v3/pull/* "$A/pull/" 2>/dev/null || true
     mtype -i "$OEM@@1M" ::/run.log > "$A/pull/run.log" 2>/dev/null || true
+    # the reader's test disk, when files-fixture made one: cut into settle-in's tests (reviewed as a diff before commit)
+    rm -rf "$A/fixture"; mkdir -p "$A/fixture"
+    if mcopy -n -i "$OEM@@1M" ::/v3/fixture/ntfs-fixture.vhd ::/v3/fixture/fixture.json "$A/fixture/" 2>/dev/null; then
+        mkdir -p ../../settle-in/tests/ntfs-fixture
+        python3 ntfs-fixture.py "$A/fixture/ntfs-fixture.vhd" "$A/fixture/fixture.json" ../../settle-in/tests/ntfs-fixture
+    fi
     python3 pull-verdict.py "$A" ../../docs/validation-results/v3-pull.csv "$HARNESS_VERSION-pull" "$FIRMWARE" "$CONTEXT"
     ;;
 files-pick-windows)
@@ -226,6 +241,7 @@ files-pick-windows)
 files-run)
     "$0" files-oemdrv
     "$0" files-pick-windows
+    "$0" files-fixture
     "$0" files-plant
     "$0" wait-off 900
     "$0" read

@@ -19,6 +19,10 @@
 //!   copied either, and the count of placeholders must match the job's.
 //! - Links and junctions are not followed, as the harvest did not follow
 //!   them (log 2026-09-26): a link to another tree is not the person's folder.
+//! - Inside a OneDrive folder, which ntfs-3g cannot read (R43), our own
+//!   read-only reader (`ntfsread`) reads the same volume instead, and only
+//!   a file wholly on the disk is copied (decided 2026-11-07, the owner):
+//!   one only in the cloud, partly downloaded, or compressed there is listed.
 //! - Every file not copied is listed with its reason. Nothing is left out
 //!   silently (R20's worst kind of failure).
 //!
@@ -60,6 +64,45 @@ pub trait Probe {
     fn ntfs(&self, p: &Path) -> Ntfs;
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Kind {
+    File,
+    Dir,
+    Link,
+    /// A pipe or a device: how ntfs-3g shows Windows' empty system files.
+    Other,
+}
+
+/// One entry, as either reader sees it: ntfs-3g (`lstat` and its extended
+/// attributes) or our own reader inside a OneDrive folder (`ntfsread`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Seen {
+    pub kind: Kind,
+    pub len: u64,
+    /// Bytes of it on the disk (not holes), or `None` when not known.
+    pub on_disk: Option<u64>,
+    pub ntfs: Ntfs,
+    /// Windows compressed or encrypted it, and the reader that saw it does not unpack that.
+    pub packed: bool,
+}
+
+impl Seen {
+    /// What ntfs-3g shows (it unpacks compressed files itself).
+    pub fn of(md: &std::fs::Metadata, n: Ntfs) -> Seen {
+        let ft = md.file_type();
+        let kind = if ft.is_symlink() { Kind::Link } else if ft.is_dir() { Kind::Dir } else if ft.is_file() { Kind::File } else { Kind::Other };
+        Seen { kind, len: md.len(), on_disk: Some(md.blocks().saturating_mul(512)), ntfs: n, packed: false }
+    }
+
+    /// What our own reader shows. A junction or a folder symlink is a link,
+    /// as ntfs-3g shows them.
+    pub fn of_raw(e: &crate::ntfsread::Entry) -> Seen {
+        let link = e.reparse_tag.is_some_and(|t| t == TAG_MOUNT_POINT || t == TAG_SYMLINK);
+        let kind = if link { Kind::Link } else if e.dir { Kind::Dir } else { Kind::File };
+        Seen { kind, len: e.len, on_disk: e.on_disk, ntfs: Ntfs { reparse_tag: e.reparse_tag, attrib: Some(e.attrib) }, packed: e.packed }
+    }
+}
+
 /// How one entry is sorted.
 #[derive(Debug, PartialEq)]
 pub enum Sort {
@@ -72,31 +115,33 @@ pub enum Sort {
     Walk,
 }
 
-/// The rule for one entry, from what `lstat` and ntfs-3g say. It counts
-/// and recognises exactly as the harvest did on Windows, so the counts can
-/// be held against each other: every entry that is not a folder is a file;
-/// every folder is walked except a junction or a folder symlink; a
-/// placeholder is a file with the recall-on-data-access or offline bit
-/// (`evaluate/harvest/src/cloud.rs`). A OneDrive file already downloaded
-/// keeps its cloud reparse tag but loses those bits (log 2026-09-08,
-/// `0x80420`), and is copied like any other.
-pub fn sort(name: &str, md: &std::fs::Metadata, n: Ntfs) -> Sort {
-    let ft = md.file_type();
+/// The rule for one entry. It counts and recognises exactly as the harvest
+/// did on Windows, so the counts can be held against each other: every
+/// entry that is not a folder is a file; every folder is walked except a
+/// junction or a folder symlink; a placeholder is a file with the
+/// recall-on-data-access or offline bit (`evaluate/harvest/src/cloud.rs`).
+/// A OneDrive file already downloaded keeps its cloud reparse tag but loses
+/// those bits (log 2026-09-08, `0x80420`), and is copied like any other, but
+/// only when all of it is on the disk (decided 2026-11-07, the owner: only
+/// fully downloaded files come over).
+pub fn sort(name: &str, s: &Seen) -> Sort {
+    let n = s.ntfs;
     let folder_link = n.reparse_tag.is_some_and(|t| t == TAG_MOUNT_POINT || t == TAG_SYMLINK);
     let cloud_tag = n.reparse_tag.is_some_and(is_cloud_tag);
-    // a cloud file ntfs-3g shows as something other than a file or a folder is not guessed at (review, 2026-11-07)
-    if cloud_tag && !ft.is_file() && !ft.is_dir() {
+    // a cloud entry ntfs-3g shows as something other than a file or a folder is not guessed at (review, 2026-11-07);
+    // with our own reader there (R43) this does not happen
+    if cloud_tag && s.kind != Kind::File && s.kind != Kind::Dir {
         return Sort::Unsure("a OneDrive file this Linux cannot read the kind of");
     }
-    if ft.is_symlink() {
-        // ntfs-3g shows junctions and symlinks as links; the folder bit says which kind the harvest saw
+    if s.kind == Kind::Link {
+        // junctions and symlinks show as links; the folder bit says which kind the harvest saw
         let is_folder = n.attrib.is_some_and(|a| a & ATTR_DIRECTORY != 0);
         return Sort::Skip(if is_folder { "a link to another folder (not followed)" } else { "a link to somewhere else (not followed)" }, !is_folder);
     }
-    if ft.is_dir() {
+    if s.kind == Kind::Dir {
         return if folder_link { Sort::Skip("a link to another folder (not followed)", false) } else { Sort::Walk };
     }
-    if !ft.is_file() {
+    if s.kind == Kind::Other {
         return Sort::Skip("a Windows system file, not a document", true);
     }
     match n.attrib {
@@ -108,24 +153,29 @@ pub fn sort(name: &str, md: &std::fs::Metadata, n: Ntfs) -> Sort {
     if n.reparse_tag.is_some_and(|t| !is_cloud_tag(t)) {
         return Sort::Skip("a special Windows file (a reparse point)", true);
     }
-    // a OneDrive file partly downloaded has less on the disk than its length: the rest would read as zeros
-    if cloud_tag && md.len() > 1024 && md.blocks().saturating_mul(512) < md.len() {
-        return Sort::Skip("only part of it is on this computer; the rest is in OneDrive", true);
+    if s.packed {
+        return Sort::Skip("Windows compressed or encrypted it inside a OneDrive folder, and this Linux cannot unpack it there yet", true);
     }
-    // a file with bytes and no space on disk is not trusted to read back its bytes
-    if md.len() > 1024 && md.blocks() == 0 {
-        return Sort::Skip("it has no data on the disk (perhaps only in the cloud)", true);
+    match s.on_disk {
+        // a OneDrive file partly downloaded has less on the disk than its length: the rest would read as zeros
+        Some(d) if cloud_tag && s.len > 1024 && d < s.len => return Sort::Skip("only part of it is on this computer; the rest is in OneDrive", true),
+        None if cloud_tag => return Sort::Skip("it could not be told whether all of it is on this computer", true),
+        // a file with bytes and no space on disk is not trusted to read back its bytes
+        Some(0) if s.len > 1024 => return Sort::Skip("it has no data on the disk (perhaps only in the cloud)", true),
+        _ => {}
     }
     if name.eq_ignore_ascii_case("desktop.ini") || name.eq_ignore_ascii_case("thumbs.db") {
         return Sort::Skip("Windows' own folder settings", true);
     }
-    Sort::Copy(md.len())
+    Sort::Copy(s.len)
 }
 
 #[derive(Debug, Default)]
 pub struct Walked {
     /// Relative paths and sizes to copy.
     pub copy: Vec<(String, u64)>,
+    /// The ones among them read through our own reader (inside a OneDrive folder).
+    pub raw: std::collections::HashSet<String>,
     pub placeholders: u64,
     /// Relative path, why, whether the harvest counted it as a file.
     pub skipped: Vec<(String, &'static str, bool)>,
@@ -145,42 +195,116 @@ impl Walked {
     }
 }
 
-/// Walk one folder, depth first, in name order, never following a link.
-pub fn walk(top: &Path, probe: &dyn Probe) -> Walked {
+/// One folder's entries: the name, what it is (or why it could not be
+/// seen), and whether our own reader saw it.
+pub type Listing = Vec<(String, Result<(Seen, bool), String>)>;
+
+/// A tree to walk, by volume-relative paths (`Users/Ann/Documents`).
+pub trait Tree {
+    fn list(&self, rel: &str) -> Result<Listing, String>;
+}
+
+/// Windows as it is read: through ntfs-3g at `root`, and, where ntfs-3g
+/// cannot read (a folder with a Cloud Files tag, or anything under one),
+/// through our own reader on the same volume (R43). Without our reader
+/// (`raw: None`) a OneDrive folder is unsure, and the plan refuses.
+pub struct Mounted<'a> {
+    pub root: PathBuf,
+    pub probe: &'a dyn Probe,
+    pub raw: Option<&'a crate::ntfsread::Volume>,
+    /// Folders already known to be in OneDrive or not, so each is looked up once.
+    cloud: std::cell::RefCell<std::collections::HashMap<String, bool>>,
+}
+
+impl<'a> Mounted<'a> {
+    pub fn new(root: PathBuf, probe: &'a dyn Probe, raw: Option<&'a crate::ntfsread::Volume>) -> Mounted<'a> {
+        Mounted { root, probe, raw, cloud: Default::default() }
+    }
+
+    /// The folder, or one above it, carries a Cloud Files tag.
+    fn in_cloud(&self, v: &crate::ntfsread::Volume, rel: &str) -> Result<bool, String> {
+        if rel.is_empty() {
+            return Ok(false);
+        }
+        if let Some(b) = self.cloud.borrow().get(rel) {
+            return Ok(*b);
+        }
+        let parent = rel.rsplit_once('/').map(|(p, _)| p).unwrap_or("");
+        let b = self.in_cloud(v, parent)? || v.stat(rel)?.reparse_tag.is_some_and(is_cloud_tag);
+        self.cloud.borrow_mut().insert(rel.to_string(), b);
+        Ok(b)
+    }
+}
+
+fn join(rel: &str, name: &str) -> String {
+    match (rel.is_empty(), name.is_empty()) {
+        (true, _) => name.to_string(),
+        (_, true) => rel.to_string(),
+        _ => format!("{}/{}", rel, name),
+    }
+}
+
+impl Tree for Mounted<'_> {
+    fn list(&self, rel: &str) -> Result<Listing, String> {
+        if let Some(v) = self.raw {
+            if self.in_cloud(v, rel)? {
+                return Ok(v.list(rel)?.into_iter().map(|e| (e.name.clone(), Ok((Seen::of_raw(&e), true)))).collect());
+            }
+        }
+        let dir = self.root.join(rel);
+        let names = std::fs::read_dir(&dir).and_then(|rd| rd.map(|e| e.map(|e| e.file_name())).collect::<Result<Vec<_>, _>>()).map_err(|e| e.to_string())?;
+        Ok(names
+            .into_iter()
+            .map(|n| {
+                let name = n.to_string_lossy().to_string();
+                let p = dir.join(&n);
+                let seen = std::fs::symlink_metadata(&p).map_err(|e| e.to_string()).and_then(|md| {
+                    let s = Seen::of(&md, self.probe.ntfs(&p));
+                    match self.raw {
+                        // a OneDrive entry is read by our reader, whatever ntfs-3g made of it
+                        Some(v) if s.ntfs.reparse_tag.is_some_and(is_cloud_tag) => v.stat(&join(rel, &name)).map(|e| (Seen::of_raw(&e), true)),
+                        _ => Ok((s, false)),
+                    }
+                });
+                (name, seen)
+            })
+            .collect())
+    }
+}
+
+/// Walk one folder (volume-relative), depth first, in name order, never following a link.
+pub fn walk(tree: &dyn Tree, top: &str) -> Walked {
     let mut w = Walked::default();
-    let mut stack = vec![PathBuf::new()];
+    let mut stack = vec![String::new()];
     while let Some(rel) = stack.pop() {
-        let dir = top.join(&rel);
-        let mut names = match std::fs::read_dir(&dir) {
-            Ok(rd) => match rd.map(|e| e.map(|e| e.file_name())).collect::<Result<Vec<_>, _>>() {
-                Ok(n) => n,
-                Err(e) => {
-                    w.unreadable.push(format!("{} ({})", shown(&rel), e));
-                    continue;
-                }
-            },
+        let mut names = match tree.list(&join(top, &rel)) {
+            Ok(n) => n,
             Err(e) => {
                 w.unreadable.push(format!("{} ({})", shown(&rel), e));
                 continue;
             }
         };
-        names.sort();
+        names.sort_by(|a, b| a.0.cmp(&b.0));
         let mut subdirs = Vec::new();
-        for name in names {
-            let r = rel.join(&name);
-            let p = top.join(&r);
-            let md = match std::fs::symlink_metadata(&p) {
-                Ok(m) => m,
+        for (name, seen) in names {
+            let r = join(&rel, &name);
+            let (s, raw) = match seen {
+                Ok(x) => x,
                 Err(e) => {
-                    w.unreadable.push(format!("{} ({})", shown(&r), e));
+                    w.unreadable.push(format!("{} ({})", r, e));
                     continue;
                 }
             };
-            match sort(&name.to_string_lossy(), &md, probe.ntfs(&p)) {
-                Sort::Copy(n) => w.copy.push((shown(&r), n)),
+            match sort(&name, &s) {
+                Sort::Copy(n) => {
+                    if raw {
+                        w.raw.insert(r.clone());
+                    }
+                    w.copy.push((r, n))
+                }
                 Sort::Placeholder => w.placeholders += 1,
-                Sort::Skip(why, counted) => w.skipped.push((shown(&r), why, counted)),
-                Sort::Unsure(why) => w.unsure.push((shown(&r), why)),
+                Sort::Skip(why, counted) => w.skipped.push((r, why, counted)),
+                Sort::Unsure(why) => w.unsure.push((r, why)),
                 Sort::Walk => subdirs.push(r),
             }
         }
@@ -190,9 +314,8 @@ pub fn walk(top: &Path, probe: &dyn Probe) -> Walked {
     w
 }
 
-fn shown(rel: &Path) -> String {
-    let s = rel.to_string_lossy().to_string();
-    if s.is_empty() { ".".into() } else { s }
+fn shown(rel: &str) -> String {
+    if rel.is_empty() { ".".into() } else { rel.to_string() }
 }
 
 /// `C:\Users\Ann\Documents` -> `Users/Ann/Documents`, only on C: and never
@@ -246,7 +369,7 @@ fn s<'a>(v: &'a Value, p: &str) -> &'a str {
 
 /// The plan: what is copied where, what is not and why, or every reason to
 /// refuse. Writes nothing.
-pub fn plan(f: &Facts, probe: &dyn Probe) -> Value {
+pub fn plan(f: &Facts, probe: &dyn Probe, raw: Option<&crate::ntfsread::Volume>) -> Value {
     let mut no: Vec<String> = Vec::new();
     if f.job.get("schema") != Some(&json!("job/1")) {
         return json!({ "result": "refused", "why": ["the job is not readable, so where your files are is not known"] });
@@ -311,7 +434,7 @@ pub fn plan(f: &Facts, probe: &dyn Probe) -> Value {
     for (d, v) in &mapped {
         let name = s(d, "/name");
         let to = dest.iter().find(|(n, _)| n == name).map(|(_, p)| p.clone()).unwrap_or_else(|| f.home.join(name));
-        let w = walk(&win.join(v), probe);
+        let w = walk(&Mounted::new(win.clone(), probe, raw), v);
         let job_files = d.get("files").and_then(Value::as_u64).unwrap_or(0);
         let job_ph = if expect_placeholders { d.get("cloud_only_files").and_then(Value::as_u64).unwrap_or(0) } else { 0 };
         for u in &w.unreadable {
@@ -417,7 +540,7 @@ pub mod live {
             reclaimed: Path::new(&format!("{}/boot/efi/{}", r, crate::reclaimrun::ESP_DONE_REL)).exists(),
             already_home: 0,
         };
-        plan(&f, &Ntfs3g)
+        plan(&f, &Ntfs3g, None)
     }
 }
 
@@ -472,7 +595,7 @@ mod tests {
         let o = outcome();
         let home = t.join("home");
         let f = Facts { job, outcome: &o, windows: Ok(t.join("win")), home: &home, free: Some(free), rolled_back: false, reclaimed: false, already_home: 0 };
-        plan(&f, &Fake(t.join("win"), fake))
+        plan(&f, &Fake(t.join("win"), fake), None)
     }
 
     fn cloud_doc() -> HashMap<&'static str, Ntfs> {
@@ -530,26 +653,26 @@ mod tests {
         let t = tree("sort");
         let f = t.join("win/Users/Ann/Documents/letter.txt");
         let md = std::fs::symlink_metadata(&f).unwrap();
-        assert_eq!(sort("letter.txt", &md, Ntfs::default()), Sort::Copy(4));
+        assert_eq!(sort("letter.txt", &Seen::of(&md, Ntfs::default())), Sort::Copy(4));
         // the harvest's rule: the recall-on-data-access or offline bit, with or without a tag
         for tag in [Some(0x9000_001Au32), Some(0x9000_101A), Some(0x9000_F01A), None] {
-            assert_eq!(sort("x", &md, Ntfs { reparse_tag: tag, attrib: Some(ATTR_RECALL_ON_DATA_ACCESS | 0x20) }), Sort::Placeholder);
-            assert_eq!(sort("x", &md, Ntfs { reparse_tag: tag, attrib: Some(ATTR_OFFLINE) }), Sort::Placeholder);
+            assert_eq!(sort("x", &Seen::of(&md, Ntfs { reparse_tag: tag, attrib: Some(ATTR_RECALL_ON_DATA_ACCESS | 0x20) })), Sort::Placeholder);
+            assert_eq!(sort("x", &Seen::of(&md, Ntfs { reparse_tag: tag, attrib: Some(ATTR_OFFLINE) })), Sort::Placeholder);
         }
         // downloaded: the cloud tag stays, the recall bit goes (the rig's 0x80420); it is copied
-        assert_eq!(sort("x", &md, Ntfs { reparse_tag: Some(0x9000_601A), attrib: Some(0x80420) }), Sort::Copy(4));
+        assert_eq!(sort("x", &Seen::of(&md, Ntfs { reparse_tag: Some(0x9000_601A), attrib: Some(0x80420) })), Sort::Copy(4));
         // a cloud tag with unreadable attributes cannot be told apart, so it is not copied
-        assert_eq!(sort("x", &md, Ntfs { reparse_tag: Some(0x9000_601A), attrib: None }), Sort::Unsure("it could not be told whether it is only in OneDrive"));
+        assert_eq!(sort("x", &Seen::of(&md, Ntfs { reparse_tag: Some(0x9000_601A), attrib: None })), Sort::Unsure("it could not be told whether it is only in OneDrive"));
         // an app alias (IO_REPARSE_TAG_APPEXECLINK) is not a document
-        assert_eq!(sort("x", &md, Ntfs { reparse_tag: Some(0x8000_001B), attrib: Some(0x420) }), Sort::Skip("a special Windows file (a reparse point)", true));
+        assert_eq!(sort("x", &Seen::of(&md, Ntfs { reparse_tag: Some(0x8000_001B), attrib: Some(0x420) })), Sort::Skip("a special Windows file (a reparse point)", true));
         // a junction is not walked and not a file; any other reparse folder (OneDrive's) is walked
         let dmd = std::fs::symlink_metadata(t.join("win/Users/Ann/Documents/Taxes")).unwrap();
-        assert_eq!(sort("Taxes", &dmd, Ntfs { reparse_tag: Some(TAG_MOUNT_POINT), attrib: None }), Sort::Skip("a link to another folder (not followed)", false));
-        assert_eq!(sort("Taxes", &dmd, Ntfs { reparse_tag: Some(0x9000_701A), attrib: None }), Sort::Walk);
+        assert_eq!(sort("Taxes", &Seen::of(&dmd, Ntfs { reparse_tag: Some(TAG_MOUNT_POINT), attrib: None })), Sort::Skip("a link to another folder (not followed)", false));
+        assert_eq!(sort("Taxes", &Seen::of(&dmd, Ntfs { reparse_tag: Some(0x9000_701A), attrib: None })), Sort::Walk);
         // bytes with no space on the disk
         let sparse = t.join("sparse");
         std::fs::File::create(&sparse).unwrap().set_len(1 << 20).unwrap();
-        assert_eq!(sort("sparse", &std::fs::symlink_metadata(&sparse).unwrap(), Ntfs::default()), Sort::Skip("it has no data on the disk (perhaps only in the cloud)", true));
+        assert_eq!(sort("sparse", &Seen::of(&std::fs::symlink_metadata(&sparse).unwrap(), Ntfs::default())), Sort::Skip("it has no data on the disk (perhaps only in the cloud)", true));
     }
 
     #[test]
@@ -560,7 +683,7 @@ mod tests {
         let part = docs.join("half.docx");
         std::fs::File::create(&part).unwrap().set_len(1 << 20).unwrap();
         let md = std::fs::symlink_metadata(&part).unwrap();
-        assert_eq!(sort("half.docx", &md, Ntfs { reparse_tag: Some(0x9000_601A), attrib: Some(0x80420) }), Sort::Skip("only part of it is on this computer; the rest is in OneDrive", true));
+        assert_eq!(sort("half.docx", &Seen::of(&md, Ntfs { reparse_tag: Some(0x9000_601A), attrib: Some(0x80420) })), Sort::Skip("only part of it is on this computer; the rest is in OneDrive", true));
         std::fs::remove_file(&part).unwrap();
         // a cloud tag on something shown as a link: unsure, and the plan refuses
         let mut fake = cloud_doc();
@@ -582,9 +705,9 @@ mod tests {
         let home = t.join("home");
         let jb = job(6, 1);
         let mut f = Facts { job: &jb, outcome: &o, windows: Ok(t.join("win")), home: &home, free: Some((2 << 30) + 100), rolled_back: false, reclaimed: false, already_home: 0 };
-        assert_eq!(plan(&f, &Fake(t.join("win"), cloud_doc()))["result"], "refused", "8004 bytes plus 2 GiB spare do not fit");
+        assert_eq!(plan(&f, &Fake(t.join("win"), cloud_doc()), None)["result"], "refused", "8004 bytes plus 2 GiB spare do not fit");
         f.already_home = 8004;
-        assert_eq!(plan(&f, &Fake(t.join("win"), cloud_doc()))["result"], "plan", "they do once the journal says they are home");
+        assert_eq!(plan(&f, &Fake(t.join("win"), cloud_doc()), None)["result"], "plan", "they do once the journal says they are home");
     }
 
     #[test]
@@ -605,4 +728,49 @@ mod tests {
         j["intent"]["path"] = json!("clean-slate");
         assert_eq!(run(&t, &j, cloud_doc(), 100 << 30)["result"], "nothing-to-do");
     }
+
+    fn raw(tag: Option<u32>, attrib: u32, dir: bool, len: u64, on_disk: Option<u64>, packed: bool) -> Seen {
+        Seen::of_raw(&crate::ntfsread::Entry { name: "x".into(), dir, len, on_disk, attrib, reparse_tag: tag, packed, mtime: (0, 0), atime: (0, 0) })
+    }
+
+    #[test]
+    fn our_reader_sorts_as_the_harvest_counts() {
+        // inside OneDrive (R43): a folder is walked, a downloaded file copied, a placeholder counted
+        assert_eq!(sort("Sub", &raw(Some(0x9000_701A), 0x10, true, 0, Some(0), false)), Sort::Walk);
+        assert_eq!(sort("a.pdf", &raw(Some(0x9000_601A), 0x80420, false, 123456, Some(123456), false)), Sort::Copy(123456));
+        assert_eq!(sort("b.docx", &raw(Some(0x9000_601A), 0x401620, false, 70000, Some(0), false)), Sort::Placeholder);
+        // only fully downloaded files come over (decided 2026-11-07, the owner)
+        assert_eq!(sort("c.bin", &raw(Some(0x9000_601A), 0x620, false, 300000, Some(65536), false)), Sort::Skip("only part of it is on this computer; the rest is in OneDrive", true));
+        assert_eq!(sort("d.bin", &raw(Some(0x9000_601A), 0x420, false, 300000, None, false)), Sort::Skip("it could not be told whether all of it is on this computer", true));
+        // compressed or encrypted: never its raw bytes
+        assert!(matches!(sort("e.txt", &raw(Some(0x9000_601A), 0xC20, false, 5000, Some(5000), true)), Sort::Skip(w, true) if w.contains("compressed")));
+        // a junction and a file symlink, seen by our reader, are counted as ntfs-3g's are
+        assert_eq!(sort("J", &raw(Some(TAG_MOUNT_POINT), 0x410, true, 0, Some(0), false)), Sort::Skip("a link to another folder (not followed)", false));
+        assert_eq!(sort("l.txt", &raw(Some(TAG_SYMLINK), 0x420, false, 0, Some(0), false)), Sort::Skip("a link to somewhere else (not followed)", true));
+        // a small file lives in its MFT record: all of it is on the disk
+        assert_eq!(sort("f.txt", &raw(Some(0x9000_601A), 0x420, false, 600, Some(600), false)), Sort::Copy(600));
+    }
+
+    /// A made-up tree where ntfs-3g shows a OneDrive folder as a broken
+    /// link, as it did on the rig (v3-pull.csv line 3).
+    struct Listed(HashMap<&'static str, Listing>);
+    impl Tree for Listed {
+        fn list(&self, rel: &str) -> Result<Listing, String> {
+            self.0.get(rel).cloned().ok_or_else(|| "not a folder".to_string())
+        }
+    }
+
+    #[test]
+    fn a_walk_marks_what_our_reader_read() {
+        let file = |len| Seen { kind: Kind::File, len, on_disk: Some(len), ntfs: Ntfs::default(), packed: false };
+        let t = Listed(HashMap::from([
+            ("D", vec![("a.txt".to_string(), Ok((file(3), false))), ("OneDrive".to_string(), Ok((raw(Some(0x9000_701A), 0x10, true, 0, Some(0), false), true)))]),
+            ("D/OneDrive", vec![("b.pdf".to_string(), Ok((raw(Some(0x9000_601A), 0x80420, false, 9, Some(9), false), true))), ("bad".to_string(), Err("broken".to_string()))]),
+        ]));
+        let w = walk(&t, "D");
+        assert_eq!(w.copy, vec![("a.txt".to_string(), 3), ("OneDrive/b.pdf".to_string(), 9)]);
+        assert!(w.raw.contains("OneDrive/b.pdf") && !w.raw.contains("a.txt"));
+        assert_eq!(w.unreadable, vec!["OneDrive/bad (broken)".to_string()]);
+    }
 }
+

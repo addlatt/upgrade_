@@ -96,6 +96,7 @@ mod reclaimrun;
 mod hw;
 mod programs;
 mod pull;
+mod ntfsread;
 mod pullrun;
 mod rollback;
 mod sticks;

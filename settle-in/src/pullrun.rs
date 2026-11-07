@@ -3,7 +3,8 @@
 //!
 //! The one writer in the pull, and it writes only into the person's own
 //! home. Windows is opened read-only twice over (`cryptsetup --readonly`,
-//! then ntfs-3g `-o ro`), so whatever goes wrong here, Windows and every
+//! then ntfs-3g `-o ro`, and our own reader inside OneDrive folders opens
+//! the device read-only), so whatever goes wrong here, Windows and every
 //! file on it stay as they were, one boot-menu pick away (rule #4: a
 //! writer is held to more than a reader). The rules, each for a way a copy
 //! loses or mangles a file:
@@ -280,7 +281,7 @@ fn landed(dir: &Dir, name: &str, part: &str) -> Option<String> {
 /// hash both ways. `commit` (the journal) is told where it landed before
 /// the part file goes, so a cut at any point resumes to one copy. Returns
 /// where it landed and its sha256.
-pub fn copy_one(src: &Path, size: u64, dir: &Dir, name: &str, key: &str, owner: Option<Owner>, commit: &mut dyn FnMut(&Path, &str) -> std::io::Result<()>) -> Result<(PathBuf, String), CopyErr> {
+pub fn copy_one(src: &dyn Src, size: u64, dir: &Dir, name: &str, key: &str, owner: Option<Owner>, commit: &mut dyn FnMut(&Path, &str) -> std::io::Result<()>) -> Result<(PathBuf, String), CopyErr> {
     let part = part_name(key);
     let finish = |to: String, sha: String, commit: &mut dyn FnMut(&Path, &str) -> std::io::Result<()>| -> Result<(PathBuf, String), CopyErr> {
         let to = dir.path.join(to);
@@ -330,37 +331,88 @@ pub fn copy_one(src: &Path, size: u64, dir: &Dir, name: &str, key: &str, owner: 
     Err(CopyErr::Skip(last))
 }
 
-fn copy_attempt(src: &Path, size: u64, dir: &Dir, part: &str, owner: Option<Owner>) -> Result<String, CopyErr> {
+/// Where a file's bytes come from: a path under ntfs-3g, or our own reader
+/// inside a OneDrive folder (R43).
+pub trait Src {
+    /// Check it is still the file the plan saw (an ordinary file of `size`
+    /// bytes, all of it on the disk), then hand every byte to `each`.
+    /// Returns its last access and last write times.
+    fn read_all(&self, size: u64, each: &mut dyn FnMut(&[u8]) -> Result<(), CopyErr>) -> Result<[(i64, i64); 2], CopyErr>;
+}
+
+impl Src for PathBuf {
+    fn read_all(&self, size: u64, each: &mut dyn FnMut(&[u8]) -> Result<(), CopyErr>) -> Result<[(i64, i64); 2], CopyErr> {
+        let mut f = std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC)
+            .open(self)
+            .map_err(|e| CopyErr::Skip(format!("it could not be opened ({})", e)))?;
+        let md = f.metadata().map_err(|e| CopyErr::Skip(e.to_string()))?;
+        if !md.file_type().is_file() {
+            return Err(CopyErr::Skip("it is no longer an ordinary file".into()));
+        }
+        if md.len() != size {
+            return Err(CopyErr::Skip(format!("it changed since the plan ({} bytes then, {} now)", size, md.len())));
+        }
+        let mut buf = vec![0u8; 1 << 20];
+        loop {
+            let n = match f.read(&mut buf) {
+                Ok(n) => n,
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(e) => return Err(CopyErr::Skip(format!("Windows' drive could not be read here ({})", e))),
+            };
+            if n == 0 {
+                break;
+            }
+            each(&buf[..n])?;
+        }
+        Ok([(md.atime(), md.atime_nsec()), (md.mtime(), md.mtime_nsec())])
+    }
+}
+
+/// A file inside a OneDrive folder, read by our own reader.
+pub struct RawSrc<'a> {
+    pub vol: &'a crate::ntfsread::Volume,
+    /// Volume-relative (`Users/Ann/OneDrive/Documents/letter.docx`).
+    pub rel: String,
+}
+
+impl Src for RawSrc<'_> {
+    fn read_all(&self, size: u64, each: &mut dyn FnMut(&[u8]) -> Result<(), CopyErr>) -> Result<[(i64, i64); 2], CopyErr> {
+        let e = self.vol.stat(&self.rel).map_err(|e| CopyErr::Skip(format!("it could not be opened ({})", e)))?;
+        let s = crate::pull::Seen::of_raw(&e);
+        // the same rule the plan used, again now: still a whole file on the disk, of the same size
+        match crate::pull::sort(&e.name, &s) {
+            crate::pull::Sort::Copy(n) if n == size => {}
+            crate::pull::Sort::Copy(n) => return Err(CopyErr::Skip(format!("it changed since the plan ({} bytes then, {} now)", size, n))),
+            _ => return Err(CopyErr::Skip("it is no longer a file wholly on this computer".into())),
+        }
+        let mut fail: Option<CopyErr> = None;
+        let r = self.vol.read(&self.rel, &mut |b| {
+            each(b).map_err(|e| {
+                fail = Some(e);
+                std::io::Error::other("stopped")
+            })
+        });
+        if let Some(e) = fail {
+            return Err(e);
+        }
+        r.map_err(|e| CopyErr::Skip(format!("Windows' drive could not be read here ({})", e)))?;
+        Ok([e.atime, e.mtime])
+    }
+}
+
+fn copy_attempt(src: &dyn Src, size: u64, dir: &Dir, part: &str, owner: Option<Owner>) -> Result<String, CopyErr> {
     use std::os::fd::AsRawFd;
-    let mut f = std::fs::OpenOptions::new()
-        .read(true)
-        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC)
-        .open(src)
-        .map_err(|e| CopyErr::Skip(format!("it could not be opened ({})", e)))?;
-    let md = f.metadata().map_err(|e| CopyErr::Skip(e.to_string()))?;
-    if !md.file_type().is_file() {
-        return Err(CopyErr::Skip("it is no longer an ordinary file".into()));
-    }
-    if md.len() != size {
-        return Err(CopyErr::Skip(format!("it changed since the plan ({} bytes then, {} now)", size, md.len())));
-    }
     let mut out = dir.create(part).map_err(|e| io_err(&e))?;
     let mut h = Sha256::new();
-    let mut buf = vec![0u8; 1 << 20];
     let mut total = 0u64;
-    loop {
-        let n = match f.read(&mut buf) {
-            Ok(n) => n,
-            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(e) => return Err(CopyErr::Skip(format!("Windows' drive could not be read here ({})", e))),
-        };
-        if n == 0 {
-            break;
-        }
-        h.update(&buf[..n]);
-        out.write_all(&buf[..n]).map_err(|e| io_err(&e))?;
-        total += n as u64;
-    }
+    let [at, mt] = src.read_all(size, &mut |b| {
+        h.update(b);
+        out.write_all(b).map_err(|e| io_err(&e))?;
+        total += b.len() as u64;
+        Ok(())
+    })?;
     if total != size {
         return Err(CopyErr::Skip(format!("{} of its {} bytes could be read", total, size)));
     }
@@ -376,7 +428,7 @@ fn copy_attempt(src: &Path, size: u64, dir: &Dir, part: &str, owner: Option<Owne
         return Err(CopyErr::Skip("the copy did not read back the same as the original".into()));
     }
     // the person's file, with the time Windows gave it, set on the open file
-    let times = [libc::timespec { tv_sec: md.atime(), tv_nsec: md.atime_nsec() }, libc::timespec { tv_sec: md.mtime(), tv_nsec: md.mtime_nsec() }];
+    let times = [libc::timespec { tv_sec: at.0, tv_nsec: at.1 }, libc::timespec { tv_sec: mt.0, tv_nsec: mt.1 }];
     // SAFETY: the descriptor is open; times holds two timespecs.
     unsafe {
         libc::futimens(out.as_raw_fd(), times.as_ptr());
@@ -453,7 +505,7 @@ impl Journal {
 
 /// The copy of every folder in a plan the caller has just made.
 /// `progress` is told after every file.
-pub fn copy_all(plan: &Value, win: &Path, home: &Path, journal: &mut Journal, owner: Option<Owner>, probe: &dyn crate::pull::Probe, progress: &mut dyn FnMut(&Value)) -> Value {
+pub fn copy_all(plan: &Value, win: &Path, home: &Path, journal: &mut Journal, owner: Option<Owner>, probe: &dyn crate::pull::Probe, raw: Option<&crate::ntfsread::Volume>, progress: &mut dyn FnMut(&Value)) -> Value {
     if plan["result"] != "plan" {
         return json!({ "result": "refused", "why": plan["why"].clone() });
     }
@@ -480,7 +532,7 @@ pub fn copy_all(plan: &Value, win: &Path, home: &Path, journal: &mut Journal, ow
         let mut cache: Option<(PathBuf, Dir)> = None;
         if stopped.is_none() {
             let to_rel = to_rel.unwrap_or_default();
-            let w = crate::pull::walk(&win.join(&from), probe);
+            let w = crate::pull::walk(&crate::pull::Mounted::new(win.to_path_buf(), probe, raw), &from);
             for (rel, size) in &w.copy {
                 let relp = Path::new(rel);
                 let file_name = relp.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
@@ -514,7 +566,13 @@ pub fn copy_all(plan: &Value, win: &Path, home: &Path, journal: &mut Journal, ow
                     }
                 }
                 let mut commit = |to: &Path, sha: &str| journal.add(&name, rel, &to.to_string_lossy(), sha);
-                match copy_one(&win.join(&from).join(relp), *size, dir, &file_name, &key, owner, &mut commit) {
+                let by_path = win.join(&from).join(relp);
+                let by_raw = raw.filter(|_| w.raw.contains(rel)).map(|vol| RawSrc { vol, rel: format!("{}/{}", from, rel) });
+                let src: &dyn Src = match &by_raw {
+                    Some(r) => r,
+                    None => &by_path,
+                };
+                match copy_one(src, *size, dir, &file_name, &key, owner, &mut commit) {
                     Ok((dest, _)) => {
                         if dest.file_name().map(|n| n.to_string_lossy().to_string()) != Some(file_name.clone()) {
                             renamed.push(json!({ "path": rel, "as": dest.file_name().map(|n| n.to_string_lossy().to_string()) }));
@@ -585,10 +643,24 @@ pub mod live {
     /// Windows, opened read-only for as long as this lives.
     pub struct Opened {
         pub dir: PathBuf,
+        /// The device ntfs-3g mounted: our own reader opens it too, read-only (R43).
+        pub source: String,
         mapped: bool,
+        /// Our own reader on the same volume, for the OneDrive folders; closed
+        /// first, or the unlocked device stays busy and cannot be locked again
+        /// (v3-pull.csv line 4, 2026-11-07).
+        vol: Option<crate::ntfsread::Volume>,
+    }
+    impl Opened {
+        /// The reader, when it opened. When it did not, the OneDrive folders
+        /// are unsure and the plan refuses.
+        pub fn volume(&self) -> Option<&crate::ntfsread::Volume> {
+            self.vol.as_ref()
+        }
     }
     impl Drop for Opened {
         fn drop(&mut self) {
+            drop(self.vol.take());
             let _ = run("umount", &[&self.dir.to_string_lossy()]);
             if self.mapped {
                 let _ = run("cryptsetup", &["close", MAPPER]);
@@ -670,7 +742,8 @@ pub mod live {
             }
             return Err(format!("Windows' drive could not be opened read-only ({}). If it is open in the file manager, close it there and try again", e));
         }
-        Ok(Opened { dir: PathBuf::from(mp), mapped })
+        let vol = crate::ntfsread::Volume::open(Path::new(&source)).ok();
+        Ok(Opened { dir: PathBuf::from(mp), source, mapped, vol })
     }
 
     /// One pull at a time: a check from a second window must not unmount a running copy.
@@ -716,13 +789,14 @@ pub mod live {
             Err(v) => return v,
         };
         // nothing to open when there is nothing to pull
-        let pre = crate::pull::plan(&facts(r, &job, &outcome, Err("not opened".into()), &home), &crate::pull::live::Ntfs3g);
+        let pre = crate::pull::plan(&facts(r, &job, &outcome, Err("not opened".into()), &home), &crate::pull::live::Ntfs3g, None);
         if pre["result"] == "nothing-to-do" {
             return pre;
         }
         let opened = open_windows(r, typed_key);
         let win = opened.as_ref().map(|o| o.dir.clone()).map_err(|e| e.clone());
-        let mut p = crate::pull::plan(&facts(r, &job, &outcome, win, &home), &crate::pull::live::Ntfs3g);
+        let vol = opened.as_ref().ok().and_then(|o| o.volume());
+        let mut p = crate::pull::plan(&facts(r, &job, &outcome, win, &home), &crate::pull::live::Ntfs3g, vol);
         if let Err(e) = &opened {
             p["needs_key"] = json!(e.contains("aka.ms/myrecoverykey") || e.contains("not a BitLocker recovery key") || e.contains("could not be unlocked"));
         }
@@ -769,9 +843,10 @@ pub mod live {
                 return json!({ "result": "refused", "why": [e] });
             }
         };
-        let plan = crate::pull::plan(&facts(r, &job, &outcome, Ok(opened.dir.clone()), &home), &crate::pull::live::Ntfs3g);
+        let vol = opened.volume();
+        let plan = crate::pull::plan(&facts(r, &job, &outcome, Ok(opened.dir.clone()), &home), &crate::pull::live::Ntfs3g, vol);
         let mut journal = Journal::open(Path::new(&format!("{}/{}", r, JOURNAL_REL)));
-        let mut out = copy_all(&plan, &opened.dir, &home, &mut journal, Some(owner), &crate::pull::live::Ntfs3g, &mut |p| {
+        let mut out = copy_all(&plan, &opened.dir, &home, &mut journal, Some(owner), &crate::pull::live::Ntfs3g, vol, &mut |p| {
             println!("progress {}", p);
             let _ = std::io::stdout().flush();
         });
@@ -942,19 +1017,19 @@ mod tests {
         let plan = json!({ "result": "plan", "bytes": 4003, "folders": [{ "name": "Documents", "from": "C:\\Users\\Ann\\Documents", "to": to.to_string_lossy(), "files": 2, "not_copied": [], "in_onedrive": 0 }] });
         let mut j = Journal::open(&d.join("j.tsv"));
         let mut ticks = 0;
-        let out = copy_all(&plan, &d.join("win"), &d.join("home"), &mut j, None, &Plain, &mut |_| ticks += 1);
+        let out = copy_all(&plan, &d.join("win"), &d.join("home"), &mut j, None, &Plain, None, &mut |_| ticks += 1);
         assert_eq!(out["result"], "done", "{out:#}");
         assert_eq!(out["folders"][0]["copied"], 2);
         assert_eq!(ticks, 2);
         assert_eq!(std::fs::read(to.join("Taxes/b.pdf")).unwrap(), vec![9u8; 4000]);
         // run again from the journal: nothing copied twice
         let mut j = Journal::open(&d.join("j.tsv"));
-        let again = copy_all(&plan, &d.join("win"), &d.join("home"), &mut j, None, &Plain, &mut |_| {});
+        let again = copy_all(&plan, &d.join("win"), &d.join("home"), &mut j, None, &Plain, None, &mut |_| {});
         assert_eq!(again["folders"][0]["copied"], 0);
         assert_eq!(again["folders"][0]["already_copied"], 2);
         assert_eq!(std::fs::read_dir(&to).unwrap().count(), 2, "a.txt and Taxes, no copies");
         // a refused plan copies nothing
-        assert_eq!(copy_all(&json!({ "result": "refused", "why": ["x"] }), &d, &d, &mut j, None, &Plain, &mut |_| {})["result"], "refused");
+        assert_eq!(copy_all(&json!({ "result": "refused", "why": ["x"] }), &d, &d, &mut j, None, &Plain, None, &mut |_| {})["result"], "refused");
     }
 
     #[test]
@@ -977,7 +1052,7 @@ mod tests {
         // a destination outside the home stops the copy before anything is written
         let plan = json!({ "result": "plan", "bytes": 1, "folders": [{ "name": "Documents", "from": "C:\\Users\\Ann\\Documents", "to": elsewhere.to_string_lossy(), "files": 1, "not_copied": [], "in_onedrive": 0 }] });
         let mut j = Journal::open(&d.join("j.tsv"));
-        let out = copy_all(&plan, &d, &home, &mut j, None, &Plain, &mut |_| {});
+        let out = copy_all(&plan, &d, &home, &mut j, None, &Plain, None, &mut |_| {});
         assert_eq!(out["result"], "stopped");
         assert_eq!(std::fs::read_dir(&elsewhere).unwrap().count(), 1);
     }
