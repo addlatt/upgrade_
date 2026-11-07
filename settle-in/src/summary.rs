@@ -170,7 +170,7 @@ fn names(folders: &Value) -> String {
 
 fn key_line(k: &Value) -> Option<String> {
     match k["stick"].as_str() {
-        Some("not-plugged-in") | Some("still-there") => Some("The USB stick still holds Windows' BitLocker recovery key. Plug the stick in and press the button again to delete it there too.".into()),
+        Some("kept") => Some("The USB stick still holds Windows' BitLocker recovery key, in case Windows ever asks for it. Keep the stick somewhere safe, as you would a spare house key.".into()),
         _ => None,
     }
 }
@@ -218,7 +218,6 @@ fn files_section(f: &Value) -> Value {
             l.extend(bookmark_lines(&f["bookmarks"]));
             if let Some(k) = key_line(&f["key"]) {
                 l.push(k);
-                button = button.or(Some("Delete the key from the stick"));
             }
         }
         Some("stopped") => {
@@ -380,14 +379,13 @@ The old Windows startup entry
         let t = text(&sec);
         assert!(t.contains("Your files\n  Your files are still in Windows, untouched."), "{t}");
         assert!(sec["sections"].as_array().unwrap().iter().any(|x| x["action"] == "pull" && x["button"] == "Bring my files over"));
-        s["files"] = json!({ "result": "done", "bytes": 2_500_000_000u64, "key": { "deleted_here": true, "stick": "not-plugged-in" },
+        s["files"] = json!({ "result": "done", "bytes": 2_500_000_000u64, "key": { "deleted_here": true, "stick": "kept" },
             "folders": [{ "name": "Documents", "copied": 10, "failed": 0, "renamed": 1, "in_onedrive": 3 }, { "name": "Music", "copied": 0, "failed": 0, "renamed": 0, "in_onedrive": 0 }] });
         let t = text(&sections(&s));
         assert!(t.contains("Brought over: 10 files (2.5 GB) into Documents. Windows still has its own copies."), "{t}");
         assert!(t.contains("1 had the name of a file already here"), "{t}");
         assert!(t.contains("3 files live only in OneDrive"), "{t}");
-        assert!(t.contains("still holds Windows' BitLocker recovery key"), "{t}");
-        s["files"]["key"]["stick"] = json!("deleted");
+        assert!(t.contains("still holds Windows' BitLocker recovery key, in case Windows ever asks for it"), "{t}");
         let sec = sections(&s);
         assert!(sec["sections"].as_array().unwrap().iter().all(|x| x["action"] != "pull"), "no button once all is done");
         s["files"]["bookmarks"] = json!([{ "browser": "Chrome", "result": "written", "bookmarks": 412, "file_name": "Bookmarks from Windows - Chrome.html" },

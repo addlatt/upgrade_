@@ -246,7 +246,7 @@ is decided, the dated line goes in its home and the item here is removed.
 - The words shown to people are drafts awaiting approval: the erase
   launcher's "If you change your mind later", `UPGRADE.exe`'s screens (R31),
   the go-back screen, its Wi-Fi sentence, the SSH line, "Your programs" (R30, R33).
-- A folder changed in Windows after `evaluate` counted it: today the pull refuses it for good (R8).
+- The pull: a folder changed in Windows after `evaluate` is refused for good (R8); the stick's key is kept, not deleted (R13).
 - Whether a wimlib-made `install.swm` split installs cleanly with Secure
   Boot on (R30).
 - What the way back does on a machine with no firmware product key, where

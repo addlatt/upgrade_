@@ -67,6 +67,8 @@ pub enum Sort {
     Placeholder,
     /// Not copied: why, and whether the harvest counted it as a file.
     Skip(&'static str, bool),
+    /// A file that may be only in OneDrive and cannot be told: the plan refuses.
+    Unsure(&'static str),
     Walk,
 }
 
@@ -81,6 +83,11 @@ pub enum Sort {
 pub fn sort(name: &str, md: &std::fs::Metadata, n: Ntfs) -> Sort {
     let ft = md.file_type();
     let folder_link = n.reparse_tag.is_some_and(|t| t == TAG_MOUNT_POINT || t == TAG_SYMLINK);
+    let cloud_tag = n.reparse_tag.is_some_and(is_cloud_tag);
+    // a cloud file ntfs-3g shows as something other than a file or a folder is not guessed at (review, 2026-11-07)
+    if cloud_tag && !ft.is_file() && !ft.is_dir() {
+        return Sort::Unsure("a OneDrive file this Linux cannot read the kind of");
+    }
     if ft.is_symlink() {
         // ntfs-3g shows junctions and symlinks as links; the folder bit says which kind the harvest saw
         let is_folder = n.attrib.is_some_and(|a| a & ATTR_DIRECTORY != 0);
@@ -95,11 +102,15 @@ pub fn sort(name: &str, md: &std::fs::Metadata, n: Ntfs) -> Sort {
     match n.attrib {
         Some(a) if a & (ATTR_OFFLINE | ATTR_RECALL_ON_DATA_ACCESS) != 0 => return Sort::Placeholder,
         // a cloud file whose attributes cannot be read cannot be told apart from a placeholder
-        None if n.reparse_tag.is_some_and(is_cloud_tag) => return Sort::Skip("it could not be told whether it is only in OneDrive", true),
+        None if cloud_tag => return Sort::Unsure("it could not be told whether it is only in OneDrive"),
         _ => {}
     }
     if n.reparse_tag.is_some_and(|t| !is_cloud_tag(t)) {
         return Sort::Skip("a special Windows file (a reparse point)", true);
+    }
+    // a OneDrive file partly downloaded has less on the disk than its length: the rest would read as zeros
+    if cloud_tag && md.len() > 1024 && md.blocks().saturating_mul(512) < md.len() {
+        return Sort::Skip("only part of it is on this computer; the rest is in OneDrive", true);
     }
     // a file with bytes and no space on disk is not trusted to read back its bytes
     if md.len() > 1024 && md.blocks() == 0 {
@@ -120,12 +131,14 @@ pub struct Walked {
     pub skipped: Vec<(String, &'static str, bool)>,
     /// Folders that could not be read: a refusal.
     pub unreadable: Vec<String>,
+    /// Files that may be only in OneDrive and cannot be told: a refusal.
+    pub unsure: Vec<(String, &'static str)>,
 }
 
 impl Walked {
     pub fn files(&self) -> u64 {
         // what the harvest counted: every file, whatever its kind (not the folders or links)
-        self.copy.len() as u64 + self.placeholders + self.skipped.iter().filter(|s| s.2).count() as u64
+        self.copy.len() as u64 + self.placeholders + self.unsure.len() as u64 + self.skipped.iter().filter(|s| s.2).count() as u64
     }
     pub fn bytes(&self) -> u64 {
         self.copy.iter().map(|(_, b)| b).sum()
@@ -167,6 +180,7 @@ pub fn walk(top: &Path, probe: &dyn Probe) -> Walked {
                 Sort::Copy(n) => w.copy.push((shown(&r), n)),
                 Sort::Placeholder => w.placeholders += 1,
                 Sort::Skip(why, counted) => w.skipped.push((shown(&r), why, counted)),
+                Sort::Unsure(why) => w.unsure.push((shown(&r), why)),
                 Sort::Walk => subdirs.push(r),
             }
         }
@@ -201,7 +215,10 @@ pub fn destinations(home: &Path) -> Vec<(String, PathBuf)> {
         .map(|(name, xdg)| {
             let key = format!("XDG_{}_DIR=", xdg);
             let from_file = t.lines().map(str::trim).find_map(|l| l.strip_prefix(&key)).map(|v| v.trim_matches('"').to_string())
-                .and_then(|v| v.strip_prefix("$HOME/").map(|r| home.join(r)))
+                .and_then(|v| v.strip_prefix("$HOME/").map(str::to_string))
+                // only a folder inside the home, named plainly (no `..`, review 2026-11-07)
+                .filter(|r| Path::new(r).components().all(|c| matches!(c, std::path::Component::Normal(_))))
+                .map(|r| home.join(r))
                 // a folder set to the home itself (XDG's "turned off") is not a destination
                 .filter(|p| p != home);
             (name.to_string(), from_file.unwrap_or_else(|| home.join(name)))
@@ -219,6 +236,8 @@ pub struct Facts<'a> {
     pub free: Option<u64>,
     pub rolled_back: bool,
     pub reclaimed: bool,
+    /// Bytes an earlier, cut-off run already put home (its journal): not needed again.
+    pub already_home: u64,
 }
 
 fn s<'a>(v: &'a Value, p: &str) -> &'a str {
@@ -263,6 +282,9 @@ pub fn plan(f: &Facts, probe: &dyn Probe) -> Value {
     }
     for (a, va) in &mapped {
         for (b, vb) in &mapped {
+            if !std::ptr::eq(*a, *b) && vb.eq_ignore_ascii_case(va) && s(a, "/name") < s(b, "/name") {
+                no.push(format!("{} and {} are the same folder, so its files would be copied twice", s(a, "/name"), s(b, "/name")));
+            }
             if !std::ptr::eq(*a, *b) && vb.to_lowercase().starts_with(&format!("{}/", va.to_lowercase())) {
                 no.push(format!("{} is inside {}, so its files would be copied twice", s(b, "/name"), s(a, "/name")));
             }
@@ -275,6 +297,14 @@ pub fn plan(f: &Facts, probe: &dyn Probe) -> Value {
             return json!({ "result": "refused", "why": no });
         }
     };
+    // a Windows that hibernated (or shut down with Fast Startup) may hold newer files in its
+    // memory image than on the drive: read now, they could come over stale (review, 2026-11-07)
+    if let Ok(mut h) = std::fs::File::open(win.join("hiberfil.sys")) {
+        let mut b = [0u8; 4];
+        if std::io::Read::read_exact(&mut h, &mut b).is_ok() && (b.eq_ignore_ascii_case(b"hibr") || b.eq_ignore_ascii_case(b"wake")) {
+            no.push("Windows was not fully shut down (it hibernated, or Fast Startup kept it half-asleep), so its newest changes may not be on the drive. Start Windows, then choose Restart (not Shut down), let it reach the sign-in screen, and start Linux from there".into());
+        }
+    }
     let dest = destinations(f.home);
     let mut out = Vec::new();
     let mut total = 0u64;
@@ -286,6 +316,9 @@ pub fn plan(f: &Facts, probe: &dyn Probe) -> Value {
         let job_ph = if expect_placeholders { d.get("cloud_only_files").and_then(Value::as_u64).unwrap_or(0) } else { 0 };
         for u in &w.unreadable {
             no.push(format!("in {}, {} could not be read", name, u));
+        }
+        if !w.unsure.is_empty() {
+            no.push(format!("in {}, {} files cannot be told apart from files that live only in OneDrive (the first: {}), so nothing is copied", name, w.unsure.len(), w.unsure[0].0));
         }
         // the harvest's count is the check that nothing hides from this walk (V8's residue)
         if w.files() != job_files {
@@ -307,9 +340,11 @@ pub fn plan(f: &Facts, probe: &dyn Probe) -> Value {
         }));
     }
     match f.free {
-        Some(free) if free < total.saturating_add(MARGIN) => no.push(format!(
-            "this Linux has {} free, and the files need {} plus {} to spare: {} more space is needed",
-            gb(free), gb(total), gb(MARGIN), gb(total + MARGIN - free))),
+        Some(free) if free < total.saturating_sub(f.already_home).saturating_add(MARGIN) => {
+            let need = total.saturating_sub(f.already_home);
+            no.push(format!("this Linux has {} free, and the files need {} plus {} to spare: {} more space is needed",
+                gb(free), gb(need), gb(MARGIN), gb(need + MARGIN - free)))
+        }
         None => no.push("the free space on this Linux could not be read".into()),
         _ => {}
     }
@@ -380,6 +415,7 @@ pub mod live {
             free: free_bytes(&home),
             rolled_back: Path::new(&format!("{}/boot/efi/upgrade_/rolled-back.json", r)).exists(),
             reclaimed: Path::new(&format!("{}/boot/efi/{}", r, crate::reclaimrun::ESP_DONE_REL)).exists(),
+            already_home: 0,
         };
         plan(&f, &Ntfs3g)
     }
@@ -435,7 +471,7 @@ mod tests {
     fn run(t: &Path, job: &Value, fake: HashMap<&'static str, Ntfs>, free: u64) -> Value {
         let o = outcome();
         let home = t.join("home");
-        let f = Facts { job, outcome: &o, windows: Ok(t.join("win")), home: &home, free: Some(free), rolled_back: false, reclaimed: false };
+        let f = Facts { job, outcome: &o, windows: Ok(t.join("win")), home: &home, free: Some(free), rolled_back: false, reclaimed: false, already_home: 0 };
         plan(&f, &Fake(t.join("win"), fake))
     }
 
@@ -503,7 +539,7 @@ mod tests {
         // downloaded: the cloud tag stays, the recall bit goes (the rig's 0x80420); it is copied
         assert_eq!(sort("x", &md, Ntfs { reparse_tag: Some(0x9000_601A), attrib: Some(0x80420) }), Sort::Copy(4));
         // a cloud tag with unreadable attributes cannot be told apart, so it is not copied
-        assert_eq!(sort("x", &md, Ntfs { reparse_tag: Some(0x9000_601A), attrib: None }), Sort::Skip("it could not be told whether it is only in OneDrive", true));
+        assert_eq!(sort("x", &md, Ntfs { reparse_tag: Some(0x9000_601A), attrib: None }), Sort::Unsure("it could not be told whether it is only in OneDrive"));
         // an app alias (IO_REPARSE_TAG_APPEXECLINK) is not a document
         assert_eq!(sort("x", &md, Ntfs { reparse_tag: Some(0x8000_001B), attrib: Some(0x420) }), Sort::Skip("a special Windows file (a reparse point)", true));
         // a junction is not walked and not a file; any other reparse folder (OneDrive's) is walked
@@ -514,6 +550,41 @@ mod tests {
         let sparse = t.join("sparse");
         std::fs::File::create(&sparse).unwrap().set_len(1 << 20).unwrap();
         assert_eq!(sort("sparse", &std::fs::symlink_metadata(&sparse).unwrap(), Ntfs::default()), Sort::Skip("it has no data on the disk (perhaps only in the cloud)", true));
+    }
+
+    #[test]
+    fn the_review_rules() {
+        let t = tree("review");
+        let docs = t.join("win/Users/Ann/Documents");
+        // a cloud file with only part of it on the disk (a sparse file stands in)
+        let part = docs.join("half.docx");
+        std::fs::File::create(&part).unwrap().set_len(1 << 20).unwrap();
+        let md = std::fs::symlink_metadata(&part).unwrap();
+        assert_eq!(sort("half.docx", &md, Ntfs { reparse_tag: Some(0x9000_601A), attrib: Some(0x80420) }), Sort::Skip("only part of it is on this computer; the rest is in OneDrive", true));
+        std::fs::remove_file(&part).unwrap();
+        // a cloud tag on something shown as a link: unsure, and the plan refuses
+        let mut fake = cloud_doc();
+        fake.insert("Users/Ann/Documents/My Music", Ntfs { reparse_tag: Some(0x9000_301A), attrib: Some(0x400) });
+        let p = run(&t, &job(6, 1), fake, 100 << 30);
+        assert_eq!(p["result"], "refused");
+        assert!(p["why"].to_string().contains("cannot be told apart from files that live only in OneDrive"), "{p:#}");
+        // a hibernated Windows is not read
+        std::fs::write(t.join("win/hiberfil.sys"), b"HIBR\0\0\0\0").unwrap();
+        assert!(run(&t, &job(6, 1), cloud_doc(), 100 << 30)["why"].to_string().contains("was not fully shut down"));
+        std::fs::write(t.join("win/hiberfil.sys"), b"\0\0\0\0").unwrap();
+        assert_eq!(run(&t, &job(6, 1), cloud_doc(), 100 << 30)["result"], "plan", "a hiberfil.sys Windows wiped is fine");
+        // two folders mapped to one path
+        let mut j = job(6, 1);
+        j["harvest"]["folders"][1]["path"] = json!("C:\\Users\\Ann\\documents");
+        assert!(run(&t, &j, cloud_doc(), 100 << 30)["why"].to_string().contains("are the same folder"));
+        // a resume needs room only for what is not home yet
+        let o = outcome();
+        let home = t.join("home");
+        let jb = job(6, 1);
+        let mut f = Facts { job: &jb, outcome: &o, windows: Ok(t.join("win")), home: &home, free: Some((2 << 30) + 100), rolled_back: false, reclaimed: false, already_home: 0 };
+        assert_eq!(plan(&f, &Fake(t.join("win"), cloud_doc()))["result"], "refused", "8004 bytes plus 2 GiB spare do not fit");
+        f.already_home = 8004;
+        assert_eq!(plan(&f, &Fake(t.join("win"), cloud_doc()))["result"], "plan", "they do once the journal says they are home");
     }
 
     #[test]

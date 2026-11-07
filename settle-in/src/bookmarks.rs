@@ -226,7 +226,7 @@ pub fn summary(found: &[Found]) -> Value {
 }
 
 /// Write one file per profile with bookmarks into `dir`, never over a file.
-pub fn write(found: &[Found], dir: &Path, owner: Option<crate::pullrun::Owner>) -> Value {
+pub fn write(found: &[Found], dir: &crate::pullrun::Dir, owner: Option<crate::pullrun::Owner>) -> Value {
     let several = |b: &str| found.iter().filter(|f| f.browser == b).count() > 1;
     let mut out = Vec::new();
     for f in found {
@@ -254,30 +254,8 @@ pub fn write(found: &[Found], dir: &Path, owner: Option<crate::pullrun::Owner>) 
     json!(out)
 }
 
-fn place(dir: &Path, name: &str, bytes: &[u8], owner: Option<crate::pullrun::Owner>) -> Result<PathBuf, String> {
-    use std::io::Write;
-    use std::os::unix::fs::OpenOptionsExt;
-    let tmp = dir.join(format!(".upgrade_-bookmarks-{}", std::process::id()));
-    let _ = std::fs::remove_file(&tmp);
-    let mut f = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o644).open(&tmp).map_err(|e| e.to_string())?;
-    f.write_all(bytes).and_then(|_| f.sync_all()).map_err(|e| e.to_string())?;
-    drop(f);
-    if let (Some(o), Ok(c)) = (owner, std::ffi::CString::new(std::os::unix::ffi::OsStrExt::as_bytes(tmp.as_os_str()))) {
-        // SAFETY: c is NUL-terminated.
-        unsafe {
-            libc::chown(c.as_ptr(), o.uid, o.gid);
-        }
-    }
-    let r = (0..64u32)
-        .map(|n| dir.join(if n == 0 { name.to_string() } else { crate::pullrun::clash_name(name, n) }))
-        .find_map(|to| match std::fs::hard_link(&tmp, &to) {
-            Ok(()) => Some(Ok(to)),
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => None,
-            Err(e) => Some(Err(e.to_string())),
-        })
-        .unwrap_or_else(|| Err("64 files of that name are already there".into()));
-    let _ = std::fs::remove_file(&tmp);
-    r
+fn place(dir: &crate::pullrun::Dir, name: &str, bytes: &[u8], owner: Option<crate::pullrun::Owner>) -> Result<PathBuf, String> {
+    dir.place_new(name, bytes, owner).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -367,7 +345,7 @@ mod tests {
         let docs = d.join("home/Documents");
         std::fs::create_dir_all(&docs).unwrap();
         std::fs::write(docs.join("Bookmarks from Windows - Chrome.html"), "mine").unwrap();
-        let w = write(&found, &docs, None);
+        let w = write(&found, &crate::pullrun::Dir::open_base(&docs, Path::new(""), None).unwrap(), None);
         assert_eq!(w[0]["result"], "written");
         assert_eq!(w[0]["file"], docs.join("Bookmarks from Windows - Chrome (from Windows).html").to_string_lossy().to_string(), "never over a file");
         assert_eq!(std::fs::read_to_string(docs.join("Bookmarks from Windows - Chrome.html")).unwrap(), "mine");

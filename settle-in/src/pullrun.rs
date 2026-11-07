@@ -80,8 +80,7 @@ fn io_err(e: &std::io::Error) -> CopyErr {
     }
 }
 
-fn hash_file(p: &Path) -> std::io::Result<String> {
-    let mut f = std::fs::File::open(p)?;
+fn hash_reader(f: &mut std::fs::File) -> std::io::Result<String> {
     let mut h = Sha256::new();
     let mut buf = vec![0u8; 1 << 20];
     loop {
@@ -94,67 +93,236 @@ fn hash_file(p: &Path) -> std::io::Result<String> {
     Ok(hex(&h.finalize()))
 }
 
-fn sync_dir(d: &Path) {
-    if let Ok(f) = std::fs::File::open(d) {
-        let _ = f.sync_all();
+fn cname(name: &str) -> std::io::Result<CString> {
+    if name.is_empty() || name == "." || name == ".." || name.contains('/') {
+        return Err(std::io::Error::other(format!("{:?} is not a name a file can have here", name)));
+    }
+    CString::new(name.as_bytes()).map_err(|_| std::io::Error::other("a name with a NUL in it"))
+}
+
+fn last_os() -> std::io::Error {
+    std::io::Error::last_os_error()
+}
+
+/// A folder in the person's home, held open. Every name in it is reached
+/// through this descriptor with `O_NOFOLLOW` (and `AT_SYMLINK_NOFOLLOW`),
+/// and the owner, mode and times are set on the open file: root never
+/// follows a link the person could put in the way (review, 2026-11-07).
+pub struct Dir {
+    fd: std::fs::File,
+    pub path: PathBuf,
+}
+
+impl Dir {
+    fn open_at(parent: Option<&Dir>, path: &Path, name: &str) -> std::io::Result<Dir> {
+        let flags = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
+        let fd = match parent {
+            Some(p) => {
+                let c = cname(name)?;
+                // SAFETY: c is NUL-terminated; the descriptor is valid while p lives.
+                unsafe { libc::openat(std::os::fd::AsRawFd::as_raw_fd(&p.fd), c.as_ptr(), flags) }
+            }
+            None => {
+                let c = CString::new(path.as_os_str().as_bytes()).map_err(|_| std::io::Error::other("a path with a NUL"))?;
+                // SAFETY: c is NUL-terminated.
+                unsafe { libc::open(c.as_ptr(), flags) }
+            }
+        };
+        if fd < 0 {
+            let e = last_os();
+            return Err(if e.raw_os_error() == Some(libc::ELOOP) || e.raw_os_error() == Some(libc::ENOTDIR) {
+                std::io::Error::other(format!("{} is a link or not a folder, and is not followed", path.display()))
+            } else {
+                e
+            });
+        }
+        // SAFETY: fd is a descriptor we own from here on.
+        Ok(Dir { fd: unsafe { std::os::fd::FromRawFd::from_raw_fd(fd) }, path: path.to_path_buf() })
+    }
+
+    fn raw(&self) -> i32 {
+        std::os::fd::AsRawFd::as_raw_fd(&self.fd)
+    }
+
+    /// The home itself (its own path, not followed if it is a link), then
+    /// each folder of `rel` below it, made when missing and given to the person.
+    pub fn open_base(home: &Path, rel: &Path, owner: Option<Owner>) -> std::io::Result<Dir> {
+        let mut d = Dir::open_at(None, home, "")?;
+        for c in rel.components() {
+            let name = match c {
+                std::path::Component::Normal(n) => n.to_string_lossy().to_string(),
+                _ => return Err(std::io::Error::other(format!("{} is not inside the home", rel.display()))),
+            };
+            d = d.sub(&name, owner)?;
+        }
+        Ok(d)
+    }
+
+    /// A folder inside this one, made (and given to the person) when missing.
+    pub fn sub(&self, name: &str, owner: Option<Owner>) -> std::io::Result<Dir> {
+        let c = cname(name)?;
+        // SAFETY: c is NUL-terminated.
+        let made = unsafe { libc::mkdirat(self.raw(), c.as_ptr(), 0o755) } == 0;
+        if !made && last_os().raw_os_error() != Some(libc::EEXIST) {
+            return Err(last_os());
+        }
+        let d = Dir::open_at(Some(self), &self.path.join(name), name)?;
+        if made {
+            if let Some(o) = owner {
+                // SAFETY: the descriptor is open.
+                if unsafe { libc::fchown(d.raw(), o.uid, o.gid) } != 0 {
+                    return Err(last_os());
+                }
+            }
+        }
+        Ok(d)
+    }
+
+    fn create(&self, name: &str) -> std::io::Result<std::fs::File> {
+        let c = cname(name)?;
+        // SAFETY: c is NUL-terminated.
+        let fd = unsafe { libc::openat(self.raw(), c.as_ptr(), libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC, 0o600) };
+        if fd < 0 {
+            return Err(last_os());
+        }
+        // SAFETY: fd is a descriptor we own from here on.
+        Ok(unsafe { std::os::fd::FromRawFd::from_raw_fd(fd) })
+    }
+
+    fn open_read(&self, name: &str) -> std::io::Result<std::fs::File> {
+        let c = cname(name)?;
+        // SAFETY: c is NUL-terminated.
+        let fd = unsafe { libc::openat(self.raw(), c.as_ptr(), libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC) };
+        if fd < 0 {
+            return Err(last_os());
+        }
+        // SAFETY: fd is a descriptor we own from here on.
+        Ok(unsafe { std::os::fd::FromRawFd::from_raw_fd(fd) })
+    }
+
+    /// A hard link, never over a name that is there (and never following one).
+    fn link(&self, from: &str, to: &str) -> std::io::Result<()> {
+        let (a, b) = (cname(from)?, cname(to)?);
+        // SAFETY: both NUL-terminated; flags 0 = the link itself is not followed.
+        if unsafe { libc::linkat(self.raw(), a.as_ptr(), self.raw(), b.as_ptr(), 0) } != 0 {
+            return Err(last_os());
+        }
+        Ok(())
+    }
+
+    fn unlink(&self, name: &str) {
+        if let Ok(c) = cname(name) {
+            // SAFETY: c is NUL-terminated.
+            unsafe {
+                libc::unlinkat(self.raw(), c.as_ptr(), 0);
+            }
+        }
+    }
+
+    /// (device, inode, is a regular file) of a name, not following a link.
+    fn stat(&self, name: &str) -> Option<(u64, u64, bool)> {
+        let c = cname(name).ok()?;
+        // SAFETY: st is filled by fstatat.
+        let mut st: libc::stat = unsafe { std::mem::zeroed() };
+        (unsafe { libc::fstatat(self.raw(), c.as_ptr(), &mut st, libc::AT_SYMLINK_NOFOLLOW) } == 0)
+            .then(|| (st.st_dev, st.st_ino, st.st_mode & libc::S_IFMT == libc::S_IFREG))
+    }
+
+    fn sync(&self) {
+        let _ = self.fd.sync_all();
+    }
+
+    /// A new file with these bytes, the person's, never over a name that is
+    /// there (a clash gets "(from Windows)"). Where it landed.
+    pub fn place_new(&self, name: &str, bytes: &[u8], owner: Option<Owner>) -> std::io::Result<PathBuf> {
+        use std::os::fd::AsRawFd;
+        let tmp = format!(".upgrade_-new-{}", std::process::id());
+        self.unlink(&tmp);
+        let mut f = self.create(&tmp)?;
+        let r = (|| {
+            f.write_all(bytes)?;
+            f.sync_all()?;
+            // SAFETY: the descriptor is open.
+            unsafe {
+                if libc::fchmod(f.as_raw_fd(), 0o644) != 0 {
+                    return Err(last_os());
+                }
+                if let Some(o) = owner {
+                    if libc::fchown(f.as_raw_fd(), o.uid, o.gid) != 0 {
+                        return Err(last_os());
+                    }
+                }
+            }
+            for n in 0..64u32 {
+                let to = if n == 0 { name.to_string() } else { clash_name(name, n) };
+                match self.link(&tmp, &to) {
+                    Ok(()) => return Ok(self.path.join(to)),
+                    Err(e) if e.raw_os_error() == Some(libc::EEXIST) => continue,
+                    Err(e) => return Err(e),
+                }
+            }
+            Err(std::io::Error::other("64 files of that name are already there"))
+        })();
+        self.unlink(&tmp);
+        self.sync();
+        r
     }
 }
 
-/// A file in `dir` that is the same file (inode) as `part`: a copy put in
-/// place before a power cut, under its own name or a clash name.
-fn landed(dir: &Path, name: &str, part: &Path) -> Option<PathBuf> {
-    let pm = std::fs::symlink_metadata(part).ok()?;
-    (0..64u32)
-        .map(|n| dir.join(if n == 0 { name.to_string() } else { clash_name(name, n) }))
-        .find(|p| std::fs::symlink_metadata(p).is_ok_and(|m| m.ino() == pm.ino() && m.dev() == pm.dev()))
+/// The name in `dir` that is the same file (inode) as the part file: a copy
+/// put in place before a power cut, under its own name or a clash name.
+fn landed(dir: &Dir, name: &str, part: &str) -> Option<String> {
+    let (pd, pi, _) = dir.stat(part)?;
+    (0..64u32).map(|n| if n == 0 { name.to_string() } else { clash_name(name, n) }).find(|c| dir.stat(c).is_some_and(|(d, i, f)| f && d == pd && i == pi))
 }
 
 /// Copy one file into `dir` as `name` (or a clash name), checked by its
 /// hash both ways. `commit` (the journal) is told where it landed before
 /// the part file goes, so a cut at any point resumes to one copy. Returns
 /// where it landed and its sha256.
-pub fn copy_one(src: &Path, size: u64, dir: &Path, name: &str, key: &str, owner: Option<Owner>, commit: &mut dyn FnMut(&Path, &str) -> std::io::Result<()>) -> Result<(PathBuf, String), CopyErr> {
-    let part = dir.join(part_name(key));
-    let finish = |to: PathBuf, sha: String, commit: &mut dyn FnMut(&Path, &str) -> std::io::Result<()>| -> Result<(PathBuf, String), CopyErr> {
+pub fn copy_one(src: &Path, size: u64, dir: &Dir, name: &str, key: &str, owner: Option<Owner>, commit: &mut dyn FnMut(&Path, &str) -> std::io::Result<()>) -> Result<(PathBuf, String), CopyErr> {
+    let part = part_name(key);
+    let finish = |to: String, sha: String, commit: &mut dyn FnMut(&Path, &str) -> std::io::Result<()>| -> Result<(PathBuf, String), CopyErr> {
+        let to = dir.path.join(to);
         commit(&to, &sha).map_err(|e| CopyErr::Journal(e.to_string()))?;
-        let _ = std::fs::remove_file(&part);
-        sync_dir(dir);
+        dir.unlink(&part);
+        dir.sync();
         Ok((to, sha))
     };
     // a resume: the copy was put in place, the journal line not yet written
-    if let Some(p) = landed(dir, name, &part) {
-        let sha = hash_file(&p).map_err(|e| io_err(&e))?;
-        return finish(p, sha, commit);
+    if let Some(n) = landed(dir, name, &part) {
+        let sha = dir.open_read(&n).and_then(|mut f| hash_reader(&mut f)).map_err(|e| io_err(&e))?;
+        return finish(n, sha, commit);
     }
-    let _ = std::fs::remove_file(&part);
+    dir.unlink(&part);
     let mut last = String::new();
     for _ in 0..2 {
-        match copy_attempt(src, size, &part, owner) {
+        match copy_attempt(src, size, dir, &part, owner) {
             Ok(sha) => {
                 // put in place, never over a file that is there
                 for n in 0..64u32 {
-                    let to = dir.join(if n == 0 { name.to_string() } else { clash_name(name, n) });
-                    match std::fs::hard_link(&part, &to) {
+                    let to = if n == 0 { name.to_string() } else { clash_name(name, n) };
+                    match dir.link(&part, &to) {
                         Ok(()) => {
-                            sync_dir(dir);
+                            dir.sync();
                             return finish(to, sha, commit);
                         }
-                        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                        Err(e) if e.raw_os_error() == Some(libc::EEXIST) => continue,
                         Err(e) => {
-                            let _ = std::fs::remove_file(&part);
+                            dir.unlink(&part);
                             return Err(io_err(&e));
                         }
                     }
                 }
-                let _ = std::fs::remove_file(&part);
+                dir.unlink(&part);
                 return Err(CopyErr::Skip("64 files of that name are already there".into()));
             }
             Err(e @ (CopyErr::NoSpace | CopyErr::Journal(_))) => {
-                let _ = std::fs::remove_file(&part);
+                dir.unlink(&part);
                 return Err(e);
             }
             Err(CopyErr::Skip(why)) => {
-                let _ = std::fs::remove_file(&part);
+                dir.unlink(&part);
                 last = why;
             }
         }
@@ -162,7 +330,8 @@ pub fn copy_one(src: &Path, size: u64, dir: &Path, name: &str, key: &str, owner:
     Err(CopyErr::Skip(last))
 }
 
-fn copy_attempt(src: &Path, size: u64, part: &Path, owner: Option<Owner>) -> Result<String, CopyErr> {
+fn copy_attempt(src: &Path, size: u64, dir: &Dir, part: &str, owner: Option<Owner>) -> Result<String, CopyErr> {
+    use std::os::fd::AsRawFd;
     let mut f = std::fs::OpenOptions::new()
         .read(true)
         .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC)
@@ -175,7 +344,7 @@ fn copy_attempt(src: &Path, size: u64, part: &Path, owner: Option<Owner>) -> Res
     if md.len() != size {
         return Err(CopyErr::Skip(format!("it changed since the plan ({} bytes then, {} now)", size, md.len())));
     }
-    let mut out = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(part).map_err(|e| io_err(&e))?;
+    let mut out = dir.create(part).map_err(|e| io_err(&e))?;
     let mut h = Sha256::new();
     let mut buf = vec![0u8; 1 << 20];
     let mut total = 0u64;
@@ -196,56 +365,54 @@ fn copy_attempt(src: &Path, size: u64, part: &Path, owner: Option<Owner>) -> Res
         return Err(CopyErr::Skip(format!("{} of its {} bytes could be read", total, size)));
     }
     out.sync_all().map_err(|e| io_err(&e))?;
+    // the synced pages out of memory, so the read back comes from the disk, not the cache
+    // SAFETY: the descriptor is open.
+    unsafe {
+        libc::posix_fadvise(out.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED);
+    }
     let want = hex(&h.finalize());
-    // read back what is on the disk, not what was meant to be
-    let got = hash_file(part).map_err(|e| io_err(&e))?;
+    let got = dir.open_read(part).and_then(|mut r| hash_reader(&mut r)).map_err(|e| io_err(&e))?;
     if got != want {
         return Err(CopyErr::Skip("the copy did not read back the same as the original".into()));
     }
-    // the person's file, with the time Windows gave it
+    // the person's file, with the time Windows gave it, set on the open file
     let times = [libc::timespec { tv_sec: md.atime(), tv_nsec: md.atime_nsec() }, libc::timespec { tv_sec: md.mtime(), tv_nsec: md.mtime_nsec() }];
-    if let Ok(cp) = CString::new(part.as_os_str().as_bytes()) {
-        // SAFETY: cp is NUL-terminated and times holds two timespecs.
-        unsafe {
-            libc::utimensat(libc::AT_FDCWD, cp.as_ptr(), times.as_ptr(), 0);
-            libc::chmod(cp.as_ptr(), 0o644);
-            if let Some(o) = owner {
-                libc::chown(cp.as_ptr(), o.uid, o.gid);
+    // SAFETY: the descriptor is open; times holds two timespecs.
+    unsafe {
+        libc::futimens(out.as_raw_fd(), times.as_ptr());
+        if libc::fchmod(out.as_raw_fd(), 0o644) != 0 {
+            return Err(CopyErr::Skip(format!("its permissions could not be set ({})", last_os())));
+        }
+        if let Some(o) = owner {
+            if libc::fchown(out.as_raw_fd(), o.uid, o.gid) != 0 {
+                return Err(CopyErr::Skip(format!("it could not be given to you ({})", last_os())));
             }
         }
     }
     Ok(want)
 }
 
-/// Make a folder and its parents under `base`, each owned by the person.
-pub fn make_dirs(base: &Path, rel: &Path, owner: Option<Owner>) -> std::io::Result<PathBuf> {
-    let mut d = base.to_path_buf();
-    if !d.exists() {
-        std::fs::create_dir_all(&d)?;
-        chown(&d, owner);
-    }
-    for c in rel.components() {
-        d.push(c);
-        match std::fs::create_dir(&d) {
-            Ok(()) => chown(&d, owner),
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-                if !std::fs::symlink_metadata(&d)?.is_dir() {
-                    return Err(std::io::Error::other(format!("{} is there and is not a folder", d.display())));
-                }
-            }
-            Err(e) => return Err(e),
-        }
-    }
-    Ok(d)
+/// A journal field: a backslash, a tab and a line break written as `\\`, `\t`, `\n`.
+fn esc(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('\t', "\\t").replace('\n', "\\n")
 }
 
-fn chown(p: &Path, owner: Option<Owner>) {
-    if let (Some(o), Ok(cp)) = (owner, CString::new(p.as_os_str().as_bytes())) {
-        // SAFETY: cp is NUL-terminated.
-        unsafe {
-            libc::chown(cp.as_ptr(), o.uid, o.gid);
+fn unesc(s: &str) -> String {
+    let mut out = String::new();
+    let mut it = s.chars();
+    while let Some(c) = it.next() {
+        if c == '\\' {
+            match it.next() {
+                Some('t') => out.push('\t'),
+                Some('n') => out.push('\n'),
+                Some(o) => out.push(o),
+                None => out.push('\\'),
+            }
+        } else {
+            out.push(c);
         }
     }
+    out
 }
 
 /// The journal: one line per file put in place, `folder TAB rel TAB dest TAB sha256`.
@@ -261,31 +428,32 @@ impl Journal {
             // a torn last line (a power cut mid-write) has fewer than four fields and is ignored
             let f: Vec<&str> = l.split('\t').collect();
             if f.len() == 4 && f[3].len() == 64 {
-                done.insert((f[0].to_string(), f[1].to_string()), (f[2].to_string(), f[3].to_string()));
+                done.insert((unesc(f[0]), unesc(f[1])), (unesc(f[2]), f[3].to_string()));
             }
         }
         Journal { path: path.to_path_buf(), done }
     }
 
     pub fn add(&mut self, folder: &str, rel: &str, dest: &str, sha: &str) -> std::io::Result<()> {
-        if [folder, rel, dest].iter().any(|s| s.contains('\t') || s.contains('\n')) {
-            // a name with a tab or a line break cannot be journalled; it is still copied and checked
-            return Ok(());
-        }
         if let Some(d) = self.path.parent() {
             std::fs::create_dir_all(d)?;
         }
         let mut f = std::fs::OpenOptions::new().create(true).append(true).mode(0o600).open(&self.path)?;
-        f.write_all(format!("{}\t{}\t{}\t{}\n", folder, rel, dest, sha).as_bytes())?;
+        f.write_all(format!("{}\t{}\t{}\t{}\n", esc(folder), esc(rel), esc(dest), sha).as_bytes())?;
         f.sync_all()?;
         self.done.insert((folder.to_string(), rel.to_string()), (dest.to_string(), sha.to_string()));
         Ok(())
+    }
+
+    /// Bytes already home: journalled copies still there at their size.
+    pub fn bytes_home(&self) -> u64 {
+        self.done.values().filter_map(|(d, _)| std::fs::symlink_metadata(d).ok()).filter(|m| m.is_file()).map(|m| m.len()).sum()
     }
 }
 
 /// The copy of every folder in a plan the caller has just made.
 /// `progress` is told after every file.
-pub fn copy_all(plan: &Value, win: &Path, journal: &mut Journal, owner: Option<Owner>, probe: &dyn crate::pull::Probe, progress: &mut dyn FnMut(&Value)) -> Value {
+pub fn copy_all(plan: &Value, win: &Path, home: &Path, journal: &mut Journal, owner: Option<Owner>, probe: &dyn crate::pull::Probe, progress: &mut dyn FnMut(&Value)) -> Value {
     if plan["result"] != "plan" {
         return json!({ "result": "refused", "why": plan["why"].clone() });
     }
@@ -301,14 +469,43 @@ pub fn copy_all(plan: &Value, win: &Path, journal: &mut Journal, owner: Option<O
         let (mut copied, mut resumed, mut bytes) = (0u64, 0u64, 0u64);
         let mut failed: Vec<Value> = Vec::new();
         let mut renamed: Vec<Value> = Vec::new();
+        // every destination is a folder inside the home, reached without following a link
+        let to_rel = match to.strip_prefix(home) {
+            Ok(r) if r.components().all(|c| matches!(c, std::path::Component::Normal(_))) => Some(r.to_path_buf()),
+            _ => None,
+        };
+        if to_rel.is_none() {
+            stopped = Some(format!("{} is not a folder inside your home", to.display()));
+        }
+        let mut cache: Option<(PathBuf, Dir)> = None;
         if stopped.is_none() {
+            let to_rel = to_rel.unwrap_or_default();
             let w = crate::pull::walk(&win.join(&from), probe);
             for (rel, size) in &w.copy {
                 let relp = Path::new(rel);
                 let file_name = relp.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
                 let key = format!("{}/{}", name, rel);
+                let sub = to_rel.join(relp.parent().unwrap_or(Path::new("")));
+                if cache.as_ref().map(|(p, _)| p != &sub).unwrap_or(true) {
+                    cache = match Dir::open_base(home, &sub, owner) {
+                        Ok(d) => Some((sub.clone(), d)),
+                        Err(e) => {
+                            if e.raw_os_error() == Some(libc::ENOSPC) {
+                                stopped = Some("this Linux's drive is full".into());
+                                break;
+                            }
+                            failed.push(json!({ "path": rel, "why": format!("its folder could not be made ({})", e) }));
+                            files_done += 1;
+                            bytes_done += size;
+                            continue;
+                        }
+                    };
+                }
+                let Some((_, dir)) = cache.as_ref() else { continue };
                 if let Some((dest, _)) = journal.done.get(&(name.clone(), rel.clone())) {
-                    if std::fs::metadata(dest).is_ok_and(|m| m.len() == *size) {
+                    if std::fs::symlink_metadata(dest).is_ok_and(|m| m.is_file() && m.len() == *size) {
+                        // a cut after the journal line, before the part file went
+                        dir.unlink(&part_name(&key));
                         resumed += 1;
                         files_done += 1;
                         bytes_done += size;
@@ -316,19 +513,8 @@ pub fn copy_all(plan: &Value, win: &Path, journal: &mut Journal, owner: Option<O
                         continue;
                     }
                 }
-                let dir = match make_dirs(&to, relp.parent().unwrap_or(Path::new("")), owner) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        if e.raw_os_error() == Some(libc::ENOSPC) {
-                            stopped = Some("this Linux's drive is full".into());
-                            break;
-                        }
-                        failed.push(json!({ "path": rel, "why": format!("its folder could not be made ({})", e) }));
-                        continue;
-                    }
-                };
                 let mut commit = |to: &Path, sha: &str| journal.add(&name, rel, &to.to_string_lossy(), sha);
-                match copy_one(&win.join(&from).join(relp), *size, &dir, &file_name, &key, owner, &mut commit) {
+                match copy_one(&win.join(&from).join(relp), *size, dir, &file_name, &key, owner, &mut commit) {
                     Ok((dest, _)) => {
                         if dest.file_name().map(|n| n.to_string_lossy().to_string()) != Some(file_name.clone()) {
                             renamed.push(json!({ "path": rel, "as": dest.file_name().map(|n| n.to_string_lossy().to_string()) }));
@@ -487,20 +673,17 @@ pub mod live {
         Ok(Opened { dir: PathBuf::from(mp), mapped })
     }
 
-    /// The stick's copy of the key, deleted when the kit stick is plugged in.
-    fn scrub_stick(root: &str) -> &'static str {
-        match crate::rollback::live::find_stick(root) {
-            Ok(m) => {
-                let p = format!("{}/upgrade_/{}", m.dir, KEY_REL.trim_start_matches("var/lib/upgrade_/"));
-                let r = if !Path::new(&p).exists() || std::fs::remove_file(&p).is_ok() { "deleted" } else { "still-there" };
-                let _ = run("sync", &[]);
-                if m.by_us {
-                    let _ = run("umount", &[&m.dir]);
-                }
-                r
-            }
-            Err(_) => "not-plugged-in",
+    /// One pull at a time: a check from a second window must not unmount a running copy.
+    fn lock(r: &str) -> Result<std::fs::File, Value> {
+        use std::os::fd::AsRawFd;
+        let p = format!("{}/var/lib/upgrade_/settle-in/pull.lock", r);
+        let _ = std::fs::create_dir_all(format!("{}/var/lib/upgrade_/settle-in", r));
+        let f = std::fs::OpenOptions::new().create(true).write(true).mode(0o600).open(&p).map_err(|e| json!({ "result": "refused", "why": [format!("{}: {}", p, e)] }))?;
+        // SAFETY: the descriptor is open.
+        if unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
+            return Err(json!({ "result": "refused", "why": ["your files are already being brought over in another window: wait for it to finish"] }));
         }
+        Ok(f)
     }
 
     fn facts<'a>(r: &str, job: &'a Value, outcome: &'a Value, win: Result<PathBuf, String>, home: &'a Path) -> crate::pull::Facts<'a> {
@@ -512,6 +695,7 @@ pub mod live {
             free: crate::pull::live::free_bytes(home),
             rolled_back: Path::new(&format!("{}/boot/efi/upgrade_/rolled-back.json", r)).exists(),
             reclaimed: Path::new(&format!("{}/boot/efi/{}", r, crate::reclaimrun::ESP_DONE_REL)).exists(),
+            already_home: Journal::open(Path::new(&format!("{}/{}", r, JOURNAL_REL))).bytes_home(),
         }
     }
 
@@ -526,6 +710,10 @@ pub mod live {
         let outcome = crate::read_json(&format!("{}/{}/outcome.json", r, crate::HANDOFF)).unwrap_or(Value::Null);
         let Some((_, _, home)) = person(r) else {
             return json!({ "result": "refused", "why": ["whose files these are could not be told (start this from your own account)"] });
+        };
+        let _lock = match lock(r) {
+            Ok(l) => l,
+            Err(v) => return v,
         };
         // nothing to open when there is nothing to pull
         let pre = crate::pull::plan(&facts(r, &job, &outcome, Err("not opened".into()), &home), &crate::pull::live::Ntfs3g);
@@ -554,15 +742,16 @@ pub mod live {
         let Some((who, owner, home)) = person(r) else {
             return json!({ "result": "refused", "why": ["whose files these are could not be told (start this from your own account)"] });
         };
-        // once every file is home, a second run copies nothing: it only tries the stick's key again
+        let _lock = match lock(r) {
+            Ok(l) => l,
+            Err(v) => return v,
+        };
+        // once every file is home, a second run copies nothing
         let before = crate::read_json(&format!("{}/{}", r, REPORT_REL)).unwrap_or(Value::Null);
         if before["result"] == "done" {
             let mut out = before.clone();
             out["result"] = json!("nothing-to-do");
             out["why"] = json!(["your files were already brought over"]);
-            out["key"]["stick"] = json!(scrub_stick(root));
-            let _ = crate::save(&format!("{}/{}", r, REPORT_REL), &{ let mut b = before; b["key"]["stick"] = out["key"]["stick"].clone(); b });
-            let _ = crate::record_pull(r, &{ let mut o = out.clone(); o["result"] = json!("done"); o });
             return out;
         }
         // no sleep while it copies (the walk-away's lesson: KDE slept 45 minutes in, 2026-10-28)
@@ -582,17 +771,23 @@ pub mod live {
         };
         let plan = crate::pull::plan(&facts(r, &job, &outcome, Ok(opened.dir.clone()), &home), &crate::pull::live::Ntfs3g);
         let mut journal = Journal::open(Path::new(&format!("{}/{}", r, JOURNAL_REL)));
-        let mut out = copy_all(&plan, &opened.dir, &mut journal, Some(owner), &crate::pull::live::Ntfs3g, &mut |p| {
+        let mut out = copy_all(&plan, &opened.dir, &home, &mut journal, Some(owner), &crate::pull::live::Ntfs3g, &mut |p| {
             println!("progress {}", p);
             let _ = std::io::stdout().flush();
         });
-        // the bookmarks, into the person's Documents (R20: bookmarks only, as files to import)
-        if out["result"] != "stopped" && out["result"] != "refused" {
+        // the bookmarks, into the person's Documents (R20: bookmarks only, as files to import);
+        // once written, a later run (after failures) does not write them again
+        let written_before = before["bookmarks"].as_array().is_some_and(|a| a.iter().any(|b| b["result"] == "written"));
+        if written_before {
+            out["bookmarks"] = before["bookmarks"].clone();
+        } else if out["result"] != "stopped" && out["result"] != "refused" {
             if let Some(u) = crate::bookmarks::user_dir(&job) {
                 let found = crate::bookmarks::find(&opened.dir, &u);
                 let docs = plan["folders"].as_array().into_iter().flatten().find(|f| f["name"] == "Documents").and_then(|f| f["to"].as_str()).map(PathBuf::from)
                     .unwrap_or_else(|| crate::pull::destinations(&home).into_iter().find(|(n, _)| n == "Documents").map(|(_, p)| p).unwrap_or_else(|| home.join("Documents")));
-                out["bookmarks"] = match make_dirs(&docs, Path::new(""), Some(owner)) {
+                let opened_docs = docs.strip_prefix(&home).map_err(|_| std::io::Error::other(format!("{} is not inside your home", docs.display())))
+                    .and_then(|r| Dir::open_base(&home, r, Some(owner)));
+                out["bookmarks"] = match opened_docs {
                     Ok(d) => crate::bookmarks::write(&found, &d, Some(owner)),
                     Err(e) => json!([{ "browser": "all", "result": "failed", "why": e.to_string() }]),
                 };
@@ -602,10 +797,13 @@ pub mod live {
         if let Some(c) = inhibit.as_mut() {
             let _ = c.kill();
         }
-        // the key is spent once every file is home (R13; scrub_after: settle-in-pull)
+        // the key is spent here once every file is home (R13; scrub_after: settle-in-pull). The
+        // stick's copy is kept: the kept Windows is still encrypted and may ask for it after a
+        // startup change, and it may be the person's only copy (review, 2026-11-07; decision owed)
         if out["result"] == "done" {
             let here = std::fs::remove_file(format!("{}/{}", r, KEY_REL)).is_ok() || !Path::new(&format!("{}/{}", r, KEY_REL)).exists();
-            out["key"] = json!({ "deleted_here": here, "stick": scrub_stick(root) });
+            let bitlocker = before.get("bitlocker").is_some() || job.pointer("/harvest/bitlocker/recovery_key_file").is_some_and(Value::is_string);
+            out["key"] = json!({ "deleted_here": here, "stick": if bitlocker { "kept" } else { "none" } });
         }
         out["person"] = json!(who);
         let _ = crate::save(&format!("{}/{}", r, REPORT_REL), &out);
@@ -649,14 +847,15 @@ mod tests {
         std::fs::write(&src, "the person's words").unwrap();
         let to = d.join("to");
         std::fs::create_dir_all(&to).unwrap();
-        let (p, sha) = copy_one(&src, 18, &to, "src.txt", "k1", None, &mut |_, _| Ok(())).unwrap();
+        let td = Dir::open_base(&to, Path::new(""), None).unwrap();
+        let (p, sha) = copy_one(&src, 18, &td, "src.txt", "k1", None, &mut |_, _| Ok(())).unwrap();
         assert_eq!(p, to.join("src.txt"));
         assert_eq!(std::fs::read(&p).unwrap(), b"the person's words");
         assert_eq!(sha, hex(&Sha256::digest(b"the person's words")));
         assert_eq!(std::fs::metadata(&p).unwrap().mtime(), std::fs::metadata(&src).unwrap().mtime());
         // a file already there keeps its bytes
         std::fs::write(to.join("mine.txt"), "already here").unwrap();
-        let (p2, _) = copy_one(&src, 18, &to, "mine.txt", "k2", None, &mut |_, _| Ok(())).unwrap();
+        let (p2, _) = copy_one(&src, 18, &td, "mine.txt", "k2", None, &mut |_, _| Ok(())).unwrap();
         assert_eq!(p2, to.join("mine (from Windows).txt"));
         assert_eq!(std::fs::read_to_string(to.join("mine.txt")).unwrap(), "already here");
         // no part file left behind
@@ -670,15 +869,16 @@ mod tests {
         std::fs::write(&src, "longer now").unwrap();
         let to = d.join("to");
         std::fs::create_dir_all(&to).unwrap();
-        assert!(matches!(copy_one(&src, 3, &to, "grew.txt", "k", None, &mut |_, _| Ok(())), Err(CopyErr::Skip(w)) if w.contains("changed since the plan")));
+        let td = Dir::open_base(&to, Path::new(""), None).unwrap();
+        assert!(matches!(copy_one(&src, 3, &td, "grew.txt", "k", None, &mut |_, _| Ok(())), Err(CopyErr::Skip(w)) if w.contains("changed since the plan")));
         // a pipe: opened without waiting, refused
         let fifo = d.join("pipe");
         let c = CString::new(fifo.as_os_str().as_bytes()).unwrap();
         assert_eq!(unsafe { libc::mkfifo(c.as_ptr(), 0o644) }, 0);
-        assert!(matches!(copy_one(&fifo, 0, &to, "pipe", "k", None, &mut |_, _| Ok(())), Err(CopyErr::Skip(w)) if w.contains("no longer an ordinary file")));
+        assert!(matches!(copy_one(&fifo, 0, &td, "pipe", "k", None, &mut |_, _| Ok(())), Err(CopyErr::Skip(w)) if w.contains("no longer an ordinary file")));
         // a link: not followed
         std::os::unix::fs::symlink(&src, d.join("link")).unwrap();
-        assert!(matches!(copy_one(&d.join("link"), 10, &to, "link", "k", None, &mut |_, _| Ok(())), Err(CopyErr::Skip(w)) if w.contains("could not be opened")));
+        assert!(matches!(copy_one(&d.join("link"), 10, &td, "link", "k", None, &mut |_, _| Ok(())), Err(CopyErr::Skip(w)) if w.contains("could not be opened")));
         assert_eq!(std::fs::read_dir(&to).unwrap().count(), 0, "nothing landed");
     }
 
@@ -689,11 +889,12 @@ mod tests {
         std::fs::write(&src, "abc").unwrap();
         let to = d.join("to");
         std::fs::create_dir_all(&to).unwrap();
+        let td = Dir::open_base(&to, Path::new(""), None).unwrap();
         // the state a power cut leaves: the part file and its link in place, no journal line
         let part = to.join(part_name("Documents/a.txt"));
         std::fs::write(&part, "abc").unwrap();
         std::fs::hard_link(&part, to.join("a.txt")).unwrap();
-        let (p, _) = copy_one(&src, 3, &to, "a.txt", "Documents/a.txt", None, &mut |_, _| Ok(())).unwrap();
+        let (p, _) = copy_one(&src, 3, &td, "a.txt", "Documents/a.txt", None, &mut |_, _| Ok(())).unwrap();
         assert_eq!(p, to.join("a.txt"));
         assert!(!to.join("a (from Windows).txt").exists(), "not copied twice");
         assert!(!part.exists());
@@ -706,11 +907,12 @@ mod tests {
         std::fs::write(&src, "abc").unwrap();
         let to = d.join("to");
         std::fs::create_dir_all(&to).unwrap();
-        let r = copy_one(&src, 3, &to, "a.txt", "Documents/a.txt", None, &mut |_, _| Err(std::io::Error::other("disk gone")));
+        let td = Dir::open_base(&to, Path::new(""), None).unwrap();
+        let r = copy_one(&src, 3, &td, "a.txt", "Documents/a.txt", None, &mut |_, _| Err(std::io::Error::other("disk gone")));
         assert!(matches!(r, Err(CopyErr::Journal(_))));
         assert!(to.join("a.txt").exists() && to.join(part_name("Documents/a.txt")).exists(), "the part stays, so the resume can find the copy");
         let mut told = None;
-        let (p, _) = copy_one(&src, 3, &to, "a.txt", "Documents/a.txt", None, &mut |to, _| { told = Some(to.to_path_buf()); Ok(()) }).unwrap();
+        let (p, _) = copy_one(&src, 3, &td, "a.txt", "Documents/a.txt", None, &mut |to, _| { told = Some(to.to_path_buf()); Ok(()) }).unwrap();
         assert_eq!(p, to.join("a.txt"));
         assert_eq!(told, Some(to.join("a.txt")), "the journal is told on the resume");
         assert_eq!(std::fs::read_dir(&to).unwrap().count(), 1, "one copy, no part");
@@ -735,23 +937,61 @@ mod tests {
         std::fs::create_dir_all(docs.join("Taxes")).unwrap();
         std::fs::write(docs.join("a.txt"), "one").unwrap();
         std::fs::write(docs.join("Taxes/b.pdf"), vec![9u8; 4000]).unwrap();
+        std::fs::create_dir_all(d.join("home")).unwrap();
         let to = d.join("home/Documents");
         let plan = json!({ "result": "plan", "bytes": 4003, "folders": [{ "name": "Documents", "from": "C:\\Users\\Ann\\Documents", "to": to.to_string_lossy(), "files": 2, "not_copied": [], "in_onedrive": 0 }] });
         let mut j = Journal::open(&d.join("j.tsv"));
         let mut ticks = 0;
-        let out = copy_all(&plan, &d.join("win"), &mut j, None, &Plain, &mut |_| ticks += 1);
+        let out = copy_all(&plan, &d.join("win"), &d.join("home"), &mut j, None, &Plain, &mut |_| ticks += 1);
         assert_eq!(out["result"], "done", "{out:#}");
         assert_eq!(out["folders"][0]["copied"], 2);
         assert_eq!(ticks, 2);
         assert_eq!(std::fs::read(to.join("Taxes/b.pdf")).unwrap(), vec![9u8; 4000]);
         // run again from the journal: nothing copied twice
         let mut j = Journal::open(&d.join("j.tsv"));
-        let again = copy_all(&plan, &d.join("win"), &mut j, None, &Plain, &mut |_| {});
+        let again = copy_all(&plan, &d.join("win"), &d.join("home"), &mut j, None, &Plain, &mut |_| {});
         assert_eq!(again["folders"][0]["copied"], 0);
         assert_eq!(again["folders"][0]["already_copied"], 2);
         assert_eq!(std::fs::read_dir(&to).unwrap().count(), 2, "a.txt and Taxes, no copies");
         // a refused plan copies nothing
-        assert_eq!(copy_all(&json!({ "result": "refused", "why": ["x"] }), &d, &mut j, None, &Plain, &mut |_| {})["result"], "refused");
+        assert_eq!(copy_all(&json!({ "result": "refused", "why": ["x"] }), &d, &d, &mut j, None, &Plain, &mut |_| {})["result"], "refused");
+    }
+
+    #[test]
+    fn a_link_in_the_home_is_never_followed() {
+        let d = dir("links");
+        let home = d.join("home");
+        std::fs::create_dir_all(&home).unwrap();
+        let elsewhere = d.join("elsewhere");
+        std::fs::create_dir_all(&elsewhere).unwrap();
+        // the person's Documents is a link to somewhere else: refused, nothing written there
+        std::os::unix::fs::symlink(&elsewhere, home.join("Documents")).unwrap();
+        assert!(Dir::open_base(&home, Path::new("Documents"), None).is_err());
+        assert!(Dir::open_base(&home, Path::new("../elsewhere"), None).is_err());
+        // a part file swapped for a link: the create refuses it, the target is untouched
+        let docs = Dir::open_base(&home, Path::new("Docs2"), None).unwrap();
+        std::fs::write(elsewhere.join("secret"), "root's").unwrap();
+        std::os::unix::fs::symlink(elsewhere.join("secret"), home.join("Docs2").join(part_name("k"))).unwrap();
+        assert!(docs.create(&part_name("k")).is_err());
+        assert_eq!(std::fs::read_to_string(elsewhere.join("secret")).unwrap(), "root's");
+        // a destination outside the home stops the copy before anything is written
+        let plan = json!({ "result": "plan", "bytes": 1, "folders": [{ "name": "Documents", "from": "C:\\Users\\Ann\\Documents", "to": elsewhere.to_string_lossy(), "files": 1, "not_copied": [], "in_onedrive": 0 }] });
+        let mut j = Journal::open(&d.join("j.tsv"));
+        let out = copy_all(&plan, &d, &home, &mut j, None, &Plain, &mut |_| {});
+        assert_eq!(out["result"], "stopped");
+        assert_eq!(std::fs::read_dir(&elsewhere).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn odd_names_are_journalled() {
+        let d = dir("jesc");
+        let j = d.join("j.tsv");
+        let mut a = Journal::open(&j);
+        a.add("Documents", "tab\there\nand\\back", "/h/x", &"1".repeat(64)).unwrap();
+        a.add("Documents", "line\nbreak", "/h/y", &"2".repeat(64)).unwrap();
+        let b = Journal::open(&j);
+        assert!(b.done.contains_key(&("Documents".to_string(), "tab\there\nand\\back".to_string())));
+        assert!(b.done.contains_key(&("Documents".to_string(), "line\nbreak".to_string())));
     }
 
     #[test]
