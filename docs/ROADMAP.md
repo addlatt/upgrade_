@@ -221,12 +221,12 @@ day it is picked (R15, R21, R29 first). Waits on: the Windows path shipping.
 ## 23. A second installer family: beyond Fedora
 
 Decided (2026-11-02, the owner): distro-agnostic, one installer family at
-a time (`architecture.md`, "Linux releases beyond Fedora"). Steps: cut the
-seam where Fedora is still written in, Fedora's goldens unchanged; measure
-the second family's release (boot chain, signer, offline and unattended);
-its answer-file generator and checks, spoofed first; the rig, then a real
-machine, erase first. Waits on: the owner's choice of family (below).
-Proves: R40, V14, then V9 and V1b per family. Stands: see [STATUS.md](STATUS.md).
+a time (`architecture.md`, "Linux releases beyond Fedora"). Bazzite's ISO
+was measured 2026-11-07; its design waits on the owner (`BAZZITE-DESIGN.md`).
+Steps: record the release with `measure-release.py`; cut the seam, Fedora's
+goldens unchanged; the unattended start and the key step on the rig; a real
+machine, erase first. Waits on: the owner's calls (below). Proves: R40,
+R42, V14, V16, then V9 and V1b per family. Stands: see [STATUS.md](STATUS.md).
 
 ## 24. The release picker: choose a Linux, then fetch it onto the stick
 
@@ -272,9 +272,9 @@ is decided, the dated line goes in its home and the item here is removed.
 - Whose one-click test results count (item 21): whether a pass from an
   unknown contributor can mark a model as working, or only one from an
   approved developer or a second run that agrees (rule #1; R9).
-- Which installer family comes second (item 23): Ubuntu (its installer
-  reads an answer file; its signing to measure) or Bazzite (a friend's ask;
-  one key enrolled by hand with Secure Boot on) (R40).
+- Which family comes second (item 23): Ubuntu or Bazzite (R40). For
+  Bazzite, `BAZZITE-DESIGN.md` "What the owner decides": the key step in
+  Convert or before it, the password, where the ISO comes from (R42, V16).
 - When the picker (item 24) comes: first, with Fedora alone in it, or
   after item 23 holds on a machine (V14, R34).
 - Whether reclaim switches the kept-Windows machine's clock back to UTC once

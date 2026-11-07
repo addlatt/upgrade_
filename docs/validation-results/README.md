@@ -748,3 +748,25 @@ settle-in's own suite writes no row: it is logic, not evidence (rule #5).
 A pass is `moved-started` with `class` `pass` on a machine with a healthy
 drive, plus `refused` for every planted arm on the rig. A `pass-plumbing`
 row closes no real-hardware clause.
+
+## `v16-key-step.csv`: Bazzite's key step at the blue screen (gate V16, risk R42)
+
+One row per conversion to a release that needs a key enrolled, on the rig
+or a real machine, from the installer's record of the key step. The
+installer's own tests on made-up key lists write no row (rule #5).
+
+| Column | Meaning |
+|---|---|
+| `timestamp`, `harness` | when the row's last restart ended (UTC); `rig` or `physical` |
+| `machine`, `firmware` | what the machine said of itself (DMI), never typed |
+| `release`, `path` | the release's id in `data/releases.json`; `erase` or `keep-windows` |
+| `arm` | what the person did: `enrolled`, `skipped` (Continue boot), `wrong-password`, `nobody` |
+| `keyboard` | the layout typed on: `us`, `uk`, `de`, `fr` |
+| `restarts` | restarts from Convert to the install's start, or to the refusal |
+| `result` | `enrolled-installed`, `missed-refused` (refused, disk unchanged, Windows back), `left-waiting` (the blue screen still waiting after 30 minutes, disk unchanged), or what went wrong: `installed-not-started`, `erased-not-enrolled`, `looped` |
+| `class` | `pass` (a real machine, as the arm expects), `pass-plumbing` (the rig, as the arm expects), `fail` (anything else) |
+| `notes` | one line, no personal values |
+
+A pass is `enrolled-installed` with `class` `pass` on a real machine with
+Secure Boot on, plus `missed-refused` for `skipped` and `wrong-password`
+on the rig. A `pass-plumbing` row closes no real-hardware clause.

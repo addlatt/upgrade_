@@ -1154,6 +1154,8 @@ signed with Universal Blue's own key, so with Secure Boot on a person
 enrolls it once on a blue MOK screen (`docs/research/future-paths.md`,
 "Other Linux distributions"). A release that needs a person at the keyboard
 says so on the screen before the last click, never after it (rule #3).
+Bazzite's design, measured from its ISO and waiting on the owner, is in
+`BAZZITE-DESIGN.md`.
 
 ## Non-goals (v1)
 

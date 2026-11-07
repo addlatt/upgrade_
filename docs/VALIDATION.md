@@ -834,6 +834,31 @@ Then a real machine with a healthy drive.
 **Where it stands.** `[#...]` planned (2026-11-02,
 [log](log/2026-11.md#2026-11-02-reclaim-decided-delete-everything-on-a-typed-sentence-move-linux-into-the-space-r41-v15)).
 
+## V16: The key step enrolls Bazzite's key, or refuses with nothing erased · kills: Bazzite with Secure Boot on · RISKS R42 · planned
+
+**Why it has its own gate.** Bazzite is the first release that needs a
+person after the last click: its installed kernel starts only once
+Universal Blue's key is enrolled at the blue MokManager screen. No other
+gate puts a person in the middle of the conversion.
+
+**What passes.** In `v16-key-step.csv`: `enrolled-installed` (the key
+enrolled, `%pre` found it, the install ran, the installed system started
+with Secure Boot on); `missed-refused` (the key step skipped or the
+password wrong, `%pre` refused, the disk unchanged, Windows back);
+`left-waiting` (nobody came, the blue screen still waiting after 30
+minutes, the disk unchanged). The words are in
+`validation-results/README.md`.
+
+**How it is run.** The `%pre` check first on made-up key lists (the
+installer's tests). Then the rig: `UPGRIGMOK` (Hyper-V, the template that
+trusts shim), the blue screen driven over WMI keys, every arm, the erase
+and the keep-Windows path. Then one real machine with Secure Boot on, the
+erase first. Residue only a real machine closes: its firmware's own
+MokManager start and its keyboard.
+
+**Where it stands.** `[#...]` planned. The design waits on the owner
+([BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
+
 # Lesser gates (validate when their component is built)
 
 Real, but they degrade rather than kill, or only touch the fallback path:
