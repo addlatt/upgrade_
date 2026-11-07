@@ -70,8 +70,8 @@ What's new:
    or extra packages. The scanner learns each model's needs, like it does
    for Wi-Fi today.
 5. **Which Linux.** Fedora works as the base. Gaming-focused Fedora-based
-   systems exist *(to source)*, but the product promise is plain Fedora;
-   a gaming variant would be a later menu choice.
+   systems exist (Bazzite; "Other Linux distributions" below), a later
+   choice through roadmap item 23.
 6. **R29.** Newer handhelds may be Secured-core, with the Microsoft
    third-party certificate off. The scanner must check.
 
@@ -377,6 +377,36 @@ of upgrade_. Like Apple Silicon and Asahi, the right answer there is to
 point people at the project that already does it well.
 
 ---
+
+## Other Linux distributions
+
+**Decided (2026-11-02, the owner):** distro-agnostic, one installer family
+at a time (`architecture.md`, "Linux releases beyond Fedora"; RISKS R40).
+What was read on 2026-11-02, research and not evidence:
+
+- **Bazzite** (Universal Blue, image-based Fedora Atomic). Its kernel is
+  signed with Universal Blue's key: with Secure Boot on, a blue MOK screen
+  after the install asks for the password `universalblue` (older posts say
+  `ublue-os`), or later `ujust enroll-secure-boot-key`
+  ([Bazzite docs](https://docs.bazzite.gg/General/Installation_Guide/secure_boot/),
+  [notice](https://universal-blue.discourse.group/t/secure-boot-notice/405)).
+  It installs through Anaconda's `ostreecontainer` or the newer `bootc`
+  kickstart command
+  ([Fedora Magazine](https://fedoramagazine.org/introducing-the-new-bootc-kickstart-command-in-anaconda/),
+  [Fedora docs](https://docs.fedoraproject.org/fr/bootc/bare-metal)). Its
+  installer has fetched the image from the internet during the install
+  ([issue 189](https://github.com/ublue-os/bazzite/issues/189)); offline
+  means an OCI image on the stick
+  (`ostreecontainer --url=/run/install/repo/container --transport=oci`,
+  [an example](https://github.com/kubepy/bazzite-deck-offline)). `/usr` is
+  read-only, so `post.rs` and settle-in's install need a different way in.
+- **Ubuntu.** The desktop installer reads `autoinstall.yaml` since 23.04;
+  offline, store packages not seeded on the medium fail, and
+  `apt.fallback` should be set by hand
+  ([linuxconfig](https://linuxconfig.org/how-to-write-and-perform-ubuntu-unattended-installations-with-autoinstall),
+  [a guide](https://oneuptime.com/blog/post/2026-03-02-subiquity-automate-ubuntu-server-deployments/markdown)).
+  Who signed its shim *(to measure with `measure-release.py`, not to
+  source)*.
 
 ## Suggested order, once v1 ships
 

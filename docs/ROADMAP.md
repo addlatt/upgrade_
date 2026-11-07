@@ -218,6 +218,16 @@ not explored until the base product is highly aligned. A failed flash leaves
 a machine nothing on the stick can start (rule #4). Proves: new risks the
 day it is picked (R15, R21, R29 first). Waits on: the Windows path shipping.
 
+## 23. A second installer family: beyond Fedora
+
+Decided (2026-11-02, the owner): distro-agnostic, one installer family at
+a time (`architecture.md`, "Linux releases beyond Fedora"). Steps: cut the
+seam where Fedora is still written in, Fedora's goldens unchanged; measure
+the second family's release (boot chain, signer, offline and unattended);
+its answer-file generator and checks, spoofed first; the rig, then a real
+machine, erase first. Waits on: the owner's choice of family (below).
+Proves: R40, V14, then V9 and V1b per family. Stands: see [STATUS.md](STATUS.md).
+
 ## Decisions owed
 
 The owner's open calls, one line each, naming what waits on them. When one
@@ -251,8 +261,11 @@ is decided, the dated line goes in its home and the item here is removed.
 - Whose one-click test results count (item 21): whether a pass from an
   unknown contributor can mark a model as working, or only one from an
   approved developer or a second run that agrees (rule #1; R9).
-- Choosing among several Linux releases on one stick, and fetching a release
-  from Windows: not built, not scheduled (V14, R34).
+- Which installer family comes second (item 23): Ubuntu (its installer
+  reads an answer file; its signing to measure) or Bazzite (a friend's ask;
+  one key enrolled by hand with Secure Boot on) (R40).
+- Several releases on one stick, a picker in the window, and fetching a
+  release from Windows: after item 23 holds on a machine (V14, R34).
 - Whether reclaim switches the kept-Windows machine's clock back to UTC once
   Windows is gone (R36 says "may").
 - The words of reclaim's typed sentence and its screen, which names the
