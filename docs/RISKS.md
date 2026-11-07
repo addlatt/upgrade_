@@ -1344,10 +1344,10 @@ could already have reached.
 mid-move resumes to a starting Linux; then a healthy-drive machine reclaims
 and starts Linux with no key (`r41-reclaim.csv`). The Aspire can only refuse.
 
-**Where it stands.** `[##..]` built on images only (settle-in 0.8.0): the
-read-only plan, the table writer, the resumable move; nothing runs the
-writers. Owed: the run from the stick, the grow, the entries, the rig
-([log](log/2026-11.md#2026-11-02-reclaim-decided-delete-everything-on-a-typed-sentence-move-linux-into-the-space-r41-v15)).
+**Where it stands.** `[##..]` built, whole, never run (settle-in 0.9.0):
+the arm, the run from the stick, the grow, the entries, held on disk images
+only. Owed: the rig, then a healthy-drive machine
+([log](log/2026-11.md#2026-11-06-reclaim-built-whole-the-arm-the-run-from-the-stick-the-grow-the-entries-r41-v15)).
 
 # Closed
 

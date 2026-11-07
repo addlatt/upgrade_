@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Free up Windows' space
+Comment=Delete the kept Windows and give its space to Linux
+Exec=/usr/local/libexec/upgrade_/settle-in-window --reclaim
+Icon=drive-harddisk
+Terminal=false
+Categories=System;

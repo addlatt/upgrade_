@@ -20,10 +20,9 @@
 //!     is never less than a chunk (proven below by cutting it at every
 //!     chunk and in the middle of one).
 //!
-//! Not here yet (owed, R41): running it from the kit stick, the file
-//! system's own grow (`e2fsck` and `resize2fs`, offline), removing Windows'
-//! firmware entry, the 'Windows (kept)' GRUB entry and the R22 guard, and
-//! the clock (a decision owed, R36). No command writes to a disk.
+//! The writing half (the arm in Linux, the run from the kit stick, the
+//! grow, the startup entries) is `reclaimrun.rs`. The clock stays as it is
+//! (local time, R36): whether reclaim switches it to UTC is a decision owed.
 
 use crate::gpt::guid_text;
 use crate::gpttable::{Entry, Table};
@@ -35,6 +34,7 @@ pub const ESP: &str = "c12a7328-f81f-11d2-ba4b-00a0c93ec93b";
 pub const MSR: &str = "e3c9e316-0b5c-4db8-817d-f92df00215ae";
 pub const MSDATA: &str = "ebd0a0a2-b9e5-4433-87c0-68b6b72699c7";
 pub const WINRE: &str = "de94bba4-06d1-4d40-a16a-bfd50179d6ac";
+#[allow(dead_code)] // the tests name it; the plan keeps / and /boot by number
 pub const LINUX_DATA: &str = "0fc63daf-8483-4772-8e79-3d69d8477de4";
 
 /// The move's chunk: 64 MiB. The shift must be at least this (see `move_down`).
@@ -67,6 +67,8 @@ pub struct Facts<'a> {
     pub windows: Result<WindowsRead, String>,
     /// `upgrade_/rolled-back.json` on the ESP: Windows was made first again.
     pub rolled_back: bool,
+    /// `upgrade_/reclaimed.json` on the ESP: reclaim has already run here.
+    pub reclaimed: bool,
 }
 
 fn s<'a>(v: &'a Value, p: &str) -> &'a str {
@@ -97,6 +99,9 @@ pub fn plan(f: &Facts) -> Value {
     }
     if out.pointer("/windows/kept").and_then(Value::as_bool) != Some(true) {
         no.push("the install's record does not say Windows was kept".into());
+    }
+    if f.reclaimed {
+        no.push("Windows' space was already given to Linux on this computer (reclaim has run)".into());
     }
     if f.rolled_back {
         no.push("Windows was made to start first again (the rollback): reclaim is for a person who stays in Linux".into());
@@ -357,27 +362,28 @@ pub fn move_down<D: Read + Write + Seek>(
 pub mod live {
     use super::*;
 
-    fn read(p: &str) -> Option<String> {
+    pub(crate) fn read(p: &str) -> Option<String> {
         std::fs::read_to_string(p).ok().map(|s| s.trim().to_string())
     }
 
-    /// (major:minor, mount point, options) for every mount.
-    fn mounts(r: &str) -> Vec<(String, String, String)> {
+    /// (major:minor, mount point, options, source) for every mount.
+    pub(crate) fn mounts(r: &str) -> Vec<(String, String, String, String)> {
         read(&format!("{}/proc/self/mountinfo", r)).unwrap_or_default().lines().filter_map(|l| {
             let f: Vec<&str> = l.split(' ').collect();
-            Some((f.get(2)?.to_string(), f.get(4)?.replace("\\040", " "), f.get(5)?.to_string()))
+            let dash = f.iter().position(|x| *x == "-")?;
+            Some((f.get(2)?.to_string(), f.get(4)?.replace("\\040", " "), f.get(5)?.to_string(), f.get(dash + 2).unwrap_or(&"").to_string()))
         }).collect()
     }
 
     /// major:minor -> (disk, partition number), from /sys/dev/block.
-    fn part_of(r: &str, devnum: &str) -> Option<(String, u32)> {
+    pub(crate) fn part_of(r: &str, devnum: &str) -> Option<(String, u32)> {
         let link = std::fs::read_link(format!("{}/sys/dev/block/{}", r, devnum)).ok()?;
         let n: u32 = read(&format!("{}/sys/dev/block/{}/partition", r, devnum))?.parse().ok()?;
         let disk = link.parent()?.file_name()?.to_string_lossy().to_string();
         Some((disk, n))
     }
 
-    fn devnum_of_partition(r: &str, disk: &str, number: u32) -> Option<String> {
+    pub(crate) fn devnum_of_partition(r: &str, disk: &str, number: u32) -> Option<String> {
         for e in std::fs::read_dir(format!("{}/sys/block/{}", r, disk)).ok()?.flatten() {
             let p = e.path();
             if read(&p.join("partition").to_string_lossy()).as_deref() == Some(&number.to_string()) {
@@ -387,33 +393,26 @@ pub mod live {
         None
     }
 
-    fn mount_of(r: &str, at: &str) -> Option<(String, String)> {
-        mounts(r).into_iter().rev().find(|(_, m, _)| m == at).map(|(d, _, o)| (d, o))
+    /// (major:minor, options, source) of what is mounted at `at`.
+    pub(crate) fn mount_of(r: &str, at: &str) -> Option<(String, String, String)> {
+        mounts(r).into_iter().rev().find(|(_, m, _, _)| m == at).map(|(d, _, o, src)| (d, o, src))
     }
 
-    pub fn run(root: &str, windows_mount: Option<&str>) -> Value {
-        let r = root.trim_end_matches('/');
-        let handoff = format!("{}/{}", r, crate::HANDOFF);
-        let job = crate::read_json(&format!("{}/job.json", handoff)).unwrap_or(Value::Null);
-        let outcome = crate::read_json(&format!("{}/outcome.json", handoff)).unwrap_or(Value::Null);
-        let rootm = mount_of(r, "/").and_then(|(d, _)| part_of(r, &d));
-        let bootm = mount_of(r, "/boot").and_then(|(d, _)| part_of(r, &d));
-        let disk = rootm.as_ref().map(|(d, _)| d.clone());
-        let table = match &disk {
-            None => Err("the disk Linux runs from is not known".to_string()),
-            Some(d) => (|| {
-                let sector: u64 = read(&format!("{}/sys/block/{}/queue/logical_block_size", r, d)).and_then(|s| s.parse().ok()).ok_or("its sector size is not readable")?;
-                let size: u64 = read(&format!("{}/sys/block/{}/size", r, d)).and_then(|s| s.parse().ok()).ok_or("its size is not readable")?;
-                let mut f = std::fs::File::open(format!("{}/dev/{}", r, d)).map_err(|e| format!("/dev/{}: {}", d, e))?;
-                crate::gpttable::read(&mut f, sector, size * 512)
-            })(),
-        };
-        // other internal disks that carry a Windows data partition
+    /// The kernel's name of a partition (`sda3`, `nvme0n1p3`) from its major:minor.
+    pub(crate) fn name_of(r: &str, devnum: &str) -> Option<String> {
+        let link = std::fs::read_link(format!("{}/sys/dev/block/{}", r, devnum)).ok()?;
+        Some(link.file_name()?.to_string_lossy().to_string())
+    }
+
+    /// Other internal disks that carry a Windows data partition, or that
+    /// could not be read (`skip`: disks that are not candidates, such as the
+    /// one Linux runs from and the kit stick).
+    pub(crate) fn other_windows_disks(r: &str, skip: &[String]) -> Vec<String> {
         let mut other = Vec::new();
         if let Ok(rd) = std::fs::read_dir(format!("{}/sys/block", r)) {
             for e in rd.flatten() {
                 let n = e.file_name().to_string_lossy().to_string();
-                if Some(&n) == disk.as_ref() || ["loop", "ram", "zram", "dm-", "sr"].iter().any(|p| n.starts_with(p)) {
+                if skip.contains(&n) || ["loop", "ram", "zram", "dm-", "sr", "md"].iter().any(|p| n.starts_with(p)) {
                     continue;
                 }
                 if read(&format!("{}/sys/block/{}/removable", r, n)).as_deref() == Some("1") {
@@ -427,16 +426,62 @@ pub mod live {
                 }
             }
         }
+        other.sort();
+        other
+    }
+
+    /// The Windows partition the install recorded, as /dev/NAME, on `disk`.
+    pub(crate) fn windows_device(r: &str, disk: &str, t: &Table, outcome: &Value) -> Option<String> {
+        let win_guid = s(outcome, "/windows/partition/guid").to_lowercase();
+        let e = t.entries.iter().find(|e| !win_guid.is_empty() && guid_text(&e.unique) == win_guid)?;
+        let devnum = devnum_of_partition(r, disk, e.number())?;
+        Some(format!("/dev/{}", name_of(r, &devnum)?))
+    }
+
+    /// The disk Linux's / is on, its / and /boot partition numbers.
+    pub(crate) fn linux_disk(r: &str) -> (Option<String>, Option<u32>, Option<u32>) {
+        let rootm = mount_of(r, "/").and_then(|(d, _, _)| part_of(r, &d));
+        let bootm = mount_of(r, "/boot").and_then(|(d, _, _)| part_of(r, &d));
+        let disk = rootm.as_ref().map(|(d, _)| d.clone());
+        let pick = |m: &Option<(String, u32)>| m.as_ref().filter(|(d, _)| Some(d) == disk.as_ref()).map(|(_, n)| *n);
+        (disk.clone(), pick(&rootm), pick(&bootm))
+    }
+
+    /// The table of a disk by its kernel name, read whole.
+    pub(crate) fn disk_table(r: &str, d: &str) -> Result<Table, String> {
+        let sector: u64 = read(&format!("{}/sys/block/{}/queue/logical_block_size", r, d)).and_then(|s| s.parse().ok()).ok_or("its sector size is not readable")?;
+        let size: u64 = read(&format!("{}/sys/block/{}/size", r, d)).and_then(|s| s.parse().ok()).ok_or("its size is not readable")?;
+        let mut f = std::fs::File::open(format!("{}/dev/{}", r, d)).map_err(|e| format!("/dev/{}: {}", d, e))?;
+        crate::gpttable::read(&mut f, sector, size * 512)
+    }
+
+    pub fn run(root: &str, windows_mount: Option<&str>) -> Value {
+        plan_with(root, windows_mount).0
+    }
+
+    /// The plan, and the facts it was made from that the arm records.
+    pub(crate) fn plan_with(root: &str, windows_mount: Option<&str>) -> (Value, Value) {
+        let r = root.trim_end_matches('/');
+        let handoff = format!("{}/{}", r, crate::HANDOFF);
+        let job = crate::read_json(&format!("{}/job.json", handoff)).unwrap_or(Value::Null);
+        let outcome = crate::read_json(&format!("{}/outcome.json", handoff)).unwrap_or(Value::Null);
+        let (disk, root_number, boot_number) = linux_disk(r);
+        let table = match &disk {
+            None => Err("the disk Linux runs from is not known".to_string()),
+            Some(d) => disk_table(r, d),
+        };
+        let other = other_windows_disks(r, &disk.iter().cloned().collect::<Vec<_>>());
         // the Windows partition, where the caller mounted it, and only if it is that partition
-        let win_guid = s(&outcome, "/windows/partition/guid").to_lowercase();
         let windows = match (windows_mount, &disk, &table) {
             (None, _, _) => Err("it is not mounted (mount it read-only and name it with --windows-mount)".to_string()),
             (Some(m), Some(d), Ok(t)) => {
-                let want = t.entries.iter().find(|e| guid_text(&e.unique) == win_guid).and_then(|e| devnum_of_partition(r, d, e.number()));
+                let want = windows_device(r, d, t, &outcome);
+                let want_num = want.as_ref().and_then(|w| read(&format!("{}/sys/class/block/{}/dev", r, w.trim_start_matches("/dev/"))));
                 match mount_of(r, m.trim_end_matches('/')) {
                     None => Err(format!("{} is not a mount point", m)),
-                    Some((dev, _)) if Some(&dev) != want.as_ref() => Err(format!("{} is not the Windows partition the install recorded", m)),
-                    Some((_, opts)) if !opts.split(',').any(|o| o == "ro") => Err(format!("{} is mounted read-write; reclaim reads Windows only read-only", m)),
+                    // ntfs-3g is a FUSE mount: its own number is not the partition's, its source is
+                    Some((dev, _, src)) if Some(&dev) != want_num.as_ref() && Some(&src) != want.as_ref() => Err(format!("{} is not the Windows partition the install recorded", m)),
+                    Some((_, opts, _)) if !opts.split(',').any(|o| o == "ro") => Err(format!("{} is mounted read-write; reclaim reads Windows only read-only", m)),
                     Some(_) => {
                         let base = format!("{}{}", r, m.trim_end_matches('/'));
                         let users = std::fs::read_dir(format!("{}/Users", base)).map(|rd| rd.flatten().filter(|e| e.path().is_dir()).map(|e| e.file_name().to_string_lossy().to_string()).collect::<Vec<_>>());
@@ -453,19 +498,29 @@ pub mod live {
             _ => Err("the disk is not readable".to_string()),
         };
         let rolled_back = std::path::Path::new(&format!("{}/boot/efi/upgrade_/rolled-back.json", r)).exists();
+        let reclaimed = std::path::Path::new(&format!("{}/boot/efi/{}", r, crate::reclaimrun::ESP_DONE_REL)).exists();
         let f = Facts {
             job: &job,
             outcome: &outcome,
-            table,
-            root_number: rootm.as_ref().filter(|(d, _)| Some(d) == disk.as_ref()).map(|(_, n)| *n),
-            boot_number: bootm.as_ref().filter(|(d, _)| Some(d) == disk.as_ref()).map(|(_, n)| *n),
-            other_disks_in_use: other,
-            windows,
+            table: table.clone(),
+            root_number,
+            boot_number,
+            other_disks_in_use: other.clone(),
+            windows: windows.clone(),
             rolled_back,
+            reclaimed,
         };
-        let mut p = plan(&f);
-        p["writes"] = json!("none: this is the plan only (RISKS R41; the move is not wired to any command)");
-        p
+        let p = plan(&f);
+        let facts = json!({
+            "disk": disk,
+            "root_number": root_number,
+            "boot_number": boot_number,
+            "table": table.as_ref().ok().map(crate::reclaimrun::table_json),
+            "windows": windows.as_ref().ok().map(|w| json!({ "has_system32": w.has_system32, "users": w.users })),
+            "job": job,
+            "outcome": outcome,
+        });
+        (p, facts)
     }
 }
 
@@ -635,6 +690,7 @@ mod tests {
             other_disks_in_use: vec![],
             windows: Ok(WindowsRead { has_system32: true, users: vec!["Sam".into(), "Public".into(), "Default".into()] }),
             rolled_back: false,
+            reclaimed: false,
         }
     }
 
@@ -714,6 +770,10 @@ mod tests {
         let mut f = facts(&j, &o, layout());
         f.rolled_back = true;
         assert!(refused_for(&plan(&f), "rollback"));
+        // reclaim has already run
+        let mut f = facts(&j, &o, layout());
+        f.reclaimed = true;
+        assert!(refused_for(&plan(&f), "already given to Linux"));
         // an erase-path job
         let mut j2 = j.clone();
         j2["intent"]["path"] = json!("clean-slate");
