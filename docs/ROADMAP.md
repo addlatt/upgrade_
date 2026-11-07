@@ -242,15 +242,11 @@ is decided, the dated line goes in its home and the item here is removed.
   closing clause, or R11's wording still promises more than it verifies.
 - R8's closing clause (`-Materialize` against a signed-in client) predates
   the 2026-09-26 decision not to download; what clause replaces it.
-- R12's "What" still describes imaging a disk, a design that is gone; the
-  wording.
+- R12's "What" still describes imaging a disk, a design that is gone; the wording.
 - The words shown to people are drafts awaiting approval: the erase
   launcher's "If you change your mind later", `UPGRADE.exe`'s screens (R31),
-  the go-back screen and its Wi-Fi sentence (R30, R33), the SSH line, the
-  "Your programs" section and the pull's refusals (item 2).
-- What the pull does when a folder no longer holds what `evaluate` counted
-  (the person used Windows since): today a refusal, so a folder changed in
-  Windows can never be pulled (R8, item 2; log 2026-11-07).
+  the go-back screen, its Wi-Fi sentence, the SSH line, "Your programs" (R30, R33).
+- A folder changed in Windows after `evaluate` counted it: today the pull refuses it for good (R8).
 - Whether a wimlib-made `install.swm` split installs cleanly with Secure
   Boot on (R30).
 - What the way back does on a machine with no firmware product key, where
