@@ -500,13 +500,18 @@ pub fn job_facts(scan_dir: Option<&Path>, stick_drive: Option<&str>, materialize
 
     // BitLocker: the WMI provider, then manage-bde's text
     let mut bitlocker = "unknown".to_string();
+    // protection off is not decrypted: a suspended volume, or Windows 11's device
+    // encryption waiting for activation, is still encrypted on the disk (2026-11-07)
+    let mut encrypted: Option<bool> = None;
     if let Ok(w) = Wmi::connect(BITLOCKER) {
-        if let Ok(l) = w.query_where("Win32_EncryptableVolume", &["ProtectionStatus"], "DriveLetter='C:'") {
+        if let Ok(l) = w.query_where("Win32_EncryptableVolume", &["ProtectionStatus", "ConversionStatus"], "DriveLetter='C:'") {
             if let Some(v) = l.first() {
                 bitlocker = match int(&v["ProtectionStatus"]) { Some(1) => "on", Some(0) => "off", _ => "unknown" }.to_string();
+                encrypted = int(&v["ConversionStatus"]).map(|c| c != 0);
             }
         }
     }
+    f.insert("BitLockerEncrypted".into(), json!(encrypted));
     if bitlocker == "unknown" {
         if let Ok(lines) = run_tool("manage-bde", &["-status", "C:"], 60) {
             if let Some(m) = upgrade_scan::ps::capture(r"^\s*Protection Status:\s*Protection (On|Off)\s*$", "m", &lines.join("\n")) {
@@ -708,4 +713,54 @@ pub fn summary_lines(j: &Value, facts: &Value, job_path: &Path, verify_only: boo
     l.push("  not in this job: browsers, the BitLocker key".to_string());
     l.push(String::new());
     l
+}
+
+/// The recovery passwords of C: (RISKS R13; decided 2026-11-07, the owner):
+/// Windows' BitLocker provider first (GetKeyProtectors, type 3, numerical
+/// password; then GetKeyProtectorNumericalPassword), then manage-bde's text.
+/// Never put among the facts, which are printed and compared; only into the
+/// key file. Returns the keys, the volume's ConversionStatus, and why there
+/// is no key when there is none.
+pub fn recovery_keys() -> (Vec<String>, Option<i64>, Option<String>) {
+    let mut keys: Vec<String> = Vec::new();
+    let mut conversion = None;
+    let mut why: Option<String> = None;
+    match Wmi::connect(BITLOCKER) {
+        Ok(w) => match w.query_where("Win32_EncryptableVolume", &["__RELPATH", "ConversionStatus"], "DriveLetter='C:'") {
+            Ok(rows) => match rows.first() {
+                Some(v) => {
+                    conversion = int(&v["ConversionStatus"]);
+                    let path = v["__RELPATH"].as_str().unwrap_or("").to_string();
+                    match w.call_with("Win32_EncryptableVolume", &path, "GetKeyProtectors", &[("KeyProtectorType", json!(3))], &["ReturnValue", "VolumeKeyProtectorID"]) {
+                        Ok(r) if int(&r["ReturnValue"]) == Some(0) => {
+                            for id in r["VolumeKeyProtectorID"].as_array().cloned().unwrap_or_default() {
+                                let Some(id) = id.as_str() else { continue };
+                                if let Ok(p) = w.call_with("Win32_EncryptableVolume", &path, "GetKeyProtectorNumericalPassword", &[("VolumeKeyProtectorID", json!(id))], &["ReturnValue", "NumericalPassword"]) {
+                                    if let Some(k) = p["NumericalPassword"].as_str().filter(|k| crate::recovery::valid(k)) {
+                                        if !keys.iter().any(|x| x == k) {
+                                            keys.push(k.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Ok(r) => why = Some(format!("GetKeyProtectors answered {}", r["ReturnValue"])),
+                        Err(e) => why = Some(format!("GetKeyProtectors: {e}")),
+                    }
+                }
+                None => why = Some("Windows' BitLocker provider does not list C:".into()),
+            },
+            Err(e) => why = Some(format!("the BitLocker provider: {e}")),
+        },
+        Err(e) => why = Some(format!("the BitLocker provider: {e}")),
+    }
+    if keys.is_empty() {
+        if let Ok(lines) = run_tool("manage-bde", &["-protectors", "-get", "C:", "-Type", "RecoveryPassword"], 60) {
+            keys = crate::recovery::find(&lines.join("\n"));
+        }
+    }
+    if keys.is_empty() && why.is_none() {
+        why = Some("C: has no recovery password protector".into());
+    }
+    (keys, conversion, why)
 }

@@ -17,6 +17,7 @@ pub mod live;
 pub mod maps;
 pub mod password;
 pub mod records;
+pub mod recovery;
 pub mod val;
 pub mod wifi;
 
