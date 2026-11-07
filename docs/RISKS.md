@@ -1356,7 +1356,7 @@ the arm, the run from the stick, the grow, the entries, held on disk images
 only. Owed: the rig, then a healthy-drive machine
 ([log](log/2026-11.md#2026-11-06-reclaim-built-whole-the-arm-the-run-from-the-stick-the-grow-the-entries-r41-v15)).
 
-## R43: ntfs-3g cannot read inside a OneDrive folder · high · planned
+## R43: ntfs-3g cannot read inside a OneDrive folder · high · held-on-rig
 
 **What.** Through ntfs-3g (2022.10.3, Fedora 42) a Cloud Files sync root,
 the folder OneDrive keeps its files in, is not shown as a folder, and
@@ -1371,15 +1371,22 @@ nothing, but on a OneDrive-backed machine none of the person's files come
 over, the feature most people check first. High: no data is lost, the
 feature fails for a large part of the audience.
 
-**Closes when.** A real OneDrive-backed profile is pulled, every
-downloaded file arriving identical and every cloud-only one listed, by
-whatever reader is chosen (decision owed: an ntfs-3g OneDrive plugin, a
-read-only NTFS reader of our own, or copying on the Windows side before
-the conversion), recorded in `v3-pull.csv`.
+**Decided (2026-11-07, the owner): only files wholly on the disk come
+over, and a read-only NTFS reader of our own reads inside OneDrive
+folders.** A file only in the cloud, partly downloaded, or compressed
+by Windows inside a OneDrive folder is listed, never copied and never
+downloaded. ntfs-3g still reads everything else. The plugin was turned
+down (its author calls it experimental, its download is gone) and so was
+a copy in Windows (it would invite downloading). How it works:
+`architecture.md`, Module 3, step 2.
 
-**Where it stands.** `[#...]` found 2026-11-07 on the rig with V8's
-provider ([log](log/2026-11.md#2026-11-07-the-pull-on-the-rig-it-refused-ntfs-3g-hides-onedrive-folders-r43-r8-r19-r22-v3-v8)).
-Owed: the reader decision, then a signed-in OneDrive.
+**Closes when.** A real OneDrive-backed profile is pulled, every
+downloaded file arriving identical and every cloud-only one listed,
+recorded in `v3-pull.csv`.
+
+**Where it stands.** `[###.]` held on the rig with V8's provider,
+`v3-pull.csv` line 5 ([log](log/2026-11.md#2026-11-07-our-own-reader-inside-onedrive-folders-the-pull-passes-on-the-rig-r43-r8-v3-v8)).
+Owed: a signed-in OneDrive, on a real disk.
 
 # Closed
 

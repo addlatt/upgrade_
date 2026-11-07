@@ -668,7 +668,10 @@ stands: see [STATUS.md](STATUS.md).
    partition, unlocking BitLocker with the harvested recovery key (`cryptsetup`
    BITLK, Linux's reader for BitLocker volumes); mounts it read-only through
    **ntfs-3g**, not the kernel `ntfs3` driver (decided 2026-09-01: the install
-   kernel's `ntfs3` crashed on the rig; RISKS R19); and copies Documents,
+   kernel's `ntfs3` crashed on the rig; RISKS R19); reads inside OneDrive
+   folders, which ntfs-3g cannot open, with a read-only NTFS reader of its
+   own on the same unlocked volume (decided 2026-11-07, RISKS R43), copying
+   only files wholly on the disk; and copies Documents,
    Pictures and the rest, plus browser profiles, checking checksums as it goes.
    It expects cryptsetup's size-mismatch warning on every shrunk volume, and
    copies only regular files (Windows' empty SYSTEM files show up as FIFOs and

@@ -296,7 +296,10 @@ passes); `v3-verdict.py` writes the rows. Other configs are built with
 (`v3.sh mkvm`), in the product's order (encrypt, then shrink), and read as
 data disks. The pull arm (2026-11-07) runs the product's own pull on the
 same partition: `v3.sh files-run` (`guest/pull-plant.ps1`,
-`guest/pull-read.sh`, `pull-verdict.py`, rows in `v3-pull.csv`). Residue no VM row closes: real disks, Windows 11's BitLocker,
+`guest/pull-read.sh`, `pull-verdict.py`, rows in `v3-pull.csv`). Its
+`files-fixture` step has Windows make the NTFS test disk that
+`settle-in`'s own reader is tested on (`guest/ntfs-fixture.ps1`, cut by
+`ntfs-fixture.py` into `settle-in/tests/ntfs-fixture/`). Residue no VM row closes: real disks, Windows 11's BitLocker,
 physical machines, and "full-disk" as a real disk experiences it (the
 rig's thin VHDX never had its free space rewritten).
 
