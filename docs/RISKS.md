@@ -1280,6 +1280,35 @@ the product does instead), with a rig row and one real machine.
 2026-10-11 Fedora was still on the disk after the 2026-10-12 rollback, and
 was cleared by hand before the one click test ([log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)).
 
+## R40: A second installer cannot run offline and unattended with Secure Boot on · critical · planned
+
+**What.** Fedora's installer (Anaconda) installs from the image on the
+stick with no network and no question asked, and Fedora's shim starts
+under Microsoft's third-party authority. A second installer family
+(roadmap item 23; `architecture.md`, "Linux releases beyond Fedora") may do
+neither. Bazzite's own installer has fetched its system image from the
+internet during the install; Ubuntu's installer fails on store packages
+that are not seeded on the medium; Bazzite's kernel needs its key enrolled
+by a person when Secure Boot is on (research, not evidence:
+`docs/research/future-paths.md`, "Other Linux distributions").
+
+**If real.** On the erase path the install runs after the last click, with
+Windows already gone. An installer that waits for a network it does not
+have, or a question nobody is there to answer, leaves a machine with no
+system. On the keep-Windows path it leaves a half-made Linux beside
+Windows. Critical: the failure lands after the commit line.
+
+**Closes when.** Per family, never for all at once: the release measured
+by `data/tools/measure-release.py` (boot chain, signer, and that every
+byte the install needs is on the stick); a rig row of the erase with the
+network off and nothing typed; one real machine with Secure Boot on. A
+release that needs a key enrolled closes only if the window says so
+before the last click and the row records it. Fedora's rows count for
+Fedora only.
+
+**Where it stands.** `[#...]` planned. Found in research, 2026-11-02
+([log](log/2026-11.md#2026-11-02-a-second-linux-one-installer-family-at-a-time-r40-v14-roadmap-item-23)).
+
 # Closed
 
 ## R38: The installer's shell shares the countdown's console · critical · closed

@@ -737,7 +737,10 @@ booted with Secure Boot on under the third-party CA on a second VM). Step
 6 is the Aspire over SSH (the scan) and its V9 run. Residue only a real
 machine closes: what a firmware actually holds (the level and the db) and
 whether it refuses exactly as shim's rule says; the rig's firmware has its
-own level and keys, so a pass there is plumbing.
+own level and keys, so a pass there is plumbing. From 2026-11-02 (the
+owner's decision to go beyond Fedora, `architecture.md`), each installer
+family passes this gate on its own; one family's rows say nothing about
+another's (RISKS R40).
 
 **Where it stands.** `[####]` held-on-machine, one firmware. The Aspire's
 scan over SSH said Fedora 42's files FAIL (`grub,3 < grub,5`) and Fedora
