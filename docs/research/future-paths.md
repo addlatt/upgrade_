@@ -400,6 +400,8 @@ What was read on 2026-11-02, research and not evidence:
   (`ostreecontainer --url=/run/install/repo/container --transport=oci`,
   [an example](https://github.com/kubepy/bazzite-deck-offline)). `/usr` is
   read-only, so `post.rs` and settle-in's install need a different way in.
+  Measured 2026-11-07: the current live ISO carries the image itself and
+  installs it offline (`docs/BAZZITE-DESIGN.md`; log 2026-11-07).
 - **Ubuntu.** The desktop installer reads `autoinstall.yaml` since 23.04;
   offline, store packages not seeded on the medium fail, and
   `apt.fallback` should be set by hand

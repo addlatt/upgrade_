@@ -1315,6 +1315,11 @@ Fedora only.
 
 **Where it stands.** `[#...]` planned. Found in research, 2026-11-02
 ([log](log/2026-11.md#2026-11-02-a-second-linux-one-installer-family-at-a-time-r40-v14-roadmap-item-23)).
+Bazzite's live ISO measured 2026-11-07: its system image is on it, and its
+own kickstart installs from there, not the network; how to start it with
+nobody at the keyboard is unmeasured
+([log](log/2026-11.md#2026-11-07-bazzites-live-iso-measured-and-a-design-for-the-key-step-r40-r42-v14-v16-roadmap-items-23-24);
+the design: [BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
 
 ## R41: Reclaim deletes the kept Windows and moves Linux into the space · critical · built
 
@@ -1355,6 +1360,39 @@ and starts Linux with no key (`r41-reclaim.csv`). The Aspire can only refuse.
 the arm, the run from the stick, the grow, the entries, held on disk images
 only. Owed: the rig, then a healthy-drive machine
 ([log](log/2026-11.md#2026-11-06-reclaim-built-whole-the-arm-the-run-from-the-stick-the-grow-the-entries-r41-v15)).
+
+## R42: Bazzite's installed system starts only after a person enrolls its key · critical · planned
+
+**What.** Measured 2026-11-07 from Bazzite's ISO: the stick's live kernel
+is Fedora's, signed by Fedora's CA, so the stick starts with Secure Boot
+on. The installed kernel is signed by "ublue kernel", Universal Blue's own
+key, so with Secure Boot on the installed system starts only once that key
+is in shim's list (MokList). Only a person at the blue MokManager screen
+can add it. Unmeasured: where that screen's restart lands (the one-time
+start is used up by then); whether the screen appears from the stick
+(today's stick has no `mmx64.efi`); whether a five-letter password typed on
+a non-US keyboard is taken; whether `%pre` reads the key list right; and
+how shim treats the installed kernel, which has no `.sbat` section.
+
+**If real.** An install that runs before the key is enrolled leaves a
+system that will not start ("bad shim signature"). On the erase path that
+is a machine with nothing that boots. Critical: unless `%pre` checks the
+key before anything is erased, the failure lands after the commit line.
+
+**Closes when.** On the rig (`UPGRIGMOK`, the Hyper-V guest that trusts
+shim): the request written from the stick, the blue screen shown, the key
+enrolled, `%pre` finding it and the install starting, the installed system
+starting with Secure Boot on; and the missed-key arm refusing with the disk
+unchanged. Then one real machine with Secure Boot on, the erase first. The
+rows are V16's.
+
+**Decided (2026-11-08, the owner):** the key step is folded into Convert,
+and `%pre` checks the key before anything is erased (`architecture.md`,
+"Linux releases beyond Fedora").
+
+**Where it stands.** `[#...]` planned, nothing built
+([BAZZITE-DESIGN.md](BAZZITE-DESIGN.md);
+[log](log/2026-11.md#2026-11-07-bazzites-live-iso-measured-and-a-design-for-the-key-step-r40-r42-v14-v16-roadmap-items-23-24)).
 
 ## R43: ntfs-3g cannot read inside a OneDrive folder · high · held-on-rig
 
