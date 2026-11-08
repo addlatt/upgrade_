@@ -1142,6 +1142,16 @@ and distributions share a handful of installers.
   would reach the network or stop for a question mid-install is refused
   until its offline, unattended path is measured (RISKS R40).
 
+**Decided (2026-11-07, the owner): the person picks the Linux, and the
+window fetches it.** Early in the window: Fedora, Bazzite or Ubuntu, only
+releases measured into `data/releases.json`. One the scan finds unable to
+start is greyed out (RISKS R34); one that needs a person at the keyboard
+says so on its button. The window downloads that one release, refuses any
+byte that differs from its measured sha256, and writes it to the stick:
+one release per stick. Today `make-kit.sh` builds the kit on the
+developer's machine instead. The download comes before the last click, so
+a failure refuses with nothing touched (roadmap item 24).
+
 Fedora is still written into four places, so the seam is not cut there yet:
 the stick's `grub.cfg` and the handoff's `EFI/fedora` paths, `make-kit.sh`,
 the installer's `post.rs` (`grub2-mkconfig` in a writable system), and
@@ -1156,9 +1166,9 @@ says so on the screen before the last click, never after it (rule #3).
 
 ## Non-goals (v1)
 
-- Several releases on one stick, and a picker in the window, until a second
-  installer family has held on a real machine. "Fedora only" was lifted
-  2026-11-02 (the section above).
+- Several releases on one stick. The person picks one and the window
+  fetches only that one (decided 2026-11-07); "Fedora only" was lifted
+  2026-11-02 (both in the section above).
 - Dual-boot as a product. The keep-Windows path holds Windows *for a while*, as
   a rollback and a file source that both end at reclaim; it is not a supported
   two-OS machine, and `settle-in` nudges toward reclaim once the files are

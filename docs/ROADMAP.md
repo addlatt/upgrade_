@@ -230,6 +230,16 @@ its answer-file generator and checks, spoofed first; the rig, then a real
 machine, erase first. Waits on: the owner's choice of family (below).
 Proves: R40, V14, then V9 and V1b per family. Stands: see [STATUS.md](STATUS.md).
 
+## 24. The release picker: choose a Linux, then fetch it onto the stick
+
+Decided (2026-11-07, the owner): early in the window the person picks a
+Linux (Fedora, Bazzite, Ubuntu); the window downloads that one release,
+checks every byte against its measured entry in `data/releases.json` and
+writes it to the stick. One release per stick, offered only if the scan finds
+it startable. Before the last click: a failed download refuses with nothing
+touched. Size: Fedora 44 KDE 4.2 GB (measured); the rest to measure. Waits on:
+the owner's call on timing (below). Proves: R16, R31, R34, V12, V14. Stands: see [STATUS.md](STATUS.md).
+
 ## Decisions owed
 
 The owner's open calls, one line each, naming what waits on them. When one
@@ -266,8 +276,8 @@ is decided, the dated line goes in its home and the item here is removed.
 - Which installer family comes second (item 23): Ubuntu (its installer
   reads an answer file; its signing to measure) or Bazzite (a friend's ask;
   one key enrolled by hand with Secure Boot on) (R40).
-- Several releases on one stick, a picker in the window, and fetching a
-  release from Windows: after item 23 holds on a machine (V14, R34).
+- When the picker (item 24) comes: first, with Fedora alone in it, or
+  after item 23 holds on a machine (V14, R34).
 - Whether reclaim switches the kept-Windows machine's clock back to UTC once
   Windows is gone (R36 says "may").
 - The words of reclaim's typed sentence and its screen, which names the
