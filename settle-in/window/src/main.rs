@@ -11,6 +11,7 @@
 //! ordinary way (architecture.md, "It runs on any Linux").
 
 mod goback;
+mod pull;
 mod reclaim;
 
 use eframe::egui;
@@ -53,6 +54,8 @@ struct App {
     focus_logged: bool,
     running: Option<mpsc::Receiver<Value>>,
     last: Option<String>,
+    /// The pull's own window, while it is open (the files, 2026-11-07).
+    pull: Option<std::process::Child>,
 }
 
 impl App {
@@ -96,6 +99,17 @@ impl eframe::App for App {
         if !self.focus_logged {
             ctx.request_repaint_after(std::time::Duration::from_millis(500));
         }
+        // when the pull's window closes, the files section shows what it did
+        if let Some(c) = self.pull.as_mut() {
+            if !matches!(c.try_wait(), Ok(None)) {
+                self.pull = None;
+                if let Some(s) = sections() {
+                    self.screen = s;
+                }
+            } else {
+                ctx.request_repaint_after(std::time::Duration::from_millis(1000));
+            }
+        }
         if let Some(rx) = &self.running
             && let Ok(v) = rx.try_recv() {
                 self.running = None;
@@ -120,15 +134,20 @@ impl eframe::App for App {
                     }
                     if let Some(b) = s["button"].as_str() {
                         ui.add_space(4.0);
-                        let busy = self.running.is_some();
+                        let is_pull = s["action"] == "pull";
+                        let busy = if is_pull { self.pull.is_some() } else { self.running.is_some() };
                         if ui.add_enabled(!busy, egui::Button::new(b)).clicked() {
-                            self.press(&ctx);
+                            if is_pull {
+                                self.pull = std::env::current_exe().ok().and_then(|me| Command::new(me).arg("--pull").spawn().ok());
+                            } else {
+                                self.press(&ctx);
+                            }
                         }
                         if busy {
                             ui.spinner();
                         }
                         ui.label(egui::RichText::new(s["button_note"].as_str().unwrap_or("")).weak());
-                        if let Some(l) = &self.last {
+                        if let Some(l) = self.last.as_ref().filter(|_| !is_pull) {
                             ui.label(l);
                         }
                     }
@@ -185,6 +204,32 @@ fn go_back() {
     }
 }
 
+/// "Bring my files from Windows" (the pull, 2026-11-07).
+struct PullApp(Option<pull::Pull>);
+
+impl eframe::App for PullApp {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+        let p = self.0.get_or_insert_with(|| pull::Pull::new(&ctx));
+        egui::CentralPanel::default().show(ui, |ui| {
+            if p.ui(&ctx, ui) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+        });
+    }
+}
+
+fn pull_window() {
+    let opts = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_title("Bring my files from Windows").with_inner_size([620.0, 560.0]),
+        ..Default::default()
+    };
+    if let Err(e) = eframe::run_native("Bring my files from Windows", opts, Box::new(|_cc| Ok(Box::new(PullApp(None))))) {
+        eprintln!("settle-in-window: could not open the window: {}", e);
+        std::process::exit(1);
+    }
+}
+
 /// "Free up Windows' space" (RISKS R41), from the app menu.
 struct ReclaimApp(reclaim::Reclaim);
 
@@ -226,6 +271,9 @@ fn main() {
     if std::env::args().any(|a| a == "--reclaim") {
         return reclaim_window();
     }
+    if std::env::args().any(|a| a == "--pull") {
+        return pull_window();
+    }
     let uid = std::fs::metadata("/proc/self").map(|m| std::os::unix::fs::MetadataExt::uid(&m)).unwrap_or(0);
     let class = std::env::var("XDG_SESSION_CLASS").ok();
     if is_login_screen(class.as_deref(), uid) {
@@ -250,7 +298,7 @@ fn main() {
         viewport: egui::ViewportBuilder::default().with_title(&title).with_inner_size([560.0, 620.0]).with_active(true),
         ..Default::default()
     };
-    if let Err(e) = eframe::run_native(&title, opts, Box::new(|_cc| Ok(Box::new(App { screen, drawn: false, shown_at: None, focus_logged: false, running: None, last: None })))) {
+    if let Err(e) = eframe::run_native(&title, opts, Box::new(|_cc| Ok(Box::new(App { screen, drawn: false, shown_at: None, focus_logged: false, running: None, last: None, pull: None })))) {
         eprintln!("settle-in-window: could not open the window: {}", e);
         std::process::exit(1);
     }

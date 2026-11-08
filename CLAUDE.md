@@ -13,7 +13,10 @@ Move an ordinary computer from Windows to Linux, in one go, for someone who does
 know how. Plug in a USB stick, pick a desktop, click convert. Come back to a working
 Linux machine with Wi-Fi intact and (by default) the old system, files and all,
 shrunk safely aside. **Decided (2026-11-02, the owner): copying the files into
-Linux waits until the project has traction.**
+Linux waits until the project has traction.** **Amended (2026-11-07, the owner):
+the copy is back, on the keep-Windows path only, with a "here is the Linux
+version" list for the programs and the browsers' bookmarks (nothing else of
+theirs).** The clean slate still carries no files.
 
 The audience is non-technical people whose working Windows 10 machines were stranded
 by Windows 11's hardware requirements and the October 2025 end of security updates.
@@ -90,7 +93,7 @@ argument, which by rule #2 counts for nothing, so no component that writes to a 
 is built until the spine it depends on is proven on real hardware. As of
 2026-11-01: every stage of the one click test held on the Aspire (2026-10-28/29);
 next is that run with no hand but the stick swaps, then a sleep lock (R33) and
-R39's refusal. The file pull waits (decided 2026-11-02). Where every gate stands:
+R39's refusal. The file pull is being built again (decided 2026-11-07). Where every gate stands:
 `docs/STATUS.md`. What is next, and the decisions owed: `docs/ROADMAP.md`. What
 happened, run by run: `docs/log/`.
 
@@ -103,7 +106,7 @@ writes the stick, and refuses. `upgrade_` (the converter; Windows → Linux) doe
 move. By **default** it shrinks Windows aside and installs Linux alongside, keeping
 Windows as a rollback. Only on opt-in does it erase everything instead, carrying
 no files (a too-full disk is refused). `settle-in` (Linux, first boot) verifies the hardware,
-will **pull the user's files from the kept Windows partition** (deferred 2026-11-02), and
+will **pull the user's files from the kept Windows partition** (back on 2026-11-07, not built yet), and
 offers reclaim once everything is confirmed. No external drive anywhere: one stick
 is the whole kit.
 
@@ -123,7 +126,7 @@ data/            the knowledge tables, JSON, compiled into the scanner; communit
 evaluate/windows/  the corpus of machine recordings; the one PowerShell holdover (the stick writer; its port `evaluate/stick` is built and retires it when R16's rows read pass)
 evaluate/scan/, harvest/, job/, stick/  the scanner, harvester, job writer and stick writer in Rust; their judging halves held to the frozen PowerShell goldens
 upgrade_/          the converter: prologue/ the prologue, handoff, the slot and its guard in Rust (the rollback runs from Linux, settle-in); kickstart/ the kickstart generator in Rust; windows/window/ the window (UPGRADE.exe), windows/handoff-payload/ the stick's EFI payload and the two .cmd starters; linux/installer/ the installer's verify (%pre) and outcome (%post) steps in Rust
-settle-in/         first start, the Linux-side rollback, the walk-away way back; gate/ its Windows program; window/; the file pull (deferred 2026-11-02) and reclaim are not written
+settle-in/         first start, the Linux-side rollback, the walk-away way back; gate/ its Windows program; window/; reclaim (built, untried); the file pull is not written (back on 2026-11-07)
 rig/               the test benches: hyperv/ and vm/ (the rig), oneclick/ (the one click test manager, tooling)
 schemas/           job.json / outcome.json contracts (change rarely, review hard); rust/ reads them in Rust
 docs/              architecture.md (how it works), RISKS.md (what is unproven), VALIDATION.md (how it is proven), research/ (devices, future paths)

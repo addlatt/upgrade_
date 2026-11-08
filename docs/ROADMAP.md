@@ -52,14 +52,16 @@ access are done (2026-10-04, the Aspire). Reclaim, decided 2026-11-02
 (R41: delete all of Windows on a typed sentence, move Linux into the
 space), is built whole and waits on the rig (V15). **Decided (2026-11-02, the owner): copying the
 person's files (unlock BitLocker, copy, double-check, never a OneDrive stub)
-waits until the project has traction;** the files stay on the kept Windows.
-When it comes back it waits on V3 and V8 (R8). Proves: V10, R28, V15, R41; the pull,
+waits until the project has traction.** **Amended (2026-11-07, the owner):**
+built whole 2026-11-07 (settle-in 0.10.0), keep-Windows only, with the
+programs list and the bookmarks; waits on the rig arm (V3, V8), then a machine. Proves: V10, R28, V15, R41; the pull,
 V3, R19, R13. Stands: see [STATUS.md](STATUS.md).
 
 ## 3. The rest of the collecting
 
 Browsers (R20), the BitLocker key, staging on the exFAT partition, a screen
-that asks what the person wants. Waits with item 2's file copy (2026-11-02). Wi-Fi, the clock and remote access are
+that asks what the person wants. The BitLocker key and the bookmarks are
+built (2026-11-07, for item 2's copy); the staging still waits. Wi-Fi, the clock and remote access are
 done. Proves: R20, R13, R26 (the staging is what the discard offer waits
 on). Stands: see [STATUS.md](STATUS.md).
 
@@ -90,7 +92,7 @@ hold the certificate. Proves: V6, R12, R14. Stands: see
 
 For machines turned down because of their drive (R23's case): copy off
 whatever can still be read, and check every copy. Proves: R17, R23. Waits
-on: item 2's file pull, deferred (2026-11-02). Stands: see [STATUS.md](STATUS.md).
+on: item 2's file pull (back on 2026-11-07, not built). Stands: see [STATUS.md](STATUS.md).
 
 ## 8. Offer to delete Windows when it cannot be kept
 
@@ -179,7 +181,7 @@ marker and the stick's `.cmd` starters stay as they are (decided
 2026-10-17, the owner; `RUST-PORT.md`, "What comes next"). The stick
 writer writes disks, so R16's rows run again (rule #4); the installer
 re-earns V1's, V9's and R21's rows. After this item the work turns to the
-mission's open killers (item 2's file pull deferred 2026-11-02).
+mission's open killers (item 2's file pull, back on 2026-11-07).
 Proves: V13, R32. Stands: see [STATUS.md](STATUS.md).
 
 ## 20. Product unification: fewer choices, one way through
@@ -251,11 +253,11 @@ is decided, the dated line goes in its home and the item here is removed.
   closing clause, or R11's wording still promises more than it verifies.
 - R8's closing clause (`-Materialize` against a signed-in client) predates
   the 2026-09-26 decision not to download; what clause replaces it.
-- R12's "What" still describes imaging a disk, a design that is gone; the
-  wording.
+- R12's "What" still describes imaging a disk, a design that is gone; the wording.
 - The words shown to people are drafts awaiting approval: the erase
   launcher's "If you change your mind later", `UPGRADE.exe`'s screens (R31),
-  the go-back screen and its Wi-Fi sentence (R30, R33), the SSH line.
+  the go-back screen, its Wi-Fi sentence, the SSH line, "Your programs" (R30, R33).
+- The pull: a folder changed in Windows since `evaluate` is refused for good (R8); the stick's key kept (R13).
 - Whether a wimlib-made `install.swm` split installs cleanly with Secure
   Boot on (R30).
 - What the way back does on a machine with no firmware product key, where

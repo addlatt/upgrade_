@@ -191,7 +191,7 @@ pub fn job_document(f: &Value, choice: &Choices, stamp: &Stamp) -> Result<Value,
             // refused job never leaves passwords on the stick
             "wifi": {"result": "not-harvested", "secrets_dir": null, "profiles": []},
             "ssh": ssh,
-            "bitlocker": {"status": at(f, "BitLocker"), "recovery_key_file": if bitlocker_on { json!("artifacts/credentials/bitlocker-C.txt") } else { Value::Null }},
+            "bitlocker": {"status": at(f, "BitLocker"), "recovery_key_file": if bitlocker_on || at(f, "BitLockerEncrypted") == &json!(true) { json!(crate::recovery::KEY_FILE) } else { Value::Null }},
             "firmware_artifacts": [],
             "software": software,
         },

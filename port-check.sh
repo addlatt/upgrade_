@@ -45,10 +45,11 @@ if python3 schemas/check.py --dump-cases "$TMP/refused-cases.json" --dump-mutati
     pass "schemas/check.py ($(grep -c '  PASS  ' "$TMP/check.txt") checks)"
 else fail "schemas/check.py"; fi
 [ -f "$TMP/refused-cases.json" ] && fresh schemas/rust/tests/refused-cases.json "$TMP/refused-cases.json"
-for f in data/devices/*.json data/distros.json data/releases.json; do
+for f in data/devices/*.json data/distros.json data/releases.json data/programs.json; do
     python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" > /dev/null 2>&1 || fail "$f is not JSON"
 done
-pass "data/devices/*.json, data/distros.json and data/releases.json parse (their shape: evaluate/scan's data tests)"
+python3 data/tools/check-programs.py --offline > /dev/null 2>&1 || fail "data/programs.json: its shape (data/tools/check-programs.py --offline)"
+pass "data/devices/*.json, data/distros.json, data/releases.json and data/programs.json parse (their shape: evaluate/scan's data tests, settle-in's programs tests, check-programs.py)"
 
 say; say "  2. the frozen goldens"; say
 if sha256sum -c --quiet FROZEN-GOLDENS.sha256 > "$TMP/frozen.txt" 2>&1; then

@@ -34,6 +34,16 @@
 #                                 capture RECOVERY_KEY= into the host key file for NAME (never printed), full shutdown
 #   v3.sh run CONFIG [plant args] the whole cycle for one config: oemdrv -> windows -> plant -> read -> verdict
 #
+# The pull arm (settle-in's file pull, 2026-11-07; V3, V8; R8, R19, R20 -> v3-pull.csv):
+#   v3.sh files-oemdrv            a FRESH OEMDRV with guest/pull-read.sh as run.sh, the key, and
+#                                 settle-in (musl), upgrade-harvest.exe and a Firefox backup in v3/
+#   v3.sh files-fixture           Windows up: guest/ntfs-fixture.ps1 makes the reader's test disk (R43)
+#   v3.sh files-plant             Windows up: guest/pull-plant.ps1 plants the tree (Cloud Files
+#                                 placeholders included), runs the harvester, full shutdown
+#   v3.sh files-verdict           pull/ off OEMDRV -> pull-verdict.py -> v3-pull.csv (and the test disk
+#                                 -> settle-in/tests/ntfs-fixture/ through ntfs-fixture.py)
+#   v3.sh files-run               the whole cycle: files-oemdrv -> windows -> files-fixture -> files-plant -> read -> files-verdict
+#
 # Evidence rows are written by the harness (v3-verdict), never by hand.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
@@ -184,6 +194,59 @@ verdict)
     need_off; oem_pull
     mtype -i "$OEM@@1M" ::/run.log > "$A/read-run.log" 2>/dev/null || true
     python3 v3-verdict.py "$A" "$CSV" "$HARNESS_VERSION" "$FIRMWARE" "$CONTEXT"
+    ;;
+files-oemdrv)
+    # the product binaries, built from this checkout (settle-in as the kit builds it)
+    ( cd ../../settle-in && cargo build --locked --release --quiet --target x86_64-unknown-linux-musl )
+    ( cd ../../evaluate/harvest && PATH="$HOME/.local/opt/zig-linux-x86_64-0.13.0:$PATH" cargo zigbuild --locked --release --quiet --target x86_64-pc-windows-gnu )
+    mkdir -p "$A"; python3 pull-firefox.py "$A/firefox.jsonlz4"
+    "$0" oemdrv guest/pull-read.sh ../../settle-in/target/x86_64-unknown-linux-musl/release/settle-in \
+        ../../target/x86_64-pc-windows-gnu/release/upgrade-harvest.exe "$A/firefox.jsonlz4"
+    ;;
+files-fixture)
+    # the reader's test disk, made by Windows (guest/ntfs-fixture.ps1), onto OEMDRV:\v3\fixture\
+    PS copy "$(wslpath -w guest/cfprovider.cs)" 'C:\upgrade_\rig\cfprovider.cs'
+    PS copy "$(wslpath -w guest/ntfs-fixture.ps1)" 'C:\upgrade_\rig\ntfs-fixture.ps1'
+    PS ps "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\upgrade_\rig\ntfs-fixture.ps1"
+    ;;
+files-plant)
+    PS copy "$(wslpath -w guest/cfprovider.cs)" 'C:\upgrade_\rig\cfprovider.cs'
+    PS copy "$(wslpath -w guest/pull-plant.ps1)" 'C:\upgrade_\rig\pull-plant.ps1'
+    PS ps "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\upgrade_\rig\pull-plant.ps1"
+    ;;
+files-verdict)
+    need_off; oem_pull
+    rm -rf "$A/pull"; mkdir -p "$A/pull"
+    mcopy -s -n -i "$OEM@@1M" ::/v3/pull/* "$A/pull/" 2>/dev/null || true
+    mtype -i "$OEM@@1M" ::/run.log > "$A/pull/run.log" 2>/dev/null || true
+    # the reader's test disk, when files-fixture made one: cut into settle-in's tests (reviewed as a diff before commit)
+    rm -rf "$A/fixture"; mkdir -p "$A/fixture"
+    if mcopy -n -i "$OEM@@1M" ::/v3/fixture/ntfs-fixture.vhd ::/v3/fixture/fixture.json "$A/fixture/" 2>/dev/null; then
+        mkdir -p ../../settle-in/tests/ntfs-fixture
+        python3 ntfs-fixture.py "$A/fixture/ntfs-fixture.vhd" "$A/fixture/fixture.json" ../../settle-in/tests/ntfs-fixture
+    fi
+    python3 pull-verdict.py "$A" ../../docs/validation-results/v3-pull.csv "$HARNESS_VERSION-pull" "$FIRMWARE" "$CONTEXT"
+    ;;
+files-pick-windows)
+    # GRUB's countdown is 30 s; a Down as soon as the menu is up stops it (no screenshot in the way)
+    need_off; PS start; wait_secs 12
+    PS key 40; sleep 1; PS key 40; sleep 1; PS key 40; sleep 1; PS key 13
+    t0=$(date +%s)
+    until PS ps 'hostname' 2>/dev/null | grep -q UPGRIG; do
+        [ $(( $(date +%s) - t0 )) -ge 600 ] && { PS shot "C:\\upgrade-rig\\hv\\shots\\pull-win-stuck.png"; echo "v3: Windows did not answer within 10 min" >&2; exit 2; }
+        sleep 10
+    done
+    echo "v3: Windows up (PS Direct) after $(( $(date +%s) - t0 )) s"
+    ;;
+files-run)
+    "$0" files-oemdrv
+    "$0" files-pick-windows
+    "$0" files-fixture
+    "$0" files-plant
+    "$0" wait-off 900
+    "$0" read
+    "$0" wait-off 3600
+    "$0" files-verdict
     ;;
 backup)
     need_off

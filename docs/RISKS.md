@@ -633,13 +633,20 @@ extension state does not reliably survive a copy.
 **If real.** "Your stuff silently didn't arrive": the project's worst kind of
 failure, in the feature most people check first.
 
+**Decided (2026-11-07, the owner):** only bookmarks move. Cookies,
+passwords, history, extensions and whole profiles do not. Chrome and Edge
+keep bookmarks in a plain JSON file and Firefox in its own database and
+backups, none of it DPAPI-encrypted, so the claim narrows to: every
+bookmark the Windows browser showed is in the Linux browser.
+
 **Closes when.** Real Windows to Linux profile moves are checked for each
 browser and version pair, and `evaluate`'s claims are narrowed to what the
 evidence supports.
 
 **Where it stands.** `[#...]` nothing checked. The harvester lists the
-browsers in the folder map; no profile move has been tried on any machine.
-Owed: one move per browser and version pair, and the narrowed claim.
+browsers in the folder map; no move has been tried on any machine. Owed: a
+bookmarks move per browser (Chrome, Edge, Firefox) into the Linux browser,
+counted on both sides ([log](log/2026-11.md#2026-11-07-the-file-pull-is-back-keep-windows-only-an-app-list-bookmarks-only-r8-r13-r19-r20-v3-v8-v10-roadmap-items-2-3)).
 
 ## R21: Installing alongside a shrunk Windows may not leave Windows bootable · critical · held-on-machine
 
@@ -1386,6 +1393,38 @@ and `%pre` checks the key before anything is erased (`architecture.md`,
 **Where it stands.** `[#...]` planned, nothing built
 ([BAZZITE-DESIGN.md](BAZZITE-DESIGN.md);
 [log](log/2026-11.md#2026-11-07-bazzites-live-iso-measured-and-a-design-for-the-key-step-r40-r42-v14-v16-roadmap-items-23-24)).
+
+## R43: ntfs-3g cannot read inside a OneDrive folder · high · held-on-rig
+
+**What.** Through ntfs-3g (2022.10.3, Fedora 42) a Cloud Files sync root,
+the folder OneDrive keeps its files in, is not shown as a folder, and
+nothing inside it can be opened ("No such file or directory"), whether a
+file there is only in the cloud or fully downloaded. OneDrive's folder
+backup, which many Windows 11 machines turn on at setup, moves Desktop,
+Documents and Pictures inside that folder.
+
+**If real.** (It is, on the rig: `v3-pull.csv` line 3.) The pull sees
+fewer files than the harvest counted and refuses (R8's rule), so it loses
+nothing, but on a OneDrive-backed machine none of the person's files come
+over, the feature most people check first. High: no data is lost, the
+feature fails for a large part of the audience.
+
+**Decided (2026-11-07, the owner): only files wholly on the disk come
+over, and a read-only NTFS reader of our own reads inside OneDrive
+folders.** A file only in the cloud, partly downloaded, or compressed
+by Windows inside a OneDrive folder is listed, never copied and never
+downloaded. ntfs-3g still reads everything else. The plugin was turned
+down (its author calls it experimental, its download is gone) and so was
+a copy in Windows (it would invite downloading). How it works:
+`architecture.md`, Module 3, step 2.
+
+**Closes when.** A real OneDrive-backed profile is pulled, every
+downloaded file arriving identical and every cloud-only one listed,
+recorded in `v3-pull.csv`.
+
+**Where it stands.** `[###.]` held on the rig with V8's provider,
+`v3-pull.csv` line 5 ([log](log/2026-11.md#2026-11-07-our-own-reader-inside-onedrive-folders-the-pull-passes-on-the-rig-r43-r8-v3-v8)).
+Owed: a signed-in OneDrive, on a real disk.
 
 # Closed
 
