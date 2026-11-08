@@ -222,10 +222,10 @@ day it is picked (R15, R21, R29 first). Waits on: the Windows path shipping.
 
 Decided (2026-11-02, the owner): distro-agnostic, one installer family at
 a time (`architecture.md`, "Linux releases beyond Fedora"). Bazzite's ISO
-was measured 2026-11-07; its design waits on the owner (`BAZZITE-DESIGN.md`).
+was measured 2026-11-07; its design was decided 2026-11-08 (`BAZZITE-DESIGN.md`).
 Steps: record the release with `measure-release.py`; cut the seam, Fedora's
 goldens unchanged; the unattended start and the key step on the rig; a real
-machine, erase first. Waits on: the owner's calls (below). Proves: R40,
+machine, erase first. Waits on: the ISO copy's host (below). Proves: R40,
 R42, V14, V16, then V9 and V1b per family. Stands: see [STATUS.md](STATUS.md).
 
 ## 24. The release picker: choose a Linux, then fetch it onto the stick
@@ -235,9 +235,9 @@ Linux (Fedora, Bazzite, Ubuntu); the window downloads that one release,
 checks every byte against its measured entry in `data/releases.json` and
 writes it to the stick. One release per stick, offered only if the scan
 finds it startable. Before the last click: a failed download refuses with
-nothing touched. Size: Fedora 44 KDE 4.2 GB (measured); the rest to
-measure. Waits on: the owner's call on timing (below). Proves: R16, R31,
-R34, V12, V14. Stands: see [STATUS.md](STATUS.md).
+nothing touched. Size: Fedora 44 KDE 4.2 GB, Bazzite KDE 8.4 GB (measured).
+Decided (2026-11-08, the owner): first, with Fedora alone; Bazzite joins
+once V16 holds. Proves: R16, R31, R34, V12, V14. Stands: see [STATUS.md](STATUS.md).
 
 ## Decisions owed
 
@@ -272,11 +272,8 @@ is decided, the dated line goes in its home and the item here is removed.
 - Whose one-click test results count (item 21): whether a pass from an
   unknown contributor can mark a model as working, or only one from an
   approved developer or a second run that agrees (rule #1; R9).
-- Which family comes second (item 23): Ubuntu or Bazzite (R40). For
-  Bazzite, `BAZZITE-DESIGN.md` "What the owner decides": the key step in
-  Convert or before it, the password, where the ISO comes from (R42, V16).
-- When the picker (item 24) comes: first, with Fedora alone in it, or
-  after item 23 holds on a machine (V14, R34).
+- Which family comes second (item 23): Ubuntu or Bazzite (R40); and where
+  the project keeps its fixed copy of Bazzite's ISO (R42, V16).
 - Whether reclaim switches the kept-Windows machine's clock back to UTC once
   Windows is gone (R36 says "may").
 - The words of reclaim's typed sentence and its screen, which names the

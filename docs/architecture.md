@@ -1154,7 +1154,16 @@ signed with Universal Blue's own key, so with Secure Boot on a person
 enrolls it once on a blue MOK screen (`docs/research/future-paths.md`,
 "Other Linux distributions"). A release that needs a person at the keyboard
 says so on the screen before the last click, never after it (rule #3).
-Bazzite's design, measured from its ISO and waiting on the owner, is in
+**Decided (2026-11-08, the owner): Bazzite's key step is folded into
+Convert.** Convert stays the last click. The stick's `%pre` checks for
+Universal Blue's key; if it is missing it asks for it with `mokutil`
+(password `linux`, the blue screen set to wait), nothing erased; a person
+enrolls it at the blue screen; the stick's `%pre` checks again and installs,
+or refuses with nothing erased and Windows back. No separate key restart,
+and Windows writes no key request. The window fetches only a Bazzite ISO
+whose sha256 is measured, from a fixed copy the project keeps, never from
+Bazzite's unversioned address. Where that copy is hosted is owed (GitHub's
+release files stop under 2 GiB). The measured facts and the steps:
 `BAZZITE-DESIGN.md`.
 
 ## Non-goals (v1)

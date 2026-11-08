@@ -1379,7 +1379,11 @@ starting with Secure Boot on; and the missed-key arm refusing with the disk
 unchanged. Then one real machine with Secure Boot on, the erase first. The
 rows are V16's.
 
-**Where it stands.** `[#...]` planned. The design waits on the owner
+**Decided (2026-11-08, the owner):** the key step is folded into Convert,
+and `%pre` checks the key before anything is erased (`architecture.md`,
+"Linux releases beyond Fedora").
+
+**Where it stands.** `[#...]` planned, nothing built
 ([BAZZITE-DESIGN.md](BAZZITE-DESIGN.md);
 [log](log/2026-11.md#2026-11-07-bazzites-live-iso-measured-and-a-design-for-the-key-step-r40-r42-v14-v16-roadmap-items-23-24)).
 

@@ -856,8 +856,8 @@ and the keep-Windows path. Then one real machine with Secure Boot on, the
 erase first. Residue only a real machine closes: its firmware's own
 MokManager start and its keyboard.
 
-**Where it stands.** `[#...]` planned. The design waits on the owner
-([BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
+**Where it stands.** `[#...]` planned. The design was decided 2026-11-08
+(`architecture.md`, "Linux releases beyond Fedora"; [BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
 
 # Lesser gates (validate when their component is built)
 

@@ -1,14 +1,16 @@
-# Bazzite: the design, for the owner to decide
+# Bazzite: the design and the plan to build it
 
-Expires when: the owner approves, changes or turns down this design; what
-is decided then moves into `architecture.md` ("Linux releases beyond
-Fedora"), the risks and gates, and this doc goes to `docs/archive/`.
+Expires when: Bazzite's key step holds on a real machine with Secure Boot
+on (V16), and what was built is described in `architecture.md`; then this
+doc goes to `docs/archive/`.
 
 Roadmap item 23 (a second installer family) and item 24 (the picker). The
 risks: R40 (a second installer offline and unattended), R42 (the key step),
 R34 (Secure Boot revokes boot files). The gates: V14 (the release starts
-where it is used), V16 (the key step). **Nothing here is built, and no
-product code is written until the owner says yes.** What was measured, and
+where it is used), V16 (the key step). The owner decided the four calls
+on 2026-11-08, each as recommended below; the decision's one home is
+`architecture.md`, "Linux releases beyond Fedora", and roadmap item 24.
+Nothing is built yet. What was measured, and
 how, is in the log
 ([2026-11-07](log/2026-11.md#2026-11-07-bazzites-live-iso-measured-and-a-design-for-the-key-step-r40-r42-v14-v16-roadmap-items-23-24)).
 
@@ -64,7 +66,7 @@ kickstart (our `%pre` and `%post`, plus Bazzite's own install lines). Not
 Fedora's installer with Bazzite's image fed in: more moving parts, and
 nobody else runs it that way.
 
-## 2. The key step: folded into Convert (recommended)
+## 2. The key step: folded into Convert (decided 2026-11-08)
 
 Measured: the stick's kernel is Fedora's (`7.2.9-201.fc44`, signed by
 Fedora's CA), so the stick starts with Secure Boot on and no key. The
@@ -118,7 +120,7 @@ and a visit, not a restart.
 
 The blue screen reads the keyboard as US QWERTY and hides what is typed.
 mokutil accepts any password from 1 to 256 characters for an import
-(`PASSWORD_MIN 1` in its source). **Recommendation:** `linux`, all
+(`PASSWORD_MIN 1` in its source). **Decided (2026-11-08, the owner):** `linux`, all
 lower-case letters that sit in the same place on US, UK, German and French
 keyboards, and is said on the screen before Convert. Bazzite's own
 `universalblue` types wrong on AZERTY. Whether the blue screen takes five
@@ -199,17 +201,17 @@ come before Convert.
 
 With a picture of each blue screen, taken on the rig (owed).
 
-## What the owner decides
+## What the owner decided (2026-11-08)
 
-1. The design: folded into Convert (recommended) or a separate key
-   restart before it.
-2. The password: `linux` (recommended) or Bazzite's own `universalblue`.
-3. Where the ISO comes from: a fixed copy we keep, or wait for a versioned
-   address from Bazzite.
-4. When the picker comes: first, with Fedora alone, or after Bazzite holds
-   (already owed, roadmap "Decisions owed").
+1. The key step folded into Convert, not a separate restart before it.
+2. The password `linux`.
+3. A fixed copy of the ISO the project keeps, so its measured sha256
+   holds. Where it is hosted is still owed: GitHub's release files must be
+   under 2 GiB, and the ISO is 8.4 GB.
+4. The picker comes first, with Fedora alone; Bazzite joins once V16
+   holds (roadmap item 24).
 
-## The order of work, once approved
+## The order of work
 
 1. Teach `measure-release.py` the live-ISO layout and record Bazzite in
    `data/releases.json` (the scanner then judges it; that is a product
