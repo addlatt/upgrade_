@@ -15,7 +15,15 @@
 //! the owner's decision that the window's last click is the commit line),
 //! reviewed as a diff: six countdown cases gone (52 to 46), the erase cases
 //! without the countdown's screens, tool calls and lines, `commit.json`
-//! in place of `countdown.json`, no keep-Windows case moved. This
+//! in place of `countdown.json`, no keep-Windows case moved. Recorded again
+//! from the program for 0.3.0 (2026-11-07: the BitLocker recovery key
+//! copied into the handoff folder for settle-in's pull), reviewed as a
+//! diff: no case moved but for the version and the one new log line, and
+//! two new cases (the key copied root-only and left on the stick; an erase
+//! job's key not copied); then once more for the pull's app-menu entry,
+//! reviewed as a diff: installed in the 14 keep-Windows cases whose
+//! settle-in installs (one file, one restorecon call, one log line), in
+//! none of the other 7, and the fixture kit's SHA256SUMS naming it. This
 //! test runs the program through the same sandbox for every case and requires the same result: the exit code,
 //! every line printed, every file left on the stick, in the installed
 //! system and under /tmp, every tool called in order, every screen drawn

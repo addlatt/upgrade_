@@ -131,7 +131,7 @@ import hashlib
 h = lambda s: hashlib.sha256(s.encode()).hexdigest()
 SNAPSHOT = {"SHA256SUMS": f"{h(BOOTX64_WIN)}  ./EFI/Boot/bootx64.efi\n{h('BCD-store-bytes')}  ./EFI/Microsoft/Boot/BCD\n{h(BOOTMGFW)}  ./EFI/Microsoft/Boot/bootmgfw.efi\n", "SOURCE": "disk=/dev/sda esp=/dev/sda1 taken_utc=2026-10-14T20:00:00Z\n", "boot-entries.txt": "BootOrder: 0001\n"}
 SETTLE_IN = {"settle-in": "#!/bin/sh\necho 'settle-in 0.3.0-fake'\n", "upgrade_-settle-in.service": "[Unit]\nDescription=fake\n", "settle-in-window": "#!/bin/sh\necho window\n", "upgrade_-settle-in.desktop": "[Desktop Entry]\n", "upgrade_-settle-in.sh": "# hook\n", "org.upgrade.settle-in.policy": "<policyconfig/>\n",
-             "wimlib-imagex": "#!/bin/sh\necho wimlib\n", "cabextract": "#!/bin/sh\necho cab\n", "upgrade-gate.exe": "MZ-gate", "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n"}
+             "wimlib-imagex": "#!/bin/sh\necho wimlib\n", "cabextract": "#!/bin/sh\necho cab\n", "upgrade-gate.exe": "MZ-gate", "upgrade_-go-back-to-windows.desktop": "[Desktop Entry]\nName=Go back\n", "upgrade_-bring-files.desktop": "[Desktop Entry]\nName=Bring my files\n"}
 PROLOGUE_REC = {"schema": "prologue/1", "prologue_version": "0.12.2", "job_id": KEEP["job_id"], "stage": "armed", "updated_utc": "2026-10-14T19:00:00Z",
                 "prologue": {"revalidated": True, "mismatches": [], "volume_check": {"needed": True, "ran": True, "disk_health_at_check": "Healthy", "method": "chkdsk-boot", "scan": None, "restarts": 1, "wininit_1001": None, "found000_present": False, "dirty_after": "clean", "trigger": "dirty-flag"},
                              "shrink": {"remeasured_gb": 70.5, "remeasured_by": "defrag", "remeasured_diskpart_gb": 70.0, "fork_taken": "keep-windows", "requested_bytes": 68000000000, "freed_bytes": 68000000000, "pagefile_disabled": True, "hibernation_disabled": True, "restore_points_deleted": 0, "usn_journal_deleted": 0},
@@ -180,6 +180,12 @@ cases += [
     outcome("erase-and-install: no commit record: said, the outcome written anyway", ERASE_JOB, stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": ERASE_VERIFY}, "esp_snapshot": None}, disks=[disk_vm(dev="sda")], efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"}),
     outcome("clean-slate without erase: the commit line crossed by the wipe", CLEAN_JOB, stick={"files": dict(STICK_KEEP["files"]), "report": {"verify.json": dict(VERIFY_JSON, job_id=CLEAN_JOB["job_id"])}, "esp_snapshot": None}, efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"}),
     outcome("the clock: no rtc, time service not synchronized, chronyc silent", KEEP, clock={"rtc": "", "ntp": "no", "chronyc": ""}),
+    # the BitLocker recovery key for settle-in's pull (upgrade-installer 0.3.0, 2026-11-07, R13)
+    outcome("keep-windows: the BitLocker recovery key copied into the handoff folder, root-only, and left on the stick until the pull", KEEP,
+            stick={"files": {"upgrade_/artifacts/credentials/bitlocker-C.txt": "# made-up\nconversion-status: 1\n000011-000022-000033-000044-000055-000066-000077-000088\n"}}),
+    outcome("erase-and-install: a recovery key on the stick is not copied, the credentials scrubbed", ERASE_JOB,
+            stick={"files": dict(STICK_KEEP["files"], **WIFI_FILES, **{"upgrade_/artifacts/credentials/bitlocker-C.txt": "# made-up\nconversion-status: 1\n000011-000022-000033-000044-000055-000066-000077-000088\n"}), "report": {"verify.json": ERASE_VERIFY, "commit.json": {"schema": "commit/1", "by": "the-window", "crossed_utc": "2026-10-14T20:02:00Z"}}, "esp_snapshot": None},
+            disks=[disk_vm(dev="sda"), home_disk(dev="sdc")], findmnt={"/mnt/sysroot": "/dev/sda3", "/mnt/sysroot/boot/efi": "/dev/sda1"}, efibootmgr={"entries": [EFI["entries"][1]], "order": ["0002"], "current": "0002"}),
     # the installed system's last settings, the chroot %post's shell until upgrade-installer 0.1.3 (kickstart 0.11.0)
     outcome("post, keep-windows, desktop: os-prober said false and would find Windows; turned off, our entry the only Windows one", KEEP, os_prober_finds_windows=True,
             sysroot={"files": dict(SYSROOT["files"], **{"etc/default/grub": "GRUB_TIMEOUT=5\nGRUB_DISABLE_OS_PROBER=false\n"}), "links": SYSROOT["links"]}),

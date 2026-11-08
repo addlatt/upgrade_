@@ -21,6 +21,7 @@
 # Recorded so again for 0.1.3 (2026-10-17: the kickstart's chroot %post
 # moved into `outcome`).
 # Recorded so again for 0.2.0 (2026-11-02: the erase countdown removed).
+# Recorded so again for 0.3.0 (2026-11-07: the recovery key into the handoff folder).
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROGRAM=

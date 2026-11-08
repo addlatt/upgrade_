@@ -116,6 +116,22 @@ pub fn main(job_path: &str) -> i32 {
     if wifi_on_stick != wifi_expected && wifi_err.is_empty() {
         wifi_err = format!("the job names {wifi_expected} Wi-Fi password file(s), the stick had {wifi_on_stick}");
     }
+    // the BitLocker recovery key, for settle-in's pull (decided 2026-11-07, the owner; R13):
+    // copied, never moved, on keep-Windows only; it stays on the stick until the pull has
+    // run (scrub_after: settle-in-pull), so a Windows that asks for it can still be given it
+    let key_rel = jq(&job, "harvest.bitlocker.recovery_key_file");
+    let erase_job = !jq(&job, "erase_consent.statement").is_empty();
+    if !erase_job && handoff_ok && !key_rel.is_empty() && !key_rel.contains("..") {
+        let src = format!("{STICK}/upgrade_/{key_rel}");
+        let dst = format!("{handoff}/{key_rel}");
+        let copied = Path::new(&src).is_file()
+            && Path::new(&dst).parent().is_some_and(|d| std::fs::create_dir_all(d).is_ok())
+            && chmod(&format!("{handoff}/artifacts"), 0o700)
+            && chmod(&format!("{handoff}/artifacts/credentials"), 0o700)
+            && copy_mode(&src, &dst, 0o600)
+            && sha(&src) == sha(&dst);
+        log.say(&format!("== recovery key file copied into the handoff folder: {}", if copied { "yes" } else if Path::new(&src).is_file() { "FAILED" } else { "not on the stick" }));
+    }
     run("chroot", &[SYSROOT, "restorecon", "-R", HANDOFF_DIR]);
     // settle-in itself, only if every file matches the kit's manifest
     let si_src = format!("{STICK}/upgrade_/settle-in");
@@ -160,6 +176,19 @@ pub fn main(job_path: &str) -> i32 {
         }
     }
     log.say(&format!("== go-back-to-windows installed={go_back}"));
+    // "Bring my files from Windows" in the app menu (the pull, 2026-11-07): keep-Windows only,
+    // and only a file that matches the kit's manifest
+    let intent_path = jq(&job, "intent.path");
+    if settle_in && !erase_job && (intent_path == "keep-windows" || intent_path.is_empty()) {
+        let f = "upgrade_-bring-files.desktop";
+        let pulled = Path::new(&format!("{si_src}/{f}")).is_file() && si_ok(f)
+            && std::fs::create_dir_all(format!("{SYSROOT}/usr/share/applications")).is_ok()
+            && copy_mode(&format!("{si_src}/{f}"), &format!("{SYSROOT}/usr/share/applications/{f}"), 0o644);
+        if pulled {
+            run("chroot", &[SYSROOT, "restorecon", &format!("/usr/share/applications/{f}")]);
+        }
+        log.say(&format!("== bring-my-files installed={pulled}"));
+    }
     let settle_in_version = if settle_in { run(&format!("{SYSROOT}/usr/local/libexec/upgrade_/settle-in"), &["--version"]).out.split_whitespace().nth(1).unwrap_or("").to_string() } else { String::new() };
     log.say(&format!("== settle-in installed={settle_in} {} {settle_in_why}", if settle_in_version.is_empty() { String::new() } else { format!("version {settle_in_version}") }));
     log.say(&format!("== handoff folder {HANDOFF_DIR} ok={handoff_ok}; wifi expected={wifi_expected} on_stick={wifi_on_stick} moved={wifi_moved} removed_from_stick={wifi_removed} {}", if wifi_err.is_empty() { String::new() } else { format!("error: {wifi_err}") }));

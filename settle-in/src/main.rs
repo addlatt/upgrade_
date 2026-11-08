@@ -63,8 +63,23 @@
 //!       On the kit stick (its reclaim kickstart, upg.mode=reclaim): checks
 //!       once more, commits, moves Linux, writes the table, grows /, puts the
 //!       startup back without Windows, restarts. Resumes after a power cut.
+//!   settle-in pull plan --windows-mount DIR --home DIR [--root DIR]
+//!       Bring the files home (decided 2026-11-07, the owner), the plan only:
+//!       the folder map walked on the Windows partition (mounted read-only by
+//!       the caller at DIR), what is copied where into the person's home, what
+//!       is not and why, or every reason to refuse. Writes nothing.
+//!   settle-in pull check [--key-stdin]
+//!       The plan (root, through pkexec), with Windows found, unlocked with
+//!       the carried recovery key (or one typed, on stdin) and mounted
+//!       read-only by us, then closed again; and the words for it.
+//!   settle-in pull run [--key-stdin]
+//!       The copy (root): the plan again, then every file copied into the
+//!       person's folders and checked by its hash, resumable; then the
+//!       recovery key deleted here and from the stick. Prints `progress`
+//!       lines, then the result. Windows is never written.
 //!   settle-in --version
 
+mod bookmarks;
 mod bootentry;
 mod civil;
 mod clock;
@@ -79,6 +94,10 @@ mod gpttable;
 mod reclaim;
 mod reclaimrun;
 mod hw;
+mod programs;
+mod pull;
+mod ntfsread;
+mod pullrun;
 mod rollback;
 mod sticks;
 mod stickwrite;
@@ -121,6 +140,23 @@ fn save_public(root: &str, v: &Value) -> Result<(), String> {
     let mut f = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o644).open(&tmp).map_err(|e| format!("{}: {}", tmp, e))?;
     f.write_all((serde_json::to_string_pretty(v).map_err(|e| e.to_string())? + "\n").as_bytes()).map_err(|e| e.to_string())?;
     std::fs::rename(&tmp, &path).map_err(|e| format!("{}: {}", path, e))
+}
+
+/// The pull's result in the public summary: counts and folders, no file
+/// names (the window shows the names from the run itself).
+pub(crate) fn record_pull(r: &str, out: &Value) -> Result<(), String> {
+    let root = if r.is_empty() { "/" } else { r };
+    let mut s = public_summary(root)?;
+    let folders: Vec<Value> = out["folders"].as_array().cloned().unwrap_or_default().iter().map(|f| json!({
+        "name": f["name"], "to": f["to"],
+        "copied": f["copied"].as_u64().unwrap_or(0) + f["already_copied"].as_u64().unwrap_or(0),
+        "bytes": f["bytes"], "failed": f["failed"].as_array().map_or(0, Vec::len),
+        "renamed": f["renamed"].as_array().map_or(0, Vec::len), "in_onedrive": f["in_onedrive"],
+    })).collect();
+    let bookmarks: Vec<Value> = out["bookmarks"].as_array().cloned().unwrap_or_default().iter()
+        .map(|b| json!({ "browser": b["browser"], "result": b["result"], "bookmarks": b["bookmarks"], "why": b["why"], "file_name": b["file"].as_str().and_then(|f| f.rsplit('/').next()) })).collect();
+    s["files"] = json!({ "result": out["result"], "why": out["why"], "folders": folders, "bytes": out["bytes"], "key": out["key"], "bookmarks": bookmarks });
+    save_public(root, &s)
 }
 
 pub(crate) fn public_summary(root: &str) -> Result<Value, String> {
@@ -581,6 +617,39 @@ fn main() {
             };
             println!("{}", serde_json::to_string_pretty(&r).unwrap_or_default());
             std::process::exit(match r["result"].as_str() { Some("plan") | Some("ready") | Some("undone") => 0, None => 0, Some("refused") => 1, _ => 2 });
+        }
+        Some("pull") => {
+            // the file pull (decided 2026-11-07, the owner)
+            let root = opt("--root", "/");
+            // a recovery key the person typed comes on stdin, never on the command line
+            let typed = args.iter().any(|a| a == "--key-stdin").then(|| {
+                let mut l = String::new();
+                let _ = std::io::stdin().read_line(&mut l);
+                l.trim().to_string()
+            });
+            let r = match args.get(1).map(String::as_str) {
+                Some("plan") if args.iter().any(|a| a == "--windows-mount") && args.iter().any(|a| a == "--home") => {
+                    let mut r = pull::live::plan_at(&root, &opt("--windows-mount", ""), &opt("--home", ""));
+                    r["writes"] = json!("none: this is the plan only");
+                    r
+                }
+                Some("check") => {
+                    let mut r = pullrun::live::check(&root, typed.as_deref());
+                    r["words"] = summary::pull_words(&r);
+                    r
+                }
+                Some("run") => {
+                    let mut r = pullrun::live::run_pull(&root, typed.as_deref());
+                    r["words"] = summary::pull_done_words(&r);
+                    r
+                }
+                _ => {
+                    eprintln!("usage: settle-in pull plan --windows-mount DIR --home DIR [--root DIR] | check [--key-stdin] | run [--key-stdin]");
+                    std::process::exit(64);
+                }
+            };
+            println!("{}", serde_json::to_string_pretty(&r).unwrap_or_default());
+            std::process::exit(match r["result"].as_str() { Some("plan") | Some("nothing-to-do") | Some("done") => 0, Some("refused") => 1, _ => 2 });
         }
         Some("rollback") => {
             let root = opt("--root", "/");

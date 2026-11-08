@@ -271,10 +271,18 @@ mod on_windows {
             eprintln!("upgrade-job: cannot write {}: {e}", job_path.display());
             return ExitCode::from(1);
         }
-        if j["harvest"]["bitlocker"]["status"] == "on" {
+        // the recovery key, for settle-in's pull (decided 2026-11-07, the owner; R13): only
+        // into the credentials folder, whenever the drive is encrypted, protection on or not
+        if j["harvest"]["bitlocker"]["recovery_key_file"].is_string() {
             let cred = out.join("artifacts").join("credentials");
             let _ = std::fs::create_dir_all(&cred);
-            let _ = std::fs::write(cred.join("bitlocker-C.txt"), format!("NOT HARVESTED - this job writer ({}) does not extract the recovery key yet. The live-boot leg does not need it.\n", env!("CARGO_PKG_VERSION")));
+            let (keys, conversion, why) = live::recovery_keys();
+            let text = upgrade_job::recovery::file_text(&keys, conversion, why.as_deref(), env!("CARGO_PKG_VERSION"));
+            if let Err(e) = std::fs::write(out.join(upgrade_job::recovery::KEY_FILE), text) {
+                eprintln!("upgrade-job: cannot write the recovery key file: {e}");
+                return ExitCode::from(1);
+            }
+            println!("  BitLocker recovery key: {}", if keys.is_empty() { format!("NOT FOUND ({}); Linux will not be able to bring your files over", why.unwrap_or_default()) } else { "saved on the stick for Linux (deleted after your files are brought over)".to_string() });
         }
         for line in live::summary_lines(j, &facts, &job_path, verify_only) {
             println!("{line}");
@@ -295,6 +303,20 @@ mod on_windows {
         }
         ExitCode::SUCCESS
     }
+
+    /// `upgrade-job recovery-check`: whether a valid recovery key for C: can
+    /// be read, and the volume's state. Never prints a key (R13): a test
+    /// aid for the machines this reaches, so each leaves a fact behind.
+    pub fn recovery_check() -> ExitCode {
+        let (keys, conversion, why) = live::recovery_keys();
+        println!("{}", serde_json::to_string_pretty(&json!({
+            "conversion_status": conversion,
+            "keys_found": keys.len(),
+            "all_valid": !keys.is_empty() && keys.iter().all(|k| upgrade_job::recovery::valid(k)),
+            "why": why,
+        })).unwrap_or_default());
+        ExitCode::SUCCESS
+    }
 }
 
 #[cfg(not(windows))]
@@ -312,6 +334,9 @@ mod on_windows {
     }
     pub fn write(_: &[String]) -> ExitCode {
         off("the job writer")
+    }
+    pub fn recovery_check() -> ExitCode {
+        off("the recovery key check")
     }
 }
 
@@ -340,6 +365,7 @@ fn main() -> ExitCode {
         }
         Some("write") => on_windows::write(&args[1..]),
         Some("facts") => on_windows::facts(&args[1..]),
+        Some("recovery-check") => on_windows::recovery_check(),
         Some("harvest-settings") => on_windows::harvest_settings(&args[1..]),
         Some("compare-facts") => {
             let (Some(a), Some(b)) = (args.get(1), args.get(2)) else { return usage() };

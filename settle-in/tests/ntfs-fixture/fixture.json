@@ -1,0 +1,129 @@
+{
+    "made_utc":  "2026-11-07T17:44:42.9740572Z",
+    "windows_build":  "10.0.19045.0",
+    "documents":  "Users/Ann/Documents",
+    "short_name_seen":  true,
+    "entries":  [
+                    {
+                        "rel":  "Junction",
+                        "attributes":  "0x410",
+                        "dir":  true
+                    },
+                    {
+                        "rel":  "OneDrive",
+                        "attributes":  "0x430",
+                        "dir":  true
+                    },
+                    {
+                        "rel":  "Taxes",
+                        "attributes":  "0x10",
+                        "dir":  true
+                    },
+                    {
+                        "rel":  "A long file name for its short name.txt",
+                        "attributes":  "0x20",
+                        "dir":  false,
+                        "size":  5000,
+                        "sha256":  "84e92167cce0b046bf290026577ec8489095047b6070aafac5e2a507788535ba"
+                    },
+                    {
+                        "rel":  "café with spaces.docx",
+                        "attributes":  "0x20",
+                        "dir":  false,
+                        "size":  12345,
+                        "sha256":  "995e91a2fbef5b3af63adffbd3bfa1cf2ef739bf6d6253b1dc83ce167f9ab857"
+                    },
+                    {
+                        "rel":  "compressed.txt",
+                        "attributes":  "0x820",
+                        "dir":  false,
+                        "size":  96000,
+                        "sha256":  "f13d47fa0815abc72a08b534a420239cd765138d93a046f6bd5714aa1d474057"
+                    },
+                    {
+                        "rel":  "empty.txt",
+                        "attributes":  "0x20",
+                        "dir":  false,
+                        "size":  0,
+                        "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "rel":  "hard-link.pdf",
+                        "attributes":  "0x20",
+                        "dir":  false,
+                        "size":  50000,
+                        "sha256":  "51163cafa38e6817c71e3deb0dbe2ce068ab644f35a47b2e3a91dd6ec3422d80"
+                    },
+                    {
+                        "rel":  "small.txt",
+                        "attributes":  "0x20",
+                        "dir":  false,
+                        "size":  40,
+                        "sha256":  "55e65256687a366655f2d600072d059d9ee61dcf5b3f5b7eda4077dac300ed4d"
+                    },
+                    {
+                        "rel":  "OneDrive/Sub",
+                        "attributes":  "0x410",
+                        "dir":  true
+                    },
+                    {
+                        "rel":  "OneDrive/compressed-in-onedrive.txt",
+                        "attributes":  "0x820",
+                        "dir":  false,
+                        "size":  96000,
+                        "sha256":  "f13d47fa0815abc72a08b534a420239cd765138d93a046f6bd5714aa1d474057"
+                    },
+                    {
+                        "rel":  "OneDrive/downloaded.pdf",
+                        "attributes":  "0x420",
+                        "dir":  false,
+                        "size":  40000,
+                        "sha256":  "499e5b74988c355c1c4a684a692fa76968a2bf8e6a979d8369d6a51c21cd5ada"
+                    },
+                    {
+                        "rel":  "OneDrive/only-in-cloud.docx",
+                        "attributes":  "0x401620",
+                        "dir":  false,
+                        "size":  70000,
+                        "sha256":  "f6d1519f8e5b283551a30ca5369421a5b4cfbce18d0e868ff0b8d9e92b008045"
+                    },
+                    {
+                        "rel":  "OneDrive/partly.bin",
+                        "attributes":  "0x401620",
+                        "dir":  false,
+                        "size":  200000,
+                        "sha256":  "97557641b05c3fb31c4dfa5f4c5c8719244c70c670b3072f4fa6d814ad0d31a8"
+                    },
+                    {
+                        "rel":  "OneDrive/Sub/also-in-cloud.xlsx",
+                        "attributes":  "0x401620",
+                        "dir":  false,
+                        "size":  5000,
+                        "sha256":  "7c6892eb938e0f59bbf301a423c884e23c99a1bcf4075329ae25eed8784cb3cf"
+                    },
+                    {
+                        "rel":  "OneDrive/Sub/downloaded-too.txt",
+                        "attributes":  "0x420",
+                        "dir":  false,
+                        "size":  9000,
+                        "sha256":  "fcb8929e6551df58fd68184433af0caf2456d690923745b8f762c81fe27ef3ce"
+                    },
+                    {
+                        "rel":  "Taxes/return.pdf",
+                        "attributes":  "0x20",
+                        "dir":  false,
+                        "size":  50000,
+                        "sha256":  "51163cafa38e6817c71e3deb0dbe2ce068ab644f35a47b2e3a91dd6ec3422d80"
+                    }
+                ],
+    "provider_log":  [
+                         "CfRegisterSyncRoot hr=0x00000000",
+                         "CfConnectSyncRoot hr=0x00000000 key=1973334127440",
+                         "CfCreatePlaceholders(dir Sub) hr=0x00000000 result=0x00000000",
+                         "CfCreatePlaceholders [Sub\\also-in-cloud.xlsx hr=0x00000000 result=0x00000000] [Sub\\downloaded-too.txt hr=0x00000000 result=0x00000000] [partly.bin hr=0x00000000 result=0x00000000] [only-in-cloud.docx hr=0x00000000 result=0x00000000] [downloaded.pdf hr=0x00000000 result=0x00000000] ",
+                         "FETCH_DATA id=1 path=\\Users\\Ann\\Documents\\OneDrive\\downloaded.pdf off=0 len=40000 -\u003e sent 40000 bytes hr=0x00000000",
+                         "FETCH_DATA id=4 path=\\Users\\Ann\\Documents\\OneDrive\\Sub\\downloaded-too.txt off=0 len=9000 -\u003e sent 9000 bytes hr=0x00000000",
+                         "FETCH_DATA id=3 path=\\Users\\Ann\\Documents\\OneDrive\\partly.bin off=0 len=200000 -\u003e sent 200000 bytes hr=0x00000000",
+                         "FETCH_DATA id=3 path=\\Users\\Ann\\Documents\\OneDrive\\partly.bin off=65536 len=4096 -\u003e sent 200000 bytes hr=0x00000000"
+                     ]
+}
