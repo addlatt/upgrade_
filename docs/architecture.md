@@ -655,14 +655,23 @@ stands: see [STATUS.md](STATUS.md).
    after an install, and you can't hear it with headphones in.
 2. **Bring the files home** (keep-Windows path). **Decided (2026-11-02, the
    owner): not built until the project has traction;** until then the files
-   stay on the kept Windows, one boot-menu pick away. The design, kept for
-   then: safe here because the hardware
+   stay on the kept Windows, one boot-menu pick away. **Amended (2026-11-07,
+   the owner): built now, on this path only.** The folders go into the
+   matching Linux folders (`~/Documents` and the rest, empty on a new
+   install); a name already there is kept and the copy renamed, never
+   overwritten. Of the browsers, only bookmarks move (RISKS R20). Next to
+   it, `settle-in` shows the programs the person had (`harvest.software`)
+   with the Linux or web version named for each, from a table in `data/`;
+   it installs nothing. The design: safe here because the hardware
    is proven and Windows is still whole as a complete backup. Following the
    folder map from `job.json`, `settle-in` mounts the shrunk-aside Windows
    partition, unlocking BitLocker with the harvested recovery key (`cryptsetup`
    BITLK, Linux's reader for BitLocker volumes); mounts it read-only through
    **ntfs-3g**, not the kernel `ntfs3` driver (decided 2026-09-01: the install
-   kernel's `ntfs3` crashed on the rig; RISKS R19); and copies Documents,
+   kernel's `ntfs3` crashed on the rig; RISKS R19); reads inside OneDrive
+   folders, which ntfs-3g cannot open, with a read-only NTFS reader of its
+   own on the same unlocked volume (decided 2026-11-07, RISKS R43), copying
+   only files wholly on the disk; and copies Documents,
    Pictures and the rest, plus browser profiles, checking checksums as it goes.
    It expects cryptsetup's size-mismatch warning on every shrunk volume, and
    copies only regular files (Windows' empty SYSTEM files show up as FIFOs and

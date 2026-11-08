@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Bring my files from Windows
+Comment=Copy your Documents, Pictures and the rest from the Windows kept on this computer
+Exec=/usr/local/libexec/upgrade_/settle-in-window --pull
+Icon=folder-download
+Terminal=false
+Categories=System;

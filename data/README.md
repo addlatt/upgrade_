@@ -12,6 +12,7 @@ compiled into the scanner. Adding a device is one entry and a cited source.
 | `devices/storage.json` | Intel VMD controller ids (RISKS R1) | PCI id |
 | `devices/vendors.json` | machine quirks | `Match`, a regular expression over `vendor model` |
 | `devices/apps.json` | installed programs with no Linux path | `Match`, a regular expression over the program's name |
+| `programs.json` | the Linux or web version of a Windows program, for `settle-in`'s list (compiled into `settle-in`, not the scanner) | `Match`, the same; the first match wins |
 | `distros.json` | the distribution kernel table | the distribution's name |
 | `releases.json` | the Linux releases the kit can carry, with what Secure Boot needs of each | the release id |
 
@@ -33,6 +34,12 @@ ignores it; keep it true.
 - `Severity` (`apps.json` only): `blocker` (do not convert this machine for
   this program), `friction` (an alternative exists but is not a drop-in),
   `info`.
+- `Kind` (`programs.json` only): `same` (the program itself runs on Linux),
+  `alternative` (a different program does the job), `web` (use it in the
+  browser), `built-in` (the desktop already does it), `not-needed` (a
+  driver, a maker's tool or a part of Windows: counted, not listed).
+  `Linux` names what to use; `Flathub` is its Flathub id, `Web` its address.
+  `settle-in` installs nothing (decided 2026-11-07, the owner).
 - `Source`: how we know. A kernel commit, the driver's supported-hardware
   list, a distribution's release notes, or a machine capture in
   `evaluate/windows/corpus/`. Empty means nobody has cited one yet; the
@@ -51,6 +58,13 @@ above, a pattern that is not a regular expression, an id that is not
 `vvvv:dddd` in lower-case hex, a release whose boot file has no sha256, a
 `Verified` date that is not a date. A wrong `ok` is not caught by any
 check; that is what the source is for.
+
+`programs.json`'s Flathub entries are checked against Flathub's own
+catalog by `data/tools/check-programs.py`, which sets `Verified` to the day
+Flathub listed the id and not as end-of-life, and clears it otherwise. Run
+it before a pull request that touches the table; never type the date. Its
+first run (2026-11-07) found `org.mozilla.Thunderbird` end-of-life on
+Flathub (now `org.mozilla.thunderbird_esr`).
 
 ## The distribution table
 
