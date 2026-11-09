@@ -3283,11 +3283,13 @@ dependencies = [
 
 [[package]]
 name = "upgrade-window"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "eframe",
  "serde_json",
+ "upgrade-fetch",
  "upgrade-job",
+ "upgrade-scan",
  "windows-sys 0.59.0",
 ]
 

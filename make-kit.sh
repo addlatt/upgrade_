@@ -12,6 +12,13 @@
 # which release it is in release.json; the scanner and the job writer refuse
 # it on a computer that cannot start it (decided 2026-10-03, the owner; R34).
 #
+# --release none builds the kit the person gets (roadmap item 24, decided
+# 2026-11-07 and 2026-11-08, the owner): everything but the Linux. The
+# window's picker fetches the release the person chooses onto the stick
+# with upgrade-fetch.exe, checked against the same table. Write it to a
+# stick with `upgrade-stick write ... --boot-size-gb 8`: the download goes
+# on the boot volume, and the fetch refuses a stick without the room.
+#
 # One stick layout comes out, dist/kit/stick/ (copy its CONTENTS to the root
 # of a FAT32 stick). It carries BOTH payloads - Fedora's signed shim+grub at
 # EFI/BOOT/BOOTX64.EFI (the product path, Secure Boot on) and the unsigned
@@ -169,6 +176,7 @@ step "schemas check passed"
 [ -f "$BITS/Shell.efi" ] || fail "missing $BITS/Shell.efi - run rig/vm/fetch-payload-bits.sh"
 # the release: its boot chain, installer and desktop images, each checked
 # against data/releases.json (fetch-release.sh refuses any other bytes)
+if [ "$RELEASE" != none ]; then
 "$ROOT/rig/vm/fetch-release.sh" "$RELEASE" >/dev/null || fail "release $RELEASE could not be fetched or does not match data/releases.json (rig/vm/fetch-release.sh $RELEASE)"
 REL="$ROOT/rig/vm/artifacts/releases/$RELEASE"
 RBITS="$REL/bits"
@@ -179,6 +187,9 @@ NETINST_SRC=$(rq "j['Netinst']['Url']")
 # the shim payload's grub MUST be the install-media build (reads EFI/BOOT/grub.cfg)
 grep -q 'save_env' <(strings -n 6 "$RBITS/EFI/BOOT/grubx64.efi") || fail "grubx64.efi lacks save_env - wrong GRUB build"
 step "release $RELEASE ($(rq "j['Name']")): boot chain, installer and desktop images match data/releases.json"
+else
+step "release none: the window fetches the one the person picks (upgrade-fetch.exe, data/releases.json)"
+fi
 
 # --- 6. the grubenv block ---------------------------------------------------
 [ "$(stat -c %s "$PAYLOAD/grubenv")" = 1024 ] || fail "grubenv is not 1024 bytes"
@@ -206,8 +217,11 @@ crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SECUREBOOT.cmd" "$D/DIAG-SECUREBOOT.cm
 crlf "$ROOT/evaluate/windows/usb-kit/RUN-STORAGE-MODE.cmd" "$D/RUN-STORAGE-MODE.cmd"
 # the folder map (0.10.0): the job writer runs the harvester beside it, in its own process
 # signed payload: the product path, at the removable-media default location
+# (the release's own shim and GRUB; with --release none the fetch puts them here)
+if [ "$RELEASE" != none ]; then
 cp "$RBITS/EFI/BOOT/BOOTX64.EFI" "$D/EFI/BOOT/BOOTX64.EFI"
 cp "$RBITS/EFI/BOOT/grubx64.efi" "$D/EFI/BOOT/grubx64.efi"
+fi
 cp "$PAYLOAD/grub.cfg"  "$D/EFI/BOOT/grub.cfg"
 cp "$PAYLOAD/grubenv"   "$D/EFI/BOOT/grubenv"
 # unsigned payload: the matrix rows (Test-Handoff.ps1 -Payload shell)
@@ -217,10 +231,13 @@ cp "$PAYLOAD/startup.nsh" "$D/startup.nsh"
 # grub.cfg boots them only when upgrade_/boot-verify exists on the stick
 # (the rig's v1.sh puts it there beside job.json + ks.cfg); without it the
 # stick is the V0 marker stick, unchanged.
-mkdir -p "$D/images/pxeboot" "$D/upgrade_"
+mkdir -p "$D/upgrade_"
+if [ "$RELEASE" != none ]; then
+mkdir -p "$D/images/pxeboot"
 cp "$RBITS/images/pxeboot/vmlinuz"    "$D/images/pxeboot/vmlinuz"
 cp "$RBITS/images/pxeboot/initrd.img" "$D/images/pxeboot/initrd.img"
 cp "$RBITS/images/install.img"        "$D/images/install.img"
+fi
 cp "$INSTALLER_BIN" "$D/upgrade_/upgrade-installer"
 # reclaim (R41): the kickstart grub.cfg starts on a converted stick Linux has marked; it installs nothing
 sed 's/\r$//' "$PAYLOAD/ks-reclaim.cfg" > "$D/upgrade_/ks-reclaim.cfg"
@@ -242,6 +259,7 @@ sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-bring-files.desktop" > "$D/upgrade
 # desktop the intent capture offers (rig/vm/fetch-desktops.sh). The
 # kickstart's liveimg line names one of them; the verify step reads it back
 # against SHA256SUMS in the live session before anything is installed.
+if [ "$RELEASE" != none ]; then
 mkdir -p "$D/upgrade_/LiveOS"
 for d in gnome kde; do
     [ -f "$RBITS/LiveOS/$d.squashfs" ] || fail "release $RELEASE has no '$d' desktop image (the launchers offer gnome and kde)"
@@ -264,8 +282,24 @@ for b in j['Boot'] if isinstance(j['Boot'], list) else [j['Boot']]:
     lv = b['SbatLevel'] if isinstance(b['SbatLevel'], list) else ([b['SbatLevel']] if b['SbatLevel'] else [])
     if lv: open(os.path.join(bc, name + '.sbatlevel'), 'w').write('\n'.join(lv) + '\n')
 PY
+fi
 
 # --- manifest + checksums -----------------------------------------------------
+if [ "$RELEASE" != none ]; then
+RELEASE_LINES=$(cat <<REL
+release:          $RELEASE ($(rq "j['Name']"), measured $(rq "j['Measured']")) - data/releases.json; release.json on this stick
+  shim            $(sha256sum "$RBITS/EFI/BOOT/BOOTX64.EFI" | cut -c1-64)   -> EFI/BOOT/BOOTX64.EFI
+  grub            $(sha256sum "$RBITS/EFI/BOOT/grubx64.efi" | cut -c1-64)   -> EFI/BOOT/grubx64.efi
+  install.img     $(sha256sum "$RBITS/images/install.img" | cut -c1-64)   -> images/install.img (+ pxeboot vmlinuz, initrd.img)
+  from installer: $NETINST_SRC
+$(rq "chr(10).join('  %-15s %s  <- %s' % (x['Id'] + ' image', x['ImageSha256'], x['Url']) for x in (j['Desktops'] if isinstance(j['Desktops'], list) else [j['Desktops']]))")
+REL
+)
+else
+RELEASE_LINES="release:          none - the window fetches the one the person picks (upgrade-fetch.exe $(grep -m1 '^version' "$ROOT/evaluate/fetch/Cargo.toml" | cut -d'"' -f2)), checked against data/releases.json"
+fi
+RELEASE_LINES="$RELEASE_LINES
+  Shell.efi       $(sha256sum "$BITS/Shell.efi" | cut -c1-64)   -> EFI/SHELL/SHELLX64.EFI"
 (cd "$D" && find . -type f ! -name SHA256SUMS ! -name KIT-MANIFEST.txt | sort | xargs sha256sum > SHA256SUMS)
 crlf /dev/stdin "$D/KIT-MANIFEST.txt" <<MANIFEST
 upgrade_ kit  -  one stick, both payloads, the Windows side in Rust
@@ -274,15 +308,9 @@ commit:           $GIT_REV ($GIT_STATE)
 prologue:         upgrade-prologue.exe $PROLOGUE_VERSION (the handoff, the resume, the return, the slot and its guard)
 window:           UPGRADE.exe $(grep -m1 '^version' "$ROOT/upgrade_/windows/window/Cargo.toml" | cut -d'"' -f2)  $(sha256sum "$UPGRADE_EXE" | cut -c1-64)   (Verify and the probe behind --developer)
 settle-in:        $SETTLE_IN_VERSION  $(sha256sum "$SETTLE_IN_BIN" | cut -c1-64)   -> upgrade_/settle-in/settle-in
-rust programs:    $(for e in upgrade-scan upgrade-harvest upgrade-job upgrade-prologue; do printf '%s %s  ' "$e.exe" "$(sha256sum "$D/$e.exe" | cut -c1-64)"; done)
+rust programs:    $(for e in upgrade-scan upgrade-harvest upgrade-job upgrade-prologue upgrade-fetch; do printf '%s %s  ' "$e.exe" "$(sha256sum "$D/$e.exe" | cut -c1-64)"; done)
 toolchain:        $("$ROOT/build-rust.sh" --toolchain)   (RISKS R14: rebuild-check.sh proves a second checkout gives these bytes)
-release:          $RELEASE ($(rq "j['Name']"), measured $(rq "j['Measured']")) - data/releases.json; release.json on this stick
-  Shell.efi       $(sha256sum "$BITS/Shell.efi" | cut -c1-64)   -> EFI/SHELL/SHELLX64.EFI
-  shim            $(sha256sum "$RBITS/EFI/BOOT/BOOTX64.EFI" | cut -c1-64)   -> EFI/BOOT/BOOTX64.EFI
-  grub            $(sha256sum "$RBITS/EFI/BOOT/grubx64.efi" | cut -c1-64)   -> EFI/BOOT/grubx64.efi
-  install.img     $(sha256sum "$RBITS/images/install.img" | cut -c1-64)   -> images/install.img (+ pxeboot vmlinuz, initrd.img)
-  from installer: $NETINST_SRC
-$(rq "chr(10).join('  %-15s %s  <- %s' % (x['Id'] + ' image', x['ImageSha256'], x['Url']) for x in (j['Desktops'] if isinstance(j['Desktops'], list) else [j['Desktops']]))")
+$RELEASE_LINES
 verified at build: the Rust product's tests pass; the two PowerShell
                   holdovers' self-tests passed on Windows PowerShell 5.1 and
                   parse under its parser; grubenv block 1024 B with GRUB header.
