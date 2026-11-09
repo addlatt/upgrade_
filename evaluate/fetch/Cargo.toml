@@ -1,0 +1,18 @@
+[package]
+name = "upgrade-fetch"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+
+# The release fetcher (roadmap item 24; decided 2026-11-07 and 2026-11-08,
+# the owner): downloads the Linux the person picked onto the stick it runs
+# from, refuses any byte that differs from data/releases.json, and keeps
+# nothing it could not check. A writer (rule #4): it writes only under its
+# own stick's root, never a device, never the computer's own disk.
+[dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = "0.10"
+upgrade-scan = { path = "../scan" }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Networking_WinHttp", "Win32_Storage_FileSystem"] }

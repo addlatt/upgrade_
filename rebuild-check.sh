@@ -12,7 +12,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REV=$(git -C "$ROOT" rev-parse --short HEAD)
 [ -z "$(git -C "$ROOT" status --porcelain -- evaluate upgrade_ schemas settle-in Cargo.lock 2>/dev/null | grep -v '^??')" ] || { echo "rebuild-check: commit first (the clone builds HEAD, this tree has edits)" >&2; exit 1; }
-EXES=(target/x86_64-pc-windows-gnu/release/upgrade-scan.exe target/x86_64-pc-windows-gnu/release/upgrade-harvest.exe target/x86_64-pc-windows-gnu/release/upgrade-job.exe target/x86_64-pc-windows-gnu/release/upgrade-prologue.exe target/x86_64-pc-windows-gnu/release/UPGRADE.exe)
+EXES=(target/x86_64-pc-windows-gnu/release/upgrade-scan.exe target/x86_64-pc-windows-gnu/release/upgrade-harvest.exe target/x86_64-pc-windows-gnu/release/upgrade-job.exe target/x86_64-pc-windows-gnu/release/upgrade-prologue.exe target/x86_64-pc-windows-gnu/release/upgrade-fetch.exe target/x86_64-pc-windows-gnu/release/UPGRADE.exe)
 if [ "${1:-}" = --kit ]; then
     KIT="$2"; here=()
     for e in "${EXES[@]}"; do here+=("$KIT/$(basename "$e")"); done

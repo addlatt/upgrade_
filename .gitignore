@@ -23,6 +23,8 @@ rig/vm/artifacts/
 
 # Hyper-V rig generated artifacts (OEMDRV pulls, inspections, screenshots, extracted certs)
 rig/hyperv/artifacts/
+# the release fetch's rehearsal logs (they name this machine's folders)
+rig/fetch/artifacts/
 
 # python bytecode from running the rig helpers
 __pycache__/

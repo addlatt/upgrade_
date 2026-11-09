@@ -12,6 +12,7 @@ members = [
     "evaluate/harvest",
     "evaluate/job",
     "evaluate/stick",
+    "evaluate/fetch",
     "upgrade_/prologue",
     "upgrade_/windows/window",
 ]
