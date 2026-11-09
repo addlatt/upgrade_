@@ -88,6 +88,15 @@ fn query_text(req: *mut c_void, what: u32) -> Option<String> {
 
 impl Net for WinNet {
     fn get(&mut self, url: &str, from: u64) -> Result<Response, String> {
+        self.request("GET", url, from)
+    }
+    fn size(&mut self, url: &str) -> Result<(u16, Option<u64>), String> {
+        self.request("HEAD", url, 0).map(|r| (r.status, r.length))
+    }
+}
+
+impl WinNet {
+    fn request(&mut self, verb_s: &str, url: &str, from: u64) -> Result<Response, String> {
         let u = wide(url);
         let mut host = vec![0u16; 256];
         let mut path = vec![0u16; 2048];
@@ -108,7 +117,7 @@ impl Net for WinNet {
         if connect.0.is_null() {
             return Err(last_error());
         }
-        let (verb, p) = (wide("GET"), wide(&path_s));
+        let (verb, p) = (wide(verb_s), wide(&path_s));
         let request = Handle(unsafe { WinHttpOpenRequest(connect.0, verb.as_ptr(), p.as_ptr(), std::ptr::null(), std::ptr::null(), std::ptr::null(), if secure { WINHTTP_FLAG_SECURE } else { 0 }) });
         if request.0.is_null() {
             return Err(last_error());

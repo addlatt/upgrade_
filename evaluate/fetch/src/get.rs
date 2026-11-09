@@ -30,6 +30,10 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 pub const ATTEMPTS: u32 = 6;
+/// A try that moved the download on by this much does not count against
+/// the next ones (a long download over flaky Wi-Fi); a connection that
+/// drops after a few bytes every time still runs out of tries.
+const RESET_BYTES: u64 = if cfg!(test) { 1000 } else { 8 << 20 };
 /// Room left on the stick after the download, past the ISOs' own sizes.
 pub const MARGIN: u64 = 64 * 1024 * 1024;
 
@@ -47,6 +51,10 @@ pub struct Response {
 pub trait Net {
     /// GET `url`, from byte `from` (a Range request when from > 0).
     fn get(&mut self, url: &str, from: u64) -> Result<Response, String>;
+    /// The status and size without the body (WinHTTP sends a HEAD).
+    fn size(&mut self, url: &str) -> Result<(u16, Option<u64>), String> {
+        self.get(url, 0).map(|r| (r.status, r.length))
+    }
 }
 
 /// What the flow needs from the machine besides the files under the root.
@@ -87,12 +95,27 @@ impl Write for Shared {
     }
 }
 
+/// The sha256 of a file as the stick holds it. On Windows the file is opened
+/// past the system's cache (FILE_FLAG_NO_BUFFERING), so a stick that drops
+/// or wraps writes is read as it is, not as Windows remembers it (R17; code
+/// review 2026-11-08). Reads are then whole sectors into an aligned buffer.
 pub fn sha256_file(p: &Path) -> Result<String, String> {
-    let mut f = std::fs::File::open(p).map_err(|e| format!("{}: {e}", p.display()))?;
+    let mut opts = std::fs::OpenOptions::new();
+    opts.read(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        opts.custom_flags(0x2000_0000); // FILE_FLAG_NO_BUFFERING
+    }
+    let mut f = opts.open(p).map_err(|e| format!("{}: {e}", p.display()))?;
     let mut h = Sha256::new();
-    let mut buf = vec![0u8; 1 << 20];
+    // 1 MiB, aligned to 4096 bytes (a whole number of any sector size)
+    let mut store = vec![0u64; (1 << 20) / 8 + 512];
+    let off = (store.as_ptr() as usize).wrapping_neg() % 4096 / 8;
+    let bytes: &mut [u8] = unsafe { std::slice::from_raw_parts_mut(store.as_mut_ptr().add(off) as *mut u8, 1 << 20) };
+    let buf = bytes;
     loop {
-        let n = f.read(&mut buf).map_err(|e| format!("{}: could not read it back ({e})", p.display()))?;
+        let n = f.read(buf).map_err(|e| format!("{}: could not read it back ({e})", p.display()))?;
         if n == 0 {
             break;
         }
@@ -142,14 +165,17 @@ pub fn get(root: &Path, plan: &Plan, from: Option<&str>, net: &mut dyn Net, m: &
     let mut sizes = vec![];
     for p in &plan.parts {
         let url = rebase(&p.url, from);
-        let r = net.get(&url, 0).map_err(|e| format!("could not reach {url}: {e}"))?;
-        if r.status != 200 {
-            return Err(format!("{url} answered {} instead of the file", r.status));
+        let (status, length) = net.size(&url).map_err(|e| format!("could not reach {url}: {e}"))?;
+        if status != 200 {
+            return Err(format!("{url} answered {status} instead of the file"));
         }
-        let Some(len) = r.length.filter(|l| *l > 0) else { return Err(format!("{url} did not say how big it is")) };
+        let Some(len) = length.filter(|l| *l > 0) else { return Err(format!("{url} did not say how big it is")) };
         sizes.push(len);
     }
     let total: u64 = sizes.iter().sum();
+    // a download stopped earlier (the window closed) left its part files here: they must not count against the room
+    let staging = root.join("upgrade_").join("fetch");
+    let _ = std::fs::remove_dir_all(&staging);
     let sums_text = std::fs::read_to_string(root.join("SHA256SUMS")).map_err(|e| format!("SHA256SUMS: {e}"))?;
     let old = stick::owned_on_stick(root, &sums_text);
     let old_bytes: u64 = old.iter().filter_map(|p| std::fs::metadata(stick::under(root, p)).ok()).map(|md| md.len()).sum();
@@ -171,13 +197,13 @@ pub fn get(root: &Path, plan: &Plan, from: Option<&str>, net: &mut dyn Net, m: &
         // SHA256SUMS no longer names them, so a stick stopped here carries no half release
         write_replace(root, "SHA256SUMS", stick::merge_sums(&sums_text, &[]).as_bytes())?;
     }
-    let staging = root.join("upgrade_").join("fetch");
-    let _ = std::fs::remove_dir_all(&staging);
+    let removed = !old.is_empty();
     let r = fetch_all(root, &staging, plan, from, &sizes, net, m, say);
     if r.is_err() {
         let _ = std::fs::remove_dir_all(&staging);
     }
-    r.map(|_| Outcome::Fetched { bytes: total })
+    // say plainly what is gone: the stick's earlier Linux went before the download began
+    r.map(|_| Outcome::Fetched { bytes: total }).map_err(|e| if removed { format!("{e}. The Linux that was on this stick was removed before the download, so the stick holds none until a download finishes") } else { e })
 }
 
 fn write_replace(root: &Path, rel: &str, bytes: &[u8]) -> Result<(), String> {
@@ -232,6 +258,7 @@ fn fetch_all(root: &Path, staging: &Path, plan: &Plan, from: Option<&str>, sizes
                 say(&format!("fetch: the connection dropped at {} MB; trying again in {wait} s (try {tries} of {ATTEMPTS})", mib(got)));
                 m.pause(wait);
             }
+            let at_start = got;
             let mut r = match net.get(&url, got) {
                 Ok(r) => r,
                 Err(e) => {
@@ -260,6 +287,10 @@ fn fetch_all(root: &Path, staging: &Path, plan: &Plan, from: Option<&str>, sizes
                     Ok(n) => n,
                     Err(e) => {
                         say(&format!("fetch: {e}"));
+                        // a try that moved the download on does not count against the next ones
+                        if got >= at_start + RESET_BYTES {
+                            tries = 1;
+                        }
                         continue 'attempt;
                     }
                 };
@@ -495,6 +526,36 @@ mod tests {
         assert!(stick::holds(&b.root, &b.plan).is_ok());
         assert!(b.net.calls.iter().any(|(_, from)| *from > 0), "a range request was made: {:?}", b.net.calls);
         assert_eq!(b.m.pauses, 3);
+    }
+
+    #[test]
+    fn many_drops_that_each_move_on_do_not_give_up() {
+        let mut b = bench();
+        // ten drops, every one after fresh bytes: more than ATTEMPTS in all
+        b.net.drops = vec![4000; 10];
+        b.run().unwrap();
+        assert!(stick::holds(&b.root, &b.plan).is_ok());
+        assert_eq!(b.m.pauses, 10);
+    }
+
+    #[test]
+    fn a_stopped_download_left_behind_does_not_count_against_the_room() {
+        let mut b = bench();
+        let st = b.root.join("upgrade_/fetch/upgrade_/LiveOS");
+        std::fs::create_dir_all(&st).unwrap();
+        std::fs::write(st.join("kde.squashfs"), vec![0u8; 5000]).unwrap();
+        b.run().unwrap();
+        assert!(b.staging_gone());
+    }
+
+    #[test]
+    fn a_refusal_says_the_earlier_linux_was_removed() {
+        let mut b = bench();
+        std::fs::create_dir_all(b.root.join("upgrade_/LiveOS")).unwrap();
+        std::fs::write(b.root.join("upgrade_/LiveOS/gnome.squashfs"), "old").unwrap();
+        let iso = b.net.files.get_mut("https://example.org/b/live.iso").unwrap();
+        iso[100] ^= 1;
+        assert!(b.run().unwrap_err().contains("was removed before the download"));
     }
 
     #[test]

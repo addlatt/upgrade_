@@ -140,6 +140,8 @@ pub fn choices(table: &str, report: Option<&Value>) -> Vec<Choice> {
     };
     offered
         .into_iter()
+        // only what this kit's fetch can carry: a release whose layout it does not know would refuse every time (code review 2026-11-08)
+        .filter(|(id, _, desktop, _)| upgrade_fetch::plan::plan(table, id, desktop).is_ok())
         .map(|(id, name, desktop, label)| {
             let r = judged.iter().find(|r| r.get("Id").and_then(Value::as_str).is_some_and(|x| x.eq_ignore_ascii_case(&id)));
             let starts = match r.and_then(|r| r.get("Starts")).and_then(Value::as_str) {
@@ -715,6 +717,8 @@ mod tests {
         assert_eq!(choices(table, Some(&unknown))[0].starts, Starts::Unknown);
         assert!(choices(table, None).iter().all(|c| c.starts == Starts::Unknown), "no report: nothing is offered as startable");
         assert!(choices(table, Some(&json!({"Releases": []}))).iter().all(|c| c.starts == Starts::Unknown), "not judged: greyed out");
+        let other = table.replace("\"Family\": \"fedora\"", "\"Family\": \"bazzite\"");
+        assert!(choices(&other, Some(&yes)).is_empty(), "a layout the fetch cannot carry is not offered, even when the scan says it starts");
     }
 
     #[test]

@@ -67,7 +67,20 @@ pub fn identity_refusal(f: &StickFacts, root: &Path) -> Option<String> {
 }
 
 /// `upgrade_\LiveOS\kde.squashfs` under `root`, on this OS.
+/// A stick-relative path this program may touch: plain names only, never a
+/// drive (`C:`), a root, `.` or `..` (code review 2026-11-08: a SHA256SUMS line
+/// naming `C:` would otherwise have pointed a delete off the stick).
+pub fn safe_rel(rel: &str) -> bool {
+    let parts: Vec<&str> = rel.trim_start_matches(".\\").split('\\').collect();
+    !parts.is_empty() && parts.iter().all(|p| !p.is_empty() && *p != "." && *p != ".." && !p.contains([':', '/', '*', '?', '"', '<', '>', '|']))
+}
+
+/// Only for paths `safe_rel` accepts; any other comes back as the root
+/// itself, which nothing here deletes or writes as a file.
 pub fn under(root: &Path, rel: &str) -> PathBuf {
+    if !safe_rel(rel) {
+        return root.to_path_buf();
+    }
     let mut p = root.to_path_buf();
     for part in rel.trim_start_matches(".\\").split('\\').filter(|x| !x.is_empty()) {
         p.push(part);
@@ -84,7 +97,7 @@ pub fn read_sums(text: &str) -> Vec<(String, String)> {
             continue;
         }
         let path = l[64..].trim_start_matches([' ', '*']).trim_start_matches("./").replace('/', "\\");
-        if path.is_empty() {
+        if path.is_empty() || !safe_rel(&path) {
             continue;
         }
         let h = l[..64].to_ascii_lowercase();
@@ -132,7 +145,8 @@ pub fn owned_on_stick(root: &Path, sums: &str) -> Vec<String> {
 pub fn holds(root: &Path, plan: &Plan) -> Result<(), String> {
     let rel: Value = std::fs::read(root.join("release.json")).ok().and_then(|b| serde_json::from_slice(&b).ok()).ok_or("this stick carries no Linux yet")?;
     let (id, desktop) = (rel["id"].as_str().unwrap_or(""), rel["desktop"].as_str().unwrap_or(""));
-    if id != plan.id || desktop != plan.desktop {
+    // a stick make-kit.sh built whole carries every desktop and says none; its files are checked below
+    if id != plan.id || (!desktop.is_empty() && desktop != plan.desktop) {
         return Err(format!("this stick carries {} ({}), not {} ({})", rel["name"].as_str().unwrap_or(id), if desktop.is_empty() { "a kit-built stick" } else { desktop }, plan.name, plan.desktop_label));
     }
     let sums = read_sums(&std::fs::read_to_string(root.join("SHA256SUMS")).unwrap_or_default());
@@ -210,6 +224,18 @@ mod tests {
             assert!(identity_refusal(&facts(), &d).unwrap_or_default().contains(want), "{m}");
             let _ = std::fs::remove_dir_all(&d);
         }
+    }
+
+    #[test]
+    fn no_path_leaves_the_stick() {
+        let root = Path::new("/stick");
+        for bad in ["upgrade_\\boot-chain\\C:\\Users\\x\\a.docx", "upgrade_\\LiveOS\\..\\..\\x.squashfs", "C:", "\\x", "a\\\\b", "upgrade_\\boot-chain\\.", ""] {
+            assert!(!safe_rel(bad), "{bad}");
+            assert_eq!(under(root, bad), root.to_path_buf(), "{bad}");
+        }
+        assert!(safe_rel("upgrade_\\LiveOS\\kde.squashfs") && safe_rel(".\\release.json"));
+        let a = "a".repeat(64);
+        assert!(read_sums(&format!("{a}  ./upgrade_/boot-chain/C:/Users/x/a.docx\n{a}  ./../x\n")).is_empty());
     }
 
     #[test]

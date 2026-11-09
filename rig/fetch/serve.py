@@ -28,6 +28,18 @@ root = os.path.abspath(a.dir)
 class H(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
+    def do_HEAD(self):
+        name = os.path.basename(self.path.split("?")[0])
+        p = os.path.join(root, name)
+        ok = bool(name) and os.path.isfile(p)
+        self.send_response(200 if ok else 404)
+        if ok and not a.no_length:
+            self.send_header("Content-Length", str(os.path.getsize(p)))
+        elif not ok:
+            self.send_header("Content-Length", "0")
+        self.end_headers()
+        print(f"HEAD {name} ({'found' if ok else '404'})", flush=True)
+
     def do_GET(self):
         name = os.path.basename(self.path.split("?")[0])
         p = os.path.join(root, name)

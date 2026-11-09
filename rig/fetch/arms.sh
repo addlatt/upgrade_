@@ -5,6 +5,9 @@
 #
 #   rig/fetch/arms.sh [ARM ...]      (default: every arm, in order)
 #
+# 0.2.0 (2026-11-08): the sizes are asked with HEAD (the code review), so a
+# --cut list counts GETs only.
+#
 # Builds upgrade-fetch.exe, copies it to Windows' temp folder (programs
 # started from \\wsl.localhost hang; make-kit.sh, 2026-09-27), serves the
 # rig's own Fedora ISOs from rig/vm/artifacts/releases/<id>/iso with
@@ -19,7 +22,7 @@
 # stick's own speed and drops) and the real internet are other rows.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-HARNESS=0.1.0
+HARNESS=0.2.0
 RELEASE=fedora-44
 ISO="${UPG_RELEASE_ISOS:-$ROOT/rig/vm/artifacts/releases/$RELEASE/iso}"
 [ -d "$ISO" ] || ISO="$(git -C "$ROOT" rev-parse --git-common-dir)/../rig/vm/artifacts/releases/$RELEASE/iso"
@@ -43,12 +46,12 @@ REH="$T/upgrade_-fetch-rehearsal"
 
 # name | server faults | desktop | expected: ready, already, or refused:<words the refusal must carry>
 ARMS=(
-  "fresh|--cut 999999999999,999999999999,300000000,999999999999,1500000000|kde|ready"
+  "fresh|--cut 300000000,999999999999,1500000000|kde|ready"
   "again||kde|already"
   "byte-changed|--flip 2000000000|gnome|refused:did not match its measured sha256"
   "no-length|--no-length|gnome|refused:did not say how big"
   "no-server|NOSERVER|kde|refused:could not reach"
-  "range-ignored|--no-range --cut 999999999999,999999999999,500000000|kde|ready"
+  "range-ignored|--no-range --cut 500000000|kde|ready"
 )
 want_arms=("$@")
 
@@ -85,7 +88,7 @@ for a in "${ARMS[@]}"; do
   ok=fail
   case "$expected" in
     ready) [ "$outcome" = ready ] && [ "$code" = 0 ] && [ "$staging" = n ] && [ "$verified" = y ] && [ "$after" = "$RELEASE/$desktop" ] && ok=pass-plumbing ;;
-    already) [ "$outcome" = already ] && [ "$code" = 0 ] && ! grep -q GET "$OUT/serve-$name.log" && ok=pass-plumbing ;;
+    already) [ "$outcome" = already ] && [ "$code" = 0 ] && ! grep -qE '^(GET|HEAD)' "$OUT/serve-$name.log" && ok=pass-plumbing ;;
     refused:*) [ "$outcome" = refused ] && [ "$code" != 0 ] && [ "$staging" = n ] && [[ "$refusal" == *"${expected#refused:}"* ]] && ok=pass-plumbing ;;
   esac
   gets=$(grep -c '^GET' "$OUT/serve-$name.log" 2>/dev/null || true)

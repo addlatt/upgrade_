@@ -728,7 +728,9 @@ impl App {
                 }
                 Msg::Fetched => {
                     let c = self.picked.and_then(|i| self.choices.get(i)).cloned();
-                    self.setup.desktop = c.as_ref().and_then(|c| flow::desktops_for(&c.desktop).first().copied());
+                    // the person picks the desktop, unless there is only one (code review 2026-11-08)
+                    let offered = c.as_ref().map(|c| flow::desktops_for(&c.desktop)).unwrap_or_default();
+                    self.setup.desktop = if offered.len() == 1 { offered.first().copied() } else { None };
                     self.fetched = c;
                     self.screen = Screen::ConvertSetup;
                 }
