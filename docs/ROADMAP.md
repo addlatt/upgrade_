@@ -236,10 +236,10 @@ Decided (2026-11-07, the owner): early in the window the person picks a
 Linux (Fedora, Bazzite, Ubuntu); the window downloads that one release,
 checks every byte against its measured entry in `data/releases.json` and
 writes it to the stick. One release per stick, offered only if the scan
-finds it startable. Before the last click: a failed download refuses with
-nothing touched. Size: Fedora 44 KDE 4.2 GB, Bazzite KDE 8.4 GB (measured).
-Decided (2026-11-08, the owner): first, with Fedora alone; Bazzite joins
-once V16 holds. Proves: R16, R31, R34, V12, V14. Stands: see [STATUS.md](STATUS.md).
+finds it startable, before the last click. Decided (2026-11-08, the
+owner): Fedora alone first, Bazzite once V16 holds; the program is already
+on the stick. Built 2026-11-08.
+Proves: R44, V17, R31, R34, V12, V14. Stands: see [STATUS.md](STATUS.md).
 
 ## Decisions owed
 
@@ -256,7 +256,8 @@ is decided, the dated line goes in its home and the item here is removed.
 - R12's "What" still describes imaging a disk, a design that is gone; the wording.
 - The words shown to people are drafts awaiting approval: the erase
   launcher's "If you change your mind later", `UPGRADE.exe`'s screens (R31),
-  the go-back screen, its Wi-Fi sentence, the SSH line, "Your programs" (R30, R33).
+  the go-back screen, its Wi-Fi sentence, the SSH line, "Your programs" (R30, R33),
+  the picker's and the download's (R31, R44).
 - The pull: a folder changed in Windows since `evaluate` is refused for good (R8); the stick's key kept (R13).
 - Whether a wimlib-made `install.swm` split installs cleanly with Secure
   Boot on (R30).
@@ -276,6 +277,7 @@ is decided, the dated line goes in its home and the item here is removed.
   approved developer or a second run that agrees (rule #1; R9).
 - Which family comes second (item 23): Ubuntu or Bazzite (R40); and where
   the project keeps its fixed copy of Bazzite's ISO (R42, V16).
+- How the kit reaches a person's stick (item 24, R44).
 - Whether reclaim switches the kept-Windows machine's clock back to UTC once
   Windows is gone (R36 says "may").
 - The words of reclaim's typed sentence and its screen, which names the

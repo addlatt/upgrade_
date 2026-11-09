@@ -1148,9 +1148,17 @@ releases measured into `data/releases.json`. One the scan finds unable to
 start is greyed out (RISKS R34); one that needs a person at the keyboard
 says so on its button. The window downloads that one release, refuses any
 byte that differs from its measured sha256, and writes it to the stick:
-one release per stick. Today `make-kit.sh` builds the kit on the
-developer's machine instead. The download comes before the last click, so
+one release per stick. The download comes before the last click, so
 a failure refuses with nothing touched (roadmap item 24).
+
+**Decided (2026-11-08, the owner): the program is already on the stick and
+knows which one:** plug in, start, choose, download, begin. The kit is
+`make-kit.sh --release none` (written with `--boot-size-gb 8`).
+`upgrade-fetch` writes only under its own drive's root (UPGV0, the kit's
+files, not Windows' drive, not mid-conversion). Each ISO streams through
+our own ISO 9660 reader into one sha256, keeping only the stick's files and
+resuming a dropped connection; every measured sha256 must match and every
+file read back before SHA256SUMS changes. WinHTTP, no new crate (R44, V17).
 
 Fedora is still written into four places, so the seam is not cut there yet:
 the stick's `grub.cfg` and the handoff's `EFI/fedora` paths, `make-kit.sh`,
@@ -1177,9 +1185,8 @@ release files stop under 2 GiB). The measured facts and the steps:
 
 ## Non-goals (v1)
 
-- Several releases on one stick. The person picks one and the window
-  fetches only that one (decided 2026-11-07); "Fedora only" was lifted
-  2026-11-02 (both in the section above).
+- Several releases on one stick: the person picks one (decided 2026-11-07);
+  "Fedora only" was lifted 2026-11-02 (both in the section above).
 - Dual-boot as a product. The keep-Windows path holds Windows *for a while*, as
   a rollback and a file source that both end at reclaim; it is not a supported
   two-OS machine, and `settle-in` nudges toward reclaim once the files are

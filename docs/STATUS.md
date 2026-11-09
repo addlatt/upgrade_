@@ -16,7 +16,12 @@ is the one in that heading. "Line N" is the CSV's line as an editor shows
 it; line 1 is the header. One real machine is one data point, not proof:
 nearly every `[####]` below is the Acer Aspire A515-51G, Secure Boot on.
 
-## Right now (2026-11-07)
+## Right now (2026-11-08)
+
+**Decided (2026-11-08, the owner):** the program is already on the stick;
+plug in, start, choose the Linux, download, begin. Built the same day: the
+window's picker and `upgrade-fetch` 0.1.0 (roadmap item 24), held in a
+rehearsal on the development machine, no stick yet ([log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)).
 
 **Amended (2026-11-07, the owner):** the file copy is back: keep-Windows only,
 a list of the programs with their Linux versions (nothing installed), and the
@@ -64,6 +69,7 @@ no cancel), then a sleep lock and R39. The order: `ROADMAP.md`.
 | V14 | the kit's Linux release starts where it is used | `[####]` held-on-machine, one firmware | `v9-erase.csv` line 30, `erased-installed` (2026-10-04, Fedora 44, Secure Boot on) | Fedora 42's measured record; a second firmware; the next SBAT level |
 | V15 | reclaim deletes only Windows, Linux starts in the whole disk | `[#...]` planned | none yet (the logic held on disk images, settle-in 0.9.0) | the rig: every planted fault, a power cut mid-move; then a healthy-drive machine |
 | V16 | the key step enrolls Bazzite's key, or refuses with nothing erased | `[#...]` planned | none yet (design decided 2026-11-08, [the design](BAZZITE-DESIGN.md)) | the build; the rig (`UPGRIGMOK`), every arm; then a real machine with Secure Boot on |
+| V17 | the window fetches the chosen release onto its own stick, every byte checked | `[###.]` held-on-rig (a rehearsal on the development machine) | `v17-fetch.csv` line 7, `pass-plumbing` (2026-11-09 UTC, six arms, lines 2 to 7, [log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)) | the window on a kit stick; a real stick; the real internet |
 
 ## Open risks
 
@@ -111,5 +117,6 @@ no cancel), then a sleep lock and R39. The order: `ROADMAP.md`.
 | R41 | reclaim deletes the kept Windows and moves Linux | `[##..]` built, whole: the arm, the run from the stick, the grow, the entries (settle-in 0.9.0), never run | none yet (decided 2026-11-02) | the rig: every refusal, a power cut mid-move, the stub keeping Linux from starting; then a healthy-drive machine; the Aspire's row is its drive-health refusal; the words and the clock (decisions owed) |
 | R42 | Bazzite's installed system starts only after a person enrolls its key | `[#...]` planned | none yet (the signers measured from the ISO 2026-11-07) | the build ([the design](BAZZITE-DESIGN.md), decided 2026-11-08); V16's rows |
 | R43 | ntfs-3g cannot read inside a OneDrive folder | `[###.]` held-on-rig | `v3-pull.csv` line 5, `pass-plumbing` (2026-11-07, our own reader, [log](log/2026-11.md#2026-11-07-our-own-reader-inside-onedrive-folders-the-pull-passes-on-the-rig-r43-r8-v3-v8)) | a signed-in OneDrive on a real disk |
+| R44 | the release fetch puts unmeasured bytes on the stick, or writes outside it | `[###.]` held-on-rig (a rehearsal, not a stick) | `v17-fetch.csv` line 7, `pass-plumbing` (2026-11-09 UTC, upgrade-fetch 0.1.0) | a real FAT32 stick, the real internet, a stick pulled mid-download |
 
 Closed: F1 to F4, the four fixed defects of 2026-08-22; R38, closed by removal 2026-11-02 (the countdown it was about left the product). `RISKS.md`, Closed.

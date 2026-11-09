@@ -800,3 +800,29 @@ installer's own tests on made-up key lists write no row (rule #5).
 A pass is `enrolled-installed` with `class` `pass` on a real machine with
 Secure Boot on, plus `missed-refused` for `skipped` and `wrong-password`
 on the rig. A `pass-plumbing` row closes no real-hardware clause.
+
+## `v17-fetch.csv`: the release fetch (gate V17, risk R44)
+
+One row per arm, appended by `rig/fetch/arms.sh`. A rehearsal row runs
+`upgrade-fetch rehearse` on the development machine: Windows' own WinHTTP,
+an NTFS folder made to look like a kit stick, the rig's ISOs from
+`rig/fetch/serve.py` with one fault. Later rows come from a real stick.
+
+| Column | Meaning |
+|---|---|
+| `timestamp`, `harness`, `upgrade_fetch`, `commit` | when the arm ended (UTC); `arms.sh`'s and the program's versions; the commit (`-dirty` if `evaluate/fetch` or `rig/fetch` had edits) |
+| `machine` | where it ran: a rehearsal, or a stick on a named machine |
+| `release`, `desktop` | the table's ids |
+| `arm`, `fault` | the arm's name and the server's flags (`--cut`: drop after N bytes; `--flip`: change one byte; `--no-range`, `--no-length`) |
+| `expected` | `ready`, `already`, or `refused:` and the words the refusal must carry |
+| `exit`, `outcome` | the program's exit code; `ready`, `already`, `refused`, or `error` |
+| `staging_left` | `y` if `upgrade_\fetch\` was left behind |
+| `stick_after` | `release.json`'s id and desktop after the arm, or `none` |
+| `files_verified` | `y` if every file SHA256SUMS names reads back as it says, checked by `sha256sum` from Linux, not by the program |
+| `result` | `pass-plumbing` (a rehearsal or the rig, as expected), `pass` (a real stick, as expected), `fail` |
+| `notes` | requests, ranged requests, drops survived, the refusal; a user folder is written `<name>` |
+
+A pass for `ready` also needs exit 0, nothing left in staging, the release
+on the stick and `files_verified` `y`; for `already`, no request at all; for
+a refusal, a non-zero exit, nothing left in staging and the expected words.
+A rehearsal closes no stick clause (rule #5).
