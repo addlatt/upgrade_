@@ -1453,7 +1453,7 @@ arm says, recorded in `v17-fetch.csv`.
 
 **Where it stands.** `[###.]` held in a rehearsal on the development
 machine (Windows' own WinHTTP, an NTFS folder, the rig's ISOs from a local
-server with faults), `v17-fetch.csv` lines 2 to 7, `pass-plumbing`
+server with faults), `v17-fetch.csv` lines 8 to 13, `pass-plumbing`, after a code review's fixes
 ([log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)). Owed: a real FAT32 stick, the real
 internet, a stick pulled mid-download.
 

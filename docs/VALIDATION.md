@@ -892,7 +892,7 @@ Residue only a real stick and network close: FAT32, a cheap stick's own
 speed and drops, a mirror's redirects and TLS.
 
 **Where it stands.** `[###.]` the rehearsal's six arms, `v17-fetch.csv`
-lines 2 to 7, `pass-plumbing` ([log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)).
+lines 8 to 13, `pass-plumbing` (after the code review) ([log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)).
 Owed: the window on a kit stick, a real stick, the real internet.
 
 # Lesser gates (validate when their component is built)
