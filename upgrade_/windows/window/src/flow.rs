@@ -82,22 +82,107 @@ pub fn arm_call(stick: &str) -> Call {
 
 // ---------------------------------------------------------------- the convert flow (RUN-CONVERT.cmd, RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd)
 
-/// The files RUN-CONVERT.cmd refuses to start without, with the Rust
-/// programs in place of the scripts.
-pub const KIT_FILES_CONVERT: [&str; 9] = [
+/// The files the convert flow refuses to start without: the kit's own
+/// programs. The Linux itself is not here since item 24 (2026-11-08): the
+/// window fetches it with `upgrade-fetch` before Convert, and the fetch
+/// says whether the stick holds it (`fetch_status_call`).
+pub const KIT_FILES_CONVERT: [&str; 6] = [
     "upgrade-scan.exe",
     "upgrade-job.exe",
     "upgrade-prologue.exe",
-    "EFI\\BOOT\\BOOTX64.EFI",
-    "images\\install.img",
+    "upgrade-fetch.exe",
     "upgrade_\\upgrade-installer",
-    "upgrade_\\LiveOS\\kde.squashfs",
-    "upgrade_\\LiveOS\\gnome.squashfs",
     "SHA256SUMS",
 ];
 
 pub fn missing_kit_files_convert(root: &Path) -> Vec<&'static str> {
     KIT_FILES_CONVERT.iter().copied().filter(|f| !root.join(win_rel(f)).exists()).collect()
+}
+
+// ---------------------------------------------------------------- the picker (roadmap item 24)
+
+/// Whether the scan says this computer can start a release (RISKS R34).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Starts {
+    Yes,
+    /// greyed out, with the scan's reasons
+    No(String),
+    /// the scan could not tell (it ran without its key list): also greyed out
+    Unknown,
+}
+
+/// One button on the picker: a release with one desktop.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Choice {
+    pub id: String,
+    pub name: String,
+    pub desktop: String,
+    pub label: String,
+    pub starts: Starts,
+}
+
+impl Choice {
+    pub fn title(&self) -> String {
+        format!("{} with {}", self.name, self.label)
+    }
+}
+
+/// The picker's buttons: every release and desktop the kit's table offers,
+/// each judged by the scan report's `Releases` list. A release the scan did
+/// not judge is greyed out too (unknown is a refusal, as in the job writer).
+pub fn choices(table: &str, report: Option<&Value>) -> Vec<Choice> {
+    let offered = upgrade_fetch::plan::offered(table).unwrap_or_default();
+    let judged = report.and_then(|r| r.get("Releases")).cloned().unwrap_or(Value::Null);
+    let judged: Vec<Value> = match judged {
+        Value::Array(a) => a,
+        o @ Value::Object(_) => vec![o],
+        _ => vec![],
+    };
+    offered
+        .into_iter()
+        .map(|(id, name, desktop, label)| {
+            let r = judged.iter().find(|r| r.get("Id").and_then(Value::as_str).is_some_and(|x| x.eq_ignore_ascii_case(&id)));
+            let starts = match r.and_then(|r| r.get("Starts")).and_then(Value::as_str) {
+                Some(x) if x.eq_ignore_ascii_case("yes") => Starts::Yes,
+                Some(x) if x.eq_ignore_ascii_case("no") => {
+                    let why = match r.and_then(|r| r.get("Why")) {
+                        Some(Value::Array(a)) => a.iter().filter_map(Value::as_str).collect::<Vec<_>>().join("; "),
+                        Some(Value::String(w)) => w.clone(),
+                        _ => String::new(),
+                    };
+                    Starts::No(why)
+                }
+                _ => Starts::Unknown,
+            };
+            Choice { id, name, desktop, label, starts }
+        })
+        .collect()
+}
+
+/// The read-only scan the picker needs (the same call as Convert's step 1).
+pub fn pick_scan_call(stick: &str) -> Call {
+    call(0, false, stick, "upgrade-scan.exe", &["scan", "--json", "--out", "{root}upgrade_\\reports", "--kit", "{root}"])
+}
+
+/// `upgrade-fetch get`: downloads onto this stick, refusing any byte that
+/// differs. `from` is the developer's local copy (the rig's server).
+pub fn fetch_call(stick: &str, c: &Choice, from: Option<&str>) -> Call {
+    let mut a = vec!["get", "--release", c.id.as_str(), "--desktop", c.desktop.as_str()];
+    if let Some(f) = from {
+        a.push("--from");
+        a.push(f);
+    }
+    call(0, false, stick, "upgrade-fetch.exe", &a)
+}
+
+/// Which desktops the set-up screen offers once a release is on the stick:
+/// the text console installs the KDE image, so it comes only with KDE.
+pub fn desktops_for(fetched: &str) -> Vec<Desktop> {
+    match fetched {
+        "kde" => vec![Desktop::Kde, Desktop::Console],
+        "gnome" => vec![Desktop::Gnome],
+        _ => vec![],
+    }
 }
 
 /// The launcher's three choices, as the job writer takes them.

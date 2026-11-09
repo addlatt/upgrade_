@@ -90,7 +90,8 @@ for a in "${ARMS[@]}"; do
   esac
   gets=$(grep -c '^GET' "$OUT/serve-$name.log" 2>/dev/null || true)
   ranges=$(grep -c 'bytes=' "$OUT/serve-$name.log" 2>/dev/null || true)
-  notes="requests ${gets:-0}, ranged ${ranges:-0}; $(echo "$log" | grep -c 'connection dropped') drops survived${refusal:+; refused: $refusal}"
+  drops=$(echo "$log" | grep -c 'connection dropped' || true)
+  notes="requests ${gets:-0}, ranged ${ranges:-0}; ${drops:-0} drops survived${refusal:+; refused: $refusal}"
   notes=$(echo "$notes" | sed -E 's#C:\\Users\\[^\\]+#C:\\Users\\<name>#g')
   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ),$HARNESS,$VERSION,$COMMIT,$(csvq "rehearsal on the dev machine (WinHTTP, NTFS temp folder)"),$RELEASE,$desktop,$name,$(csvq "${faults:-none}"),$(csvq "$expected"),$code,$outcome,$staging,$after,$verified,$ok,$(csvq "$notes")" >> "$CSV"
   echo "arms: $name -> $outcome (exit $code), expected $expected: $ok"
