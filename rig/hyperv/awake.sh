@@ -30,7 +30,7 @@ cd "$ROOT/rig/hyperv"
 HARNESS=0.1.0
 HV=/mnt/c/upgrade-rig/hv
 CSV="$ROOT/docs/validation-results/r33-awake.csv"
-OUT="$ROOT/rig/hyperv/artifacts/awake/$(date -u +%Y-%m-%d)"
+OUT="$ROOT/rig/hyperv/artifacts/awake/$(date -u +%Y-%m-%d)"   # the UTC date
 mkdir -p "$OUT" "$HV/tmp"
 COMMIT=$(git -C "$ROOT" rev-parse --short HEAD)
 [ -z "$(git -C "$ROOT" status --porcelain -- evaluate settle-in rig/hyperv/awake.sh rig/hyperv/guest/awake-win.ps1 rig/hyperv/guest/awake-linux.sh)" ] || COMMIT="$COMMIT-dirty"
@@ -86,7 +86,7 @@ linux)
     parted -s "$IMG" mklabel msdos mkpart primary fat32 1MiB 100%; mkfs.fat -F 32 -n OEMDRV --offset 2048 "$IMG" >/dev/null
     mmd -i "$IMG@@1M" ::/v3; mcopy -i "$IMG@@1M" guest/awake-linux.sh ::/run.sh; mcopy -i "$IMG@@1M" guest/oemdrv-run.sh ::/; mcopy -i "$IMG@@1M" "$BIN" ::/v3/settle-in
     printf 'poweroff\n' > "$OUT/next"; mcopy -i "$IMG@@1M" "$OUT/next" ::/next
-    pwsh "if (Get-VM $VM -ErrorAction SilentlyContinue) { Stop-VM $VM -TurnOff -Force -ErrorAction SilentlyContinue; Remove-VM $VM -Force }; Remove-Item 'C:\\upgrade-rig\\hv\\vm\\$VM.diff.vhdx','C:\\upgrade-rig\\hv\\vm\\oemdrv-awake.vhdx' -Force -ErrorAction SilentlyContinue" >/dev/null
+    pwsh "if (Get-VM $VM -ErrorAction SilentlyContinue) { Stop-VM $VM -TurnOff -Force -ErrorAction SilentlyContinue; Remove-VM $VM -Force }; Remove-Item 'C:\\upgrade-rig\\hv\\vm\\$VM.diff.vhdx','C:\\upgrade-rig\\hv\\vm\\oemdrv-awake.vhdx' -Force -ErrorAction SilentlyContinue; exit 0" >/dev/null
     qemu-img convert -f raw -O vhdx -o subformat=dynamic "$IMG" "$HV/vm/oemdrv-awake.vhdx"
     pwsh "\$ErrorActionPreference = 'Stop'; \$d = 'C:\\upgrade-rig\\hv\\vm'
         New-VHD -Path \"\$d\\$VM.diff.vhdx\" -ParentPath \"\$d\\UPGRIGHV.vhdx\" -Differencing | Out-Null
@@ -118,7 +118,7 @@ linux)
     qemu-img convert -f vhdx -O raw "$HV/vm/oemdrv-awake.vhdx" "$OUT/oemdrv-after.img"
     mtype -i "$OUT/oemdrv-after.img@@1M" ::/run.log > "$OUT/linux-run.log" 2>/dev/null || true
     rm -f "$OUT/oemdrv.img" "$OUT/oemdrv-after.img"
-    pwsh "Remove-VM $VM -Force; Remove-Item 'C:\\upgrade-rig\\hv\\vm\\$VM.diff.vhdx','C:\\upgrade-rig\\hv\\vm\\oemdrv-awake.vhdx' -Force; Remove-Item 'C:\\upgrade-rig\\hv\\vm\\$VM' -Recurse -Force -ErrorAction SilentlyContinue" >/dev/null
+    pwsh "Remove-VM $VM -Force; Remove-Item 'C:\\upgrade-rig\\hv\\vm\\$VM.diff.vhdx','C:\\upgrade-rig\\hv\\vm\\oemdrv-awake.vhdx' -Force; Remove-Item 'C:\\upgrade-rig\\hv\\vm\\$VM' -Recurse -Force -ErrorAction SilentlyContinue; exit 0" >/dev/null
     python3 - "$OUT/linux-run.log" "$CSV" "$HARNESS" "$COMMIT" "$WOKE" <<'PY'
 import csv, datetime, json, re, sys
 path, out, harness, commit, woke = sys.argv[1:6]
