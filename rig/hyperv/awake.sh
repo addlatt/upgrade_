@@ -27,7 +27,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT/rig/hyperv"
-HARNESS=0.1.2
+HARNESS=0.1.3
 HV=/mnt/c/upgrade-rig/hv
 CSV="$ROOT/docs/validation-results/r33-awake.csv"
 OUT="$ROOT/rig/hyperv/artifacts/awake/$(date -u +%Y-%m-%d)"   # the UTC date

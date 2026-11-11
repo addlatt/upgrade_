@@ -9,8 +9,8 @@
 #      lock was held
 #   B  `settle-in awake --for 240` holds the product's lock: logind lists it
 #   C  a suspend asked of logind while it is held is turned down
-#   D  logind is told to suspend after 1 idle minute; with the lock held the
-#      guest stays awake for 150 s
+#   D  logind was told (before B) to suspend after 1 idle minute; with the
+#      lock held the guest stays awake for 150 s
 #   E  settle-in is killed (-9): the lock and its helper are gone
 #   F  the control for D: with no lock, the same guest, the same setting,
 #      suspends by itself (the host presses a key to wake it)
@@ -47,6 +47,14 @@ rec=$(ls -t /var/lib/upgrade_-go-back/walkaway-*.json 2>/dev/null | head -1)
 say record_awake="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps([s for s in d["steps"] if s.get("step")=="awake"]))' "$rec" 2>&1)"
 say listed_after_prepare="$(listed)"
 
+# logind is told to suspend after 1 idle minute BEFORE the lock is taken. It arms its idle
+# timer only when it starts (a reload did not arm it, 2026-11-11), so it is restarted; this
+# early in the boot nobody is signed in and the first minute is not over, so nothing sleeps yet.
+mkdir -p /etc/systemd/logind.conf.d
+printf '[Login]\nIdleAction=suspend\nIdleActionSec=60s\n' > /etc/systemd/logind.conf.d/zz-awake-test.conf
+systemctl restart systemd-logind
+say uptime_at_restart="$(cut -d' ' -f1 /proc/uptime)"
+
 # B
 $S awake --for 240 > $B/awake.out 2>&1 &
 PID=$!
@@ -62,10 +70,6 @@ sleep 5
 say gap_after_asking="$(gap)"
 
 # D
-mkdir -p /etc/systemd/logind.conf.d
-printf '[Login]\nIdleAction=suspend\nIdleActionSec=60s\n' > /etc/systemd/logind.conf.d/zz-awake-test.conf
-systemctl kill -s HUP systemd-logind
-sleep 2
 say idle_action="$(busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager IdleAction IdleActionUSec IdleHint 2>&1 | tr '\n' ' ')"
 say listed_after_reload="$(listed)"
 sleep 150
@@ -93,7 +97,6 @@ done
 say control_idle="$c"
 say logind_control="$(journalctl -b --no-pager -o cat 2>/dev/null | grep -i -E 'system idle|will suspend|suspending' | tail -5 | tr '\n' '|')"
 rm -f /etc/systemd/logind.conf.d/zz-awake-test.conf
-systemctl kill -s HUP systemd-logind
 sleep 2
 # G: the control for C. The same request, with no lock: the guest suspends (the host wakes it)
 g0=$(gap); w1=$(wall)
