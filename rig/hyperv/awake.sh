@@ -15,8 +15,8 @@
 # bench's disk (vm/UPGRIGHV.vhdx: Fedora 42 with the OEMDRV run hook; the
 # parent is never written), with settle-in (musl, as the kit builds it) on a
 # fresh OEMDRV. guest/awake-linux.sh says what it does; the host signs in on
-# the console so logind has an idle session to count, and presses a key when
-# the guest's heartbeat stops (a suspended guest). Five rows.
+# the console so logind has an idle session to count, and presses keys by
+# the clock to wake the guest from its two control sleeps. Five rows.
 #
 # Rows go to docs/validation-results/r33-awake.csv. An arm whose control did
 # not happen proves nothing and reads `not-shown`.
@@ -27,7 +27,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT/rig/hyperv"
-HARNESS=0.1.0
+HARNESS=0.1.1
 HV=/mnt/c/upgrade-rig/hv
 CSV="$ROOT/docs/validation-results/r33-awake.csv"
 OUT="$ROOT/rig/hyperv/artifacts/awake/$(date -u +%Y-%m-%d)"   # the UTC date
@@ -100,17 +100,23 @@ linux)
     # the console sign-in, once the lock is taken and D has begun (the script starts about 35 s in)
     while [ "$(el)" -lt 75 ]; do wait_s 5; done
     VMPS shot "C:\\upgrade-rig\\hv\\shots\\awake-login.png" -Name $VM >/dev/null || true
-    VMPS type rig -Name $VM >/dev/null; VMPS key 13 -Name $VM >/dev/null; wait_s 3; VMPS type rig -Name $VM >/dev/null; VMPS key 13 -Name $VM >/dev/null
+    # r, i, g, Enter as key codes (vm.ps1's `type` does not reach a Linux console)
+    VMPS key 82 73 71 13 -Name $VM >/dev/null; wait_s 3; VMPS key 82 73 71 13 -Name $VM >/dev/null
     echo "awake: signed in on the console at t+$(el) s"; wait_s 5
     VMPS shot "C:\\upgrade-rig\\hv\\shots\\awake-signed-in.png" -Name $VM >/dev/null || true
-    WOKE=0; : > "$OUT/host.log"
+    WOKE=0; LAST=0; : > "$OUT/host.log"
     while :; do
         st=$(pwsh "\$v = Get-VM $VM; '' + \$v.State + ' ' + \$v.Heartbeat")
         echo "t+$(el) $st" >> "$OUT/host.log"
         case "$st" in Off*) break ;; esac
         if [ "$(el)" -ge 900 ]; then echo "awake: still running after 15 minutes; turned off" | tee -a "$OUT/host.log"; pwsh "Stop-VM $VM -TurnOff -Force" >/dev/null; break; fi
-        # a suspended guest stops its heartbeat: one key press wakes it (never before D is over)
-        case "$st" in Running\ Ok*) ;; *) if [ "$(el)" -ge 240 ]; then VMPS key 17 -Name $VM >/dev/null || true; WOKE=$((WOKE + 1)); echo "t+$(el) key pressed (heartbeat: $st)" >> "$OUT/host.log"; fi ;; esac
+        # A suspended guest does not say so (its heartbeat still reads OK, 2026-11-11), so the
+        # keys that wake it go by the clock: the lock is let go about 200 s in and logind looks
+        # for idleness once a minute, so one key at 275 s, then one every 20 s from 300 s (the
+        # asked-for suspend follows). A key is also input, so none is pressed before 275 s.
+        if { [ "$(el)" -ge 275 ] && [ "$WOKE" = 0 ]; } || { [ "$(el)" -ge 300 ] && [ $(( $(el) - LAST )) -ge 20 ]; }; then
+            VMPS key 17 -Name $VM >/dev/null || true; WOKE=$((WOKE + 1)); LAST=$(el); echo "t+$(el) key pressed" >> "$OUT/host.log"
+        fi
         wait_s 4
     done
     cp "$HV/shots/awake-login.png" "$HV/shots/awake-signed-in.png" "$OUT/" 2>/dev/null || true
