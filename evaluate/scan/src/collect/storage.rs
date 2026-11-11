@@ -243,12 +243,47 @@ pub fn disk_facts(is_admin: bool) -> Value {
     if is_admin && shrink_gb.is_some_and(|gb| gb < 25.0) {
         last_unmovable = last_unmovable_file(measure_start);
     }
+    // a Linux already on the disk Windows starts from (R39)
+    let linux_partitions = storage
+        .as_ref()
+        .ok()
+        .and_then(|w| {
+            let c = w.query_where("MSFT_Partition", &["DiskNumber"], "DriveLetter='C'").ok()?;
+            let disk = int(&c.first()?["DiskNumber"])?;
+            w.query_where("MSFT_Partition", &["PartitionNumber", "GptType", "Size"], &format!("DiskNumber={disk}")).ok()
+        })
+        .map(|parts| linux_partitions(&parts))
+        .unwrap_or_default();
     let part_count = storage.as_ref().ok().and_then(|w| w.query_where("MSFT_Partition", &["PartitionNumber"], "DiskNumber=0").ok()).map(|l| l.len()).unwrap_or(0);
     json!({
         "Disks": disks, "SysVolume": sys_volume, "LastUnmovable": last_unmovable,
         "ShrinkGB": shrink_gb, "ShrinkSource": shrink_source, "ShrinkError": shrink_error, "ShrinkFailedAt": failed_at,
-        "DiskpartError": diskpart_error, "Disk0PartCount": part_count,
+        "DiskpartError": diskpart_error, "Disk0PartCount": part_count, "LinuxPartitions": linux_partitions,
     })
+}
+
+/// The partitions of one disk whose GPT type says Linux (R39), as the facts carry them.
+pub fn linux_partitions(parts: &[Value]) -> Vec<Value> {
+    parts
+        .iter()
+        .filter_map(|p| {
+            let kind = crate::otherlinux::partition_kind(p["GptType"].as_str().unwrap_or(""))?;
+            Some(json!({"Number": int(&p["PartitionNumber"]), "Kind": kind, "Size": count(&p["Size"])}))
+        })
+        .collect()
+}
+
+/// Mount the EFI system partition on a free letter, read its Linux folders,
+/// unmount (R39; the job writer's read). Nothing on it is written.
+pub fn esp_linux_boot_folders() -> Result<Vec<String>, String> {
+    let letter = "ZYXWVUT".chars().find(|c| !std::path::Path::new(&format!("{c}:\\")).exists()).map(|c| format!("{c}:")).ok_or("no free drive letter to read the boot partition on")?;
+    let _ = run_tool("cmd", &["/c", &format!("mountvol {letter} /S")], 60);
+    if !std::path::Path::new(&format!("{letter}\\")).exists() {
+        return Err("the boot partition could not be mounted".into());
+    }
+    let r = crate::otherlinux::boot_folders(&format!("{letter}\\"));
+    let _ = run_tool("cmd", &["/c", &format!("mountvol {letter} /D")], 60);
+    r
 }
 
 /// diskpart's `shrink querymax` on C:, which only reports. Its lines, or
@@ -546,7 +581,9 @@ pub fn esp_facts() -> Value {
                 Some(false)
             }
         });
-        Some(json!({"Succeeded": true, "FreeBytes": free, "TotalBytes": total, "HasWindowsBootFiles": has_boot_files, "BootmgrPointsAtEsp": points.flatten(), "BcdDevice": bcd_device}))
+        // a Linux's boot folder already here (R39); unreadable is not "none", so the whole read fails
+        let linux = crate::otherlinux::boot_folders(&format!("{letter}\\")).ok()?;
+        Some(json!({"Succeeded": true, "FreeBytes": free, "TotalBytes": total, "HasWindowsBootFiles": has_boot_files, "BootmgrPointsAtEsp": points.flatten(), "BcdDevice": bcd_device, "LinuxBootFolders": linux}))
     })();
     let _ = run_tool("cmd", &["/c", &format!("mountvol {letter} /D")], 60);
     result.unwrap_or(failed)

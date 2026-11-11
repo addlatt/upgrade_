@@ -103,6 +103,18 @@ pub struct DiskFacts {
     pub shrink_failed_at: Option<String>,
     pub diskpart_error: Option<String>,
     pub disk0_part_count: Option<i64>,
+    /// The Linux partitions on the disk Windows starts from (R39). Empty in
+    /// every recording made before 2026-11-11.
+    pub linux_partitions: Vec<LinuxPartition>,
+}
+
+/// One partition whose GPT type says Linux.
+#[derive(Debug, Deserialize, Default, Clone, PartialEq)]
+#[serde(rename_all = "PascalCase", default)]
+pub struct LinuxPartition {
+    pub number: Option<i64>,
+    pub kind: Option<String>,
+    pub size: Option<f64>,
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
@@ -188,6 +200,8 @@ pub struct EspFacts {
     pub has_windows_boot_files: Option<bool>,
     pub bootmgr_points_at_esp: Option<bool>,
     pub bcd_device: Option<String>,
+    /// The folders under `EFI` that hold a Linux boot loader (R39).
+    pub linux_boot_folders: Vec<String>,
 }
 
 /// One event from the System log's `disk` provider.

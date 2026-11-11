@@ -480,6 +480,20 @@ pub fn job_facts(scan_dir: Option<&Path>, stick_drive: Option<&str>, materialize
 
     // the EFI system partition on the system disk
     let (mut esp_size, mut esp_free, mut esp_error) = (0i64, 0i64, Value::Null);
+    // a Linux already on this disk (R39): its partitions here, its boot folder below
+    let (mut linux_partitions, mut other_linux_error): (Vec<Value>, Vec<String>) = (Vec::new(), Vec::new());
+    match storage_ref.query_where("MSFT_Partition", &["PartitionNumber", "GptType", "Size"], &format!("DiskNumber={disk_number}")) {
+        Ok(parts) if !parts.is_empty() => linux_partitions = collect::storage::linux_partitions(&parts),
+        Ok(_) => other_linux_error.push("no partitions were listed for the system disk".into()),
+        Err(e) => other_linux_error.push(one_line(&e)),
+    }
+    let linux_boot_folders = collect::storage::esp_linux_boot_folders().unwrap_or_else(|e| {
+        other_linux_error.push(one_line(&e));
+        Vec::new()
+    });
+    f.insert("LinuxPartitions".into(), Value::Array(linux_partitions));
+    f.insert("LinuxBootFolders".into(), json!(linux_boot_folders));
+    f.insert("OtherLinuxError".into(), if other_linux_error.is_empty() { Value::Null } else { json!(other_linux_error.join("; ")) });
     match storage_ref.query_where("MSFT_Partition", &["ObjectId", "Size", "GptType"], &format!("DiskNumber={disk_number}")) {
         Ok(parts) => match parts.iter().find(|p| text(&p["GptType"]).eq_ignore_ascii_case(ESP_GUID)) {
             Some(esp) => {

@@ -8,12 +8,14 @@
 //! (written by `tests/golden.ps1`), and `tests/parity.rs` requires the same
 //! here: status, wording, order.
 
+pub mod awake;
 pub mod check;
 pub mod collect;
 pub mod data;
 pub mod diag;
 pub mod facts;
 pub mod hardware;
+pub mod otherlinux;
 pub mod parse;
 pub mod product;
 pub mod ps;

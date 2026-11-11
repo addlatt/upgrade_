@@ -79,6 +79,7 @@
 //!       lines, then the result. Windows is never written.
 //!   settle-in --version
 
+mod awake;
 mod bookmarks;
 mod bootentry;
 mod civil;
@@ -437,6 +438,10 @@ fn walkaway_cmd(args: &[String], root: &str) -> i32 {
             // each step says when it starts, so the window can name it and show
             // that it is working even where there is no percentage (2026-10-03)
             let begin = |step: &str| eprintln!("{}", json!({ "step": step, "start": true }));
+            // no sleep from here to the end of prepare (item 16, R33: GNOME slept 15 minutes in on
+            // 2026-10-04, KDE 45 minutes in on 2026-10-28); what was held goes in the record
+            let mut awake = awake::hold("preparing the way back to Windows");
+            steps.push(json!({ "step": "awake", "ok": awake.held(), "detail": { "what": awake.what(), "words": awake.words() } }));
             // SAFETY: geteuid has no preconditions.
             if unsafe { libc::geteuid() } != 0 {
                 return stop(&mut steps, "rights", "preparing the way back needs administrator rights (run it through pkexec)".into());

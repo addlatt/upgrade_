@@ -659,7 +659,10 @@ impl App {
     fn start_verify(&mut self, ctx: &egui::Context) {
         let ptx = self.channel(ctx);
         let (stick, guard) = (self.stick.clone(), self.guard.clone());
-        std::thread::spawn(move || verify(stick, ptx, guard));
+        std::thread::spawn(move || {
+            let _ = upgrade_scan::awake::hold(); // this thread's work; the request ends with it (item 16)
+            verify(stick, ptx, guard)
+        });
         self.flow = Flow::Verify;
         self.screen = Screen::Running { step: 0 };
     }
@@ -667,7 +670,10 @@ impl App {
     fn start_pick(&mut self, ctx: &egui::Context) {
         let ptx = self.channel(ctx);
         let (stick, guard, ack) = (self.stick.clone(), self.guard.clone(), self.accepting_data_loss);
-        std::thread::spawn(move || pick(stick, ack, ptx, guard));
+        std::thread::spawn(move || {
+            let _ = upgrade_scan::awake::hold(); // this thread's work; the request ends with it (item 16)
+            pick(stick, ack, ptx, guard)
+        });
         self.picked = None;
         self.fetched = None;
         self.screen = Screen::Picking;
@@ -678,7 +684,10 @@ impl App {
         let ptx = self.channel(ctx);
         let (stick, guard, from) = (self.stick.clone(), self.guard.clone(), self.from.clone());
         let chosen = c.clone();
-        std::thread::spawn(move || fetch(stick, chosen, from, ptx, guard));
+        std::thread::spawn(move || {
+            let _ = upgrade_scan::awake::hold(); // this thread's work; the request ends with it (item 16)
+            fetch(stick, chosen, from, ptx, guard)
+        });
         self.fetched = None;
         self.screen = Screen::Fetching { done: 0, total: 0 };
     }
@@ -696,14 +705,20 @@ impl App {
             erase: if self.flow == Flow::Erase { self.setup.erase.clone() } else { String::new() },
         };
         flow::wipe(&mut self.setup.again);
-        std::thread::spawn(move || convert(stick, inputs, ptx, guard, wrx));
+        std::thread::spawn(move || {
+            let _ = upgrade_scan::awake::hold(); // this thread's work; the request ends with it (item 16)
+            convert(stick, inputs, ptx, guard, wrx)
+        });
         self.screen = Screen::Running { step: 0 };
     }
 
     fn start_one(&mut self, ctx: &egui::Context, c: flow::Call, restarts: bool) {
         let ptx = self.channel(ctx);
         let (stick, guard) = (self.stick.clone(), self.guard.clone());
-        std::thread::spawn(move || one_call(stick, c, restarts, ptx, guard));
+        std::thread::spawn(move || {
+            let _ = upgrade_scan::awake::hold(); // this thread's work; the request ends with it (item 16)
+            one_call(stick, c, restarts, ptx, guard)
+        });
         self.screen = Screen::Running { step: 1 };
     }
 
@@ -1028,6 +1043,7 @@ impl eframe::App for App {
                                 para(ui, &format!("{}.  {}", i + 1, s));
                             }
                             para(ui, words::CONVERT_WIFI);
+                            para(ui, words::CONVERT_AWAKE);
                         }
                         ui.add_space(10.0);
                         if let Some(c) = &self.fetched {

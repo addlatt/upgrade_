@@ -341,6 +341,8 @@ mod on_windows {
 }
 
 fn main() -> ExitCode {
+    // no idle sleep while this program works (roadmap item 16, R33); ends with the process
+    let _ = upgrade_scan::awake::hold();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let value_of = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned();
     if args.iter().any(|a| a == "--version") {

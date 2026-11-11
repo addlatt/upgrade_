@@ -1329,7 +1329,7 @@ pub mod live {
         screen.say(&format!("upgrade_ {}: freeing Windows' space for Linux (settle-in {}).", VERSION, env!("CARGO_PKG_VERSION")));
         let _ = run("mount", &["-o", "remount,rw", &stick]);
         // no sleep, no lid switch, for as long as this runs (best effort; the window's check refused a battery)
-        let _inhibit = Command::new("systemd-inhibit").args(["--what=sleep:idle:handle-lid-switch", "--who=upgrade_", "--why=moving Linux", "sleep", "infinity"]).env("PATH", PATH_ENV).spawn();
+        let _awake = crate::awake::hold("moving Linux into Windows' space");
         let mut j = FileJournal { dir: format!("{}/{}", stick, JOURNAL_DIR_REL) };
         let o = crate::read_json(&format!("{}/{}", stick, ORDER_REL)).unwrap_or(Value::Null);
         let stick_disk = disk_of_mount("", &stick).unwrap_or_default();
