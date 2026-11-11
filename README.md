@@ -5,9 +5,7 @@
 ### Move your computer to Linux. One stick, one click, done.
 
 Plug in a USB stick, pick a desktop, hit convert, and walk away. When you
-come back it's a working Linux machine, already on your Wi-Fi. By default
-Windows doesn't get deleted: it gets shrunk and set to one side, with all
-your files still in it, one pick away in the boot menu.
+come back it's a working Linux machine, already on your Wi-Fi.
 
 [![Licence: GPL-3.0](https://img.shields.io/badge/licence-GPL--3.0-blue)](LICENSE)
 ![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)
