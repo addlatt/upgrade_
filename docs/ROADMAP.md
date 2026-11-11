@@ -143,11 +143,11 @@ collects and settles in around it. Proves: V10. Waits on: item 11. Together,
 
 ## 16. Keep the computer awake while it works
 
-On Windows and on Linux (decided 2026-10-05, the owner, under R33). Nothing
-stops the machine going to sleep halfway through: no program on either
-side takes a sleep lock (audit 2026-11-01). It happened on the Aspire, and
-KDE slept 45 minutes into the walk-away's prepare (2026-10-28). Not
-started. Proves: R33, R24. Stands: see
+On Windows and on Linux (decided 2026-10-05, the owner, under R33). Built
+2026-11-11: the Windows programs ask Windows to stay awake, and `settle-in`
+takes the system's sleep lock. A closed lid on Windows and a flat battery
+it cannot stop; the window says so. Owed: a rig row with a 1-minute idle
+sleep, a machine left alone. Proves: R33, R24. Stands: see
 [STATUS.md](STATUS.md).
 
 ## 17. Finish the Rust port: the PowerShell leaves the product

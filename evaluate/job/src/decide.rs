@@ -21,6 +21,25 @@ pub fn path(disk_health: &str, esp_fits: bool, disk_health_acknowledged: bool) -
     None
 }
 
+/// Get-JobOtherLinux (RISKS R39): a keep-Windows job is refused when a
+/// Linux is already on the Windows disk, or when the disk could not be read
+/// for one. `partitions` and `folders` are the facts `LinuxPartitions` and
+/// `LinuxBootFolders`; `error` is `OtherLinuxError`. The clean slate erases
+/// the old Linux with everything else, so an erase job never asks.
+pub fn other_linux(partitions: &Value, folders: &Value, error: &str) -> Option<String> {
+    const TAIL: &str = "no job; nothing was changed. The clean slate erases it along with everything else";
+    if !error.is_empty() {
+        return Some(format!("this computer's Windows disk could not be read for a Linux already on it ({error}), so Linux cannot be put beside Windows - {TAIL}, whatever is there"));
+    }
+    let parts: Vec<upgrade_scan::facts::LinuxPartition> = items(partitions).into_iter().filter_map(|p| serde_json::from_value(p.clone()).ok()).collect();
+    let dirs: Vec<String> = items(folders).into_iter().map(s).collect();
+    let found = upgrade_scan::otherlinux::found(&parts, &dirs);
+    if found.is_empty() {
+        return None;
+    }
+    Some(format!("a Linux is already on this computer's Windows disk ({}); a second one beside it would leave it unknown which system starts, so Linux cannot be put beside Windows here - {TAIL}", found.join("; ")))
+}
+
 /// A moment as Windows gave it: the words to print, and where it falls in
 /// time when that is known.
 #[derive(Debug, Clone, PartialEq)]

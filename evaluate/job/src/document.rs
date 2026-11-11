@@ -113,6 +113,12 @@ pub fn job_document(f: &Value, choice: &Choices, stamp: &Stamp) -> Result<Value,
     } else {
         refusals.extend(harvest::refusals(h, &s(at(f, "HarvestError"))));
     }
+    // a Linux already beside Windows (R39): keep-Windows only; the erase removes it
+    if !erase {
+        if let Some(why) = decide::other_linux(at(f, "LinuxPartitions"), at(f, "LinuxBootFolders"), &s(at(f, "OtherLinuxError"))) {
+            refusals.push(why);
+        }
+    }
     let (Ok(clock), Some(iana), Some(keymap), true) = (clock, iana, keymap, refusals.is_empty()) else { return Err(refusals) };
 
     let esp_free = int(at(f, "EspFree"));

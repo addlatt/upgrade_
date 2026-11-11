@@ -35,6 +35,7 @@ pub fn scan(m: &Machine) -> Outcome {
     storage::fast_startup(&mut sc, m.hiberboot);
     storage::bitlocker(&mut sc, admin, if admin { m.bit_locker.as_ref() } else { None });
     storage::esp(&mut sc, admin, if admin { m.esp.as_ref() } else { None });
+    crate::otherlinux::check(&mut sc, &m.disk, if admin { m.esp.as_ref() } else { None });
     hardware::wifi(&mut sc, &m.pnp);
     hardware::gpu(&mut sc, &m.pnp);
     hardware::audio(&mut sc, &m.pnp);

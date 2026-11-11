@@ -829,17 +829,10 @@ pub mod live {
             return out;
         }
         // no sleep while it copies (the walk-away's lesson: KDE slept 45 minutes in, 2026-10-28)
-        let mut inhibit = Command::new("systemd-inhibit")
-            .args(["--what=sleep:idle:handle-lid-switch", "--who=upgrade_", "--why=bringing your files over from Windows", "sleep", "infinity"])
-            .env("PATH", PATH_ENV)
-            .spawn()
-            .ok();
+        let awake = crate::awake::hold("bringing your files over from Windows");
         let opened = match open_windows(r, typed_key) {
             Ok(o) => o,
             Err(e) => {
-                if let Some(c) = inhibit.as_mut() {
-                    let _ = c.kill();
-                }
                 return json!({ "result": "refused", "why": [e] });
             }
         };
@@ -869,9 +862,7 @@ pub mod live {
             }
         }
         drop(opened);
-        if let Some(c) = inhibit.as_mut() {
-            let _ = c.kill();
-        }
+        drop(awake);
         // the key is spent here once every file is home (R13; scrub_after: settle-in-pull). The
         // stick's copy is kept: the kept Windows is still encrypted and may ask for it after a
         // startup change, and it may be the person's only copy (review, 2026-11-07; decision owed)

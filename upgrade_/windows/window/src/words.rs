@@ -111,6 +111,8 @@ pub const CONVERT_ORDER: [&str; 6] = [
     "Every refusal happens before anything is changed. A restart in the middle is normal: leave the stick in and walk away, it continues by itself before anyone signs in. If it stops, a window says so at your next sign-in.",
 ];
 pub const CONVERT_WIFI: &str = "Your saved Wi-Fi networks and their passwords are copied onto this stick, so Fedora can connect to them on its own. They are removed from the stick at the end of the install and from Fedora once it has set them up.";
+// item 16 (R33): the programs keep an idle computer awake; a closed lid and a flat battery they cannot stop (draft words, the owner's approval owed)
+pub const CONVERT_AWAKE: &str = "This computer is kept awake while it works. Keep the lid open and the charger plugged in until Linux has started.";
 
 pub const ACK_HEADING: &str = "Read this first";
 pub const ACK_LEAD: &str = "The scanner refuses computers whose drive is failing or whose Windows volume needs a repair, because converting them can silently lose files. This path lets you go ahead anyway.";
