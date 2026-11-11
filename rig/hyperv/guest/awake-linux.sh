@@ -21,8 +21,12 @@
 B=/run/awake; mkdir -p $B; cp /mnt/oemdrv/v3/settle-in $B/settle-in; chmod +x $B/settle-in; S=$B/settle-in
 say() { echo "AWAKE $*"; sync; }
 lg() { busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager "$@" 2>&1 | tr '\n' ' '; }
-# seconds this boot has spent suspended: CLOCK_BOOTTIME counts them, CLOCK_MONOTONIC does not
-gap() { python3 -c 'import time; print(round(time.clock_gettime(time.CLOCK_BOOTTIME) - time.clock_gettime(time.CLOCK_MONOTONIC), 1))'; }
+# how many times this boot has gone to sleep: the kernel logs each one. (CLOCK_BOOTTIME cannot
+# say: this guest has no clock that runs while it sleeps, so the time asleep is not counted,
+# 2026-11-11.) The wall clock minus the monotonic clock grows by the time asleep once Hyper-V
+# sets the wall clock again after a wake; it is recorded beside the count, as a hint.
+gap() { journalctl -k -b --no-pager -o cat 2>/dev/null | grep -c 'PM: suspend entry'; }
+wall() { python3 -c 'import time; print(round(time.time() - time.clock_gettime(time.CLOCK_MONOTONIC), 1))'; }
 listed() { systemd-inhibit --list --no-legend 2>/dev/null | grep upgrade_ | tr -s ' ' | tr '\n' '|'; }
 
 say os="$(. /etc/os-release; echo "$PRETTY_NAME")"
@@ -33,6 +37,7 @@ say power_states="$(cat /sys/power/state 2>&1)"
 say can_suspend="$(lg CanSuspend)"
 say sessions="$(loginctl list-sessions --no-legend 2>/dev/null | wc -l)"
 say gap_at_start="$(gap)"
+W0=$(wall)
 
 # A
 $S go-back walkaway prepare --sentence "not the sentence" --account rig --serial none --size 1 --typed none > $B/prepare.out 2> $B/prepare.err
@@ -67,7 +72,7 @@ sleep 150
 say sessions_while_held="$(loginctl list-sessions --no-legend 2>/dev/null | wc -l)"
 say gap_after_150s_held="$(gap)"
 say still_listed="$(listed)"
-say logind_while_held="$(journalctl -b -u systemd-logind --no-pager -o cat 2>/dev/null | grep -i -E 'idle|suspend|sleep' | tail -5 | tr '\n' '|')"
+say logind_while_held="$(journalctl -b --no-pager -o cat 2>/dev/null | grep -i -E 'system idle|will suspend|suspending' | tail -5 | tr '\n' '|')"
 
 # E
 kill -9 $PID
@@ -83,16 +88,18 @@ c=not-suspended
 for i in $(seq 1 15); do
     sleep 10
     g=$(gap)
-    if python3 -c "import sys; sys.exit(0 if float('$g') > 5 else 1)"; then c="suspended within $((i * 10)) s, asleep $g s"; break; fi
+    if [ "$g" -gt 0 ]; then c="suspended within $((i * 10)) s of waking time ($g sleep(s) in the kernel log)"; break; fi
 done
 say control_idle="$c"
-say logind_control="$(journalctl -b -u systemd-logind --no-pager -o cat 2>/dev/null | grep -i -E 'idle|suspend|sleep' | tail -5 | tr '\n' '|')"
+say logind_control="$(journalctl -b --no-pager -o cat 2>/dev/null | grep -i -E 'system idle|will suspend|suspending' | tail -5 | tr '\n' '|')"
 rm -f /etc/systemd/logind.conf.d/zz-awake-test.conf
 systemctl kill -s HUP systemd-logind
 sleep 2
 # G: the control for C. The same request, with no lock: the guest suspends (the host wakes it)
-g0=$(gap)
+g0=$(gap); w1=$(wall)
 say control_asked="$(lg SuspendWithFlags t 1)"
 sleep 8
-say control_asked_asleep="$(python3 -c "print(round(float('$(gap)') - float('$g0'), 1))")"
+say control_asked_asleep="$(( $(gap) - g0 ))"
+say wall_minus_monotonic="start $W0, before the asked-for sleep $w1, at the end $(wall)"
+say kernel_sleeps="$(journalctl -k -b --no-pager -o short-monotonic 2>/dev/null | grep -E 'PM: suspend (entry|exit)' | tr '\n' '|')"
 say done=1

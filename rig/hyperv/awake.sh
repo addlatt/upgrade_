@@ -27,7 +27,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT/rig/hyperv"
-HARNESS=0.1.1
+HARNESS=0.1.2
 HV=/mnt/c/upgrade-rig/hv
 CSV="$ROOT/docs/validation-results/r33-awake.csv"
 OUT="$ROOT/rig/hyperv/artifacts/awake/$(date -u +%Y-%m-%d)"   # the UTC date
@@ -163,16 +163,16 @@ else:
     asked, sysctl = k.get('suspend_asked', ''), k.get('suspend_systemctl', '')
     if 'denied' not in asked.lower() and 'inhibit' not in asked.lower(): why.append('logind did not turn the suspend down')
     if 'inhibited by "upgrade_"' not in sysctl: why.append('systemctl did not name upgrade_ as what stops it')
-    if not fl('gap_after_asking') < 1: why.append('the guest slept while the lock was held')
+    if k.get('gap_after_asking') != '0': why.append('the guest slept while the lock was held')
     ctl = fl('control_asked_asleep')
-    row('suspend-refused', 'a suspend asked of logind is turned down while the lock is held', f"logind: {asked}; systemctl: {sysctl.split('. ')[0]}; asleep {k.get('gap_after_asking')} s", f"with no lock the same request put the guest to sleep for {k.get('control_asked_asleep')} s (answer: {k.get('control_asked') or 'none'})", why, shown=ctl > 1)
+    row('suspend-refused', 'a suspend asked of logind is turned down while the lock is held', f"logind: {asked}; systemctl: {sysctl.split('. ')[0]}; sleeps in the kernel log: {k.get('gap_after_asking')}", f"with no lock the same request put the guest to sleep ({k.get('control_asked_asleep')} more sleep(s) in the kernel log; the host's key woke it)", why, shown=ctl >= 1)
     # idle
     why = []
-    if not fl('gap_after_150s_held') < 1: why.append('the guest slept while the lock was held')
+    if k.get('gap_after_150s_held') != '0': why.append('the guest slept while the lock was held')
     if WHAT not in k.get('still_listed', ''): why.append('the lock was gone before the 150 s were over')
     if 'suspend' not in k.get('idle_action', ''): why.append('logind did not take the 1-minute idle setting')
     ctl = k.get('control_idle', '')
-    row('idle-1min', 'logind set to suspend after 1 idle minute; awake for 150 s with the lock held', f"asleep {k.get('gap_after_150s_held')} s over 150 s; sessions {k.get('sessions_while_held')}; logind said: {k.get('logind_while_held') or 'nothing'}", f"with no lock, same setting: {ctl} (idle hint {k.get('idle_hint_at_control')}; logind said: {(k.get('logind_control') or 'nothing').strip('|')})", why, shown=ctl.startswith('suspended'),
+    row('idle-1min', 'logind set to suspend after 1 idle minute; awake for 150 s with the lock held', f"sleeps in the kernel log after 150 s: {k.get('gap_after_150s_held')}; sessions {k.get('sessions_while_held')}; logind said: {k.get('logind_while_held') or 'nothing'}", f"with no lock, same setting: {ctl} (idle hint {k.get('idle_hint_at_control')}; logind said: {(k.get('logind_control') or 'nothing').strip('|')})", why, shown=ctl.startswith('suspended'),
         notes=f"the host pressed a key {woke} time(s) to wake the guest" + ('' if ctl.startswith('suspended') else '; the control did not sleep, so staying awake here proves nothing'))
     # released
     why = []
