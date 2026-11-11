@@ -82,22 +82,109 @@ pub fn arm_call(stick: &str) -> Call {
 
 // ---------------------------------------------------------------- the convert flow (RUN-CONVERT.cmd, RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd)
 
-/// The files RUN-CONVERT.cmd refuses to start without, with the Rust
-/// programs in place of the scripts.
-pub const KIT_FILES_CONVERT: [&str; 9] = [
+/// The files the convert flow refuses to start without: the kit's own
+/// programs. The Linux itself is not here since item 24 (2026-11-08): the
+/// window fetches it with `upgrade-fetch` before Convert, and the fetch
+/// says whether the stick holds it (`fetch_status_call`).
+pub const KIT_FILES_CONVERT: [&str; 6] = [
     "upgrade-scan.exe",
     "upgrade-job.exe",
     "upgrade-prologue.exe",
-    "EFI\\BOOT\\BOOTX64.EFI",
-    "images\\install.img",
+    "upgrade-fetch.exe",
     "upgrade_\\upgrade-installer",
-    "upgrade_\\LiveOS\\kde.squashfs",
-    "upgrade_\\LiveOS\\gnome.squashfs",
     "SHA256SUMS",
 ];
 
 pub fn missing_kit_files_convert(root: &Path) -> Vec<&'static str> {
     KIT_FILES_CONVERT.iter().copied().filter(|f| !root.join(win_rel(f)).exists()).collect()
+}
+
+// ---------------------------------------------------------------- the picker (roadmap item 24)
+
+/// Whether the scan says this computer can start a release (RISKS R34).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Starts {
+    Yes,
+    /// greyed out, with the scan's reasons
+    No(String),
+    /// the scan could not tell (it ran without its key list): also greyed out
+    Unknown,
+}
+
+/// One button on the picker: a release with one desktop.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Choice {
+    pub id: String,
+    pub name: String,
+    pub desktop: String,
+    pub label: String,
+    pub starts: Starts,
+}
+
+impl Choice {
+    pub fn title(&self) -> String {
+        format!("{} with {}", self.name, self.label)
+    }
+}
+
+/// The picker's buttons: every release and desktop the kit's table offers,
+/// each judged by the scan report's `Releases` list. A release the scan did
+/// not judge is greyed out too (unknown is a refusal, as in the job writer).
+pub fn choices(table: &str, report: Option<&Value>) -> Vec<Choice> {
+    let offered = upgrade_fetch::plan::offered(table).unwrap_or_default();
+    let judged = report.and_then(|r| r.get("Releases")).cloned().unwrap_or(Value::Null);
+    let judged: Vec<Value> = match judged {
+        Value::Array(a) => a,
+        o @ Value::Object(_) => vec![o],
+        _ => vec![],
+    };
+    offered
+        .into_iter()
+        // only what this kit's fetch can carry: a release whose layout it does not know would refuse every time (code review 2026-11-08)
+        .filter(|(id, _, desktop, _)| upgrade_fetch::plan::plan(table, id, desktop).is_ok())
+        .map(|(id, name, desktop, label)| {
+            let r = judged.iter().find(|r| r.get("Id").and_then(Value::as_str).is_some_and(|x| x.eq_ignore_ascii_case(&id)));
+            let starts = match r.and_then(|r| r.get("Starts")).and_then(Value::as_str) {
+                Some(x) if x.eq_ignore_ascii_case("yes") => Starts::Yes,
+                Some(x) if x.eq_ignore_ascii_case("no") => {
+                    let why = match r.and_then(|r| r.get("Why")) {
+                        Some(Value::Array(a)) => a.iter().filter_map(Value::as_str).collect::<Vec<_>>().join("; "),
+                        Some(Value::String(w)) => w.clone(),
+                        _ => String::new(),
+                    };
+                    Starts::No(why)
+                }
+                _ => Starts::Unknown,
+            };
+            Choice { id, name, desktop, label, starts }
+        })
+        .collect()
+}
+
+/// The read-only scan the picker needs (the same call as Convert's step 1).
+pub fn pick_scan_call(stick: &str) -> Call {
+    call(0, false, stick, "upgrade-scan.exe", &["scan", "--json", "--out", "{root}upgrade_\\reports", "--kit", "{root}"])
+}
+
+/// `upgrade-fetch get`: downloads onto this stick, refusing any byte that
+/// differs. `from` is the developer's local copy (the rig's server).
+pub fn fetch_call(stick: &str, c: &Choice, from: Option<&str>) -> Call {
+    let mut a = vec!["get", "--release", c.id.as_str(), "--desktop", c.desktop.as_str()];
+    if let Some(f) = from {
+        a.push("--from");
+        a.push(f);
+    }
+    call(0, false, stick, "upgrade-fetch.exe", &a)
+}
+
+/// Which desktops the set-up screen offers once a release is on the stick:
+/// the text console installs the KDE image, so it comes only with KDE.
+pub fn desktops_for(fetched: &str) -> Vec<Desktop> {
+    match fetched {
+        "kde" => vec![Desktop::Kde, Desktop::Console],
+        "gnome" => vec![Desktop::Gnome],
+        _ => vec![],
+    }
 }
 
 /// The launcher's three choices, as the job writer takes them.
@@ -609,10 +696,42 @@ mod tests {
 
     #[test]
     fn the_convert_kit_list_adds_what_the_install_needs() {
-        for f in ["upgrade_\\upgrade-installer", "upgrade_\\LiveOS\\gnome.squashfs", "upgrade-prologue.exe"] {
+        for f in ["upgrade_\\upgrade-installer", "upgrade-fetch.exe", "upgrade-prologue.exe"] {
             assert!(KIT_FILES_CONVERT.contains(&f), "{f}");
         }
+        // the Linux is fetched by the picker (item 24), not required beforehand
+        assert!(!KIT_FILES_CONVERT.iter().any(|f| f.contains("LiveOS") || f.contains("install.img")));
         assert!(hash_file_path().to_string_lossy().contains("upgrade-pw-"));
+    }
+
+    #[test]
+    fn the_picker_offers_the_table_and_greys_out_what_the_scan_refuses() {
+        let table = upgrade_scan::data::RELEASES_JSON;
+        let yes = json!({"Releases": [{"Id": "fedora-44", "Name": "Fedora 44", "Starts": "yes", "Why": []}]});
+        let c = choices(table, Some(&yes));
+        assert_eq!(c.iter().map(|c| c.title()).collect::<Vec<_>>(), ["Fedora 44 with KDE Plasma", "Fedora 44 with GNOME"]);
+        assert!(c.iter().all(|c| c.starts == Starts::Yes));
+        let no = json!({"Releases": {"Id": "FEDORA-44", "Starts": "no", "Why": ["grub,3 < grub,5"]}});
+        assert_eq!(choices(table, Some(&no))[0].starts, Starts::No("grub,3 < grub,5".into()), "one release as an object, the id in another case");
+        let unknown = json!({"Releases": [{"Id": "fedora-44", "Starts": "unknown"}]});
+        assert_eq!(choices(table, Some(&unknown))[0].starts, Starts::Unknown);
+        assert!(choices(table, None).iter().all(|c| c.starts == Starts::Unknown), "no report: nothing is offered as startable");
+        assert!(choices(table, Some(&json!({"Releases": []}))).iter().all(|c| c.starts == Starts::Unknown), "not judged: greyed out");
+        let other = table.replace("\"Family\": \"fedora\"", "\"Family\": \"bazzite\"");
+        assert!(choices(&other, Some(&yes)).is_empty(), "a layout the fetch cannot carry is not offered, even when the scan says it starts");
+    }
+
+    #[test]
+    fn the_fetch_and_the_desktops_follow_the_choice() {
+        let c = Choice { id: "fedora-44".into(), name: "Fedora 44".into(), desktop: "gnome".into(), label: "GNOME".into(), starts: Starts::Yes };
+        let f = fetch_call("E:", &c, None);
+        assert_eq!(f.program, "E:\\upgrade-fetch.exe");
+        assert_eq!(f.args, ["get", "--release", "fedora-44", "--desktop", "gnome"]);
+        assert_eq!(fetch_call("E:", &c, Some("http://10.0.0.1:8044")).args[5..], ["--from", "http://10.0.0.1:8044"]);
+        assert_eq!(desktops_for("kde"), [Desktop::Kde, Desktop::Console]);
+        assert_eq!(desktops_for("gnome"), [Desktop::Gnome]);
+        assert!(desktops_for("").is_empty());
+        assert_eq!(pick_scan_call("E:").args, convert_calls("E:", Desktop::Kde, "h", "")[0].args, "the picker's scan is Convert's own");
     }
 
     #[test]

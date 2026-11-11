@@ -21,6 +21,15 @@
 //! with --accepting-data-loss, its own launcher, as rule #1 asks. Verify and
 //! the probe show only with --developer (roadmap item 20, 2026-10-17): they
 //! make the rows, and a person converting never needs them.
+//!
+//! The picker (roadmap item 24, decided 2026-11-07 and 2026-11-08, the
+//! owner): Convert starts with a read-only scan, then the person chooses
+//! the Linux, from the releases the kit's table offers that the scan says
+//! this computer can start (RISKS R34). `upgrade-fetch` downloads it onto
+//! this stick and refuses any byte that differs; only then comes the set-up
+//! screen. All of it is before the last click: nothing on the computer has
+//! changed. `--developer --from <http folder>` fetches from a local copy
+//! (the rig's server); the table's sha256s still decide.
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod flow;
@@ -82,6 +91,10 @@ fn stick_root(stick: &str) -> PathBuf {
 
 enum Stop {
     Kit(Vec<String>),
+    /// the download refused: its words; nothing on the computer changed, and the person may try again
+    Fetch(Vec<String>),
+    /// the scan says this computer can start none of the releases: each with its reason
+    NoRelease(Vec<flow::Choice>),
     Red(Option<flow::Verdict>),
     Refused(Vec<String>),
     /// the prologue stopped: its own words, and Windows is as it was
@@ -101,6 +114,10 @@ enum Msg {
     ConvertArmed,
     /// a one-call flow (roll back, probe, cancel) finished: its exit code and lines
     Done(i32, Vec<String>),
+    /// the picker's scan is done: the buttons
+    Choices(Vec<flow::Choice>),
+    /// the download is done and checked
+    Fetched,
 }
 
 /// Shared between the window and the runner, so closing the window and
@@ -286,6 +303,8 @@ fn verify(stick: String, tx: Sender<Msg>, guard: Shared) {
 /// wiped as soon as its hash is written.
 struct ConvertInputs {
     desktop: Desktop,
+    /// the release the picker fetched onto the stick (item 24)
+    release: String,
     password: String,
     /// the acknowledgement sentence as typed on the data-loss path, else empty
     ack: String,
@@ -309,6 +328,17 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
     if !missing.is_empty() {
         flow::wipe(&mut inputs.password);
         return stop(Stop::Kit(missing.iter().map(|s| s.to_string()).collect()));
+    }
+    // the Linux the picker fetched must still be on the stick, whole (item 24)
+    let (image, _) = inputs.desktop.job_args();
+    let status = flow::call(1, false, &stick, "upgrade-fetch.exe", &["status", "--release", &inputs.release, "--desktop", image]);
+    match run(&status, &root, &tx, &guard) {
+        Some((0, _)) => {}
+        Some((_, lines)) => {
+            flow::wipe(&mut inputs.password);
+            return stop(Stop::Refused(lines.into_iter().map(|l| l.trim_start_matches("fetch: ").to_string()).collect()));
+        }
+        None => return,
     }
     let computer = std::env::var("COMPUTERNAME").unwrap_or_default();
     let which = format!("the {} flow{}", if inputs.erase.is_empty() { "convert" } else { "erase" }, if inputs.ack.is_empty() { "" } else { ", ACCEPTING DATA LOSS" });
@@ -401,6 +431,54 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
             stop(Stop::Prologue(flow::prologue_stop_lines(&lines)));
         }
         None => {}
+    }
+}
+
+/// The picker's read-only scan (item 24): the kit check, the scan, the
+/// scan's own stop (a RED goes no further, as in Convert), then the buttons.
+fn pick(stick: String, acknowledged: bool, tx: Sender<Msg>, guard: Shared) {
+    let root = stick_root(&stick);
+    let stop = |s: Stop| {
+        let _ = tx.send(Msg::Stop(s));
+    };
+    let missing = flow::missing_kit_files_convert(&root);
+    if !missing.is_empty() {
+        return stop(Stop::Kit(missing.iter().map(|s| s.to_string()).collect()));
+    }
+    let computer = std::env::var("COMPUTERNAME").unwrap_or_default();
+    log_line(&root, &format!("======== the picker on {} (stick {})", computer, stick));
+    let _ = std::fs::create_dir_all(root.join("upgrade_").join("reports"));
+    let Some((code, lines)) = run(&flow::pick_scan_call(&stick), &root, &tx, &guard) else { return };
+    if code != 0 {
+        log_line(&root, &format!("the picker's scan stopped (exit {})", code));
+        return stop(Stop::Refused(flow::refusal_lines(&lines)));
+    }
+    if let Some(s) = scan_stop(&root, acknowledged) {
+        return stop(s);
+    }
+    let report = flow::newest_report(&root.join("upgrade_").join("reports")).and_then(|p| std::fs::read(p).ok()).and_then(|b| flow::parse_json(&b));
+    let choices = flow::choices(upgrade_scan::data::RELEASES_JSON, report.as_ref());
+    for c in &choices {
+        log_line(&root, &format!("offered: {} ({}/{}): {:?}", c.title(), c.id, c.desktop, c.starts));
+    }
+    if !choices.iter().any(|c| c.starts == flow::Starts::Yes) {
+        return stop(Stop::NoRelease(choices));
+    }
+    let _ = tx.send(Msg::Choices(choices));
+}
+
+/// The download (item 24): `upgrade-fetch get`, whose progress lines the
+/// window shows. A refusal keeps nothing and the person may try again.
+fn fetch(stick: String, choice: flow::Choice, from: Option<String>, tx: Sender<Msg>, guard: Shared) {
+    let root = stick_root(&stick);
+    log_line(&root, &format!("the person chose {} ({}/{})", choice.title(), choice.id, choice.desktop));
+    let Some((code, lines)) = run(&flow::fetch_call(&stick, &choice, from.as_deref()), &root, &tx, &guard) else { return };
+    if code == 0 {
+        log_line(&root, "the download is on the stick and checked");
+        let _ = tx.send(Msg::Fetched);
+    } else {
+        log_line(&root, &format!("the download stopped (exit {})", code));
+        let _ = tx.send(Msg::Stop(Stop::Fetch(flow::refusal_lines(&lines))));
     }
 }
 
@@ -499,6 +577,12 @@ fn first_screen(accepting_data_loss: bool, developer: bool) -> Vec<(&'static str
 
 enum Screen {
     Choose,
+    /// the picker's scan is running
+    Picking,
+    /// the picker: one release with one desktop
+    Pick,
+    /// the download: bytes so far and in all
+    Fetching { done: u64, total: u64 },
     Welcome,
     /// the convert and erase set-up: the desktop, the sentences, the password
     ConvertSetup,
@@ -528,6 +612,12 @@ struct Setup {
 
 struct App {
     screen: Screen,
+    /// the picker's buttons, the one chosen, and the one on the stick (item 24)
+    choices: Vec<flow::Choice>,
+    picked: Option<usize>,
+    fetched: Option<flow::Choice>,
+    /// --developer --from <http folder>: the rig's local copy of the releases
+    from: Option<String>,
     stick: String,
     after: bool,
     arming: bool,
@@ -546,7 +636,7 @@ struct App {
 
 impl App {
     fn new(screen: Screen, stick: String, after: bool, accepting_data_loss: bool, rx: Option<Receiver<Msg>>, guard: Shared) -> App {
-        App { screen, stick, after, arming: false, flow: Flow::Verify, accepting_data_loss, developer: false, setup: Setup::default(), word: String::new(), word_tx: None, log: vec![], rx, guard }
+        App { screen, choices: vec![], picked: None, fetched: None, from: None, stick, after, arming: false, flow: Flow::Verify, accepting_data_loss, developer: false, setup: Setup::default(), word: String::new(), word_tx: None, log: vec![], rx, guard }
     }
 
     fn channel(&mut self, ctx: &egui::Context) -> Sender<Msg> {
@@ -574,6 +664,25 @@ impl App {
         self.screen = Screen::Running { step: 0 };
     }
 
+    fn start_pick(&mut self, ctx: &egui::Context) {
+        let ptx = self.channel(ctx);
+        let (stick, guard, ack) = (self.stick.clone(), self.guard.clone(), self.accepting_data_loss);
+        std::thread::spawn(move || pick(stick, ack, ptx, guard));
+        self.picked = None;
+        self.fetched = None;
+        self.screen = Screen::Picking;
+    }
+
+    fn start_fetch(&mut self, ctx: &egui::Context) {
+        let Some(c) = self.picked.and_then(|i| self.choices.get(i)).cloned() else { return };
+        let ptx = self.channel(ctx);
+        let (stick, guard, from) = (self.stick.clone(), self.guard.clone(), self.from.clone());
+        let chosen = c.clone();
+        std::thread::spawn(move || fetch(stick, chosen, from, ptx, guard));
+        self.fetched = None;
+        self.screen = Screen::Fetching { done: 0, total: 0 };
+    }
+
     fn start_convert(&mut self, ctx: &egui::Context) {
         let ptx = self.channel(ctx);
         let (stick, guard) = (self.stick.clone(), self.guard.clone());
@@ -581,6 +690,7 @@ impl App {
         self.word_tx = Some(wtx);
         let inputs = ConvertInputs {
             desktop: self.setup.desktop.unwrap_or(Desktop::Kde),
+            release: self.fetched.as_ref().map(|c| c.id.clone()).unwrap_or_default(),
             password: std::mem::take(&mut self.setup.password),
             ack: if self.accepting_data_loss { self.setup.ack.clone() } else { String::new() },
             erase: if self.flow == Flow::Erase { self.setup.erase.clone() } else { String::new() },
@@ -602,7 +712,28 @@ impl App {
         while let Ok(m) = rx.try_recv() {
             match m {
                 Msg::Step(s) => self.screen = Screen::Running { step: s },
-                Msg::Line(l) => self.log.push(l),
+                Msg::Line(l) => match upgrade_fetch::progress_of(&l) {
+                    Some((done, total)) => {
+                        if let Screen::Fetching { .. } = self.screen {
+                            self.screen = Screen::Fetching { done, total };
+                        }
+                    }
+                    None => self.log.push(l),
+                },
+                Msg::Choices(c) => {
+                    // nothing chosen for the person, as the desktop never was
+                    self.picked = None;
+                    self.choices = c;
+                    self.screen = Screen::Pick;
+                }
+                Msg::Fetched => {
+                    let c = self.picked.and_then(|i| self.choices.get(i)).cloned();
+                    // the person picks the desktop, unless there is only one (code review 2026-11-08)
+                    let offered = c.as_ref().map(|c| flow::desktops_for(&c.desktop)).unwrap_or_default();
+                    self.setup.desktop = if offered.len() == 1 { offered.first().copied() } else { None };
+                    self.fetched = c;
+                    self.screen = Screen::ConvertSetup;
+                }
                 Msg::Arming => self.arming = true,
                 Msg::Armed => {
                     self.arming = false;
@@ -650,7 +781,7 @@ impl App {
         }
         drop(g);
         self.word_tx = None;
-        if matches!(self.screen, Screen::Running { .. } | Screen::Decide { .. }) {
+        if matches!(self.screen, Screen::Running { .. } | Screen::Decide { .. } | Screen::Picking | Screen::Fetching { .. }) {
             log_line(&stick_root(&self.stick), "closed by the person before the handoff was armed; nothing was changed");
         }
         if self.after {
@@ -664,6 +795,11 @@ impl App {
     fn setup_refusal(&self) -> Option<String> {
         if self.setup.desktop.is_none() {
             return Some(words::DESKTOP_UNSURE.into());
+        }
+        if let Some(c) = &self.fetched {
+            if !self.setup.desktop.is_some_and(|d| flow::desktops_for(&c.desktop).contains(&d)) {
+                return Some(words::DESKTOP_UNSURE.into());
+            }
         }
         if self.accepting_data_loss && !flow::ack_ok(&self.setup.ack) {
             return Some(format!("{} {}", words::ACK_TYPE, upgrade_job::RISK_STATEMENT));
@@ -716,6 +852,15 @@ fn steps(ui: &mut egui::Ui, names: &[&str], step: usize) {
     }
 }
 
+/// The desktop's own line, as the set-up screen says it.
+fn desktop_line(desktop: &str) -> &'static str {
+    match desktop {
+        "kde" => words::DESKTOP_KDE_LINE,
+        "gnome" => words::DESKTOP_GNOME_LINE,
+        _ => "",
+    }
+}
+
 fn banner(ui: &mut egui::Ui) {
     ui.label(egui::RichText::new(words::ACK_BANNER).strong().color(egui::Color32::from_rgb(180, 30, 30)).size(18.0));
     ui.add_space(6.0);
@@ -723,6 +868,10 @@ fn banner(ui: &mut egui::Ui) {
 
 enum Press {
     None,
+    /// the picker's one button
+    Fetch,
+    /// back to the picker after a download stopped
+    PickAgain,
     StartVerify,
     StartConvert,
     Word,
@@ -764,6 +913,62 @@ impl eframe::App for App {
                         if ui.button(words::CLOSE).clicked() {
                             press = Press::Close;
                         }
+                    }
+                    Screen::Picking => {
+                        heading(ui, words::PICKING_HEADING);
+                        ui.horizontal(|ui| {
+                            ui.spinner();
+                            ui.label(words::PICKING_LINE);
+                        });
+                        details(ui, &self.log);
+                    }
+                    Screen::Pick => {
+                        heading(ui, words::PICK_HEADING);
+                        para(ui, words::PICK_LEAD);
+                        ui.add_space(6.0);
+                        for (i, c) in self.choices.iter().enumerate() {
+                            let ok = c.starts == flow::Starts::Yes;
+                            ui.add_enabled_ui(ok, |ui| {
+                                ui.radio_value(&mut self.picked, Some(i), egui::RichText::new(c.title()).size(17.0));
+                            });
+                            match &c.starts {
+                                flow::Starts::Yes => para(ui, desktop_line(&c.desktop)),
+                                flow::Starts::No(why) => para(ui, &format!("{} {}", words::PICK_CANNOT, why)),
+                                flow::Starts::Unknown => para(ui, words::PICK_UNKNOWN),
+                            }
+                            ui.add_space(6.0);
+                        }
+                        para(ui, words::DESKTOP_UNSURE);
+                        ui.add_space(6.0);
+                        para(ui, words::PICK_SIZE);
+                        ui.add_space(12.0);
+                        ui.horizontal(|ui| {
+                            let can = self.picked.and_then(|i| self.choices.get(i)).is_some_and(|c| c.starts == flow::Starts::Yes);
+                            if ui.add_enabled(can, egui::Button::new(egui::RichText::new(words::PICK_GO).size(17.0))).clicked() {
+                                press = Press::Fetch;
+                            }
+                            if ui.button(words::CLOSE).clicked() {
+                                press = Press::Close;
+                            }
+                        });
+                    }
+                    Screen::Fetching { done, total } => {
+                        let title = self.picked.and_then(|i| self.choices.get(i)).map(|c| c.title()).unwrap_or_default();
+                        heading(ui, &format!("{} {}", words::FETCH_HEADING, title));
+                        if *total == 0 {
+                            ui.horizontal(|ui| {
+                                ui.spinner();
+                                ui.label(words::FETCH_STARTING);
+                            });
+                        } else {
+                            let gb = |b: u64| b as f64 / 1e9;
+                            ui.add(egui::ProgressBar::new(*done as f32 / *total as f32).show_percentage());
+                            para(ui, &format!("{:.1} of {:.1} GB.", gb(*done), gb(*total)));
+                        }
+                        ui.add_space(6.0);
+                        para(ui, words::FETCH_NOTHING_CHANGED);
+                        para(ui, words::FETCH_CLOSE);
+                        details(ui, &self.log);
                     }
                     Screen::Welcome => {
                         heading(ui, words::WELCOME_HEADING);
@@ -825,14 +1030,21 @@ impl eframe::App for App {
                             para(ui, words::CONVERT_WIFI);
                         }
                         ui.add_space(10.0);
+                        if let Some(c) = &self.fetched {
+                            ui.label(egui::RichText::new(format!("{} {}", c.title(), words::FETCHED_LINE)).strong());
+                            ui.add_space(6.0);
+                        }
                         ui.label(egui::RichText::new(words::DESKTOP_HEADING).strong().size(17.0));
-                        ui.radio_value(&mut self.setup.desktop, Some(Desktop::Kde), words::DESKTOP_KDE);
-                        para(ui, words::DESKTOP_KDE_LINE);
-                        ui.radio_value(&mut self.setup.desktop, Some(Desktop::Gnome), words::DESKTOP_GNOME);
-                        para(ui, words::DESKTOP_GNOME_LINE);
-                        ui.radio_value(&mut self.setup.desktop, Some(Desktop::Console), words::DESKTOP_CONSOLE);
-                        para(ui, words::DESKTOP_CONSOLE_LINE);
-                        para(ui, words::DESKTOP_UNSURE);
+                        let offered = self.fetched.as_ref().map(|c| flow::desktops_for(&c.desktop)).unwrap_or_else(|| vec![Desktop::Kde, Desktop::Gnome, Desktop::Console]);
+                        for d in offered {
+                            let (label, line) = match d {
+                                Desktop::Kde => (words::DESKTOP_KDE, words::DESKTOP_KDE_LINE),
+                                Desktop::Gnome => (words::DESKTOP_GNOME, words::DESKTOP_GNOME_LINE),
+                                Desktop::Console => (words::DESKTOP_CONSOLE, words::DESKTOP_CONSOLE_LINE),
+                            };
+                            ui.radio_value(&mut self.setup.desktop, Some(d), label);
+                            para(ui, line);
+                        }
                         if self.accepting_data_loss {
                             ui.add_space(10.0);
                             ui.label(egui::RichText::new(words::ACK_TYPE).strong().size(17.0));
@@ -953,6 +1165,29 @@ impl eframe::App for App {
                                 ui.add_space(6.0);
                                 para(ui, words::KIT_FIX);
                             }
+                            Stop::Fetch(lines) => {
+                                heading(ui, words::FETCH_STOPPED_HEADING);
+                                for l in lines {
+                                    para(ui, l);
+                                }
+                                ui.add_space(6.0);
+                                para(ui, words::FETCH_STOPPED_FOOT);
+                                if ui.add(egui::Button::new(egui::RichText::new(words::FETCH_AGAIN).size(17.0))).clicked() {
+                                    press = Press::PickAgain;
+                                }
+                            }
+                            Stop::NoRelease(choices) => {
+                                heading(ui, words::PICK_NONE_HEADING);
+                                for c in choices {
+                                    let why = match &c.starts {
+                                        flow::Starts::No(w) => w.clone(),
+                                        _ => words::PICK_UNKNOWN.to_string(),
+                                    };
+                                    para(ui, &format!("•  {}: {}", c.title(), why));
+                                }
+                                ui.add_space(6.0);
+                                para(ui, words::NOTHING_CHANGED);
+                            }
                             Stop::Red(v) => {
                                 heading(ui, words::RED_HEADING);
                                 if let Some(v) = v {
@@ -1072,7 +1307,11 @@ impl eframe::App for App {
             self.flow = f;
             self.screen = match f {
                 Flow::Verify => Screen::Welcome,
-                Flow::Convert | Flow::Erase => Screen::ConvertSetup,
+                // the picker first (item 24): the scan, the choice, the download
+                Flow::Convert | Flow::Erase => {
+                    self.start_pick(&ctx);
+                    Screen::Picking
+                }
                 Flow::Rollback => Screen::Done(words::ROLLBACK_HEADING.into(), words::ROLLBACK_FROM_LINUX.into()),
                 Flow::Probe => Screen::Ask,
             };
@@ -1118,6 +1357,16 @@ impl eframe::App for App {
                 }
                 _ => {}
             },
+            Press::Fetch => {
+                if self.picked.and_then(|i| self.choices.get(i)).is_some_and(|c| c.starts == flow::Starts::Yes) {
+                    log_line(&stick_root(&self.stick), "the person pressed Download and continue");
+                    self.start_fetch(&ctx);
+                }
+            }
+            Press::PickAgain => {
+                log_line(&stick_root(&self.stick), "the person pressed Try again after the download stopped");
+                self.screen = Screen::Pick;
+            }
             Press::Close => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             Press::None => {}
         }
@@ -1150,6 +1399,7 @@ fn preview(name: &str) -> (Screen, Flow, bool) {
         "result" => (Screen::Result(flow::result_view(true, Some(&v), None, Some("fired-once"))), Flow::Verify, false),
         "result-refused" => (Screen::Result(flow::result_view(true, None, Some(&json!({"reason":"the copy of Linux on this USB stick is damaged"})), Some("fired-once"))), Flow::Verify, false),
         "no-linux" => (Screen::Result(flow::result_view(true, None, None, Some("ignored"))), Flow::Verify, false),
+        "picking" => (Screen::Picking, Flow::Convert, false),
         "convert" => (Screen::ConvertSetup, Flow::Convert, false),
         "convert-ack" => (Screen::ConvertSetup, Flow::Convert, true),
         "convert-running" => (Screen::Running { step: 2 }, Flow::Convert, false),
@@ -1162,6 +1412,39 @@ fn preview(name: &str) -> (Screen, Flow, bool) {
         "probe" => (Screen::Ask, Flow::Probe, false),
         "convert-stopped" => (Screen::Stopped(Stop::Prologue(vec!["STOPPED at revalidate: job.json no longer matches this machine: volume_health.repair_queued: job says 'False', machine says 'True'".into(), "outcome.json (stopped) written to the stick".into()])), Flow::Convert, false),
         _ => (Screen::Welcome, Flow::Verify, false),
+    }
+}
+
+/// The picker's previews (item 24): made-up buttons, nothing fetched.
+fn preview_picker(app: &mut App, name: &str) {
+    let c = |desktop: &str, label: &str, starts: flow::Starts| flow::Choice { id: "fedora-44".into(), name: "Fedora 44".into(), desktop: desktop.into(), label: label.into(), starts };
+    let yes = vec![c("kde", "KDE Plasma", flow::Starts::Yes), c("gnome", "GNOME", flow::Starts::Yes)];
+    let no = vec![c("kde", "KDE Plasma", flow::Starts::No("grub,3 < grub,5".into())), c("gnome", "GNOME", flow::Starts::Unknown)];
+    app.flow = Flow::Convert;
+    match name {
+        "pick" => {
+            app.choices = yes;
+            app.picked = Some(0);
+            app.screen = Screen::Pick;
+        }
+        "pick-refused" => {
+            app.choices = vec![c("kde", "KDE Plasma", flow::Starts::Yes), c("gnome", "GNOME", flow::Starts::No("grub,3 < grub,5".into()))];
+            app.picked = Some(0);
+            app.screen = Screen::Pick;
+        }
+        "pick-none" => app.screen = Screen::Stopped(Stop::NoRelease(no)),
+        "fetching" => {
+            app.choices = yes;
+            app.picked = Some(0);
+            app.screen = Screen::Fetching { done: 1_300_000_000, total: 4_597_067_776 };
+        }
+        "fetch-stopped" => app.screen = Screen::Stopped(Stop::Fetch(vec!["the download of Fedora-KDE-Desktop-Live-44-1.7.x86_64.iso did not match its measured sha256; nothing was kept".into()])),
+        "convert-fetched" => {
+            app.fetched = Some(yes[0].clone());
+            app.setup.desktop = Some(Desktop::Kde);
+            app.screen = Screen::ConvertSetup;
+        }
+        _ => {}
     }
 }
 
@@ -1216,6 +1499,7 @@ fn main() {
         let (screen, flow, ack) = preview(&name);
         let mut app = App::new(screen, "E:".into(), false, ack, None, guard);
         app.flow = flow;
+        preview_picker(&mut app, &name);
         return open(app);
     }
 
@@ -1231,9 +1515,14 @@ fn main() {
     }
 
     let developer = args.iter().any(|a| a == "--developer");
+    // a local copy of the releases (the rig's server), for the developer only; the table's sha256s still decide
+    let from = if developer { args.iter().position(|a| a == "--from").and_then(|i| args.get(i + 1)).filter(|u| u.starts_with("http://") || u.starts_with("https://")).cloned() } else { None };
     if !win::is_elevated() {
         // the one administrator prompt; if it is declined nothing has happened
-        let pass: Vec<&str> = [(accepting, "--accepting-data-loss"), (developer, "--developer")].iter().filter(|(on, _)| *on).map(|(_, a)| *a).collect();
+        let mut pass: Vec<String> = [(accepting, "--accepting-data-loss"), (developer, "--developer")].iter().filter(|(on, _)| *on).map(|(_, a)| a.to_string()).collect();
+        if let Some(f) = &from {
+            pass.push(format!("--from {f}"));
+        }
         win::relaunch_elevated(&pass.join(" "));
         return;
     }
@@ -1242,6 +1531,7 @@ fn main() {
     let stick = if s.len() >= 2 && s.as_bytes()[1] == b':' { s[..2].to_uppercase() } else { String::new() };
     let mut app = App::new(Screen::Choose, stick, false, accepting, None, guard);
     app.developer = developer;
+    app.from = from;
     open(app);
 }
 

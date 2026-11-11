@@ -1426,6 +1426,37 @@ recorded in `v3-pull.csv`.
 `v3-pull.csv` line 5 ([log](log/2026-11.md#2026-11-07-our-own-reader-inside-onedrive-folders-the-pull-passes-on-the-rig-r43-r8-v3-v8)).
 Owed: a signed-in OneDrive, on a real disk.
 
+## R44: The release fetch puts bytes on the stick the table never measured, or writes outside its stick · high · held-on-rig
+
+**What.** Since roadmap item 24, the Linux on the stick comes from the
+internet, fetched by `upgrade-fetch.exe` from the stick itself, not built by
+the developer. It is a writer (rule #4): it deletes the release files
+already on its stick and writes new ones, and it reads disc images with a
+reader of our own.
+
+**If real.** A Linux the table never measured starts after the last click
+(the trust model rests on those sha256s), a stick is left with half a
+release that looks whole, or files are deleted on a drive that is not the
+kit's stick. Everything happens before the last click and touches only the
+stick, so no person's files are at risk; the boot files a cheap stick
+corrupts are refused by shim, the image by `%pre` (R17). High, not
+critical, for that reason.
+
+**Decided (2026-11-08, the owner):** the program is already on the stick
+and identifies it; how the kit reaches the stick waits (`architecture.md`,
+"Linux releases beyond Fedora").
+
+**Closes when.** On a real stick, from the real internet: a fresh fetch
+lands whole and verifies, and a changed byte, a dropped connection, a
+pulled stick and a stick without the room each refuse or resume as their
+arm says, recorded in `v17-fetch.csv`.
+
+**Where it stands.** `[###.]` held in a rehearsal on the development
+machine (Windows' own WinHTTP, an NTFS folder, the rig's ISOs from a local
+server with faults), `v17-fetch.csv` lines 8 to 13, `pass-plumbing`, after a code review's fixes
+([log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)). Owed: a real FAT32 stick, the real
+internet, a stick pulled mid-download.
+
 # Closed
 
 ## R38: The installer's shell shares the countdown's console · critical · closed

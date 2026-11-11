@@ -225,3 +225,22 @@ pub const PROBE_RUNNING: &str = "Setting up the probe";
 pub const PROBE_RESTARTING_HEADING: &str = "Restarting in about 15 seconds";
 pub const PROBE_RESTARTING_LINE: &str = "Leave the stick in. When Windows comes back, do not sign in for two minutes.";
 
+
+// ---- the picker and the download (roadmap item 24; drafts, 2026-11-08)
+pub const PICKING_HEADING: &str = "Looking at this computer";
+pub const PICKING_LINE: &str = "Checking which Linux this computer can start. Nothing is changed. This takes a minute or two.";
+pub const PICK_HEADING: &str = "Choose your Linux";
+pub const PICK_LEAD: &str = "This window downloads the one you choose onto this USB stick, checks every byte of it, and then shows the next step. Nothing on this computer changes while it downloads.";
+pub const PICK_SIZE: &str = "The download is about 4 GB. On a fast connection that takes about 10 minutes; on a slow one, longer. Leave the stick in.";
+pub const PICK_CANNOT: &str = "This computer cannot start it:";
+pub const PICK_UNKNOWN: &str = "The check could not tell whether this computer can start it, so it is not offered.";
+pub const PICK_NONE_HEADING: &str = "This computer cannot start the Linux this stick can fetch";
+pub const PICK_GO: &str = "Download and continue";
+pub const FETCH_HEADING: &str = "Getting";
+pub const FETCH_STARTING: &str = "Starting the download...";
+pub const FETCH_NOTHING_CHANGED: &str = "Nothing on this computer has changed.";
+pub const FETCH_CLOSE: &str = "To stop, close this window. Nothing on this computer is lost. The stick holds no Linux until a download finishes; you can start it again later.";
+pub const FETCH_STOPPED_HEADING: &str = "The download did not finish";
+pub const FETCH_STOPPED_FOOT: &str = "Nothing on this computer was changed. The stick holds no Linux until a download finishes. Check the internet connection, then try again.";
+pub const FETCH_AGAIN: &str = "Try again";
+pub const FETCHED_LINE: &str = "is on this USB stick, and every byte of it was checked.";

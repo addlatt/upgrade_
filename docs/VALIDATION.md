@@ -869,6 +869,32 @@ MokManager start and its keyboard.
 **Where it stands.** `[#...]` planned. The design was decided 2026-11-08
 (`architecture.md`, "Linux releases beyond Fedora"; [BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
 
+## V17: The window fetches the chosen release onto its own stick, every byte checked · kills: the picker, the front door after item 24 · RISKS R44, R34 · held-on-rig
+
+**Why it has its own gate.** From item 24 the Linux on the stick comes from
+the internet, at the person's choice. A release that lands differently
+from its measured record would undo V14's guarantee, and the fetch is a
+new writer.
+
+**What passes.** In `v17-fetch.csv`, every arm as `expected` says: `fresh`
+(two dropped connections, resumed) lands `ready` with every file in
+SHA256SUMS reading back; `again` downloads nothing; `byte-changed`,
+`no-length` and `no-server` refuse, keeping nothing; `range-ignored` lands
+`ready`. The words are in `validation-results/README.md`. Then a real stick
+and the real internet.
+
+**How it is run.** `cargo test` in `evaluate/fetch` (made-up servers and
+discs; the real Fedora 44 ISOs when the rig has them). Then
+`rig/fetch/arms.sh`: `upgrade-fetch rehearse` on this Windows machine,
+the rig's ISOs served by `rig/fetch/serve.py` with one fault per arm.
+Then the window's picker on a kit stick (`make-kit.sh --release none`).
+Residue only a real stick and network close: FAT32, a cheap stick's own
+speed and drops, a mirror's redirects and TLS.
+
+**Where it stands.** `[###.]` the rehearsal's six arms, `v17-fetch.csv`
+lines 8 to 13, `pass-plumbing` (after the code review) ([log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)).
+Owed: the window on a kit stick, a real stick, the real internet.
+
 # Lesser gates (validate when their component is built)
 
 Real, but they degrade rather than kill, or only touch the fallback path:

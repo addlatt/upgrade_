@@ -1,6 +1,6 @@
 [package]
 name = "upgrade-window"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 
 [[bin]]
@@ -13,6 +13,10 @@ serde_json = "1"
 # the Linux password is hashed in the window (Read-Password.ps1's rules and the
 # job writer's sha512-crypt), and the typed sentences are the job writer's own
 upgrade-job = { path = "../../../evaluate/job" }
+# the picker (roadmap item 24): the releases the kit's table offers, and the
+# fetcher's progress lines; the table is the scanner's own compiled copy
+upgrade-fetch = { path = "../../../evaluate/fetch" }
+upgrade-scan = { path = "../../../evaluate/scan" }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
