@@ -146,8 +146,8 @@ collects and settles in around it. Proves: V10. Waits on: item 11. Together,
 On Windows and on Linux (decided 2026-10-05, the owner, under R33). Built
 2026-11-11: the Windows programs ask Windows to stay awake, and `settle-in`
 takes the system's sleep lock. A closed lid on Windows and a flat battery
-it cannot stop; the window says so. Owed: a rig row with a 1-minute idle
-sleep, a machine left alone. Proves: R33, R24. Stands: see
+it cannot stop; the window says so. Held on the rig 2026-11-11. Owed: a
+machine left alone. Proves: R33, R24. Stands: see
 [STATUS.md](STATUS.md).
 
 ## 17. Finish the Rust port: the PowerShell leaves the product

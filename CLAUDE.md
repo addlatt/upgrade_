@@ -92,8 +92,8 @@ anything that writes. Several things the whole project depends on exist only as
 argument, which by rule #2 counts for nothing, so no component that writes to a disk
 is built until the spine it depends on is proven on real hardware. As of
 2026-11-01: every stage of the one click test held on the Aspire (2026-10-28/29);
-next is that run with no hand but the stick swaps, then rows for the sleep lock (R33) and
-R39's refusal (both built 2026-11-11, untried). The file pull is being built again (decided 2026-11-07). Where every gate stands:
+next is that run with no hand but the stick swaps, then the sleep lock (R33) and R39's
+refusal on a real machine (both held on the rig 2026-11-11). The file pull is being built again (decided 2026-11-07). Where every gate stands:
 `docs/STATUS.md`. What is next, and the decisions owed: `docs/ROADMAP.md`. What
 happened, run by run: `docs/log/`.
 
