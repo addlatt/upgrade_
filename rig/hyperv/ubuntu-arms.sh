@@ -228,7 +228,9 @@ P
         build_stick C "$D/job.json"; SECS=3600 ;;
     H)  [ -f "$A/arm-C/job.json" ] && [ -f "$A/arm-C/log/firstboot.txt" ] || { echo "ubuntu-arms: arm H runs after arm C, on the stick and the disk C left" >&2; exit 1; }
         cp "$A/arm-C/job.json" "$D/job.json"; cp "$A/arm-C/log/firstboot.txt" "$D/firstboot-C.txt"; off; SECS=600 ;;
-    K)  if [ ! -f "$HV/vm/ubu-windows.vhdx" ]; then
+    K)  # always a fresh copy: a disk an earlier run put Linux on has no free space, and the check refuses it (line 13)
+        off; PSC "Get-VMHardDiskDrive -VMName $VMNAME | Where-Object { \$_.Path -like '*ubu-windows.vhdx' } | Remove-VMHardDiskDrive; Remove-Item '$HVW\\vm\\ubu-windows.vhdx' -ErrorAction SilentlyContinue"
+        if [ ! -f "$HV/vm/ubu-windows.vhdx" ]; then
             # in the foreground, and compared: a copy cut short is a full-length file with a garbage tail (2026-11-12)
             PSC "\$ErrorActionPreference='Stop'; Copy-Item '$HVW\\vm\\UPGRIGHV.pre-install.vhdx' '$HVW\\vm\\ubu-windows.vhdx'
               \$a = (Get-FileHash '$HVW\\vm\\UPGRIGHV.pre-install.vhdx').Hash; \$b = (Get-FileHash '$HVW\\vm\\ubu-windows.vhdx').Hash
@@ -257,6 +259,10 @@ P
     echo "installer_sha256=$(cat "$A/installer.sha256" 2>/dev/null)" >> "$D/guest.txt"
     echo "stick_location=$(PSC "(Get-VMHardDiskDrive -VMName $VMNAME | Where-Object { \$_.Path -like '*ubu-stick.vhdx' }).ControllerLocation" | tr -d ' \n')" >> "$D/guest.txt"
     off; hashes before > "$D/hashes-before.txt"
+    # an empty log disk for every arm: a first-start record on it is this arm's or nobody's
+    rm -f "$A/ubu-log.img"; truncate -s 96M "$A/ubu-log.img"; parted -s "$A/ubu-log.img" mklabel msdos mkpart primary fat32 1MiB 100%
+    mkfs.fat -F 32 -n UPGLOG --offset 2048 "$A/ubu-log.img" > /dev/null
+    rm -f "$HV/vm/ubu-log.vhdx"; qemu-img convert -f raw -O vhdx "$A/ubu-log.img" "$HV/vm/ubu-log.vhdx"
     run_arm "$T" "$SECS"
     hashes after > "$D/hashes-after.txt"
     pull_stick "$D"
