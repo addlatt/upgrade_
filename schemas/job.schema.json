@@ -225,7 +225,10 @@
           ],
           "properties": {
             "name": {
-              "const": "fedora"
+              "enum": [
+                "fedora",
+                "ubuntu"
+              ]
             },
             "release": {
               "type": "string",

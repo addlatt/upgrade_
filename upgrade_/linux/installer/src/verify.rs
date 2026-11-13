@@ -123,7 +123,7 @@ fn is_block(path: &str) -> bool {
 
 /// `resolve_disk <unique_id> <serial>`: the whole-disk device carrying
 /// that id, and how it was found.
-fn resolve_disk(uid: &str, serial: &str) -> (String, String) {
+pub(crate) fn resolve_disk(uid: &str, serial: &str) -> (String, String) {
     let mut uid_hex = norm(uid);
     if !is_hex8(&uid_hex) {
         uid_hex = String::new();
@@ -164,7 +164,7 @@ fn resolve_disk(uid: &str, serial: &str) -> (String, String) {
     (String::new(), String::new())
 }
 
-fn blockdev_size(dev: &str) -> String {
+pub(crate) fn blockdev_size(dev: &str) -> String {
     let r = run("blockdev", &["--getsize64", dev]);
     if r.ok() { r.out.trim().to_string() } else { String::new() }
 }
