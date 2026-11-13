@@ -19,7 +19,7 @@
 
 use serde_json::Value;
 
-pub const GENERATOR_VERSION: &str = "0.1.0";
+pub const GENERATOR_VERSION: &str = "0.2.0";
 
 /// A serial no disk has. The stick's own file asks for it, so an install
 /// that runs without our early check finds no disk and stops.
@@ -37,14 +37,39 @@ pub struct Disk {
     pub serial: String,
 }
 
-/// Where the install goes. Only the erase exists so far: beside Windows
-/// waits for its own storage list (docs/UBUNTU-DESIGN.md, the order of work).
+/// A partition that is already there and stays exactly as it is.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Kept {
+    pub number: u32,
+    /// where it starts and how long it is, in bytes
+    pub offset: u64,
+    pub size: u64,
+    /// the GPT type, lower case
+    pub type_guid: String,
+}
+
+/// A partition the install makes, in space that is free today.
+#[derive(Debug, Clone, PartialEq)]
+pub struct New {
+    pub number: u32,
+    pub offset: u64,
+    pub size: u64,
+}
+
+/// Where the install goes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Storage {
     /// Erase `system` whole: a boot partition, `/boot`, `/`. A second drive,
     /// when the job names one, is erased whole for `/home`.
     Erase { system: Disk, home: Option<Disk> },
+    /// Beside Windows: every partition on the disk is named and kept, the
+    /// one in `esp` (Windows' boot partition) is mounted and never
+    /// formatted, and `/boot` and `/` go at exact places in free space.
+    Beside { disk: Disk, kept: Vec<Kept>, esp: u32, boot: New, root: New },
 }
+
+/// The GPT type of an EFI boot partition.
+pub const ESP_TYPE: &str = "c12a7328-f81f-11d2-ba4b-00a0c93ec93b";
 
 fn text(v: Option<&Value>) -> String {
     match v {
@@ -206,8 +231,92 @@ fn storage(s: &Storage) -> Result<Vec<String>, String> {
                 format_mount(&mut l, "home", "ext4", "/home");
             }
         }
+        Storage::Beside { disk, kept, esp, boot, root } => {
+            disk_ok(disk)?;
+            beside_ok(kept, *esp, boot, root)?;
+            // version 2: a partition is where its offset says, not wherever the last one ended
+            l.insert(1, "    version: 2".to_string());
+            l.push("      - id: disk-system".into());
+            l.push("        type: disk".into());
+            l.push(format!("        path: {}", q(&disk.path)));
+            if !disk.serial.is_empty() {
+                l.push(format!("        serial: {}", q(&disk.serial)));
+            }
+            l.push("        ptable: gpt".into());
+            l.push("        preserve: true".into());
+            l.push("        grub_device: false".into());
+            for k in kept {
+                l.push(format!("      - id: kept-{}", k.number));
+                l.push("        type: partition".into());
+                l.push("        device: disk-system".into());
+                l.push(format!("        number: {}", k.number));
+                l.push(format!("        offset: {}", k.offset));
+                l.push(format!("        size: {}", k.size));
+                l.push(format!("        partition_type: {}", k.type_guid));
+                if k.number == *esp {
+                    l.push("        flag: boot".into());
+                }
+                l.push("        preserve: true".into());
+                l.push(format!("        grub_device: {}", k.number == *esp));
+            }
+            for (id, n) in [("boot", boot), ("root", root)] {
+                l.push(format!("      - id: {id}"));
+                l.push("        type: partition".into());
+                l.push("        device: disk-system".into());
+                l.push(format!("        number: {}", n.number));
+                l.push(format!("        offset: {}", n.offset));
+                l.push(format!("        size: {}", n.size));
+                l.push("        wipe: superblock".into());
+                l.push("        preserve: false".into());
+                l.push("        grub_device: false".into());
+            }
+            format_mount(&mut l, "root", "ext4", "/");
+            format_mount(&mut l, "boot", "ext4", "/boot");
+            // Windows' boot partition: mounted as it is, never formatted
+            l.push(format!("      - id: kept-{esp}-fs"));
+            l.push("        type: format".into());
+            l.push(format!("        volume: kept-{esp}"));
+            l.push("        fstype: fat32".into());
+            l.push("        preserve: true".into());
+            l.push(format!("      - id: kept-{esp}-mount"));
+            l.push("        type: mount".into());
+            l.push(format!("        device: kept-{esp}-fs"));
+            l.push("        path: /boot/efi".into());
+        }
     }
     Ok(l)
+}
+
+/// The list beside Windows is refused unless it is exact: the boot
+/// partition among the kept ones, no number used twice, and nothing new
+/// touching anything kept.
+fn beside_ok(kept: &[Kept], esp: u32, boot: &New, root: &New) -> Result<(), String> {
+    let Some(e) = kept.iter().find(|k| k.number == esp) else {
+        return Err(format!("partition {esp}, Windows' boot partition, is not among the kept ones; refusing"));
+    };
+    if e.type_guid != ESP_TYPE {
+        return Err(format!("partition {esp} is not an EFI boot partition; refusing"));
+    }
+    let mut spans: Vec<(u32, u64, u64)> = kept.iter().map(|k| (k.number, k.offset, k.size)).collect();
+    spans.push((boot.number, boot.offset, boot.size));
+    spans.push((root.number, root.offset, root.size));
+    for (i, a) in spans.iter().enumerate() {
+        if a.0 == 0 || a.0 > 128 || a.2 == 0 {
+            return Err(format!("partition {} has no number or no size; refusing", a.0));
+        }
+        for b in &spans[i + 1..] {
+            if a.0 == b.0 {
+                return Err(format!("partition number {} is used twice; refusing", a.0));
+            }
+            if a.1 < b.1 + b.2 && b.1 < a.1 + a.2 {
+                return Err(format!("partitions {} and {} overlap; refusing", a.0, b.0));
+            }
+        }
+    }
+    if kept.iter().any(|k| !k.type_guid.bytes().all(|b| b.is_ascii_hexdigit() || b == b'-') || k.type_guid.len() != 36) {
+        return Err("a kept partition's type is not a GPT type; refusing".to_string());
+    }
+    Ok(())
 }
 
 /// The real answer file, for one machine. `program` is the installer
@@ -217,9 +326,12 @@ pub fn autoinstall(job: &Value, s: &Storage, program: &str, job_path: &str) -> R
     check(job)?;
     let at = |p: &str| text(job.pointer(p));
     let erase = !at("/erase_consent/statement").is_empty();
-    let Storage::Erase { .. } = s;
-    if !erase {
-        return Err("the job carries no erase consent, and the erase is the only Ubuntu install this version has; refusing".to_string());
+    // the storage and the job must say the same thing, or nothing is written
+    match s {
+        Storage::Erase { .. } if !erase => return Err("an erase without the job's erase consent; refusing".to_string()),
+        Storage::Erase { .. } if at("/intent/path") != "clean-slate" => return Err("an erase for a job that keeps Windows; refusing".to_string()),
+        Storage::Beside { .. } if erase || at("/intent/path") != "keep-windows" => return Err("an install beside Windows for a job that does not keep Windows; refusing".to_string()),
+        _ => {}
     }
     let mut l: Vec<String> = Vec::new();
     l.push(format!("# upgrade_ autoinstall - generated by upgrade-autoinstall {GENERATOR_VERSION} (Rust)"));
@@ -273,6 +385,62 @@ mod tests {
     }
     fn erase() -> Storage {
         Storage::Erase { system: sda(), home: None }
+    }
+    const MIB: u64 = 1048576;
+    fn keep_job() -> Value {
+        let mut j = job();
+        j.as_object_mut().unwrap().remove("erase_consent");
+        j["intent"]["path"] = json!("keep-windows");
+        j
+    }
+    fn kept() -> Vec<Kept> {
+        vec![
+            Kept { number: 1, offset: MIB, size: 100 * MIB, type_guid: ESP_TYPE.into() },
+            Kept { number: 2, offset: 101 * MIB, size: 16 * MIB, type_guid: "e3c9e316-0b5c-4db8-817d-f92df00215ae".into() },
+            Kept { number: 3, offset: 117 * MIB, size: 49034 * MIB, type_guid: "ebd0a0a2-b9e5-4433-87c0-68b6b72699c7".into() },
+        ]
+    }
+    fn beside() -> Storage {
+        Storage::Beside { disk: sda(), kept: kept(), esp: 1, boot: New { number: 4, offset: 49151 * MIB, size: 1024 * MIB }, root: New { number: 5, offset: 50175 * MIB, size: 31744 * MIB } }
+    }
+
+    #[test]
+    fn beside_windows_every_partition_is_named_and_nothing_kept_is_formatted() {
+        let t = autoinstall(&keep_job(), &beside(), "p", "j").unwrap();
+        assert!(t.contains("    version: 2\n    config:"));
+        assert_eq!(t.matches("type: disk").count(), 1);
+        assert_eq!(t.matches("type: partition").count(), 5);
+        // the disk and Windows' three partitions are kept; only the two new ones are not
+        assert_eq!(t.matches("preserve: true").count(), 5, "the disk, three partitions, the boot partition's filesystem");
+        assert_eq!(t.matches("preserve: false").count(), 4, "two new partitions and their two filesystems");
+        assert_eq!(t.matches("wipe:").count(), 2);
+        assert!(!t.contains("superblock-recursive") && !t.contains("    layout:") && !t.contains("use_gap"));
+        assert!(t.contains(&format!("offset: {}\n        size: {}\n        partition_type: ebd0a0a2", 117 * MIB, 49034 * MIB)));
+        assert!(t.contains("      - id: kept-1-fs\n        type: format\n        volume: kept-1\n        fstype: fat32\n        preserve: true"));
+        assert!(t.contains("device: kept-1-fs\n        path: /boot/efi"));
+        assert_eq!(t.matches("grub_device: true").count(), 1);
+    }
+
+    #[test]
+    fn beside_windows_is_refused_unless_exact() {
+        let with = |f: &dyn Fn(&mut Vec<Kept>, &mut u32, &mut New, &mut New)| {
+            let Storage::Beside { disk, mut kept, mut esp, mut boot, mut root } = beside() else { unreachable!() };
+            f(&mut kept, &mut esp, &mut boot, &mut root);
+            autoinstall(&keep_job(), &Storage::Beside { disk, kept, esp, boot, root }, "p", "j").unwrap_err()
+        };
+        assert!(with(&|_, _, b, _| b.offset = 49150 * MIB).contains("overlap"));
+        assert!(with(&|_, _, _, r| r.offset = 50174 * MIB).contains("overlap"));
+        assert!(with(&|_, _, b, _| b.number = 3).contains("used twice"));
+        assert!(with(&|_, e, _, _| *e = 3).contains("not an EFI boot partition"));
+        assert!(with(&|_, e, _, _| *e = 9).contains("not among the kept"));
+        assert!(with(&|_, _, _, r| r.size = 0).contains("no size"));
+        assert!(with(&|k, _, _, _| k[1].type_guid = "msftres".into()).contains("not a GPT type"));
+        // the storage and the job must agree
+        assert!(autoinstall(&job(), &beside(), "p", "j").unwrap_err().contains("does not keep Windows"));
+        assert!(autoinstall(&keep_job(), &erase(), "p", "j").unwrap_err().contains("without the job's erase consent"));
+        let mut both = job();
+        both["intent"]["path"] = json!("keep-windows");
+        assert!(autoinstall(&both, &erase(), "p", "j").unwrap_err().contains("keeps Windows"));
     }
 
     #[test]
@@ -329,7 +497,7 @@ mod tests {
         assert!(edit("/intent/account/password_hash", json!("plain")).contains("SHA-512"));
         assert!(edit("/intent/account/linux_name", json!("Sam Smith")).contains("not a login name"));
         assert!(edit("/intent/locale/timezone", json!("")).contains("locale is incomplete"));
-        assert!(edit("/erase_consent/statement", json!("")).contains("no erase consent"));
+        assert!(edit("/erase_consent/statement", json!("")).contains("without the job's erase consent"));
         let mut j = job();
         j.as_object_mut().unwrap().remove("stick");
         assert!(autoinstall(&j, &erase(), "p", "j").unwrap_err().contains("lacks 'stick'"));

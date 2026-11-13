@@ -12,13 +12,15 @@
 //!
 //! What is read from the machine is collected into [`Facts`]; what is
 //! decided is [`judge`], which reads nothing and is tested on made-up
-//! facts (rule #5). Only the erase exists: a keep-Windows job is refused.
+//! facts (rule #5). Beside Windows, every partition there is kept by
+//! name and Linux goes into the one free space big enough; two such
+//! spaces, or none, is a refusal, never a guess.
 
 use crate::util::*;
-use crate::verify::{blockdev_size, resolve_disk};
+use crate::verify::{blockdev_size, copy_tree, resolve_disk, with_esp};
 use serde_json::{json, Value};
 use std::path::Path;
-use upgrade_autoinstall::{Disk, Storage, STICK};
+use upgrade_autoinstall::{Disk, Kept, New, Storage, ESP_TYPE, STICK};
 
 const REPORT: &str = "/cdrom/upgrade_/report";
 const LOG: &str = "/tmp/upgrade_-early.log";
@@ -35,6 +37,76 @@ pub struct Found {
     pub serial: String,
 }
 
+/// One partition, in sectors, as the disk's table has it.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Part {
+    pub number: u32,
+    pub start: u64,
+    pub sectors: u64,
+    pub type_guid: String,
+}
+
+/// The system disk's partition table (`sfdisk --json`).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Table {
+    pub label: String,
+    /// bytes in a sector
+    pub sector: u64,
+    /// the first and last sector a partition may use
+    pub first: u64,
+    pub last: u64,
+    pub parts: Vec<Part>,
+}
+
+const MIB: u64 = 1048576;
+/// `/boot`, as Fedora's (`verify`): 1 GiB.
+const BOOT_BYTES: u64 = 1024 * MIB;
+/// The least `/` this installer will make, whatever the job says: Fedora's 4 GiB floor.
+const ROOT_FLOOR: u64 = 4096 * MIB;
+
+/// Where Linux goes beside Windows: every partition kept, `/boot` and `/`
+/// in the one free space of at least `min_bytes`. Free space is cut to
+/// whole MiB, as every partition tool lays it.
+pub fn plan_beside(t: &Table, esp: u32, min_bytes: u64) -> Result<(Vec<Kept>, New, New), String> {
+    if t.label != "gpt" {
+        return Err(format!("the disk's partition table is '{}', not GPT", t.label));
+    }
+    if t.sector == 0 || MIB % t.sector != 0 || t.last <= t.first {
+        return Err(format!("the disk's table does not make sense (sector {} bytes, sectors {} to {})", t.sector, t.first, t.last));
+    }
+    let per_mib = MIB / t.sector;
+    let mut parts = t.parts.clone();
+    parts.sort_by_key(|p| p.start);
+    let (mut gaps, mut at) = (Vec::new(), t.first);
+    for p in &parts {
+        if p.number == 0 || p.sectors == 0 || p.start < at || p.start + p.sectors - 1 > t.last {
+            return Err(format!("partition {} overlaps another or lies outside the disk", p.number));
+        }
+        gaps.push((at, p.start));
+        at = p.start + p.sectors;
+    }
+    gaps.push((at, t.last + 1));
+    let need = min_bytes.max(BOOT_BYTES + ROOT_FLOOR);
+    let fits: Vec<(u64, u64)> = gaps.into_iter().map(|(a, b)| (a.div_ceil(per_mib) * per_mib, b / per_mib * per_mib)).filter(|(a, b)| b > a && (b - a) * t.sector >= need).collect();
+    let (a, b) = match fits.as_slice() {
+        [one] => *one,
+        [] => return Err(format!("no free space of {} MiB on the disk", need / MIB)),
+        many => return Err(format!("{} free spaces of {} MiB or more on the disk, and nothing says which is for Linux", many.len(), need / MIB)),
+    };
+    let mut free_numbers = (1..=128u32).filter(|n| !parts.iter().any(|p| p.number == *n));
+    let (Some(n_boot), Some(n_root)) = (free_numbers.next(), free_numbers.next()) else {
+        return Err("the disk's table has no two numbers left".into());
+    };
+    if !parts.iter().any(|p| p.number == esp && p.type_guid == ESP_TYPE) {
+        return Err(format!("partition {esp} is not an EFI boot partition in the disk's table"));
+    }
+    let mut kept: Vec<Kept> = t.parts.iter().map(|p| Kept { number: p.number, offset: p.start * t.sector, size: p.sectors * t.sector, type_guid: p.type_guid.clone() }).collect();
+    kept.sort_by_key(|k| k.number);
+    let boot = New { number: n_boot, offset: a * t.sector, size: BOOT_BYTES };
+    let root = New { number: n_root, offset: a * t.sector + BOOT_BYTES, size: (b - a) * t.sector - BOOT_BYTES };
+    Ok((kept, boot, root))
+}
+
 /// Everything the early check read, and nothing it concluded.
 #[derive(Debug, Clone)]
 pub struct Facts {
@@ -47,6 +119,13 @@ pub struct Facts {
     pub converted: Option<String>,
     /// the stick's Ubuntu files read back against its SHA256SUMS: what passed, or what is wrong
     pub payload: Result<String, String>,
+    /// keep-windows only: the system disk's table, when it could be read
+    pub table: Option<Table>,
+    /// keep-windows only: the EFI boot partitions that hold Windows' own loader, by number
+    pub windows_esp: Vec<u32>,
+    /// keep-windows only: the safety copy of Windows' startup files on the stick (R21):
+    /// how many files, or why not
+    pub snapshot: Result<usize, String>,
 }
 
 /// What the early check does next.
@@ -64,7 +143,7 @@ fn refuse(code: i32, plain: &str, detail: &str) -> Decision {
 }
 
 /// The refusals, in order. The codes are `verify`'s where the reason is
-/// the same (10, 20, 23, 25, 28); 26 and 27 are Ubuntu's own.
+/// the same (10, 20, 21, 22, 23, 24, 25, 28, 29); 27 is Ubuntu's own.
 pub fn judge(f: &Facts) -> Decision {
     let j = &f.job;
     let schema = jq(j, "schema");
@@ -119,7 +198,29 @@ pub fn judge(f: &Facts) -> Decision {
     }
     let path = jq(j, "intent.path");
     if path == "keep-windows" {
-        return refuse(26, "this version cannot yet install Ubuntu beside Windows", "a keep-windows job: Ubuntu's storage list beside Windows is not written (docs/UBUNTU-DESIGN.md)");
+        if erase {
+            return refuse(21, "the installer could not work out where to put Linux", "the job keeps Windows and also carries an erase consent");
+        }
+        let [esp] = f.windows_esp.as_slice() else {
+            return refuse(22, "Windows' startup files were not where the preparation found them", &format!("keep-windows needs one EFI boot partition holding Windows' loader on {}; found {}", f.system.dev, f.windows_esp.len()));
+        };
+        if j.pointer("/storage/esp/fits_alongside_install") != Some(&Value::Bool(true)) {
+            return refuse(22, "Windows' startup partition has no room for Linux's startup files", "the job does not say the boot partition fits an install alongside (storage.esp.fits_alongside_install)");
+        }
+        let Some(table) = &f.table else {
+            return refuse(21, "the installer could not work out where to put Linux", &format!("the partition table of {} could not be read", f.system.dev));
+        };
+        let Some(min_gb) = j.pointer("/storage/linux_min_gb").and_then(Value::as_f64).filter(|g| *g > 0.0) else {
+            return refuse(21, "the installer could not work out where to put Linux", "the job does not say how much space Linux needs (storage.linux_min_gb)");
+        };
+        let (kept, boot, root) = match plan_beside(table, *esp, (min_gb * 1e9) as u64) {
+            Ok(p) => p,
+            Err(why) => return refuse(21, "the installer could not work out where to put Linux", &format!("beside Windows on {}: {why}", f.system.dev)),
+        };
+        if let Err(why) = &f.snapshot {
+            return refuse(24, "a safety copy of Windows' startup files could not be made", &format!("the ESP snapshot failed ({why}) - the ESP is not touched without it (RISKS R21)"));
+        }
+        return Decision::Install(Storage::Beside { disk: Disk { path: f.system.dev.clone(), serial: f.system.serial.clone() }, kept, esp: *esp, boot, root });
     }
     if !erase {
         return refuse(25, "this version cannot yet put your files back on an erased computer", "a clean slate with staged files needs the restore, which this version does not have");
@@ -224,6 +325,8 @@ fn collect(job_path: &str, log: &Log) -> Facts {
     let job: Value = std::fs::read_to_string(job_path).ok().and_then(|t| serde_json::from_str(t.trim_start_matches('\u{feff}')).ok()).unwrap_or(Value::Null);
     let cmdline = read_to_string("/proc/cmdline");
     log.say(&format!("== cmdline: {}", cmdline.trim_end()));
+    log.say(&format!("== firmware: {} {}", read_to_string("/sys/class/dmi/id/bios_vendor").trim(), read_to_string("/sys/class/dmi/id/bios_version").trim()));
+    log.say(&format!("== secure boot: {}", run("mokutil", &["--sb-state"]).merged().lines().next().unwrap_or("not read")));
     let system = find(&jq(&job, "identity.system_disk.unique_id"), &jq(&job, "identity.system_disk.serial_number"));
     log.say(&format!("== job {} path={} system disk: {:?}", jq(&job, "job_id"), jq(&job, "intent.path"), system));
     let home = (jq_len(&job, "erase_consent.disks") >= 2).then(|| find(&jq(&job, "erase_consent.disks.1.unique_id"), &jq(&job, "erase_consent.disks.1.serial_number")));
@@ -235,7 +338,86 @@ fn collect(job_path: &str, log: &Log) -> Facts {
     let converted = exists(&marker).then(|| std::fs::read(&marker).unwrap_or_default().into_iter().take(200).map(|b| b as char).collect::<String>().replace('\n', " "));
     // the long read comes last, and only for a stick that could still install
     let payload = if converted.is_some() || system.dev.is_empty() { Err("not read: the stick was refused before its files mattered".to_string()) } else { read_payload(log) };
-    Facts { job, mode_verify: cmdline.split_whitespace().any(|w| w == "upg.mode=verify"), system, home, converted, payload }
+    let (mut table, mut windows_esp, mut snapshot) = (None, Vec::new(), Err("not taken".to_string()));
+    if jq(&job, "intent.path") == "keep-windows" && payload.is_ok() {
+        let nodes = read_table(&system.dev, &mut table);
+        log.say(&format!("== partition table of {}: {table:?}", system.dev));
+        for (number, node) in &nodes {
+            let is_esp = table.as_ref().is_some_and(|t: &Table| t.parts.iter().any(|p| p.number == *number && p.type_guid == ESP_TYPE));
+            if is_esp && with_esp(node, || Path::new("/tmp/upg-esp/EFI/Microsoft/Boot/bootmgfw.efi").is_file()) == Some(true) {
+                windows_esp.push(*number);
+            }
+        }
+        log.say(&format!("== EFI boot partitions holding Windows' loader: {windows_esp:?}"));
+        if let ([n], false) = (windows_esp.as_slice(), cmdline.split_whitespace().any(|w| w == "upg.mode=verify")) {
+            if let Some((_, node)) = nodes.iter().find(|(k, _)| k == n) {
+                snapshot = take_snapshot(&system.dev, node);
+            }
+        }
+        log.say(&format!("== esp snapshot: {snapshot:?}"));
+    }
+    Facts { job, mode_verify: cmdline.split_whitespace().any(|w| w == "upg.mode=verify"), system, home, converted, payload, table, windows_esp, snapshot }
+}
+
+/// `sfdisk --json`: the table, and each partition's number and device node.
+fn read_table(dev: &str, table: &mut Option<Table>) -> Vec<(u32, String)> {
+    let Ok(v) = serde_json::from_str::<Value>(&run("sfdisk", &["--json", dev]).out) else {
+        return Vec::new();
+    };
+    let t = &v["partitiontable"];
+    let n = |k: &str| t[k].as_u64().unwrap_or(0);
+    let mut nodes = Vec::new();
+    let mut parts = Vec::new();
+    for p in t["partitions"].as_array().cloned().unwrap_or_default() {
+        let node = p["node"].as_str().unwrap_or("").to_string();
+        let name = node.rsplit('/').next().unwrap_or("");
+        let number = read_to_string(&format!("/sys/class/block/{name}/partition")).trim().parse::<u32>().unwrap_or(0);
+        parts.push(Part { number, start: p["start"].as_u64().unwrap_or(0), sectors: p["size"].as_u64().unwrap_or(0), type_guid: p["type"].as_str().unwrap_or("").to_lowercase() });
+        nodes.push((number, node));
+    }
+    *table = Some(Table { label: t["label"].as_str().unwrap_or("").to_string(), sector: n("sectorsize"), first: n("firstlba"), last: n("lastlba"), parts });
+    nodes
+}
+
+/// The safety copy of Windows' startup files, onto the stick, before anything
+/// touches the boot partition (R21). The same folders and the same record as `verify` takes.
+fn take_snapshot(disk: &str, node: &str) -> Result<usize, String> {
+    let snap = format!("{STICK}/upgrade_/esp-snapshot");
+    if !stick_rw() {
+        return Err("the stick could not be opened for writing".into());
+    }
+    let _ = std::fs::remove_dir_all(&snap);
+    std::fs::create_dir_all(&snap).map_err(|e| format!("{snap}: {e}"))?;
+    let copied = with_esp(node, || {
+        for d in ["EFI/Boot", "EFI/BOOT", "EFI/Microsoft"] {
+            let (src, dst) = (format!("/tmp/upg-esp/{d}"), Path::new(&snap).join(d));
+            if Path::new(&src).is_dir() && !dst.exists() {
+                let _ = std::fs::create_dir_all(dst.parent().unwrap_or(Path::new(&snap)));
+                copy_tree(Path::new(&src), &dst).map_err(|e| format!("{d}: {e}"))?;
+            }
+        }
+        Ok::<(), String>(())
+    });
+    match copied {
+        Some(Ok(())) => {}
+        Some(Err(e)) => return Err(e),
+        None => return Err(format!("{node} could not be mounted")),
+    }
+    let mut files = Vec::new();
+    walk(Path::new(&snap), "", &mut files);
+    let mut sums = String::new();
+    for f in &files {
+        let h = sha256_file(&Path::new(&snap).join(f)).ok_or(format!("{f} could not be read back"))?;
+        sums.push_str(&format!("{h}  ./{f}\n"));
+    }
+    if !files.iter().any(|f| f.eq_ignore_ascii_case("EFI/Microsoft/Boot/bootmgfw.efi")) {
+        return Err("the copy does not hold Windows' loader".into());
+    }
+    std::fs::write(format!("{snap}/SHA256SUMS"), &sums).map_err(|e| e.to_string())?;
+    let _ = std::fs::write(format!("{snap}/boot-entries.txt"), run("efibootmgr", &["-v"]).merged());
+    let _ = std::fs::write(format!("{snap}/SOURCE"), format!("disk={disk} esp={node} taken_utc={}\n", utc_now()));
+    sync();
+    Ok(files.len())
 }
 
 fn stick_rw() -> bool {
@@ -254,6 +436,11 @@ fn refuse_and_restart(log: &Log, code: i32, plain: &str, detail: &str) -> ! {
     log.say(&format!("== REFUSED (exit {code}): {plain}"));
     stick_rw();
     save("refusal.json", &serde_json::to_string_pretty(&json!({"schema": "refusal/1", "exit_code": code, "reason": plain, "detail": detail, "installer": "subiquity", "created_utc": utc_now()})).unwrap_or_default());
+    // one line a refusal, never rewritten: a stick that refused twice says so
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(format!("{REPORT}/refusals.log")) {
+        use std::io::Write;
+        let _ = writeln!(f, "{} exit {code}: {plain}", utc_now());
+    }
     let _ = std::fs::copy(LOG, format!("{REPORT}/early.log"));
     sync();
     sync();
@@ -327,9 +514,9 @@ pub fn early(job_path: &str) -> i32 {
 /// system is already written.
 pub fn late(job_path: &str) -> i32 {
     let job: Value = std::fs::read_to_string(job_path).ok().and_then(|t| serde_json::from_str(t.trim_start_matches('\u{feff}')).ok()).unwrap_or(Value::Null);
-    if jq(&job, "intent.start_at") == "console" {
-        run("chroot", &["/target", "systemctl", "set-default", "multi-user.target"]);
-    }
+    // the installed system's last settings, as Fedora's %post makes them: beside Windows, the
+    // 'Windows (kept)' entry with os-prober off (R21); on every path, what the computer starts at
+    let done = crate::post::main_for(&crate::post::UBUNTU, "/target", &jq(&job, "intent.path"), &jq(&job, "intent.start_at"));
     // the bench's first-start marker, only on a stick the rig marked (as Fedora's bench marker)
     if exists(&format!("{STICK}/upgrade_/bench")) && exists(&format!("{STICK}/upgrade_/bench-firstboot.sh")) {
         let _ = std::fs::copy(format!("{STICK}/upgrade_/bench-firstboot.sh"), "/target/usr/local/sbin/upg-bench-firstboot.sh");
@@ -338,11 +525,13 @@ pub fn late(job_path: &str) -> i32 {
     }
     stick_rw();
     let rec = json!({"schema": "late/1", "job_id": jq(&job, "job_id"), "created_utc": utc_now(),
+        "start_target": done.target, "start_target_set": done.target_set, "grub_windows_lines": done.windows_entries,
         "lsblk": run("lsblk", &["-b", "-o", "NAME,SIZE,TYPE,FSTYPE,PARTTYPENAME,MOUNTPOINTS"]).out,
         "firmware_entries": run("efibootmgr", &["-v"]).merged(), "fstab": read_to_string("/target/etc/fstab"),
         "kernel": run("uname", &["-r"]).out.trim(), "secure_boot": run("mokutil", &["--sb-state"]).out.trim()});
     save("late.json", &serde_json::to_string_pretty(&rec).unwrap_or_default());
-    run("tar", &["czf", &format!("{REPORT}/installer-logs.tgz", ), "/var/log/installer"]);
+    let _ = std::fs::copy("/target/root/upgrade_-post.log", format!("{REPORT}/post.log"));
+    run("tar", &["czf", &format!("{REPORT}/installer-logs.tgz"), "/var/log/installer"]);
     sync();
     sync();
     0
@@ -380,7 +569,7 @@ mod tests {
         Found { dev: "/dev/sda".into(), matched_by: "unique_id via wwn-0x60022480d990bd51d172abb88dc5d7c3".into(), size: "42949672960".into(), serial: "3600224".into() }
     }
     fn facts() -> Facts {
-        Facts { job: job("clean-slate", 1), mode_verify: false, system: sda(), home: None, converted: None, payload: Ok("ok".into()) }
+        Facts { job: job("clean-slate", 1), mode_verify: false, system: sda(), home: None, converted: None, payload: Ok("ok".into()), table: None, windows_esp: vec![], snapshot: Err("not taken".into()) }
     }
     fn code(f: &Facts) -> i32 {
         match judge(f) {
@@ -436,11 +625,98 @@ mod tests {
         f.payload = Err("casper/minimal.squashfs sha256 MISMATCH".into());
         assert_eq!(code(&f), 23);
         let mut f = facts();
-        f.job = job("keep-windows", 0);
-        assert_eq!(code(&f), 26);
-        let mut f = facts();
         f.job = job("clean-slate", 0);
         assert_eq!(code(&f), 25);
+    }
+
+    const WIN: &str = "ebd0a0a2-b9e5-4433-87c0-68b6b72699c7";
+    /// The rig's Windows disk after the shrink: 100 MiB boot, 16 MiB reserved, Windows, then free.
+    fn table() -> Table {
+        Table { label: "gpt".into(), sector: 512, first: 34, last: 83886046 + 83886080, parts: vec![
+            Part { number: 1, start: 2048, sectors: 204800, type_guid: ESP_TYPE.into() },
+            Part { number: 2, start: 206848, sectors: 32768, type_guid: "e3c9e316-0b5c-4db8-817d-f92df00215ae".into() },
+            Part { number: 3, start: 239616, sectors: 100421632, type_guid: WIN.into() },
+        ] }
+    }
+    fn keep() -> Facts {
+        let mut f = facts();
+        f.job = job("keep-windows", 0);
+        f.job["storage"] = json!({"linux_min_gb": 25, "esp": {"fits_alongside_install": true}});
+        f.table = Some(table());
+        f.windows_esp = vec![1];
+        f.snapshot = Ok(143);
+        f
+    }
+
+    #[test]
+    fn beside_windows_goes_into_the_one_free_space_and_keeps_every_partition() {
+        let Decision::Install(Storage::Beside { disk, kept, esp, boot, root }) = judge(&keep()) else { panic!("{:?}", judge(&keep())) };
+        assert_eq!((disk.path.as_str(), esp, kept.len()), ("/dev/sda", 1, 3));
+        assert_eq!(kept[2], Kept { number: 3, offset: 239616 * 512, size: 100421632 * 512, type_guid: WIN.into() });
+        // Windows ends at sector 100661248, a whole MiB: /boot starts there, 1 GiB, / takes the rest to the last whole MiB
+        assert_eq!(boot, New { number: 4, offset: 100661248 * 512, size: 1024 * MIB });
+        assert_eq!(root.number, 5);
+        assert_eq!(root.offset, boot.offset + boot.size);
+        assert_eq!((root.offset + root.size) % MIB, 0);
+        assert!(root.offset + root.size <= (83886046 + 83886080 + 1) * 512);
+        // and the answer file takes it
+        let mut j = keep().job;
+        for (k, v) in [("fork", json!({})), ("harvest", json!({})), ("stick", json!({}))] {
+            j[k] = v;
+        }
+        j["intent"] = json!({"path": "keep-windows", "desktop": "gnome", "start_at": "desktop", "distro": {"name": "ubuntu", "release": "26.04.1"},
+            "account": {"linux_name": "rig", "password_hash": "$6$a$b"}, "locale": {"lang": "en_US.UTF-8", "timezone": "Etc/UTC", "keymap": "us"}});
+        let text = upgrade_autoinstall::autoinstall(&j, &Storage::Beside { disk, kept, esp, boot, root }, "p", "j").unwrap();
+        assert_eq!(text.matches("preserve: true").count(), 5);
+    }
+
+    #[test]
+    fn beside_windows_refuses_rather_than_guess() {
+        let mut f = keep();
+        f.windows_esp = vec![];
+        assert_eq!(code(&f), 22, "no boot partition with Windows' loader");
+        f.windows_esp = vec![1, 4];
+        assert_eq!(code(&f), 22, "two of them");
+        let mut f = keep();
+        f.job["storage"]["esp"]["fits_alongside_install"] = json!(false);
+        assert_eq!(code(&f), 22);
+        let mut f = keep();
+        f.table = None;
+        assert_eq!(code(&f), 21);
+        let mut f = keep();
+        f.job["storage"]["linux_min_gb"] = Value::Null;
+        assert_eq!(code(&f), 21);
+        let mut f = keep();
+        f.snapshot = Err("the stick is full".into());
+        assert_eq!(code(&f), 24);
+        let mut f = keep();
+        f.job["erase_consent"] = json!({"statement": "x", "disks": [{"role": "system", "unique_id": UID, "size_bytes": 42949672960u64}]});
+        assert_eq!(code(&f), 21, "a job that keeps Windows and consents to an erase");
+        // the table
+        let plan = |t: &Table| plan_beside(t, 1, 25_000_000_000).map(|_| ()).unwrap_err();
+        let mut t = table();
+        t.label = "dos".into();
+        assert!(plan(&t).contains("not GPT"));
+        let mut t = table();
+        t.parts[2].sectors = 163577856;
+        assert!(plan(&t).contains("no free space"), "Windows fills the disk: {}", plan(&t));
+        // a second free space big enough, before Windows: which one is for Linux is not ours to guess
+        let mut t = table();
+        t.parts[2].start += 30 * 2097152;
+        t.parts[2].sectors -= 30 * 2097152;
+        assert!(plan(&t).contains("2 free spaces"), "{}", plan(&t));
+        let mut t = table();
+        t.parts[1].start = 2048;
+        assert!(plan(&t).contains("overlaps"));
+        let mut t = table();
+        t.parts[0].type_guid = WIN.into();
+        assert!(plan(&t).contains("not an EFI boot partition"));
+        // a recovery partition after the free space is kept, and Linux stops before it
+        let mut t = table();
+        t.parts.push(Part { number: 4, start: t.last + 1 - 2097152 - 2048, sectors: 2097152, type_guid: "de94bba4-06d1-4d40-a16a-bfd50179d6ac".into() });
+        let (kept, boot, root) = plan_beside(&t, 1, 25_000_000_000).unwrap();
+        assert_eq!((kept.len(), boot.number, root.number), (4, 5, 6));
+        assert!(root.offset + root.size <= t.parts[3].start * 512);
     }
 
     #[test]
@@ -464,7 +740,7 @@ mod tests {
         f.mode_verify = true;
         assert_eq!(judge(&f), Decision::ReportOnly);
         f.job = job("keep-windows", 0);
-        assert_eq!(judge(&f), Decision::ReportOnly);
+        assert_eq!(judge(&f), Decision::ReportOnly, "verify mode stops before the keep-windows checks");
         f.system = Found::default();
         assert_eq!(code(&f), 20);
     }

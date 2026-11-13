@@ -180,7 +180,7 @@ fn parttype(part: &str) -> String {
 }
 
 /// `mount -o ro <part> /tmp/upg-esp`, then `f`, then umount.
-fn with_esp<T>(part: &str, f: impl FnOnce() -> T) -> Option<T> {
+pub(crate) fn with_esp<T>(part: &str, f: impl FnOnce() -> T) -> Option<T> {
     let _ = std::fs::create_dir_all("/tmp/upg-esp");
     if !run("mount", &["-o", "ro", part, "/tmp/upg-esp"]).ok() {
         return None;
@@ -190,7 +190,7 @@ fn with_esp<T>(part: &str, f: impl FnOnce() -> T) -> Option<T> {
     Some(r)
 }
 
-fn copy_tree(src: &Path, dst: &Path) -> std::io::Result<()> {
+pub(crate) fn copy_tree(src: &Path, dst: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(dst)?;
     let mut entries: Vec<_> = std::fs::read_dir(src)?.flatten().collect();
     entries.sort_by_key(|e| e.file_name());

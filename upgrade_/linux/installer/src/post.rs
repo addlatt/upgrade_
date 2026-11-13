@@ -21,6 +21,24 @@
 use crate::util::*;
 use std::os::unix::fs::PermissionsExt;
 
+/// What differs between the installer families in this step, and nothing
+/// else (roadmap item 23: the seam). Fedora's values are what this file
+/// held as fixed text before; its output is held to the frozen golden.
+pub struct Family {
+    /// the system's folder on the EFI boot partition, `EFI/<this>`
+    pub efi_dir: &'static str,
+    pub grub_editenv: &'static str,
+    pub grub_mkconfig: &'static str,
+    pub grub_cfg: &'static str,
+    /// Fedora labels files for SELinux; Ubuntu has no such labels
+    pub restorecon: bool,
+    /// KDE's first-run wizard, which Fedora's KDE image carries
+    pub plasma_setup: bool,
+}
+
+pub const FEDORA: Family = Family { efi_dir: "fedora", grub_editenv: "grub2-editenv", grub_mkconfig: "grub2-mkconfig", grub_cfg: "/boot/grub2/grub.cfg", restorecon: true, plasma_setup: true };
+pub const UBUNTU: Family = Family { efi_dir: "ubuntu", grub_editenv: "grub-editenv", grub_mkconfig: "grub-mkconfig", grub_cfg: "/boot/grub/grub.cfg", restorecon: false, plasma_setup: false };
+
 /// The Windows entry (architecture step 12, decided 2026-10-10): it
 /// chainloads Windows' loader under its kept name when shim sits in
 /// Windows' slot, and first tells the prologue's return that Windows was
@@ -37,14 +55,19 @@ menuentry 'Windows (kept)' --class windows --class os {
     insmod chain
     search --no-floppy --fs-uuid --set=root ESPUUID
     set upg_windows_chosen=1
-    save_env -f /EFI/fedora/grubenv upg_windows_chosen
+    save_env -f /EFI/EFIDIR/grubenv upg_windows_chosen
     if [ -f /EFI/Microsoft/Boot/bootmgfw-kept.efi ]; then chainloader /EFI/Microsoft/Boot/bootmgfw-kept.efi; else chainloader /EFI/Microsoft/Boot/bootmgfw.efi; fi
 }
 ";
 
-/// The kept entry for an ESP.
+/// The kept entry for an ESP, in Fedora's folder.
+#[cfg(test)]
 pub fn kept_entry(esp_uuid: &str) -> String {
-    KEPT_ENTRY.replace("ESPUUID", esp_uuid)
+    kept_entry_for(&FEDORA, esp_uuid)
+}
+
+pub fn kept_entry_for(family: &Family, esp_uuid: &str) -> String {
+    KEPT_ENTRY.replace("ESPUUID", esp_uuid).replace("EFIDIR", family.efi_dir)
 }
 
 /// /etc/default/grub with os-prober off (R21: Windows is in the menu by our
@@ -123,6 +146,10 @@ pub struct Done {
 }
 
 pub fn main(sysroot: &str, path_chosen: &str, start_at: &str) -> Done {
+    main_for(&FEDORA, sysroot, path_chosen, start_at)
+}
+
+pub fn main_for(family: &Family, sysroot: &str, path_chosen: &str, start_at: &str) -> Done {
     let log = PostLog { path: format!("{sysroot}/root/upgrade_-post.log") };
     let _ = std::fs::create_dir_all(format!("{sysroot}/root"));
     log.line(&format!("== upgrade-installer {} post {}", env!("CARGO_PKG_VERSION"), utc_now()));
@@ -137,12 +164,12 @@ pub fn main(sysroot: &str, path_chosen: &str, start_at: &str) -> Done {
         let r = run("findmnt", &["-no", "UUID", &format!("{sysroot}/boot/efi")]);
         let esp_uuid = r.out.trim().to_string();
         log.line(&format!("+ findmnt -no UUID /boot/efi: {}", if esp_uuid.is_empty() { "(none: the entry cannot find the ESP)" } else { &esp_uuid }));
-        log.tool(sysroot, &["grub2-editenv", "/boot/efi/EFI/fedora/grubenv", "create"]);
-        let ok = write_mode(&format!("{sysroot}/etc/grub.d/25_windows_kept"), &kept_entry(&esp_uuid), 0o755);
+        log.tool(sysroot, &[family.grub_editenv, &format!("/boot/efi/EFI/{}/grubenv", family.efi_dir), "create"]);
+        let ok = write_mode(&format!("{sysroot}/etc/grub.d/25_windows_kept"), &kept_entry_for(family, &esp_uuid), 0o755);
         log.wrote("/etc/grub.d/25_windows_kept", ok);
         written.push("/etc/grub.d/25_windows_kept");
-        log.tool(sysroot, &["grub2-mkconfig", "-o", "/boot/grub2/grub.cfg"]);
-        let n = std::fs::read_to_string(format!("{sysroot}/boot/grub2/grub.cfg")).ok().map(|t| windows_lines(&t));
+        log.tool(sysroot, &[family.grub_mkconfig, "-o", family.grub_cfg]);
+        let n = std::fs::read_to_string(format!("{sysroot}{}", family.grub_cfg)).ok().map(|t| windows_lines(&t));
         let _ = std::fs::write(format!("{sysroot}/root/upgrade_-grub-windows-entries.txt"), n.map(|n| format!("{n}\n")).unwrap_or_default());
         log.line(&format!("+ grub.cfg lines naming Windows: {}", n.map(|n| n.to_string()).unwrap_or_else(|| "(grub.cfg unreadable)".into())));
         written.push("/root/upgrade_-grub-windows-entries.txt");
@@ -150,10 +177,12 @@ pub fn main(sysroot: &str, path_chosen: &str, start_at: &str) -> Done {
     }
     // The account is made by the kickstart, so no desktop's first-run wizard
     // may ask for one (Fedora 44 KDE's Plasma Setup, the rig, 2026-10-03).
-    let ok = write_mode(&format!("{sysroot}/etc/plasma-setup-done"), "", 0o644);
-    log.wrote("/etc/plasma-setup-done", ok);
-    written.push("/etc/plasma-setup-done");
-    log.tool(sysroot, &["systemctl", "disable", "plasma-setup.service"]);
+    if family.plasma_setup {
+        let ok = write_mode(&format!("{sysroot}/etc/plasma-setup-done"), "", 0o644);
+        log.wrote("/etc/plasma-setup-done", ok);
+        written.push("/etc/plasma-setup-done");
+        log.tool(sysroot, &["systemctl", "disable", "plasma-setup.service"]);
+    }
     let target = start_target(start_at);
     let target_set = log.tool(sysroot, &["systemctl", "set-default", target]).ok();
     let got = log.tool(sysroot, &["systemctl", "get-default"]);
@@ -162,9 +191,11 @@ pub fn main(sysroot: &str, path_chosen: &str, start_at: &str) -> Done {
     let _ = std::fs::write(format!("{sysroot}/root/upgrade_-efibootmgr.txt"), fw.merged());
     written.extend(["/root/upgrade_-default-target.txt", "/root/upgrade_-efibootmgr.txt", "/root/upgrade_-post.log"]);
     // written from outside the chroot, so labelled from inside it
-    let mut rc = vec!["restorecon"];
-    rc.extend(written);
-    log.tool(sysroot, &rc);
+    if family.restorecon {
+        let mut rc = vec!["restorecon"];
+        rc.extend(written);
+        log.tool(sysroot, &rc);
+    }
     Done { windows_entries, target, target_set }
 }
 
@@ -181,6 +212,9 @@ mod tests {
         assert!(e.contains("save_env -f /EFI/fedora/grubenv upg_windows_chosen"));
         assert!(e.contains("chainloader /EFI/Microsoft/Boot/bootmgfw-kept.efi; else chainloader /EFI/Microsoft/Boot/bootmgfw.efi; fi"));
         assert!(e.ends_with("}\n"));
+        // Ubuntu's differs in the folder alone
+        assert_eq!(kept_entry_for(&UBUNTU, "ABCD-1234"), e.replace("/EFI/fedora/grubenv", "/EFI/ubuntu/grubenv"));
+        assert!(!kept_entry_for(&UBUNTU, "x").contains("EFIDIR"));
     }
 
     #[test]
