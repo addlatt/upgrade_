@@ -220,6 +220,81 @@ fn walk_files(dir: &Path, rel: &str, out: &mut Vec<String>) {
     }
 }
 
+/// What the live session can see of this machine's hardware: a display
+/// with a mode, Wi-Fi that sees networks, the firmware files the job says it
+/// carries. Each is pass, fail or skipped (nothing there to check). Shared
+/// by Fedora's `verify` and Ubuntu's `early`; it leaves the same notes in
+/// /tmp for the report either way.
+pub(crate) struct Hardware {
+    pub display: &'static str,
+    pub display_detail: String,
+    pub wifi: &'static str,
+    pub wifi_detail: String,
+    pub audio: &'static str,
+    pub audio_detail: String,
+}
+
+pub(crate) fn hardware(job: &Value, stick: &str) -> Hardware {
+    let mut display_result = "skipped";
+    let mut display_detail = String::new();
+    let connectors: Vec<String> = sorted_entries("/sys/class/drm").into_iter().filter(|n| n.starts_with("card") && n.contains('-')).collect();
+    for con in &connectors {
+        let st = format!("/sys/class/drm/{con}/status");
+        if !exists(&st) {
+            continue;
+        }
+        if read_to_string(&st).trim_end_matches('\n') == "connected" {
+            let mode = read_to_string(&format!("/sys/class/drm/{con}/modes")).lines().next().unwrap_or("").to_string();
+            display_detail.push_str(&format!(" {con}:{}", if mode.is_empty() { "nomode" } else { &mode }));
+            if !mode.is_empty() {
+                display_result = "pass";
+            }
+        }
+    }
+    if display_result == "skipped" && !connectors.is_empty() {
+        display_result = "fail";
+        display_detail = "connectors present, none connected with a mode".into();
+    }
+    if display_detail.is_empty() {
+        display_detail = sorted_entries("/sys/class/graphics").iter().map(|g| format!("{g} ")).collect();
+    }
+    let _ = std::fs::write("/tmp/upgrade_-fb0.txt", std::fs::read("/sys/class/graphics/fb0/virtual_size").unwrap_or_default());
+
+    let mut wifi_result = "skipped";
+    let mut wifi_detail = "no wifi device".to_string();
+    if have("nmcli") {
+        let devs = run("nmcli", &["-t", "-f", "DEVICE,TYPE", "device"]);
+        let wdev = devs.out.lines().filter_map(|l| l.split_once(':')).find(|(_, t)| *t == "wifi").map(|(d, _)| d.to_string());
+        if let Some(wdev) = wdev {
+            run("nmcli", &["device", "wifi", "rescan", "ifname", &wdev]);
+            sleep("4");
+            let list = run("nmcli", &["-t", "-f", "SSID", "device", "wifi", "list", "ifname", &wdev]);
+            let n = list.out.lines().filter(|l| !l.is_empty()).count();
+            wifi_detail = format!("{wdev} sees {n} networks");
+            wifi_result = if n > 0 { "pass" } else { "fail" };
+        }
+    }
+    let _ = std::fs::write("/tmp/upgrade_-nmcli.txt", run("nmcli", &["device"]).out);
+
+    let mut audio_result = "skipped";
+    let mut audio_detail = "job lists no firmware artifacts".to_string();
+    let nart = jq_len(job, "harvest.firmware_artifacts");
+    if nart > 0 {
+        audio_result = "pass";
+        audio_detail = String::new();
+        for i in 0..nart {
+            let p = jq(job, &format!("harvest.firmware_artifacts.{i}.path"));
+            if !Path::new(&format!("{stick}/upgrade_/{p}")).is_file() {
+                audio_result = "fail";
+                audio_detail.push_str(&format!(" missing:{p}"));
+            }
+        }
+    }
+    let _ = std::fs::write("/tmp/upgrade_-lspci.txt", run("lspci", &["-nn"]).merged());
+    let _ = std::fs::write("/tmp/upgrade_-dmesg.txt", run("dmesg", &[]).merged());
+    Hardware { display: display_result, display_detail, wifi: wifi_result, wifi_detail, audio: audio_result, audio_detail }
+}
+
 fn exit_code_main(label: &str, job_path: &str) -> i32 {
     let mode = if read_to_string("/proc/cmdline").split_whitespace().any(|w| w == "upg.mode=verify") { "verify" } else { "install" };
     let log = Log { path: LOG.into() };
@@ -295,63 +370,7 @@ fn exit_code_main(label: &str, job_path: &str) -> i32 {
     let _ = std::fs::write("/tmp/upgrade_-by-id.txt", run("ls", &["-l", "/dev/disk/by-id/"]).merged());
 
     // --- 2. hardware
-    let mut display_result = "skipped";
-    let mut display_detail = String::new();
-    let connectors: Vec<String> = sorted_entries("/sys/class/drm").into_iter().filter(|n| n.starts_with("card") && n.contains('-')).collect();
-    for con in &connectors {
-        let st = format!("/sys/class/drm/{con}/status");
-        if !exists(&st) {
-            continue;
-        }
-        if read_to_string(&st).trim_end_matches('\n') == "connected" {
-            let mode = read_to_string(&format!("/sys/class/drm/{con}/modes")).lines().next().unwrap_or("").to_string();
-            display_detail.push_str(&format!(" {con}:{}", if mode.is_empty() { "nomode" } else { &mode }));
-            if !mode.is_empty() {
-                display_result = "pass";
-            }
-        }
-    }
-    if display_result == "skipped" && !connectors.is_empty() {
-        display_result = "fail";
-        display_detail = "connectors present, none connected with a mode".into();
-    }
-    if display_detail.is_empty() {
-        display_detail = sorted_entries("/sys/class/graphics").iter().map(|g| format!("{g} ")).collect();
-    }
-    let _ = std::fs::write("/tmp/upgrade_-fb0.txt", std::fs::read("/sys/class/graphics/fb0/virtual_size").unwrap_or_default());
-
-    let mut wifi_result = "skipped";
-    let mut wifi_detail = "no wifi device".to_string();
-    if have("nmcli") {
-        let devs = run("nmcli", &["-t", "-f", "DEVICE,TYPE", "device"]);
-        let wdev = devs.out.lines().filter_map(|l| l.split_once(':')).find(|(_, t)| *t == "wifi").map(|(d, _)| d.to_string());
-        if let Some(wdev) = wdev {
-            run("nmcli", &["device", "wifi", "rescan", "ifname", &wdev]);
-            sleep("4");
-            let list = run("nmcli", &["-t", "-f", "SSID", "device", "wifi", "list", "ifname", &wdev]);
-            let n = list.out.lines().filter(|l| !l.is_empty()).count();
-            wifi_detail = format!("{wdev} sees {n} networks");
-            wifi_result = if n > 0 { "pass" } else { "fail" };
-        }
-    }
-    let _ = std::fs::write("/tmp/upgrade_-nmcli.txt", run("nmcli", &["device"]).out);
-
-    let mut audio_result = "skipped";
-    let mut audio_detail = "job lists no firmware artifacts".to_string();
-    let nart = jq_len(&job, "harvest.firmware_artifacts");
-    if nart > 0 {
-        audio_result = "pass";
-        audio_detail = String::new();
-        for i in 0..nart {
-            let p = jq(&job, &format!("harvest.firmware_artifacts.{i}.path"));
-            if !Path::new(&format!("{STICK}/upgrade_/{p}")).is_file() {
-                audio_result = "fail";
-                audio_detail.push_str(&format!(" missing:{p}"));
-            }
-        }
-    }
-    let _ = std::fs::write("/tmp/upgrade_-lspci.txt", run("lspci", &["-nn"]).merged());
-    let _ = std::fs::write("/tmp/upgrade_-dmesg.txt", run("dmesg", &[]).merged());
+    let Hardware { display: display_result, display_detail, wifi: wifi_result, wifi_detail, audio: audio_result, audio_detail } = hardware(&job, STICK);
 
     // --- 2b. the desktop image, read back against the stick's manifest (R17)
     let desktop = jq(&job, "intent.desktop");

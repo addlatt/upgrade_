@@ -509,11 +509,13 @@ pub fn early(job_path: &str) -> i32 {
     save("commit.json", &serde_json::to_string_pretty(&json!({"schema": "commit/1", "by": "the-window", "crossed_utc": utc_now()})).unwrap_or_default());
     save("early.json", &serde_json::to_string_pretty(&json!({"schema": "early/1", "mode": "install", "job_id": jq(&facts.job, "job_id"), "system": facts.system.dev, "matched_by": facts.system.matched_by, "system_serial": facts.system.serial, "home": facts.home.as_ref().map(|h| h.dev.clone()), "payload": facts.payload.clone().unwrap_or_default(), "secure_boot": run("mokutil", &["--sb-state"]).out.trim(), "created_utc": utc_now()})).unwrap_or_default());
     // the record `outcome` reads after the install, in the shape `verify` writes it for Fedora.
-    // The hardware checks `verify` makes are not made here: they say skipped, never pass.
+    // The hardware checks are `verify`'s own, made here too; they are recorded, as there, not refused on.
+    let hw = crate::verify::hardware(&facts.job, STICK);
+    log.say(&format!("== hardware: display={} ({}) wifi={} ({}) audio={} ({})", hw.display, hw.display_detail.trim(), hw.wifi, hw.wifi_detail, hw.audio, hw.audio_detail.trim()));
     let keep = jq(&facts.job, "intent.path") == "keep-windows";
     save("verify.json", &serde_json::to_string_pretty(&json!({"schema": "verify/1", "verify_program": format!("upgrade-installer {} early (Rust)", env!("CARGO_PKG_VERSION")), "job_id": jq(&facts.job, "job_id"), "mode": "install", "created_utc": utc_now(),
         "identity": {"result": "pass", "disk": facts.system.dev, "matched_by": facts.system.matched_by, "disk_size_bytes": facts.system.size, "job_size_bytes": jq(&facts.job, "identity.system_disk.size_bytes")},
-        "hardware": {"display": "skipped", "wifi": "skipped", "audio_firmware": "skipped"},
+        "hardware": {"display": hw.display, "display_detail": hw.display_detail.trim(), "wifi": hw.wifi, "wifi_detail": hw.wifi_detail, "audio_firmware": hw.audio, "audio_detail": hw.audio_detail.trim()},
         "payload": {"result": "pass", "image": "casper", "detail": facts.payload.clone().unwrap_or_default()},
         "esp_snapshot": {"result": if keep && facts.snapshot.is_ok() { "pass" } else { "skipped" }, "files": facts.snapshot.clone().unwrap_or(0), "path": "upgrade_/esp-snapshot"}})).unwrap_or_default());
     log.say(&format!("== {ANSWER} written for {} ({}); the install goes on", facts.system.dev, facts.system.matched_by));
