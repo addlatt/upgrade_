@@ -17,11 +17,18 @@
 #   ubuntu-arms.sh arm A [NOTE]   wrong machine: a job naming a disk that is not there. Refused, restarted, nothing written
 #   ubuntu-arms.sh arm F [NOTE]   the fence: the stick's own file with our check taken out. Nothing installed
 #   ubuntu-arms.sh arm C [NOTE]   the erase: the job names the 40 GB disk (identity read from arm A's log)
-#   ubuntu-arms.sh arm D [NOTE]   not again: after C, the stick first in the order. Refused, nothing written
+#   (arm D, not again: the early check's refusal of a second start. Run on the first stick only; see below)
 #   ubuntu-arms.sh arm K [NOTE]   beside Windows: the system disk is a copy of the rig's shrunk Windows disk
 #                                 (UPGRIGHV.pre-install.vhdx). Every partition of it is hashed before and after
 #   ubuntu-arms.sh arm G [NOTE]   two free spaces: a made-up disk with a boot partition holding a file named as
 #                                 Windows' loader, 30 GiB free, a data partition, 40 GiB free. Refused, nothing written
+#   ubuntu-arms.sh arm H [NOTE]   hand over: after C, the stick first in the order. Its menu starts the installed
+#                                 Ubuntu, not the installer
+#
+# From 2026-11-13 (the row at line 10) the stick is laid out as make-kit.sh and upgrade-fetch lay the
+# product's out: the kit's own start menu for Ubuntu (handoff-payload/grub-ubuntu.cfg), Fedora's menu
+# and the mark's block beside it in EFI/BOOT, release.json, settle-in. Arm D (the early check's own
+# refusal of a second start) cannot be reached from that menu and is not run on it; its row stands.
 #   ubuntu-arms.sh clean          delete the guest and every disk (ubuntu.sh clean)
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -33,6 +40,9 @@ BASE_IMG="$A/ubu-arms-stick.img"
 CSV="$REPO/docs/validation-results/ubuntu-install.csv"
 INSTALLER="$REPO/upgrade_/linux/installer/target/x86_64-unknown-linux-musl/release/upgrade-installer"
 GEN="$REPO/target/debug/upgrade-autoinstall"
+PAYLOAD="$REPO/upgrade_/windows/handoff-payload"
+SETTLE_IN="$REPO/settle-in/target/x86_64-unknown-linux-musl/release/settle-in"
+SETTLE_IN_WINDOW="$REPO/settle-in/window/target/release/settle-in-window"
 BOGUS_UID=60022480ffffffffffffffffffffffff
 SYSTEM_BYTES=42949672960
 VMPS1="$(wslpath -w vm.ps1)"
@@ -81,6 +91,8 @@ menuentry "Ubuntu, from this stick (upgrade_)" {
     initrd /casper/initrd
 }
 G
+    # the product's own menu instead (2026-11-13), and below the rest of what a kit stick carries
+    cp "$PAYLOAD/grub-ubuntu.cfg" "$S/grub.cfg"
     "$GEN" stick-file /cdrom/upgrade_/upgrade-installer /cdrom/upgrade_/job.json > "$S/autoinstall.yaml"
     if [ "$arm" = F ]; then
         # the fence arm: the same file with our check taken out, and the bench's own
@@ -108,6 +120,9 @@ L=/run/upglog; mkdir -p $L; mount -L UPGLOG $L || exit 0
   echo "user_hash_sha256=$(getent shadow rig | cut -d: -f2 | tr -d '\n' | sha256sum | cut -d' ' -f1)"
   echo "default_target=$(systemctl get-default)"
   echo "kept_entries=$(grep -c "^menuentry 'Windows (kept)'" /boot/grub/grub.cfg)"; echo "osprober_entries=$(grep -c osprober /boot/grub/grub.cfg)"
+  echo "boot_id=$(cat /proc/sys/kernel/random/boot_id)"; echo "boots=$(journalctl --list-boots -q | wc -l)"
+  echo "si_done=$(test -f /var/lib/upgrade_/settle-in/first-start.done && echo y || echo n)"; echo "si_unit=$(systemctl is-active upgrade_-settle-in.service)"
+  cp /var/lib/upgrade_/settle-in/report.json $L/settle-in-report.json 2>/dev/null
   sleep 45; echo "display_manager=$(systemctl is-active display-manager)"
   echo "== lsblk"; lsblk -b -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
   echo "== net"; ip -br addr; echo "== efibootmgr"; efibootmgr
@@ -115,6 +130,22 @@ L=/run/upglog; mkdir -p $L; mount -L UPGLOG $L || exit 0
 sync; umount $L; systemctl poweroff
 B
     { grep -v ' boot/grub/grub.cfg$' "$A/SHA256SUMS.iso"; echo "$(sha256sum < "$S/grub.cfg" | cut -d' ' -f1)  boot/grub/grub.cfg"; } > "$S/SHA256SUMS"
+    if true; then
+        mkdir -p "$S/upgrade_/settle-in" "$S/efi"
+        cp "$PAYLOAD/grub.cfg" "$PAYLOAD/grubenv" "$S/efi/"
+        cp "$SETTLE_IN" "$S/upgrade_/settle-in/settle-in"; cp "$SETTLE_IN_WINDOW" "$S/upgrade_/settle-in/settle-in-window"
+        for f in upgrade_-settle-in.service upgrade_-settle-in.desktop upgrade_-settle-in.sh org.upgrade.settle-in.policy upgrade_-go-back-to-windows.desktop upgrade_-bring-files.desktop; do
+            sed 's/\r$//' "$REPO/settle-in/linux/$f" > "$S/upgrade_/settle-in/$f"
+        done
+        python3 - "$REPO/data/measured/ubuntu-26.04.1.json" > "$S/release.json" <<'P'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print(json.dumps({"id": r["Id"], "name": r["Name"], "family": r["Family"], "release": r["Id"].rsplit("-", 1)[-1], "measured": r["Measured"], "desktop": "gnome"}, indent=2))
+P
+        { echo "$(sha256sum < "$S/efi/grub.cfg" | cut -d' ' -f1)  ./EFI/BOOT/grub.cfg"; echo "$(sha256sum < "$S/efi/grubenv" | cut -d' ' -f1)  ./EFI/BOOT/grubenv"
+          echo "$(sha256sum < "$S/release.json" | cut -d' ' -f1)  ./release.json"
+          (cd "$S" && find upgrade_/settle-in -type f | sort | while read -r f; do echo "$(sha256sum < "$f" | cut -d' ' -f1)  ./$f"; done); } >> "$S/SHA256SUMS"
+    fi
     if [ ! -f "$BASE_IMG" ]; then
         local mb=$(( $(du -sb "$ROOT" | cut -f1) / 1048576 + 400 ))
         echo "ubuntu-arms: the stick image, ${mb} MiB (once)"
@@ -127,6 +158,7 @@ B
     mdeltree -i "$P" ::/upgrade_ 2>/dev/null || true
     mcopy -o -i "$P" "$S/grub.cfg" ::/boot/grub/grub.cfg
     mcopy -o -i "$P" "$S/autoinstall.yaml" "$S/SHA256SUMS" ::/
+    mcopy -o -i "$P" "$S/efi/grub.cfg" "$S/efi/grubenv" ::/EFI/boot/; mcopy -o -i "$P" "$S/release.json" ::/
     mcopy -s -o -i "$P" "$S/upgrade_" ::/
     off
     rm -f "$HV/vm/ubu-stick.vhdx"; qemu-img convert -f raw -O vhdx "$BASE_IMG" "$HV/vm/ubu-stick.vhdx"
@@ -140,6 +172,7 @@ pull_stick() {  # $1 = arm dir
     qemu-img convert -f vhdx -O raw "$HV/vm/ubu-stick.vhdx" "$d/stick.raw"
     mcopy -s -n -i "$d/stick.raw@@1M" ::/upgrade_ "$d/stick/" 2>/dev/null || true
     mcopy -n -i "$d/stick.raw@@1M" ::/autoinstall.yaml "$d/stick/" 2>/dev/null || true
+    mcopy -n -i "$d/stick.raw@@1M" ::/EFI/boot/grubenv "$d/stick/grubenv" 2>/dev/null || true
     rm -f "$d/stick/upgrade_/upgrade-installer" "$d/stick.raw"
 }
 
@@ -154,6 +187,9 @@ case "${1:-}" in
 kit)
     (cd "$REPO/upgrade_/linux/installer" && cargo build -q --release --target x86_64-unknown-linux-musl)
     (cd "$REPO" && cargo build -q -p upgrade-autoinstall)
+    # settle-in, as make-kit.sh builds it
+    (cd "$REPO/settle-in" && cargo build -q --locked --release --target x86_64-unknown-linux-musl)
+    (cd "$REPO/settle-in/window" && cargo build -q --locked --release)
     [ -d "$ROOT/casper" ] || ./ubuntu.sh root
     [ -f "$A/SHA256SUMS.iso" ] || (cd "$ROOT" && find casper pool dists boot/grub EFI/boot -type f -print0 | sort -z | xargs -0 sha256sum > "$A/SHA256SUMS.iso")
     wc -l "$A/SHA256SUMS.iso"; "$INSTALLER" 2>&1 | head -2 || true
@@ -168,7 +204,8 @@ vm)
     PS disk list
     ;;
 arm)
-    ARM="${2:?A|F|C|D|K}"; NOTE="${3:-}"; T="arm-$ARM"; D="$A/$T"
+    ARM="${2:?A|F|C|K|G|H}"; NOTE="${3:-}"; T="arm-$ARM"; D="$A/$T"
+    [ "$ARM" != D ] || { echo "ubuntu-arms: arm D is not run on the product's stick (its menu never starts the installer again); see arm H" >&2; exit 1; }
     rm -rf "$D"; mkdir -p "$D"
     SYSDISK=target; [ "$ARM" = K ] && SYSDISK=windows; [ "$ARM" = G ] && SYSDISK=gaps
     HASH="$(openssl passwd -6 -salt upgrig rig)"
@@ -189,8 +226,8 @@ P
         [ -n "${CUID:-}" ] || { echo "ubuntu-arms: arm A's early.log names no $SYSTEM_BYTES-byte disk; run arm A first" >&2; exit 1; }
         python3 ubuntu-job.py "$D/job.json" --uid="$CUID" --size=$SYSTEM_BYTES --serial="${CSERIAL:-}" --hash="$HASH"
         build_stick C "$D/job.json"; SECS=3600 ;;
-    D)  [ -f "$A/arm-C/job.json" ] || { echo "ubuntu-arms: arm D runs after arm C, on the stick C left" >&2; exit 1; }
-        cp "$A/arm-C/job.json" "$D/job.json"; off; SECS=540 ;;
+    H)  [ -f "$A/arm-C/job.json" ] && [ -f "$A/arm-C/log/firstboot.txt" ] || { echo "ubuntu-arms: arm H runs after arm C, on the stick and the disk C left" >&2; exit 1; }
+        cp "$A/arm-C/job.json" "$D/job.json"; cp "$A/arm-C/log/firstboot.txt" "$D/firstboot-C.txt"; off; SECS=600 ;;
     K)  if [ ! -f "$HV/vm/ubu-windows.vhdx" ]; then
             # in the foreground, and compared: a copy cut short is a full-length file with a garbage tail (2026-11-12)
             PSC "\$ErrorActionPreference='Stop'; Copy-Item '$HVW\\vm\\UPGRIGHV.pre-install.vhdx' '$HVW\\vm\\ubu-windows.vhdx'
@@ -218,6 +255,7 @@ P
     ./ubuntu.sh first stick > /dev/null
     PSC "Get-VMNetworkAdapter -VMName $VMNAME | ForEach-Object { 'adapter=' + \$_.Name + ' switch=[' + \$_.SwitchName + ']' }; (Get-VMFirmware -VMName $VMNAME | ForEach-Object { 'secure_boot=' + \$_.SecureBoot + ' template=' + \$_.SecureBootTemplate })" > "$D/guest.txt"
     echo "installer_sha256=$(cat "$A/installer.sha256" 2>/dev/null)" >> "$D/guest.txt"
+    echo "stick_location=$(PSC "(Get-VMHardDiskDrive -VMName $VMNAME | Where-Object { \$_.Path -like '*ubu-stick.vhdx' }).ControllerLocation" | tr -d ' \n')" >> "$D/guest.txt"
     off; hashes before > "$D/hashes-before.txt"
     run_arm "$T" "$SECS"
     hashes after > "$D/hashes-after.txt"

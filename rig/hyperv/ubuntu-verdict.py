@@ -81,6 +81,16 @@ def gpt(p):
     return "+".join(parts) or "empty"
 gpt_after = gpt("target-first.bin")
 
+def product_checks():
+    """The product's stick: the kit's menu left its mark, settle-in was installed and its first start finished."""
+    env = (d / "stick/grubenv").read_bytes().decode(errors="replace") if (d / "stick/grubenv").is_file() else ""
+    need("upg_fired=1" in env.splitlines(), "the stick's menu did not leave its mark (upg_fired=1) in EFI/BOOT/grubenv")
+    si = js("stick/upgrade_/outcome.json").get("cutover", {}).get("settle_in", {})
+    need(si.get("installed") is True, "settle-in was not installed: %s" % si.get("why_not"))
+    need(after_mark(first, "si_done=") == "y", "settle-in's first start did not finish (unit %s)" % (after_mark(first, "si_unit=") or "?"))
+    rep = js("log/settle-in-report.json")
+    notes.append("the kit's own menu left its mark; settle-in %s installed, first start done: %s" % (si.get("version"), json.dumps({k: rep.get(k) for k in list(rep)[:6]})[:300]))
+
 def outcome_checks(keep):
     """outcome.json on the stick: there, valid against the contract, and saying what happened."""
     o = js("stick/upgrade_/outcome.json")
@@ -132,6 +142,22 @@ elif letter == "F":
     if not why: result = "nothing-installed-without-the-check"
     notes.append("the installer's own log: " + said if said else "no match line found")
     notes.append("the guest was %s when the harness turned it off" % (text("end-state.txt").strip() or "?"))
+elif letter == "H":
+    # the stick C left, first in the firmware's order: its menu must start the installed Ubuntu
+    was = text("firstboot-C.txt")
+    need(converted == "y" and armed == "n", "markers: converted=%s boot-install=%s" % (converted, armed))
+    need(code == "none" and not ref_lines, "the installer's check ran and refused (exit %s): the stick started the installer again" % code)
+    order = [l for l in text("fw-before.txt").splitlines() if l.strip().startswith("boot[0]")]
+    need(bool(order) and "Drive" in order[0] and after_mark(guest, "stick_location=") and ("location %s'" % after_mark(guest, "stick_location=")) in order[0], "the stick was not first in the firmware's order: %s" % (order[0][:120] if order else "?"))
+    booted = "y" if "== firstboot" in first and after_mark(first, "boot_id=") and after_mark(first, "boot_id=") != after_mark(was, "boot_id=") else "n"
+    need(booted == "y", "no new start of the installed Ubuntu on the log disk (boot id %s, before %s)" % (after_mark(first, "boot_id=") or "?", after_mark(was, "boot_id=") or "?"))
+    need(after_mark(first, "boots=") == "2", "the installed Ubuntu has started %s times, not twice" % (after_mark(first, "boots=") or "?"))
+    need(after_mark(first, "root_src=") == after_mark(was, "root_src=") and bool(after_mark(first, "root_src=")), "/ is not where arm C put it")
+    need("enabled" in after_mark(first, "sb=").lower(), "Secure Boot was not on")
+    need(decoy_same == "y", "the decoy disk changed (unchanged=%s)" % decoy_same)
+    sys_same = "n/a"
+    if not why: result = "handed-over"
+    notes.append("the stick's menu started the installed Ubuntu: its second start, kernel %s, root %s" % (after_mark(first, "kernel="), after_mark(first, "root_src=")))
 elif letter == "C":
     late = js(R + "late.json")
     need(identity == "pass", "the early check did not decide to install")
@@ -160,6 +186,7 @@ elif letter == "C":
     need(graphical == "y", "start_at desktop did not hold: %s, display manager %s" % (after_mark(first, "default_target="), after_mark(first, "display_manager=")))
     need("enabled" in after_mark(first, "sb=").lower(), "Secure Boot was not on at the first start")
     outcome_checks(False)
+    product_checks()
     if not why: result = "erased-installed"
     notes.append("early: %s" % after_mark(early_log, "== the stick's Ubuntu files: "))
     notes.append("first start: kernel %s, root %s, boot %s, esp %s" % (after_mark(first, "kernel="), root_src, after_mark(first, "boot_src="), after_mark(first, "esp_src=")))
@@ -209,6 +236,7 @@ elif letter == "K":
     need(after_mark(first, "kept_entries=") == "1" and after_mark(first, "osprober_entries=") == "0",
          "the start menu: 'Windows (kept)' entries %s, os-prober lines %s (one and none wanted, R21)" % (after_mark(first, "kept_entries=") or "?", after_mark(first, "osprober_entries=") or "?"))
     outcome_checks(True)
+    product_checks()
     if not why: result = "installed-beside-windows"
     notes.append("kept byte for byte: %s; Windows' boot partition %s in place, %d files before, all there after (%d now), bootmgfw.efi unchanged" % (" ".join(same), esp_n, len(eb), len(ea)))
     notes.append("new: " + " ".join("%s=%dMiB" % (n, int(v[2]) // 1048576) for _, n, v in new))
