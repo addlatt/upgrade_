@@ -601,6 +601,18 @@ fn main() {
         Some("go-back") => std::process::exit(go_back(&args[1..], &opt("--root", "/"))),
         Some("remove-old-boot-entry") => std::process::exit(remove_old_boot_entry(&opt("--root", "/"))),
         Some("console-hook") => std::process::exit(console_hook::run(&opt("--root", "/"))),
+        // the bench's handle on the sleep lock (roadmap item 16, R33): take the product's own lock,
+        // say what was held, keep it for N seconds, give it back. It does nothing else.
+        Some("awake") => {
+            let secs: u64 = opt("--for", "60").parse().unwrap_or(60);
+            let mut a = awake::hold("a test of the sleep lock");
+            println!("{}", json!({ "held": a.held(), "what": a.what(), "words": a.words(), "seconds": secs }));
+            std::thread::sleep(std::time::Duration::from_secs(secs));
+            let still = a.held();
+            drop(a);
+            println!("{}", json!({ "held_to_the_end": still }));
+            std::process::exit(if still { 0 } else { 1 });
+        }
         Some("reclaim") => {
             let root = opt("--root", "/");
             let r = match args.get(1).map(String::as_str) {
