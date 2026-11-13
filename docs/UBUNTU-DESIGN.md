@@ -214,19 +214,23 @@ Four to six weeks of sessions before a real machine, by this count.
 | Piece | Where | Stands |
 |---|---|---|
 | The answer-file generator | `upgrade_/autoinstall/` (`upgrade-autoinstall`) | the erase and beside Windows; rig rows |
-| The stick's own file | `upgrade-autoinstall stick-file`; the job writer's `--autoinstall` | names no disk and no account (R45); the job writer's side is untried |
-| The early check | `upgrade-installer early` (`subiquity.rs`) | this machine, this job, the marker, the stick's files read back; rig rows |
+| The stick's own file | `upgrade-autoinstall stick-file`; the job writer's `--autoinstall`; the prologue accepts no other text there | names no disk and no account (R45); rig rows for the file, unit cases for the Windows side |
+| The early check | `upgrade-installer early` (`subiquity.rs`) | this machine, this job, the marker, the stick's files read back, `verify`'s hardware checks; rig rows |
 | Beside Windows | the same check: every partition kept by name, Linux in the one free space big enough, a safety copy of Windows' startup files first | rig rows; Windows not started after (the rig cannot) |
-| After the install | `upgrade-installer late`: the 'Windows (kept)' entry and the start target, through `post.rs`, shared with Fedora | rig rows |
-| The rig harness | `rig/hyperv/ubuntu-arms.sh`, `ubuntu-verdict.py` | writes `ubuntu-install.csv` |
+| After the install | `upgrade-installer late`: the 'Windows (kept)' entry and the start target (`post.rs`), then `outcome.json`, the handoff folder and settle-in (`outcome.rs`), all shared with Fedora | rig rows |
+| The stick's menu | `handoff-payload/grub-ubuntu.cfg`, at `boot/grub/grub.cfg` on every kit | rig rows: starts the installer, leaves the mark, hands over once converted |
+| The download | `upgrade-fetch`: one ISO, every file but its own menu | a rehearsal (`v17-fetch.csv` lines 14 to 17); only `rehearse --table` can plan it |
+| Shim in Windows' slot | `upgrade-prologue`: `EFI\<distro>` from the install's record | unit cases |
+| The rig harnesses | `rig/hyperv/ubuntu-arms.sh`, `ubuntu-verdict.py`; `rig/fetch/arms.sh` | write `ubuntu-install.csv` and `v17-fetch.csv` |
 
-## What is not built
+## What is not built, or not run
 
-1. `outcome.json` for Ubuntu (the contract still says Fedora), and with it
-   settle-in's first start, the Wi-Fi networks and the slot guard (R22).
-2. The stick's boot paths and the handoff: `make-kit.sh`, the handoff
-   payload and settle-in's `bootentry.rs` name Fedora's folder.
-3. `upgrade-fetch`'s third layout (one ISO, whole folders); only then an
-   entry in `data/releases.json`, which is an offer to a person.
-4. The hardware checks Fedora's `verify` makes (display, Wi-Fi, sound).
-5. A real machine with Secure Boot on, the erase first.
+1. The entry in `data/releases.json`. It is the offer to a person, and it
+   changes the scanner's "Linux releases" line on every machine. The
+   owner's call (ROADMAP, "Decisions owed").
+2. The Windows side with an Ubuntu stick: the window, the prologue's start
+   and the handoff have unit cases only.
+3. Reclaim (R41) for Ubuntu: the stick's menu has no branch for it, and
+   settle-in refuses to arm it on a stick without Fedora's installer.
+4. A real stick, the real internet, Wi-Fi, and a real machine with Secure
+   Boot on, the erase first.

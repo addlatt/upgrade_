@@ -275,8 +275,8 @@ is decided, the dated line goes in its home and the item here is removed.
 - Whose one-click test results count (item 21): whether a pass from an
   unknown contributor can mark a model as working, or only one from an
   approved developer or a second run that agrees (rule #1; R9).
-- Ubuntu (item 23, V18): the small desktop or the full one; `/boot` apart, as
-  built (`UBUNTU-DESIGN.md`). Where Bazzite's ISO copy is kept (R42, V16).
+- Ubuntu (item 23, V18): when it goes into `data/releases.json` (the offer); small
+  or full desktop; `/boot` apart (`UBUNTU-DESIGN.md`). Bazzite's ISO host (R42, V16).
 - How the kit reaches a person's stick (item 24, R44).
 - Whether reclaim switches the kept-Windows machine's clock back to UTC once
   Windows is gone (R36 says "may").

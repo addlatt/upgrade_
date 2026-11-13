@@ -1319,10 +1319,10 @@ Fedora only.
 **Decided (2026-11-12, the owner):** Ubuntu is the second family, built
 now. Bazzite's design stays decided and comes after.
 
-**Where it stands.** `[###.]` held-on-rig, for Ubuntu only: 26.04.1
-measured, and its erase from the stick alone, network off, nothing typed,
-Secure Boot on, has a rig row (`ubuntu-install.csv` line 5;
-[log](log/2026-11.md#2026-11-13-ubuntu-chosen-and-built-the-first-rig-rows-r40-r45-r21-v18-roadmap-item-23)). No real machine. Bazzite: its ISO measured 2026-11-07, its
+**Where it stands.** `[###.]` held-on-rig, for Ubuntu only: its erase
+from a stick laid out as the product's, network off, nothing typed,
+Secure Boot on, has a rig row (`ubuntu-install.csv` line 11;
+[log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). No real machine. Bazzite: its ISO measured 2026-11-07, its
 unattended start unmeasured ([BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
 
 ## R41: Reclaim deletes the kept Windows and moves Linux into the space · critical · built
@@ -1457,9 +1457,10 @@ arm says, recorded in `v17-fetch.csv`.
 
 **Where it stands.** `[###.]` held in a rehearsal on the development
 machine (Windows' own WinHTTP, an NTFS folder, the rig's ISOs from a local
-server with faults), `v17-fetch.csv` lines 8 to 13, `pass-plumbing`, after a code review's fixes
-([log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)). Owed: a real FAT32 stick, the real
-internet, a stick pulled mid-download.
+server with faults): Fedora's six arms, `v17-fetch.csv` lines 8 to 13, and
+Ubuntu's whole-disc layout, lines 14 to 17, all `pass-plumbing`
+([log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). Owed: a real FAT32 stick, the real internet, a stick
+pulled mid-download.
 
 ## R45: An Ubuntu stick erases the computer it starts on, and picks the disk itself · critical · held-on-rig
 
@@ -1486,15 +1487,17 @@ job's machine, a second start after a finished install, and a guest with
 two disks and two gaps each end with the right disk written or nothing
 written. Then one real machine.
 
-**Where it stands.** `[###.]` held-on-rig. Built 2026-11-12: the stick's
-own file names a disk that does not exist and only starts
-`upgrade-installer early`, which writes the real file after its checks.
-On the rig the installer did read the file again; a stick for another
-machine and a second start were refused with both disks unchanged; the
-file without our check installed nothing; the erase landed on the job's
-disk beside a larger one (`ubuntu-install.csv` lines 3 to 6;
-[log](log/2026-11.md#2026-11-13-ubuntu-chosen-and-built-the-first-rig-rows-r40-r45-r21-v18-roadmap-item-23)). Owed: two free spaces on the rig (refused in the unit cases
-only); a real machine.
+**Where it stands.** `[###.]` held-on-rig. The stick's own file names a
+disk that does not exist and only starts `upgrade-installer early`, which
+writes the real file after its checks; the prologue starts Ubuntu's
+installer with no other file (unit cases). On the rig, on a stick laid
+out as the product's: another machine's stick and two free spaces
+refused with both disks unchanged, the file without our check installed
+nothing, the erase landed on the job's disk beside a larger one, and the
+stick started again handed over to the installed system
+(`ubuntu-install.csv` lines 11 to 17, line 13 apart; a second
+start refused by the check itself, line 6; [log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). Owed: a real
+machine.
 
 # Closed
 
