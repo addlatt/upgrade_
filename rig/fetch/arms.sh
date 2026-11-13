@@ -22,7 +22,11 @@
 # stick's own speed and drops) and the real internet are other rows.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-HARNESS=0.2.0
+# 0.3.0 (2026-11-13): Ubuntu's arms (roadmap item 23): one ISO taken whole. Ubuntu is
+# measured but not in data/releases.json, so its arms hand the program a table made
+# here from data/measured/ (`rehearse --table`); each file that lands is also compared
+# with the ISO's own files as bsdtar reads them, not only with the program's record.
+HARNESS=0.3.0
 RELEASE=fedora-44
 ISO="${UPG_RELEASE_ISOS:-$ROOT/rig/vm/artifacts/releases/$RELEASE/iso}"
 [ -d "$ISO" ] || ISO="$(git -C "$ROOT" rev-parse --git-common-dir)/../rig/vm/artifacts/releases/$RELEASE/iso"
@@ -53,25 +57,52 @@ ARMS=(
   "no-server|NOSERVER|kde|refused:could not reach"
   "range-ignored|--no-range --cut 500000000|kde|ready"
 )
+# the same four fields, then the release; these run only when named, and need the rig's Ubuntu ISO
+UBUNTU=ubuntu-26.04.1
+UISO="$(git -C "$ROOT" rev-parse --git-common-dir)/../rig/vm/artifacts/$UBUNTU"
+ARMS_UBUNTU=(
+  "ubuntu-fresh|--cut 300000000,2500000000|gnome|ready|$UBUNTU"
+  "ubuntu-again||gnome|already|$UBUNTU"
+  "ubuntu-byte-changed|--flip 2000000000|gnome|refused:did not match its measured sha256|$UBUNTU"
+  "fedora-after-ubuntu||kde|ready|$RELEASE"
+)
 want_arms=("$@")
+for w in "${want_arms[@]}"; do for u in "${ARMS_UBUNTU[@]}"; do [ "${u%%|*}" = "$w" ] && ARMS+=("$u"); done; done
+TABLE="$T/upgrade_-fetch-ubuntu-table.json"
+iso_sums() {  # the ISO's own files, read by bsdtar, as sha256sum lines (once; kept beside the logs)
+  local out="$ROOT/rig/fetch/artifacts/$UBUNTU.sha256" x; x=$(mktemp -d)
+  [ -s "$out" ] || { bsdtar -xf "$UISO"/*.iso -C "$x" && chmod -R u+rwX "$x" && (cd "$x" && find . -type f | LC_ALL=C sort | xargs -d '\n' sha256sum) > "$out"; chmod -R u+rwX "$x"; rm -rf "$x"; }
+  echo "$out"
+}
 
 csvq() { local s=${1//\"/\"\"}; printf '"%s"' "$s"; }
 for a in "${ARMS[@]}"; do
-  IFS='|' read -r name faults desktop expected <<< "$a"
+  IFS='|' read -r name faults desktop expected release <<< "$a"
+  release=${release:-$RELEASE}; serve="$ISO"; table=()
+  if [ "$release" = "$UBUNTU" ]; then
+    ls "$UISO"/*.iso >/dev/null 2>&1 || { echo "arms: the rig's Ubuntu ISO is not at $UISO" >&2; exit 1; }
+    serve="$UISO"
+    python3 - "$ROOT/data/measured/$UBUNTU.json" "$TABLE" <<'P'
+import json, sys
+r = json.load(open(sys.argv[1])); r["Desktops"] = [{"Id": "gnome", "Label": "GNOME"}]
+json.dump({"Releases": [r]}, open(sys.argv[2], "w"))
+P
+    table=(--table "$(wslpath -w "$TABLE")")
+  fi
   if [ ${#want_arms[@]} -gt 0 ] && [[ ! " ${want_arms[*]} " =~ " $name " ]]; then continue; fi
-  [ "$name" = fresh ] && rm -rf "$REH"
+  { [ "$name" = fresh ] || [ "$name" = ubuntu-fresh ]; } && rm -rf "$REH"
   from="http://localhost:$PORT"
   pid=
   if [ "$faults" = NOSERVER ]; then
     from="http://localhost:$((PORT + 1))"
   else
     # shellcheck disable=SC2086
-    python3 "$ROOT/rig/fetch/serve.py" "$ISO" --port "$PORT" $faults > "$OUT/serve-$name.log" 2>&1 &
+    python3 "$ROOT/rig/fetch/serve.py" "$serve" --port "$PORT" $faults > "$OUT/serve-$name.log" 2>&1 &
     pid=$!
     sleep 1
   fi
   set +e
-  (cd "$T" && timeout 1800 ./upgrade-fetch.exe rehearse --release "$RELEASE" --desktop "$desktop" --from "$from") > "$OUT/fetch-$name.log" 2>&1
+  (cd "$T" && timeout 5400 ./upgrade-fetch.exe rehearse --release "$release" --desktop "$desktop" --from "$from" "${table[@]}") > "$OUT/fetch-$name.log" 2>&1
   code=$?
   set -e
   [ -n "$pid" ] && { kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; }
@@ -85,17 +116,29 @@ for a in "${ARMS[@]}"; do
   after=$(python3 -c "import json,sys; j=json.load(open(sys.argv[1])); print(j['id']+'/'+j.get('desktop',''))" "$REH/release.json" 2>/dev/null || echo none)
   # every file SHA256SUMS names reads back as it says, checked here from Linux (not the program's own word)
   verified=$( (cd "$REH" && [ -s SHA256SUMS ] && sha256sum -c --quiet SHA256SUMS >/dev/null 2>&1 && echo y) || echo n)
+  # Ubuntu on the stick: every file of the ISO but its own start menu is there, byte for byte as
+  # bsdtar reads it from the ISO, and nothing else of a disc is. After Fedora replaced it: none is left.
+  disc=
+  if [ "$release" = "$UBUNTU" ] && [ "$expected" = ready ]; then
+    want=$(grep -v ' \./boot/grub/grub\.cfg$' "$(iso_sums)" | sed 's#  \./EFI/boot/#  ./EFI/BOOT/#' | LC_ALL=C sort -k2)
+    got=$(cd "$REH" && grep -E '  \./(casper|pool|dists|boot|\.disk|EFI/BOOT)/|  \./(md5sum\.txt|boot\.catalog)$' SHA256SUMS | grep -v -e ' \./EFI/BOOT/grub\.cfg$' -e ' \./EFI/BOOT/grubenv$' | LC_ALL=C sort -k2)
+    if [ "$want" = "$got" ] && [ -n "$got" ]; then disc="; $(echo "$got" | wc -l) files, each the ISO's own as bsdtar reads it"; else disc="; THE FILES ARE NOT THE ISO'S"; verified=n; fi
+  fi
+  if [ "$name" = fedora-after-ubuntu ]; then
+    left=$( (cd "$REH" && find casper pool dists boot .disk md5sum.txt boot.catalog -type f 2>/dev/null | wc -l) || true)
+    disc="; ${left:-0} of Ubuntu's files left"; [ "${left:-0}" = 0 ] || verified=n
+  fi
   ok=fail
   case "$expected" in
-    ready) [ "$outcome" = ready ] && [ "$code" = 0 ] && [ "$staging" = n ] && [ "$verified" = y ] && [ "$after" = "$RELEASE/$desktop" ] && ok=pass-plumbing ;;
+    ready) [ "$outcome" = ready ] && [ "$code" = 0 ] && [ "$staging" = n ] && [ "$verified" = y ] && [ "$after" = "$release/$desktop" ] && ok=pass-plumbing ;;
     already) [ "$outcome" = already ] && [ "$code" = 0 ] && ! grep -qE '^(GET|HEAD)' "$OUT/serve-$name.log" && ok=pass-plumbing ;;
     refused:*) [ "$outcome" = refused ] && [ "$code" != 0 ] && [ "$staging" = n ] && [[ "$refusal" == *"${expected#refused:}"* ]] && ok=pass-plumbing ;;
   esac
   gets=$(grep -c '^GET' "$OUT/serve-$name.log" 2>/dev/null || true)
   ranges=$(grep -c 'bytes=' "$OUT/serve-$name.log" 2>/dev/null || true)
   drops=$(echo "$log" | grep -c 'connection dropped' || true)
-  notes="requests ${gets:-0}, ranged ${ranges:-0}; ${drops:-0} drops survived${refusal:+; refused: $refusal}"
+  notes="requests ${gets:-0}, ranged ${ranges:-0}; ${drops:-0} drops survived${disc}${refusal:+; refused: $refusal}"
   notes=$(echo "$notes" | sed -E 's#C:\\Users\\[^\\]+#C:\\Users\\<name>#g')
-  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ),$HARNESS,$VERSION,$COMMIT,$(csvq "rehearsal on the dev machine (WinHTTP, NTFS temp folder)"),$RELEASE,$desktop,$name,$(csvq "${faults:-none}"),$(csvq "$expected"),$code,$outcome,$staging,$after,$verified,$ok,$(csvq "$notes")" >> "$CSV"
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ),$HARNESS,$VERSION,$COMMIT,$(csvq "rehearsal on the dev machine (WinHTTP, NTFS temp folder)"),$release,$desktop,$name,$(csvq "${faults:-none}"),$(csvq "$expected"),$code,$outcome,$staging,$after,$verified,$ok,$(csvq "$notes")" >> "$CSV"
   echo "arms: $name -> $outcome (exit $code), expected $expected: $ok"
 done

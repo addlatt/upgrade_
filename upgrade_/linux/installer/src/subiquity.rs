@@ -241,7 +241,12 @@ fn manifest_line(l: &str) -> Option<(String, String)> {
 /// Which of the manifest's files are Ubuntu's own (what the installer
 /// starts from and installs), and what is wrong with the list itself.
 pub fn payload_plan(manifest: &str, on_stick: &[String]) -> Result<Vec<(String, String)>, String> {
-    let ours = |p: &str| ["casper/", "pool/", "dists/", "boot/grub/", "efi/boot/"].iter().any(|d| p.to_lowercase().starts_with(d));
+    // EFI/BOOT/grubenv is left out: the stick's start menu writes its own mark into it at
+    // every start (the handoff's proof), so it is the one file here that is meant to change
+    let ours = |p: &str| {
+        let l = p.to_lowercase();
+        l != "efi/boot/grubenv" && ["casper/", "pool/", "dists/", "boot/grub/", "efi/boot/"].iter().any(|d| l.starts_with(d))
+    };
     let listed: Vec<(String, String)> = manifest.lines().filter_map(manifest_line).filter(|(_, p)| ours(p)).collect();
     let has = |want: &str| listed.iter().any(|(_, p)| p.eq_ignore_ascii_case(want));
     for need in ["casper/vmlinuz", "casper/initrd", "casper/install-sources.yaml", "EFI/boot/bootx64.efi", "EFI/boot/grubx64.efi"] {
@@ -503,7 +508,16 @@ pub fn early(job_path: &str) -> i32 {
     save("autoinstall.yaml", &text);
     save("commit.json", &serde_json::to_string_pretty(&json!({"schema": "commit/1", "by": "the-window", "crossed_utc": utc_now()})).unwrap_or_default());
     save("early.json", &serde_json::to_string_pretty(&json!({"schema": "early/1", "mode": "install", "job_id": jq(&facts.job, "job_id"), "system": facts.system.dev, "matched_by": facts.system.matched_by, "system_serial": facts.system.serial, "home": facts.home.as_ref().map(|h| h.dev.clone()), "payload": facts.payload.clone().unwrap_or_default(), "secure_boot": run("mokutil", &["--sb-state"]).out.trim(), "created_utc": utc_now()})).unwrap_or_default());
+    // the record `outcome` reads after the install, in the shape `verify` writes it for Fedora.
+    // The hardware checks `verify` makes are not made here: they say skipped, never pass.
+    let keep = jq(&facts.job, "intent.path") == "keep-windows";
+    save("verify.json", &serde_json::to_string_pretty(&json!({"schema": "verify/1", "verify_program": format!("upgrade-installer {} early (Rust)", env!("CARGO_PKG_VERSION")), "job_id": jq(&facts.job, "job_id"), "mode": "install", "created_utc": utc_now(),
+        "identity": {"result": "pass", "disk": facts.system.dev, "matched_by": facts.system.matched_by, "disk_size_bytes": facts.system.size, "job_size_bytes": jq(&facts.job, "identity.system_disk.size_bytes")},
+        "hardware": {"display": "skipped", "wifi": "skipped", "audio_firmware": "skipped"},
+        "payload": {"result": "pass", "image": "casper", "detail": facts.payload.clone().unwrap_or_default()},
+        "esp_snapshot": {"result": if keep && facts.snapshot.is_ok() { "pass" } else { "skipped" }, "files": facts.snapshot.clone().unwrap_or(0), "path": "upgrade_/esp-snapshot"}})).unwrap_or_default());
     log.say(&format!("== {ANSWER} written for {} ({}); the install goes on", facts.system.dev, facts.system.matched_by));
+    let _ = std::fs::copy(LOG, format!("{REPORT}/verify.log"));
     let _ = std::fs::copy(LOG, format!("{REPORT}/early.log"));
     sync();
     0
@@ -514,8 +528,9 @@ pub fn early(job_path: &str) -> i32 {
 /// system is already written.
 pub fn late(job_path: &str) -> i32 {
     let job: Value = std::fs::read_to_string(job_path).ok().and_then(|t| serde_json::from_str(t.trim_start_matches('\u{feff}')).ok()).unwrap_or(Value::Null);
-    // the installed system's last settings, as Fedora's %post makes them: beside Windows, the
-    // 'Windows (kept)' entry with os-prober off (R21); on every path, what the computer starts at
+    // The cutover's last step, the same code Fedora's %post runs (`outcome`, and `post` inside
+    // it): the 'Windows (kept)' entry with os-prober off (R21), the start target, the handoff
+    // folder and settle-in, the firmware's entries, and outcome.json.
     // Ubuntu's installer leaves the new system without /dev, /proc and /sys at this point, and
     // GRUB's tools cannot find the disk without them (the rig, 2026-11-13: arm K's first run).
     // Anaconda mounts them itself. Mounted here for this step, and taken away after it.
@@ -527,24 +542,22 @@ pub fn late(job_path: &str) -> i32 {
             mounted.push(to);
         }
     }
-    let done = crate::post::main_for(&crate::post::UBUNTU, "/target", &jq(&job, "intent.path"), &jq(&job, "intent.start_at"));
+    crate::outcome::main_for(&crate::outcome::SUBIQUITY, job_path);
     for to in mounted.iter().rev() {
         run("umount", &["-R", to]);
     }
     // the bench's first-start marker, only on a stick the rig marked (as Fedora's bench marker)
-    if exists(&format!("{STICK}/upgrade_/bench")) && exists(&format!("{STICK}/upgrade_/bench-firstboot.sh")) {
+    if exists(&format!("{STICK}/upgrade_/bench-ubuntu")) && exists(&format!("{STICK}/upgrade_/bench-firstboot.sh")) {
         let _ = std::fs::copy(format!("{STICK}/upgrade_/bench-firstboot.sh"), "/target/usr/local/sbin/upg-bench-firstboot.sh");
         let _ = std::fs::write("/target/etc/systemd/system/upg-bench-firstboot.service", "[Unit]\nDescription=upgrade_ rig: record the first start\nAfter=multi-user.target\n[Service]\nType=oneshot\nExecStart=/bin/sh /usr/local/sbin/upg-bench-firstboot.sh\n[Install]\nWantedBy=multi-user.target\n");
         let _ = std::os::unix::fs::symlink("/etc/systemd/system/upg-bench-firstboot.service", "/target/etc/systemd/system/multi-user.target.wants/upg-bench-firstboot.service");
     }
     stick_rw();
     let rec = json!({"schema": "late/1", "job_id": jq(&job, "job_id"), "created_utc": utc_now(),
-        "start_target": done.target, "start_target_set": done.target_set, "grub_windows_lines": done.windows_entries,
         "lsblk": run("lsblk", &["-b", "-o", "NAME,SIZE,TYPE,FSTYPE,PARTTYPENAME,MOUNTPOINTS"]).out,
         "firmware_entries": run("efibootmgr", &["-v"]).merged(), "fstab": read_to_string("/target/etc/fstab"),
         "kernel": run("uname", &["-r"]).out.trim(), "secure_boot": run("mokutil", &["--sb-state"]).out.trim()});
     save("late.json", &serde_json::to_string_pretty(&rec).unwrap_or_default());
-    let _ = std::fs::copy("/target/root/upgrade_-post.log", format!("{REPORT}/post.log"));
     run("tar", &["czf", &format!("{REPORT}/installer-logs.tgz"), "/var/log/installer"]);
     sync();
     sync();
@@ -775,5 +788,9 @@ mod tests {
         let win = full.replace("  ./", " *").replace('/', "\\").replace("EFI\\boot", "EFI\\BOOT");
         assert_eq!(payload_plan(&win, &stick).unwrap().len(), 7);
         assert!(payload_plan("", &stick).is_err());
+        // the kit's stick: its own start menu is read back, the block the menu writes to is not
+        let kit = format!("{full}{}  ./EFI/BOOT/grubenv\n{}  ./boot/grub/grub.cfg\n", "a".repeat(64), "b".repeat(64));
+        let plan = payload_plan(&kit, &stick).unwrap();
+        assert!(plan.iter().any(|(_, p)| p == "boot/grub/grub.cfg") && !plan.iter().any(|(_, p)| p.to_lowercase().ends_with("grubenv")));
     }
 }

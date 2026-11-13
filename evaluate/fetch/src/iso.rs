@@ -41,7 +41,14 @@ struct Slot {
     written: u64,
 }
 
+/// Asked once for every plain file on the disc, with its path and size:
+/// a writer for it, or `None` to leave that file out.
+pub type Maker = Box<dyn FnMut(&str, u64) -> Result<Option<Box<dyn Write>>, String>>;
+
 pub struct Extractor {
+    /// set for a disc taken whole (Ubuntu's, roadmap item 23): the files are
+    /// not known until the folders are read
+    every: Option<Maker>,
     slots: Vec<Slot>,
     head: Vec<u8>,
     /// stream bytes seen so far
@@ -57,6 +64,19 @@ struct Entry {
     size: u64,
     dir: bool,
     multi: bool,
+    /// a Rock Ridge symbolic link: no bytes of its own
+    link: bool,
+}
+
+/// Can a FAT32 stick, written from Windows, carry this path? A disc taken
+/// whole is refused if one of its names cannot be kept as it is.
+pub fn fat_safe(path: &str) -> bool {
+    !path.is_empty()
+        && path.split('/').all(|c| {
+            let stem = c.split('.').next().unwrap_or("").to_ascii_uppercase();
+            let reserved = ["CON", "PRN", "AUX", "NUL"].contains(&stem.as_str()) || (stem.len() == 4 && (stem.starts_with("COM") || stem.starts_with("LPT")) && stem.as_bytes()[3].is_ascii_digit());
+            !c.is_empty() && c.len() <= 255 && c != "." && c != ".." && !c.ends_with('.') && !c.ends_with(' ') && !reserved && !c.chars().any(|ch| ch.is_control() || "<>:\"|?*\\".contains(ch))
+        })
 }
 
 fn le32(b: &[u8]) -> u64 {
@@ -84,6 +104,22 @@ fn rock_ridge_name(su: &[u8]) -> Option<String> {
         i += len;
     }
     if found { String::from_utf8(name).ok() } else { None }
+}
+
+/// Does the record's system use area say it is a symbolic link (Rock Ridge `SL`)?
+fn rock_ridge_link(su: &[u8]) -> bool {
+    let mut i = 0;
+    while i + 4 <= su.len() {
+        let len = su[i + 2] as usize;
+        if len < 4 || i + len > su.len() {
+            break;
+        }
+        if &su[i..i + 2] == b"SL" {
+            return true;
+        }
+        i += len;
+    }
+    false
 }
 
 /// The records of one folder's extent.
@@ -121,14 +157,22 @@ fn records(data: &[u8]) -> Result<Vec<Entry>, String> {
             }
         };
         let flags = r[25];
-        out.push(Entry { name, extent: le32(&r[2..6]), size: le32(&r[10..14]), dir: flags & 0x02 != 0, multi: flags & 0x80 != 0 });
+        out.push(Entry { name, extent: le32(&r[2..6]), size: le32(&r[10..14]), dir: flags & 0x02 != 0, multi: flags & 0x80 != 0, link: rock_ridge_link(su) });
     }
     Ok(out)
 }
 
 impl Extractor {
     pub fn new(wants: Vec<Want>) -> Extractor {
-        Extractor { slots: wants.into_iter().map(|want| Slot { want, found: None, written: 0 }).collect(), head: Vec::new(), pos: 0, ready: false }
+        Extractor { every: None, slots: wants.into_iter().map(|want| Slot { want, found: None, written: 0 }).collect(), head: Vec::new(), pos: 0, ready: false }
+    }
+
+    /// The whole disc: `make` is asked for a writer for every plain file,
+    /// once the folders are read. Links are left out (FAT has none). A name
+    /// a FAT32 stick cannot keep, two names that differ only in case, or a
+    /// file split over several extents refuses the disc.
+    pub fn every_file(make: Maker) -> Extractor {
+        Extractor { every: Some(make), slots: Vec::new(), head: Vec::new(), pos: 0, ready: false }
     }
 
     /// The files found on the disc, once the folders are read.
@@ -179,6 +223,32 @@ impl Extractor {
                     files.push((path, e));
                 }
             }
+        }
+        if let Some(make) = self.every.as_mut() {
+            files.sort_by(|a, b| a.0.cmp(&b.0));
+            let mut seen: Vec<String> = Vec::new();
+            let mut slots = Vec::new();
+            for (p, e) in files.iter().filter(|(_, e)| !e.link) {
+                if !fat_safe(p) {
+                    return Err(format!("{p}: a FAT32 stick cannot keep this name; refused"));
+                }
+                let lower = p.to_lowercase();
+                if seen.contains(&lower) {
+                    return Err(format!("{p} is on this disc image twice, or under two names that differ only in case; refused"));
+                }
+                seen.push(lower);
+                if e.multi {
+                    return Err(format!("{p} is split over several parts of the disc image (a file past 4 GiB); this reader refuses it"));
+                }
+                if let Some(out) = make(p, e.size)? {
+                    slots.push(Slot { want: Want { path: p.clone(), out }, found: Some(Found { path: p.clone(), start: e.extent * SECTOR, size: e.size }), written: 0 });
+                }
+            }
+            if slots.is_empty() {
+                return Err("this disc image holds no files".into());
+            }
+            self.slots = slots;
+            return Ok(true);
         }
         for slot in &mut self.slots {
             let want = slot.want.path.trim_matches('/');
@@ -265,6 +335,11 @@ pub mod tests {
     /// sub-folder `SUB` holding `sub`. Names carry Rock Ridge NM entries
     /// when `rr`. `late_dirs` puts the sub-folder after the files' bytes.
     pub fn make_iso(files: &[(&str, &[u8])], sub: &[(&str, &[u8])], rr: bool, late_dirs: bool) -> Vec<u8> {
+        make_iso_named("Sub", files, sub, rr, late_dirs)
+    }
+
+    /// The same disc with its sub-folder called `folder`.
+    pub fn make_iso_named(folder: &str, files: &[(&str, &[u8])], sub: &[(&str, &[u8])], rr: bool, late_dirs: bool) -> Vec<u8> {
         fn rec(name: &str, extent: u64, size: u64, dir: bool, rr: bool) -> Vec<u8> {
             let iso_name: Vec<u8> = if name == "\0" || name == "\x01" { name.as_bytes().to_vec() } else if dir { name.to_uppercase().into_bytes() } else { format!("{};1", name.to_uppercase()).into_bytes() };
             let pad = if iso_name.len() % 2 == 0 { 1 } else { 0 };
@@ -309,7 +384,7 @@ pub mod tests {
         for (i, (n, _)) in files.iter().enumerate() {
             root.extend(rec(n, placed[i].1, placed[i].2.len() as u64, false, rr));
         }
-        root.extend(rec("Sub", sub_lba, SECTOR, true, rr));
+        root.extend(rec(folder, sub_lba, SECTOR, true, rr));
         let r0 = (root_lba * SECTOR) as usize;
         img[r0..r0 + root.len()].copy_from_slice(&root);
         let mut sd = rec("\0", sub_lba, SECTOR, true, false);
@@ -405,6 +480,116 @@ pub mod tests {
         assert!(run(&img, &["big.img"], 4096).unwrap_err().contains("split over several parts"));
         let img = make_iso(&[("a", b"a")], &[], true, false);
         assert!(run(&img, &["Sub"], 4096).unwrap_err().contains("not on this disc image"), "a folder is not a file");
+    }
+
+    #[test]
+    fn a_whole_disc_gives_every_file_once_and_leaves_out_what_the_maker_declines() {
+        let big: Vec<u8> = (0..9_000u32).map(|i| (i % 253) as u8).collect();
+        let img = make_iso(&[("vmlinuz", &big), ("grub.cfg", b"theirs"), ("empty", b"")], &[("minimal.squashfs", b"layer")], true, false);
+        for chunk in [1, 2048, 5000, img.len()] {
+            let got: Rc<RefCell<Vec<(String, u64, Sink)>>> = Rc::default();
+            let g = got.clone();
+            let mut x = Extractor::every_file(Box::new(move |p, size| {
+                if p == "grub.cfg" {
+                    return Ok(None);
+                }
+                let s = Sink::default();
+                g.borrow_mut().push((p.to_string(), size, s.clone()));
+                Ok(Some(Box::new(s) as Box<dyn Write>))
+            }));
+            for c in img.chunks(chunk) {
+                x.feed(c).unwrap();
+            }
+            assert_eq!(x.finish().unwrap().len(), 3);
+            let got = got.borrow();
+            let names: Vec<&str> = got.iter().map(|g| g.0.as_str()).collect();
+            assert_eq!(names, ["Sub/minimal.squashfs", "empty", "vmlinuz"], "chunk {chunk}");
+            assert_eq!(*got[0].2 .0.borrow(), b"layer");
+            assert!(got[1].2 .0.borrow().is_empty() && got[1].1 == 0);
+            assert_eq!(*got[2].2 .0.borrow(), big);
+        }
+    }
+
+    #[test]
+    fn a_whole_disc_with_a_name_the_stick_cannot_keep_refuses() {
+        let take = |img: &[u8]| {
+            let mut x = Extractor::every_file(Box::new(|_, _| Ok(Some(Box::new(Sink::default()) as Box<dyn Write>))));
+            x.feed(img).and_then(|_| x.finish().map(|_| ()))
+        };
+        assert!(take(&make_iso(&[("a:b", b"x")], &[], true, false)).unwrap_err().contains("cannot keep this name"));
+        assert!(take(&make_iso(&[("Readme", b"x"), ("README", b"y")], &[], true, false)).unwrap_err().contains("differ only in case"));
+        for (name, ok) in [("casper/minimal.squashfs", true), (".disk/info", true), ("pool/main/a/b_1.0~rc1+2_amd64.deb", true), ("a/CON", false), ("a/con.txt", false), ("a/b.", false), ("a/b ", false), ("a//b", false), ("a/b?c", false), ("a/../b", false), ("COM1", false), ("COMA", true)] {
+            assert_eq!(fat_safe(name), ok, "{name}");
+        }
+    }
+
+    /// The real Ubuntu ISO, when it is on this machine (UPG_UBUNTU_ISO): taken whole as a
+    /// download is, every layer comes out with the sha256 in data/measured/, links left out.
+    #[test]
+    fn ubuntu_from_its_iso_if_present() {
+        use sha2::{Digest, Sha256};
+        let Ok(iso) = std::env::var("UPG_UBUNTU_ISO") else {
+            eprintln!("skipped: UPG_UBUNTU_ISO is not set");
+            return;
+        };
+        let measured: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/measured/ubuntu-26.04.1.json")).unwrap()).unwrap();
+        #[derive(Clone, Default)]
+        struct H(Rc<RefCell<(Sha256, u64)>>);
+        impl Write for H {
+            fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+                let mut s = self.0.borrow_mut();
+                s.0.update(b);
+                s.1 += b.len() as u64;
+                Ok(b.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let got: Rc<RefCell<Vec<(String, u64, H)>>> = Rc::default();
+        let g = got.clone();
+        let mut x = Extractor::every_file(Box::new(move |p, size| {
+            let h = H::default();
+            g.borrow_mut().push((p.to_string(), size, h.clone()));
+            Ok(Some(Box::new(h) as Box<dyn Write>))
+        }));
+        let mut r = std::io::BufReader::with_capacity(1 << 20, std::fs::File::open(&iso).unwrap());
+        let mut buf = vec![0u8; 1 << 20];
+        loop {
+            let n = std::io::Read::read(&mut r, &mut buf).unwrap();
+            if n == 0 {
+                break;
+            }
+            x.feed(&buf[..n]).unwrap();
+        }
+        x.finish().unwrap();
+        let got = got.borrow();
+        eprintln!("{iso}: {} files", got.len());
+        // the plan's side of it: the kit has a place for every file but the one it leaves out,
+        // and every file the plan checks is on the disc
+        let plan = crate::plan::plan(&crate::plan::tests::ubuntu_table(), "ubuntu-26.04.1", "gnome").unwrap();
+        let whole = plan.parts[0].whole.as_ref().unwrap();
+        for (p, _, _) in got.iter().filter(|(p, _, _)| !whole.skip.contains(p)) {
+            let dest = crate::plan::dest_of(p);
+            assert!(crate::stick::safe_rel(&dest) && crate::plan::release_owned(&dest), "{p} has no place on the stick");
+        }
+        for (p, want) in &whole.checks {
+            let (_, _, h) = got.iter().find(|(q, _, _)| q == p).unwrap_or_else(|| panic!("{p} is not on the disc"));
+            assert_eq!(&format!("{:x}", h.0.borrow().0.clone().finalize()), want, "{p}");
+        }
+        assert!(whole.skip.iter().all(|s| got.iter().any(|(p, _, _)| p == s)), "the file the kit leaves out is on the disc");
+        let layers = measured["Layers"].as_array().unwrap();
+        assert!(layers.len() > 10);
+        for l in layers {
+            let path = l["Path"].as_str().unwrap();
+            let (_, size, h) = got.iter().find(|g| g.0 == path).unwrap_or_else(|| panic!("{path} did not come out"));
+            assert_eq!(*size, l["Size"].as_u64().unwrap(), "{path}");
+            assert_eq!(h.0.borrow().1, *size, "{path}");
+            assert_eq!(format!("{:x}", h.0.borrow().0.clone().finalize()), l["Sha256"].as_str().unwrap(), "{path}");
+        }
+        for must in ["casper/vmlinuz", "casper/initrd", "EFI/boot/bootx64.efi", "EFI/boot/grubx64.efi", "boot/grub/grub.cfg", ".disk/info", "casper/install-sources.yaml"] {
+            assert!(got.iter().any(|g| g.0 == must), "{must} did not come out");
+        }
     }
 
     /// The real Fedora 44 ISOs, when the rig has fetched them (rig/vm/fetch-release.sh;

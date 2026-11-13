@@ -131,7 +131,23 @@ pub fn owned_on_stick(root: &Path, sums: &str) -> Vec<String> {
             }
         }
     }
-    for f in ["EFI\\BOOT\\BOOTX64.EFI", "EFI\\BOOT\\grubx64.efi", "images\\pxeboot\\vmlinuz", "images\\pxeboot\\initrd.img", "images\\install.img", "release.json"] {
+    // a whole disc's folders (Ubuntu's): every file under them, however deep
+    let mut dirs: Vec<String> = crate::plan::DISC_FOLDERS.iter().map(|d| d.to_string()).collect();
+    while let Some(dir) = dirs.pop() {
+        let Ok(rd) = std::fs::read_dir(under(root, &dir)) else { continue };
+        for e in rd.flatten() {
+            let rel = format!("{dir}\\{}", e.file_name().to_string_lossy());
+            if !safe_rel(&rel) {
+                continue;
+            }
+            match e.file_type() {
+                Ok(t) if t.is_dir() => dirs.push(rel),
+                Ok(t) if t.is_file() && release_owned(&rel) && !v.iter().any(|x| x.eq_ignore_ascii_case(&rel)) => v.push(rel),
+                _ => {}
+            }
+        }
+    }
+    for f in ["EFI\\BOOT\\mmx64.efi", "md5sum.txt", "boot.catalog", "EFI\\BOOT\\BOOTX64.EFI", "EFI\\BOOT\\grubx64.efi", "images\\pxeboot\\vmlinuz", "images\\pxeboot\\initrd.img", "images\\install.img", "release.json"] {
         if under(root, f).exists() && !v.iter().any(|x| x.eq_ignore_ascii_case(f)) {
             v.push(f.into());
         }
@@ -151,6 +167,22 @@ pub fn holds(root: &Path, plan: &Plan) -> Result<(), String> {
     }
     let sums = read_sums(&std::fs::read_to_string(root.join("SHA256SUMS")).unwrap_or_default());
     let sum_of = |p: &str| sums.iter().find(|(q, _)| q.eq_ignore_ascii_case(p)).map(|(_, h)| h.clone());
+    for w in plan.parts.iter().filter_map(|p| p.whole.as_ref()) {
+        for (path, want) in &w.checks {
+            let dest = crate::plan::dest_of(path);
+            match sum_of(&dest) {
+                Some(h) if &h == want => {}
+                Some(_) => return Err(format!("{dest} in SHA256SUMS is not the measured file")),
+                None => return Err(format!("{dest} is not in the stick's SHA256SUMS")),
+            }
+        }
+        // every file of the disc that SHA256SUMS names is there, at its recorded size or not at all
+        for (p, _) in sums.iter().filter(|(p, _)| release_owned(p)) {
+            if !under(root, p).is_file() {
+                return Err(format!("{p} is missing from the stick"));
+            }
+        }
+    }
     for x in plan.parts.iter().flat_map(|p| &p.extracts) {
         let Some(h) = sum_of(&x.dest) else { return Err(format!("{} is not in the stick's SHA256SUMS", x.dest)) };
         if let Some(want) = &x.sha256 {

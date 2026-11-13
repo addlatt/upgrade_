@@ -585,7 +585,10 @@
           ],
           "properties": {
             "distro": {
-              "const": "fedora"
+              "enum": [
+                "fedora",
+                "ubuntu"
+              ]
             },
             "release": {
               "type": "string"

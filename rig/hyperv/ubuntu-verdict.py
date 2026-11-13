@@ -81,6 +81,30 @@ def gpt(p):
     return "+".join(parts) or "empty"
 gpt_after = gpt("target-first.bin")
 
+def outcome_checks(keep):
+    """outcome.json on the stick: there, valid against the contract, and saying what happened."""
+    o = js("stick/upgrade_/outcome.json")
+    if not need(bool(o), "no outcome.json on the stick"): return
+    try:
+        from jsonschema import Draft7Validator, FormatChecker
+        schema = json.load(open(pathlib.Path(__file__).resolve().parents[2] / "schemas/outcome.schema.json"))
+        errs = ["/".join(map(str, e.path)) + " " + e.message[:80] for e in Draft7Validator(schema, format_checker=FormatChecker()).iter_errors(o)]
+    except ImportError:
+        errs = ["jsonschema is not installed: outcome.json not checked"]
+    need(not errs, "outcome.json does not pass the contract: " + "; ".join(errs[:3]))
+    need(o.get("status") == "completed" and o.get("job_id") == job.get("job_id"), "outcome.json: status %s, job %s" % (o.get("status"), o.get("job_id")))
+    need(o.get("path_taken") == ("keep-windows" if keep else "clean-slate"), "outcome.json path_taken is %s" % o.get("path_taken"))
+    inst, bc = o.get("cutover", {}).get("install", {}), o.get("cutover", {}).get("boot_chain", {})
+    need(inst.get("distro") == "ubuntu" and inst.get("release") == "26.04", "outcome.json install: %s %s" % (inst.get("distro"), inst.get("release")))
+    need(bc.get("linux_first_in_bootorder") is True, "outcome.json: Linux is not first in the firmware's order")
+    if keep:
+        need(bc.get("bootmgfw_matches_snapshot") is True and bc.get("grub_lists_windows") is True and bc.get("windows_entry_present") is True,
+             "outcome.json boot_chain: %s" % json.dumps(bc))
+        need(o.get("windows", {}).get("kept") is True and bool(o.get("windows", {}).get("partition")), "outcome.json does not name the kept Windows partition")
+    else:
+        need(o.get("commit_line", {}).get("crossed") is True and o.get("cutover", {}).get("hardware", {}).get("human_gate") == "typed-in-the-window", "outcome.json: the commit line is not recorded as crossed in the window")
+    notes.append("outcome.json valid: %s %s, kernel %s, fallback loader %s, settle-in installed=%s" % (inst.get("distro"), inst.get("release"), inst.get("kernel"), bc.get("fallback_loader"), o.get("cutover", {}).get("settle_in", {}).get("installed")))
+
 booted = pw = root_ok = graphical = "n/a"
 result = "fail"
 job = js("job.json")
@@ -135,6 +159,7 @@ elif letter == "C":
     graphical = "y" if after_mark(first, "default_target=") == "graphical.target" and after_mark(first, "display_manager=") == "active" else "n"
     need(graphical == "y", "start_at desktop did not hold: %s, display manager %s" % (after_mark(first, "default_target="), after_mark(first, "display_manager=")))
     need("enabled" in after_mark(first, "sb=").lower(), "Secure Boot was not on at the first start")
+    outcome_checks(False)
     if not why: result = "erased-installed"
     notes.append("early: %s" % after_mark(early_log, "== the stick's Ubuntu files: "))
     notes.append("first start: kernel %s, root %s, boot %s, esp %s" % (after_mark(first, "kernel="), root_src, after_mark(first, "boot_src="), after_mark(first, "esp_src=")))
@@ -183,11 +208,22 @@ elif letter == "K":
     need("enabled" in after_mark(first, "sb=").lower(), "Secure Boot was not on at the first start")
     need(after_mark(first, "kept_entries=") == "1" and after_mark(first, "osprober_entries=") == "0",
          "the start menu: 'Windows (kept)' entries %s, os-prober lines %s (one and none wanted, R21)" % (after_mark(first, "kept_entries=") or "?", after_mark(first, "osprober_entries=") or "?"))
+    outcome_checks(True)
     if not why: result = "installed-beside-windows"
     notes.append("kept byte for byte: %s; Windows' boot partition %s in place, %d files before, all there after (%d now), bootmgfw.efi unchanged" % (" ".join(same), esp_n, len(eb), len(ea)))
     notes.append("new: " + " ".join("%s=%dMiB" % (n, int(v[2]) // 1048576) for _, n, v in new))
     notes.append("first start: kernel %s, root %s, boot %s, esp %s" % (after_mark(first, "kernel="), root_src, after_mark(first, "boot_src="), after_mark(first, "esp_src=")))
     notes.append("Windows was not started afterwards: Hyper-V's firmware cannot trust both signers at once")
+elif letter == "G":
+    detail = str(refusal.get("detail", ""))
+    need(code == "21", "refusal.json exit_code is %s, not 21" % code)
+    need("2 free spaces" in detail, "the refusal does not say two free spaces: %r" % detail[:160])
+    need(len(ref_lines) >= 2 and all(" exit 21:" in l for l in ref_lines), "refusals.log has %d lines" % len(ref_lines))
+    need(converted == "n" and armed == "y" and commit == "n", "markers: converted=%s boot-install=%s commit=%s" % (converted, armed, commit))
+    need(sys_same == "y" and decoy_same == "y", "a disk changed: system unchanged=%s decoy unchanged=%s" % (sys_same, decoy_same))
+    if not why: result = "refused-two-spaces"
+    notes.append("a made-up disk, not Windows (a spoof): " + detail[:200])
+    notes.append("%d refusals on the stick" % len(ref_lines))
 elif letter == "D":
     need(code == "28", "refusal.json exit_code is %s, not 28" % code)
     need(bool(ref_lines) and all(" exit 28:" in l for l in ref_lines), "refusals.log: %r" % ref_lines[:3])

@@ -145,10 +145,6 @@ pub struct Done {
     pub target_set: bool,
 }
 
-pub fn main(sysroot: &str, path_chosen: &str, start_at: &str) -> Done {
-    main_for(&FEDORA, sysroot, path_chosen, start_at)
-}
-
 pub fn main_for(family: &Family, sysroot: &str, path_chosen: &str, start_at: &str) -> Done {
     let log = PostLog { path: format!("{sysroot}/root/upgrade_-post.log") };
     let _ = std::fs::create_dir_all(format!("{sysroot}/root"));
