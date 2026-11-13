@@ -275,8 +275,8 @@ is decided, the dated line goes in its home and the item here is removed.
 - Whose one-click test results count (item 21): whether a pass from an
   unknown contributor can mark a model as working, or only one from an
   approved developer or a second run that agrees (rule #1; R9).
-- Which family comes second (item 23): Ubuntu or Bazzite (R40); and where
-  the project keeps its fixed copy of Bazzite's ISO (R42, V16).
+- Which family comes second (item 23): Ubuntu or Bazzite (R40, R45; `UBUNTU-DESIGN.md`,
+  section 7); where the project keeps its copy of Bazzite's ISO (R42, V16).
 - How the kit reaches a person's stick (item 24, R44).
 - Whether reclaim switches the kept-Windows machine's clock back to UTC once
   Windows is gone (R36 says "may").

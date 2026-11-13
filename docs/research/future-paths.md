@@ -407,8 +407,8 @@ What was read on 2026-11-02, research and not evidence:
   `apt.fallback` should be set by hand
   ([linuxconfig](https://linuxconfig.org/how-to-write-and-perform-ubuntu-unattended-installations-with-autoinstall),
   [a guide](https://oneuptime.com/blog/post/2026-03-02-subiquity-automate-ubuntu-server-deployments/markdown)).
-  Who signed its shim *(to measure with `measure-release.py`, not to
-  source)*.
+  Measured 2026-11-12, and installed offline and unattended on the rig
+  (`docs/UBUNTU-DESIGN.md`; log 2026-11-12).
 
 ## Suggested order, once v1 ships
 

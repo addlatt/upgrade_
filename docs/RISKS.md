@@ -1323,6 +1323,10 @@ own kickstart installs from there, not the network; how to start it with
 nobody at the keyboard is unmeasured
 ([log](log/2026-11.md#2026-11-07-bazzites-live-iso-measured-and-a-design-for-the-key-step-r40-r42-v14-v16-roadmap-items-23-24);
 the design: [BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
+Ubuntu 26.04.1 measured 2026-11-12, and by hand on the rig it installed
+from the stick alone, nothing typed, Secure Boot on, with no key step; no
+row, no real machine
+([log](log/2026-11.md#2026-11-12-ubuntu-measured-and-installed-offline-and-unattended-on-the-rig-r40-r45-r21-r34-roadmap-item-23); [UBUNTU-DESIGN.md](UBUNTU-DESIGN.md)).
 
 ## R41: Reclaim deletes the kept Windows and moves Linux into the space · critical · built
 
@@ -1459,6 +1463,35 @@ machine (Windows' own WinHTTP, an NTFS folder, the rig's ISOs from a local
 server with faults), `v17-fetch.csv` lines 8 to 13, `pass-plumbing`, after a code review's fixes
 ([log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)). Owed: a real FAT32 stick, the real
 internet, a stick pulled mid-download.
+
+## R45: An Ubuntu stick erases the computer it starts on, and picks the disk itself · critical · planned
+
+**What.** Seen on the rig 2026-11-12: with `autoinstall` on the kernel line
+and `autoinstall.yaml` on the stick, Ubuntu's installer asks nothing. Left
+to its defaults it also chooses where: the `direct` layout takes "the
+largest disk", `mode: use_gap` takes "the largest gap", and a file with no
+storage section still installs (its documentation). Nothing in the
+installer ties the file to one machine. Fedora's kickstart is fenced by
+`%pre` (`upgrade-installer verify`: this machine, this job, the disk by
+its identity). Nothing like it is written for Ubuntu.
+
+**If real.** A stick moved to another computer, or started a second time,
+erases that computer with no question. On a machine with two drives or two
+gaps the install lands where the person did not mean. Critical: the wrong
+disk erased before any check of ours has run.
+
+**Closes when.** The stick's own file carries no disk and no account, only
+our early hook; the hook writes the real file after its checks pass (the
+installer reads the file again after the hook: its documentation, to
+prove); the disk is named by serial and every kept partition one by one,
+never "largest". Then rig rows: a stick started on a guest that is not the
+job's machine, a second start after a finished install, and a guest with
+two disks and two gaps each end with the right disk written or nothing
+written. Then one real machine.
+
+**Where it stands.** `[#...]` planned, nothing built. Found measuring
+Ubuntu ([log](log/2026-11.md#2026-11-12-ubuntu-measured-and-installed-offline-and-unattended-on-the-rig-r40-r45-r21-r34-roadmap-item-23); the fence's shape:
+[UBUNTU-DESIGN.md](UBUNTU-DESIGN.md)). It matters only if Ubuntu is built.
 
 # Closed
 
