@@ -142,6 +142,13 @@ fn disk_ok(d: &Disk) -> Result<(), String> {
     Ok(())
 }
 
+/// The stick's own answer file as the kit writes it: the one text the job
+/// writer puts at the stick's root, and the one text the prologue accepts
+/// there before it lets Ubuntu's installer start (R45).
+pub fn the_stick_file() -> String {
+    stick_file(&format!("{STICK}/upgrade_/upgrade-installer"), &format!("{STICK}/upgrade_/job.json"))
+}
+
 /// The stick's own answer file. `program` and `job` are paths as the live
 /// system sees them. The program is copied off the stick first: a FAT
 /// stick may be mounted without the right to run files.

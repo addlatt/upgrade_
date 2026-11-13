@@ -297,13 +297,21 @@ mod on_windows {
             if let Err(e) = upgrade_autoinstall::check(j) {
                 return refused(&[format!("no answer file: {e}")]);
             }
-            let text = upgrade_autoinstall::stick_file(&format!("{}/upgrade_/upgrade-installer", upgrade_autoinstall::STICK), &format!("{}/upgrade_/job.json", upgrade_autoinstall::STICK));
+            let text = upgrade_autoinstall::the_stick_file();
+            // a kickstart left from an earlier job on this stick is for another installer and another job
+            if let Some(ks) = value_of("--kickstart") {
+                let _ = std::fs::remove_file(&ks);
+            }
             if let Err(e) = std::fs::write(&path, text) {
                 eprintln!("upgrade-job: cannot write {path}: {e}");
                 return ExitCode::from(1);
             }
             println!("  answer file written: {path}");
             return ExitCode::SUCCESS;
+        }
+        // the other way round: Ubuntu's answer file left from an earlier job has no place on a Fedora stick
+        if let Some(old) = value_of("--autoinstall") {
+            let _ = std::fs::remove_file(&old);
         }
         if let Some(ks) = value_of("--kickstart") {
             let label = value_of("--stick-label").unwrap_or_else(|| "UPGV0".to_string());

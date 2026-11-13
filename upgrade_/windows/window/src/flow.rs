@@ -68,7 +68,7 @@ pub fn verify_calls(stick: &str) -> Vec<Call> {
             false,
             stick,
             "upgrade-job.exe",
-            &["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", "kde", "--start-at", "desktop", "--verify-only", "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS"],
+            &["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", "kde", "--start-at", "desktop", "--verify-only", "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS", "--autoinstall", "{root}autoinstall.yaml"],
         ),
     ]
 }
@@ -252,7 +252,7 @@ pub fn linux_name_from(output: &[String]) -> Option<String> {
 /// sentence when the person typed it on the data-loss path, else empty.
 pub fn convert_calls(stick: &str, desktop: Desktop, hash_file: &str, ack: &str) -> Vec<Call> {
     let (d, s) = desktop.job_args();
-    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS"];
+    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS", "--autoinstall", "{root}autoinstall.yaml"];
     if !ack.is_empty() {
         job.push("--acknowledge-data-loss");
         job.push(ack);
@@ -297,7 +297,7 @@ pub fn erase_ok(typed: &str) -> bool {
 /// sentence as typed; -AcknowledgeDataLoss on the data-loss variant).
 pub fn erase_calls(stick: &str, desktop: Desktop, hash_file: &str, erase: &str, ack: &str) -> Vec<Call> {
     let (d, s) = desktop.job_args();
-    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--erase-everything", erase, "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS"];
+    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--erase-everything", erase, "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS", "--autoinstall", "{root}autoinstall.yaml"];
     if !ack.is_empty() {
         job.push("--acknowledge-data-loss");
         job.push(ack);
@@ -611,7 +611,7 @@ mod tests {
         let c = &verify_calls("E:")[2];
         assert_eq!(
             command_line(c),
-            r"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop kde --start-at desktop --verify-only --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS"
+            r"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop kde --start-at desktop --verify-only --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS --autoinstall E:\autoinstall.yaml"
         );
         assert!(!c.may_fail);
     }
@@ -638,7 +638,7 @@ mod tests {
         assert!(v[1].may_fail);
         assert_eq!(
             command_line(&v[2]),
-            r"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop gnome --start-at desktop --if-cannot-keep stop --password-hash-file C:\Users\a\AppData\Local\Temp\upgrade-pw-1.txt --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS"
+            r"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop gnome --start-at desktop --if-cannot-keep stop --password-hash-file C:\Users\a\AppData\Local\Temp\upgrade-pw-1.txt --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS --autoinstall E:\autoinstall.yaml"
         );
         assert_eq!(command_line(&linux_name_call("E:")), r"E:\upgrade-job.exe linux-name");
         // line 187: the prologue with the word as typed
@@ -741,7 +741,7 @@ mod tests {
         let v = erase_calls("E:", Desktop::Kde, "h", e, "");
         assert_eq!(
             command_line(&v[2]),
-            format!(r#"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop kde --start-at desktop --if-cannot-keep stop --erase-everything "{e}" --password-hash-file h --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS"#)
+            format!(r#"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop kde --start-at desktop --if-cannot-keep stop --erase-everything "{e}" --password-hash-file h --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS --autoinstall E:\autoinstall.yaml"#)
         );
         assert_eq!(command_line(&erase_prologue_call("E:", e, "")), format!(r#"E:\upgrade-prologue.exe start --stick E: --erase-consent "{e}""#));
         // the data-loss variant (line 181, 215): -AcknowledgeDataLoss on both

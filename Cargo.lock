@@ -3249,11 +3249,12 @@ dependencies = [
 
 [[package]]
 name = "upgrade-prologue"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "regress",
  "serde_json",
  "sha2",
+ "upgrade-autoinstall",
  "upgrade-scan",
  "upgrade-schema",
  "windows",
