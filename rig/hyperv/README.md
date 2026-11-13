@@ -72,6 +72,7 @@ Two more Hyper-V facts learned the same day:
 | `new-vm.ps1` | creates the Gen 2 guest: Secure Boot on (template selectable), vTPM, two DVDs, DVD-first |
 | `vm.ps1` | the stand-in for QEMU's control socket (QMP): start/stop, WMI keyboard (`type`, `key`, `press-any-key`), thumbnail `shot`, `fw`, `sb`, `dvd`, `disk`, `boot-first`, PowerShell Direct `ps`, `copy` |
 | `v1b.sh` | the V1b alongside-install bench (run-book below) |
+| `ubuntu.sh` | the Ubuntu measuring bench (R40): a throwaway guest `UPGRIGUBU`, a FAT32 stick made from the Ubuntu ISO with a hand-written `autoinstall.yaml`, three arms (erase, refuse, gap). Writes no rows; `clean` deletes the guest and its disks |
 | `prologue.sh`, `prologue-verdict.py`, `rollback-verdict.py` | the prologue bench (and its `rollback` step, `r21-rollback.csv`): the product's one-click conversion flow with the dirty flag injected, then the install; writes `r18-prologue.csv` (and `v2-install.csv` via `v2-verdict.py`) |
 | `v3.sh`, `v3-verdict.py` | the V3 BITLK-read bench: builds the OEMDRV-v3 transport, drives the Windows plant and the Fedora read, writes the evidence rows |
 | `guest/oemdrv-run.sh`, `guest/v3-bootstrap.sh` | the Fedora-side **run hook**: a unit that runs `OEMDRV:/run.sh` as root on every boot and leaves `run.log` on the volume. The bootstrap installs it once from the console |
