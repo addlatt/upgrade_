@@ -1,15 +1,18 @@
 # Ubuntu: what was measured, and what building it would take
 
-Expires when: the owner has chosen the second family (ROADMAP, "Decisions
-owed") and, if it is Ubuntu, what was built is described in
-`architecture.md`; then this doc goes to `docs/archive/`.
+Expires when: what was built for Ubuntu is described in `architecture.md`
+and gate V18 has its real-machine row; then this doc goes to
+`docs/archive/`.
 
 Roadmap item 23 (a second installer family). The risks: R40 (a second
 installer offline and unattended), R45 (the installer picks the disk
 itself), R34 (Secure Boot revokes boot files), R21 (Windows still starts).
-Nothing is built and nothing here is a decision. What was measured, and
-how, is in the log
-([2026-11-12](log/2026-11.md#2026-11-12-ubuntu-measured-and-installed-offline-and-unattended-on-the-rig-r40-r45-r21-r34-roadmap-item-23)).
+**Decided (2026-11-12, the owner):** Ubuntu is the second family (RISKS
+R40). Sections 1 to 8 are the measuring step as it was written that day,
+by hand and before anything was built
+([log](log/2026-11.md#2026-11-12-ubuntu-measured-and-installed-offline-and-unattended-on-the-rig-r40-r45-r21-r34-roadmap-item-23)).
+What has been built since, and its rig rows, is in "What is built" at
+the end and in [STATUS.md](STATUS.md) (V18).
 
 ## The short version
 
@@ -195,24 +198,35 @@ That it reads the file again is from the documentation, not from a run.
 
 Four to six weeks of sessions before a real machine, by this count.
 
-## The calls the owner must make
+## The calls, and where each stands
 
-1. Which family comes second: Ubuntu or Bazzite (section 7).
-2. If Ubuntu: the small desktop (`ubuntu-desktop-minimal`, the installer's
-   default, what the rig installed) or the full one.
-3. Beside Windows: trust `use_gap`, or write the storage list ourselves
-   (recommended: ourselves, it is the documented way and names every
-   partition; R45).
-4. Whether Ubuntu gets a separate `/boot` like Fedora, so reclaim (R41)
-   treats both alike, or reclaim learns the one-partition shape.
+1. Which family comes second: **decided (2026-11-12, the owner): Ubuntu.**
+2. The small desktop (`ubuntu-desktop-minimal`) or the full one: built
+   with the small one, the installer's default and what was measured. The
+   owner's call is still owed (ROADMAP, "Decisions owed").
+3. Beside Windows: our own storage list, not `use_gap`. Built that way: it
+   is the documented way and it names every partition (R45).
+4. A separate `/boot`, like Fedora: built that way, so reclaim (R41) sees
+   one shape. Still the owner's to change (ROADMAP, "Decisions owed").
 
-## The order of work, if Ubuntu is chosen
+## What is built
 
-1. The generator and R45's fence, on the rig, by a harness that writes
-   rows (the erase, the refusals, two disks, two gaps).
-2. Cut the seam, Fedora's goldens unchanged.
-3. Beside Windows with our own storage list; the 'Windows (kept)' entry
-   and the slot guard.
-4. `upgrade-fetch`'s third layout; only then an entry in
-   `data/releases.json`.
+| Piece | Where | Stands |
+|---|---|---|
+| The answer-file generator | `upgrade_/autoinstall/` (`upgrade-autoinstall`) | the erase and beside Windows; rig rows |
+| The stick's own file | `upgrade-autoinstall stick-file`; the job writer's `--autoinstall` | names no disk and no account (R45); the job writer's side is untried |
+| The early check | `upgrade-installer early` (`subiquity.rs`) | this machine, this job, the marker, the stick's files read back; rig rows |
+| Beside Windows | the same check: every partition kept by name, Linux in the one free space big enough, a safety copy of Windows' startup files first | rig rows; Windows not started after (the rig cannot) |
+| After the install | `upgrade-installer late`: the 'Windows (kept)' entry and the start target, through `post.rs`, shared with Fedora | rig rows |
+| The rig harness | `rig/hyperv/ubuntu-arms.sh`, `ubuntu-verdict.py` | writes `ubuntu-install.csv` |
+
+## What is not built
+
+1. `outcome.json` for Ubuntu (the contract still says Fedora), and with it
+   settle-in's first start, the Wi-Fi networks and the slot guard (R22).
+2. The stick's boot paths and the handoff: `make-kit.sh`, the handoff
+   payload and settle-in's `bootentry.rs` name Fedora's folder.
+3. `upgrade-fetch`'s third layout (one ISO, whole folders); only then an
+   entry in `data/releases.json`, which is an offer to a person.
+4. The hardware checks Fedora's `verify` makes (display, Wi-Fi, sound).
 5. A real machine with Secure Boot on, the erase first.

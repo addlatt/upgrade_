@@ -1125,7 +1125,7 @@ and distributions share a handful of installers.
         +--------------------------+----------------------------+
         |                          |                            |
   anaconda-image            anaconda-container             subiquity
-  Fedora 44 (today)         Bazzite, Fedora Atomic         Ubuntu (measured)  
+  Fedora 44 (today)         Bazzite, Fedora Atomic         Ubuntu (on the rig)
   kickstart + liveimg       kickstart + ostreecontainer    autoinstall.yaml
   a writable system         a read-only /usr               a writable system
 ```

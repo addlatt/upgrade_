@@ -516,7 +516,21 @@ pub fn late(job_path: &str) -> i32 {
     let job: Value = std::fs::read_to_string(job_path).ok().and_then(|t| serde_json::from_str(t.trim_start_matches('\u{feff}')).ok()).unwrap_or(Value::Null);
     // the installed system's last settings, as Fedora's %post makes them: beside Windows, the
     // 'Windows (kept)' entry with os-prober off (R21); on every path, what the computer starts at
+    // Ubuntu's installer leaves the new system without /dev, /proc and /sys at this point, and
+    // GRUB's tools cannot find the disk without them (the rig, 2026-11-13: arm K's first run).
+    // Anaconda mounts them itself. Mounted here for this step, and taken away after it.
+    let mut mounted: Vec<String> = Vec::new();
+    for d in ["dev", "proc", "sys", "run"] {
+        let to = format!("/target/{d}");
+        if !run("mountpoint", &["-q", &to]).ok() && run("mount", &["--rbind", &format!("/{d}"), &to]).ok() {
+            run("mount", &["--make-rslave", &to]);
+            mounted.push(to);
+        }
+    }
     let done = crate::post::main_for(&crate::post::UBUNTU, "/target", &jq(&job, "intent.path"), &jq(&job, "intent.start_at"));
+    for to in mounted.iter().rev() {
+        run("umount", &["-R", to]);
+    }
     // the bench's first-start marker, only on a stick the rig marked (as Fedora's bench marker)
     if exists(&format!("{STICK}/upgrade_/bench")) && exists(&format!("{STICK}/upgrade_/bench-firstboot.sh")) {
         let _ = std::fs::copy(format!("{STICK}/upgrade_/bench-firstboot.sh"), "/target/usr/local/sbin/upg-bench-firstboot.sh");

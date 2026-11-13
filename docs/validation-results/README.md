@@ -826,3 +826,34 @@ A pass for `ready` also needs exit 0, nothing left in staging, the release
 on the stick and `files_verified` `y`; for `already`, no request at all; for
 a refusal, a non-zero exit, nothing left in staging and the expected words.
 A rehearsal closes no stick clause (rule #5).
+
+## `ubuntu-install.csv`: Ubuntu from its own stick (gate V18, risks R40, R45, R21)
+
+One row per arm, written by `rig/hyperv/ubuntu-verdict.py` from the arm's
+own evidence (`rig/hyperv/ubuntu-arms.sh`; never by hand). The guest has
+Secure Boot on, a network adapter connected to nothing, a 40 GB system disk
+and a larger 60 GB decoy disk. Every row is the rig: plumbing (rule #5).
+
+| Column | Meaning |
+|---|---|
+| `arm` | A wrong machine (a job naming a disk that is not there), F the fence (the stick's own answer file with our check taken out), C the erase, D not again (C's stick started once more), K beside Windows (the system disk a copy of the rig's shrunk Windows disk) |
+| `installer_version`, `generator_version` | `upgrade-installer` and `upgrade-autoinstall`, from the early check's own log; `not-run` when our code did not run |
+| `secure_boot`, `network` | the guest's own word (`on (host setting)` when our code did not run); `none` = the adapter has no switch |
+| `identity`, `refusal_code`, `refusals` | the early check's decision; `refusal.json`'s code; the lines in `refusals.log`, one a refusal, each after a restart the check made itself |
+| `converted_marker`, `armed_marker`, `commit_record` | on the stick afterwards: `upgrade_/converted`, `upgrade_/boot-install`, `report/commit.json` |
+| `system_disk_unchanged`, `decoy_disk_unchanged` | the sha256 of everything the guest can see of each disk, before and after, read on the host with the guest off |
+| `system_gpt_after` | the system disk's partition table afterwards |
+| `ubuntu_booted`, `password_matches`, `root_on_job_disk`, `graphical_login` | the first start's record (bench only): it started, the account's hash is the job's, `/` is on the disk the job names, the desktop sign-in is up |
+| `notes` | every reason for a fail; the installer's own words; on arm K the partitions kept byte for byte |
+
+| Result | Needs | Verdict |
+|---|---|---|
+| `refused-wrong-machine` | arm A: code 20, two or more refusals, no `converted`, `boot-install` still there, no commit record, both disks unchanged | **pass for arm A** |
+| `nothing-installed-without-the-check` | arm F: our check did not run, the installer's log says it found no disk to match, both disks unchanged | **pass for arm F** |
+| `erased-installed` | arm C: identity pass, `converted` written and `boot-install` gone, the commit record, the decoy unchanged, the system disk EFI 600 MiB + `/boot` 1 GiB + `/`, the first start's four checks, Secure Boot on | **pass for arm C** |
+| `not-installed-again` | arm D: code 28, every refusal 28, both disks unchanged | **pass for arm D** (R35) |
+| `installed-beside-windows` | arm K: as C's checks, and every partition that was there in place, each but the boot partition byte for byte the same, no file gone from the boot partition, `bootmgfw.efi` unchanged and in the stick's safety copy, one 'Windows (kept)' entry and no os-prober line. Windows is not started (Hyper-V cannot trust both signers) | **pass for arm K** |
+| `fail` | anything else. Kept, never removed | **fail** |
+
+Line 2 is a fail of the harness, not the product: it hashed the disk files,
+and Hyper-V rewrites a new file's own header.

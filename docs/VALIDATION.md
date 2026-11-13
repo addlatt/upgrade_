@@ -895,6 +895,29 @@ speed and drops, a mirror's redirects and TLS.
 lines 8 to 13, `pass-plumbing` (after the code review) ([log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)).
 Owed: the window on a kit stick, a real stick, the real internet.
 
+## V18: Ubuntu installs from its own stick onto the disk the job names, or not at all · kills: Ubuntu as a second family · RISKS R40, R45, R21 · held-on-rig
+
+**Why it has its own gate.** Ubuntu's installer (subiquity) is a second
+installer family: another answer file, other hooks, and an installer that
+picks a disk by itself when nothing stops it (R45). Fedora's rows say
+nothing about it.
+
+**What passes.** In `ubuntu-install.csv`: `refused-wrong-machine`,
+`nothing-installed-without-the-check`, `erased-installed`,
+`not-installed-again` and `installed-beside-windows`, each with the
+network off and nothing typed. The words are in
+`validation-results/README.md`. Then one real machine with Secure Boot on,
+the erase first; and Windows started after an install beside it, which the
+rig cannot show.
+
+**How it is run.** `rig/hyperv/ubuntu-arms.sh kit`, `vm`, then `arm A`,
+`F`, `C`, `D`, `K`. The stick is built from the product's own pieces:
+`upgrade-autoinstall stick-file`, `upgrade-installer` (`early`, `late`,
+`failed`), a job checked against the schema. `ubuntu-verdict.py` writes the
+row. A disk is judged by the sha256 of its content, read on the host.
+
+**Where it stands.** See [STATUS.md](STATUS.md).
+
 # Lesser gates (validate when their component is built)
 
 Real, but they degrade rather than kill, or only touch the fallback path:

@@ -3230,6 +3230,7 @@ dependencies = [
  "roxmltree",
  "serde_json",
  "sha2",
+ "upgrade-autoinstall",
  "upgrade-harvest",
  "upgrade-kickstart",
  "upgrade-scan",

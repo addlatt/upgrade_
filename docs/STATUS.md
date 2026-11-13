@@ -16,7 +16,13 @@ is the one in that heading. "Line N" is the CSV's line as an editor shows
 it; line 1 is the header. One real machine is one data point, not proof:
 nearly every `[####]` below is the Acer Aspire A515-51G, Secure Boot on.
 
-## Right now (2026-11-11)
+## Right now (2026-11-13)
+
+**Decided (2026-11-12, the owner):** Ubuntu is the second installer family,
+built now. Built and on the rig 2026-11-13: its answer-file generator, the
+early check that fences the stick (R45), and the install beside Windows;
+five arms in `ubuntu-install.csv` (V18). Not offered to anyone: Ubuntu is
+not in `data/releases.json` ([log](log/2026-11.md#2026-11-13-ubuntu-chosen-and-built-the-first-rig-rows-r40-r45-r21-v18-roadmap-item-23)).
 
 Built 2026-11-11, neither run on a machine: the sleep lock on both sides
 (roadmap item 16, R33) and the refusal of a keep-Windows job beside a Linux
@@ -74,6 +80,7 @@ proven; the rig rows for the lock and for R39. The order: `ROADMAP.md`.
 | V15 | reclaim deletes only Windows, Linux starts in the whole disk | `[#...]` planned | none yet (the logic held on disk images, settle-in 0.9.0) | the rig: every planted fault, a power cut mid-move; then a healthy-drive machine |
 | V16 | the key step enrolls Bazzite's key, or refuses with nothing erased | `[#...]` planned | none yet (design decided 2026-11-08, [the design](BAZZITE-DESIGN.md)) | the build; the rig (`UPGRIGMOK`), every arm; then a real machine with Secure Boot on |
 | V17 | the window fetches the chosen release onto its own stick, every byte checked | `[###.]` held-on-rig (a rehearsal on the development machine) | `v17-fetch.csv` line 13, `pass-plumbing` (2026-11-09 UTC, six arms after the code review's fixes, lines 8 to 13, [log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)) | the window on a kit stick; a real stick; the real internet |
+| V18 | Ubuntu installs from its own stick onto the disk the job names, or not at all | `[###.]` held-on-rig | `ubuntu-install.csv` line 8, `installed-beside-windows` (2026-11-13 UTC, the rig; lines 3 to 6 the refusals and the erase, [log](log/2026-11.md#2026-11-13-ubuntu-chosen-and-built-the-first-rig-rows-r40-r45-r21-v18-roadmap-item-23)) | Windows started after the install beside it (the rig cannot); `outcome.json`; the fetch of Ubuntu onto a stick; a real machine, the erase first |
 
 ## Open risks
 
@@ -116,12 +123,12 @@ proven; the rig rows for the lock and for R39. The order: `ROADMAP.md`.
 | R35 | the stick installs again after the install | `[####]` held-on-machine | `v9-erase.csv` line 31, `not-installed-again` (2026-10-04) | other firmware |
 | R36 | the kept Windows' clock after a Linux boot | `[####]` held-on-machine | `v2-install.csv` line 15, `pass` (2026-10-11, +1 s, +2 s, +1 s after each Linux boot); line 17, `windows-clock-wrong` (the rig, 2026-10-12: Hyper-V hands UTC to the guest's clock chip, so the guest reads 7 h off after a Linux boot; a rig trap, not the product's) | the rig's Time Synchronization service off, then the arm again |
 | R37 | the installer's own startup hangs before our checks | `[#...]` planned | none yet (five hangs on the rig, 2026-10-04, 2026-10-11, 2026-10-15 twice, 2026-10-17, screens kept) | the cause; a way back with plain words |
-| R40 | a second installer cannot run offline and unattended with Secure Boot on | `[#...]` planned | none yet (Ubuntu 26.04.1 measured 2026-11-12 and, by hand on the rig, installed offline, nothing typed, Secure Boot on, [log](log/2026-11.md#2026-11-12-ubuntu-measured-and-installed-offline-and-unattended-on-the-rig-r40-r45-r21-r34-roadmap-item-23); Bazzite's ISO measured 2026-11-07: its image is on it, its kickstart installs offline, [log](log/2026-11.md#2026-11-07-bazzites-live-iso-measured-and-a-design-for-the-key-step-r40-r42-v14-v16-roadmap-items-23-24)) | per family: the measured release, a rig erase with the network off, one machine with Secure Boot on; Bazzite: the unattended start ([the design](BAZZITE-DESIGN.md)); Ubuntu: rows from a harness, R45's fence ([what was measured](UBUNTU-DESIGN.md)) |
+| R40 | a second installer cannot run offline and unattended with Secure Boot on | `[###.]` held-on-rig (Ubuntu only) | `ubuntu-install.csv` line 5, `erased-installed` (2026-11-13 UTC, the rig, network off, nothing typed, Secure Boot on, [log](log/2026-11.md#2026-11-13-ubuntu-chosen-and-built-the-first-rig-rows-r40-r45-r21-v18-roadmap-item-23)) | Ubuntu: a real machine with Secure Boot on. Bazzite: the unattended start ([the design](BAZZITE-DESIGN.md)) |
 | R39 | a keep-Windows conversion beside a Linux already on the disk | `[##..]` built | none yet (the scanner's line and the job writer's refusal, `upgrade-scan` 0.5.0 and `upgrade-job` 0.5.0, 2026-11-11, [log](log/2026-11.md#2026-11-11-the-sleep-lock-on-both-sides-and-the-refusal-beside-a-linux-already-there-built-roadmap-item-16-r33-r39-r24)) | a rig row (a planted Linux partition and boot folder); one real machine; a Linux on a second drive and bare firmware entries are not read; what a person who rolled back is told to do (the owner's call) |
 | R41 | reclaim deletes the kept Windows and moves Linux | `[##..]` built, whole: the arm, the run from the stick, the grow, the entries (settle-in 0.9.0), never run | none yet (decided 2026-11-02) | the rig: every refusal, a power cut mid-move, the stub keeping Linux from starting; then a healthy-drive machine; the Aspire's row is its drive-health refusal; the words and the clock (decisions owed) |
 | R42 | Bazzite's installed system starts only after a person enrolls its key | `[#...]` planned | none yet (the signers measured from the ISO 2026-11-07) | the build ([the design](BAZZITE-DESIGN.md), decided 2026-11-08); V16's rows |
 | R43 | ntfs-3g cannot read inside a OneDrive folder | `[###.]` held-on-rig | `v3-pull.csv` line 5, `pass-plumbing` (2026-11-07, our own reader, [log](log/2026-11.md#2026-11-07-our-own-reader-inside-onedrive-folders-the-pull-passes-on-the-rig-r43-r8-v3-v8)) | a signed-in OneDrive on a real disk |
 | R44 | the release fetch puts unmeasured bytes on the stick, or writes outside it | `[###.]` held-on-rig (a rehearsal, not a stick) | `v17-fetch.csv` line 13, `pass-plumbing` (2026-11-09 UTC, upgrade-fetch 0.1.0, reviewed) | a real FAT32 stick, the real internet, a stick pulled mid-download |
-| R45 | an Ubuntu stick erases the computer it starts on, and picks the disk itself | `[#...]` planned | none yet (seen by hand on the rig 2026-11-12, [log](log/2026-11.md#2026-11-12-ubuntu-measured-and-installed-offline-and-unattended-on-the-rig-r40-r45-r21-r34-roadmap-item-23)) | only if Ubuntu is built: the early-hook fence, then rig rows ([the shape](UBUNTU-DESIGN.md)) |
+| R45 | an Ubuntu stick erases the computer it starts on, and picks the disk itself | `[###.]` held-on-rig | `ubuntu-install.csv` line 6, `not-installed-again` (2026-11-13 UTC; lines 3 to 6: wrong machine, the fence, the erase beside a larger disk, a second start, [log](log/2026-11.md#2026-11-13-ubuntu-chosen-and-built-the-first-rig-rows-r40-r45-r21-v18-roadmap-item-23)) | two free spaces, on the rig; a real machine |
 
 Closed: F1 to F4, the four fixed defects of 2026-08-22; R38, closed by removal 2026-11-02 (the countdown it was about left the product). `RISKS.md`, Closed.
