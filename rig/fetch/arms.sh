@@ -70,8 +70,13 @@ want_arms=("$@")
 for w in "${want_arms[@]}"; do for u in "${ARMS_UBUNTU[@]}"; do [ "${u%%|*}" = "$w" ] && ARMS+=("$u"); done; done
 TABLE="$T/upgrade_-fetch-ubuntu-table.json"
 iso_sums() {  # the ISO's own files, read by bsdtar, as sha256sum lines (once; kept beside the logs)
-  local out="$ROOT/rig/fetch/artifacts/$UBUNTU.sha256" x; x=$(mktemp -d)
-  [ -s "$out" ] || { bsdtar -xf "$UISO"/*.iso -C "$x" && chmod -R u+rwX "$x" && (cd "$x" && find . -type f | LC_ALL=C sort | xargs -d '\n' sha256sum) > "$out"; chmod -R u+rwX "$x"; rm -rf "$x"; }
+  # (the Ubuntu rig's own extracted copy if rig/hyperv/ubuntu-arms.sh kit made one, else a fresh one)
+  local out="$ROOT/rig/fetch/artifacts/$UBUNTU.sha256" x="$ROOT/rig/hyperv/artifacts/ubuntu/iso-root" tmp=
+  if [ ! -s "$out" ]; then
+    [ -f "$x/casper/vmlinuz" ] || { tmp=$(mktemp -d); x="$tmp"; bsdtar -xf "$UISO"/*.iso -C "$x"; chmod -R u+rwX "$x"; }
+    (cd "$x" && find . -type f | LC_ALL=C sort | xargs -d '\n' sha256sum) > "$out"
+    [ -z "$tmp" ] || rm -rf "$tmp"
+  fi
   echo "$out"
 }
 
