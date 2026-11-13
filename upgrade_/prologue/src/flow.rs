@@ -629,7 +629,7 @@ fn arm(ctx: &mut Ctx, st: &mut Value, root: &str, job: &Value) {
     ctx.log("");
     ctx.log("  This computer restarts into the installer in 15 seconds. Leave the stick in.");
     if erase {
-        ctx.log("  There is no turning back now. Once the installer's checks pass, everything is erased and Fedora is installed; if a check fails, it stops and this Windows comes back untouched.");
+        ctx.log("  There is no turning back now. Once the installer's checks pass, everything is erased and Linux is installed; if a check fails, it stops and this Windows comes back untouched.");
     } else {
         ctx.log("  Windows is still here and still bootable; it stays that way until you reclaim it in Linux.");
     }

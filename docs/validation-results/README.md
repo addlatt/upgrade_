@@ -857,6 +857,7 @@ and a larger 60 GB decoy disk. Every row is the rig: plumbing (rule #5).
 | `not-installed-again` | arm D: code 28, every refusal 28, both disks unchanged | **pass for arm D** (R35) |
 | `handed-over` | arm H: the stick first in the firmware's order, `converted` on it, no refusal and no run of our check, a second start of the installed Ubuntu (a new boot id, `/` where C put it), Secure Boot on, the decoy unchanged | **pass for arm H** (R35) |
 | `refused-two-spaces` | arm G: code 21 saying two free spaces, two or more refusals, no `converted`, no commit record, both disks unchanged | **pass for arm G** |
+| `erased-installed-from-windows` | arm W: the rig's Windows starts, the product's prologue reaches its restart and leaves `prologue.json`, then C's checks but Secure Boot (off for this arm: the firmware trusts one signer at a time). The job is the rig's stand-in | **pass for arm W** |
 | `installed-beside-windows` | arm K: as C's checks, and every partition that was there in place, each but the boot partition byte for byte the same, no file gone from the boot partition, `bootmgfw.efi` unchanged and in the stick's safety copy, one 'Windows (kept)' entry and no os-prober line. Windows is not started (Hyper-V cannot trust both signers) | **pass for arm K** |
 | `fail` | anything else. Kept, never removed | **fail** |
 

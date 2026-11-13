@@ -29,6 +29,12 @@
 # product's out: the kit's own start menu for Ubuntu (handoff-payload/grub-ubuntu.cfg), Fedora's menu
 # and the mark's block beside it in EFI/BOOT, release.json, settle-in. Arm D (the early check's own
 # refusal of a second start) cannot be reached from that menu and is not run on it; its row stands.
+#   ubuntu-arms.sh arm W [NOTE]   the Windows side: a copy of the rig's install-day Windows starts, the product's
+#                                 prologue (upgrade-prologue.exe start, the erase sentence) reads the job and the
+#                                 stick's answer file, arms the handoff and restarts; the stick's Ubuntu erases and
+#                                 installs. Secure Boot OFF for this arm only (this firmware trusts one signer at a
+#                                 time). The job is the rig's stand-in (v1.sh job, v9-job.py): Hyper-V has no USB,
+#                                 so the product's job writer refuses the rig's stick, as it must (R16)
 #   ubuntu-arms.sh clean          delete the guest and every disk (ubuntu.sh clean)
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -49,6 +55,10 @@ VMPS1="$(wslpath -w vm.ps1)"
 PS()  { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$VMPS1" "$@" -Name "$VMNAME" < /dev/null | tr -d '\r'; }
 PSC() { powershell.exe -NoProfile -Command "$1" < /dev/null | tr -d '\r'; }
 evict() { python3 -c 'import os,sys; fd=os.open(sys.argv[1],os.O_RDONLY); os.posix_fadvise(fd,0,0,os.POSIX_FADV_DONTNEED); os.close(fd)' "$1" 2>/dev/null || true; }
+guest() { PS ps "$1" 2>&1; }
+stick_letter() { guest '(Get-Volume -FileSystemLabel UPGV0 -ErrorAction SilentlyContinue | Select-Object -First 1).DriveLetter' | tr -d ' \n'; }
+WINEXE="$REPO/target/x86_64-pc-windows-gnu/release"
+ERASE_SENTENCE='I confirm that everything on this computer will be deleted and nothing will be kept'
 state() { PSC "(Get-VM -Name $VMNAME -ErrorAction SilentlyContinue).State" | tr -d ' \n'; }
 # What the guest can see of each disk, hashed: the disk file itself will not do, because
 # Hyper-V rewrites a new file's own header when it opens it (arm A's first row, 2026-11-13).
@@ -106,7 +116,8 @@ open(p, "w").write("\n".join(l))
 P
     fi
     cp "$job" "$S/upgrade_/job.json"; cp "$INSTALLER" "$S/upgrade_/upgrade-installer"
-    echo "armed by ubuntu-arms.sh arm $arm" > "$S/upgrade_/boot-install"
+    # arm W: the prologue arms the stick itself
+    [ "$arm" = W ] || echo "armed by ubuntu-arms.sh arm $arm" > "$S/upgrade_/boot-install"
     echo "the rig's stick" > "$S/upgrade_/bench-ubuntu"
     echo "$(sha256sum < "$INSTALLER" | cut -c1-16)" > "$A/installer.sha256"
     cat > "$S/upgrade_/bench-firstboot.sh" <<'B'
@@ -160,6 +171,11 @@ P
     mcopy -o -i "$P" "$S/autoinstall.yaml" "$S/SHA256SUMS" ::/
     mcopy -o -i "$P" "$S/efi/grub.cfg" "$S/efi/grubenv" ::/EFI/boot/; mcopy -o -i "$P" "$S/release.json" ::/
     mcopy -s -o -i "$P" "$S/upgrade_" ::/
+    mdel -i "$P" ::/upgrade-prologue.exe ::/upgrade-job.exe 2>/dev/null || true
+    if [ "$arm" = W ]; then
+        [ -f "$WINEXE/upgrade-prologue.exe" ] && [ -f "$WINEXE/upgrade-job.exe" ] || { echo "ubuntu-arms: run ./build-rust.sh first (arm W needs the Windows programs)" >&2; exit 1; }
+        mcopy -o -i "$P" "$WINEXE/upgrade-prologue.exe" "$WINEXE/upgrade-job.exe" ::/
+    fi
     off
     rm -f "$HV/vm/ubu-stick.vhdx"; qemu-img convert -f raw -O vhdx "$BASE_IMG" "$HV/vm/ubu-stick.vhdx"
     evict "$BASE_IMG"
@@ -183,6 +199,55 @@ run_arm() {  # $1 = arm dir name, $2 = seconds
     off
 }
 
+windows_side() {  # $1 = arm dir name, $2 = seconds. Windows up, the job, the prologue, then wait for the guest to turn itself off
+    local T="$1" L t0 n=0 made=""
+    python3 evict-builds.py --wait "$A"
+    PS fw > "$A/$T/fw-before.txt"; PS start; t0=$(date +%s)
+    until guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV'; do
+        [ $(( $(date +%s) - t0 )) -lt 900 ] || { echo "ubuntu-arms: Windows did not answer within 900 s" | tee "$A/$T/windows-side.txt"; ./ubuntu.sh shot "$T-nowindows" >/dev/null 2>&1 || true; off; return 0; }
+        sleep 10
+    done
+    echo "ubuntu-arms: Windows up after $(( $(date +%s) - t0 )) s"
+    guest '"windows_sb=" + $(try { Confirm-SecureBootUEFI } catch { "unknown" }); "windows_caption=" + (Get-CimInstance Win32_OperatingSystem).Caption' > "$A/$T/windows-side.txt"
+    L=$(stick_letter); [ -n "$L" ] || { echo "ubuntu-arms: Windows sees no UPGV0 volume" | tee -a "$A/$T/windows-side.txt"; off; return 0; }
+    guest "'answer_file_sha256=' + (Get-FileHash ${L}:\\autoinstall.yaml).Hash.ToLower()" >> "$A/$T/windows-side.txt"
+    # v1.sh job reads the guest's real facts and runs the product's settings harvest from the stick. It also wants a
+    # kit's file list for Fedora's kickstart, which this stick does not use: the stick's own list stands in, and the kickstart is deleted
+    [ -f "$REPO/dist/kit/stick/SHA256SUMS" ] || { mkdir -p "$REPO/dist/kit/stick"; cp "$A/arms-extra/SHA256SUMS" "$REPO/dist/kit/stick/SHA256SUMS"; made=y; }
+    VMNAME=$VMNAME ./v1.sh job > "$A/$T/v1-job.log" 2>&1 || echo "v1.sh job failed: read v1-job.log" >> "$A/$T/windows-side.txt"
+    [ -z "$made" ] || { rm -f "$REPO/dist/kit/stick/SHA256SUMS"; rmdir "$REPO/dist/kit/stick" "$REPO/dist/kit" "$REPO/dist" 2>/dev/null || true; }
+    python3 - artifacts/v1/facts.json "$A/$T/disks.json" <<'P' || true
+import json, sys
+f = json.load(open(sys.argv[1])); d = f["disk"]
+json.dump([{"number": d["number"], "unique_id": d["unique_id"], "serial": d["serial"], "size": d["size"], "name": d["name"], "health": f.get("health") or "Healthy"}], open(sys.argv[2], "w"))
+P
+    python3 v9-job.py artifacts/v1/job.json "$A/$T/disks.json" "$A/$T/job-erase.json" --desktop=gnome > "$A/$T/v9-job.log" 2>&1 || true
+    python3 - "$A/$T/job-erase.json" "$A/$T/job.json" "$REPO/schemas/job.schema.json" <<'P' || { echo "no job could be written" >> "$A/$T/windows-side.txt"; off; return 0; }
+import json, sys
+from jsonschema import Draft7Validator, FormatChecker
+j = json.load(open(sys.argv[1])); j["intent"]["distro"] = {"name": "ubuntu", "release": "26.04.1"}
+e = list(Draft7Validator(json.load(open(sys.argv[3])), format_checker=FormatChecker()).iter_errors(j))
+if e: sys.exit("schema: " + e[0].message)
+json.dump(j, open(sys.argv[2], "w"), indent=2)
+P
+    PS copy "$(wslpath -w "$A/$T/job.json")" "${L}:\\upgrade_\\job.json" > /dev/null
+    guest "Remove-Item ${L}:\\upgrade_\\ks.cfg -Force -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force 'C:\\ProgramData\\upgrade_\\prologue' -ErrorAction SilentlyContinue; 'stick_upgrade_dir=' + ((Get-ChildItem ${L}:\\upgrade_ -Name) -join ',')" >> "$A/$T/windows-side.txt"
+    guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --erase-consent '$ERASE_SENTENCE'" > "$A/$T/prologue-start.log" 2>&1 || true
+    tail -5 "$A/$T/prologue-start.log"
+    if ! grep -q 'restarting in' "$A/$T/prologue-start.log"; then
+        echo "the prologue did not reach a restart" >> "$A/$T/windows-side.txt"; off; return 0
+    fi
+    echo "prologue_restart=y" >> "$A/$T/windows-side.txt"
+    while :; do
+        sleep 60; n=$((n+1))
+        [ "$(state)" = Running ] || { echo "ubuntu-arms: guest is $(state) after $(( $(date +%s) - t0 )) s"; break; }
+        PS shot "$HVW\\shots\\ubu-$T-$(printf %02d $n).png" >/dev/null 2>&1 || true
+        cp "$HV/shots/ubu-$T-$(printf %02d $n).png" "$A/$T/" 2>/dev/null || true
+        [ $(( $(date +%s) - t0 )) -lt "$2" ] || { echo "ubuntu-arms: still running after $2 s"; ./ubuntu.sh shot "$T-end" >/dev/null 2>&1 || true; break; }
+    done
+    state > "$A/$T/end-state.txt"; PS fw > "$A/$T/fw-after.txt"; off
+}
+
 case "${1:-}" in
 kit)
     (cd "$REPO/upgrade_/linux/installer" && cargo build -q --release --target x86_64-unknown-linux-musl)
@@ -204,10 +269,10 @@ vm)
     PS disk list
     ;;
 arm)
-    ARM="${2:?A|F|C|K|G|H}"; NOTE="${3:-}"; T="arm-$ARM"; D="$A/$T"
+    ARM="${2:?A|F|C|K|G|H|W}"; NOTE="${3:-}"; T="arm-$ARM"; D="$A/$T"
     [ "$ARM" != D ] || { echo "ubuntu-arms: arm D is not run on the product's stick (its menu never starts the installer again); see arm H" >&2; exit 1; }
     rm -rf "$D"; mkdir -p "$D"
-    SYSDISK=target; [ "$ARM" = K ] && SYSDISK=windows; [ "$ARM" = G ] && SYSDISK=gaps
+    SYSDISK=target; [ "$ARM" = K ] && SYSDISK=windows; [ "$ARM" = G ] && SYSDISK=gaps; [ "$ARM" = W ] && SYSDISK=windows
     HASH="$(openssl passwd -6 -salt upgrig rig)"
     case "$ARM" in
     A)  python3 ubuntu-job.py "$D/job.json" --uid=$BOGUS_UID --size=$SYSTEM_BYTES --hash="$HASH"
@@ -239,6 +304,13 @@ P
         WUID="$(wwn_of ubu-windows.vhdx)"; WSIZE="$(PSC "(Get-VHD '$HVW\\vm\\ubu-windows.vhdx').Size" | tr -d ' \n')"
         python3 ubuntu-job.py "$D/job.json" --keep --uid="$WUID" --size="$WSIZE" --hash="$HASH"
         build_stick K "$D/job.json"; SECS=3600 ;;
+    W)  # the rig's install-day Windows, a fresh copy every time
+        off; PSC "Get-VMHardDiskDrive -VMName $VMNAME | Where-Object { \$_.Path -like '*ubu-windows.vhdx' } | Remove-VMHardDiskDrive; Remove-Item '$HVW\\vm\\ubu-windows.vhdx' -ErrorAction SilentlyContinue"
+        PSC "\$ErrorActionPreference='Stop'; Copy-Item '$HVW\\vm\\UPGRIGHV.fresh.vhdx' '$HVW\\vm\\ubu-windows.vhdx'
+          \$a = (Get-FileHash '$HVW\\vm\\UPGRIGHV.fresh.vhdx').Hash; \$b = (Get-FileHash '$HVW\\vm\\ubu-windows.vhdx').Hash
+          if (\$a -ne \$b) { throw 'the copy of the Windows disk does not match' }; 'windows disk copied: ' + \$b"
+        python3 ubuntu-job.py "$D/placeholder.json" --uid=$BOGUS_UID --size=$SYSTEM_BYTES --hash="$HASH"
+        build_stick W "$D/placeholder.json"; SECS=3600 ;;
     G)  # a made-up disk (rule #5: a spoof): nothing on it is Windows but the name of one file
         off; rm -f "$A/gaps.raw" "$HV/vm/ubu-gaps.vhdx"; truncate -s 80G "$A/gaps.raw"
         parted -s "$A/gaps.raw" mklabel gpt mkpart ESP fat32 1MiB 101MiB set 1 esp on mkpart data ntfs 30821MiB 41061MiB set 2 msftdata on
@@ -254,7 +326,12 @@ P
     *)  echo "ubuntu-arms: unknown arm $ARM" >&2; exit 1 ;;
     esac
     swap_system "ubu-$SYSDISK.vhdx"
-    ./ubuntu.sh first stick > /dev/null
+    if [ "$ARM" = W ]; then
+        ./ubuntu.sh first disk '*ubu-windows.vhdx' > /dev/null
+        PSC "Set-VMFirmware -VMName $VMNAME -EnableSecureBoot Off; Enable-VMIntegrationService -VMName $VMNAME -Name 'Guest Service Interface'"
+    else
+        ./ubuntu.sh first stick > /dev/null
+    fi
     PSC "Get-VMNetworkAdapter -VMName $VMNAME | ForEach-Object { 'adapter=' + \$_.Name + ' switch=[' + \$_.SwitchName + ']' }; (Get-VMFirmware -VMName $VMNAME | ForEach-Object { 'secure_boot=' + \$_.SecureBoot + ' template=' + \$_.SecureBootTemplate })" > "$D/guest.txt"
     echo "installer_sha256=$(cat "$A/installer.sha256" 2>/dev/null)" >> "$D/guest.txt"
     echo "stick_location=$(PSC "(Get-VMHardDiskDrive -VMName $VMNAME | Where-Object { \$_.Path -like '*ubu-stick.vhdx' }).ControllerLocation" | tr -d ' \n')" >> "$D/guest.txt"
@@ -263,7 +340,12 @@ P
     rm -f "$A/ubu-log.img"; truncate -s 96M "$A/ubu-log.img"; parted -s "$A/ubu-log.img" mklabel msdos mkpart primary fat32 1MiB 100%
     mkfs.fat -F 32 -n UPGLOG --offset 2048 "$A/ubu-log.img" > /dev/null
     rm -f "$HV/vm/ubu-log.vhdx"; qemu-img convert -f raw -O vhdx "$A/ubu-log.img" "$HV/vm/ubu-log.vhdx"
-    run_arm "$T" "$SECS"
+    if [ "$ARM" = W ]; then
+        windows_side "$T" "$SECS"
+        PSC "Set-VMFirmware -VMName $VMNAME -EnableSecureBoot On -SecureBootTemplate MicrosoftUEFICertificateAuthority"
+    else
+        run_arm "$T" "$SECS"
+    fi
     hashes after > "$D/hashes-after.txt"
     pull_stick "$D"
     ./ubuntu.sh log "$T" > /dev/null 2>&1 || true

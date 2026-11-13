@@ -190,6 +190,40 @@ elif letter == "C":
     if not why: result = "erased-installed"
     notes.append("early: %s" % after_mark(early_log, "== the stick's Ubuntu files: "))
     notes.append("first start: kernel %s, root %s, boot %s, esp %s" % (after_mark(first, "kernel="), root_src, after_mark(first, "boot_src="), after_mark(first, "esp_src=")))
+elif letter == "W":
+    # the Windows side: the product's prologue, in Windows, armed the stick and restarted; the stick's Ubuntu did the rest
+    side, pstart, pro = text("windows-side.txt"), text("prologue-start.log"), js("stick/upgrade_/prologue.json")
+    need("prologue_restart=y" in side, "the prologue did not reach its restart: " + " / ".join([l.strip() for l in (pstart + side).splitlines() if l.strip()][-4:])[:400])
+    need(bool(pro), "no prologue.json on the stick")
+    need(job.get("intent", {}).get("distro", {}).get("name") == "ubuntu" and job.get("identity", {}).get("os_caption", "").startswith("Microsoft Windows"), "the job is not a Windows machine's job for Ubuntu")
+    need(identity == "pass", "the early check did not decide to install")
+    need(converted == "y" and armed == "n" and commit == "y", "markers: converted=%s boot-install=%s commit=%s" % (converted, armed, commit))
+    need(decoy_same == "y", "the decoy disk changed (unchanged=%s)" % decoy_same)
+    mib = int(job.get("identity", {}).get("system_disk", {}).get("size_bytes", 0)) // 1048576
+    parts = gpt_after.split("+")
+    need(len(parts) == 3 and parts[0] == "EFI_System:600MiB" and parts[1] == "Linux_filesystem:1024MiB" and parts[2].startswith("Linux_filesystem:")
+         and mib - 1630 <= int(parts[2].split(":")[1][:-3] or 0) <= mib - 1624, "the system disk is not EFI 600 MiB + /boot 1 GiB + the rest: " + gpt_after)
+    sys_same = "n" if gpt_after.startswith("EFI_System:600MiB+Linux") else "not-read"
+    booted = "y" if "== firstboot" in first else "n"
+    need(booted == "y", "no first-start record on the log disk")
+    want = hashlib.sha256(job.get("intent", {}).get("account", {}).get("password_hash", "").encode()).hexdigest()
+    pw = "y" if after_mark(first, "user_hash_sha256=") == want else "n"
+    need(pw == "y", "the installed account's password hash is not the job's")
+    root_src, rd = after_mark(first, "root_src=").replace("/dev/", ""), ""
+    for l in first.splitlines():
+        f = l.split()
+        if len(f) >= 3 and f[2] == "disk": rd = f
+        if root_src and len(f) >= 3 and f[0].lstrip("|-`└├─") == root_src: break
+    root_ok = "y" if rd and rd[1] == str(job.get("identity", {}).get("system_disk", {}).get("size_bytes")) else "n"
+    need(root_ok == "y", "/ is not on the disk the job names (root %s, disk %s)" % (root_src, rd))
+    graphical = "y" if after_mark(first, "default_target=") == "graphical.target" and after_mark(first, "display_manager=") == "active" else "n"
+    need(graphical == "y", "start_at desktop did not hold: %s, display manager %s" % (after_mark(first, "default_target="), after_mark(first, "display_manager=")))
+    outcome_checks(False)
+    product_checks()
+    if not why: result = "erased-installed-from-windows"
+    notes.append("Secure Boot off for this arm (the firmware trusts one signer at a time); the job is the rig's stand-in, not the product's job writer (Hyper-V has no USB)")
+    notes.append("Windows: %s; prologue %s, its last words: %s" % (after_mark(side, "windows_caption="), pro.get("prologue_version"), " / ".join([l.strip() for l in pstart.splitlines() if l.strip()][-2:])[:240]))
+    notes.append("first start: kernel %s, root %s" % (after_mark(first, "kernel="), root_src))
 elif letter == "K":
     late = js(R + "late.json")
     need(identity == "pass", "the early check did not decide to install")

@@ -88,7 +88,7 @@ pub fn needs_slot(outcome: &Value, fired: bool, bench_force: bool, windows_chose
     if !truthy(at(outcome, "cutover.boot_chain.linux_first_in_bootorder")) {
         return None;
     }
-    Some("the install completed and left Fedora first in the firmware's order, yet the firmware started Windows with nobody pressing a key: it does not boot the Linux entry on its own".into())
+    Some("the install completed and left Linux first in the firmware's order, yet the firmware started Windows with nobody pressing a key: it does not boot the Linux entry on its own".into())
 }
 
 /// What the files say before the arrangement is applied, judged: Ok(plan)

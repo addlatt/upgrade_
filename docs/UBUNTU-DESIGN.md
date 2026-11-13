@@ -228,8 +228,8 @@ Four to six weeks of sessions before a real machine, by this count.
 1. The entry in `data/releases.json`. It is the offer to a person, and it
    changes the scanner's "Linux releases" line on every machine. The
    owner's call (ROADMAP, "Decisions owed").
-2. The Windows side with an Ubuntu stick: the window, the prologue's start
-   and the handoff have unit cases only.
+2. The window and the job writer with an Ubuntu stick: unit cases only.
+   The prologue's start and the handoff have one rig row (line 18).
 3. Reclaim (R41) for Ubuntu: the stick's menu has no branch for it, and
    settle-in refuses to arm it on a stick without Fedora's installer.
 4. A real stick, the real internet, Wi-Fi, and a real machine with Secure

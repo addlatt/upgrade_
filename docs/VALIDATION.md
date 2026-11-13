@@ -909,9 +909,10 @@ nothing about it.
 `erased-installed`, `handed-over` (or `not-installed-again`) and
 `installed-beside-windows`, each with the network off and nothing typed,
 on a stick laid out as the product's. The words are in
-`validation-results/README.md`. Then the Windows side with an Ubuntu
-stick; one real machine with Secure Boot on, the erase first; and Windows
-started after an install beside it, which the rig cannot show.
+`validation-results/README.md`. Then the Windows side:
+`erased-installed-from-windows` on the rig (the prologue's start), and
+the window and the job writer on a real machine with Secure Boot on, the
+erase first; and Windows started after an install beside it.
 
 **How it is run.** `rig/hyperv/ubuntu-arms.sh kit`, `vm`, then `arm C`,
 `H`, `K`, `A`, `F`, `G`. The stick is built from the product's own pieces
