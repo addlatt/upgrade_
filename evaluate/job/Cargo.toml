@@ -1,6 +1,6 @@
 [package]
 name = "upgrade-job"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 license = "GPL-3.0-only"
 
@@ -18,6 +18,7 @@ upgrade-scan = { path = "../scan" }
 upgrade-harvest = { path = "../harvest" }
 upgrade-schema = { path = "../../schemas/rust" }
 upgrade-kickstart = { path = "../../upgrade_/kickstart" }
+upgrade-autoinstall = { path = "../../upgrade_/autoinstall" }
 
 # the console, the OS random source (src/password.rs) and the live reads
 # (src/live.rs): Windows only

@@ -227,8 +227,8 @@ a time (`architecture.md`, "Linux releases beyond Fedora"). Bazzite's ISO
 was measured 2026-11-07; its design was decided 2026-11-08 (`BAZZITE-DESIGN.md`).
 Steps: record the release with `measure-release.py`; cut the seam, Fedora's
 goldens unchanged; the unattended start and the key step on the rig; a real
-machine, erase first. Waits on: the ISO copy's host (below). Proves: R40,
-R42, V14, V16, then V9 and V1b per family. Stands: see [STATUS.md](STATUS.md).
+machine, erase first. Decided (2026-11-12, the owner): Ubuntu second (R40).
+Proves: R40, R42, R45, V14, V16, V18. Stands: see [STATUS.md](STATUS.md).
 
 ## 24. The release picker: choose a Linux, then fetch it onto the stick
 
@@ -275,8 +275,8 @@ is decided, the dated line goes in its home and the item here is removed.
 - Whose one-click test results count (item 21): whether a pass from an
   unknown contributor can mark a model as working, or only one from an
   approved developer or a second run that agrees (rule #1; R9).
-- Which family comes second (item 23): Ubuntu or Bazzite (R40); and where
-  the project keeps its fixed copy of Bazzite's ISO (R42, V16).
+- Ubuntu (item 23, V18): the small desktop or the full one; `/boot` apart, as
+  built (`UBUNTU-DESIGN.md`). Where Bazzite's ISO copy is kept (R42, V16).
 - How the kit reaches a person's stick (item 24, R44).
 - Whether reclaim switches the kept-Windows machine's clock back to UTC once
   Windows is gone (R36 says "may").

@@ -36,6 +36,25 @@ fn run(prog: &str, args: &[&str]) -> Result<String, String> {
     }
 }
 
+/// Which program downloads: curl where there is one (Fedora), else wget
+/// (Ubuntu's small desktop has wget and no curl; its disc's manifest, 2026-11-13).
+fn fetcher() -> &'static str {
+    if PATH_ENV.split(':').any(|d| std::path::Path::new(d).join("curl").exists()) { "curl" } else { "wget" }
+}
+
+/// The arguments for one download. `catalog`: the small file, HTTPS only and
+/// redirects only to HTTPS, two minutes at most. Otherwise the big file: five
+/// tries, carrying on where a partial file stopped (its sha1 is checked after). Pure.
+pub fn fetch_args(tool: &str, catalog: bool, out: &str, url: &str) -> Vec<String> {
+    let a: &[&str] = match (tool, catalog) {
+        ("curl", true) => &["--fail", "--silent", "--show-error", "--location", "--proto", "=https", "--proto-redir", "=https", "--max-time", "120", "-o", out, url],
+        ("curl", false) => &["--fail", "--silent", "--show-error", "--location", "--proto", "=http,https", "--retry", "5", "-C", "-", "-o", out, url],
+        (_, true) => &["--quiet", "--https-only", "--tries=1", "--timeout=120", "-O", out, url],
+        (_, false) => &["--quiet", "--tries=5", "--continue", "-O", out, url],
+    };
+    a.iter().map(|x| x.to_string()).collect()
+}
+
 // ---------------------------------------------------------------- the catalog
 
 /// One Windows file from the catalog. Pure.
@@ -78,7 +97,9 @@ pub fn fetch_catalog(windows: &str, dir: &str, cabextract: &str) -> Result<Strin
     let url = if windows == "10" { CATALOG_10 } else { CATALOG_11 };
     let cab = format!("{}/products-win{}.cab", dir, windows);
     // HTTPS only, redirects allowed only to HTTPS (go.microsoft.com -> download.microsoft.com)
-    run("curl", &["--fail", "--silent", "--show-error", "--location", "--proto", "=https", "--proto-redir", "=https", "--max-time", "120", "-o", &cab, url])?;
+    let tool = fetcher();
+    let args = fetch_args(tool, true, &cab, url);
+    run(tool, &args.iter().map(String::as_str).collect::<Vec<_>>())?;
     unpack_catalog(&cab, dir, cabextract)
 }
 
@@ -109,10 +130,11 @@ pub fn download(entry: &Value, dir: &str) -> Result<String, String> {
         return Ok(dst);
     }
     let url = entry["url"].as_str().unwrap_or("");
-    // curl in the background; its progress is the file's size, said every 2 s
-    let mut child = Command::new("curl")
-        .args(["--fail", "--silent", "--show-error", "--location", "--proto", "=http,https", "--retry", "5", "-C", "-", "-o", &part, url])
-        .env("PATH", PATH_ENV).stderr(std::process::Stdio::piped()).spawn().map_err(|e| format!("curl could not start ({})", e))?;
+    // the download in the background; its progress is the file's size, said every 2 s
+    let tool = fetcher();
+    let mut child = Command::new(tool)
+        .args(fetch_args(tool, false, &part, url))
+        .env("PATH", PATH_ENV).stderr(std::process::Stdio::piped()).spawn().map_err(|e| format!("{} could not start ({})", tool, e))?;
     let status = loop {
         match child.try_wait() {
             Ok(Some(st)) => break st,
@@ -671,6 +693,17 @@ pub fn words(plan: &Value) -> Value {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_download_keeps_its_rules_with_either_program() {
+        let c = super::fetch_args("curl", true, "/t/c.cab", "https://x/y");
+        assert!(c.windows(2).any(|w| w == ["--proto", "=https"]) && c.windows(2).any(|w| w == ["--proto-redir", "=https"]) && c.ends_with(&["-o".to_string(), "/t/c.cab".to_string(), "https://x/y".to_string()]));
+        let w = super::fetch_args("wget", true, "/t/c.cab", "https://x/y");
+        assert!(w.contains(&"--https-only".to_string()) && w.ends_with(&["-O".to_string(), "/t/c.cab".to_string(), "https://x/y".to_string()]), "the catalog comes over HTTPS only with wget too");
+        let big = super::fetch_args("wget", false, "/t/w.part", "http://x/w.esd");
+        assert!(big.contains(&"--continue".to_string()) && big.contains(&"--tries=5".to_string()) && !big.contains(&"--https-only".to_string()), "the big file resumes; its checksum is what is trusted");
+        assert!(super::fetch_args("curl", false, "/t/w.part", "u").windows(2).any(|w| w == ["-C", "-"]));
+    }
+
     use super::*;
 
     const XML: &str = r#"<MCT><Catalogs><Catalog><PublishedMedia><Files>

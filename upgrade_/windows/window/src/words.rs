@@ -94,7 +94,7 @@ pub const PATH_HEADING: &str = "What happens to Windows";
 pub const PATH_KEEP: &str = "Keep Windows beside Linux (recommended)";
 pub const PATH_KEEP_LINE: &str = "Windows is shrunk to make room and stays on the computer, so you can roll back. Your files stay where they are, on the Windows side: nothing is copied into Linux for you yet.";
 pub const PATH_CLEAN: &str = "Clean slate: erase this computer";
-pub const PATH_CLEAN_LINE: &str = "Everything on this computer's drives is deleted and Fedora is installed alone. Nothing is kept. You type one sentence before anything changes.";
+pub const PATH_CLEAN_LINE: &str = "Everything on this computer's drives is deleted and Linux is installed alone. Nothing is kept. You type one sentence before anything changes.";
 pub const CHOOSE_CONVERT_ACK: &str = "Convert this computer, ACCEPTING DATA LOSS";
 pub const CHOOSE_CONVERT_ACK_LINE: &str = "For a computer the scanner refused because its drive is failing. Read the next screen first.";
 
@@ -110,7 +110,7 @@ pub const CONVERT_ORDER: [&str; 6] = [
     "The prologue: it re-checks the plan against this computer, runs the disk check if Windows flagged C: (restart), re-measures the room, shrinks C:, pauses BitLocker for one restart, sets up the one-time restart onto the stick and restarts.",
     "Every refusal happens before anything is changed. A restart in the middle is normal: leave the stick in and walk away, it continues by itself before anyone signs in. If it stops, a window says so at your next sign-in.",
 ];
-pub const CONVERT_WIFI: &str = "Your saved Wi-Fi networks and their passwords are copied onto this stick, so Fedora can connect to them on its own. They are removed from the stick at the end of the install and from Fedora once it has set them up.";
+pub const CONVERT_WIFI: &str = "Your saved Wi-Fi networks and their passwords are copied onto this stick, so Linux can connect to them on its own. They are removed from the stick at the end of the install and from Linux once it has set them up.";
 // item 16 (R33): the programs keep an idle computer awake; a closed lid and a flat battery they cannot stop (draft words, the owner's approval owed)
 pub const CONVERT_AWAKE: &str = "This computer is kept awake while it works. Keep the lid open and the charger plugged in until Linux has started.";
 
@@ -151,7 +151,7 @@ pub const CONVERT_STEPS: [&str; 5] = [
 pub const CONVERT_RUNNING_HEADING: &str = "Converting this computer";
 pub const CONVERT_RUNNING_PROLOGUE: &str = "The prologue is running. It stops by itself if anything is not as it should be, and nothing is changed until it says so. The window cannot be closed now.";
 
-pub const SIGN_IN_HEADING: &str = "Your Fedora sign-in";
+pub const SIGN_IN_HEADING: &str = "Your Linux sign-in";
 pub const SIGN_IN_USER: &str = "user";
 pub const SIGN_IN_PASSWORD: &str = "password: the one you just chose";
 pub const DECIDE_HEADING: &str = "Your decision";
@@ -175,16 +175,16 @@ pub const LINUX_NAME_UNKNOWN: &str = "The Linux account name could not be worked
 
 // ---------------------------------------------------------------- erase: the words of RUN-ERASE-AND-INSTALL.cmd (2026-10-08)
 
-pub const ERASE_HEADING: &str = "Erase this computer and install Fedora";
+pub const ERASE_HEADING: &str = "Erase this computer and install Linux";
 pub const ERASE_READ_FIRST: &str = "Read this first";
 pub const ERASE_LINES: [&str; 5] = [
-    "This deletes EVERYTHING on this computer's drives: Windows, every program, every setting and every file. Nothing is kept and nothing is copied anywhere. Fedora Linux is installed in its place.",
+    "This deletes EVERYTHING on this computer's drives: Windows, every program, every setting and every file. Nothing is kept and nothing is copied anywhere. Linux is installed in its place.",
     "Before you type anything, copy every file you want to keep OFF this computer.",
     "The last button you click in this window is the last moment to stop. When you click it, the computer restarts into the installer and the drives are erased. There is no countdown and no way to stop it after that click. You can walk away.",
     "If you change your mind later, you can put Windows back, but it will be a new, empty Windows: nothing on this computer today comes back. On many older computers that means Windows 10, which no longer gets free security updates.",
-    "Your saved Wi-Fi networks and their passwords are copied onto this stick, so Fedora can connect to them on its own. They are removed from the stick at the end of the install and from Fedora once it has set them up.",
+    "Your saved Wi-Fi networks and their passwords are copied onto this stick, so Linux can connect to them on its own. They are removed from the stick at the end of the install and from Linux once it has set them up.",
 ];
-pub const ERASE_TYPE: &str = "To erase everything on this computer and install Fedora, type the following sentence exactly. Anything else stops here.";
+pub const ERASE_TYPE: &str = "To erase everything on this computer and install Linux, type the following sentence exactly. Anything else stops here.";
 pub const ERASE_STEPS: [&str; 5] = [
     "Check the USB stick",
     "Look at this computer",
@@ -201,7 +201,7 @@ pub const ERASE_DECIDE_LINES: [&str; 2] = [
 pub const ERASE_GO: &str = "Restart into the installer";
 pub const ERASE_RESTARTING_HEADING: &str = "Restarting into the installer in about 15 seconds";
 pub const ERASE_RESTARTING_LINES: [&str; 2] = [
-    "Leave the USB stick in. There is no turning back now: the drives are erased and Fedora is installed.",
+    "Leave the USB stick in. There is no turning back now: the drives are erased and Linux is installed.",
     "If a safety check fails in the installer, it stops before erasing anything and Windows comes back untouched. You can walk away.",
 ];
 

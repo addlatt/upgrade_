@@ -16,7 +16,9 @@ shrunk safely aside. **Decided (2026-11-02, the owner): copying the files into
 Linux waits until the project has traction.** **Amended (2026-11-07, the owner):
 the copy is back, on the keep-Windows path only, with a "here is the Linux
 version" list for the programs and the browsers' bookmarks (nothing else of
-theirs).** The clean slate still carries no files.
+theirs).** The clean slate still carries no files. **Decided (2026-11-13, the
+owner): Fedora and Ubuntu are two parallel lines through the whole project. Every
+stage is built and proven for both.**
 
 The audience is non-technical people whose working Windows 10 machines were stranded
 by Windows 11's hardware requirements and the October 2025 end of security updates.

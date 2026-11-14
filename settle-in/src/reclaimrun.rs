@@ -787,6 +787,11 @@ pub mod live {
         if find_ci(sd, KS_REL).is_none() || !find_ci(sd, "EFI/BOOT/grub.cfg").and_then(|p| std::fs::read_to_string(p).ok()).is_some_and(|t| t.contains("boot-reclaim")) {
             no.push("this computer's USB stick was made by an older kit that cannot free Windows' space, and that cannot be fixed from here yet".into());
         }
+        // the run happens inside Fedora's installer, started from the stick: a stick that carries
+        // another Linux (Ubuntu, roadmap item 23) has nothing for the marker to start
+        if find_ci(sd, "images/pxeboot/vmlinuz").is_none() || find_ci(sd, "images/install.img").is_none() {
+            no.push("this computer's USB stick does not carry the installer that frees Windows' space (only a stick with Fedora on it does, so far)".into());
+        }
         if find_ci(sd, "upgrade_/esp-snapshot/SHA256SUMS").is_none() {
             no.push("the USB stick does not hold the record of the startup files taken before the install, so Windows' own loader cannot be told from shim".into());
         }

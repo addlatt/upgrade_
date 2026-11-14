@@ -517,3 +517,44 @@ pub fn format_scan(cmdlet: &str, ev: &Value) -> String {
     }
     parts.join("; ")
 }
+
+/// Is the installer's answer file on the stick, and the right one? Fedora's
+/// is the kickstart the generator wrote. Ubuntu's installer is started with
+/// `autoinstall`, so it asks nothing and does what `autoinstall.yaml` at the
+/// stick's root says: that file must be, to the byte, the one this kit
+/// writes, which names a disk that does not exist and only starts the early
+/// check (RISKS R45). Any other text there is refused, not read.
+pub fn answer_file_refusal(distro: &str, kickstart_there: bool, autoinstall: Option<&str>) -> Option<String> {
+    if distro == "ubuntu" {
+        return match autoinstall {
+            None => Some("no answer file on the stick (autoinstall.yaml) - run the job writer first".into()),
+            Some(t) if t.replace("\r\n", "\n") == upgrade_autoinstall::the_stick_file() => None,
+            Some(_) => Some("autoinstall.yaml on the stick is not the file this kit writes (the one that names no disk); Ubuntu's installer is not started with it".into()),
+        };
+    }
+    if !kickstart_there {
+        return Some("no kickstart on the stick (upgrade_\\ks.cfg) - run the generator first".into());
+    }
+    None
+}
+
+#[cfg(test)]
+mod answer_file_tests {
+    use super::answer_file_refusal;
+
+    #[test]
+    fn the_answer_file_must_be_there_and_ubuntus_must_be_the_kits_own() {
+        let ours = upgrade_autoinstall::the_stick_file();
+        assert_eq!(answer_file_refusal("fedora", true, None), None);
+        assert!(answer_file_refusal("fedora", false, Some(&ours)).unwrap().contains("no kickstart"));
+        assert!(answer_file_refusal("", false, None).unwrap().contains("no kickstart"), "a job from before the name was written is Fedora's");
+        assert_eq!(answer_file_refusal("ubuntu", false, Some(&ours)), None);
+        assert_eq!(answer_file_refusal("ubuntu", false, Some(&ours.replace('\n', "\r\n"))), None, "Windows line ends are the same file");
+        assert!(answer_file_refusal("ubuntu", true, None).unwrap().contains("no answer file"), "a kickstart does not stand in for it");
+        // a file that would let the installer choose a disk, or one edited by a single character
+        let theirs = "autoinstall:\n  version: 1\n  storage:\n    layout:\n      name: direct\n";
+        assert!(answer_file_refusal("ubuntu", true, Some(theirs)).unwrap().contains("not the file this kit writes"));
+        assert!(answer_file_refusal("ubuntu", true, Some(&ours.replace(upgrade_autoinstall::NO_DISK, "S3YJNX0K"))).unwrap().contains("not the file this kit writes"));
+        assert!(answer_file_refusal("ubuntu", true, Some(&format!("{ours}  late-commands: [x]\n"))).unwrap().contains("not the file this kit writes"));
+    }
+}

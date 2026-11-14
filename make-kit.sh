@@ -134,6 +134,9 @@ GATE_EXE=$("$ROOT/settle-in/gate/build.sh") || fail "the gate (upgrade-gate.exe)
 step "settle-in $SETTLE_IN_VERSION: tests pass, static build; window built"
 grep -q 'boot-install' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the boot-install branch"
 grep -q 'boot-reclaim' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the reclaim branch (RISKS R41)"
+# the Ubuntu stick's menu (roadmap item 23): the same markers, the same mark, and never a start without `autoinstall`
+for m in converted boot-verify boot-install 'save_env --file /EFI/BOOT/grubenv upg_fired'; do grep -q -- "$m" "$PAYLOAD/grub-ubuntu.cfg" || fail "grub-ubuntu.cfg lacks '$m'"; done
+[ "$(grep -c '^ *linux ' "$PAYLOAD/grub-ubuntu.cfg")" = "$(grep -c '^ *linux  */casper/vmlinuz autoinstall ' "$PAYLOAD/grub-ubuntu.cfg")" ] || fail "grub-ubuntu.cfg starts Ubuntu's installer without autoinstall (it would ask the person, RISKS R45)"
 grep -q 'settle-in reclaim run' "$PAYLOAD/ks-reclaim.cfg" || fail "ks-reclaim.cfg does not run settle-in's reclaim"
 ! grep -qE '^(liveimg|part|clearpart|autopart|%include|ignoredisk)' "$PAYLOAD/ks-reclaim.cfg" || fail "ks-reclaim.cfg must install nothing"
 # UPGRADE.exe: the window in front of the scripts (Rust, decided 2026-09-27);
@@ -224,6 +227,10 @@ cp "$RBITS/EFI/BOOT/grubx64.efi" "$D/EFI/BOOT/grubx64.efi"
 fi
 cp "$PAYLOAD/grub.cfg"  "$D/EFI/BOOT/grub.cfg"
 cp "$PAYLOAD/grubenv"   "$D/EFI/BOOT/grubenv"
+# the same menu for a stick that carries Ubuntu: Ubuntu's GRUB reads it from boot/grub/
+# (upgrade-fetch leaves the disc's own out); on a Fedora stick nothing reads it
+mkdir -p "$D/boot/grub"
+cp "$PAYLOAD/grub-ubuntu.cfg" "$D/boot/grub/grub.cfg"
 # unsigned payload: the matrix rows (Test-Handoff.ps1 -Payload shell)
 cp "$BITS/Shell.efi"    "$D/EFI/SHELL/SHELLX64.EFI"
 cp "$PAYLOAD/startup.nsh" "$D/startup.nsh"

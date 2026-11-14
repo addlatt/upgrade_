@@ -1290,7 +1290,7 @@ read them ([log](log/2026-11.md#2026-11-11-the-sleep-lock-on-both-sides-and-the-
 No row yet. Not read: a Linux on a second drive, bare firmware entries.
 Found on the Aspire, 2026-10-28 ([log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)).
 
-## R40: A second installer cannot run offline and unattended with Secure Boot on · critical · planned
+## R40: A second installer cannot run offline and unattended with Secure Boot on · critical · held-on-rig
 
 **What.** Fedora's installer (Anaconda) installs from the image on the
 stick with no network and no question asked, and Fedora's shim starts
@@ -1316,13 +1316,16 @@ release that needs a key enrolled closes only if the window says so
 before the last click and the row records it. Fedora's rows count for
 Fedora only.
 
-**Where it stands.** `[#...]` planned. Found in research, 2026-11-02
-([log](log/2026-11.md#2026-11-02-a-second-linux-one-installer-family-at-a-time-r40-v14-roadmap-item-23)).
-Bazzite's live ISO measured 2026-11-07: its system image is on it, and its
-own kickstart installs from there, not the network; how to start it with
-nobody at the keyboard is unmeasured
-([log](log/2026-11.md#2026-11-07-bazzites-live-iso-measured-and-a-design-for-the-key-step-r40-r42-v14-v16-roadmap-items-23-24);
-the design: [BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
+**Decided (2026-11-12, the owner):** Ubuntu is the second family, built
+now. Bazzite's design stays decided and comes after.
+**Decided (2026-11-13, the owner):** Fedora and Ubuntu are two parallel
+lines through the whole project; Ubuntu is in `data/releases.json`.
+
+**Where it stands.** `[###.]` held-on-rig, for Ubuntu only: its erase
+from a stick laid out as the product's, network off, nothing typed,
+Secure Boot on, has a rig row (`ubuntu-install.csv` line 11;
+[log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). No real machine. Bazzite: its ISO measured 2026-11-07, its
+unattended start unmeasured ([BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
 
 ## R41: Reclaim deletes the kept Windows and moves Linux into the space · critical · built
 
@@ -1456,9 +1459,47 @@ arm says, recorded in `v17-fetch.csv`.
 
 **Where it stands.** `[###.]` held in a rehearsal on the development
 machine (Windows' own WinHTTP, an NTFS folder, the rig's ISOs from a local
-server with faults), `v17-fetch.csv` lines 8 to 13, `pass-plumbing`, after a code review's fixes
-([log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)). Owed: a real FAT32 stick, the real
-internet, a stick pulled mid-download.
+server with faults): Fedora's six arms, `v17-fetch.csv` lines 8 to 13, and
+Ubuntu's whole-disc layout, lines 14 to 17, all `pass-plumbing`
+([log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). Owed: a real FAT32 stick, the real internet, a stick
+pulled mid-download.
+
+## R45: An Ubuntu stick erases the computer it starts on, and picks the disk itself · critical · held-on-rig
+
+**What.** Seen on the rig 2026-11-12: with `autoinstall` on the kernel line
+and `autoinstall.yaml` on the stick, Ubuntu's installer asks nothing. Left
+to its defaults it also chooses where: the `direct` layout takes "the
+largest disk", `mode: use_gap` takes "the largest gap", and a file with no
+storage section still installs (its documentation). Nothing in the
+installer ties the file to one machine. Fedora's kickstart is fenced by
+`%pre` (`upgrade-installer verify`: this machine, this job, the disk by
+its identity). Ubuntu's fence is `upgrade-installer early`.
+
+**If real.** A stick moved to another computer, or started a second time,
+erases that computer with no question. On a machine with two drives or two
+gaps the install lands where the person did not mean. Critical: the wrong
+disk erased before any check of ours has run.
+
+**Closes when.** The stick's own file carries no disk and no account, only
+our early hook; the hook writes the real file after its checks pass (the
+installer reads the file again after the hook: its documentation, to
+prove); the disk is named by serial and every kept partition one by one,
+never "largest". Then rig rows: a stick started on a guest that is not the
+job's machine, a second start after a finished install, and a guest with
+two disks and two gaps each end with the right disk written or nothing
+written. Then one real machine.
+
+**Where it stands.** `[###.]` held-on-rig. The stick's own file names a
+disk that does not exist and only starts `upgrade-installer early`, which
+writes the real file after its checks; the prologue starts Ubuntu's
+installer with no other file (unit cases). On the rig, on a stick laid
+out as the product's: another machine's stick and two free spaces
+refused with both disks unchanged, the file without our check installed
+nothing, the erase landed on the job's disk beside a larger one, and the
+stick started again handed over to the installed system
+(`ubuntu-install.csv` lines 11 to 17, line 13 apart; a second
+start refused by the check itself, line 6; [log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). Owed: a real
+machine.
 
 # Closed
 

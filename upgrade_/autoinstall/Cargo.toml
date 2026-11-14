@@ -1,0 +1,13 @@
+[package]
+name = "upgrade-autoinstall"
+version = "0.3.0"
+edition = "2024"
+license = "GPL-3.0-only"
+
+# The answer-file generator for Ubuntu's installer (subiquity): job.json ->
+# autoinstall.yaml. The second installer family (roadmap item 23; RISKS R40,
+# R45; decided 2026-11-12, the owner). Beside upgrade_/kickstart, which is
+# Fedora's. One dependency, so the installer's static program can link it:
+# the file is written on the machine being converted, after its checks.
+[dependencies]
+serde_json = "1"

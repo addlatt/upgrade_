@@ -880,8 +880,9 @@ new writer.
 (two dropped connections, resumed) lands `ready` with every file in
 SHA256SUMS reading back; `again` downloads nothing; `byte-changed`,
 `no-length` and `no-server` refuse, keeping nothing; `range-ignored` lands
-`ready`. The words are in `validation-results/README.md`. Then a real stick
-and the real internet.
+`ready`. For a disc taken whole (Ubuntu): `ubuntu-fresh`, `ubuntu-again`,
+`fedora-after-ubuntu`, `ubuntu-byte-changed`. The words are in
+`validation-results/README.md`. Then a real stick and the real internet.
 
 **How it is run.** `cargo test` in `evaluate/fetch` (made-up servers and
 discs; the real Fedora 44 ISOs when the rig has them). Then
@@ -891,9 +892,37 @@ Then the window's picker on a kit stick (`make-kit.sh --release none`).
 Residue only a real stick and network close: FAT32, a cheap stick's own
 speed and drops, a mirror's redirects and TLS.
 
-**Where it stands.** `[###.]` the rehearsal's six arms, `v17-fetch.csv`
-lines 8 to 13, `pass-plumbing` (after the code review) ([log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)).
+**Where it stands.** `[###.]` the rehearsal: Fedora's six arms,
+`v17-fetch.csv` lines 8 to 13, and Ubuntu's four, lines 14 to 17, all
+`pass-plumbing` ([log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)).
 Owed: the window on a kit stick, a real stick, the real internet.
+
+## V18: Ubuntu installs from its own stick onto the disk the job names, or not at all · kills: Ubuntu as a second family · RISKS R40, R45, R21 · held-on-rig
+
+**Why it has its own gate.** Ubuntu's installer (subiquity) is a second
+installer family: another answer file, other hooks, and an installer that
+picks a disk by itself when nothing stops it (R45). Fedora's rows say
+nothing about it.
+
+**What passes.** In `ubuntu-install.csv`: `refused-wrong-machine`,
+`nothing-installed-without-the-check`, `refused-two-spaces`,
+`erased-installed`, `handed-over` (or `not-installed-again`) and
+`installed-beside-windows`, each with the network off and nothing typed,
+on a stick laid out as the product's. The words are in
+`validation-results/README.md`. Then the Windows side:
+`erased-installed-from-windows` on the rig (the prologue's start), and
+the window and the job writer on a real machine with Secure Boot on, the
+erase first; and Windows started after an install beside it.
+
+**How it is run.** `rig/hyperv/ubuntu-arms.sh kit`, `vm`, then `arm C`,
+`H`, `K`, `A`, `F`, `G`. The stick is built from the product's own pieces
+and laid out as `make-kit.sh` and `upgrade-fetch` lay it out: the ISO's
+files, `grub-ubuntu.cfg`, `upgrade-autoinstall stick-file`,
+`upgrade-installer`, settle-in, a job checked against the schema.
+`ubuntu-verdict.py` writes the row. A disk is judged by the sha256 of its
+content, read on the host.
+
+**Where it stands.** See [STATUS.md](STATUS.md).
 
 # Lesser gates (validate when their component is built)
 

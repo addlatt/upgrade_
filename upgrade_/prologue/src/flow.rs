@@ -629,7 +629,7 @@ fn arm(ctx: &mut Ctx, st: &mut Value, root: &str, job: &Value) {
     ctx.log("");
     ctx.log("  This computer restarts into the installer in 15 seconds. Leave the stick in.");
     if erase {
-        ctx.log("  There is no turning back now. Once the installer's checks pass, everything is erased and Fedora is installed; if a check fails, it stops and this Windows comes back untouched.");
+        ctx.log("  There is no turning back now. Once the installer's checks pass, everything is erased and Linux is installed; if a check fails, it stops and this Windows comes back untouched.");
     } else {
         ctx.log("  Windows is still here and still bootable; it stays that way until you reclaim it in Linux.");
     }
@@ -715,8 +715,15 @@ fn return_stage(ctx: &mut Ctx, st: &mut Value, root: &str) {
     let outcome_v = if root.is_empty() { Value::Null } else { read_json(&Path::new(root).join("upgrade_").join("outcome.json")).unwrap_or(Value::Null) };
     let bench_force = !root.is_empty() && Path::new(root).join("upgrade_").join(windows_slot::BENCH_FORCE_MARKER).exists();
     // GRUB's own word first (kickstart 0.9.0): a person who chose Windows from its menu proves the firmware boots the Linux entry
-    let chosen = if s(&outcome_v["status"]) == "completed" && s(&outcome_v["path_taken"]) == "keep-windows" {
-        match windows_slot::live::windows_chosen_in_grub(&mut ctx.rec) {
+    // which Linux was installed decides the folder its shim is in; one this kit does not know is left alone
+    let distro = s(at(&outcome_v, "install.distro"));
+    let linux_dir = windows_slot::linux_dir(&distro);
+    let kept = s(&outcome_v["status"]) == "completed" && s(&outcome_v["path_taken"]) == "keep-windows";
+    if kept && linux_dir.is_none() {
+        ctx.log(&format!("  windows slot: the install record names '{distro}', a Linux this program does not know the boot folder of; nothing arranged"));
+    }
+    let chosen = if let (true, Some(dir)) = (kept, linux_dir) {
+        match windows_slot::live::windows_chosen_in_grub(&mut ctx.rec, dir) {
             Ok((true, cleared)) => {
                 ctx.log(&format!("  windows slot: GRUB's record says Windows was chosen from its menu this boot, so the firmware does boot the Linux entry; nothing to arrange (flag cleared: {cleared})"));
                 true
@@ -730,10 +737,10 @@ fn return_stage(ctx: &mut Ctx, st: &mut Value, root: &str) {
     } else {
         false
     };
-    if let Some(reason) = windows_slot::needs_slot(&outcome_v, fired, bench_force, chosen) {
+    if let (Some(reason), Some(linux_dir)) = (windows_slot::needs_slot(&outcome_v, fired, bench_force, chosen), linux_dir) {
         ctx.log(&format!("  windows slot: {reason}"));
         let mut lines = Vec::new();
-        let applied = windows_slot::live::apply(&mut ctx.rec, &ctx.state_dir, if root.is_empty() { None } else { Some(root) }, &reason, &version_line(), &mut |l| lines.push(l));
+        let applied = windows_slot::live::apply(&mut ctx.rec, &ctx.state_dir, if root.is_empty() { None } else { Some(root) }, linux_dir, &reason, &version_line(), &mut |l| lines.push(l));
         for l in &lines {
             ctx.log(l);
         }
@@ -798,8 +805,11 @@ pub fn start(ctx: &mut Ctx, a: &StartArgs) -> Result<(), String> {
     if !Path::new(&root).join(live::PAYLOAD_EFI.trim_start_matches('\\')).exists() {
         return Err(format!("no payload at {root}{} - this is not the kit stick", live::PAYLOAD_EFI.trim_start_matches('\\')));
     }
-    if !Path::new(&root).join("upgrade_").join("ks.cfg").exists() {
-        return Err("no kickstart on the stick (upgrade_\\ks.cfg) - run the generator first".into());
+    // the installer's answer file, by the Linux the job names: Fedora's kickstart, or Ubuntu's
+    // own file, which must be the one that names no disk (R45)
+    let answer = std::fs::read_to_string(Path::new(&root).join("autoinstall.yaml")).ok();
+    if let Some(why) = judge::answer_file_refusal(&s(at(&job, "intent.distro.name")), Path::new(&root).join("upgrade_").join("ks.cfg").exists(), answer.as_deref()) {
+        return Err(why);
     }
     let report = Path::new(&root).join("upgrade_").join("report");
     let _ = std::fs::remove_dir_all(&report);

@@ -3195,8 +3195,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
 
 [[package]]
+name = "upgrade-autoinstall"
+version = "0.3.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "upgrade-fetch"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "serde_json",
  "sha2",
@@ -3217,12 +3224,13 @@ dependencies = [
 
 [[package]]
 name = "upgrade-job"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "regress",
  "roxmltree",
  "serde_json",
  "sha2",
+ "upgrade-autoinstall",
  "upgrade-harvest",
  "upgrade-kickstart",
  "upgrade-scan",
@@ -3241,11 +3249,12 @@ dependencies = [
 
 [[package]]
 name = "upgrade-prologue"
-version = "0.4.1"
+version = "0.4.3"
 dependencies = [
  "regress",
  "serde_json",
  "sha2",
+ "upgrade-autoinstall",
  "upgrade-scan",
  "upgrade-schema",
  "windows",
@@ -3283,7 +3292,7 @@ dependencies = [
 
 [[package]]
 name = "upgrade-window"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "eframe",
  "serde_json",

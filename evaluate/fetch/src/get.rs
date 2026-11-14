@@ -21,7 +21,7 @@
 //! touches this computer's own disk: every write is under the stick's root.
 
 use crate::iso::{Extractor, Want};
-use crate::plan::Plan;
+use crate::plan::{Extract, Plan};
 use crate::stick::{self, StickFacts};
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
@@ -74,7 +74,10 @@ pub enum Outcome {
 
 /// A file being written, with the sha256 of what went in.
 struct HashFile {
-    out: std::io::BufWriter<std::fs::File>,
+    out: Option<std::io::BufWriter<std::fs::File>>,
+    /// a file of a whole disc: opened at its first byte and closed at its
+    /// last, so a disc of a thousand files holds one open at a time
+    lazy: Option<(PathBuf, u64)>,
     hash: Sha256,
     bytes: u64,
 }
@@ -83,15 +86,30 @@ struct Shared(Rc<RefCell<HashFile>>);
 impl Write for Shared {
     fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
         let mut h = self.0.borrow_mut();
-        h.out.write_all(b)?;
+        if h.out.is_none() {
+            let Some((path, _)) = h.lazy.clone() else { return Err(std::io::Error::other("the file is closed")) };
+            h.out = Some(std::io::BufWriter::with_capacity(1 << 20, std::fs::File::create(path)?));
+        }
+        h.out.as_mut().expect("opened above").write_all(b)?;
         h.hash.update(b);
         h.bytes += b.len() as u64;
+        if h.lazy.as_ref().is_some_and(|(_, size)| h.bytes >= *size) {
+            let mut out = h.out.take().expect("opened above");
+            out.flush()?;
+            out.get_ref().sync_all()?;
+            h.lazy = None;
+        }
         Ok(b.len())
     }
     fn flush(&mut self) -> std::io::Result<()> {
         let mut h = self.0.borrow_mut();
-        h.out.flush()?;
-        h.out.get_ref().sync_all()
+        match h.out.as_mut() {
+            Some(out) => {
+                out.flush()?;
+                out.get_ref().sync_all()
+            }
+            None => Ok(()),
+        }
     }
 }
 
@@ -238,11 +256,37 @@ fn fetch_all(root: &Path, staging: &Path, plan: &Plan, from: Option<&str>, sizes
             let path = stick::under(staging, &x.dest);
             std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| format!("{}: {e}", staging.display()))?;
             let f = std::fs::File::create(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-            let h = Shared(Rc::new(RefCell::new(HashFile { out: std::io::BufWriter::with_capacity(1 << 20, f), hash: Sha256::new(), bytes: 0 })));
+            let h = Shared(Rc::new(RefCell::new(HashFile { out: Some(std::io::BufWriter::with_capacity(1 << 20, f)), lazy: None, hash: Sha256::new(), bytes: 0 })));
             wants.push(Want { path: x.iso_path.clone(), out: Box::new(h.clone()) });
             files.push((x.clone(), path, h));
         }
-        let mut x = Extractor::new(wants);
+        // a whole disc (Ubuntu's): its files are named by its own folders, so each is
+        // judged as it is found: left out, refused, or given a place under the staging folder
+        let found: Rc<RefCell<Vec<(Extract, PathBuf, Shared)>>> = Rc::default();
+        let mut x = match &p.whole {
+            None => Extractor::new(wants),
+            Some(w) => {
+                let (w, staging, found) = (w.clone(), staging.to_path_buf(), found.clone());
+                Extractor::every_file(Box::new(move |iso_path, size| {
+                    if w.skip.iter().any(|s| s == iso_path) {
+                        return Ok(None);
+                    }
+                    let dest = crate::plan::dest_of(iso_path);
+                    if !stick::safe_rel(&dest) || !crate::plan::release_owned(&dest) {
+                        return Err(format!("{iso_path}: this kit does not know where on the stick that file belongs; refused"));
+                    }
+                    let path = stick::under(&staging, &dest);
+                    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| format!("{}: {e}", staging.display()))?;
+                    if size == 0 {
+                        std::fs::File::create(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+                    }
+                    let sha256 = w.checks.iter().find(|(c, _)| c == iso_path).map(|(_, h)| h.clone());
+                    let h = Shared(Rc::new(RefCell::new(HashFile { out: None, lazy: (size > 0).then(|| (path.clone(), size)), hash: Sha256::new(), bytes: 0 })));
+                    found.borrow_mut().push((Extract { iso_path: iso_path.to_string(), dest, sha256 }, path, h.clone()));
+                    Ok(Some(Box::new(h) as Box<dyn Write>))
+                }))
+            }
+        };
         let mut whole = Sha256::new();
         let mut got = 0u64;
         let mut tries = 0u32;
@@ -321,6 +365,14 @@ fn fetch_all(root: &Path, staging: &Path, plan: &Plan, from: Option<&str>, sizes
             return Err(format!("the download of {name} did not match its measured sha256 (got {hex}); nothing was kept"));
         }
         x.finish().map_err(|e| format!("{name}: {e}"))?;
+        files.append(&mut found.borrow_mut());
+        if let Some(w) = &p.whole {
+            // what the table measured must have been on the disc at all
+            if let Some((missing, _)) = w.checks.iter().find(|(c, _)| !files.iter().any(|(ex, _, _)| &ex.iso_path == c)) {
+                return Err(format!("{missing} is not on this disc image; nothing was kept"));
+            }
+            say(&format!("fetch: {} files from the disc", files.len()));
+        }
         say(&format!("fetch: {name} matches its measured sha256; reading the files back from the stick"));
         for (ex, path, h) in files {
             let (wrote, n) = {
@@ -367,7 +419,7 @@ fn fetch_all(root: &Path, staging: &Path, plan: &Plan, from: Option<&str>, sizes
 mod tests {
     use super::*;
     use crate::iso::tests::make_iso;
-    use crate::plan::{Extract, Part};
+    use crate::plan::Part;
     use crate::stick::DriveKind;
     use std::collections::HashMap;
 
@@ -469,8 +521,9 @@ mod tests {
                         Extract { iso_path: "BOOTX64.EFI".into(), dest: "EFI\\BOOT\\BOOTX64.EFI".into(), sha256: Some(hex(&shim)) },
                         Extract { iso_path: "vmlinuz".into(), dest: "images\\pxeboot\\vmlinuz".into(), sha256: None },
                     ],
+                    whole: None,
                 },
-                Part { url: "https://example.org/b/live.iso".into(), sha256: hex(&live_iso), extracts: vec![Extract { iso_path: "Sub/squashfs.img".into(), dest: "upgrade_\\LiveOS\\kde.squashfs".into(), sha256: Some(hex(&image)) }] },
+                Part { url: "https://example.org/b/live.iso".into(), sha256: hex(&live_iso), extracts: vec![Extract { iso_path: "Sub/squashfs.img".into(), dest: "upgrade_\\LiveOS\\kde.squashfs".into(), sha256: Some(hex(&image)) }], whole: None },
             ],
             release_json: "{\n  \"id\": \"fedora-44\",\n  \"name\": \"Fedora 44\",\n  \"desktop\": \"kde\"\n}\n".into(),
             boot_chain: vec![("upgrade_\\boot-chain\\kde-shimx64.sbat".into(), "sbat,1\n".into())],
@@ -637,6 +690,107 @@ mod tests {
         assert!(!b.root.join("upgrade_/LiveOS/gnome.squashfs").exists());
         let sums = std::fs::read_to_string(b.root.join("SHA256SUMS")).unwrap();
         assert!(!sums.contains("gnome"));
+    }
+
+    /// A stick and a made-up disc taken whole (Ubuntu's layout): two files
+    /// at the top, a `casper` folder, the disc's own start menu left out.
+    fn whole_bench(top: &[(&str, &[u8])]) -> Bench {
+        use crate::iso::tests::make_iso_named;
+        use crate::plan::Whole;
+        let mut b = bench();
+        let kernel: Vec<u8> = (0..7000u32).map(|i| (i * 11 % 256) as u8).collect();
+        let layer: Vec<u8> = (0..30000u32).map(|i| (i * 3 % 256) as u8).collect();
+        let mut top = top.to_vec();
+        top.push(("grub.cfg", b"the disc's own menu"));
+        let disc = make_iso_named("casper", &top, &[("vmlinuz", &kernel), ("minimal.squashfs", &layer), ("empty", b"")], true, false);
+        std::fs::write(b.root.join("grub.cfg"), "the kit's menu").unwrap();
+        b.plan = Plan {
+            id: "ubuntu-26.04.1".into(),
+            name: "Ubuntu 26.04.1 LTS".into(),
+            desktop: "gnome".into(),
+            desktop_label: "GNOME".into(),
+            family: "ubuntu".into(),
+            measured: "2026-11-12".into(),
+            parts: vec![Part {
+                url: "https://example.org/u/ubuntu.iso".into(),
+                sha256: hex(&disc),
+                extracts: vec![],
+                whole: Some(Whole { skip: vec!["grub.cfg".into()], checks: vec![("casper/vmlinuz".into(), hex(&kernel)), ("casper/minimal.squashfs".into(), hex(&layer))] }),
+            }],
+            release_json: "{\n  \"id\": \"ubuntu-26.04.1\",\n  \"name\": \"Ubuntu 26.04.1 LTS\",\n  \"desktop\": \"gnome\"\n}\n".into(),
+            boot_chain: vec![("upgrade_\\boot-chain\\gnome-shimx64.sbat".into(), "sbat,1\n".into())],
+        };
+        b.net.files.insert("https://example.org/u/ubuntu.iso".into(), disc);
+        b
+    }
+
+    #[test]
+    fn a_whole_disc_lands_file_for_file_beside_the_kits_own_menu() {
+        let mut b = whole_bench(&[("md5sum.txt", b"sums"), ("boot.catalog", b"catalog")]);
+        b.net.drops = vec![40_000];
+        assert!(matches!(b.run().unwrap(), Outcome::Fetched { .. }));
+        let r = &b.root.clone();
+        let sums = stick::read_sums(&std::fs::read_to_string(r.join("SHA256SUMS")).unwrap());
+        let paths: Vec<&str> = sums.iter().map(|(p, _)| p.as_str()).collect();
+        assert_eq!(paths, ["UPGRADE.exe", "boot.catalog", "casper\\empty", "casper\\minimal.squashfs", "casper\\vmlinuz", "md5sum.txt", "release.json", "upgrade_\\boot-chain\\gnome-shimx64.sbat"]);
+        for (p, h) in &sums {
+            assert_eq!(&sha256_file(&stick::under(r, p)).unwrap(), h, "{p} is what SHA256SUMS says");
+        }
+        assert_eq!(std::fs::read(r.join("grub.cfg")).unwrap(), b"the kit's menu", "the disc's menu did not replace the kit's");
+        assert_eq!(std::fs::metadata(r.join("casper/empty")).unwrap().len(), 0);
+        assert!(b.staging_gone());
+        assert!(b.lines.iter().any(|l| l == "fetch: 5 files from the disc"), "{:?}", b.lines);
+        let before = b.net.calls.len();
+        assert_eq!(b.run().unwrap(), Outcome::AlreadyThere);
+        assert_eq!(b.net.calls.len(), before);
+        // one of its files gone: the stick no longer holds it
+        std::fs::remove_file(r.join("casper/empty")).unwrap();
+        assert!(stick::holds(r, &b.plan).unwrap_err().contains("missing"));
+    }
+
+    #[test]
+    fn a_whole_disc_with_a_file_the_kit_has_no_place_for_refuses() {
+        for name in ["UPGRADE.exe", "autoinstall.yaml", "notes.txt"] {
+            let mut b = whole_bench(&[("md5sum.txt", b"sums"), (name, b"theirs")]);
+            let e = b.run().unwrap_err();
+            assert!(e.contains("does not know where on the stick"), "{name}: {e}");
+            assert_eq!(std::fs::read(b.root.join("UPGRADE.exe")).unwrap(), b"exe");
+            assert!(!b.root.join("casper/vmlinuz").exists() && !b.root.join("release.json").exists() && b.staging_gone());
+        }
+    }
+
+    #[test]
+    fn a_whole_disc_that_is_not_the_measured_one_refuses() {
+        use crate::plan::Whole;
+        let mut b = whole_bench(&[("md5sum.txt", b"sums")]);
+        let set = |b: &mut Bench, checks: Vec<(String, String)>| b.plan.parts[0].whole = Some(Whole { skip: vec!["grub.cfg".into()], checks });
+        set(&mut b, vec![("casper/vmlinuz".into(), hex(b"another kernel"))]);
+        assert!(b.run().unwrap_err().contains("casper\\vmlinuz is not the measured file"));
+        assert!(!b.root.join("casper/vmlinuz").exists() && b.staging_gone());
+        set(&mut b, vec![("casper/initrd".into(), hex(b"x"))]);
+        assert!(b.run().unwrap_err().contains("casper/initrd is not on this disc image"));
+        assert!(!b.root.join("casper/vmlinuz").exists() && b.staging_gone());
+    }
+
+    #[test]
+    fn fedora_after_ubuntu_takes_every_file_of_the_disc_away() {
+        let mut b = whole_bench(&[("md5sum.txt", b"sums"), ("boot.catalog", b"catalog")]);
+        b.run().unwrap();
+        // a file of the disc that SHA256SUMS never named (a stop while the files moved into place)
+        std::fs::create_dir_all(b.root.join("pool/main/a")).unwrap();
+        std::fs::write(b.root.join("pool/main/a/left.deb"), "left").unwrap();
+        let fedora = bench();
+        b.plan = fedora.plan.clone();
+        b.net.files = fedora.net.files.clone();
+        b.run().unwrap();
+        let r = &b.root.clone();
+        for gone in ["casper/vmlinuz", "casper/minimal.squashfs", "casper/empty", "md5sum.txt", "boot.catalog", "pool/main/a/left.deb", "upgrade_/boot-chain/gnome-shimx64.sbat"] {
+            assert!(!r.join(gone).exists(), "{gone}");
+        }
+        assert_eq!(std::fs::read(r.join("grub.cfg")).unwrap(), b"the kit's menu");
+        assert!(stick::holds(r, &b.plan).is_ok());
+        let sums = std::fs::read_to_string(r.join("SHA256SUMS")).unwrap();
+        assert!(!sums.contains("casper") && !sums.contains("md5sum"));
     }
 
     #[test]

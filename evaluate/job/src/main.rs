@@ -287,6 +287,32 @@ mod on_windows {
         for line in live::summary_lines(j, &facts, &job_path, verify_only) {
             println!("{line}");
         }
+        // Ubuntu's stick carries one answer file of ours, and it installs nothing by
+        // itself: it starts the early check, which writes the real one (RISKS R45)
+        let ubuntu = j["intent"]["distro"]["name"] == "ubuntu";
+        if ubuntu {
+            let Some(path) = value_of("--autoinstall") else {
+                return refused(&["this stick carries Ubuntu, and its answer file has nowhere to go (--autoinstall)".to_string()]);
+            };
+            if let Err(e) = upgrade_autoinstall::check(j) {
+                return refused(&[format!("no answer file: {e}")]);
+            }
+            let text = upgrade_autoinstall::the_stick_file();
+            // a kickstart left from an earlier job on this stick is for another installer and another job
+            if let Some(ks) = value_of("--kickstart") {
+                let _ = std::fs::remove_file(&ks);
+            }
+            if let Err(e) = std::fs::write(&path, text) {
+                eprintln!("upgrade-job: cannot write {path}: {e}");
+                return ExitCode::from(1);
+            }
+            println!("  answer file written: {path}");
+            return ExitCode::SUCCESS;
+        }
+        // the other way round: Ubuntu's answer file left from an earlier job has no place on a Fedora stick
+        if let Some(old) = value_of("--autoinstall") {
+            let _ = std::fs::remove_file(&old);
+        }
         if let Some(ks) = value_of("--kickstart") {
             let label = value_of("--stick-label").unwrap_or_else(|| "UPGV0".to_string());
             let manifest: Vec<String> = value_of("--manifest").and_then(|m| std::fs::read_to_string(m).ok()).map(|t| t.trim_start_matches('\u{feff}').lines().map(|l| l.trim_end_matches('\r').to_string()).collect()).unwrap_or_default();
