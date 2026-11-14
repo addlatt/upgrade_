@@ -132,6 +132,8 @@ L=/run/upglog; mkdir -p $L; mount -L UPGLOG $L || exit 0
   echo "default_target=$(systemctl get-default)"
   echo "kept_entries=$(grep -c "^menuentry 'Windows (kept)'" /boot/grub/grub.cfg)"; echo "osprober_entries=$(grep -c osprober /boot/grub/grub.cfg)"
   echo "boot_id=$(cat /proc/sys/kernel/random/boot_id)"; echo "boots=$(journalctl --list-boots -q | wc -l)"
+  echo "ssh_unit=$(systemctl is-active ssh.service)"; echo "ssh_enabled=$(systemctl is-enabled ssh.service 2>&1)"; echo "ssh_socket=$(systemctl is-active ssh.socket 2>&1)"; echo "ssh_keys_sha256=$(sha256sum < /home/rig/.ssh/authorized_keys 2>/dev/null | cut -d' ' -f1)"
+  echo "ssh_password_signin=$(sshd -T 2>/dev/null | grep -i '^passwordauthentication' | cut -d' ' -f2)"; echo "cryptsetup=$(command -v cryptsetup)"; echo "downloaders=$(for t in curl wget; do command -v $t; done | tr '\n' ' ')"
   echo "si_done=$(test -f /var/lib/upgrade_/settle-in/first-start.done && echo y || echo n)"; echo "si_unit=$(systemctl is-active upgrade_-settle-in.service)"
   cp /var/lib/upgrade_/settle-in/report.json $L/settle-in-report.json 2>/dev/null
   sleep 45; echo "display_manager=$(systemctl is-active display-manager)"
@@ -289,12 +291,14 @@ for l in open(sys.argv[1]):
 P
 )
         [ -n "${CUID:-}" ] || { echo "ubuntu-arms: arm A's early.log names no $SYSTEM_BYTES-byte disk; run arm A first" >&2; exit 1; }
-        python3 ubuntu-job.py "$D/job.json" --uid="$CUID" --size=$SYSTEM_BYTES --serial="${CSERIAL:-}" --hash="$HASH"
+        # remote access as a Windows that had it on would hand it over (a made-up key: a spoof)
+        rm -f "$D/spoof-key" "$D/spoof-key.pub"; ssh-keygen -q -t ed25519 -N '' -C 'rig spoof' -f "$D/spoof-key"; rm -f "$D/spoof-key"
+        python3 ubuntu-job.py "$D/job.json" --uid="$CUID" --size=$SYSTEM_BYTES --serial="${CSERIAL:-}" --hash="$HASH" --spoof-ssh="$D/spoof-key.pub"
         build_stick C "$D/job.json"; SECS=3600 ;;
     H)  [ -f "$A/arm-C/job.json" ] && [ -f "$A/arm-C/log/firstboot.txt" ] || { echo "ubuntu-arms: arm H runs after arm C, on the stick and the disk C left" >&2; exit 1; }
         cp "$A/arm-C/job.json" "$D/job.json"; cp "$A/arm-C/log/firstboot.txt" "$D/firstboot-C.txt"; off; SECS=600 ;;
     K)  # always a fresh copy: a disk an earlier run put Linux on has no free space, and the check refuses it (line 13)
-        off; PSC "Get-VMHardDiskDrive -VMName $VMNAME | Where-Object { \$_.Path -like '*ubu-windows.vhdx' } | Remove-VMHardDiskDrive; Remove-Item '$HVW\\vm\\ubu-windows.vhdx' -ErrorAction SilentlyContinue"
+        off; PSC "Get-VMHardDiskDrive -VMName $VMNAME | Where-Object { \$_.Path -like '*ubu-windows.vhdx' } | Remove-VMHardDiskDrive; Remove-Item '$HVW\\vm\\ubu-windows.vhdx' -ErrorAction SilentlyContinue; exit 0"
         if [ ! -f "$HV/vm/ubu-windows.vhdx" ]; then
             # in the foreground, and compared: a copy cut short is a full-length file with a garbage tail (2026-11-12)
             PSC "\$ErrorActionPreference='Stop'; Copy-Item '$HVW\\vm\\UPGRIGHV.pre-install.vhdx' '$HVW\\vm\\ubu-windows.vhdx'
@@ -305,7 +309,7 @@ P
         python3 ubuntu-job.py "$D/job.json" --keep --uid="$WUID" --size="$WSIZE" --hash="$HASH"
         build_stick K "$D/job.json"; SECS=3600 ;;
     W)  # the rig's install-day Windows, a fresh copy every time
-        off; PSC "Get-VMHardDiskDrive -VMName $VMNAME | Where-Object { \$_.Path -like '*ubu-windows.vhdx' } | Remove-VMHardDiskDrive; Remove-Item '$HVW\\vm\\ubu-windows.vhdx' -ErrorAction SilentlyContinue"
+        off; PSC "Get-VMHardDiskDrive -VMName $VMNAME | Where-Object { \$_.Path -like '*ubu-windows.vhdx' } | Remove-VMHardDiskDrive; Remove-Item '$HVW\\vm\\ubu-windows.vhdx' -ErrorAction SilentlyContinue; exit 0"
         PSC "\$ErrorActionPreference='Stop'; Copy-Item '$HVW\\vm\\UPGRIGHV.fresh.vhdx' '$HVW\\vm\\ubu-windows.vhdx'
           \$a = (Get-FileHash '$HVW\\vm\\UPGRIGHV.fresh.vhdx').Hash; \$b = (Get-FileHash '$HVW\\vm\\ubu-windows.vhdx').Hash
           if (\$a -ne \$b) { throw 'the copy of the Windows disk does not match' }; 'windows disk copied: ' + \$b"

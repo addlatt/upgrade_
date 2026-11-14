@@ -40,7 +40,13 @@ pub fn keys_to_add(existing: &str, keys: &[String]) -> Vec<String> {
 
 fn sshd_installed(r: &str) -> Option<String> {
     ["usr/lib/systemd/system/sshd.service", "lib/systemd/system/sshd.service", "usr/lib/systemd/system/ssh.service", "lib/systemd/system/ssh.service"]
-        .iter().find(|p| std::path::Path::new(&format!("{}/{}", r, p)).exists()).map(|p| p.to_string())
+        .iter()
+        // the unit's own file before a second name for it: Ubuntu ships ssh.service and an
+        // sshd.service that only points at it, and enabling the pointer leaves `systemctl
+        // is-enabled ssh` saying disabled (the rig, 2026-11-14, ubuntu-install.csv line 20)
+        .filter(|p| std::path::Path::new(&format!("{}/{}", r, p)).exists())
+        .min_by_key(|p| std::fs::symlink_metadata(format!("{}/{}", r, p)).map(|m| m.file_type().is_symlink()).unwrap_or(true))
+        .map(|p| p.to_string())
 }
 
 pub fn run(root: &str, job: &Value) -> Value {
@@ -125,6 +131,20 @@ mod tests {
     }
     fn job(result: &str, keys: &[&str]) -> Value {
         json!({ "intent": { "account": { "linux_name": "rig" } }, "harvest": { "ssh": { "result": result, "keys": keys, "sources": [], "why": null } } })
+    }
+
+    #[test]
+    fn the_units_own_file_is_chosen_over_a_second_name_for_it() {
+        let d = std::env::temp_dir().join(format!("upg-ssh-alias-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join("usr/lib/systemd/system")).unwrap();
+        std::fs::write(d.join("usr/lib/systemd/system/ssh.service"), "[Unit]\n").unwrap();
+        std::os::unix::fs::symlink("ssh.service", d.join("usr/lib/systemd/system/sshd.service")).unwrap();
+        assert_eq!(sshd_installed(&d.to_string_lossy()).as_deref(), Some("usr/lib/systemd/system/ssh.service"));
+        std::fs::remove_file(d.join("usr/lib/systemd/system/sshd.service")).unwrap();
+        std::fs::write(d.join("usr/lib/systemd/system/sshd.service"), "[Unit]\n").unwrap();
+        assert_eq!(sshd_installed(&d.to_string_lossy()).as_deref(), Some("usr/lib/systemd/system/sshd.service"), "two real units: the first named, as before");
+        let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]

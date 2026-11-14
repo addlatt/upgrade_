@@ -861,6 +861,10 @@ and a larger 60 GB decoy disk. Every row is the rig: plumbing (rule #5).
 | `installed-beside-windows` | arm K: as C's checks, and every partition that was there in place, each but the boot partition byte for byte the same, no file gone from the boot partition, `bootmgfw.efi` unchanged and in the stick's safety copy, one 'Windows (kept)' entry and no os-prober line. Windows is not started (Hyper-V cannot trust both signers) | **pass for arm K** |
 | `fail` | anything else. Kept, never removed | **fail** |
 
+From line 21 (2026-11-14) arm C's job carries a made-up SSH key: C also needs
+the server running, enabled, the key in and password sign-in off, and H the
+server still up at the second start. K also needs `cryptsetup` and no server.
+
 Line 2 is a fail of the harness, not the product: it hashed the disk files,
 and Hyper-V rewrites a new file's own header. From line 9, C and K also
 need `outcome.json` on the stick to pass the contract. From line 11 the

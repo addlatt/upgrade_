@@ -156,6 +156,11 @@ elif letter == "H":
     need("enabled" in after_mark(first, "sb=").lower(), "Secure Boot was not on")
     need(decoy_same == "y", "the decoy disk changed (unchanged=%s)" % decoy_same)
     sys_same = "n/a"
+    if job.get("harvest", {}).get("ssh", {}).get("result") == "carried":
+        # the second start: settle-in does nothing now, so a server that is up was enabled for good
+        need("active" in (after_mark(first, "ssh_unit="), after_mark(first, "ssh_socket=")), "remote access was carried, and at the second start the SSH server is %s (socket %s)" % (after_mark(first, "ssh_unit=") or "?", after_mark(first, "ssh_socket=") or "?"))
+        notes.append("remote access still on at the second start: ssh.service %s, enabled %s" % (after_mark(first, "ssh_unit="), after_mark(first, "ssh_enabled=")))
+    notes.append("downloaders on the installed Ubuntu: %s" % (after_mark(first, "downloaders=") or "none found"))
     if not why: result = "handed-over"
     notes.append("the stick's menu started the installed Ubuntu: its second start, kernel %s, root %s" % (after_mark(first, "kernel="), after_mark(first, "root_src=")))
 elif letter == "C":
@@ -187,6 +192,13 @@ elif letter == "C":
     need("enabled" in after_mark(first, "sb=").lower(), "Secure Boot was not on at the first start")
     outcome_checks(False)
     product_checks()
+    # remote access carried (a made-up key): the server from the stick's own packages, the key in, password sign-in off
+    key = text("spoof-key.pub").strip()
+    if key:
+        need(after_mark(first, "ssh_unit=") == "active" and after_mark(first, "ssh_enabled=") == "enabled", "the SSH server is %s, %s" % (after_mark(first, "ssh_unit=") or "?", after_mark(first, "ssh_enabled=") or "?"))
+        need(after_mark(first, "ssh_keys_sha256=") == hashlib.sha256((key + "\n").encode()).hexdigest(), "the account's authorized_keys is not the job's one key")
+        need(after_mark(first, "ssh_password_signin=") == "no", "password sign-in over SSH is %s" % (after_mark(first, "ssh_password_signin=") or "?"))
+        notes.append("remote access carried (a made-up key): SSH server installed from the stick, enabled and running, the key in, password sign-in off")
     if not why: result = "erased-installed"
     notes.append("early: %s" % after_mark(early_log, "== the stick's Ubuntu files: "))
     notes.append("first start: kernel %s, root %s, boot %s, esp %s" % (after_mark(first, "kernel="), root_src, after_mark(first, "boot_src="), after_mark(first, "esp_src=")))
@@ -271,6 +283,9 @@ elif letter == "K":
          "the start menu: 'Windows (kept)' entries %s, os-prober lines %s (one and none wanted, R21)" % (after_mark(first, "kept_entries=") or "?", after_mark(first, "osprober_entries=") or "?"))
     outcome_checks(True)
     product_checks()
+    need(bool(after_mark(first, "cryptsetup=")), "cryptsetup is not on the installed Ubuntu (the answer file asks for it beside Windows)")
+    need(after_mark(first, "ssh_unit=") != "active", "an SSH server is running though Windows had none")
+    notes.append("cryptsetup installed from the stick's packages (%s); no SSH server; downloaders: %s" % (after_mark(first, "cryptsetup="), after_mark(first, "downloaders=")))
     if not why: result = "installed-beside-windows"
     notes.append("kept byte for byte: %s; Windows' boot partition %s in place, %d files before, all there after (%d now), bootmgfw.efi unchanged" % (" ".join(same), esp_n, len(eb), len(ea)))
     notes.append("new: " + " ".join("%s=%dMiB" % (n, int(v[2]) // 1048576) for _, n, v in new))

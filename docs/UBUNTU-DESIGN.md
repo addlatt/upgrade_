@@ -223,6 +223,12 @@ Four to six weeks of sessions before a real machine, by this count.
 | Shim in Windows' slot | `upgrade-prologue`: `EFI\<distro>` from the install's record | unit cases |
 | The rig harnesses | `rig/hyperv/ubuntu-arms.sh`, `ubuntu-verdict.py`; `rig/fetch/arms.sh` | write `ubuntu-install.csv` and `v17-fetch.csv` |
 
+Ubuntu's small desktop has no SSH server, no `curl` and no `cryptsetup`
+(its disc's package list, then an installed disk, 2026-11-14). The answer
+file adds the server when Windows had remote access on, and `cryptsetup`
+beside Windows, both from the stick's packages (rig rows, lines 21 to
+23). settle-in downloads with `wget` where there is no `curl` (unit cases).
+
 ## What is not built, or not run
 
 1. The one click test's Ubuntu path on a real machine. The entry in

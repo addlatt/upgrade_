@@ -103,6 +103,12 @@ pub fn job_document(f: &Value, choice: &Choices, stamp: &Stamp) -> Result<Value,
     if let Some(why) = decide::release_refusal(at(f, "KitRelease"), at(f, "Releases")) {
         refusals.push(why);
     }
+    // A stick the window filled carries one desktop and says which (release.json). A job
+    // that asks for another would install what is on the stick, not what the person chose.
+    let carried = s(at(f, "KitRelease.desktop"));
+    if !carried.is_empty() && !eq_ci(&carried, choice.desktop) {
+        refusals.push(format!("this stick carries {} with the {} desktop, not {}; choose that one, or fill the stick again", s(at(f, "KitRelease.name")), carried, choice.desktop));
+    }
     // the folder map decides what is kept; an erase job keeps nothing, so it
     // only needs the map to exist (it lists what will be deleted)
     let h = at(f, "Harvest");

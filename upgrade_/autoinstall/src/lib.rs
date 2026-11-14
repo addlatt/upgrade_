@@ -19,7 +19,7 @@
 
 use serde_json::Value;
 
-pub const GENERATOR_VERSION: &str = "0.2.0";
+pub const GENERATOR_VERSION: &str = "0.3.0";
 
 /// A serial no disk has. The stick's own file asks for it, so an install
 /// that runs without our early check finds no disk and stops.
@@ -363,6 +363,17 @@ pub fn autoinstall(job: &Value, s: &Storage, program: &str, job_path: &str) -> R
     l.push("  codecs: {install: false}".into());
     l.push("  drivers: {install: false}".into());
     l.push("  refresh-installer: {update: false}".into());
+    // Remote access is carried only if Windows had it on (job harvest.ssh). Ubuntu's small
+    // desktop has no SSH server, so the installer adds it from the stick's own packages;
+    // settle-in then puts the keys in and turns password sign-in off (settle-in/src/ssh.rs).
+    if at("/harvest/ssh/result") == "carried" {
+        l.push("  ssh: {install-server: true, allow-pw: false}".into());
+    }
+    // Beside Windows, settle-in may have to open a BitLocker drive to bring the files over.
+    // Ubuntu's small desktop lacks the tool for it; it is among the stick's packages.
+    if matches!(s, Storage::Beside { .. }) {
+        l.push("  packages: [cryptsetup-bin]".into());
+    }
     l.extend(storage(s)?);
     l.push("  late-commands:".into());
     l.push(format!("    - {}", q(&format!("{program} late {job_path}"))));
@@ -476,6 +487,20 @@ mod tests {
         assert_eq!(t.matches("type: partition").count(), 3);
         assert_eq!(t.matches("type: mount").count(), 3);
         assert!(t.contains("path: /boot/efi") && t.contains("path: /boot\n") && t.contains("path: /\n"));
+    }
+
+    #[test]
+    fn the_ssh_server_only_when_windows_had_one_and_cryptsetup_only_beside_windows() {
+        let plain = autoinstall(&job(), &erase(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap();
+        assert!(!plain.contains("  ssh:") && !plain.contains("  packages:"), "an erase with no remote access adds nothing");
+        let mut j = job();
+        j["harvest"]["ssh"] = serde_json::json!({"result": "carried", "keys": ["ssh-ed25519 AAAA x"], "sources": [], "why": null});
+        let with = autoinstall(&j, &erase(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap();
+        assert!(with.contains("\n  ssh: {install-server: true, allow-pw: false}\n"));
+        j["harvest"]["ssh"]["result"] = serde_json::json!("not-carried");
+        assert!(!autoinstall(&j, &erase(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap().contains("  ssh:"));
+        let b = autoinstall(&keep_job(), &beside(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap();
+        assert!(b.contains("\n  packages: [cryptsetup-bin]\n") && !b.contains("  ssh:"));
     }
 
     #[test]
