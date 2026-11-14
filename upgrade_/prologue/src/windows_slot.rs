@@ -16,7 +16,14 @@ use serde_json::{json, Value};
 pub const KEPT_NAME: &str = "bootmgfw-kept.efi";
 pub const WINDOWS_SLOT_REL: &str = "EFI\\Microsoft\\Boot\\bootmgfw.efi";
 pub const KEPT_REL: &str = "EFI\\Microsoft\\Boot\\bootmgfw-kept.efi";
-/// The installed Linux's folder on the ESP, from `install.distro` in the
+/// Which Linux the stick's outcome.json says was installed
+/// (`cutover.install.distro`, where the installer writes it). The Aspire,
+/// 2026-11-14: this was read from `install.distro`, which no outcome has, so
+/// no keep-Windows install had its slot arranged.
+pub fn installed_distro(outcome: &Value) -> String {
+    s(at(outcome, "cutover.install.distro"))
+}
+/// The installed Linux's folder on the ESP, from the installed distro in the
 /// stick's outcome.json: the folder the installer put its signed shim and
 /// GRUB's environment block in. None for a distro this kit does not know,
 /// and then nothing is arranged (roadmap item 23: Ubuntu beside Fedora).
@@ -342,6 +349,17 @@ mod tests {
         }
         let r = record("why", &json!({}), None, None, "2026-11-13T00:00:00Z", "p", "ubuntu");
         assert_eq!(r["linux_dir"], "ubuntu");
+    }
+
+    #[test]
+    fn the_installed_linux_is_read_where_the_installer_writes_it() {
+        // the shape of the Aspire's outcome.json of 2026-11-14 (upgrade-installer 0.3.0)
+        let o = json!({"status": "completed", "path_taken": "keep-windows",
+            "cutover": {"install": {"distro": "ubuntu", "release": "26.04"}, "boot_chain": {"linux_first_in_bootorder": true}}});
+        assert_eq!(installed_distro(&o), "ubuntu");
+        assert_eq!(linux_dir(&installed_distro(&o)), Some("ubuntu"));
+        // a top-level install block is not the installer's: not read
+        assert_eq!(installed_distro(&json!({"install": {"distro": "ubuntu"}})), "");
     }
 
     #[test]

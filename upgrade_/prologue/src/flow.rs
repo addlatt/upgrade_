@@ -716,7 +716,7 @@ fn return_stage(ctx: &mut Ctx, st: &mut Value, root: &str) {
     let bench_force = !root.is_empty() && Path::new(root).join("upgrade_").join(windows_slot::BENCH_FORCE_MARKER).exists();
     // GRUB's own word first (kickstart 0.9.0): a person who chose Windows from its menu proves the firmware boots the Linux entry
     // which Linux was installed decides the folder its shim is in; one this kit does not know is left alone
-    let distro = s(at(&outcome_v, "install.distro"));
+    let distro = windows_slot::installed_distro(&outcome_v);
     let linux_dir = windows_slot::linux_dir(&distro);
     let kept = s(&outcome_v["status"]) == "completed" && s(&outcome_v["path_taken"]) == "keep-windows";
     if kept && linux_dir.is_none() {
