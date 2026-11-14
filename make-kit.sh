@@ -24,7 +24,7 @@
 # EFI/BOOT/BOOTX64.EFI (the product path, Secure Boot on) and the unsigned
 # UEFI Shell at EFI/SHELL/SHELLX64.EFI (the matrix rows) - plus the Windows
 # side as one Rust product (decided 2026-10-11, the owner): UPGRADE.exe, its
-# two .cmd starters, the four programs it runs, README-STICK.txt, SHA256SUMS
+# one .cmd starter, the four programs it runs, README-STICK.txt, SHA256SUMS
 # and KIT-MANIFEST.txt naming the commit and versions. No PowerShell ships
 # on the stick since 2026-10-14: the three diagnostics are `upgrade-scan
 # diag` (DIAG-VOLUME.cmd's inline block went last), the storage-mode
@@ -213,7 +213,6 @@ crlf "$PAYLOAD/README-STICK.txt"    "$D/README-STICK.txt"
 cp "$UPGRADE_EXE"                   "$D/UPGRADE.exe"
 for exe in $RUST_EXES; do case "$(basename "$exe")" in upgrade-stick.exe) cp "$exe" "$D/../upgrade-stick.exe" ;; *) cp "$exe" "$D/$(basename "$exe")" ;; esac; done
 crlf "$PAYLOAD/UPGRADE.cmd"         "$D/UPGRADE.cmd"
-crlf "$PAYLOAD/UPGRADE-ACCEPTING-DATA-LOSS.cmd" "$D/UPGRADE-ACCEPTING-DATA-LOSS.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-VOLUME.cmd" "$D/DIAG-VOLUME.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SMART.cmd"  "$D/DIAG-SMART.cmd"
 crlf "$ROOT/evaluate/windows/usb-kit/DIAG-SECUREBOOT.cmd" "$D/DIAG-SECUREBOOT.cmd"

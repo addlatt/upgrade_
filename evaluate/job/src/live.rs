@@ -549,7 +549,7 @@ pub fn job_facts(scan_dir: Option<&Path>, stick_drive: Option<&str>, materialize
                 f.insert("RequiredKernel".into(), r["RequiredKernel"].clone());
                 f.insert("Report".into(), json!(p.to_string_lossy()));
                 let checks = r["Checks"].as_array().cloned().unwrap_or_default();
-                f.insert("FailedChecks".into(), json!(checks.iter().filter(|c| c["Status"] == "fail" && c["Section"] != "Software").map(|c| str_of(&c["Title"])).collect::<Vec<_>>()));
+                f.insert("FailedChecks".into(), json!(crate::decide::failed_titles(&r)));
                 f.insert("WarnChecks".into(), json!(checks.iter().filter(|c| c["Status"] == "warn").map(|c| str_of(&c["Title"])).collect::<Vec<_>>()));
                 f.insert("Releases".into(), r["Releases"].clone());
             }

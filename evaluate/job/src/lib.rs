@@ -27,7 +27,7 @@ pub const FOLLOWS_JOB_WRITER: &str = "0.18.0";
 /// refused, not guessed.
 pub const KNOWN_HARVEST_VERSIONS: [&str; 1] = ["0.3.0"];
 pub const LINUX_MIN_GB: f64 = 25.0;
-/// RISKS R23 (decided 2026-09-13): typed verbatim on its own launcher, it
+/// RISKS R23 (decided 2026-09-13): typed verbatim on the RED screen, it
 /// lifts exactly the drive-health and volume-health refusals. Nothing else,
 /// and no shorter form.
 pub const RISK_STATEMENT: &str = "I confirm that I understand the risks and could lose data";

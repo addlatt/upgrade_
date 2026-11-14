@@ -70,7 +70,7 @@ on). Stands: see [STATUS.md](STATUS.md).
 `UPGRADE.exe`, a Rust window that runs the programs on the stick (decided
 2026-09-27, the owner, replacing the 2026-09-13 WPF plan). Built (window
 0.3.0): Convert with its keep-Windows and clean-slate answers, the
-data-loss launcher, the rollback's pointer to Linux (the "Cancel a
+data-loss path, the rollback's pointer to Linux (the "Cancel a
 conversion in progress" button left 2026-11-02, the owner); Verify and
 Probe behind `--developer`. Owed: a row past the arm, what Convert shows
 after the restart (decision owed below), the owner's approval of its words.
@@ -227,7 +227,7 @@ a time (`architecture.md`, "Linux releases beyond Fedora"). Bazzite's ISO
 was measured 2026-11-07; its design was decided 2026-11-08 (`BAZZITE-DESIGN.md`).
 Steps: record the release with `measure-release.py`; cut the seam, Fedora's
 goldens unchanged; the unattended start and the key step on the rig; a real
-machine, erase first. Decided (2026-11-12, the owner): Ubuntu second (R40).
+machine (any order). Decided (2026-11-12, the owner): Ubuntu second (R40).
 Proves: R40, R42, R45, V14, V16, V18. Stands: see [STATUS.md](STATUS.md).
 
 ## 24. The release picker: choose a Linux, then fetch it onto the stick

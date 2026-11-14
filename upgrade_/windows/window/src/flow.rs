@@ -391,6 +391,15 @@ pub fn scan_stops(v: Option<&Verdict>, acknowledged: bool) -> bool {
     !(acknowledged && v.map(|v| v.level.as_str()) == Some("RED"))
 }
 
+/// Whether the typed sentence could lift this report's RED at all (RISKS
+/// R23): the job writer's own rule, so the window offers the sentence only
+/// where the job writer would take it. No report is never liftable.
+pub fn sentence_may_lift(report: Option<&Value>) -> bool {
+    let Some(r) = report else { return false };
+    let level = r["Verdict"]["Level"].as_str().unwrap_or("");
+    upgrade_job::decide::sentence_may_lift(level, &upgrade_job::decide::failed_titles(r))
+}
+
 /// The newest scanner JSON in the reports folder (names carry the time).
 pub fn newest_report(dir: &Path) -> Option<PathBuf> {
     let mut best: Option<(std::time::SystemTime, PathBuf)> = None;
@@ -805,6 +814,16 @@ mod tests {
         assert!(!scan_stops(red.as_ref(), true), "RED with the sentence goes to the job writer");
         assert!(!scan_stops(yellow.as_ref(), false));
         assert!(scan_stops(None, true), "no verdict stops even with the sentence");
+        // the RED screen offers the sentence only where the job writer would take it (2026-11-14)
+        let report = |level: &str, checks: Value| json!({"Verdict":{"Level":level},"Checks":checks});
+        let fail = |t: &str, sec: &str| json!({"Title":t,"Status":"fail","Section":sec});
+        assert!(sentence_may_lift(Some(&report("RED", json!([fail("Disk health", "Storage")])))));
+        assert!(sentence_may_lift(Some(&report("RED", json!([fail("Disk health", "Storage"), fail("Volume health", "Storage")])))));
+        assert!(!sentence_may_lift(Some(&report("RED", json!([fail("Disk health", "Storage"), fail("Firmware", "Boot")])))), "one refusal the sentence cannot lift: no offer");
+        assert!(!sentence_may_lift(Some(&report("RED", json!([])))), "a RED with no failing check named: no offer");
+        assert!(!sentence_may_lift(Some(&report("YELLOW", json!([fail("Disk health", "Storage")])))));
+        assert!(!sentence_may_lift(Some(&json!({}))));
+        assert!(!sentence_may_lift(None), "no report: no offer");
         assert!(scan_stops(verdict(&json!({"Verdict":{"Level":"red"}})).as_ref(), true), "an unknown word stops even with the sentence");
     }
 

@@ -743,12 +743,17 @@ a schema-invalid job: their failure is "cannot work" or "wrong machine".
 **If real.** The exception is how the first destroyed-photos incident
 happens: the sentence pasted from a forum, or typed by the person whose
 files are on the line because a tool called them overcautious. The
-safeguards are the sentence itself (no short form, no flag), the separate
-launcher, the loud record, and this entry. The path is for machines whose
-files are already copied off; the launcher says so three times.
+safeguards are the sentence itself (no short form, no flag), the loud
+record, and this entry. The path is for machines whose files are already
+copied off; the RED screen says so before the sentence.
 
-**Decided (2026-09-13, the owner):** build it, exactly that narrow, and it
-does not widen.
+**Decided (2026-11-14, the owner): one window, no second launcher.** The
+RED screen offers the sentence only when every failing check is one it may
+lift (window 0.5.0; no row yet). It costs a safeguard: the person meets the
+offer without looking for it. What it lifts is unchanged
+([log](log/2026-11.md#2026-11-14-one-window-the-data-loss-sentence-moves-to-the-red-screen-r23-v12-roadmap-item-4)).
+
+**Decided (2026-09-13, the owner):** build it, that narrow; it does not widen.
 
 **Closes when.** Never. It is a standing cost. What can change is its width,
 and the rule is that it does not widen.

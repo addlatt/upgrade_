@@ -185,7 +185,7 @@ Every refusal lives in `evaluate`, the only module that can refuse for free:
 **One exception, narrow and dated (2026-09-13, RISKS R23):** a person who has
 already copied their files off a machine the scanner refused for its *drive*
 (bad blocks, SMART media errors, a volume needing a full repair) may type a
-fixed sentence on a separate launcher and go ahead. It lifts those two refusals
+fixed sentence on the window's RED screen and go ahead. It lifts those two refusals
 and no other, is recorded in `job.json` and `outcome.json`, and turns every
 later screen red (CLAUDE.md rule #1).
 
@@ -566,8 +566,8 @@ in one way that matters: the person said up front that nothing is to be kept.
 
 1. **Its own sentence, behind Convert's clean-slate answer** (since
    2026-10-17, roadmap item 20; before, its own launcher). A RED machine gets
-   there through `UPGRADE-ACCEPTING-DATA-LOSS.cmd`, which also asks for the
-   R23 sentence; neither stands in for the other. The consent is typed
+   there from the window's RED screen, which first asks for the R23
+   sentence (R23); neither stands in for the other. The consent is typed
    word for word, first: *"I confirm that everything on this computer will be
    deleted and nothing will be kept"*. Then the Linux password (twice, hidden);
    the job holds only its SHA-512 crypt hash. **The person is told the account's

@@ -95,8 +95,6 @@ pub const PATH_KEEP: &str = "Keep Windows beside Linux (recommended)";
 pub const PATH_KEEP_LINE: &str = "Windows is shrunk to make room and stays on the computer, so you can roll back. Your files stay where they are, on the Windows side: nothing is copied into Linux for you yet.";
 pub const PATH_CLEAN: &str = "Clean slate: erase this computer";
 pub const PATH_CLEAN_LINE: &str = "Everything on this computer's drives is deleted and Linux is installed alone. Nothing is kept. You type one sentence before anything changes.";
-pub const CHOOSE_CONVERT_ACK: &str = "Convert this computer, ACCEPTING DATA LOSS";
-pub const CHOOSE_CONVERT_ACK_LINE: &str = "For a computer the scanner refused because its drive is failing. Read the next screen first.";
 
 // ---------------------------------------------------------------- convert: the words of RUN-CONVERT.cmd (2026-10-07)
 
@@ -114,8 +112,11 @@ pub const CONVERT_WIFI: &str = "Your saved Wi-Fi networks and their passwords ar
 // item 16 (R33): the programs keep an idle computer awake; a closed lid and a flat battery they cannot stop (draft words, the owner's approval owed)
 pub const CONVERT_AWAKE: &str = "This computer is kept awake while it works. Keep the lid open and the charger plugged in until Linux has started.";
 
-pub const ACK_HEADING: &str = "Read this first";
-pub const ACK_LEAD: &str = "The scanner refuses computers whose drive is failing or whose Windows volume needs a repair, because converting them can silently lose files. This path lets you go ahead anyway.";
+// the RED screen's one way on (decided 2026-11-14, the owner: one window; draft words, the owner's approval owed)
+pub const ACK_HEADING: &str = "If you want to go ahead anyway, read this first";
+pub const ACK_LEAD: &str = "The scanner refuses computers whose drive is failing or whose Windows volume needs a repair, because converting them can silently lose files. You may go ahead anyway, at your own risk. Nothing else the scanner refuses can be passed this way.";
+pub const ACK_GO: &str = "Go ahead, accepting data loss";
+pub const ACK_BEFORE_HEADING_AGAIN: &str = "You accepted data loss. Once more:";
 pub const ACK_BEFORE: [&str; 3] = [
     "copy every file you care about OFF this computer, now;",
     "assume anything still on it may be gone afterwards;",

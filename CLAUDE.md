@@ -43,8 +43,8 @@ someone.
    check is wrong, fix the check. Don't remove it. There will be pressure to soften
    warnings (often from contributors whose own machine works). Resist it.
    **Amended (2026-09-13, RISKS R23):** one narrow exception exists, and it is not a
-   flag. A person may type, verbatim, on a separate launcher, *"I confirm that I
-   understand the risks and could lose data"*. That lifts exactly two refusals, the
+   flag. A person may type, verbatim, on the RED screen (2026-11-14, the owner), *"I confirm
+   that I understand the risks and could lose data"*. That lifts exactly two refusals, the
    drive-health and volume-health ones, whose failure mode is losing that machine's
    own files, and only after the scanner has said RED in full. It lifts nothing
    whose failure mode is "cannot work" or "wrong machine". The sentence travels in
