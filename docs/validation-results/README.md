@@ -859,7 +859,12 @@ and a larger 60 GB decoy disk. Every row is the rig: plumbing (rule #5).
 | `refused-two-spaces` | arm G: code 21 saying two free spaces, two or more refusals, no `converted`, no commit record, both disks unchanged | **pass for arm G** |
 | `erased-installed-from-windows` | arm W: the rig's Windows starts, the product's prologue reaches its restart and leaves `prologue.json`, then C's checks but Secure Boot (off for this arm: the firmware trusts one signer at a time). The job is the rig's stand-in | **pass for arm W** |
 | `installed-beside-windows` | arm K: as C's checks, and every partition that was there in place, each but the boot partition byte for byte the same, no file gone from the boot partition, `bootmgfw.efi` unchanged and in the stick's safety copy, one 'Windows (kept)' entry and no os-prober line. Windows is not started (Hyper-V cannot trust both signers) | **pass for arm K** |
+| `checked-nothing-installed` | arm V: armed from Windows by `verify-arm` with `boot-verify` on the stick (the harness writes it, as the window does); `early.json` in verify mode for this job, the decision report-only, no refusal, no `converted`, no commit record; Windows answers again with nobody touching it; the system disk's partitions where they were (table only: Windows ran in between), the decoy unchanged. Secure Boot off | **pass for arm V** |
+| `kept-installed-rolled-back` | arm R: Windows' prologue reaches its restart on a keep-Windows job; K's record, settle-in and menu checks; Windows' return check read the stick's mark; at the first start `settle-in rollback --dry-run` says `plan` and `settle-in rollback` says `done`; the guest started again and Windows answers, with Linux's partitions still on the disk. Secure Boot off | **pass for arm R** |
 | `fail` | anything else. Kept, never removed | **fail** |
+
+Lines 24 and 26 are fails of the verdict's checks, not the product: a log
+line said after the stick's copy is taken; the mark after Windows wiped it.
 
 From line 21 (2026-11-14) arm C's job carries a made-up SSH key: C also needs
 the server running, enabled, the key in and password sign-in off, and H the

@@ -22,8 +22,9 @@ nearly every `[####]` below is the Acer Aspire A515-51G, Secure Boot on.
 lines through the whole project. Ubuntu is in `data/releases.json` from
 that day, so the window offers it. On the rig, on a stick laid out as the
 product's: the fence (R45), the erase, the install beside Windows, the
-record, settle-in's first start, the hand-over, and Windows' own prologue
-starting the stick (`ubuntu-install.csv`, V18); its download, rehearsed
+record, settle-in's first start, the hand-over, Windows' own prologue
+starting the stick, the check-only start and the rollback from Linux
+(`ubuntu-install.csv`, V18); its download, rehearsed
 (V17). No real machine yet ([log](log/2026-11.md#2026-11-13-fedora-and-ubuntu-in-parallel-decided-ubuntu-offered-r40-r34-v18-roadmap-item-23)).
 
 Built 2026-11-11, neither run on a machine: the sleep lock on both sides
@@ -82,7 +83,7 @@ proven; the rig rows for the lock and for R39. The order: `ROADMAP.md`.
 | V15 | reclaim deletes only Windows, Linux starts in the whole disk | `[#...]` planned | none yet (the logic held on disk images, settle-in 0.9.0) | the rig: every planted fault, a power cut mid-move; then a healthy-drive machine |
 | V16 | the key step enrolls Bazzite's key, or refuses with nothing erased | `[#...]` planned | none yet (design decided 2026-11-08, [the design](BAZZITE-DESIGN.md)) | the build; the rig (`UPGRIGMOK`), every arm; then a real machine with Secure Boot on |
 | V17 | the window fetches the chosen release onto its own stick, every byte checked | `[###.]` held-on-rig (a rehearsal on the development machine) | `v17-fetch.csv` line 17, `pass-plumbing` (2026-11-13 UTC; Fedora's six arms, lines 8 to 13; Ubuntu's whole disc, lines 14 to 17, [log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)) | the window on a kit stick; a real stick; the real internet |
-| V18 | Ubuntu installs from its own stick onto the disk the job names, or not at all | `[###.]` held-on-rig | `ubuntu-install.csv` line 23, `installed-beside-windows` (2026-11-14 UTC, the rig; lines 21 to 23 with the SSH server and `cryptsetup` from the stick's packages; line 18 Windows' own prologue starting the stick, [log](log/2026-11.md#2026-11-14-ubuntu-made-ready-for-the-one-click-test-r40-r45-r9-v18-roadmap-items-21-and-23)) | the one click on a real machine with a stick the window filled, the erase first; Windows started after the install beside it (the rig cannot) |
+| V18 | Ubuntu installs from its own stick onto the disk the job names, or not at all | `[###.]` held-on-rig | `ubuntu-install.csv` line 27, `kept-installed-rolled-back` (2026-11-14 UTC, the rig, Secure Boot off: kept from Windows, rolled back from Ubuntu, Windows started again; line 25 the check-only start, `checked-nothing-installed`; lines 21 to 23 the SSH server and `cryptsetup` from the stick's packages; line 18 Windows' own prologue starting the stick, [log](log/2026-11.md#2026-11-14-ubuntu-the-check-only-start-and-the-rollback-on-the-rig-r21-r40-v18-roadmap-item-23)) | the one click on a real machine with a stick the window filled, the erase first; Windows started after the install beside it with Secure Boot on (the rig's arms from Windows run with it off) |
 
 ## Open risks
 

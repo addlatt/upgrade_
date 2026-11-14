@@ -81,10 +81,15 @@ def gpt(p):
     return "+".join(parts) or "empty"
 gpt_after = gpt("target-first.bin")
 
-def product_checks():
+def product_checks(returned=False):
     """The product's stick: the kit's menu left its mark, settle-in was installed and its first start finished."""
     env = (d / "stick/grubenv").read_bytes().decode(errors="replace") if (d / "stick/grubenv").is_file() else ""
-    need("upg_fired=1" in env.splitlines(), "the stick's menu did not leave its mark (upg_fired=1) in EFI/BOOT/grubenv")
+    if returned:
+        # Windows started again after the install: its own return check read the mark and wiped it (arm R, line 26)
+        h = js("stick/upgrade_/prologue-return.json").get("handoff", {})
+        need(h.get("Fired") is True and "grubenv" in str(h.get("FiredVia")), "Windows' return check did not read the stick's mark: %s" % json.dumps(h)[:200])
+    else:
+        need("upg_fired=1" in env.splitlines(), "the stick's menu did not leave its mark (upg_fired=1) in EFI/BOOT/grubenv")
     si = js("stick/upgrade_/outcome.json").get("cutover", {}).get("settle_in", {})
     need(si.get("installed") is True, "settle-in was not installed: %s" % si.get("why_not"))
     need(after_mark(first, "si_done=") == "y", "settle-in's first start did not finish (unit %s)" % (after_mark(first, "si_unit=") or "?"))
@@ -236,6 +241,49 @@ elif letter == "W":
     notes.append("Secure Boot off for this arm (the firmware trusts one signer at a time); the job is the rig's stand-in, not the product's job writer (Hyper-V has no USB)")
     notes.append("Windows: %s; prologue %s, its last words: %s" % (after_mark(side, "windows_caption="), pro.get("prologue_version"), " / ".join([l.strip() for l in pstart.splitlines() if l.strip()][-2:])[:240]))
     notes.append("first start: kernel %s, root %s" % (after_mark(first, "kernel="), root_src))
+elif letter == "V":
+    # the check-only start, armed from Windows: the stick's Ubuntu checks and reports, installs nothing, Windows comes back
+    side, pstart, early = text("windows-side.txt"), text("prologue-start.log"), js(R + "early.json")
+    need("prologue_restart=y" in side, "the arming did not reach its restart: " + " / ".join([l.strip() for l in (pstart + side).splitlines() if l.strip()][-4:])[:400])
+    need(early.get("mode") == "verify" and early.get("job_id") == job.get("job_id"), "no early.json in verify mode for this job on the stick (%s)" % json.dumps(early)[:160])
+    # the stick's copy of the log is taken before the "restarting to Windows" line is said (as Fedora's is): the decision is its last line
+    need("== decision: ReportOnly" in early_log and "== decision: Install" not in early_log, "the early log's decision is not report-only")
+    need(code == "none" and not ref_lines, "the check refused (exit %s)" % code)
+    need(converted == "n" and commit == "n" and armed == "n", "markers: converted=%s commit=%s boot-install=%s" % (converted, commit, armed))
+    need("windows_back=y" in side, "Windows did not come back by itself")
+    tb = [" ".join(l.split()[:4]) for l in text("parts-before.txt").splitlines()]
+    ta = [" ".join(l.split()[:4]) for l in text("parts-after.txt").splitlines()]
+    sys_same = "table" if tb and tb == ta else "n"
+    need(sys_same == "table", "the system disk's partitions are not where they were (Windows ran in between, so their content is not compared)")
+    need(decoy_same == "y", "the decoy disk changed (unchanged=%s)" % decoy_same)
+    if not why: result = "checked-nothing-installed"
+    notes.append("Secure Boot off for this arm; boot-verify written by the harness as the window does; the job is the rig's stand-in")
+    notes.append("the system disk's %d partitions in place (table only: Windows ran before and after); %s" % (len(tb), after_mark(side, "windows_back=")))
+    notes.append("early: %s" % after_mark(early_log, "== the stick's Ubuntu files: "))
+elif letter == "R":
+    # keep Windows from Windows, then the rollback from Linux, then Windows starts again
+    side, pstart, pro = text("windows-side.txt"), text("prologue-start.log"), js("stick/upgrade_/prologue.json")
+    rb, dry = js("log/rollback.json"), js("log/rollback-dry.json")
+    need("prologue_restart=y" in side, "the prologue did not reach its restart: " + " / ".join([l.strip() for l in (pstart + side).splitlines() if l.strip()][-4:])[:400])
+    need(job.get("intent", {}).get("path") == "keep-windows", "the job is not keep-windows")
+    need(identity == "pass", "the early check did not decide to install")
+    need(converted == "y" and commit == "y", "markers: converted=%s commit=%s" % (converted, commit))
+    need(decoy_same == "y", "the decoy disk changed (unchanged=%s)" % decoy_same)
+    booted = "y" if "== firstboot" in first else "n"
+    need(booted == "y", "no first-start record on the log disk")
+    need(after_mark(first, "kept_entries=") == "1", "GRUB's menu has %s 'Windows (kept)' entries" % (after_mark(first, "kept_entries=") or "?"))
+    outcome_checks(True)
+    product_checks(returned=True)
+    need(dry.get("result") == "plan", "the rollback's dry run: %s" % json.dumps(dry)[:300])
+    need(rb.get("result") == "done", "the rollback: %s %s" % (json.dumps(rb)[:300], text("log/rollback.err")[:200]))
+    need("windows_after_rollback=y" in side, "Windows did not start after the rollback")
+    wp = after_mark(side, "windows_partitions=")
+    need(wp.count("+") >= 4, "Linux's partitions are not on the disk after the rollback (it deletes nothing): %s" % wp)
+    sys_same = "n"
+    if not why: result = "kept-installed-rolled-back"
+    notes.append("Secure Boot off for this arm; the job is the rig's stand-in; Windows: %s; prologue %s" % (after_mark(side, "windows_caption="), pro.get("prologue_version")))
+    notes.append("rollback %s; Windows answered %s; its disk now: %s" % (rb.get("rollback_version") or rb.get("version"), after_mark(side, "windows_after_rollback="), wp))
+    notes.append("first start: kernel %s, root %s" % (after_mark(first, "kernel="), after_mark(first, "root_src=")))
 elif letter == "K":
     late = js(R + "late.json")
     need(identity == "pass", "the early check did not decide to install")

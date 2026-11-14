@@ -35,6 +35,13 @@
 #                                 installs. Secure Boot OFF for this arm only (this firmware trusts one signer at a
 #                                 time). The job is the rig's stand-in (v1.sh job, v9-job.py): Hyper-V has no USB,
 #                                 so the product's job writer refuses the rig's stick, as it must (R16)
+#   ubuntu-arms.sh arm V [NOTE]   the check-only start, from Windows as W: a keep-Windows job, `boot-verify` on the
+#                                 stick (the window writes it in the product), `upgrade-prologue.exe verify-arm`. The
+#                                 stick's Ubuntu checks this machine, installs nothing, and Windows comes back
+#   ubuntu-arms.sh arm R [NOTE]   keep Windows, then roll back, from Windows as W: `upgrade-prologue.exe start` with
+#                                 the word CONVERT shrinks C: and hands over; Ubuntu installs beside Windows; at its
+#                                 first start the bench runs `settle-in rollback` (a script on the log disk); the
+#                                 guest is started again and Windows must answer
 #   ubuntu-arms.sh clean          delete the guest and every disk (ubuntu.sh clean)
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -117,7 +124,7 @@ P
     fi
     cp "$job" "$S/upgrade_/job.json"; cp "$INSTALLER" "$S/upgrade_/upgrade-installer"
     # arm W: the prologue arms the stick itself
-    [ "$arm" = W ] || echo "armed by ubuntu-arms.sh arm $arm" > "$S/upgrade_/boot-install"
+    case "$arm" in W|V|R) ;; *) echo "armed by ubuntu-arms.sh arm $arm" > "$S/upgrade_/boot-install" ;; esac
     echo "the rig's stick" > "$S/upgrade_/bench-ubuntu"
     echo "$(sha256sum < "$INSTALLER" | cut -c1-16)" > "$A/installer.sha256"
     cat > "$S/upgrade_/bench-firstboot.sh" <<'B'
@@ -140,6 +147,8 @@ L=/run/upglog; mkdir -p $L; mount -L UPGLOG $L || exit 0
   echo "== lsblk"; lsblk -b -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
   echo "== net"; ip -br addr; echo "== efibootmgr"; efibootmgr
 } > $L/firstboot.txt 2>&1
+# a script the harness left on the log disk for this start (arm R: the rollback)
+[ -f $L/bench-next.sh ] && sh $L/bench-next.sh > $L/bench-next.out 2>&1
 sync; umount $L; systemctl poweroff
 B
     { grep -v ' boot/grub/grub.cfg$' "$A/SHA256SUMS.iso"; echo "$(sha256sum < "$S/grub.cfg" | cut -d' ' -f1)  boot/grub/grub.cfg"; } > "$S/SHA256SUMS"
@@ -174,7 +183,7 @@ P
     mcopy -o -i "$P" "$S/efi/grub.cfg" "$S/efi/grubenv" ::/EFI/boot/; mcopy -o -i "$P" "$S/release.json" ::/
     mcopy -s -o -i "$P" "$S/upgrade_" ::/
     mdel -i "$P" ::/upgrade-prologue.exe ::/upgrade-job.exe 2>/dev/null || true
-    if [ "$arm" = W ]; then
+    if [ "$arm" = W ] || [ "$arm" = V ] || [ "$arm" = R ]; then
         [ -f "$WINEXE/upgrade-prologue.exe" ] && [ -f "$WINEXE/upgrade-job.exe" ] || { echo "ubuntu-arms: run ./build-rust.sh first (arm W needs the Windows programs)" >&2; exit 1; }
         mcopy -o -i "$P" "$WINEXE/upgrade-prologue.exe" "$WINEXE/upgrade-job.exe" ::/
     fi
@@ -223,23 +232,42 @@ import json, sys
 f = json.load(open(sys.argv[1])); d = f["disk"]
 json.dump([{"number": d["number"], "unique_id": d["unique_id"], "serial": d["serial"], "size": d["size"], "name": d["name"], "health": f.get("health") or "Healthy"}], open(sys.argv[2], "w"))
 P
-    python3 v9-job.py artifacts/v1/job.json "$A/$T/disks.json" "$A/$T/job-erase.json" --desktop=gnome > "$A/$T/v9-job.log" 2>&1 || true
+    if [ "$ARM" = W ]; then
+        python3 v9-job.py artifacts/v1/job.json "$A/$T/disks.json" "$A/$T/job-erase.json" --desktop=gnome > "$A/$T/v9-job.log" 2>&1 || true
+    else   # V and R: the keep-Windows job as v1.sh wrote it
+        cp artifacts/v1/job.json "$A/$T/job-erase.json" 2>/dev/null || true
+    fi
     python3 - "$A/$T/job-erase.json" "$A/$T/job.json" "$REPO/schemas/job.schema.json" <<'P' || { echo "no job could be written" >> "$A/$T/windows-side.txt"; off; return 0; }
 import json, sys
 from jsonschema import Draft7Validator, FormatChecker
-j = json.load(open(sys.argv[1])); j["intent"]["distro"] = {"name": "ubuntu", "release": "26.04.1"}
+j = json.load(open(sys.argv[1])); j["intent"]["distro"] = {"name": "ubuntu", "release": "26.04.1"}; j["intent"]["desktop"] = "gnome"
 e = list(Draft7Validator(json.load(open(sys.argv[3])), format_checker=FormatChecker()).iter_errors(j))
 if e: sys.exit("schema: " + e[0].message)
 json.dump(j, open(sys.argv[2], "w"), indent=2)
 P
     PS copy "$(wslpath -w "$A/$T/job.json")" "${L}:\\upgrade_\\job.json" > /dev/null
     guest "Remove-Item ${L}:\\upgrade_\\ks.cfg -Force -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force 'C:\\ProgramData\\upgrade_\\prologue' -ErrorAction SilentlyContinue; 'stick_upgrade_dir=' + ((Get-ChildItem ${L}:\\upgrade_ -Name) -join ',')" >> "$A/$T/windows-side.txt"
-    guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --erase-consent '$ERASE_SENTENCE'" > "$A/$T/prologue-start.log" 2>&1 || true
+    case "$ARM" in
+    W)  guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --erase-consent '$ERASE_SENTENCE'" > "$A/$T/prologue-start.log" 2>&1 || true ;;
+    R)  guest "& ${L}:\\upgrade-prologue.exe start --stick ${L}: --confirm-word CONVERT" > "$A/$T/prologue-start.log" 2>&1 || true ;;
+    V)  # the window writes this marker before it arms (window/src/main.rs); here the harness does
+        guest "Set-Content -Path ${L}:\\upgrade_\\boot-verify -Value 'v1'; Remove-Item -Recurse -Force 'C:\\ProgramData\\upgrade_\\verify' -ErrorAction SilentlyContinue; & ${L}:\\upgrade-prologue.exe verify-arm --stick ${L}: --auto --payload shim" > "$A/$T/prologue-start.log" 2>&1 || true ;;
+    esac
     tail -5 "$A/$T/prologue-start.log"
-    if ! grep -q 'restarting in' "$A/$T/prologue-start.log"; then
+    if ! grep -q 'restarting in\|ARMED. Rebooting' "$A/$T/prologue-start.log"; then
         echo "the prologue did not reach a restart" >> "$A/$T/windows-side.txt"; off; return 0
     fi
     echo "prologue_restart=y" >> "$A/$T/windows-side.txt"
+    if [ "$ARM" = V ]; then
+        # the check restarts the computer by itself; Windows must come back with nobody touching it
+        sleep 90; local t1; t1=$(date +%s)
+        until guest "if (Test-Path ${L}:\\upgrade_\\report\\early.json) { hostname }" 2>/dev/null | grep -qx 'UPGRIGHV'; do
+            [ $(( $(date +%s) - t1 )) -lt 1200 ] || { echo "windows_back=n" >> "$A/$T/windows-side.txt"; ./ubuntu.sh shot "$T-end" >/dev/null 2>&1 || true; state > "$A/$T/end-state.txt"; off; return 0; }
+            sleep 15
+        done
+        echo "windows_back=y after $(( $(date +%s) - t0 )) s" >> "$A/$T/windows-side.txt"
+        state > "$A/$T/end-state.txt"; PS fw > "$A/$T/fw-after.txt"; PS stop >/dev/null 2>&1 || true; sleep 20; off; return 0
+    fi
     while :; do
         sleep 60; n=$((n+1))
         [ "$(state)" = Running ] || { echo "ubuntu-arms: guest is $(state) after $(( $(date +%s) - t0 )) s"; break; }
@@ -248,6 +276,17 @@ P
         [ $(( $(date +%s) - t0 )) -lt "$2" ] || { echo "ubuntu-arms: still running after $2 s"; ./ubuntu.sh shot "$T-end" >/dev/null 2>&1 || true; break; }
     done
     state > "$A/$T/end-state.txt"; PS fw > "$A/$T/fw-after.txt"; off
+    if [ "$ARM" = R ]; then
+        # after the rollback Windows is first in the firmware's order again: start the guest, it must answer
+        python3 evict-builds.py --wait "$A"; PS start; local t2; t2=$(date +%s)
+        until guest 'hostname' 2>/dev/null | grep -qx 'UPGRIGHV'; do
+            [ $(( $(date +%s) - t2 )) -lt 600 ] || { echo "windows_after_rollback=n" >> "$A/$T/windows-side.txt"; ./ubuntu.sh shot "$T-after-rollback" >/dev/null 2>&1 || true; off; return 0; }
+            sleep 10
+        done
+        echo "windows_after_rollback=y after $(( $(date +%s) - t2 )) s" >> "$A/$T/windows-side.txt"
+        guest "'windows_partitions=' + ((Get-Partition -DiskNumber (Get-Partition -DriveLetter C).DiskNumber | ForEach-Object { \$_.Type + ':' + [math]::Round(\$_.Size/1MB) }) -join '+')" >> "$A/$T/windows-side.txt"
+        PS fw > "$A/$T/fw-after-rollback.txt"; PS stop >/dev/null 2>&1 || true; sleep 20; off
+    fi
 }
 
 case "${1:-}" in
@@ -271,10 +310,10 @@ vm)
     PS disk list
     ;;
 arm)
-    ARM="${2:?A|F|C|K|G|H|W}"; NOTE="${3:-}"; T="arm-$ARM"; D="$A/$T"
+    ARM="${2:?A|F|C|K|G|H|W|V|R}"; NOTE="${3:-}"; T="arm-$ARM"; D="$A/$T"
     [ "$ARM" != D ] || { echo "ubuntu-arms: arm D is not run on the product's stick (its menu never starts the installer again); see arm H" >&2; exit 1; }
     rm -rf "$D"; mkdir -p "$D"
-    SYSDISK=target; [ "$ARM" = K ] && SYSDISK=windows; [ "$ARM" = G ] && SYSDISK=gaps; [ "$ARM" = W ] && SYSDISK=windows
+    SYSDISK=target; [ "$ARM" = K ] && SYSDISK=windows; [ "$ARM" = G ] && SYSDISK=gaps; case "$ARM" in W|V|R) SYSDISK=windows ;; esac
     HASH="$(openssl passwd -6 -salt upgrig rig)"
     case "$ARM" in
     A)  python3 ubuntu-job.py "$D/job.json" --uid=$BOGUS_UID --size=$SYSTEM_BYTES --hash="$HASH"
@@ -308,13 +347,13 @@ P
         WUID="$(wwn_of ubu-windows.vhdx)"; WSIZE="$(PSC "(Get-VHD '$HVW\\vm\\ubu-windows.vhdx').Size" | tr -d ' \n')"
         python3 ubuntu-job.py "$D/job.json" --keep --uid="$WUID" --size="$WSIZE" --hash="$HASH"
         build_stick K "$D/job.json"; SECS=3600 ;;
-    W)  # the rig's install-day Windows, a fresh copy every time
+    W|V|R)  # the rig's install-day Windows, a fresh copy every time
         off; PSC "Get-VMHardDiskDrive -VMName $VMNAME | Where-Object { \$_.Path -like '*ubu-windows.vhdx' } | Remove-VMHardDiskDrive; Remove-Item '$HVW\\vm\\ubu-windows.vhdx' -ErrorAction SilentlyContinue; exit 0"
         PSC "\$ErrorActionPreference='Stop'; Copy-Item '$HVW\\vm\\UPGRIGHV.fresh.vhdx' '$HVW\\vm\\ubu-windows.vhdx'
           \$a = (Get-FileHash '$HVW\\vm\\UPGRIGHV.fresh.vhdx').Hash; \$b = (Get-FileHash '$HVW\\vm\\ubu-windows.vhdx').Hash
           if (\$a -ne \$b) { throw 'the copy of the Windows disk does not match' }; 'windows disk copied: ' + \$b"
         python3 ubuntu-job.py "$D/placeholder.json" --uid=$BOGUS_UID --size=$SYSTEM_BYTES --hash="$HASH"
-        build_stick W "$D/placeholder.json"; SECS=3600 ;;
+        build_stick "$ARM" "$D/placeholder.json"; SECS=3600 ;;
     G)  # a made-up disk (rule #5: a spoof): nothing on it is Windows but the name of one file
         off; rm -f "$A/gaps.raw" "$HV/vm/ubu-gaps.vhdx"; truncate -s 80G "$A/gaps.raw"
         parted -s "$A/gaps.raw" mklabel gpt mkpart ESP fat32 1MiB 101MiB set 1 esp on mkpart data ntfs 30821MiB 41061MiB set 2 msftdata on
@@ -330,7 +369,8 @@ P
     *)  echo "ubuntu-arms: unknown arm $ARM" >&2; exit 1 ;;
     esac
     swap_system "ubu-$SYSDISK.vhdx"
-    if [ "$ARM" = W ]; then
+    WIN=; case "$ARM" in W|V|R) WIN=y ;; esac
+    if [ -n "$WIN" ]; then
         ./ubuntu.sh first disk '*ubu-windows.vhdx' > /dev/null
         PSC "Set-VMFirmware -VMName $VMNAME -EnableSecureBoot Off; Enable-VMIntegrationService -VMName $VMNAME -Name 'Guest Service Interface'"
     else
@@ -343,8 +383,19 @@ P
     # an empty log disk for every arm: a first-start record on it is this arm's or nobody's
     rm -f "$A/ubu-log.img"; truncate -s 96M "$A/ubu-log.img"; parted -s "$A/ubu-log.img" mklabel msdos mkpart primary fat32 1MiB 100%
     mkfs.fat -F 32 -n UPGLOG --offset 2048 "$A/ubu-log.img" > /dev/null
+    if [ "$ARM" = R ]; then
+        cat > "$D/bench-next.sh" <<'N'
+# arm R: the rollback from the Linux side, at the installed Ubuntu's first start
+S=/usr/local/libexec/upgrade_/settle-in; L=/run/upglog
+efibootmgr > $L/efibootmgr-before-rollback.txt 2>&1
+$S rollback --dry-run > $L/rollback-dry.json 2> $L/rollback-dry.err; echo "dry_rc=$?"
+$S rollback > $L/rollback.json 2> $L/rollback.err; echo "rollback_rc=$?"
+efibootmgr > $L/efibootmgr-after-rollback.txt 2>&1
+N
+        mcopy -i "$A/ubu-log.img@@1M" "$D/bench-next.sh" ::/bench-next.sh
+    fi
     rm -f "$HV/vm/ubu-log.vhdx"; qemu-img convert -f raw -O vhdx "$A/ubu-log.img" "$HV/vm/ubu-log.vhdx"
-    if [ "$ARM" = W ]; then
+    if [ -n "$WIN" ]; then
         windows_side "$T" "$SECS"
         PSC "Set-VMFirmware -VMName $VMNAME -EnableSecureBoot On -SecureBootTemplate MicrosoftUEFICertificateAuthority"
     else
