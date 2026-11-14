@@ -532,7 +532,8 @@ pub mod tests {
             eprintln!("skipped: UPG_UBUNTU_ISO is not set");
             return;
         };
-        let measured: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/measured/ubuntu-26.04.1.json")).unwrap()).unwrap();
+        let table: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/releases.json")).unwrap()).unwrap();
+        let measured = table["Releases"].as_array().unwrap().iter().find(|r| r["Id"] == "ubuntu-26.04.1").unwrap().clone();
         #[derive(Clone, Default)]
         struct H(Rc<RefCell<(Sha256, u64)>>);
         impl Write for H {

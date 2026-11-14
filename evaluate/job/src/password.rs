@@ -196,8 +196,8 @@ pub fn read_hidden_line(_prompt: &str) -> Result<String, String> {
 /// set, 1 when not.
 pub fn ask_and_write(out_file: &std::path::Path, linux_name: &str) -> i32 {
     println!();
-    println!("  Your Fedora account:  {linux_name}");
-    println!("  You sign in to Fedora as {linux_name} with the password you choose now.");
+    println!("  Your Linux account:  {linux_name}");
+    println!("  You sign in to Linux as {linux_name} with the password you choose now.");
     println!("  Nothing shows while you type. Write it down if you need to - nothing else stores it.");
     for _ in 1..=3 {
         let (mut a, mut b) = match (read_hidden_line("  Password: "), read_hidden_line("  Type it again: ")) {

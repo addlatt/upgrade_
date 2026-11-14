@@ -3292,7 +3292,7 @@ dependencies = [
 
 [[package]]
 name = "upgrade-window"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "eframe",
  "serde_json",

@@ -665,7 +665,7 @@ pub fn summary_lines(j: &Value, facts: &Value, job_path: &Path, verify_only: boo
     l.push(format!("  written: {}", job_path.display()));
     if !verify_only {
         l.push(String::new());
-        l.push(format!("  Your Fedora sign-in:  user  {}   password  the one you just chose", st("intent.account.linux_name")));
+        l.push(format!("  Your Linux sign-in:  user  {}   password  the one you just chose", st("intent.account.linux_name")));
     }
     let count = |p: &str| at(j, p).as_array().map_or(0, Vec::len);
     l.push(format!("  software inventory: {} desktop programs, {} Store apps (names only; stays on the stick)", count("harvest.software.desktop"), count("harvest.software.store")));
@@ -674,7 +674,7 @@ pub fn summary_lines(j: &Value, facts: &Value, job_path: &Path, verify_only: boo
         l.push("  ERASE AND INSTALL: everything on these drives will be deleted, nothing is kept".to_string());
         for d in at(j, "erase_consent.disks").as_array().into_iter().flatten() {
             let role = s(at(d, "role"));
-            let what = if role == "system" { "Fedora system" } else { "your home folder" };
+            let what = if role == "system" { "Linux system" } else { "your home folder" };
             l.push(format!("    {:<7} {}  {} GB  serial {}  ({what})", role, s(at(d, "friendly_name")), fmt_n(vint(at(d, "size_bytes")) as f64 / 1e9, 1), s(at(d, "serial_number"))));
         }
         l.push("  There is no countdown: the last click in the window is the last moment to stop. After it, once the installer's checks pass, these drives are erased.".to_string());
@@ -704,7 +704,7 @@ pub fn summary_lines(j: &Value, facts: &Value, job_path: &Path, verify_only: boo
         "exported" => {
             let profiles: Vec<&Value> = at(j, "harvest.wifi.profiles").as_array().into_iter().flatten().collect();
             let ok = profiles.iter().filter(|p| truthy(at(p, "supported"))).count();
-            l.push(format!("  Wi-Fi: {ok} saved network(s) Fedora will join by itself; their passwords are on the stick until the install ends"));
+            l.push(format!("  Wi-Fi: {ok} saved network(s) Linux will join by itself; their passwords are on the stick until the install ends"));
             for x in profiles.iter().filter(|p| !truthy(at(p, "supported"))) {
                 l.push(format!("    not set up: {} - {}", s(at(x, "ssid")), s(at(x, "why_not"))));
             }

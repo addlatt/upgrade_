@@ -87,10 +87,10 @@ kit builder and `rig/vm/fetch-release.sh` refuse any file whose hash
 differs from the entry.
 
 A release the kit does not offer yet is measured into its own file under
-`data/measured/` (`measure-release.py --casper ... --out`), never into
+`data/measured/` (`measure-release.py --casper ... --out`), not into
 `releases.json`: an entry in the table is an offer to a person, and no
-program reads `data/measured/`. Ubuntu 26.04.1's casper ISO is there
-(2026-11-12, RISKS R40).
+program reads `data/measured/`. `measure-release.py --offer` moves such a
+file into the table as it is. Ubuntu 26.04.1 went that way (2026-11-13).
 
 ## What is not here yet
 

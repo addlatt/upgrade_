@@ -148,9 +148,9 @@ B
         for f in upgrade_-settle-in.service upgrade_-settle-in.desktop upgrade_-settle-in.sh org.upgrade.settle-in.policy upgrade_-go-back-to-windows.desktop upgrade_-bring-files.desktop; do
             sed 's/\r$//' "$REPO/settle-in/linux/$f" > "$S/upgrade_/settle-in/$f"
         done
-        python3 - "$REPO/data/measured/ubuntu-26.04.1.json" > "$S/release.json" <<'P'
+        python3 - "$REPO/data/releases.json" > "$S/release.json" <<'P'
 import json, sys
-r = json.load(open(sys.argv[1]))
+r = next(x for x in json.load(open(sys.argv[1]))["Releases"] if x["Id"] == "ubuntu-26.04.1")
 print(json.dumps({"id": r["Id"], "name": r["Name"], "family": r["Family"], "release": r["Id"].rsplit("-", 1)[-1], "measured": r["Measured"], "desktop": "gnome"}, indent=2))
 P
         { echo "$(sha256sum < "$S/efi/grub.cfg" | cut -d' ' -f1)  ./EFI/BOOT/grub.cfg"; echo "$(sha256sum < "$S/efi/grubenv" | cut -d' ' -f1)  ./EFI/BOOT/grubenv"

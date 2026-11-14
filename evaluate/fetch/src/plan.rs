@@ -280,9 +280,9 @@ pub mod tests {
     }
 
     #[test]
-    fn the_table_offers_fedora_44_alone_with_two_desktops() {
+    fn the_table_offers_fedora_44_with_two_desktops_and_ubuntu_with_one() {
         let o = offered(RELEASES_JSON).unwrap();
-        assert_eq!(o.iter().map(|x| format!("{}/{}", x.0, x.2)).collect::<Vec<_>>(), ["fedora-44/kde", "fedora-44/gnome"]);
+        assert_eq!(o.iter().map(|x| format!("{}/{}", x.0, x.2)).collect::<Vec<_>>(), ["fedora-44/kde", "fedora-44/gnome", "ubuntu-26.04.1/gnome"]);
     }
 
     #[test]
@@ -297,11 +297,10 @@ pub mod tests {
         assert!(plan(&bad, "fedora-44", "kde").unwrap_err().contains("malformed"));
     }
 
-    /// The measured record of Ubuntu's ISO as a table entry would carry it.
-    /// It is not in `data/releases.json`: nobody is offered it yet.
+    /// Ubuntu's entry alone, as the table carries it (offered from 2026-11-13).
     pub fn ubuntu_table() -> String {
-        let mut r: Value = serde_json::from_str(include_str!("../../../data/measured/ubuntu-26.04.1.json")).unwrap();
-        r["Desktops"] = serde_json::json!([{"Id": "gnome", "Label": "GNOME"}]);
+        let t: Value = serde_json::from_str(RELEASES_JSON).unwrap();
+        let r = t["Releases"].as_array().unwrap().iter().find(|r| r["Id"] == "ubuntu-26.04.1").unwrap().clone();
         serde_json::json!({"Releases": [r]}).to_string()
     }
 

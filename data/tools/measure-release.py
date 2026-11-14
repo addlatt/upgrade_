@@ -24,8 +24,12 @@ table, or is added before the table's closing marker.
 
 A casper ISO (Ubuntu's layout: one ISO that is live system, installer and
 package pool at once) is measured with --casper and written to its own file
-with --out, never into the table: an entry in the table is an offer to a
+with --out, not into the table: an entry in the table is an offer to a
 person, and a family is offered only once its rig row holds (RISKS R40).
+When it is to be offered, --offer moves that measured file into the table
+as it is, adding only the desktop the installer's default source gives:
+
+    measure-release.py --offer data/measured/ubuntu-26.04.1.json --offer-desktop gnome GNOME
 
     measure-release.py --id ubuntu-26.04.1 --name "Ubuntu 26.04.1 LTS" \
         --family ubuntu --installer autoinstall --casper URL ISO \
@@ -181,10 +185,29 @@ def casper(o):
         json.dump(doc, f, indent=2, ensure_ascii=False); f.write('\n')
     print('measure-release: wrote %s' % o.out, file=sys.stderr)
 
+def offer(o, a):
+    """Move a measured file into the table: the same facts, now an offer to a person."""
+    if not o.offer_desktop: a.error('--offer needs --offer-desktop ID LABEL')
+    entry = json.load(open(o.offer, encoding='utf-8'))
+    entry.pop('_about', None)
+    for k in ('Id', 'Name', 'Family', 'Installer', 'Measured', 'Iso', 'Boot', 'Layers'):
+        if not entry.get(k): raise SystemExit('measure-release: %s has no %s; refusing to offer it' % (o.offer, k))
+    entry['Desktops'] = [{'Id': o.offer_desktop[0], 'Label': o.offer_desktop[1]}]
+    doc = json.load(open(o.table, encoding='utf-8'))
+    rels = doc['Releases']
+    at = next((i for i, r in enumerate(rels) if r.get('Id') == entry['Id']), None)
+    if at is None: rels.append(entry)
+    else: rels[at] = entry
+    with open(o.table, 'w', encoding='utf-8') as f:
+        json.dump(doc, f, indent=2, ensure_ascii=False); f.write('\n')
+    os.remove(o.offer)
+    print('measure-release: moved %s into %s as %s' % (o.offer, o.table, entry['Id']), file=sys.stderr)
+
 def main():
     a = argparse.ArgumentParser()
-    a.add_argument('--id', required=True); a.add_argument('--name', required=True)
-    a.add_argument('--family', required=True); a.add_argument('--installer', default='')
+    a.add_argument('--id'); a.add_argument('--name')
+    a.add_argument('--family'); a.add_argument('--installer', default='')
+    a.add_argument('--offer', default='', metavar='MEASURED.json'); a.add_argument('--offer-desktop', nargs=2, metavar=('ID', 'LABEL'))
     a.add_argument('--netinst', nargs=2, metavar=('URL', 'ISO'))
     a.add_argument('--casper', nargs=2, metavar=('URL', 'ISO')); a.add_argument('--out', default='')
     a.add_argument('--desktop', nargs=4, action='append', metavar=('ID', 'LABEL', 'URL', 'ISO'), default=[])
@@ -192,6 +215,8 @@ def main():
     a.add_argument('--table', default=str(ROOT / 'data/releases.json'))
     a.add_argument('--note', default='')
     o = a.parse_args()
+    if o.offer: return offer(o, a)
+    if not (o.id and o.name and o.family): a.error('--id, --name and --family are required')
     if o.casper: return casper(o)
     if not o.netinst: a.error('--netinst is required (or --casper for a casper ISO)')
     today = datetime.date.today().isoformat()

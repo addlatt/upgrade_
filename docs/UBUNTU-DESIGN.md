@@ -33,8 +33,8 @@ on a Hyper-V guest: plumbing, not proof (rule #5), and no row.
 
 Ubuntu Desktop 26.04.1 LTS, the current long-term release on Ubuntu's own
 release page. Read from its files by `measure-release.py --casper` into
-`data/measured/ubuntu-26.04.1.json`. It is not in `data/releases.json`, so
-nobody is offered it.
+`data/measured/ubuntu-26.04.1.json`, and moved from there into
+`data/releases.json` on 2026-11-13, when the owner decided to offer it.
 
 | Fact | Measured value |
 |---|---|
@@ -225,9 +225,9 @@ Four to six weeks of sessions before a real machine, by this count.
 
 ## What is not built, or not run
 
-1. The entry in `data/releases.json`. It is the offer to a person, and it
-   changes the scanner's "Linux releases" line on every machine. The
-   owner's call (ROADMAP, "Decisions owed").
+1. The one click test's Ubuntu path on a real machine. The entry in
+   `data/releases.json` is in (decided 2026-11-13, the owner), so the
+   window offers Ubuntu wherever the scanner says it starts.
 2. The window and the job writer with an Ubuntu stick: unit cases only.
    The prologue's start and the handoff have one rig row (line 18).
 3. Reclaim (R41) for Ubuntu: the stick's menu has no branch for it, and

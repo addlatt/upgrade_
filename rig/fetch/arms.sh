@@ -22,9 +22,9 @@
 # stick's own speed and drops) and the real internet are other rows.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# 0.3.0 (2026-11-13): Ubuntu's arms (roadmap item 23): one ISO taken whole. Ubuntu is
-# measured but not in data/releases.json, so its arms hand the program a table made
-# here from data/measured/ (`rehearse --table`); each file that lands is also compared
+# 0.3.0 (2026-11-13): Ubuntu's arms (roadmap item 23): one ISO taken whole. Until
+# Ubuntu went into data/releases.json (2026-11-13) its arms handed the program a table
+# (`rehearse --table`); now it reads the kit's own. Each file that lands is also compared
 # with the ISO's own files as bsdtar reads them, not only with the program's record.
 HARNESS=0.3.0
 RELEASE=fedora-44
@@ -68,7 +68,6 @@ ARMS_UBUNTU=(
 )
 want_arms=("$@")
 for w in "${want_arms[@]}"; do for u in "${ARMS_UBUNTU[@]}"; do [ "${u%%|*}" = "$w" ] && ARMS+=("$u"); done; done
-TABLE="$T/upgrade_-fetch-ubuntu-table.json"
 iso_sums() {  # the ISO's own files, read by bsdtar, as sha256sum lines (once; kept beside the logs)
   # (the Ubuntu rig's own extracted copy if rig/hyperv/ubuntu-arms.sh kit made one, else a fresh one)
   local out="$ROOT/rig/fetch/artifacts/$UBUNTU.sha256" x="$ROOT/rig/hyperv/artifacts/ubuntu/iso-root" tmp=
@@ -87,12 +86,7 @@ for a in "${ARMS[@]}"; do
   if [ "$release" = "$UBUNTU" ]; then
     ls "$UISO"/*.iso >/dev/null 2>&1 || { echo "arms: the rig's Ubuntu ISO is not at $UISO" >&2; exit 1; }
     serve="$UISO"
-    python3 - "$ROOT/data/measured/$UBUNTU.json" "$TABLE" <<'P'
-import json, sys
-r = json.load(open(sys.argv[1])); r["Desktops"] = [{"Id": "gnome", "Label": "GNOME"}]
-json.dump({"Releases": [r]}, open(sys.argv[2], "w"))
-P
-    table=(--table "$(wslpath -w "$TABLE")")
+    : # in the kit's own table from 2026-11-13: no --table
   fi
   if [ ${#want_arms[@]} -gt 0 ] && [[ ! " ${want_arms[*]} " =~ " $name " ]]; then continue; fi
   { [ "$name" = fresh ] || [ "$name" = ubuntu-fresh ]; } && rm -rf "$REH"

@@ -1318,6 +1318,8 @@ Fedora only.
 
 **Decided (2026-11-12, the owner):** Ubuntu is the second family, built
 now. Bazzite's design stays decided and comes after.
+**Decided (2026-11-13, the owner):** Fedora and Ubuntu are two parallel
+lines through the whole project; Ubuntu is in `data/releases.json`.
 
 **Where it stands.** `[###.]` held-on-rig, for Ubuntu only: its erase
 from a stick laid out as the product's, network off, nothing typed,

@@ -18,13 +18,13 @@ nearly every `[####]` below is the Acer Aspire A515-51G, Secure Boot on.
 
 ## Right now (2026-11-13)
 
-**Decided (2026-11-12, the owner):** Ubuntu is the second installer family,
-built now. Built and on the rig 2026-11-13, on a stick laid out as the
+**Decided (2026-11-13, the owner):** Fedora and Ubuntu are two parallel
+lines through the whole project. Ubuntu is in `data/releases.json` from
+that day, so the window offers it. On the rig, on a stick laid out as the
 product's: the fence (R45), the erase, the install beside Windows, the
-record (`outcome.json`), settle-in's first start, the hand-over
-(`ubuntu-install.csv`, V18); its download, rehearsed (V17). Nothing on the
-Windows side has run with an Ubuntu stick. Not offered to anyone: Ubuntu
-is not in `data/releases.json` ([log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)).
+record, settle-in's first start, the hand-over, and Windows' own prologue
+starting the stick (`ubuntu-install.csv`, V18); its download, rehearsed
+(V17). No real machine yet ([log](log/2026-11.md#2026-11-13-fedora-and-ubuntu-in-parallel-decided-ubuntu-offered-r40-r34-v18-roadmap-item-23)).
 
 Built 2026-11-11, neither run on a machine: the sleep lock on both sides
 (roadmap item 16, R33) and the refusal of a keep-Windows job beside a Linux
