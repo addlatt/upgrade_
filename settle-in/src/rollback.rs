@@ -10,7 +10,8 @@
 //!
 //! What it does, every refusal before the first write:
 //!   1. Windows' own boot loader back in its slot (`bootmgfw-kept.efi` ->
-//!      `bootmgfw.efi`) when shim sits there (architecture step 12);
+//!      `bootmgfw.efi`) when shim sits there (architecture step 12), and the
+//!      copy of GRUB beside it removed;
 //!   2. `EFI/Boot/bootx64.efi` restored from the snapshot the stick holds
 //!      (`upgrade_/esp-snapshot`, taken by `%pre` before the install), the
 //!      previous copy saved to the stick;
@@ -30,6 +31,9 @@ use std::collections::BTreeMap;
 pub const VERSION: &str = "0.1.0";
 pub const SLOT_REL: &str = "EFI/Microsoft/Boot/bootmgfw.efi";
 pub const KEPT_REL: &str = "EFI/Microsoft/Boot/bootmgfw-kept.efi";
+/// The copy of GRUB the prologue puts beside shim in Windows' slot
+/// (upgrade-prologue 0.4.5). Never a file of Windows' own.
+pub const GRUB_COPY_REL: &str = "EFI/Microsoft/Boot/grubx64.efi";
 pub const FALLBACK_REL: &str = "EFI/Boot/bootx64.efi";
 /// On the ESP. The guard in the kept Windows (`upgrade-prologue guard`) reads
 /// the same path, as `upgrade_\rolled-back.json`.
@@ -490,7 +494,9 @@ pub mod live {
             if let Err(e) = std::fs::remove_file(&kept) {
                 return finish(fail(&done, format!("removing the kept name: {}", e)));
             }
-            done.push(json!({ "step": "slot", "slot_sha": n, "kept_name_removed": true }));
+            // the GRUB that sat beside shim in the slot goes with it (Windows' loader is back and read back first)
+            let grub_copy_removed = at(GRUB_COPY_REL).map(|g| std::fs::remove_file(&g).is_ok());
+            done.push(json!({ "step": "slot", "slot_sha": n, "kept_name_removed": true, "grub_copy_removed": grub_copy_removed }));
         }
         // 3. the fallback loader from the snapshot
         if p["restore_fallback"] == json!(true) {

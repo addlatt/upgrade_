@@ -37,6 +37,28 @@ pub fn linux_dir(distro: &str) -> Option<&'static str> {
 pub fn shim_rel(dir: &str) -> String {
     format!("EFI\\{dir}\\shimx64.efi")
 }
+/// The installed Linux's GRUB, beside its shim. Shim starts the
+/// `grubx64.efi` in the folder shim itself was started from, so shim in
+/// Windows' slot needs a copy of it there (the Aspire, 2026-11-14: without
+/// it shim said "\\EFI\\Microsoft\\Boot\\grubx64.efi - Not Found" and the
+/// computer restarted without end).
+pub fn grub_rel(dir: &str) -> String {
+    format!("EFI\\{dir}\\grubx64.efi")
+}
+/// Where that copy goes: beside the slot. Never a file of Windows' own.
+pub const GRUB_COPY_REL: &str = "EFI\\Microsoft\\Boot\\grubx64.efi";
+/// Is the copy of GRUB beside the slot to be written? `source` and `copy`
+/// are sha256 (None = absent). Refuses with no GRUB to copy (shim would have
+/// nothing to start), and when a different grubx64.efi is already beside the
+/// slot (somebody else's arrangement: not ours to overwrite).
+pub fn grub_plan(source: Option<&str>, copy: Option<&str>) -> Result<bool, String> {
+    let source = source.ok_or("no GRUB (grubx64.efi) beside the Linux shim on the ESP: shim in Windows' slot would have nothing to start")?;
+    match copy {
+        None => Ok(true),
+        Some(c) if c == source => Ok(false),
+        Some(c) => Err(format!("a different grubx64.efi ({}) is already beside Windows' slot; refusing to overwrite it", &c[..12.min(c.len())])),
+    }
+}
 pub fn grubenv_rel(dir: &str) -> String {
     format!("EFI\\{dir}\\grubenv")
 }
@@ -269,7 +291,15 @@ pub mod live {
             let (s_slot, s_kept, s_shim) = (sha(&slot), sha(&kept), sha(&shim));
             let snap = stick_root.and_then(snapshot_sha);
             let plan = apply_plan(s_slot.as_deref(), s_kept.as_deref(), s_shim.as_deref(), snap.as_deref())?;
+            let grub = Path::new(&esp).join(grub_rel(dir));
+            let grub_copy = Path::new(&esp).join(GRUB_COPY_REL);
+            let copy_grub = grub_plan(sha(&grub).as_deref(), sha(&grub_copy).as_deref())?;
             log(format!("      windows slot: {}", s(&plan["Reason"])));
+            // GRUB first: shim is never in the slot without the GRUB it starts beside it
+            if copy_grub {
+                let g = copy_checked(&grub, &grub_copy, "putting GRUB beside Windows' slot")?;
+                log(format!("      {GRUB_COPY_REL} written ({})", &g[..12]));
+            }
             if !truthy(&plan["AlreadyApplied"]) {
                 if truthy(&plan["MoveKept"]) {
                     let k = copy_checked(&slot, &kept, "keeping Windows' loader under its kept name")?;
@@ -280,7 +310,8 @@ pub mod live {
             }
             register_guard(rec, state_dir)?;
             log(format!("      guard task registered: {GUARD_TASK_NAME}"));
-            let r = record(reason, &plan, sha(&slot).as_deref(), sha(&kept).as_deref(), &plive::now_z(), program, dir);
+            let mut r = record(reason, &plan, sha(&slot).as_deref(), sha(&kept).as_deref(), &plive::now_z(), program, dir);
+            r["grub_copy"] = json!({"path": GRUB_COPY_REL, "sha": sha(&grub_copy), "written": copy_grub});
             write_record(state_dir, stick_root, &r);
             Ok(r)
         })();
@@ -313,6 +344,17 @@ pub mod live {
                 m["guard"] = json!({"removed": removed, "utc": plive::now_z(), "slot_sha": sha(&slot)});
                 let _ = std::fs::write(&marker, serde_json::to_string_pretty(&m).unwrap_or_default() + "\n");
                 log(format!("      the Linux-side rollback's marker is on the ESP; guard task removed: {removed}"));
+            }
+            if action == "nothing" || action == "reapply" {
+                // the GRUB shim starts: put back when it is gone (Windows' servicing may clear the folder),
+                // and brought level with the shim when the shim goes back in
+                let grub = Path::new(&esp).join(grub_rel(dir));
+                let grub_copy = Path::new(&esp).join(GRUB_COPY_REL);
+                let (g_src, g_copy) = (sha(&grub), sha(&grub_copy));
+                if g_src.is_some() && (g_copy.is_none() || (action == "reapply" && g_copy != g_src)) {
+                    let g = copy_checked(&grub, &grub_copy, "putting GRUB beside Windows' slot")?;
+                    log(format!("      {GRUB_COPY_REL} written ({})", &g[..12]));
+                }
             }
             if action == "reapply" {
                 let k = copy_checked(&slot, &kept, "keeping Windows' serviced loader under its kept name")?;
@@ -349,6 +391,19 @@ mod tests {
         }
         let r = record("why", &json!({}), None, None, "2026-11-13T00:00:00Z", "p", "ubuntu");
         assert_eq!(r["linux_dir"], "ubuntu");
+    }
+
+    #[test]
+    fn shim_never_goes_into_the_slot_without_its_grub() {
+        assert_eq!(grub_rel("ubuntu"), "EFI\\ubuntu\\grubx64.efi");
+        assert_eq!(grub_rel("fedora"), "EFI\\fedora\\grubx64.efi");
+        // the copy sits in the slot's own folder, where shim looks (the Aspire, 2026-11-14)
+        assert_eq!(GRUB_COPY_REL.rsplit_once('\\').map(|x| x.0), WINDOWS_SLOT_REL.rsplit_once('\\').map(|x| x.0));
+        assert_eq!(grub_plan(Some("aa"), None), Ok(true));
+        assert_eq!(grub_plan(Some("aa"), Some("aa")), Ok(false), "already there: nothing written");
+        assert!(grub_plan(None, None).is_err(), "no GRUB to copy: nothing is arranged");
+        assert!(grub_plan(None, Some("aa")).is_err());
+        assert!(grub_plan(Some("aa"), Some("bb")).is_err(), "somebody else's grubx64.efi is not overwritten");
     }
 
     #[test]
