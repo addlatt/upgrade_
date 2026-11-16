@@ -741,7 +741,10 @@ def wait_after_arm(ctx, L, want, limit_s):
         if who == "linux" and want == "linux":
             return "linux"
         if who == "windows":
-            st = link.run(FIND_STICK + "if (Test-Path \"$L\\upgrade_\\outcome.json\") { (Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json).status }; "
+            # only this job's outcome counts: a stopped record left by an earlier try of the stage
+            # ended the wait while the conversion was going (the Aspire, 2026-11-15)
+            st = link.run(FIND_STICK + "if (Test-Path \"$L\\upgrade_\\outcome.json\") { $o = Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json; "
+                          "$j = Get-Content \"$L\\upgrade_\\job.json\" -Raw | ConvertFrom-Json; if ($o.job_id -eq $j.job_id) { $o.status } }; "
                           "if (Test-Path \"$L\\upgrade_\\report\\refusal.json\") { 'REFUSED' }", "windows", timeout=60)
             # a refusal is ALSO a stopped outcome (the prologue's return writes one): when
             # Windows is what the stage waits for, it comes first (the rig, 2026-10-27)
@@ -771,14 +774,21 @@ class KeepWindows:
 
     def run(self, ctx, args):
         link = ctx.link
-        if link.probe() != "windows":
-            return untouched("wrong-system", "keep-windows starts in Windows")
-        L = find_stick(ctx)
-        if not L:
-            return untouched("stick-not-found", "no single volume labelled UPGV0")
-        stop = write_job(ctx, L, args) or arm(ctx, L)
-        if stop:
-            return stop
+        adopt = args.get("adopt_armed")
+        if adopt:
+            # the manager's own earlier try armed this conversion and then lost its wait to a
+            # manager fault; nothing is written or armed again, the wait is taken up (said in the row)
+            L = adopt["stick"]
+            ctx.journal.write("note", text=f"keep-windows takes up the conversion armed by {adopt['try']}: {adopt['why']}")
+        else:
+            if link.probe() != "windows":
+                return untouched("wrong-system", "keep-windows starts in Windows")
+            L = find_stick(ctx)
+            if not L:
+                return untouched("stick-not-found", "no single volume labelled UPGV0")
+            stop = write_job(ctx, L, args) or arm(ctx, L)
+            if stop:
+                return stop
         got = wait_after_arm(ctx, L, "linux", int(args.get("limit_s", 10800)))
         if got is None:
             return Outcome("hang-install", False, "no Linux within the limit (the journal has the heartbeats)")
@@ -816,7 +826,8 @@ class KeepWindows:
             return Outcome("outcome-unread", False, "the installed system's outcome.json did not read as JSON")
         if o.get("path_taken") != "keep-windows" or not (o.get("windows") or {}).get("kept"):
             return Outcome("outcome-wrong", False, f"path_taken {o.get('path_taken')}, windows.kept {(o.get('windows') or {}).get('kept')}")
-        return Outcome("kept-both-start", True, "installed beside Windows; Windows and Linux each started twice with no key")
+        return Outcome("kept-both-start", True, "installed beside Windows; Windows and Linux each started twice with no key"
+                       + (f"; the job and the arming are in {adopt['try']} (the manager's wait was taken up again: {adopt['why']})" if adopt else ""))
 
 
 class CleanSlate:
@@ -1004,6 +1015,9 @@ class WalkAway:
         # the manager read the plan's drives as sticks, and no stick could ever match)
         if not isinstance(drives, list) or not drives:
             return untouched("walkaway-no-drives", f"settle-in's plan names no drive to install Windows on: {drives}")
+        # the manager's own mount of the kit stick (stick-left-in) is let go first: on one stick the
+        # walk-away writes the kit stick itself, and settle-in refuses a stick in use (2026-11-15)
+        sudo(ctx, "if mountpoint -q /mnt/upgtest; then umount /mnt/upgtest; fi", 60)
         st = sudo(ctx, f"{SETTLE_IN} go-back sticks --min-bytes {WALKAWAY_MIN_STICK}", 120)
         ctx.save("walkaway-sticks.json", st.out + st.err)
         try:
@@ -1037,7 +1051,8 @@ class WalkAway:
                 link.pull(f"{m.group(1)}\\upgrade_\\{n}", os.path.join(ctx.stage_dir, "walkaway-stick", n), "windows")
         if not collect_windows(ctx, "direct", "after-walkaway"):
             return Outcome("collect-failed", False, "the Windows collector after the walk-away")
-        return Outcome("windows-reached", True, "the walk-away gave a fresh Windows, reached over the carried SSH key")
+        return Outcome("windows-reached", True, "the walk-away gave a fresh Windows, reached over the carried SSH key"
+                       + ("; one stick: the upgrade_ stick itself became the Windows installer" if d.get("upgrade_stick") else ""))
 
     def rig_standin(self, ctx):
         hv = os.path.join(REPO, "rig", "hyperv")
@@ -1314,6 +1329,8 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
         if held:
             release_awake(ctx)
             o.notes = (o.notes + "; " if o.notes else "") + "the TEST held a sleep lock on Linux for this stage (settle-in holds none: 2026-10-04, 2026-10-28)"
+        if st.get("row_note"):   # what this run's plan says a hand did before the stage: in the row, never left out
+            o.notes = (o.notes + "; " if o.notes else "") + st["row_note"]
         if autologon_before or autologon_state(journal.entries()):
             o.notes = (o.notes + "; " if o.notes else "") + "the TEST's automatic sign-in was on in Windows for this stage (test_autologon; the person signs in by hand)"
         n = sha256sums(ctx.stage_dir)

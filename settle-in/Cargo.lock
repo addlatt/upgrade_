@@ -379,7 +379,7 @@ dependencies = [
 
 [[package]]
 name = "settle-in"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "libc",
  "lz4_flex",
