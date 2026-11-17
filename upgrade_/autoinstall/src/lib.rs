@@ -19,7 +19,11 @@
 
 use serde_json::Value;
 
-pub const GENERATOR_VERSION: &str = "0.3.0";
+pub const GENERATOR_VERSION: &str = "0.4.0";
+
+/// What gets installed: the disc's full desktop (`ubuntu-desktop` in its
+/// `casper/install-sources.yaml`), not the installer's default small one.
+pub const SOURCE_ID: &str = "ubuntu-desktop";
 
 /// A serial no disk has. The stick's own file asks for it, so an install
 /// that runs without our early check finds no disk and stops.
@@ -357,14 +361,16 @@ pub fn autoinstall(job: &Value, s: &Storage, program: &str, job_path: &str) -> R
     l.push(format!("    username: {}", q(&name)));
     l.push(format!("    password: {}", q(&at("/intent/account/password_hash"))));
     l.push("    hostname: ubuntu".into());
-    l.push("  source: {id: ubuntu-desktop-minimal}".into());
+    // Decided (2026-11-17, the owner): the full desktop, so an office program is there on the
+    // first day. It is the disc's own second source, its layers measured in data/releases.json.
+    l.push(format!("  source: {{id: {SOURCE_ID}}}"));
     l.push("  # offline: everything comes from the stick (architecture.md, \"Design constraints: offline\")".into());
     l.push("  apt: {fallback: offline-install, geoip: false}".into());
     l.push("  codecs: {install: false}".into());
     l.push("  drivers: {install: false}".into());
     l.push("  refresh-installer: {update: false}".into());
     // Remote access is carried only if Windows had it on (job harvest.ssh). Ubuntu's small
-    // desktop has no SSH server, so the installer adds it from the stick's own packages;
+    // desktop has no SSH server (the full one is not measured for it), so the installer adds it from the stick's own packages;
     // settle-in then puts the keys in and turns password sign-in off (settle-in/src/ssh.rs).
     if at("/harvest/ssh/result") == "carried" {
         l.push("  ssh: {install-server: true, allow-pw: false}".into());
@@ -487,6 +493,15 @@ mod tests {
         assert_eq!(t.matches("type: partition").count(), 3);
         assert_eq!(t.matches("type: mount").count(), 3);
         assert!(t.contains("path: /boot/efi") && t.contains("path: /boot\n") && t.contains("path: /\n"));
+    }
+
+    #[test]
+    fn the_full_desktop_is_the_one_installed() {
+        for (j, s) in [(job(), erase()), (keep_job(), beside())] {
+            let text = autoinstall(&j, &s, "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap();
+            assert!(text.contains("\n  source: {id: ubuntu-desktop}\n"), "{text}");
+            assert!(!text.contains("ubuntu-desktop-minimal"));
+        }
     }
 
     #[test]
