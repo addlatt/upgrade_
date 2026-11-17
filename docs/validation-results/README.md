@@ -826,3 +826,53 @@ A pass for `ready` also needs exit 0, nothing left in staging, the release
 on the stick and `files_verified` `y`; for `already`, no request at all; for
 a refusal, a non-zero exit, nothing left in staging and the expected words.
 A rehearsal closes no stick clause (rule #5).
+
+## `r39-other-linux.csv`: a Linux already on the Windows disk (risk R39)
+
+One row per arm, appended by `rig/hyperv/r39.sh`. Each arm plants a sign of
+a Linux on the disk the bench's Windows starts from, runs the real scanner
+and the real job writer, and takes the plant away
+(`rig/hyperv/guest/r39-arm.ps1`).
+
+| Column | Meaning |
+|---|---|
+| `timestamp`, `harness`, `upgrade_scan`, `upgrade_job`, `commit` | when the arm ended (UTC); the versions; the commit (`-dirty` if the programs or the harness had edits) |
+| `machine` | where it ran |
+| `arm`, `planted` | `none`, `partition` (512 MB, GPT type Linux filesystem, never formatted), `folder` (`EFI\fedora\shimx64.efi`, 3 bytes), `both`, `erase` (both, with the erase sentence), `removed` (both planted, then taken away before the programs ran) |
+| `expected` | `silent`; `scanner warns; refused by name`; or, for `erase`, `scanner warns; no refusal for it` |
+| `scan_line` | the scanner's "Linux already here" line, or `none` |
+| `job_refusal` | the start of the job writer's R39 refusal, or `none` |
+| `job_read` | what the job writer itself read: the Linux partitions, the boot folders, its error |
+| `job_written` | `y` if a `job.json` was written |
+| `layout_restored` | `y` if the partitions and the boot partition's folders ended as they began |
+| `result` | `pass-plumbing` (the rig, as expected), `pass` (a real machine, as expected), `fail` |
+| `notes` | why it failed; what else stood in the way |
+
+A pass needs every planted sign named by both programs, nothing named when
+nothing is planted, and the bench left as found. On the rig the job writer
+refuses in every arm for the bench's own reasons (the "stick" is not on
+USB, R16; PowerShell Direct is not the desktop), so `job_written` is always
+`n` there: the rig shows whether R39's refusal stands beside those, never
+a job written on a clean disk. That clause is a real machine's (rule #5).
+
+## `r33-awake.csv`: the product keeps the computer awake (roadmap item 16, risk R33)
+
+One row per arm, appended by `rig/hyperv/awake.sh`. `windows` runs in the
+bench's Windows; `linux` in a throwaway Fedora made for the run.
+
+| Column | Meaning |
+|---|---|
+| `timestamp`, `harness`, `program`, `commit` | when the rows were written (UTC); `awake.sh`'s version; the program under test and its version; the commit |
+| `machine`, `side` | where it ran; `windows` or `linux` |
+| `arm` | Windows: `no-desktop` (the scanner started from a session with no desktop), `desktop` (started on the signed-in desktop, as the window starts it). Linux: `prepare-record` (the walk-away's prepare writes what it held), `listed` (logind lists the lock), `suspend-refused`, `idle-1min` (logind set to suspend after 1 idle minute), `released-on-kill`; `all` when the guest's script did not finish |
+| `expected`, `observed` | what the arm must show, and what was read: `powercfg /requests` on Windows; logind, `systemctl` and the kernel's log on Linux |
+| `control` | the same thing with no lock: what makes `observed` mean something |
+| `result` | `pass-plumbing` (the rig, as expected, the control seen), `pass` (a real machine), `not-shown` (the control did not happen, so the arm proves nothing), `fail` |
+| `notes` | why, and what the bench could not try |
+
+A pass for `suspend-refused` needs the same request, with no lock, to put
+the guest to sleep; for `idle-1min`, the same guest with no lock to go to
+sleep by itself. The Windows guest has no sleep state at all, so its rows
+show the request listed and gone, never a sleep prevented. No row here
+covers a lid, a desktop's own power manager, `UPGRADE.exe`'s threads or the
+prologue's resume as SYSTEM: those are a real machine's (rule #5).

@@ -1125,8 +1125,8 @@ Aspire, under R23). V11, step 4.
 lines 2 to 5 (2026-10-03 to 2026-10-11, one `fail` fixed the same day; the
 full list moved to the [log](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13)). Owed:
 gate 0.5.0 on a machine; never-twice on real firmware;
-the sleep lock on a machine (built on both sides 2026-11-11, untried:
-[log](log/2026-11.md#2026-11-11-the-sleep-lock-on-both-sides-and-the-refusal-beside-a-linux-already-there-built-roadmap-item-16-r33-r39-r24)); the program findable from the desktop and a
+the sleep lock on a machine (held on the rig 2026-11-11, `r33-awake.csv`:
+[log](log/2026-11.md#2026-11-11-the-sleep-lock-and-r39-on-the-rig-r33-awakecsv-r39-other-linuxcsv-roadmap-item-16-r33-r39); the program findable from the desktop and a
 no-serial stick refused (the owner's call); the stale entry each Prepare
 leaves ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
 
@@ -1265,7 +1265,7 @@ rig and on one real machine.
 screens (`rig/hyperv/artifacts/v9/Bdiag-installer-boot-hung-2026-10-15/`,
 `B-installer-boot-hung-2026-10-17/`; [log](log/2026-10.md#2026-10-17-later-r38-built-held-on-the-rig-arms-b-c-and-d-pass-r38-v9-r37-v13)). Nothing is built.
 
-## R39: A keep-Windows conversion lands beside a Linux already on the disk · high · built
+## R39: A keep-Windows conversion lands beside a Linux already on the disk · high · held-on-rig
 
 **What.** Nothing in the scanner, the job writer or the prologue looks for
 a Linux already on the disk. A machine converted once, rolled back and
@@ -1283,12 +1283,13 @@ Nothing is erased that was not named, so high, not critical.
 job writer refuses a keep-Windows job beside it (or the owner decides what
 the product does instead), with a rig row and one real machine.
 
-**Where it stands.** `[##..]` built, 2026-11-11: the scanner reports a
-Linux partition or a Linux boot folder on the Windows disk, and the job
-writer refuses a keep-Windows job beside either, or when it could not
-read them ([log](log/2026-11.md#2026-11-11-the-sleep-lock-on-both-sides-and-the-refusal-beside-a-linux-already-there-built-roadmap-item-16-r33-r39-r24)).
-No row yet. Not read: a Linux on a second drive, bare firmware entries.
-Found on the Aspire, 2026-10-28 ([log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)).
+**Where it stands.** `[###.]` held-on-rig: `r39-other-linux.csv` lines 2
+to 7 (2026-11-11, six arms: a planted Linux partition, a planted boot
+folder, both, the erase, none, [log](log/2026-11.md#2026-11-11-the-sleep-lock-and-r39-on-the-rig-r33-awakecsv-r39-other-linuxcsv-roadmap-item-16-r33-r39)).
+The scanner reports either sign and the job writer refuses a keep-Windows
+job beside it, or when it could not read the disk. Owed: one real machine.
+Not read: a Linux on a second drive, bare firmware entries. Found on the
+Aspire, 2026-10-28 ([log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)).
 
 ## R40: A second installer cannot run offline and unattended with Secure Boot on · critical · planned
 
