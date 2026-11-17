@@ -1,0 +1,66 @@
+{
+  "plan": "rig-one-stick",
+  "version": 1,
+  "machine": "rig-upgrighv",
+  "why_this_order": "the one-stick order of a real machine (plans/aspire-ubuntu-one-stick.json). The stick writer and the walk-away are stand-ins here: the rig holds the order, the second look and the refusal on a stick made again, nothing of the writer or the walk-away",
+  "heartbeat_s": 300,
+  "stages": [
+    {
+      "stage": "kit-stick",
+      "why": "the rig's stick, made by the rig's own builder (a stand-in for the stick writer)"
+    },
+    {
+      "stage": "look",
+      "expect": [
+        "GREEN",
+        "YELLOW",
+        "RED"
+      ],
+      "limit_s": 900
+    },
+    {
+      "stage": "keep-windows",
+      "why": "the default path: install beside Windows, settle-in's first start, both systems start"
+    },
+    {
+      "stage": "stick-left-in",
+      "why": "people forget the stick: it must not install again"
+    },
+    {
+      "stage": "rollback",
+      "why": "someone changes their mind"
+    },
+    {
+      "stage": "clean-slate",
+      "why": "erase and install (V9 arm C)"
+    },
+    {
+      "stage": "stick-left-in-erased",
+      "why": "V9 arm D"
+    },
+    {
+      "stage": "walk-away",
+      "why": "back to a fresh Windows after a clean slate (the rig's stand-in)"
+    },
+    {
+      "stage": "kit-stick",
+      "after_walkaway": true,
+      "why": "Windows is back: the stick is made again from the same kit for the last stages"
+    },
+    {
+      "stage": "look",
+      "expect": [
+        "GREEN",
+        "YELLOW",
+        "RED"
+      ],
+      "limit_s": 900,
+      "why": "the fresh Windows gets its own scan: the job writer reads it from the stick"
+    },
+    {
+      "stage": "refused-before-countdown",
+      "why": "V9 arm A, the rarest"
+    }
+  ],
+  "why_no_cancel": "the owner, 2026-11-02: the last click in the window is the commit line; no countdown and no cancel after it"
+}

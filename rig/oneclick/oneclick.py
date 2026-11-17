@@ -25,6 +25,9 @@ The rules it keeps:
     (the owner, 2026-10-27).
   - A run folder is never overwritten; a stage tried again gets a new
     folder. Every stage folder ends with a SHA256SUMS.
+  - One stick, no swaps (the owner, 2026-11-15): the kit-stick stage writes
+    the kit onto the stick while it sits in the machine, once at the start
+    and once after the walk-away made it Windows' installer.
   - The run folder lives under rig/hyperv/artifacts/runs/, which git
     ignores: it holds the test account's password and the machine's facts.
 """
@@ -44,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.2.1"
+VERSION = "0.3.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -466,7 +469,22 @@ def walkaway_stick_in(ctx):
     return sum(1 for d in sticks if isinstance(d, dict) and d.get("offered")) == 1
 
 
-OWNER_CHECKS = {"kit-stick-in": kit_stick_in, "walkaway-stick-in": walkaway_stick_in}
+def fetch_status(ctx):
+    """The fetch program's own word on whether the stick carries the plan's
+    Linux (`upgrade-fetch status`, the call the window makes)."""
+    lx = ctx.plan.get("linux") or {}
+    r = ctx.link.run(FIND_STICK + f"& \"$L\\upgrade-fetch.exe\" status --release {lx.get('release', '')} --desktop {lx.get('desktop', '')}; "
+                     "Write-Output \"FETCH_RC=$LASTEXITCODE\"", "windows", 600)
+    return bool(re.search(r"^FETCH_RC=0\s*$", r.out, re.M)), clean(r.out + r.err)
+
+
+def linux_on_stick(ctx):
+    """Windows answers and the one kit stick carries the plan's Linux, every
+    file checked: the owner's fill through the window (UPGRADE.exe) is done."""
+    return ctx.link.probe() == "windows" and fetch_status(ctx)[0]
+
+
+OWNER_CHECKS = {"kit-stick-in": kit_stick_in, "walkaway-stick-in": walkaway_stick_in, "linux-on-stick": linux_on_stick}
 
 
 def wait_owner_seen(ctx, st, limit_s):
@@ -734,8 +752,11 @@ def wait_after_arm(ctx, L, want, limit_s):
     ('linux' after an install, 'windows' after a refusal):
     Windows may answer in between (an update, the disk check, the return);
     a stopped outcome ends the wait early. Returns 'linux' | 'windows' |
-    'stopped' | None (a hang)."""
+    'stopped' | 'returned' (Windows is back to stay after a completed
+    install) | None (a hang)."""
     link = ctx.link
+    settled = [None]
+
     def arrived():
         who = link.probe()
         if who == "linux" and want == "linux":
@@ -743,15 +764,30 @@ def wait_after_arm(ctx, L, want, limit_s):
         if who == "windows":
             # only this job's outcome counts: a stopped record left by an earlier try of the stage
             # ended the wait while the conversion was going (the Aspire, 2026-11-15)
-            st = link.run(FIND_STICK + "if (Test-Path \"$L\\upgrade_\\outcome.json\") { $o = Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json; "
-                          "$j = Get-Content \"$L\\upgrade_\\job.json\" -Raw | ConvertFrom-Json; if ($o.job_id -eq $j.job_id) { $o.status } }; "
+            st = link.run(FIND_STICK + "$j = Get-Content \"$L\\upgrade_\\job.json\" -Raw | ConvertFrom-Json; "
+                          "if (Test-Path \"$L\\upgrade_\\outcome.json\") { $o = Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json; "
+                          "if ($o.job_id -eq $j.job_id) { \"OUTCOME=$($o.status)\" } }; "
+                          "if (Test-Path \"$L\\upgrade_\\prologue-return.json\") { $r = Get-Content \"$L\\upgrade_\\prologue-return.json\" -Raw | ConvertFrom-Json; "
+                          "if ($r.job_id -eq $j.job_id) { if ($r.windows_slot) { 'RETURN=SLOT' } else { 'RETURN=PLAIN' } } }; "
                           "if (Test-Path \"$L\\upgrade_\\report\\refusal.json\") { 'REFUSED' }", "windows", timeout=60)
             # a refusal is ALSO a stopped outcome (the prologue's return writes one): when
             # Windows is what the stage waits for, it comes first (the rig, 2026-10-27)
             if want == "windows" and "REFUSED" in st.out:
                 return "windows"
-            if "stopped" in st.out:
+            if "OUTCOME=stopped" in st.out:
                 return "stopped"
+            # the install completed, the firmware started Windows, and the prologue's return step
+            # ran and arranged no restart (its record carries no windows_slot): nothing will start
+            # Linux now. The Aspire, 2026-11-14, sat like this while the manager waited out three
+            # hours. Wanted twice in the same Windows boot: the return writes its record a moment
+            # before it adds windows_slot and restarts
+            if want == "linux" and "OUTCOME=completed" in st.out and "RETURN=PLAIN" in st.out:
+                mark = boot_mark(ctx, "windows")
+                if mark is not None and mark == settled[0]:
+                    return "returned"
+                settled[0] = mark
+            else:
+                settled[0] = None
         return None
     return ctx.wait_for(f"the conversion, until {want} answers", arrived, limit_s, every_s=60)
 
@@ -795,6 +831,11 @@ class KeepWindows:
         if got == "stopped":
             link.pull(f"{L}\\upgrade_\\outcome.json", os.path.join(ctx.stage_dir, "outcome-stopped.json"), "windows")
             return Outcome("prologue-stopped", False, "the prologue stopped after a restart: outcome-stopped.json")
+        if got == "returned":
+            link.pull(f"{L}\\upgrade_\\prologue-return.json", os.path.join(ctx.stage_dir, "prologue-return.json"), "windows")
+            link.pull(f"{L}\\upgrade_\\outcome.json", os.path.join(ctx.stage_dir, "outcome-on-stick.json"), "windows")
+            return Outcome("windows-came-back", False, "the install completed, the firmware started Windows, and the prologue's return arranged no "
+                           "restart: nothing will start Linux (prologue-return.json, outcome-on-stick.json)")
         if not ctx.wait_for("settle-in's first start", lambda: "done" in sudo(
                 ctx, "test -e /var/lib/upgrade_/settle-in/first-start.done && echo done", 60).out, 1200, every_s=30):
             return Outcome("first-start-missing", False, "Linux answered but settle-in's first start did not finish")
@@ -853,6 +894,11 @@ class CleanSlate:
             return Outcome("hang-install", False, "no Linux within the limit (the journal has the heartbeats)")
         if got == "stopped":
             return Outcome("prologue-stopped", False, "the prologue stopped after a restart")
+        if got == "returned":
+            link.pull(f"{L}\\upgrade_\\prologue-return.json", os.path.join(ctx.stage_dir, "prologue-return.json"), "windows")
+            link.pull(f"{L}\\upgrade_\\outcome.json", os.path.join(ctx.stage_dir, "outcome-on-stick.json"), "windows")
+            return Outcome("windows-came-back", False, "the install completed, the firmware started Windows, and the prologue's return arranged no "
+                           "restart: nothing will start Linux (prologue-return.json, outcome-on-stick.json)")
         if not ctx.wait_for("settle-in's first start", lambda: "done" in sudo(
                 ctx, "test -e /var/lib/upgrade_/settle-in/first-start.done && echo done", 60).out, 1200, every_s=30):
             return Outcome("first-start-missing", False, "Linux answered but settle-in's first start did not finish")
@@ -1036,6 +1082,10 @@ class WalkAway:
         ctx.save("walkaway-prepare.out", prep.out + prep.err)
         if '"ready"' not in prep.out:
             return Outcome("walkaway-not-ready", False, (prep.out + prep.err).strip()[-300:])
+        # what the firmware is about to be asked, written down before every walk-away restart: on
+        # 2026-11-16 this restart left the Aspire before any system for 19 hours, with nothing kept to read
+        cap = sudo(ctx, BEFORE_WALKAWAY_RESTART, 300)
+        ctx.save("before-restart.txt", cap.out + cap.err)
         before = boot_mark(ctx, "linux")
         sudo(ctx, "systemd-run --on-active=5 systemctl reboot >/dev/null; echo REBOOTING")
         # Setup, the first sign-in, then Windows' SSH (installed from Windows Update by the walk-away's
@@ -1068,6 +1118,20 @@ class WalkAway:
             return Outcome("rig-standin-failed", False, "the fresh image's Windows did not answer")
         return Outcome("rig-standin-fresh-windows", True, "the rig cannot hold the walk-away (no USB stick with a serial): a fresh copy of the rig's Windows image stands in; not a walk-away row")
 
+
+# read-only: the firmware's entries, BootNext and BootOrder (efibootmgr -v), every USB drive's partition
+# table and first sector, the boot files on it (hashed from a read-only mount of the test's own), and
+# that the restart that follows is a warm one (systemctl reboot, this boot's id and start time)
+BEFORE_WALKAWAY_RESTART = (
+    "echo \"== utc $(date -u +%FT%TZ)\"; echo '== efibootmgr -v'; efibootmgr -v; "
+    "echo '== drives'; lsblk -o NAME,SIZE,TYPE,TRAN,FSTYPE,LABEL,PARTTYPE,PARTFLAGS,MODEL,SERIAL; "
+    "for d in $(lsblk -dno NAME,TRAN | awk '$2==\"usb\"{print $1}'); do "
+    "echo \"== sfdisk -d /dev/$d\"; sfdisk -d /dev/$d; echo \"== first sector of /dev/$d, sha256\"; head -c 512 /dev/$d | sha256sum; "
+    "for p in $(lsblk -lno NAME,TYPE /dev/$d | awk '$2==\"part\"{print $1}'); do m=$(mktemp -d); "
+    "if mount -o ro /dev/$p $m 2>/dev/null; then echo \"== /dev/$p: its root, and the files under EFI\"; ls -la $m; "
+    "(cd $m && find . -maxdepth 4 -ipath './efi/*' -type f -exec sha256sum {} +); umount $m; else echo \"== /dev/$p: not mounted read-only\"; fi; rmdir $m; done; done; "
+    "echo '== this boot (the restart that follows is warm: systemctl reboot)'; uptime -s; cat /proc/sys/kernel/random/boot_id; "
+    "echo '== sleep locks'; systemd-inhibit --list --no-legend; echo CAPTURED")
 
 SETTLE_IN = "/usr/local/libexec/upgrade_/settle-in"
 # the window's own floor (settle-in/window/src/goback.rs refresh_sticks): Windows 11 takes about 7 GB, 16 GB sticks
@@ -1113,9 +1177,182 @@ class Rollback:
         return Outcome("rolled-back", True, "Windows started first with no key; the guard stood down")
 
 
+# --- one stick, no swaps -----------------------------------------------------
+#
+# Decided (2026-11-15, the owner): one stick on the way back too, and a test
+# with no stick swaps. The kit used to be written on the manager's own
+# computer and the stick carried over; a second stick took Windows' installer.
+# Now the stick never leaves the machine: the product's stick writer
+# (upgrade-stick.exe, R16) runs on the machine itself, from a copy of the kit
+# pushed there, with the word it asks for typed at kickoff.
+
+KIT_DIR = "C:\\upgrade_oneclick\\kit"
+KIT_TAR = "C:\\upgrade_oneclick\\kit.tar"
+KIT_CSV = "C:\\upgrade_oneclick\\r16-stick-writer.csv"
+ONE_USB = ("$ProgressPreference = 'SilentlyContinue'; $u = @(Get-Disk | Where-Object BusType -eq 'USB'); "
+           "if ($u.Count -ne 1) { Write-Output \"USB_DISKS=$($u.Count)\"; exit 3 }; $d = $u[0]; ")
+# the word the stick writer asks for: the first volume's label, else the model name (evaluate/stick judge.rs confirm_word)
+USB_FACTS = (ONE_USB + "$lab = @(Get-Partition -DiskNumber $d.Number -ErrorAction SilentlyContinue | Get-Volume -ErrorAction SilentlyContinue | "
+             "Where-Object FileSystemLabel | ForEach-Object FileSystemLabel) | Select-Object -First 1; "
+             "Write-Output \"TARGET=$($d.UniqueId)\"; Write-Output \"BYTES=$($d.Size)\"; Write-Output \"MODEL=$($d.FriendlyName.Trim())\"; Write-Output \"LABEL=$lab\"")
+WALKAWAY_LABEL_SOURCE = ("settle-in/src/stickwrite.rs", r'const LABEL: &str = "([^"]+)"')
+
+
+def walkaway_label(repo=REPO):
+    """The label settle-in gives the stick it makes Windows' installer (read
+    from the product's source: one home per fact)."""
+    path, rx = WALKAWAY_LABEL_SOURCE
+    with open(os.path.join(repo, path), encoding="utf-8") as f:
+        m = re.search(rx, f.read())
+    if not m:
+        raise SystemExit(f"oneclick: the walk-away stick's label is not where it was ({path}); refusing to guess it")
+    return m.group(1)
+
+
+def kv_lines(text):
+    return dict(re.findall(r"^(\w+)=(.*?)\s*$", clean(text), re.M))
+
+
+def file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def psq(text):
+    """A PowerShell single-quoted string."""
+    return "'" + text.replace("'", "''") + "'"
+
+
+class KitStick:
+    """The kit onto the stick, on the machine itself: dist/kit is pushed over
+    as one file (its hash checked on the machine before it is unpacked), then
+    the product's stick writer erases the one USB stick and writes the kit,
+    reading every file back. With the plan's "fetch", the Linux is then
+    fetched onto it by the same call the window makes (upgrade-fetch get).
+
+    Every kit-stick stage of a run must write the same kit (the journal's
+    'kit' line holds its SHA256SUMS' hash): one kit per run.
+
+    Not counted as a writer of the machine's drives: it erases the stick and
+    nothing else, and an interrupted write is simply done again. What stops
+    it from touching a drive is the stick writer's own refusals (R16), the
+    size the owner saw at kickoff, and the word typed there.
+
+    The rig cannot hold it (the writer rightly refuses Hyper-V's SCSI
+    "stick"): there the rig's own stick builder stands in, named so."""
+    writes = False
+    needs = ()   # the word: stage_needs (which one depends on where the stage sits)
+
+    def run(self, ctx, args):
+        link = ctx.link
+        kit = os.path.join(REPO, "dist", "kit")
+        sums, writer = os.path.join(kit, "stick", "SHA256SUMS"), os.path.join(kit, "upgrade-stick.exe")
+        if not (os.path.exists(sums) and (link.kind == "hyperv" or os.path.exists(writer))):
+            return untouched("kit-not-built", f"no kit at {kit} (./make-kit.sh)")
+        kit_id = file_sha256(sums)
+        first = [e for e in ctx.journal.entries() if e["event"] == "kit"]
+        if first and first[0].get("sums_sha256") != kit_id:
+            return untouched("kit-changed", f"this run's kit was {first[0].get('sums_sha256', '')[:12]}; dist/kit is now {kit_id[:12]}: one kit per run")
+        manifest = os.path.join(kit, "stick", "KIT-MANIFEST.txt")
+        if os.path.exists(manifest):
+            shutil.copy(manifest, os.path.join(ctx.stage_dir, "KIT-MANIFEST.txt"))
+        if not first:
+            ctx.journal.write("kit", sums_sha256=kit_id)
+        if link.kind == "hyperv":
+            return self.rig_standin(ctx, kit_id)
+        if link.probe() != "windows":
+            return untouched("wrong-system", "the stick writer runs on Windows")
+        word = ctx.secrets["kit-stick-after-walkaway" if args.get("after_walkaway") else "kit-stick"]
+        # the kit, as one file
+        tar = os.path.join(ctx.stage_dir, "kit.tar")
+        t = subprocess.run(["tar", "-C", kit, "-cf", tar, "stick", "upgrade-stick.exe"], capture_output=True, text=True)
+        if t.returncode != 0:
+            return untouched("manager-error", f"tar: {t.stderr.strip()[:200]}")
+        tar_id, tar_bytes = file_sha256(tar), os.path.getsize(tar)
+        link.run(f"Remove-Item {KIT_DIR}, {KIT_TAR}, {KIT_CSV} -Recurse -Force -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force {KIT_DIR} | Out-Null",
+                 "windows", 300)
+        p = link.push(tar, KIT_TAR, "windows", timeout=int(args.get("push_limit_s", 7200)))
+        os.remove(tar)
+        if not p.ok:
+            return untouched("push-failed", f"the kit did not reach the machine: {p.err.strip()[:200]}")
+        un = link.run(f"$h = (Get-FileHash {KIT_TAR} -Algorithm SHA256).Hash.ToLower(); Write-Output \"TAR=$h\"; "
+                      f"if ($h -eq '{tar_id}') {{ tar.exe -xf {KIT_TAR} -C {KIT_DIR}; Write-Output \"UNPACKED=$LASTEXITCODE\" }}; "
+                      f"Remove-Item {KIT_TAR} -Force", "windows", 1800)
+        ctx.save("unpack.out", clean(un.out + un.err))
+        kv = kv_lines(un.out)
+        if kv.get("TAR") != tar_id:
+            return untouched("kit-copy-differs", f"the kit's copy on the machine hashes {kv.get('TAR', '?')[:12]}, not {tar_id[:12]}; nothing was unpacked")
+        if kv.get("UNPACKED") != "0":
+            return untouched("kit-unpack-failed", clean(un.out + un.err).strip()[-200:])
+        # the one USB stick, and the stick writer's own list of it
+        facts = link.run(USB_FACTS, "windows", 120)
+        lst = link.run(f"& {KIT_DIR}\\upgrade-stick.exe list", "windows", 300)
+        ctx.save("stick-before.txt", clean(facts.out + facts.err + lst.out + lst.err))
+        kv = kv_lines(facts.out)
+        if "USB_DISKS" in kv or not kv.get("TARGET"):
+            return untouched("stick-not-found", f"{kv.get('USB_DISKS', '?')} USB disks on the machine (want exactly 1)")
+        want_bytes = ctx.secrets.get("kit-stick-bytes")
+        if want_bytes and str(want_bytes) != kv.get("BYTES"):
+            return untouched("stick-not-the-approved-one", f"the USB disk is {kv.get('BYTES')} bytes; the one approved at kickoff was {want_bytes}")
+        if f"id: {kv['TARGET']}" not in clean(lst.out):
+            return untouched("stick-not-listed", "the stick writer's own list does not show the USB disk by that id")
+        w = link.run(f"& {KIT_DIR}\\upgrade-stick.exe write --target {psq(kv['TARGET'])} --expected-bytes {kv['BYTES']} --source {KIT_DIR}\\stick "
+                     f"--boot-size-gb {int(args.get('boot_size_gb', 8))} --confirmed-label {psq(word)} --results-csv {KIT_CSV}; "
+                     "Write-Output \"WRITER_RC=$LASTEXITCODE\"", "windows", int(args.get("write_limit_s", 7200)))
+        ctx.save("stick-writer.out", clean(w.out + w.err))
+        link.pull(KIT_CSV, os.path.join(ctx.stage_dir, "r16-stick-writer.csv"), "windows")
+        rc = kv_lines(w.out).get("WRITER_RC")
+        if rc == "2":
+            return untouched("stick-writer-refused", clean(w.out + w.err).strip()[-300:])
+        if rc != "0":
+            return Outcome("stick-not-verified", False, clean(w.out + w.err).strip()[-300:])
+        L = find_stick(ctx)
+        if not L:
+            return Outcome("stick-not-found-after-write", False, "no single volume labelled UPGV0 after the write")
+        link.pull(f"{L}\\stick.json", os.path.join(ctx.stage_dir, "stick.json"), "windows")
+        files = (re.findall(r"written and verified: (\d+) files", w.out) or ["?"])[-1]
+        notes = (f"upgrade-stick wrote the kit (SHA256SUMS {kit_id[:12]}) onto the {kv.get('MODEL', 'stick')} in the machine itself, {files} files read back; "
+                 f"the kit travelled as one file of {tar_bytes} bytes, its hash checked on the machine")
+        if args.get("after_walkaway"):
+            notes += "; the stick was Windows' installer from the walk-away: one stick, no swap"
+        if not args.get("fetch"):
+            return Outcome("kit-stick-written", True, notes)
+        lx = ctx.plan.get("linux") or {}
+        g = link.run(f"& {L}\\upgrade-fetch.exe get --release {lx.get('release', '')} --desktop {lx.get('desktop', '')}" +
+                     (f" --from {args['fetch_from']}" if args.get("fetch_from") else "") + "; Write-Output \"FETCH_RC=$LASTEXITCODE\"",
+                     "windows", int(args.get("fetch_limit_s", 14400)))
+        ctx.save("fetch.out", clean(g.out + g.err))
+        ok, said = fetch_status(ctx)
+        ctx.save("fetch-status.out", said)
+        if kv_lines(g.out).get("FETCH_RC") != "0" or not ok:
+            return Outcome("linux-not-fetched", False, clean(g.out + g.err).strip()[-300:])
+        return Outcome("kit-stick-written", True, notes + f"; the manager fetched {lx.get('release')} ({lx.get('desktop')}) onto it with the window's own call"
+                       + (" from a local copy (--from)" if args.get("fetch_from") else ""))
+
+    def rig_standin(self, ctx, kit_id):
+        hv = os.path.join(REPO, "rig", "hyperv")
+        logs = []
+        for cmd in (["powershell.exe", "-NoProfile", "-Command",
+                     f"if ((Get-VM -Name '{ctx.link.vm}').State -ne 'Off') {{ Stop-VM -Name '{ctx.link.vm}' -Force }}; (Get-VM -Name '{ctx.link.vm}').State"],
+                    ["./v9.sh", "stick"], ["./v9.sh", "windows"]):
+            r = subprocess.run(cmd, cwd=hv, capture_output=True, text=True, timeout=3600, stdin=subprocess.DEVNULL)
+            logs.append(f"$ {' '.join(cmd)}\n{r.stdout}{r.stderr}")
+            if r.returncode != 0:
+                ctx.save("rig-standin.log", "\n".join(logs))
+                return Outcome("rig-standin-failed", False, f"{cmd[-1]} exit {r.returncode}")
+        ctx.save("rig-standin.log", "\n".join(logs))
+        if ctx.link.probe() != "windows":
+            return Outcome("rig-standin-failed", False, "Windows did not answer after the rig's stick was built again")
+        return Outcome("rig-standin-kit-stick", True, f"the rig cannot hold the stick writer (it refuses Hyper-V's SCSI stick, R16): the rig's own "
+                       f"stick builder made the stick again from the kit (SHA256SUMS {kit_id[:12]}); not a stick writer row")
+
+
 STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(), "rollback-existing": Rollback(),
           "stick-left-in": StickLeftIn(), "clean-slate": CleanSlate(), "stick-left-in-erased": StickLeftIn(),
-          "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown()}
+          "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown(), "kit-stick": KitStick()}
 
 
 def stage_impl(name):
@@ -1131,7 +1368,12 @@ def stage_needs(st):
     unknown = [n for n in extra if n not in SENTENCE_SOURCES]
     if unknown:
         raise SystemExit(f"oneclick: stage '{st['stage']}' names approvals the manager does not know: {', '.join(unknown)}")
-    return tuple(stage_impl(st["stage"]).needs) + tuple(n for n in extra if n not in stage_impl(st["stage"]).needs)
+    own = tuple(stage_impl(st["stage"]).needs)
+    if st["stage"] == "kit-stick":
+        # the stick writer's word differs with what the stick is then: what it shows at kickoff,
+        # or the label the walk-away leaves on it
+        own += ("kit-stick-after-walkaway" if st.get("after_walkaway") else "kit-stick",)
+    return own + tuple(n for n in extra if n not in own)
 
 
 def plan_needs(stages):
@@ -1375,6 +1617,36 @@ def ask_consents(needed, link, secrets, ask=input, out=print):
                 out("oneclick: no word typed. Nothing started.")
                 return False
             continue
+        if key == "kit-stick":
+            if link.kind != "ssh":
+                secrets[key] = ""   # the rig's stand-in builds its own stick
+                continue
+            kv = kv_lines(link.run(USB_FACTS, "windows", 120).out) if link.probe() == "windows" else {}
+            if not kv.get("TARGET"):
+                out("oneclick: the kit-stick stage needs Windows answering and exactly one USB stick in the machine "
+                    f"(found: {kv.get('USB_DISKS', 'no answer')}). Nothing started.")
+                return False
+            want, what = (kv["LABEL"], "label") if kv.get("LABEL") else (kv.get("MODEL", ""), "model name")
+            out(f"\nThe one USB stick in the machine now: {kv.get('MODEL')}, {int(kv['BYTES']) / 1e9:.1f} GB" +
+                (f", labelled {kv['LABEL']}" if kv.get("LABEL") else ", no label") +
+                f".\nThe run ERASES it and writes the kit onto it. Type its {what} exactly to approve (the stick writer checks the same word):")
+            if ask("> ").strip() != want or not want:
+                out(f"oneclick: that is not the stick's {what}. Nothing started.")
+                return False
+            secrets[key], secrets["kit-stick-bytes"] = want, int(kv["BYTES"])
+            continue
+        if key == "kit-stick-after-walkaway":
+            if link.kind != "ssh":
+                secrets[key] = ""
+                continue
+            want = walkaway_label()
+            out(f"\nAfter the walk-away the same stick is Windows' installer, labelled {want}. The run ERASES it again there, to write the kit back "
+                f"for the last stages.\nType {want} to approve:")
+            if ask("> ").strip() != want:
+                out("oneclick: that is not the label. Nothing started.")
+                return False
+            secrets[key] = want
+            continue
         s = sentence(key)
         out(f"\nType this sentence exactly, to approve the {key} step for every loop of this run:\n  {s}")
         if ask("> ") != s:
@@ -1414,6 +1686,10 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None, password_from=None
     bad = [st["owner_check"] for st in plan["stages"] if "owner_check" in st and st["owner_check"] not in OWNER_CHECKS]
     if bad:
         raise SystemExit(f"oneclick: the plan names owner checks the manager does not know: {', '.join(bad)}")
+    lx = plan.get("linux") or {}
+    wants_linux = any(st.get("owner_check") == "linux-on-stick" or (st["stage"] == "kit-stick" and st.get("fetch")) for st in plan["stages"])
+    if wants_linux and not all(re.fullmatch(r"[A-Za-z0-9._-]+", str(lx.get(k, ""))) for k in ("release", "desktop")):
+        raise SystemExit("oneclick: the plan fetches a Linux (or waits for the window to) and does not name it: \"linux\": {\"release\": ..., \"desktop\": ...}")
     needed = plan_needs(plan["stages"])
     out(f"oneclick {VERSION}: {len(plan['stages'])} stages on {plan.get('machine', '?')} over {link.describe()}")
     for i, st in enumerate(plan["stages"]):
