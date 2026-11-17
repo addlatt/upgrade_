@@ -685,8 +685,8 @@ return, servicing and the rollback (lines 12, 13; `r21-rollback.csv` line 5).
 The Aspire's rollback (`r21-rollback.csv` line 6, `windows-not-direct`): a
 `bcdedit` order change does not survive a restart there (`efibootmgr`'s does).
 Kickstart 0.10.0's flag on the ESP and the Linux-side rollback both held on
-the rig (`v2-install.csv` line 17; `r21-rollback.csv` line 7). Owed: the
-Linux-side rollback on the Acer, an update under the guard, other vendors ([log](log/2026-10.md#2026-10-12-late-the-rig-answers-again-the-linux-side-rollback-holds-on-the-rig-r21-r22-r36-v1b)).
+the rig (`v2-install.csv` line 17). The slot needs GRUB beside shim (found with Ubuntu, 2026-11-15, prologue 0.4.5; `oneclick-runs.csv` lines 43 and 45, [log](log/2026-11.md#2026-11-14-to-2026-11-16-ubuntus-one-click-test-on-the-aspire-three-bugs-found-one-stick-on-the-way-back-r21-r22-r23-r33-r16-r36-v11-v12-v18-roadmap-items-21-and-23)).
+Owed: Fedora through that slot, an update under the guard, other vendors ([log](log/2026-10.md#2026-10-12-late-the-rig-answers-again-the-linux-side-rollback-holds-on-the-rig-r21-r22-r36-v1b)).
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · held-on-rig
 
@@ -743,12 +743,17 @@ a schema-invalid job: their failure is "cannot work" or "wrong machine".
 **If real.** The exception is how the first destroyed-photos incident
 happens: the sentence pasted from a forum, or typed by the person whose
 files are on the line because a tool called them overcautious. The
-safeguards are the sentence itself (no short form, no flag), the separate
-launcher, the loud record, and this entry. The path is for machines whose
-files are already copied off; the launcher says so three times.
+safeguards are the sentence itself (no short form, no flag), the loud
+record, and this entry. The path is for machines whose files are already
+copied off; the RED screen says so before the sentence.
 
-**Decided (2026-09-13, the owner):** build it, exactly that narrow, and it
-does not widen.
+**Decided (2026-11-14, the owner): one window, no second launcher.** The
+RED screen offers the sentence only when every failing check is one it may
+lift (window 0.5.0; no row yet). It costs a safeguard: the person meets the
+offer without looking for it. What it lifts is unchanged
+([log](log/2026-11.md#2026-11-14-one-window-the-data-loss-sentence-moves-to-the-red-screen-r23-v12-roadmap-item-4)).
+
+**Decided (2026-09-13, the owner):** build it, that narrow; it does not widen.
 
 **Closes when.** Never. It is a standing cost. What can change is its width,
 and the rule is that it does not widen.
@@ -1115,20 +1120,20 @@ last click; the gate's countdown left with `upgrade-gate` 0.5.0.
 switch does. **Decided (2026-10-04, the owner):** it carries the time and
 remote access (SSH, keys only) too. **Decided (2026-10-05, the owner):** the
 product keeps the computer awake while it works, on both sides.
+**Decided (2026-11-15, the owner):** one stick: after an erase the kit stick
+itself may become the installer (settle-in 0.12.0). With Windows kept it
+stays refused: it holds the rollback's snapshot and may hold the key.
 
 **Closes when.** Rig arms refuse and erase pass with Secure Boot on, nobody
 at the keyboard, ending at the Windows sign-in; then one real machine (the
 Aspire, under R23). V11, step 4.
 
 **Where it stands.** `[####]` `oneclick-runs.csv` line 34 (2026-10-29,
-`windows-reached`, the test holding the sleep lock); `v11-walkaway.csv`
-lines 2 to 5 (2026-10-03 to 2026-10-11, one `fail` fixed the same day; the
-full list moved to the [log](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13)). Owed:
-gate 0.5.0 on a machine; never-twice on real firmware;
-the sleep lock on a machine (held on the rig 2026-11-11, `r33-awake.csv`:
-[log](log/2026-11.md#2026-11-11-the-sleep-lock-and-r39-on-the-rig-r33-awakecsv-r39-other-linuxcsv-roadmap-item-16-r33-r39); the program findable from the desktop and a
-no-serial stick refused (the owner's call); the stale entry each Prepare
-leaves ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
+`windows-reached`); `[FAIL]` line 48 (2026-11-16, one stick, from Ubuntu: 19
+hours before any system started; set by hand it then reached Windows, [log](log/2026-11.md#2026-11-14-to-2026-11-16-ubuntus-one-click-test-on-the-aspire-three-bugs-found-one-stick-on-the-way-back-r21-r22-r23-r33-r16-r36-v11-v12-v18-roadmap-items-21-and-23)).
+Owed: that stop's cause; a whole run on one stick; never-twice on real firmware; the
+sleep lock on a machine (held on the rig 2026-11-11, `r33-awake.csv`); a no-serial stick refused (the owner's call); older lists:
+[log](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13).
 
 ## R34: Secure Boot revokes the kit's boot files · critical · held-on-machine
 
@@ -1291,7 +1296,7 @@ job beside it, or when it could not read the disk. Owed: one real machine.
 Not read: a Linux on a second drive, bare firmware entries. Found on the
 Aspire, 2026-10-28 ([log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)).
 
-## R40: A second installer cannot run offline and unattended with Secure Boot on · critical · planned
+## R40: A second installer cannot run offline and unattended with Secure Boot on · critical · held-on-rig
 
 **What.** Fedora's installer (Anaconda) installs from the image on the
 stick with no network and no question asked, and Fedora's shim starts
@@ -1317,13 +1322,16 @@ release that needs a key enrolled closes only if the window says so
 before the last click and the row records it. Fedora's rows count for
 Fedora only.
 
-**Where it stands.** `[#...]` planned. Found in research, 2026-11-02
-([log](log/2026-11.md#2026-11-02-a-second-linux-one-installer-family-at-a-time-r40-v14-roadmap-item-23)).
-Bazzite's live ISO measured 2026-11-07: its system image is on it, and its
-own kickstart installs from there, not the network; how to start it with
-nobody at the keyboard is unmeasured
-([log](log/2026-11.md#2026-11-07-bazzites-live-iso-measured-and-a-design-for-the-key-step-r40-r42-v14-v16-roadmap-items-23-24);
-the design: [BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
+**Decided (2026-11-12, the owner):** Ubuntu is the second family, built
+now. Bazzite's design stays decided and comes after.
+**Decided (2026-11-13, the owner):** Fedora and Ubuntu are two parallel
+lines through the whole project; Ubuntu is in `data/releases.json`.
+
+**Where it stands.** `[###.]` held-on-rig, for Ubuntu only: its erase
+from a stick laid out as the product's, network off, nothing typed,
+Secure Boot on, has a rig row (`ubuntu-install.csv` line 11;
+[log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). No real machine. Bazzite: its ISO measured 2026-11-07, its
+unattended start unmeasured ([BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
 
 ## R41: Reclaim deletes the kept Windows and moves Linux into the space · critical · built
 
@@ -1457,9 +1465,47 @@ arm says, recorded in `v17-fetch.csv`.
 
 **Where it stands.** `[###.]` held in a rehearsal on the development
 machine (Windows' own WinHTTP, an NTFS folder, the rig's ISOs from a local
-server with faults), `v17-fetch.csv` lines 8 to 13, `pass-plumbing`, after a code review's fixes
-([log](log/2026-11.md#2026-11-08-the-picker-built-the-window-fetches-fedora-onto-its-own-stick-roadmap-item-24-r44-v17-r31-r34)). Owed: a real FAT32 stick, the real
-internet, a stick pulled mid-download.
+server with faults): Fedora's six arms, `v17-fetch.csv` lines 8 to 13, and
+Ubuntu's whole-disc layout, lines 14 to 17, all `pass-plumbing`
+([log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). Owed: a real FAT32 stick, the real internet, a stick
+pulled mid-download.
+
+## R45: An Ubuntu stick erases the computer it starts on, and picks the disk itself · critical · held-on-rig
+
+**What.** Seen on the rig 2026-11-12: with `autoinstall` on the kernel line
+and `autoinstall.yaml` on the stick, Ubuntu's installer asks nothing. Left
+to its defaults it also chooses where: the `direct` layout takes "the
+largest disk", `mode: use_gap` takes "the largest gap", and a file with no
+storage section still installs (its documentation). Nothing in the
+installer ties the file to one machine. Fedora's kickstart is fenced by
+`%pre` (`upgrade-installer verify`: this machine, this job, the disk by
+its identity). Ubuntu's fence is `upgrade-installer early`.
+
+**If real.** A stick moved to another computer, or started a second time,
+erases that computer with no question. On a machine with two drives or two
+gaps the install lands where the person did not mean. Critical: the wrong
+disk erased before any check of ours has run.
+
+**Closes when.** The stick's own file carries no disk and no account, only
+our early hook; the hook writes the real file after its checks pass (the
+installer reads the file again after the hook: its documentation, to
+prove); the disk is named by serial and every kept partition one by one,
+never "largest". Then rig rows: a stick started on a guest that is not the
+job's machine, a second start after a finished install, and a guest with
+two disks and two gaps each end with the right disk written or nothing
+written. Then one real machine.
+
+**Where it stands.** `[###.]` held-on-rig. The stick's own file names a
+disk that does not exist and only starts `upgrade-installer early`, which
+writes the real file after its checks; the prologue starts Ubuntu's
+installer with no other file (unit cases). On the rig, on a stick laid
+out as the product's: another machine's stick and two free spaces
+refused with both disks unchanged, the file without our check installed
+nothing, the erase landed on the job's disk beside a larger one, and the
+stick started again handed over to the installed system
+(`ubuntu-install.csv` lines 11 to 17, line 13 apart; a second
+start refused by the check itself, line 6; [log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). Owed: a real
+machine.
 
 # Closed
 

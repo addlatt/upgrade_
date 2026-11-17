@@ -358,7 +358,7 @@ fn go_back(args: &[String], root: &str) -> i32 {
                 println!("{}", serde_json::to_string_pretty(&facts).unwrap_or_default());
             } else {
                 let min = opt("--min-bytes").and_then(|m| m.parse().ok()).unwrap_or(8_000_000_000u64);
-                println!("{}", sticks::judge(&facts, min));
+                println!("{}", sticks::judge_kit(&facts, min, sticks::kit_may_go(root)));
             }
             0
         }

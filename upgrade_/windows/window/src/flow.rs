@@ -68,7 +68,7 @@ pub fn verify_calls(stick: &str) -> Vec<Call> {
             false,
             stick,
             "upgrade-job.exe",
-            &["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", "kde", "--start-at", "desktop", "--verify-only", "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS"],
+            &["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", "kde", "--start-at", "desktop", "--verify-only", "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS", "--autoinstall", "{root}autoinstall.yaml"],
         ),
     ]
 }
@@ -252,7 +252,7 @@ pub fn linux_name_from(output: &[String]) -> Option<String> {
 /// sentence when the person typed it on the data-loss path, else empty.
 pub fn convert_calls(stick: &str, desktop: Desktop, hash_file: &str, ack: &str) -> Vec<Call> {
     let (d, s) = desktop.job_args();
-    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS"];
+    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS", "--autoinstall", "{root}autoinstall.yaml"];
     if !ack.is_empty() {
         job.push("--acknowledge-data-loss");
         job.push(ack);
@@ -297,7 +297,7 @@ pub fn erase_ok(typed: &str) -> bool {
 /// sentence as typed; -AcknowledgeDataLoss on the data-loss variant).
 pub fn erase_calls(stick: &str, desktop: Desktop, hash_file: &str, erase: &str, ack: &str) -> Vec<Call> {
     let (d, s) = desktop.job_args();
-    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--erase-everything", erase, "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS"];
+    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--erase-everything", erase, "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS", "--autoinstall", "{root}autoinstall.yaml"];
     if !ack.is_empty() {
         job.push("--acknowledge-data-loss");
         job.push(ack);
@@ -389,6 +389,15 @@ pub fn scan_stops(v: Option<&Verdict>, acknowledged: bool) -> bool {
         return false;
     }
     !(acknowledged && v.map(|v| v.level.as_str()) == Some("RED"))
+}
+
+/// Whether the typed sentence could lift this report's RED at all (RISKS
+/// R23): the job writer's own rule, so the window offers the sentence only
+/// where the job writer would take it. No report is never liftable.
+pub fn sentence_may_lift(report: Option<&Value>) -> bool {
+    let Some(r) = report else { return false };
+    let level = r["Verdict"]["Level"].as_str().unwrap_or("");
+    upgrade_job::decide::sentence_may_lift(level, &upgrade_job::decide::failed_titles(r))
 }
 
 /// The newest scanner JSON in the reports folder (names carry the time).
@@ -611,7 +620,7 @@ mod tests {
         let c = &verify_calls("E:")[2];
         assert_eq!(
             command_line(c),
-            r"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop kde --start-at desktop --verify-only --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS"
+            r"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop kde --start-at desktop --verify-only --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS --autoinstall E:\autoinstall.yaml"
         );
         assert!(!c.may_fail);
     }
@@ -638,7 +647,7 @@ mod tests {
         assert!(v[1].may_fail);
         assert_eq!(
             command_line(&v[2]),
-            r"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop gnome --start-at desktop --if-cannot-keep stop --password-hash-file C:\Users\a\AppData\Local\Temp\upgrade-pw-1.txt --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS"
+            r"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop gnome --start-at desktop --if-cannot-keep stop --password-hash-file C:\Users\a\AppData\Local\Temp\upgrade-pw-1.txt --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS --autoinstall E:\autoinstall.yaml"
         );
         assert_eq!(command_line(&linux_name_call("E:")), r"E:\upgrade-job.exe linux-name");
         // line 187: the prologue with the word as typed
@@ -707,9 +716,9 @@ mod tests {
     #[test]
     fn the_picker_offers_the_table_and_greys_out_what_the_scan_refuses() {
         let table = upgrade_scan::data::RELEASES_JSON;
-        let yes = json!({"Releases": [{"Id": "fedora-44", "Name": "Fedora 44", "Starts": "yes", "Why": []}]});
+        let yes = json!({"Releases": [{"Id": "fedora-44", "Name": "Fedora 44", "Starts": "yes", "Why": []}, {"Id": "ubuntu-26.04.1", "Name": "Ubuntu 26.04.1 LTS", "Starts": "yes", "Why": []}]});
         let c = choices(table, Some(&yes));
-        assert_eq!(c.iter().map(|c| c.title()).collect::<Vec<_>>(), ["Fedora 44 with KDE Plasma", "Fedora 44 with GNOME"]);
+        assert_eq!(c.iter().map(|c| c.title()).collect::<Vec<_>>(), ["Fedora 44 with KDE Plasma", "Fedora 44 with GNOME", "Ubuntu 26.04.1 LTS with GNOME"]);
         assert!(c.iter().all(|c| c.starts == Starts::Yes));
         let no = json!({"Releases": {"Id": "FEDORA-44", "Starts": "no", "Why": ["grub,3 < grub,5"]}});
         assert_eq!(choices(table, Some(&no))[0].starts, Starts::No("grub,3 < grub,5".into()), "one release as an object, the id in another case");
@@ -717,7 +726,7 @@ mod tests {
         assert_eq!(choices(table, Some(&unknown))[0].starts, Starts::Unknown);
         assert!(choices(table, None).iter().all(|c| c.starts == Starts::Unknown), "no report: nothing is offered as startable");
         assert!(choices(table, Some(&json!({"Releases": []}))).iter().all(|c| c.starts == Starts::Unknown), "not judged: greyed out");
-        let other = table.replace("\"Family\": \"fedora\"", "\"Family\": \"bazzite\"");
+        let other = table.replace("\"Family\": \"fedora\"", "\"Family\": \"bazzite\"").replace("\"Family\": \"ubuntu\"", "\"Family\": \"arch\"");
         assert!(choices(&other, Some(&yes)).is_empty(), "a layout the fetch cannot carry is not offered, even when the scan says it starts");
     }
 
@@ -741,7 +750,7 @@ mod tests {
         let v = erase_calls("E:", Desktop::Kde, "h", e, "");
         assert_eq!(
             command_line(&v[2]),
-            format!(r#"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop kde --start-at desktop --if-cannot-keep stop --erase-everything "{e}" --password-hash-file h --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS"#)
+            format!(r#"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop kde --start-at desktop --if-cannot-keep stop --erase-everything "{e}" --password-hash-file h --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS --autoinstall E:\autoinstall.yaml"#)
         );
         assert_eq!(command_line(&erase_prologue_call("E:", e, "")), format!(r#"E:\upgrade-prologue.exe start --stick E: --erase-consent "{e}""#));
         // the data-loss variant (line 181, 215): -AcknowledgeDataLoss on both
@@ -805,6 +814,16 @@ mod tests {
         assert!(!scan_stops(red.as_ref(), true), "RED with the sentence goes to the job writer");
         assert!(!scan_stops(yellow.as_ref(), false));
         assert!(scan_stops(None, true), "no verdict stops even with the sentence");
+        // the RED screen offers the sentence only where the job writer would take it (2026-11-14)
+        let report = |level: &str, checks: Value| json!({"Verdict":{"Level":level},"Checks":checks});
+        let fail = |t: &str, sec: &str| json!({"Title":t,"Status":"fail","Section":sec});
+        assert!(sentence_may_lift(Some(&report("RED", json!([fail("Disk health", "Storage")])))));
+        assert!(sentence_may_lift(Some(&report("RED", json!([fail("Disk health", "Storage"), fail("Volume health", "Storage")])))));
+        assert!(!sentence_may_lift(Some(&report("RED", json!([fail("Disk health", "Storage"), fail("Firmware", "Boot")])))), "one refusal the sentence cannot lift: no offer");
+        assert!(!sentence_may_lift(Some(&report("RED", json!([])))), "a RED with no failing check named: no offer");
+        assert!(!sentence_may_lift(Some(&report("YELLOW", json!([fail("Disk health", "Storage")])))));
+        assert!(!sentence_may_lift(Some(&json!({}))));
+        assert!(!sentence_may_lift(None), "no report: no offer");
         assert!(scan_stops(verdict(&json!({"Verdict":{"Level":"red"}})).as_ref(), true), "an unknown word stops even with the sentence");
     }
 

@@ -103,6 +103,12 @@ pub fn job_document(f: &Value, choice: &Choices, stamp: &Stamp) -> Result<Value,
     if let Some(why) = decide::release_refusal(at(f, "KitRelease"), at(f, "Releases")) {
         refusals.push(why);
     }
+    // A stick the window filled carries one desktop and says which (release.json). A job
+    // that asks for another would install what is on the stick, not what the person chose.
+    let carried = s(at(f, "KitRelease.desktop"));
+    if !carried.is_empty() && !eq_ci(&carried, choice.desktop) {
+        refusals.push(format!("this stick carries {} with the {} desktop, not {}; choose that one, or fill the stick again", s(at(f, "KitRelease.name")), carried, choice.desktop));
+    }
     // the folder map decides what is kept; an erase job keeps nothing, so it
     // only needs the map to exist (it lists what will be deleted)
     let h = at(f, "Harvest");
@@ -169,7 +175,7 @@ pub fn job_document(f: &Value, choice: &Choices, stamp: &Stamp) -> Result<Value,
         "scan": {"verdict": at(f, "Verdict"), "required_kernel": text_or_null(at(f, "RequiredKernel")), "report": choice.report_rel},
         "intent": {
             "path": path, "path_reason": path_reason, "desktop": choice.desktop, "start_at": choice.start_at,
-            "distro": {"name": "fedora", "release": s(at(f, "KitRelease.release"))},
+            "distro": {"name": distro_name(at(f, "KitRelease.family")), "release": s(at(f, "KitRelease.release"))},
             "account": {"windows_name": at(f, "UserName"), "full_name": text_or_null(at(f, "FullName")),
                         "linux_name": maps::linux_name(&s(at(f, "UserName"))), "password_hash": choice.password_hash},
             "locale": {"lang": format!("{}.UTF-8", s(at(f, "Locale")).replace('-', "_")), "timezone": iana, "keymap": keymap},
@@ -211,4 +217,24 @@ pub fn job_document(f: &Value, choice: &Choices, stamp: &Stamp) -> Result<Value,
         job["erase_consent"] = json!({"statement": ERASE_STATEMENT, "accepted_utc": stamp.now_utc, "disks": erase_disks});
     }
     Ok(job)
+}
+
+/// The installer family the job is for, from the stick's release.json.
+/// Ubuntu is the second family (roadmap item 23); every other stick is
+/// Fedora's, as it was before there was a second.
+pub fn distro_name(family: &Value) -> &'static str {
+    if family.as_str().is_some_and(|f| f.eq_ignore_ascii_case("ubuntu")) { "ubuntu" } else { "fedora" }
+}
+
+#[cfg(test)]
+mod distro_tests {
+    use super::*;
+
+    #[test]
+    fn the_stick_says_which_family_the_job_is_for() {
+        assert_eq!(distro_name(&json!("ubuntu")), "ubuntu");
+        assert_eq!(distro_name(&json!("Ubuntu")), "ubuntu");
+        assert_eq!(distro_name(&json!("fedora")), "fedora");
+        assert_eq!(distro_name(&Value::Null), "fedora");
+    }
 }

@@ -160,8 +160,13 @@ fn run(args: &[String]) -> ExitCode {
         "windows-slot" => {
             // by hand, on a machine already in the state the return detects (the Aspire, 2026-10-10)
             let stick = value_of("--stick").and_then(|d| upgrade_prologue::judge::drive_root(&d).ok());
+            // --linux ubuntu for an Ubuntu install; Fedora when not said, as it was before there were two
+            let Some(dir) = upgrade_prologue::windows_slot::linux_dir(&value_of("--linux").unwrap_or_else(|| "fedora".into())) else {
+                eprintln!("--linux must be fedora or ubuntu");
+                return ExitCode::from(2);
+            };
             let mut lines = Vec::new();
-            let r = upgrade_prologue::windows_slot::live::apply(&mut ctx.rec, &ctx.state_dir, stick.as_deref(), "applied by hand: the firmware started Windows after the install though Fedora was left first", &upgrade_prologue::flow_version(), &mut |l| lines.push(l));
+            let r = upgrade_prologue::windows_slot::live::apply(&mut ctx.rec, &ctx.state_dir, stick.as_deref(), dir, "applied by hand: the firmware started Windows after the install though Linux was left first", &upgrade_prologue::flow_version(), &mut |l| lines.push(l));
             for l in &lines {
                 println!("{l}");
             }

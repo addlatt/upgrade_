@@ -11,11 +11,10 @@ turning back. If a safety check fails after that, it stops before
 erasing anything. Your files are not copied into Linux: with Windows
 kept they stay on the Windows side, and a clean slate erases them.
 
-If the scanner refused this computer because its drive is failing or its
-Windows volume needs a repair, there is a separate launcher:
-UPGRADE-ACCEPTING-DATA-LOSS.cmd. It asks for one sentence, typed exactly,
-and lifts that refusal and nothing else. Every screen after it says DATA
-LOSS ACCEPTED.
+If the scanner refuses this computer because its drive is failing or its
+Windows volume needs a repair, the same window says so in full and then
+offers one way on: one sentence, typed exactly. It lifts that refusal
+and nothing else. Every screen after it says DATA LOSS ACCEPTED.
 
 What the programs write lands in upgrade_\ on this stick: the job, the
 installer's records, the prologue's records, the reports. Never edit

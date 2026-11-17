@@ -44,7 +44,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.1.0"
+VERSION = "0.2.1"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -370,6 +370,12 @@ def wait_new_boot(ctx, what, before, limit_s, every_s=30):
     return ctx.wait_for(what, answered, limit_s, every_s)
 
 
+# GRUB's tools by either family's names: grub2-reboot and grub2-editenv on Fedora,
+# grub-reboot and grub-editenv on Ubuntu (Fedora and Ubuntu in parallel, the owner, 2026-11-13)
+GRUB_TOOLS = ("GR=$(command -v grub2-reboot || command -v grub-reboot); GE=$(command -v grub2-editenv || command -v grub-editenv); "
+              "[ -n \"$GR\" ] && [ -n \"$GE\" ] || { echo NO_GRUB_TOOLS; exit 5; }; ")
+
+
 def boot_windows_from_linux(ctx):
     """Linux -> Windows the way a person does it in the product: GRUB's
     'Windows (kept)' entry, chosen for one start (grub2-reboot). Choosing it
@@ -380,7 +386,7 @@ def boot_windows_from_linux(ctx):
     reads a firmware-chosen Windows start as InsydeH2O's symptom, puts shim in
     Windows' slot and restarts, on a firmware that honours Fedora's entry
     (R21: the detector cannot tell that from a person's F12 menu)."""
-    r = sudo(ctx, "grub2-reboot 'Windows (kept)' && grub2-editenv list | grep -q '^next_entry=Windows (kept)$' || { echo NO_GRUB_WINDOWS_ENTRY; exit 3; }; "
+    r = sudo(ctx, GRUB_TOOLS + "\"$GR\" 'Windows (kept)' && \"$GE\" list | grep -q '^next_entry=Windows (kept)$' || { echo NO_GRUB_WINDOWS_ENTRY; exit 3; }; "
                   "echo NEXT_ENTRY=Windows-kept; systemd-run --on-active=5 systemctl reboot >/dev/null; echo REBOOTING")
     return "REBOOTING" in r.out, r.out + r.err
 
@@ -682,9 +688,9 @@ def write_job(ctx, L, args, erase=False):
         os.remove(hf)
         ack = ctx.secrets.get("data-loss")
         jw = on_desktop(link,
-            f"{L}\\upgrade-job.exe write --stick {L} --out {L}\\upgrade_ --scan {L}\\upgrade_\\reports --desktop {args.get('desktop', 'kde')} "
+            f"{L}\\upgrade-job.exe write --stick {L} --out {L}\\upgrade_ --scan {L}\\upgrade_\\reports --desktop {args.get('desktop', ctx.plan.get('desktop', 'kde'))} "
             f"--start-at {args.get('start_at', 'desktop')} --if-cannot-keep stop --password-hash-file C:\\upgrade_oneclick\\pw.txt "
-            f"--kickstart {L}\\upgrade_\\ks.cfg --stick-label UPGV0 --manifest {L}\\SHA256SUMS" +
+            f"--kickstart {L}\\upgrade_\\ks.cfg --stick-label UPGV0 --manifest {L}\\SHA256SUMS --autoinstall {L}\\autoinstall.yaml" +
             (f" --erase-everything \"{ctx.secrets['erase']}\"" if erase else "") +
             (f" --acknowledge-data-loss \"{ack}\"" if ack else ""), "DESKTOP_RC=", 1800)
         link.run("Remove-Item C:\\upgrade_oneclick\\pw.txt -Force -ErrorAction SilentlyContinue", "windows", timeout=60)
@@ -735,7 +741,10 @@ def wait_after_arm(ctx, L, want, limit_s):
         if who == "linux" and want == "linux":
             return "linux"
         if who == "windows":
-            st = link.run(FIND_STICK + "if (Test-Path \"$L\\upgrade_\\outcome.json\") { (Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json).status }; "
+            # only this job's outcome counts: a stopped record left by an earlier try of the stage
+            # ended the wait while the conversion was going (the Aspire, 2026-11-15)
+            st = link.run(FIND_STICK + "if (Test-Path \"$L\\upgrade_\\outcome.json\") { $o = Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json; "
+                          "$j = Get-Content \"$L\\upgrade_\\job.json\" -Raw | ConvertFrom-Json; if ($o.job_id -eq $j.job_id) { $o.status } }; "
                           "if (Test-Path \"$L\\upgrade_\\report\\refusal.json\") { 'REFUSED' }", "windows", timeout=60)
             # a refusal is ALSO a stopped outcome (the prologue's return writes one): when
             # Windows is what the stage waits for, it comes first (the rig, 2026-10-27)
@@ -765,14 +774,21 @@ class KeepWindows:
 
     def run(self, ctx, args):
         link = ctx.link
-        if link.probe() != "windows":
-            return untouched("wrong-system", "keep-windows starts in Windows")
-        L = find_stick(ctx)
-        if not L:
-            return untouched("stick-not-found", "no single volume labelled UPGV0")
-        stop = write_job(ctx, L, args) or arm(ctx, L)
-        if stop:
-            return stop
+        adopt = args.get("adopt_armed")
+        if adopt:
+            # the manager's own earlier try armed this conversion and then lost its wait to a
+            # manager fault; nothing is written or armed again, the wait is taken up (said in the row)
+            L = adopt["stick"]
+            ctx.journal.write("note", text=f"keep-windows takes up the conversion armed by {adopt['try']}: {adopt['why']}")
+        else:
+            if link.probe() != "windows":
+                return untouched("wrong-system", "keep-windows starts in Windows")
+            L = find_stick(ctx)
+            if not L:
+                return untouched("stick-not-found", "no single volume labelled UPGV0")
+            stop = write_job(ctx, L, args) or arm(ctx, L)
+            if stop:
+                return stop
         got = wait_after_arm(ctx, L, "linux", int(args.get("limit_s", 10800)))
         if got is None:
             return Outcome("hang-install", False, "no Linux within the limit (the journal has the heartbeats)")
@@ -810,7 +826,8 @@ class KeepWindows:
             return Outcome("outcome-unread", False, "the installed system's outcome.json did not read as JSON")
         if o.get("path_taken") != "keep-windows" or not (o.get("windows") or {}).get("kept"):
             return Outcome("outcome-wrong", False, f"path_taken {o.get('path_taken')}, windows.kept {(o.get('windows') or {}).get('kept')}")
-        return Outcome("kept-both-start", True, "installed beside Windows; Windows and Linux each started twice with no key")
+        return Outcome("kept-both-start", True, "installed beside Windows; Windows and Linux each started twice with no key"
+                       + (f"; the job and the arming are in {adopt['try']} (the manager's wait was taken up again: {adopt['why']})" if adopt else ""))
 
 
 class CleanSlate:
@@ -874,8 +891,8 @@ class StickLeftIn:
         # first, so a firmware that ignores the one-time entry is a fail, never a hollow pass
         fired = ("m=$(findmnt -no TARGET /dev/disk/by-label/UPGV0 | head -1); "
                  "if [ -z \"$m\" ]; then mkdir -p /mnt/upgtest && mount /dev/disk/by-label/UPGV0 /mnt/upgtest && m=/mnt/upgtest; fi; "
-                 "grub2-editenv \"$m/EFI/BOOT/grubenv\" {op}; grub2-editenv \"$m/EFI/BOOT/grubenv\" list | grep '^upg_fired='; sync")
-        z = sudo(ctx, fired.format(op="set upg_fired=0"), 120)
+                 "\"$GE\" \"$m/EFI/BOOT/grubenv\" {op}; \"$GE\" \"$m/EFI/BOOT/grubenv\" list | grep '^upg_fired='; sync")
+        z = sudo(ctx, GRUB_TOOLS + fired.format(op="set upg_fired=0"), 120)
         ctx.save("fired-before.txt", z.out + z.err)
         if "upg_fired=0" not in z.out:
             return untouched("stick-env-unwritable", "the stick's grubenv could not be set before the start")
@@ -898,7 +915,7 @@ class StickLeftIn:
         m = re.search(r"ENTRY=([0-9A-F]{4})", r.out)
         if m:
             sudo(ctx, f"efibootmgr -b {m.group(1)} -B >/dev/null; echo REMOVED", 60)
-        z = sudo(ctx, fired.format(op="list >/dev/null"), 120)
+        z = sudo(ctx, GRUB_TOOLS + fired.format(op="list >/dev/null"), 120)
         ctx.save("fired-after.txt", z.out + z.err)
         if "upg_fired=1" not in z.out:
             return Outcome("stick-not-started", False, "the stick's GRUB did not run: the firmware did not start the stick (upg_fired still 0)")
@@ -998,6 +1015,9 @@ class WalkAway:
         # the manager read the plan's drives as sticks, and no stick could ever match)
         if not isinstance(drives, list) or not drives:
             return untouched("walkaway-no-drives", f"settle-in's plan names no drive to install Windows on: {drives}")
+        # the manager's own mount of the kit stick (stick-left-in) is let go first: on one stick the
+        # walk-away writes the kit stick itself, and settle-in refuses a stick in use (2026-11-15)
+        sudo(ctx, "if mountpoint -q /mnt/upgtest; then umount /mnt/upgtest; fi", 60)
         st = sudo(ctx, f"{SETTLE_IN} go-back sticks --min-bytes {WALKAWAY_MIN_STICK}", 120)
         ctx.save("walkaway-sticks.json", st.out + st.err)
         try:
@@ -1031,7 +1051,8 @@ class WalkAway:
                 link.pull(f"{m.group(1)}\\upgrade_\\{n}", os.path.join(ctx.stage_dir, "walkaway-stick", n), "windows")
         if not collect_windows(ctx, "direct", "after-walkaway"):
             return Outcome("collect-failed", False, "the Windows collector after the walk-away")
-        return Outcome("windows-reached", True, "the walk-away gave a fresh Windows, reached over the carried SSH key")
+        return Outcome("windows-reached", True, "the walk-away gave a fresh Windows, reached over the carried SSH key"
+                       + ("; one stick: the upgrade_ stick itself became the Windows installer" if d.get("upgrade_stick") else ""))
 
     def rig_standin(self, ctx):
         hv = os.path.join(REPO, "rig", "hyperv")
@@ -1308,6 +1329,8 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
         if held:
             release_awake(ctx)
             o.notes = (o.notes + "; " if o.notes else "") + "the TEST held a sleep lock on Linux for this stage (settle-in holds none: 2026-10-04, 2026-10-28)"
+        if st.get("row_note"):   # what this run's plan says a hand did before the stage: in the row, never left out
+            o.notes = (o.notes + "; " if o.notes else "") + st["row_note"]
         if autologon_before or autologon_state(journal.entries()):
             o.notes = (o.notes + "; " if o.notes else "") + "the TEST's automatic sign-in was on in Windows for this stage (test_autologon; the person signs in by hand)"
         n = sha256sums(ctx.stage_dir)

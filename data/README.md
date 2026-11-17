@@ -86,6 +86,12 @@ run the tool, which replaces the entry with that id or adds a new one. The
 kit builder and `rig/vm/fetch-release.sh` refuse any file whose hash
 differs from the entry.
 
+A release the kit does not offer yet is measured into its own file under
+`data/measured/` (`measure-release.py --casper ... --out`), not into
+`releases.json`: an entry in the table is an offer to a person, and no
+program reads `data/measured/`. `measure-release.py --offer` moves such a
+file into the table as it is. Ubuntu 26.04.1 went that way (2026-11-13).
+
 ## What is not here yet
 
 A table of machine models and generations (which year of which line works

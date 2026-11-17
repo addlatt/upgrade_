@@ -46,10 +46,18 @@ pub fn build(root: &str, report: &Value, job: &Value) -> Value {
         // for "Go back to Windows": a kept Windows means "Windows first again"
         // (the rollback), not a fresh install (decided 2026-10-12, the owner)
         "windows_kept": windows_kept(root, job),
+        // for "Go back to Windows": only after an erase may the upgrade_ stick
+        // itself become the Windows installer (decided 2026-11-15, the owner)
+        "windows_erased": windows_erased(root),
         // "you had these; here is the Linux version" (decided 2026-11-07, the
         // owner): the person's own program names on their own machine, no secret
         "programs": crate::programs::list(job),
     })
+}
+
+fn windows_erased(root: &str) -> bool {
+    std::fs::read_to_string(format!("{}/var/lib/upgrade_/outcome.json", root.trim_end_matches('/'))).ok()
+        .and_then(|t| serde_json::from_str::<Value>(&t).ok()).map(|o| crate::sticks::erased_outcome(&o)).unwrap_or(false)
 }
 
 fn windows_kept(root: &str, job: &Value) -> bool {

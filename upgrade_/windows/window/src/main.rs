@@ -17,8 +17,10 @@
 //! not a button of its own), roll back (a pointer to Linux since 2026-10-17), the walk-away
 //! probe (RUN-PROBE.cmd). The cancel button (CANCEL-CONVERSION.cmd) left on
 //! 2026-11-02 (the owner: the last click is the last turn back). The data-loss
-//! variants of convert and erase are reached only by starting the window
-//! with --accepting-data-loss, its own launcher, as rule #1 asks. Verify and
+//! variants of convert and erase are reached from the RED screen itself
+//! (decided 2026-11-14, the owner: one window, no second launcher): after
+//! the scanner has said RED in full, and only when the sentence could lift
+//! that RED, the person may type it there, exactly (RISKS R23). Verify and
 //! the probe show only with --developer (roadmap item 20, 2026-10-17): they
 //! make the rows, and a person converting never needs them.
 //!
@@ -95,7 +97,8 @@ enum Stop {
     Fetch(Vec<String>),
     /// the scan says this computer can start none of the releases: each with its reason
     NoRelease(Vec<flow::Choice>),
-    Red(Option<flow::Verdict>),
+    /// the verdict, and whether the typed sentence could lift this RED (RISKS R23)
+    Red(Option<flow::Verdict>, bool),
     Refused(Vec<String>),
     /// the prologue stopped: its own words, and Windows is as it was
     Prologue(Vec<String>),
@@ -194,8 +197,8 @@ fn run(c: &flow::Call, root: &Path, tx: &Sender<Msg>, guard: &Shared) -> Option<
 /// too), except on the data-loss path, where the job writer judges the RED
 /// with the sentence (flow::scan_stops).
 fn scan_stop(root: &Path, acknowledged: bool) -> Option<Stop> {
-    let report = flow::newest_report(&root.join("upgrade_").join("reports"));
-    let v = report.and_then(|p| std::fs::read(p).ok()).and_then(|b| flow::parse_json(&b)).and_then(|j| flow::verdict(&j));
+    let report = flow::newest_report(&root.join("upgrade_").join("reports")).and_then(|p| std::fs::read(p).ok()).and_then(|b| flow::parse_json(&b));
+    let v = report.as_ref().and_then(flow::verdict);
     if !flow::scan_stops(v.as_ref(), acknowledged) {
         if !flow::verdict_allows(v.as_ref()) {
             log_line(root, "verdict RED handed to the job writer with the acknowledgement (RISKS R23)");
@@ -203,7 +206,11 @@ fn scan_stop(root: &Path, acknowledged: bool) -> Option<Stop> {
         return None;
     }
     log_line(root, &format!("stopped after the scan: verdict {}", v.as_ref().map(|v| v.level.as_str()).unwrap_or("missing")));
-    Some(Stop::Red(v))
+    let may_lift = flow::sentence_may_lift(report.as_ref());
+    if may_lift {
+        log_line(root, "the sentence could lift this RED: offered on the RED screen (RISKS R23)");
+    }
+    Some(Stop::Red(v, may_lift))
 }
 
 /// RUN-VERIFY.cmd, as a thread. Every stop before step 4 leaves the
@@ -557,12 +564,9 @@ enum Flow {
 /// The first screen's buttons. Verify and Probe make the rows (V0, V1, R24)
 /// and a person converting never needs them: they show only with
 /// --developer (roadmap item 20, R31). Erase is no longer a button: it is
-/// Convert's clean-slate answer, on the set-up screen. The data-loss launcher
-/// shows only its own convert (rule #1, R23).
-fn first_screen(accepting_data_loss: bool, developer: bool) -> Vec<(&'static str, &'static str, Flow)> {
-    if accepting_data_loss {
-        return vec![(words::CHOOSE_CONVERT_ACK, words::CHOOSE_CONVERT_ACK_LINE, Flow::Convert)];
-    }
+/// Convert's clean-slate answer, on the set-up screen. There is no data-loss
+/// button: that path opens from the RED screen (2026-11-14, R23).
+fn first_screen(developer: bool) -> Vec<(&'static str, &'static str, Flow)> {
     let mut v = vec![];
     if developer {
         v.push((words::CHOOSE_VERIFY, words::CHOOSE_VERIFY_LINE, Flow::Verify));
@@ -622,7 +626,7 @@ struct App {
     after: bool,
     arming: bool,
     flow: Flow,
-    /// started with --accepting-data-loss: the convert flow asks the sentence (RISKS R23)
+    /// the person typed the sentence on the RED screen, exactly (RISKS R23): the banner shows from then on
     accepting_data_loss: bool,
     /// started with --developer: Verify and Probe on the first screen (roadmap item 20)
     developer: bool,
@@ -887,6 +891,8 @@ enum Press {
     Fetch,
     /// back to the picker after a download stopped
     PickAgain,
+    /// the sentence typed exactly on the RED screen (RISKS R23)
+    Accept,
     StartVerify,
     StartConvert,
     Word,
@@ -908,7 +914,7 @@ impl eframe::App for App {
         egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 ui.add_space(6.0);
-                if self.accepting_data_loss && matches!(self.screen, Screen::ConvertSetup | Screen::Running { .. } | Screen::Decide { .. } | Screen::ConvertRestarting) {
+                if self.accepting_data_loss && matches!(self.screen, Screen::Picking | Screen::Pick | Screen::Fetching { .. } | Screen::ConvertSetup | Screen::Running { .. } | Screen::Decide { .. } | Screen::ConvertRestarting | Screen::Stopped(_)) {
                     banner(ui);
                 }
                 match &self.screen {
@@ -921,7 +927,7 @@ impl eframe::App for App {
                             para(ui, line);
                             ui.add_space(8.0);
                         };
-                        for (label, line, f) in first_screen(self.accepting_data_loss, self.developer) {
+                        for (label, line, f) in first_screen(self.developer) {
                             choice(ui, label, line, f);
                         }
                         ui.add_space(12.0);
@@ -1008,9 +1014,7 @@ impl eframe::App for App {
                     }
                     Screen::ConvertSetup => {
                         if self.accepting_data_loss {
-                            heading(ui, words::ACK_HEADING);
-                            para(ui, words::ACK_LEAD);
-                            ui.label(egui::RichText::new(words::ACK_BEFORE_HEADING).strong());
+                            ui.label(egui::RichText::new(words::ACK_BEFORE_HEADING_AGAIN).strong());
                             for l in words::ACK_BEFORE {
                                 para(ui, &format!("•  {}", l));
                             }
@@ -1060,12 +1064,6 @@ impl eframe::App for App {
                             };
                             ui.radio_value(&mut self.setup.desktop, Some(d), label);
                             para(ui, line);
-                        }
-                        if self.accepting_data_loss {
-                            ui.add_space(10.0);
-                            ui.label(egui::RichText::new(words::ACK_TYPE).strong().size(17.0));
-                            ui.monospace(upgrade_job::RISK_STATEMENT);
-                            ui.add(egui::TextEdit::singleline(&mut self.setup.ack).desired_width(f32::INFINITY));
                         }
                         if self.flow == Flow::Erase {
                             ui.add_space(10.0);
@@ -1204,7 +1202,7 @@ impl eframe::App for App {
                                 ui.add_space(6.0);
                                 para(ui, words::NOTHING_CHANGED);
                             }
-                            Stop::Red(v) => {
+                            Stop::Red(v, may_lift) => {
                                 heading(ui, words::RED_HEADING);
                                 if let Some(v) = v {
                                     para(ui, &v.summary);
@@ -1218,6 +1216,26 @@ impl eframe::App for App {
                                 }
                                 ui.add_space(6.0);
                                 para(ui, words::NOTHING_CHANGED);
+                                // the one way on (RISKS R23): only after the RED above, only for a RED
+                                // the sentence could lift, only in the convert flow, typed exactly
+                                if *may_lift && !self.accepting_data_loss && matches!(self.flow, Flow::Convert | Flow::Erase) {
+                                    ui.add_space(14.0);
+                                    ui.separator();
+                                    heading(ui, words::ACK_HEADING);
+                                    para(ui, words::ACK_LEAD);
+                                    ui.label(egui::RichText::new(words::ACK_BEFORE_HEADING).strong());
+                                    for l in words::ACK_BEFORE {
+                                        para(ui, &format!("•  {}", l));
+                                    }
+                                    ui.add_space(8.0);
+                                    ui.label(egui::RichText::new(words::ACK_TYPE).strong().size(17.0));
+                                    ui.monospace(upgrade_job::RISK_STATEMENT);
+                                    ui.add(egui::TextEdit::singleline(&mut self.setup.ack).desired_width(f32::INFINITY));
+                                    ui.add_space(6.0);
+                                    if ui.add_enabled(flow::ack_ok(&self.setup.ack), egui::Button::new(egui::RichText::new(words::ACK_GO).size(17.0))).clicked() {
+                                        press = Press::Accept;
+                                    }
+                                }
                             }
                             Stop::Refused(lines) => {
                                 heading(
@@ -1383,6 +1401,14 @@ impl eframe::App for App {
                 log_line(&stick_root(&self.stick), "the person pressed Try again after the download stopped");
                 self.screen = Screen::Pick;
             }
+            Press::Accept => {
+                // compared byte for byte again here: the button alone is never the consent
+                if flow::ack_ok(&self.setup.ack) && matches!(self.screen, Screen::Stopped(Stop::Red(_, true))) {
+                    log_line(&stick_root(&self.stick), "the person typed the data-loss sentence exactly on the RED screen (RISKS R23); DATA LOSS ACCEPTED from here");
+                    self.accepting_data_loss = true;
+                    self.start_pick(&ctx);
+                }
+            }
             Press::Close => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             Press::None => {}
         }
@@ -1397,7 +1423,6 @@ fn preview(name: &str) -> (Screen, Flow, bool) {
     let v = json!({"identity":{"result":"pass"},"hardware":{"display":"pass","wifi":"pass","wifi_detail":"wlp1s0 sees 28 networks","audio_firmware":"skipped"},"payload":{"result":"pass","read_mbps":"22.6"}});
     match name {
         "choose" => (Screen::Choose, Flow::Verify, false),
-        "choose-ack" => (Screen::Choose, Flow::Verify, true),
         "running" => (Screen::Running { step: 2 }, Flow::Verify, false),
         "kit" => (Screen::Stopped(Stop::Kit(vec!["upgrade_\\LiveOS\\kde.squashfs".into()])), Flow::Verify, false),
         "red" => (
@@ -1405,8 +1430,17 @@ fn preview(name: &str) -> (Screen, Flow, bool) {
                 level: "RED".into(),
                 summary: "Do not convert this machine as it stands. Something here blocks the install outright - resolve it, or use a different machine.".into(),
                 groups: vec![("Blocks the install".into(), vec!["Drive health: the SSD reports 725 bad blocks (SMART 187)".into()])],
-            }))),
-            Flow::Verify,
+            }), false)),
+            Flow::Convert,
+            false,
+        ),
+        "red-ack" => (
+            Screen::Stopped(Stop::Red(Some(flow::Verdict {
+                level: "RED".into(),
+                summary: "Do not convert this machine as it stands. Something here blocks the install outright - resolve it, or use a different machine.".into(),
+                groups: vec![("Blocks the install".into(), vec!["Drive health: the SSD reports 725 bad blocks (SMART 187)".into()])],
+            }), true)),
+            Flow::Convert,
             false,
         ),
         "stopped" => (Screen::Stopped(Stop::Refused(vec!["BitLocker state is unknown".into()])), Flow::Verify, false),
@@ -1509,7 +1543,6 @@ fn main() {
         return;
     }
     let guard: Shared = Arc::new(Mutex::new(Guard::default()));
-    let accepting = args.iter().any(|a| a == "--accepting-data-loss");
     if let Some(i) = args.iter().position(|a| a == "--preview") {
         let name = args.get(i + 1).cloned().unwrap_or_default();
         let (screen, flow, ack) = preview(&name);
@@ -1535,7 +1568,7 @@ fn main() {
     let from = if developer { args.iter().position(|a| a == "--from").and_then(|i| args.get(i + 1)).filter(|u| u.starts_with("http://") || u.starts_with("https://")).cloned() } else { None };
     if !win::is_elevated() {
         // the one administrator prompt; if it is declined nothing has happened
-        let mut pass: Vec<String> = [(accepting, "--accepting-data-loss"), (developer, "--developer")].iter().filter(|(on, _)| *on).map(|(_, a)| a.to_string()).collect();
+        let mut pass: Vec<String> = if developer { vec!["--developer".to_string()] } else { vec![] };
         if let Some(f) = &from {
             pass.push(format!("--from {f}"));
         }
@@ -1545,7 +1578,7 @@ fn main() {
     let exe = std::env::current_exe().unwrap_or_default();
     let s = exe.to_string_lossy().to_string();
     let stick = if s.len() >= 2 && s.as_bytes()[1] == b':' { s[..2].to_uppercase() } else { String::new() };
-    let mut app = App::new(Screen::Choose, stick, false, accepting, None, guard);
+    let mut app = App::new(Screen::Choose, stick, false, false, None, guard);
     app.developer = developer;
     app.from = from;
     open(app);
@@ -1555,19 +1588,21 @@ fn main() {
 mod tests {
     use super::*;
 
-    fn flows(a: bool, d: bool) -> Vec<&'static str> {
-        first_screen(a, d).iter().map(|(_, _, f)| match f { Flow::Verify => "verify", Flow::Convert => "convert", Flow::Erase => "erase", Flow::Rollback => "rollback", Flow::Probe => "probe" }).collect()
+    fn flows(d: bool) -> Vec<&'static str> {
+        first_screen(d).iter().map(|(_, _, f)| match f { Flow::Verify => "verify", Flow::Convert => "convert", Flow::Erase => "erase", Flow::Rollback => "rollback", Flow::Probe => "probe" }).collect()
     }
 
     #[test]
     fn verify_and_probe_only_with_the_developer_flag() {
-        assert_eq!(flows(false, false), ["convert", "rollback"], "no cancel button since 2026-11-02");
-        assert_eq!(flows(false, true), ["verify", "convert", "rollback", "probe"]);
+        assert_eq!(flows(false), ["convert", "rollback"], "no cancel button since 2026-11-02");
+        assert_eq!(flows(true), ["verify", "convert", "rollback", "probe"]);
     }
 
     #[test]
-    fn the_data_loss_launcher_shows_only_its_own_convert() {
-        assert_eq!(flows(true, false), ["convert"]);
-        assert_eq!(flows(true, true), ["convert"], "the developer flag adds nothing to the data-loss screen");
+    fn no_start_up_flag_opens_the_data_loss_path() {
+        // one window (the owner, 2026-11-14): the sentence is typed on the RED screen, nowhere else
+        let src = include_str!("main.rs");
+        assert!(!src.contains(concat!("--accepting", "-data-loss")));
+        assert!(!App::new(Screen::Choose, "E:".into(), false, false, None, Arc::new(Mutex::new(Guard::default()))).accepting_data_loss);
     }
 }

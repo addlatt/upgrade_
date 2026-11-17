@@ -16,7 +16,52 @@ use serde_json::{json, Value};
 pub const KEPT_NAME: &str = "bootmgfw-kept.efi";
 pub const WINDOWS_SLOT_REL: &str = "EFI\\Microsoft\\Boot\\bootmgfw.efi";
 pub const KEPT_REL: &str = "EFI\\Microsoft\\Boot\\bootmgfw-kept.efi";
-pub const SHIM_REL: &str = "EFI\\fedora\\shimx64.efi";
+/// Which Linux the stick's outcome.json says was installed
+/// (`cutover.install.distro`, where the installer writes it). The Aspire,
+/// 2026-11-14: this was read from `install.distro`, which no outcome has, so
+/// no keep-Windows install had its slot arranged.
+pub fn installed_distro(outcome: &Value) -> String {
+    s(at(outcome, "cutover.install.distro"))
+}
+/// The installed Linux's folder on the ESP, from the installed distro in the
+/// stick's outcome.json: the folder the installer put its signed shim and
+/// GRUB's environment block in. None for a distro this kit does not know,
+/// and then nothing is arranged (roadmap item 23: Ubuntu beside Fedora).
+pub fn linux_dir(distro: &str) -> Option<&'static str> {
+    match distro {
+        "fedora" => Some("fedora"),
+        "ubuntu" => Some("ubuntu"),
+        _ => None,
+    }
+}
+pub fn shim_rel(dir: &str) -> String {
+    format!("EFI\\{dir}\\shimx64.efi")
+}
+/// The installed Linux's GRUB, beside its shim. Shim starts the
+/// `grubx64.efi` in the folder shim itself was started from, so shim in
+/// Windows' slot needs a copy of it there (the Aspire, 2026-11-14: without
+/// it shim said "\\EFI\\Microsoft\\Boot\\grubx64.efi - Not Found" and the
+/// computer restarted without end).
+pub fn grub_rel(dir: &str) -> String {
+    format!("EFI\\{dir}\\grubx64.efi")
+}
+/// Where that copy goes: beside the slot. Never a file of Windows' own.
+pub const GRUB_COPY_REL: &str = "EFI\\Microsoft\\Boot\\grubx64.efi";
+/// Is the copy of GRUB beside the slot to be written? `source` and `copy`
+/// are sha256 (None = absent). Refuses with no GRUB to copy (shim would have
+/// nothing to start), and when a different grubx64.efi is already beside the
+/// slot (somebody else's arrangement: not ours to overwrite).
+pub fn grub_plan(source: Option<&str>, copy: Option<&str>) -> Result<bool, String> {
+    let source = source.ok_or("no GRUB (grubx64.efi) beside the Linux shim on the ESP: shim in Windows' slot would have nothing to start")?;
+    match copy {
+        None => Ok(true),
+        Some(c) if c == source => Ok(false),
+        Some(c) => Err(format!("a different grubx64.efi ({}) is already beside Windows' slot; refusing to overwrite it", &c[..12.min(c.len())])),
+    }
+}
+pub fn grubenv_rel(dir: &str) -> String {
+    format!("EFI\\{dir}\\grubenv")
+}
 /// The bench-only marker on the stick that forces the arrangement on firmware
 /// that would not need it (the rigs honour the Linux entry).
 pub const BENCH_FORCE_MARKER: &str = "bench-force-windows-slot";
@@ -36,7 +81,6 @@ pub const GUARD_TASK_NAME: &str = "upgrade_ windows-slot guard";
 /// (2026-10-11): without it the bench's own menu choice looked exactly like
 /// a firmware that had skipped GRUB, and the slot was applied for nothing.
 pub const GRUB_CHOSEN_VAR: &str = "upg_windows_chosen";
-pub const FEDORA_GRUBENV_REL: &str = "EFI\\fedora\\grubenv";
 
 /// Does GRUB's environment block carry `key=1`?
 pub fn grub_env_has(bytes: &[u8], key: &str) -> bool {
@@ -73,7 +117,7 @@ pub fn needs_slot(outcome: &Value, fired: bool, bench_force: bool, windows_chose
     if !truthy(at(outcome, "cutover.boot_chain.linux_first_in_bootorder")) {
         return None;
     }
-    Some("the install completed and left Fedora first in the firmware's order, yet the firmware started Windows with nobody pressing a key: it does not boot the Linux entry on its own".into())
+    Some("the install completed and left Linux first in the firmware's order, yet the firmware started Windows with nobody pressing a key: it does not boot the Linux entry on its own".into())
 }
 
 /// What the files say before the arrangement is applied, judged: Ok(plan)
@@ -81,7 +125,7 @@ pub fn needs_slot(outcome: &Value, fired: bool, bench_force: bool, windows_chose
 /// (None = absent); `snapshot` is Windows' loader's sha from the stick's ESP
 /// snapshot (None = no snapshot).
 pub fn apply_plan(slot: Option<&str>, kept: Option<&str>, shim: Option<&str>, snapshot: Option<&str>) -> Result<Value, String> {
-    let shim = shim.ok_or("no shim at EFI\\fedora\\shimx64.efi on the ESP: nothing to put in Windows' slot")?;
+    let shim = shim.ok_or("no Linux shim (shimx64.efi) in its folder on the ESP: nothing to put in Windows' slot")?;
     let slot = slot.ok_or("no bootmgfw.efi in Windows' slot: refusing to touch a boot folder that is not as expected")?;
     if slot == shim {
         return Ok(json!({"AlreadyApplied": true, "MoveKept": false, "Reason": "shim is already in Windows' slot"}));
@@ -117,8 +161,8 @@ pub fn guard_action(slot: Option<&str>, shim_now: Option<&str>, shim_recorded: &
 pub const ROLLED_BACK_REL: &str = "upgrade_\\rolled-back.json";
 
 /// The record kept in the state directory and on the stick.
-pub fn record(reason: &str, plan: &Value, slot_after: Option<&str>, kept_after: Option<&str>, utc: &str, program: &str) -> Value {
-    json!({"schema": "windows-slot/1", "program": program, "applied_utc": utc, "reason": reason, "plan": plan,
+pub fn record(reason: &str, plan: &Value, slot_after: Option<&str>, kept_after: Option<&str>, utc: &str, program: &str, dir: &str) -> Value {
+    json!({"schema": "windows-slot/1", "program": program, "applied_utc": utc, "reason": reason, "plan": plan, "linux_dir": dir,
            "slot_sha_after": slot_after, "kept_sha_after": kept_after, "guard_task": GUARD_TASK_NAME, "history": []})
 }
 
@@ -160,9 +204,9 @@ pub mod live {
     /// return reads this boot, not an old one. (false, false) when there is no
     /// block: an install from before kickstart 0.9.0, or a firmware that
     /// skipped GRUB altogether.
-    pub fn windows_chosen_in_grub(rec: &mut Recorder) -> Result<(bool, bool), String> {
+    pub fn windows_chosen_in_grub(rec: &mut Recorder, dir: &str) -> Result<(bool, bool), String> {
         let esp = mount_esp(rec)?;
-        let p = Path::new(&esp).join(FEDORA_GRUBENV_REL);
+        let p = Path::new(&esp).join(grubenv_rel(dir));
         let r = match std::fs::read(&p) {
             Ok(bytes) if grub_env_has(&bytes, GRUB_CHOSEN_VAR) => {
                 let cleared = std::fs::write(&p, grub_env_without(&bytes, GRUB_CHOSEN_VAR)).is_ok();
@@ -238,16 +282,24 @@ pub mod live {
     /// slot, the guard registered, the record written. Every refusal comes
     /// before the first write. `stick_root` (when the stick is there) gives
     /// the snapshot to compare against and a place for the record.
-    pub fn apply(rec: &mut Recorder, state_dir: &str, stick_root: Option<&str>, reason: &str, program: &str, log: &mut dyn FnMut(String)) -> Result<Value, String> {
+    pub fn apply(rec: &mut Recorder, state_dir: &str, stick_root: Option<&str>, dir: &str, reason: &str, program: &str, log: &mut dyn FnMut(String)) -> Result<Value, String> {
         let esp = mount_esp(rec)?;
         let result = (|| -> Result<Value, String> {
             let slot = Path::new(&esp).join(WINDOWS_SLOT_REL);
             let kept = Path::new(&esp).join(KEPT_REL);
-            let shim = Path::new(&esp).join(SHIM_REL);
+            let shim = Path::new(&esp).join(shim_rel(dir));
             let (s_slot, s_kept, s_shim) = (sha(&slot), sha(&kept), sha(&shim));
             let snap = stick_root.and_then(snapshot_sha);
             let plan = apply_plan(s_slot.as_deref(), s_kept.as_deref(), s_shim.as_deref(), snap.as_deref())?;
+            let grub = Path::new(&esp).join(grub_rel(dir));
+            let grub_copy = Path::new(&esp).join(GRUB_COPY_REL);
+            let copy_grub = grub_plan(sha(&grub).as_deref(), sha(&grub_copy).as_deref())?;
             log(format!("      windows slot: {}", s(&plan["Reason"])));
+            // GRUB first: shim is never in the slot without the GRUB it starts beside it
+            if copy_grub {
+                let g = copy_checked(&grub, &grub_copy, "putting GRUB beside Windows' slot")?;
+                log(format!("      {GRUB_COPY_REL} written ({})", &g[..12]));
+            }
             if !truthy(&plan["AlreadyApplied"]) {
                 if truthy(&plan["MoveKept"]) {
                     let k = copy_checked(&slot, &kept, "keeping Windows' loader under its kept name")?;
@@ -258,7 +310,8 @@ pub mod live {
             }
             register_guard(rec, state_dir)?;
             log(format!("      guard task registered: {GUARD_TASK_NAME}"));
-            let r = record(reason, &plan, sha(&slot).as_deref(), sha(&kept).as_deref(), &plive::now_z(), program);
+            let mut r = record(reason, &plan, sha(&slot).as_deref(), sha(&kept).as_deref(), &plive::now_z(), program, dir);
+            r["grub_copy"] = json!({"path": GRUB_COPY_REL, "sha": sha(&grub_copy), "written": copy_grub});
             write_record(state_dir, stick_root, &r);
             Ok(r)
         })();
@@ -277,7 +330,9 @@ pub mod live {
         let result = (|| -> Result<&'static str, String> {
             let slot = Path::new(&esp).join(WINDOWS_SLOT_REL);
             let kept = Path::new(&esp).join(KEPT_REL);
-            let shim = Path::new(&esp).join(SHIM_REL);
+            // a record from before the folder was written down is Fedora's (the one family there was)
+            let dir = linux_dir(r["linux_dir"].as_str().unwrap_or("fedora")).ok_or("windows-slot.json names a Linux folder this program does not know")?;
+            let shim = Path::new(&esp).join(shim_rel(dir));
             let marker = Path::new(&esp).join(ROLLED_BACK_REL);
             let action = guard_action(sha(&slot).as_deref(), sha(&shim).as_deref(), &shim_recorded, marker.exists());
             log(format!("      guard: slot {} -> {action}", sha(&slot).map(|x| x[..12].to_string()).unwrap_or("absent".into())));
@@ -289,6 +344,17 @@ pub mod live {
                 m["guard"] = json!({"removed": removed, "utc": plive::now_z(), "slot_sha": sha(&slot)});
                 let _ = std::fs::write(&marker, serde_json::to_string_pretty(&m).unwrap_or_default() + "\n");
                 log(format!("      the Linux-side rollback's marker is on the ESP; guard task removed: {removed}"));
+            }
+            if action == "nothing" || action == "reapply" {
+                // the GRUB shim starts: put back when it is gone (Windows' servicing may clear the folder),
+                // and brought level with the shim when the shim goes back in
+                let grub = Path::new(&esp).join(grub_rel(dir));
+                let grub_copy = Path::new(&esp).join(GRUB_COPY_REL);
+                let (g_src, g_copy) = (sha(&grub), sha(&grub_copy));
+                if g_src.is_some() && (g_copy.is_none() || (action == "reapply" && g_copy != g_src)) {
+                    let g = copy_checked(&grub, &grub_copy, "putting GRUB beside Windows' slot")?;
+                    log(format!("      {GRUB_COPY_REL} written ({})", &g[..12]));
+                }
             }
             if action == "reapply" {
                 let k = copy_checked(&slot, &kept, "keeping Windows' serviced loader under its kept name")?;
@@ -312,6 +378,43 @@ mod tests {
 
     fn outcome(status: &str, path: &str, linux_first: bool) -> Value {
         json!({"status": status, "path_taken": path, "cutover": {"boot_chain": {"linux_first_in_bootorder": linux_first}}})
+    }
+
+    #[test]
+    fn the_shim_is_looked_for_in_the_installed_linuxs_own_folder() {
+        assert_eq!(linux_dir("fedora").map(shim_rel).as_deref(), Some("EFI\\fedora\\shimx64.efi"));
+        assert_eq!(linux_dir("ubuntu").map(shim_rel).as_deref(), Some("EFI\\ubuntu\\shimx64.efi"));
+        assert_eq!(linux_dir("ubuntu").map(grubenv_rel).as_deref(), Some("EFI\\ubuntu\\grubenv"));
+        // no name, or one this kit does not know: nothing is arranged, rather than Fedora's folder guessed at
+        for other in ["", "Fedora", "bazzite", "..\\Microsoft\\Boot", "ubuntu\\.."] {
+            assert_eq!(linux_dir(other), None, "{other}");
+        }
+        let r = record("why", &json!({}), None, None, "2026-11-13T00:00:00Z", "p", "ubuntu");
+        assert_eq!(r["linux_dir"], "ubuntu");
+    }
+
+    #[test]
+    fn shim_never_goes_into_the_slot_without_its_grub() {
+        assert_eq!(grub_rel("ubuntu"), "EFI\\ubuntu\\grubx64.efi");
+        assert_eq!(grub_rel("fedora"), "EFI\\fedora\\grubx64.efi");
+        // the copy sits in the slot's own folder, where shim looks (the Aspire, 2026-11-14)
+        assert_eq!(GRUB_COPY_REL.rsplit_once('\\').map(|x| x.0), WINDOWS_SLOT_REL.rsplit_once('\\').map(|x| x.0));
+        assert_eq!(grub_plan(Some("aa"), None), Ok(true));
+        assert_eq!(grub_plan(Some("aa"), Some("aa")), Ok(false), "already there: nothing written");
+        assert!(grub_plan(None, None).is_err(), "no GRUB to copy: nothing is arranged");
+        assert!(grub_plan(None, Some("aa")).is_err());
+        assert!(grub_plan(Some("aa"), Some("bb")).is_err(), "somebody else's grubx64.efi is not overwritten");
+    }
+
+    #[test]
+    fn the_installed_linux_is_read_where_the_installer_writes_it() {
+        // the shape of the Aspire's outcome.json of 2026-11-14 (upgrade-installer 0.3.0)
+        let o = json!({"status": "completed", "path_taken": "keep-windows",
+            "cutover": {"install": {"distro": "ubuntu", "release": "26.04"}, "boot_chain": {"linux_first_in_bootorder": true}}});
+        assert_eq!(installed_distro(&o), "ubuntu");
+        assert_eq!(linux_dir(&installed_distro(&o)), Some("ubuntu"));
+        // a top-level install block is not the installer's: not read
+        assert_eq!(installed_distro(&json!({"install": {"distro": "ubuntu"}})), "");
     }
 
     #[test]

@@ -70,7 +70,7 @@ on). Stands: see [STATUS.md](STATUS.md).
 `UPGRADE.exe`, a Rust window that runs the programs on the stick (decided
 2026-09-27, the owner, replacing the 2026-09-13 WPF plan). Built (window
 0.3.0): Convert with its keep-Windows and clean-slate answers, the
-data-loss launcher, the rollback's pointer to Linux (the "Cancel a
+data-loss path, the rollback's pointer to Linux (the "Cancel a
 conversion in progress" button left 2026-11-02, the owner); Verify and
 Probe behind `--developer`. Owed: a row past the arm, what Convert shows
 after the restart (decision owed below), the owner's approval of its words.
@@ -207,8 +207,8 @@ signs itself in for the test, as Windows' own automatic sign-in does, said
 in every row and switched off at the end. Built 2026-10-31: following the
 machine, the sign-in, the stick swaps seen, a stop tried again in the same
 run (log 2026-10-31). The cancel stage left with the countdown (2026-11-02):
-eight stages. Owed: that run on the Aspire, the window's screens
-(V12), the old verdicts wired to the run folder, a pull-request check (R9). Proves:
+eight stages. Decided (2026-11-15, the owner): one stick, no swaps. Owed: that plan, a run
+with no hand, the window's screens (V12), the old verdicts wired in, a pull-request check (R9). Proves:
 R9, V13, then V1b, V9, V10, V11 per machine. Stands: see [STATUS.md](STATUS.md).
 
 ## 22. Open firmware, for the curious (parked)
@@ -227,8 +227,8 @@ a time (`architecture.md`, "Linux releases beyond Fedora"). Bazzite's ISO
 was measured 2026-11-07; its design was decided 2026-11-08 (`BAZZITE-DESIGN.md`).
 Steps: record the release with `measure-release.py`; cut the seam, Fedora's
 goldens unchanged; the unattended start and the key step on the rig; a real
-machine, erase first. Waits on: the ISO copy's host (below). Proves: R40,
-R42, V14, V16, then V9 and V1b per family. Stands: see [STATUS.md](STATUS.md).
+machine (any order). Decided (2026-11-12, the owner): Ubuntu second (R40).
+Proves: R40, R42, R45, V14, V16, V18. Stands: see [STATUS.md](STATUS.md).
 
 ## 24. The release picker: choose a Linux, then fetch it onto the stick
 
@@ -275,8 +275,8 @@ is decided, the dated line goes in its home and the item here is removed.
 - Whose one-click test results count (item 21): whether a pass from an
   unknown contributor can mark a model as working, or only one from an
   approved developer or a second run that agrees (rule #1; R9).
-- Which family comes second (item 23): Ubuntu or Bazzite (R40); and where
-  the project keeps its fixed copy of Bazzite's ISO (R42, V16).
+- Ubuntu (item 23, V18): the small desktop or the full one; `/boot` apart, as
+  built (`UBUNTU-DESIGN.md`). Where Bazzite's ISO copy is kept (R42, V16).
 - How the kit reaches a person's stick (item 24, R44).
 - Whether reclaim switches the kept-Windows machine's clock back to UTC once
   Windows is gone (R36 says "may").

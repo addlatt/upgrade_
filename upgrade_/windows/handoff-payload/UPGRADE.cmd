@@ -7,9 +7,9 @@ REM  the Windows side: it scans this computer, says what it found,
 REM  asks what you want, and does the conversion (or a cancel). Nothing
 REM  else on this stick needs to be run by hand.
 REM
-REM  A computer the scanner refused for a failing drive or a Windows
-REM  volume that needs a repair has its own launcher:
-REM  UPGRADE-ACCEPTING-DATA-LOSS.cmd (RISKS R23).
+REM  A computer the scanner refuses for a failing drive or a Windows
+REM  volume that needs a repair is handled in the same window: it says
+REM  RED in full, then asks for one sentence, typed exactly (RISKS R23).
 REM ============================================================
 if not exist "%~dp0UPGRADE.exe" (
   echo   ERROR: UPGRADE.exe is not on this stick - this is not a complete kit.

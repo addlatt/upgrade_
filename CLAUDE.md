@@ -16,7 +16,9 @@ shrunk safely aside. **Decided (2026-11-02, the owner): copying the files into
 Linux waits until the project has traction.** **Amended (2026-11-07, the owner):
 the copy is back, on the keep-Windows path only, with a "here is the Linux
 version" list for the programs and the browsers' bookmarks (nothing else of
-theirs).** The clean slate still carries no files.
+theirs).** The clean slate still carries no files. **Decided (2026-11-13, the
+owner): Fedora and Ubuntu are two parallel lines through the whole project. Every
+stage is built and proven for both.**
 
 The audience is non-technical people whose working Windows 10 machines were stranded
 by Windows 11's hardware requirements and the October 2025 end of security updates.
@@ -41,8 +43,8 @@ someone.
    check is wrong, fix the check. Don't remove it. There will be pressure to soften
    warnings (often from contributors whose own machine works). Resist it.
    **Amended (2026-09-13, RISKS R23):** one narrow exception exists, and it is not a
-   flag. A person may type, verbatim, on a separate launcher, *"I confirm that I
-   understand the risks and could lose data"*. That lifts exactly two refusals, the
+   flag. A person may type, verbatim, on the RED screen (2026-11-14, the owner), *"I confirm
+   that I understand the risks and could lose data"*. That lifts exactly two refusals, the
    drive-health and volume-health ones, whose failure mode is losing that machine's
    own files, and only after the scanner has said RED in full. It lifts nothing
    whose failure mode is "cannot work" or "wrong machine". The sentence travels in

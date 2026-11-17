@@ -225,7 +225,10 @@
           ],
           "properties": {
             "name": {
-              "const": "fedora"
+              "enum": [
+                "fedora",
+                "ubuntu"
+              ]
             },
             "release": {
               "type": "string",
@@ -1285,7 +1288,7 @@
       }
     },
     "risk_acknowledgement": {
-      "description": "Decided 2026-09-13 (RISKS R23): the acknowledged-data-loss path. Present only when the person typed the statement below, verbatim, on the separate launcher. It lifts exactly the refusals listed in `overrides` - the drive-health and volume-health ones, whose failure mode is losing this machine's files - and never a refusal whose failure mode is 'cannot work' or 'wrong machine' (identity, stick, firmware, BitLocker state, VMD, image read-back, ESP snapshot). Every screen and record after it says DATA LOSS ACCEPTED.",
+      "description": "Decided 2026-09-13 (RISKS R23): the acknowledged-data-loss path. Present only when the person typed the statement below, verbatim, in the window, after the scanner said RED in full (until 2026-11-14 on a separate launcher). It lifts exactly the refusals listed in `overrides` - the drive-health and volume-health ones, whose failure mode is losing this machine's files - and never a refusal whose failure mode is 'cannot work' or 'wrong machine' (identity, stick, firmware, BitLocker state, VMD, image read-back, ESP snapshot). Every screen and record after it says DATA LOSS ACCEPTED.",
       "type": "object",
       "additionalProperties": false,
       "required": [

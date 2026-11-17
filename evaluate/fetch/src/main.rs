@@ -8,6 +8,9 @@
 //! `rehearse` is the developer's test of the real network path (rule #5):
 //! the whole `get` into one fixed folder, %TEMP%\upgrade_-fetch-rehearsal,
 //! made to look like a kit stick. It takes no path and writes nowhere else.
+//! Only `rehearse` takes `--table <file>`: a release that is measured but
+//! not yet in `data/releases.json`, so not yet offered to anyone (Ubuntu,
+//! roadmap item 23). `get` and `status` read the compiled table and no other.
 //!
 //! No argument names a drive: the stick is the drive this program sits at
 //! the root of. `status` reads only. `get` refuses by default and says
@@ -24,7 +27,7 @@ fn usage() -> ExitCode {
     eprintln!("upgrade-fetch {}", upgrade_fetch::VERSION);
     eprintln!("usage: upgrade-fetch status --release <id> --desktop <id>");
     eprintln!("       upgrade-fetch get    --release <id> --desktop <id> [--from <http(s) folder>]");
-    eprintln!("       upgrade-fetch rehearse --release <id> --desktop <id> [--from <http(s) folder>]");
+    eprintln!("       upgrade-fetch rehearse --release <id> --desktop <id> [--from <http(s) folder>] [--table <file>]");
     ExitCode::from(2)
 }
 
@@ -110,7 +113,21 @@ fn main() -> ExitCode {
     if !["status", "get", "rehearse"].contains(&phase) {
         return usage();
     }
-    let plan = match plan::plan(upgrade_scan::data::RELEASES_JSON, &id, &desktop) {
+    let table = match (value_of("--table"), phase) {
+        (None, _) => upgrade_scan::data::RELEASES_JSON.to_string(),
+        (Some(f), "rehearse") => match std::fs::read_to_string(&f) {
+            Ok(t) => t,
+            Err(e) => {
+                println!("REFUSED: {f}: {e}");
+                return ExitCode::from(1);
+            }
+        },
+        (Some(_), _) => {
+            println!("REFUSED: --table is for a rehearsal only; a stick is written from this kit's own table");
+            return ExitCode::from(1);
+        }
+    };
+    let plan = match plan::plan(&table, &id, &desktop) {
         Ok(p) => p,
         Err(e) => {
             println!("REFUSED: {e}");

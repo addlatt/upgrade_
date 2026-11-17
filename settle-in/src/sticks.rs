@@ -119,8 +119,45 @@ fn s<'a>(v: &'a Value, k: &str) -> &'a str {
     v.get(k).and_then(Value::as_str).unwrap_or("")
 }
 
+/// May the upgrade_ stick itself become the Windows installer? Only on a
+/// computer whose conversion erased Windows (decided 2026-11-15, the owner:
+/// one stick is the whole kit, on the way back too). With Windows kept the
+/// stick stays refused: it holds the snapshot the rollback restores from, and
+/// may hold Windows' recovery key. Needs the conversion's own record saying
+/// so; no record, or any other answer, keeps the refusal. Pure.
+pub fn erased_outcome(outcome: &Value) -> bool {
+    s(outcome, "status") == "completed" && s(outcome, "path_taken") == "clean-slate" && outcome.pointer("/windows/kept") == Some(&json!(false))
+}
+
+/// The same, read on this computer: the record itself (root reads it), else
+/// the fact settle-in's first start left for the window (`windows_erased`).
+pub fn kit_may_go(root: &str) -> bool {
+    let root = root.trim_end_matches('/');
+    let read = |p: String| std::fs::read_to_string(p).ok().and_then(|t| serde_json::from_str::<Value>(&t).ok());
+    if let Some(o) = read(format!("{}/var/lib/upgrade_/outcome.json", root)) {
+        return erased_outcome(&o);
+    }
+    read(format!("{}/{}/summary.json", root, crate::summary::PUBLIC_DIR)).map(|v| v["windows_erased"] == json!(true)).unwrap_or(false)
+}
+
+/// What the person is told when the upgrade_ stick is the one offered.
+pub const KIT_NOTE: &str = "this is the upgrade_ stick: everything on it is erased, the Linux installer too, and it becomes the Windows installer";
+
 /// Every rule this disk breaks, in plain words. Empty = may be offered. Pure.
+/// The upgrade_ stick is never offered here; `refusals_kit` is the one that
+/// may offer it.
 pub fn refusals(d: &Value, all: &[Value], min_bytes: u64) -> Vec<String> {
+    refusals_kit(d, all, min_bytes, false)
+}
+
+/// Is this the upgrade_ stick (a partition labelled UPG...)? Pure.
+pub fn is_kit(d: &Value) -> bool {
+    d["partitions"].as_array().map(|ps| ps.iter().any(|p| s(p, "label").to_ascii_uppercase().starts_with("UPG"))).unwrap_or(false)
+}
+
+/// `refusals`, with the upgrade_ stick let through when `kit_may_go` (see
+/// `erased_outcome`). Every other rule holds for it as for any stick.
+pub fn refusals_kit(d: &Value, all: &[Value], min_bytes: u64, kit_may_go: bool) -> Vec<String> {
     let mut why = Vec::new();
     if d["usb"] != json!(true) {
         why.push("it is not a USB device".to_string());
@@ -163,7 +200,7 @@ pub fn refusals(d: &Value, all: &[Value], min_bytes: u64) -> Vec<String> {
             why.push(format!("{} is used by the system (encryption, LVM or RAID)", pn));
         }
         let label = s(&p, "label").to_ascii_uppercase();
-        if label.starts_with("UPG") {
+        if label.starts_with("UPG") && !kit_may_go {
             why.push(format!("it is the upgrade_ stick ({} is labelled {}); keep it", pn, s(&p, "label")));
         }
     }
@@ -181,10 +218,18 @@ pub fn confirm_word(d: &Value) -> String {
 
 /// The list the person is shown. Pure.
 pub fn judge(disks: &Value, min_bytes: u64) -> Value {
+    judge_kit(disks, min_bytes, false)
+}
+
+/// `judge`, where the upgrade_ stick may be offered (`refusals_kit`); an
+/// offered upgrade_ stick carries `note`, the words the person must see.
+pub fn judge_kit(disks: &Value, min_bytes: u64, kit_may_go: bool) -> Value {
     let all = disks.as_array().cloned().unwrap_or_default();
     Value::Array(all.iter().map(|d| {
-        let why = refusals(d, &all, min_bytes);
+        let why = refusals_kit(d, &all, min_bytes, kit_may_go);
         json!({
+            "upgrade_stick": is_kit(d),
+            "note": if is_kit(d) && why.is_empty() { json!(KIT_NOTE) } else { Value::Null },
             "name": d["name"], "serial": d["serial"], "size_bytes": d["size_bytes"],
             "shown_as": format!("{} {} ({:.1} GB)", s(d, "vendor"), s(d, "model"), d["size_bytes"].as_u64().unwrap_or(0) as f64 / 1e9).trim().to_string(),
             "confirm_word": confirm_word(d),
@@ -197,6 +242,11 @@ pub fn judge(disks: &Value, min_bytes: u64) -> Value {
 /// The writer's pick, from a FRESH collect: by serial, exact size, the typed
 /// word. Any doubt is a refusal. Pure.
 pub fn choose(disks: &Value, serial: &str, size_bytes: u64, typed: &str, min_bytes: u64) -> Result<Value, Vec<String>> {
+    choose_kit(disks, serial, size_bytes, typed, min_bytes, false)
+}
+
+/// `choose`, where the upgrade_ stick may be the pick (`refusals_kit`).
+pub fn choose_kit(disks: &Value, serial: &str, size_bytes: u64, typed: &str, min_bytes: u64, kit_may_go: bool) -> Result<Value, Vec<String>> {
     let all = disks.as_array().cloned().unwrap_or_default();
     let hits: Vec<&Value> = all.iter().filter(|d| !serial.is_empty() && s(d, "serial") == serial).collect();
     let d = match hits.len() {
@@ -204,7 +254,7 @@ pub fn choose(disks: &Value, serial: &str, size_bytes: u64, typed: &str, min_byt
         1 => hits[0],
         _ => return Err(vec!["more than one disk has that serial number".to_string()]),
     };
-    let mut why = refusals(d, &all, min_bytes);
+    let mut why = refusals_kit(d, &all, min_bytes, kit_may_go);
     if d["size_bytes"].as_u64() != Some(size_bytes) {
         why.push(format!("its size is not the size you were shown ({} bytes now, {} shown)", d["size_bytes"], size_bytes));
     }
@@ -236,6 +286,52 @@ mod tests {
 
     fn one(d: &Value) -> Vec<String> {
         refusals(d, std::slice::from_ref(d), 8 * GB)
+    }
+
+    /// The Aspire's kit stick as `go-back sticks` saw it on 2026-11-15 (a
+    /// serial-less General UDisk, UPGV0 and UPGDATA, the desktop's own mount).
+    fn kit_stick() -> Value {
+        json!({ "name": "sdc", "size_bytes": 15_728_640_000u64, "usb": true, "removable": true, "rotational": false, "read_only": false,
+                "vendor": "General", "model": "UDisk", "serial": "General_UDisk-0:0",
+                "partitions": [{ "name": "sdc1", "label": "UPGV0", "fs": "vfat", "mounted_at": ["/run/media/pat/UPGV0"], "swap": false, "holders": [] },
+                               { "name": "sdc2", "label": "UPGDATA", "fs": "exfat", "mounted_at": [], "swap": false, "holders": [] }] })
+    }
+
+    #[test]
+    fn the_upgrade_stick_may_go_only_after_an_erase() {
+        let erased = json!({ "status": "completed", "path_taken": "clean-slate", "windows": { "kept": false, "partition": null } });
+        assert!(erased_outcome(&erased));
+        // Windows kept, a stopped conversion, a record that does not say, no record: the stick stays
+        for o in [json!({ "status": "completed", "path_taken": "keep-windows", "windows": { "kept": true } }),
+                  json!({ "status": "completed", "path_taken": "clean-slate", "windows": { "kept": true } }),
+                  json!({ "status": "stopped", "path_taken": "clean-slate", "windows": { "kept": false } }),
+                  json!({ "status": "completed", "path_taken": "clean-slate" }),
+                  json!({ "status": "completed", "windows": { "kept": false } }), json!({}), Value::Null] {
+            assert!(!erased_outcome(&o), "{o}");
+        }
+        let d = kit_stick();
+        let all = [d.clone(), system()];
+        // kept as it was: never offered without the erase
+        assert_eq!(refusals(&d, &all, 14 * GB).len(), 2);
+        assert!(refusals(&d, &all, 14 * GB).iter().all(|w| w.contains("it is the upgrade_ stick")));
+        assert!(choose(&json!(all), "General_UDisk-0:0", 15_728_640_000, "UDisk", 14 * GB).is_err());
+        // after an erase: offered, with the words that say what is lost; found again by the writer
+        assert!(refusals_kit(&d, &all, 14 * GB, true).is_empty());
+        let j = judge_kit(&json!(all), 14 * GB, true);
+        assert_eq!((&j[0]["offered"], &j[0]["upgrade_stick"], &j[0]["note"]), (&json!(true), &json!(true), &json!(KIT_NOTE)));
+        assert_eq!((&j[1]["offered"], &j[1]["upgrade_stick"], &j[1]["note"]), (&json!(false), &json!(false), &Value::Null));
+        assert_eq!(choose_kit(&json!(all), "General_UDisk-0:0", 15_728_640_000, "UDisk", 14 * GB, true).unwrap()["name"], "sdc");
+        // every other rule still holds for it: the wrong word, too small, in use somewhere that is not the desktop's
+        assert!(choose_kit(&json!(all), "General_UDisk-0:0", 15_728_640_000, "yes", 14 * GB, true).is_err());
+        assert!(!refusals_kit(&d, &all, 32 * GB, true).is_empty());
+        let mut busy = d.clone();
+        busy["partitions"][0]["mounted_at"] = json!(["/mnt/somewhere"]);
+        assert_eq!(refusals_kit(&busy, &[busy.clone()], 14 * GB, true), vec!["sdc1 is in use at /mnt/somewhere".to_string()]);
+        // the system drive is not let through by it
+        assert!(!refusals_kit(&system(), &all, 8 * GB, true).is_empty());
+        // an ordinary stick's line carries no note
+        let plain = judge_kit(&json!([stick("sdd", "4C53", 16 * GB)]), 8 * GB, true);
+        assert_eq!((&plain[0]["offered"], &plain[0]["note"]), (&json!(true), &Value::Null));
     }
 
     #[test]

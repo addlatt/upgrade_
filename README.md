@@ -171,8 +171,8 @@ stick (`./make-kit.sh` builds the kit). Run it in PowerShell from the stick:
 **There's no way to skip a RED.**
 
 There's one small exception, dated 2026-09-13 ([RISKS R23](docs/RISKS.md)).
-If a machine gets turned down because of its drive, you can type out a
-specific sentence on a separate launcher. That unlocks exactly two
+If a machine gets turned down because of its drive, the same window lets
+you type out a specific sentence. That unlocks exactly two
 refusals, drive health and volume health, and nothing else. From then on
 every screen says **DATA LOSS ACCEPTED**. Making that exception any bigger
 is exactly what this rule is here to stop.

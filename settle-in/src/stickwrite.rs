@@ -250,7 +250,7 @@ pub fn write(req: &Request) -> Value {
         (l, name, req.size_bytes / 512)
     } else {
         let fresh = sticks::collect(&req.root);
-        match sticks::choose(&fresh, &req.serial, req.size_bytes, &req.typed, min) {
+        match sticks::choose_kit(&fresh, &req.serial, req.size_bytes, &req.typed, min, sticks::kit_may_go(&req.root)) {
             Err(why) => return log.stop("find-stick", why.join("; "), false),
             Ok(d) => {
                 let name = d["name"].as_str().unwrap_or("").to_string();

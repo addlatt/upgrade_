@@ -257,6 +257,10 @@ impl GoBack {
                             self.stick = Some(i);
                             self.typed.clear();
                         }
+                        // the upgrade_ stick, offered only after an erase: what is lost is said beside it
+                        if let Some(note) = self.sticks[i]["note"].as_str() {
+                            ui.label(format!("    ({note})"));
+                        }
                     }
                     let refused: Vec<Value> = self.sticks.iter().filter(|s| s["offered"] != json!(true)).cloned().collect();
                     if !refused.is_empty() {

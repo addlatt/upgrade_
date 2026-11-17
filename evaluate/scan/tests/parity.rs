@@ -255,6 +255,7 @@ fn every_case_matches_powershell() {
     let golden: Value = serde_json::from_str(include_str!("golden.json")).unwrap();
     let cases = cases();
     assert_eq!(golden.as_object().unwrap().len(), cases.len(), "golden.json is stale: run ./port-check.sh --record");
+    let mut changed = serde_json::Map::new();
     let (mut wrong, mut stricter) = (Vec::new(), 0);
     for case in &cases {
         let name = case["name"].as_str().unwrap();
@@ -269,7 +270,14 @@ fn every_case_matches_powershell() {
         }
         if let Some(d) = first_difference("", want, &got) {
             wrong.push(format!("FAIL  {name}\n{d}"));
+            changed.insert(name.to_string(), got);
         }
+    }
+    // A golden changes only on purpose, from the Rust's own output (CLAUDE.md): with
+    // UPG_RECORD_GOLDEN=<file> the cases that differ are written there, for
+    // tests/record-golden.py to put into golden.json and for a person to read as a diff.
+    if let Ok(out) = std::env::var("UPG_RECORD_GOLDEN") {
+        std::fs::write(&out, serde_json::to_string(&Value::Object(changed)).unwrap()).unwrap();
     }
     assert_eq!(stricter, 4, "the four Windows 11 scan-name cases are the only differences kept on purpose in this crate");
     assert!(wrong.is_empty(), "{} of {} cases differ from the PowerShell scanner:\n\n{}", wrong.len(), cases.len(), wrong.join("\n\n"));

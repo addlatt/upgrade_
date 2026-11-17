@@ -59,7 +59,8 @@ lsblk -b -o NAME,SIZE,TYPE,TRAN,MODEL,SERIAL,PARTTYPENAME,FSTYPE,MOUNTPOINTS > "
 if [ "$WANT_ESP" = 1 ]; then
     esp=$(findmnt -no SOURCE /boot/efi); sync
     dd if="$esp" of="$O/esp.raw" bs=1M status=none && echo "$esp $(blockdev --getsize64 "$esp") bytes, starts at sector $(cat "/sys/class/block/$(basename "$esp")/start")" > "$O/esp.txt"
-    grep -i 'windows\|menuentry ' /boot/grub2/grub.cfg > "$O/grub-menu.txt" 2>&1
+    # Fedora keeps GRUB's menu in /boot/grub2, Ubuntu in /boot/grub
+    grep -i 'windows\|menuentry ' "$(ls /boot/grub2/grub.cfg /boot/grub/grub.cfg 2>/dev/null | head -1)" > "$O/grub-menu.txt" 2>&1
 fi
 
 # --- the stick, read-only ---

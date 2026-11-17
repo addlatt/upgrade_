@@ -81,6 +81,20 @@ fn liftable(check_title: &str) -> Option<&'static str> {
     [("Disk health", "disk-health"), ("Volume health", "volume-health")].iter().find(|(title, _)| eq_ci(title, check_title)).map(|(_, id)| *id)
 }
 
+/// The scan report's failing hardware checks, by title: what the job writer
+/// judges a RED by (the Software section never refuses).
+pub fn failed_titles(report: &Value) -> Vec<String> {
+    report["Checks"].as_array().map(|a| a.iter().filter(|c| c["Status"] == "fail" && c["Section"] != "Software").map(|c| c["Title"].as_str().unwrap_or("").to_string()).collect()).unwrap_or_default()
+}
+
+/// Whether the typed statement could lift this RED at all: there is a
+/// failing check and every one is one of the two it may lift. The window
+/// offers the sentence only then (decided 2026-11-14, the owner: one
+/// window, no second launcher); `acknowledgement` still decides.
+pub fn sentence_may_lift(verdict: &str, failed_checks: &[String]) -> bool {
+    eq_ci(verdict, "RED") && !failed_checks.is_empty() && failed_checks.iter().all(|c| liftable(c).is_some())
+}
+
 /// Get-JobAcknowledgement (RISKS R23). A RED verdict is a job only when the
 /// statement was typed verbatim and every failing hardware check is one of
 /// the two it may lift. Returns the `risk_acknowledgement` block, nothing

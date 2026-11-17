@@ -13,6 +13,7 @@
 
 mod outcome;
 mod post;
+mod subiquity;
 mod tty;
 mod util;
 mod verify;
@@ -27,6 +28,10 @@ fn main() {
         }
         Some("verify") if args.len() >= 2 => verify::main(&args[1], args.get(2).map(String::as_str).unwrap_or("UPGV0")),
         Some("outcome") if args.len() >= 2 => outcome::main(&args[1]),
+        // Ubuntu's installer (subiquity): its early, late and error hooks (RISKS R40, R45)
+        Some("early") if args.len() >= 2 => subiquity::early(&args[1]),
+        Some("late") if args.len() >= 2 => subiquity::late(&args[1]),
+        Some("failed") if args.len() >= 2 => subiquity::failed(&args[1]),
         _ => {
             eprintln!("{version}");
             eprintln!("usage: upgrade-installer verify <job.json> [<stick label>]");

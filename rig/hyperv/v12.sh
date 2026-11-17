@@ -23,7 +23,7 @@
 #   v12.sh screens       item 20's screens (2026-10-17), shots only, nothing started: the chooser
 #                        without --developer (Convert, Rollback, Cancel), Rollback's pointer to
 #                        Linux, Convert's PATH switch (keep / clean slate; the typed erase sentence
-#                        cleared by a switch), and --accepting-data-loss's single Convert. Continue
+#                        cleared by a switch), and the RED screen's offer of the sentence (a preview). Continue
 #                        is never pressed. The shots are read by eye; they make no row.
 #
 # Autologon stands in for the person signing in after the restart. A green
@@ -99,9 +99,11 @@ screens)
     PS click 1012 60; sleep 2; PS click 19 74; sleep 2; shot s6a-keep-again
     PS click 19 123; sleep 2; PS click 1012 700; sleep 2; shot s6b-clean-again-empty
     quit_window
-    # 7. the data-loss launcher: one Convert, then its set-up with the acknowledgement
-    launch "--accepting-data-loss"; shot s7-choose-ack
-    PS key 9; sleep 1; PS key 13; sleep 2; shot s8-convert-ack
+    # 7. the data-loss path (one window since 2026-11-14): the RED screen with its offer
+    # of the sentence, then the set-up as it reads after the sentence (previews)
+    launch "--preview red-ack"; shot s7-red-ack
+    quit_window
+    launch "--preview convert-ack"; shot s8-convert-ack
     quit_window
     guest '[pscustomobject]@{ window_running = [bool](Get-Process UPGRADE -ErrorAction SilentlyContinue); launch_task_left = [bool](Get-ScheduledTask -TaskName "upgrade_ v12 launch" -ErrorAction SilentlyContinue); window_dir_left = (Test-Path C:\ProgramData\upgrade_\window) } | ConvertTo-Json' | tee "$S/after.json"
     ls "$S"

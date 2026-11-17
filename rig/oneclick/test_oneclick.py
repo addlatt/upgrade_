@@ -8,6 +8,7 @@ import re
 import os
 import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -571,10 +572,49 @@ class HoldAwakeTests(unittest.TestCase):
         self.assertIn("TEST holds a sleep lock", ctx.journal.entries()[0]["text"])
 
     def test_the_aspire_plans_hold_the_walk_away_awake(self):
-        for name in ("aspire.json",):
+        for name in ("aspire.json", "aspire-ubuntu.json"):
             with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", name)) as f:
                 st = [x for x in json.load(f)["stages"] if x["stage"] == "walk-away"][0]
             self.assertTrue(st.get("hold_awake"), name)
+
+
+class BothFamiliesTests(unittest.TestCase):
+    """Fedora and Ubuntu in parallel (the owner, 2026-11-13): the manager drives either."""
+
+    def tools(self, names):
+        d = tempfile.mkdtemp()
+        for n in names:
+            with open(os.path.join(d, n), "w") as f:
+                f.write("#!/bin/sh\necho ran-%s \"$@\"\n" % n)
+            os.chmod(os.path.join(d, n), 0o755)
+        r = subprocess.run(["/bin/sh", "-c", oneclick.GRUB_TOOLS + "\"$GR\" x; \"$GE\" list"], env={"PATH": d + ":/usr/bin:/bin"}, capture_output=True, text=True)
+        shutil.rmtree(d)
+        return r.stdout
+
+    def test_grubs_tools_are_found_by_either_familys_names(self):
+        self.assertEqual(self.tools(["grub2-reboot", "grub2-editenv"]), "ran-grub2-reboot x\nran-grub2-editenv list\n")
+        self.assertEqual(self.tools(["grub-reboot", "grub-editenv"]), "ran-grub-reboot x\nran-grub-editenv list\n")
+        self.assertIn("NO_GRUB_TOOLS", self.tools(["grub-reboot"]))
+
+    def test_the_stick_check_takes_its_braces(self):
+        # the tools line holds { } of its own: it must stay outside str.format
+        src = open(os.path.join(oneclick.HERE, "oneclick.py"), encoding="utf-8").read()
+        self.assertEqual(src.count("GRUB_TOOLS + fired.format("), 2)
+
+    def test_the_job_writer_is_given_the_sticks_answer_file_and_the_plans_desktop(self):
+        src = open(os.path.join(oneclick.HERE, "oneclick.py"), encoding="utf-8").read()
+        self.assertIn("--autoinstall {L}\\\\autoinstall.yaml", src)
+        self.assertIn("args.get('desktop', ctx.plan.get('desktop', 'kde'))", src)
+
+    def test_the_ubuntu_plan_is_the_aspires_with_gnome(self):
+        plans = os.path.join(oneclick.REPO, "rig", "oneclick", "plans")
+        with open(os.path.join(plans, "aspire.json")) as f:
+            fedora = json.load(f)
+        with open(os.path.join(plans, "aspire-ubuntu.json")) as f:
+            ubuntu = json.load(f)
+        self.assertEqual(ubuntu["stages"], fedora["stages"], "the same stages in the same order: two parallel lines")
+        self.assertEqual(ubuntu["desktop"], "gnome")
+        self.assertNotIn("desktop", fedora)
 
 
 class DesktopTests(unittest.TestCase):

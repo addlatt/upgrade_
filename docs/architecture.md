@@ -185,7 +185,7 @@ Every refusal lives in `evaluate`, the only module that can refuse for free:
 **One exception, narrow and dated (2026-09-13, RISKS R23):** a person who has
 already copied their files off a machine the scanner refused for its *drive*
 (bad blocks, SMART media errors, a volume needing a full repair) may type a
-fixed sentence on a separate launcher and go ahead. It lifts those two refusals
+fixed sentence on the window's RED screen and go ahead. It lifts those two refusals
 and no other, is recorded in `job.json` and `outcome.json`, and turns every
 later screen red (CLAUDE.md rule #1).
 
@@ -450,7 +450,7 @@ After the machine has booted from the stick:
     detector: the install completed, Fedora was left first, and yet Windows
     booted with nobody pressing a key. On that evidence it moves `bootmgfw.efi`
     one name aside (`bootmgfw-kept.efi`, same folder, so Windows' boot manager
-    still finds its BCD), copies Fedora's signed shim to `bootmgfw.efi`,
+    still finds its BCD), puts Linux's shim in `bootmgfw.efi`, its GRUB beside it,
     registers a `guard` startup task in the kept Windows (Windows' servicing
     puts its own file back; the guard re-applies the arrangement, so an update
     costs one Windows boot), and restarts once. Firmware that honours the entry
@@ -566,8 +566,8 @@ in one way that matters: the person said up front that nothing is to be kept.
 
 1. **Its own sentence, behind Convert's clean-slate answer** (since
    2026-10-17, roadmap item 20; before, its own launcher). A RED machine gets
-   there through `UPGRADE-ACCEPTING-DATA-LOSS.cmd`, which also asks for the
-   R23 sentence; neither stands in for the other. The consent is typed
+   there from the window's RED screen, which first asks for the R23
+   sentence (R23); neither stands in for the other. The consent is typed
    word for word, first: *"I confirm that everything on this computer will be
    deleted and nothing will be kept"*. Then the Linux password (twice, hidden);
    the job holds only its SHA-512 crypt hash. **The person is told the account's
@@ -914,7 +914,7 @@ deletes Linux and `/home`, so (rule #4) it is reviewed hardest. Three answers:
 ```text
 Linux, the "Go back to Windows" program            (nothing changed yet)
   cost first -> which Windows -> both drives named -> the typed sentence
-  -> choose the stick (R16's rules) -> download from Microsoft's catalog
+  -> choose the stick (R16's rules; the kit stick too, after an erase: 2026-11-15) -> download from Microsoft's catalog
   -> check size + SHA-1 -> build the stick from the .esd -> read it back
   -> start from the stick once (BootNext: the firmware's own USB entry
      when it has one, else our own) -> "Restart now": THE COMMIT LINE
@@ -1125,7 +1125,7 @@ and distributions share a handful of installers.
         +--------------------------+----------------------------+
         |                          |                            |
   anaconda-image            anaconda-container             subiquity
-  Fedora 44 (today)         Bazzite, Fedora Atomic         Ubuntu (to measure)
+  Fedora 44 (today)         Bazzite, Fedora Atomic         Ubuntu (on the rig)
   kickstart + liveimg       kickstart + ostreecontainer    autoinstall.yaml
   a writable system         a read-only /usr               a writable system
 ```

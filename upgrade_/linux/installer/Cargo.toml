@@ -17,6 +17,7 @@ license = "GPL-3.0-only"
 libc = "0.2"
 serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = "0.10"
+upgrade-autoinstall = { path = "../../autoinstall" }
 
 # its own workspace root (as settle-in): a checkout under another repository
 # must not fall into that repository's root workspace
