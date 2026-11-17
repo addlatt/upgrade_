@@ -208,7 +208,10 @@ fn run() -> i32 {
     // commit line. Every check above still refuses before anything is erased.
     // ---- the commit line ----
     rec["result"] = json!("crossed");
-    rec["crossed_utc"] = json!(now_utc());
+    // read before the clock is changed below (0.5.1: WinPE's own UTC was eight hours on, the Aspire, 2026-11-16)
+    let (crossed, crossed_from) = logic::crossed_utc(&job, &win::local_wall(), &now_utc());
+    rec["crossed_utc"] = json!(crossed);
+    rec["crossed_utc_from"] = json!(crossed_from);
     if let Err(e) = save(&rec_path, &rec) {
         // never cross on a stick that does not hold the crossing: it could erase twice
         rec["result"] = json!("refused");

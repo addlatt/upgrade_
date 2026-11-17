@@ -619,40 +619,12 @@ pub fn register_task(rec: &mut Recorder, state: &str, task_name: &str, xml_name:
     Ok(())
 }
 
-/// The program's copy in a state directory, from which a task runs it. A
-/// copy that already holds the same bytes is left alone: the previous
-/// check or resume may still be running from it (its last popup, up to two
-/// minutes), and Windows refuses to overwrite a running program. The rig's
-/// erase arm A found this on 2026-10-09: a re-arm within those minutes
-/// failed with "being used by another process" and backed out.
+/// The program's copy in a state directory, from which a task runs it
+/// (`place.rs` decides: the same bytes are left alone, and another version
+/// still running, its notice window open, is moved aside).
 pub fn place_program(me: &Path, copy: &Path) -> Result<(), String> {
-    if same_file(me, copy) {
-        return Ok(());
-    }
-    let same_bytes = || -> bool {
-        match (std::fs::read(me), std::fs::read(copy)) {
-            (Ok(a), Ok(b)) => Sha256::digest(&a) == Sha256::digest(&b),
-            _ => false,
-        }
-    };
-    if copy.exists() && same_bytes() {
-        return Ok(());
-    }
-    match std::fs::copy(me, copy) {
-        Ok(_) => Ok(()),
-        Err(e) if copy.exists() && same_bytes() => {
-            let _ = e;
-            Ok(())
-        }
-        Err(e) => Err(format!("copying the program to the state directory: {e}")),
-    }
-}
-
-fn same_file(a: &Path, b: &Path) -> bool {
-    match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
-        (Ok(x), Ok(y)) => x.to_string_lossy().to_lowercase() == y.to_string_lossy().to_lowercase(),
-        _ => false,
-    }
+    let tag = now_z().replace([':', '-'], "");
+    crate::place::place(me, copy, &tag, &|a, b| std::fs::copy(a, b)).map(|_| ())
 }
 
 /// Unregister-ResumeTask: true when a task was there and went.
