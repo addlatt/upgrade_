@@ -201,9 +201,11 @@ Four to six weeks of sessions before a real machine, by this count.
 ## The calls, and where each stands
 
 1. Which family comes second: **decided (2026-11-12, the owner): Ubuntu.**
-2. The small desktop (`ubuntu-desktop-minimal`) or the full one: built
-   with the small one, the installer's default and what was measured. The
-   owner's call is still owed (ROADMAP, "Decisions owed").
+2. The small desktop (`ubuntu-desktop-minimal`) or the full one:
+   **decided (2026-11-17, the owner): the full one** (`ubuntu-desktop`), so
+   an office program is there on the first day, as on Fedora. It is on the
+   same disc. `upgrade-autoinstall` 0.4.0. Every row before that day
+   installed the small one.
 3. Beside Windows: our own storage list, not `use_gap`. Built that way: it
    is the documented way and it names every partition (R45).
 4. A separate `/boot`, like Fedora: built that way, so reclaim (R41) sees
@@ -224,7 +226,10 @@ Four to six weeks of sessions before a real machine, by this count.
 | The rig harnesses | `rig/hyperv/ubuntu-arms.sh`, `ubuntu-verdict.py`; `rig/fetch/arms.sh` | write `ubuntu-install.csv` and `v17-fetch.csv` |
 
 Ubuntu's small desktop has no SSH server, no `curl` and no `cryptsetup`
-(its disc's package list, then an installed disk, 2026-11-14). The answer
+(its disc's package list, then an installed disk, 2026-11-14). The full
+one adds 230 packages (the disc's `casper/minimal.standard.manifest`):
+LibreOffice, Thunderbird, a music and a video player, photos, a calendar,
+backups, a scanner program. Still none of those three. The answer
 file adds the server when Windows had remote access on, and `cryptsetup`
 beside Windows, both from the stick's packages (rig rows, lines 21 to
 23). settle-in downloads with `wget` where there is no `curl` (unit cases).
