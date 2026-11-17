@@ -897,7 +897,7 @@ speed and drops, a mirror's redirects and TLS.
 `pass-plumbing` ([log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)).
 Owed: the window on a kit stick, a real stick, the real internet.
 
-## V18: Ubuntu installs from its own stick onto the disk the job names, or not at all · kills: Ubuntu as a second family · RISKS R40, R45, R21 · held-on-rig
+## V18: Ubuntu installs from its own stick onto the disk the job names, or not at all · kills: Ubuntu as a second family · RISKS R40, R45, R21 · held-on-machine
 
 **Why it has its own gate.** Ubuntu's installer (subiquity) is a second
 installer family: another answer file, other hooks, and an installer that

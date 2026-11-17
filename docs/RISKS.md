@@ -685,8 +685,8 @@ return, servicing and the rollback (lines 12, 13; `r21-rollback.csv` line 5).
 The Aspire's rollback (`r21-rollback.csv` line 6, `windows-not-direct`): a
 `bcdedit` order change does not survive a restart there (`efibootmgr`'s does).
 Kickstart 0.10.0's flag on the ESP and the Linux-side rollback both held on
-the rig (`v2-install.csv` line 17; `r21-rollback.csv` line 7). Owed: the
-Linux-side rollback on the Acer, an update under the guard, other vendors ([log](log/2026-10.md#2026-10-12-late-the-rig-answers-again-the-linux-side-rollback-holds-on-the-rig-r21-r22-r36-v1b)).
+the rig (`v2-install.csv` line 17). The slot needs GRUB beside shim (found with Ubuntu, 2026-11-15, prologue 0.4.5; `oneclick-runs.csv` lines 43 and 45, [log](log/2026-11.md#2026-11-14-to-2026-11-16-ubuntus-one-click-test-on-the-aspire-three-bugs-found-one-stick-on-the-way-back-r21-r22-r23-r33-r16-r36-v11-v12-v18-roadmap-items-21-and-23)).
+Owed: Fedora through that slot, an update under the guard, other vendors ([log](log/2026-10.md#2026-10-12-late-the-rig-answers-again-the-linux-side-rollback-holds-on-the-rig-r21-r22-r36-v1b)).
 
 ## R22: Windows servicing re-takes the firmware boot order · medium · held-on-rig
 
@@ -1120,20 +1120,20 @@ last click; the gate's countdown left with `upgrade-gate` 0.5.0.
 switch does. **Decided (2026-10-04, the owner):** it carries the time and
 remote access (SSH, keys only) too. **Decided (2026-10-05, the owner):** the
 product keeps the computer awake while it works, on both sides.
+**Decided (2026-11-15, the owner):** one stick: after an erase the kit stick
+itself may become the installer (settle-in 0.12.0). With Windows kept it
+stays refused: it holds the rollback's snapshot and may hold the key.
 
 **Closes when.** Rig arms refuse and erase pass with Secure Boot on, nobody
 at the keyboard, ending at the Windows sign-in; then one real machine (the
 Aspire, under R23). V11, step 4.
 
 **Where it stands.** `[####]` `oneclick-runs.csv` line 34 (2026-10-29,
-`windows-reached`, the test holding the sleep lock); `v11-walkaway.csv`
-lines 2 to 5 (2026-10-03 to 2026-10-11, one `fail` fixed the same day; the
-full list moved to the [log](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13)). Owed:
-gate 0.5.0 on a machine; never-twice on real firmware;
-the sleep lock on a machine (built on both sides 2026-11-11, untried:
-[log](log/2026-11.md#2026-11-11-the-sleep-lock-on-both-sides-and-the-refusal-beside-a-linux-already-there-built-roadmap-item-16-r33-r39-r24)); the program findable from the desktop and a
-no-serial stick refused (the owner's call); the stale entry each Prepare
-leaves ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
+`windows-reached`); `[FAIL]` line 48 (2026-11-16, one stick, from Ubuntu: 19
+hours before any system started; set by hand it then reached Windows, [log](log/2026-11.md#2026-11-14-to-2026-11-16-ubuntus-one-click-test-on-the-aspire-three-bugs-found-one-stick-on-the-way-back-r21-r22-r23-r33-r16-r36-v11-v12-v18-roadmap-items-21-and-23)).
+Owed: that stop's cause; a whole run on one stick; never-twice on real firmware; the
+sleep lock on a machine; a no-serial stick refused (the owner's call); older lists:
+[log](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13).
 
 ## R34: Secure Boot revokes the kit's boot files · critical · held-on-machine
 

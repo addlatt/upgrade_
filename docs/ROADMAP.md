@@ -207,8 +207,8 @@ signs itself in for the test, as Windows' own automatic sign-in does, said
 in every row and switched off at the end. Built 2026-10-31: following the
 machine, the sign-in, the stick swaps seen, a stop tried again in the same
 run (log 2026-10-31). The cancel stage left with the countdown (2026-11-02):
-eight stages. Owed: that run on the Aspire, the window's screens
-(V12), the old verdicts wired to the run folder, a pull-request check (R9). Proves:
+eight stages. Decided (2026-11-15, the owner): one stick, no swaps. Owed: that plan, a run
+with no hand, the window's screens (V12), the old verdicts wired in, a pull-request check (R9). Proves:
 R9, V13, then V1b, V9, V10, V11 per machine. Stands: see [STATUS.md](STATUS.md).
 
 ## 22. Open firmware, for the curious (parked)
