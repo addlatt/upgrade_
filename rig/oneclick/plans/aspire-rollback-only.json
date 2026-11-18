@@ -1,0 +1,25 @@
+{
+  "plan": "aspire-rollback-only",
+  "version": 1,
+  "machine": "acer-aspire-a515-51g",
+  "desktop": "kde",
+  "linux": {
+    "release": "fedora-44",
+    "desktop": "kde"
+  },
+  "heartbeat_s": 300,
+  "test_password": "password",
+  "why_test_password": "the owner, 2026-10-28: the test account's password is 'password' on a test machine, so the owner can sign in at the screen",
+  "test_autologon": true,
+  "windows_password": "test_password",
+  "why_test_autologon": "the owner, 2026-10-28 and 2026-10-31: signing in by hand after each restart is not one click; the test signs Windows in by itself, says so in every row, and switches it off when the run finishes",
+  "test_windows_awake": true,
+  "why_test_windows_awake": "the Aspire, 2026-11-18: Windows had sat idle past its sleep timer when the fetch ended, slept at that moment, and the run stopped. The product's programs each keep the computer awake while they work; the gaps between them have no person in a test. So the test switches idle sleep off in Windows, says so in every row, and puts it back at the end. These runs are therefore no evidence for R33 on the Windows side",
+  "why_this_plan": "a whole run that stopped after the install beside Windows leaves Linux beside Windows. This plan takes that Linux up (kickoff --password-from the stopped run) and runs the product's own way back, so the next whole run starts from Windows with no hand on the machine (the Aspire, 2026-11-18: the file copy refused a drive BitLocker keeps unlocked)",
+  "stages": [
+    {
+      "stage": "rollback",
+      "why": "someone changes their mind"
+    }
+  ]
+}
