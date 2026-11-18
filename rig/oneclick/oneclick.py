@@ -47,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.4.2"
+VERSION = "0.4.3"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -1581,8 +1581,10 @@ KIT_CSV = "C:\\upgrade_oneclick\\r16-stick-writer.csv"
 ONE_USB = ("$ProgressPreference = 'SilentlyContinue'; $u = @(Get-Disk | Where-Object BusType -eq 'USB'); "
            "if ($u.Count -ne 1) { Write-Output \"USB_DISKS=$($u.Count)\"; exit 3 }; $d = $u[0]; ")
 # the word the stick writer asks for: the first volume's label, else the model name (evaluate/stick judge.rs confirm_word)
-USB_FACTS = (ONE_USB + "$lab = @(Get-Partition -DiskNumber $d.Number -ErrorAction SilentlyContinue | Get-Volume -ErrorAction SilentlyContinue | "
-             "Where-Object FileSystemLabel | ForEach-Object FileSystemLabel) | Select-Object -First 1; "
+# the label the stick writer asks for is the first partition's that has one: read in partition order (the Aspire, 2026-11-18:
+# unsorted, Windows gave the second partition's label first, the word given at kickoff was that one, and the writer rightly refused)
+USB_FACTS = (ONE_USB + "$lab = @(Get-Partition -DiskNumber $d.Number -ErrorAction SilentlyContinue | Sort-Object PartitionNumber | "
+             "ForEach-Object { ($_ | Get-Volume -ErrorAction SilentlyContinue).FileSystemLabel } | Where-Object { $_ }) | Select-Object -First 1; "
              "Write-Output \"TARGET=$($d.UniqueId)\"; Write-Output \"BYTES=$($d.Size)\"; Write-Output \"MODEL=$($d.FriendlyName.Trim())\"; Write-Output \"LABEL=$lab\"")
 WALKAWAY_LABEL_SOURCE = ("settle-in/src/stickwrite.rs", r'const LABEL: &str = "([^"]+)"')
 
