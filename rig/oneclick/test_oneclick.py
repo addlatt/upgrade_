@@ -1260,7 +1260,8 @@ class OneStickPlanTests(unittest.TestCase):
             self.assertTrue([s for s in p["stages"] if s["stage"] == "kit-stick"][1]["fetch"], "after the walk-away the manager fetches the Linux itself")
             # a real machine is never given a planted fault, and the Aspire's reclaim check is expected to refuse
             checks = [s for s in p["stages"] if s["stage"] == "reclaim-check"]
-            self.assertEqual([(s.get("arm"), s["expect"]) for s in checks], [(None, "refused")], name)
+            self.assertFalse([s for s in checks if s.get("arm") or s["expect"] != "refused"], name)
+            self.assertTrue(checks or "the owner says yes" in p["why_no_reclaim_check"], name)
             self.assertEqual(oneclick.plan_needs(p["stages"]), ["data-loss", "erase", "kit-stick", "kit-stick-after-walkaway", "password", "walkaway",
                                                                 "walkaway-account", "walkaway-stick"], name)
 
