@@ -278,10 +278,9 @@ is decided, the dated line goes in its home and the item here is removed.
 - Ubuntu (item 23, V18): `/boot` apart, as built (`UBUNTU-DESIGN.md`).
   Where Bazzite's ISO copy is kept (R42, V16).
 - How the kit reaches a person's stick (item 24, R44).
-- Whether reclaim switches the kept-Windows machine's clock back to UTC once
-  Windows is gone (R36 says "may").
-- The words of reclaim's typed sentence and its screen, which names the
-  folders that will be lost from `job.json`'s folder map (R41).
+- Reclaim (R41, V15; log 2026-11-18): its bench (the arm wants a USB stick, Hyper-V has none: QEMU, or a healthy-drive machine first);
+  how an Ubuntu stick runs it (built for Fedora only); V15 calls an unaccounted slot a refusal, the code keeps the slot;
+  the clock back to UTC once Windows is gone (R36 says "may"); the words of its typed sentence and its screen.
 - Who owns `shutdown /g` (Automatic Restart Sign-On), named in
   `architecture.md` as a courtesy to add later (R24).
 - What the person sees after Convert's restart. Decided 2026-09-27 (R31):
