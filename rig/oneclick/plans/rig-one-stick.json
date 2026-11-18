@@ -1,6 +1,6 @@
 {
   "plan": "rig-one-stick",
-  "version": 1,
+  "version": 2,
   "machine": "rig-upgrighv",
   "why_this_order": "the one-stick order of a real machine (plans/aspire-ubuntu-one-stick.json). The stick writer and the walk-away are stand-ins here: the rig holds the order, the second look and the refusal on a stick made again, nothing of the writer or the walk-away",
   "heartbeat_s": 300,
@@ -8,6 +8,10 @@
     {
       "stage": "kit-stick",
       "why": "the rig's stick, made by the rig's own builder (a stand-in for the stick writer)"
+    },
+    {
+      "stage": "plant-files",
+      "why": "known files in Windows before the job is written, so the product's own harvest counts them and the copy can be held to them"
     },
     {
       "stage": "look",
@@ -25,6 +29,44 @@
     {
       "stage": "stick-left-in",
       "why": "people forget the stick: it must not install again"
+    },
+    {
+      "stage": "pull",
+      "why": "the file copy (V3): settle-in's own command, then every planted file hashed where it landed; a second run must find nothing to do"
+    },
+    {
+      "stage": "reclaim-check",
+      "expect": "plan",
+      "why": "the rig's install as found: a healthy drive, one disk, one account. Reclaim's check must give a plan and change nothing (the move itself needs a USB stick the rig does not have)"
+    },
+    {
+      "stage": "reclaim-check",
+      "expect": "refused",
+      "why": "V15's planted fault: the Windows partition is not the one the install recorded",
+      "arm": "wrong-guid"
+    },
+    {
+      "stage": "reclaim-check",
+      "expect": "refused",
+      "why": "V15's planted fault: the drive did not report itself healthy",
+      "arm": "drive-health"
+    },
+    {
+      "stage": "reclaim-check",
+      "expect": "refused",
+      "why": "V15's planted fault: Windows' drive is locked, so it cannot be shown before it is deleted",
+      "arm": "bitlocker-locked"
+    },
+    {
+      "stage": "reclaim-check",
+      "expect": "refused",
+      "why": "V15's planted fault: another person's account is on Windows",
+      "arm": "other-profiles"
+    },
+    {
+      "stage": "reclaim-check",
+      "expect": "plan",
+      "why": "every planted fault is put back: the check gives its plan again"
     },
     {
       "stage": "rollback",
@@ -62,5 +104,6 @@
       "why": "V9 arm A, the rarest"
     }
   ],
-  "why_no_cancel": "the owner, 2026-11-02: the last click in the window is the commit line; no countdown and no cancel after it"
+  "why_no_cancel": "the owner, 2026-11-02: the last click in the window is the commit line; no countdown and no cancel after it",
+  "why_files": "the file copy and reclaim's check sit after the install beside Windows and before the rollback: the copy refuses once Windows starts first again (the owner's prompt, 2026-11-17: plan them into the run order after a keep-Windows install)"
 }

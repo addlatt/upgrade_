@@ -47,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -691,6 +691,8 @@ def write_job(ctx, L, args, erase=False):
     if link.kind == "hyperv":
         pub = os.path.expanduser("~/.ssh/upgrade_rig.pub")
         env = dict(os.environ, ONECLICK_HASH=hashed, ONECLICK_SSH_PUB=pub)
+        if any(s.get("stage") == "plant-files" for s in ctx.plan.get("stages", [])):
+            env["ONECLICK_FOLDER_MAP"] = "1"   # the stand-in job carries the product harvester's own folder count
         cmd = ["./v9.sh", "job", f"--spoof-ssh={pub}", *args.get("rig_job_args", [])] if erase else ["./v1.sh", "job"]
         j = subprocess.run(cmd, cwd=os.path.join(REPO, "rig", "hyperv"), env=env, capture_output=True, text=True, timeout=1800)
         ctx.save("job-standin.log", j.stdout + j.stderr)
@@ -1177,6 +1179,334 @@ class Rollback:
         return Outcome("rolled-back", True, "Windows started first with no key; the guard stood down")
 
 
+# --- the file copy, and reclaim's refusals -----------------------------------
+#
+# The file copy (settle-in pull; V3, R8, R19, R20): known files are planted in
+# Windows before the job is written (stage plant-files), so the product's own
+# harvest counts them; after the install beside Windows, the pull runs through
+# settle-in's own command and every planted file is hashed where it landed.
+# Reclaim (R41, V15): only its check runs here. The check writes nothing and
+# never arms; the move itself needs a USB stick the rig does not have and a
+# healthy drive the Aspire does not have.
+
+PLANT_DIR = "C:\\upgrade_oneclick\\plant"
+
+
+def last_json(text):
+    """The last whole JSON object a program printed (settle-in prints pretty
+    JSON, after any progress lines)."""
+    lines = text.splitlines()
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].rstrip() == "{":
+            try:
+                return json.loads("\n".join(lines[i:]))
+            except ValueError:
+                continue
+    for l in reversed(lines):
+        if l.startswith("{") and l.rstrip().endswith("}"):
+            try:
+                return json.loads(l)
+            except ValueError:
+                continue
+    return None
+
+
+def stage_file(ctx, stage, name):
+    """A file an earlier stage of this run kept (the latest such stage)."""
+    import glob
+    found = sorted(glob.glob(os.path.join(ctx.run_dir, "stages", f"*-{stage}", name)))
+    return found[-1] if found else None
+
+
+def csv_line(values):
+    import csv
+    import io
+    buf = io.StringIO()
+    csv.writer(buf, quoting=csv.QUOTE_MINIMAL, lineterminator="\n").writerow(values)
+    return buf.getvalue()
+
+
+def run_facts(ctx):
+    try:
+        with open(os.path.join(ctx.run_dir, "facts.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+class PlantFiles:
+    """Before the job is written: a known tree of files in the account's own
+    Documents and Pictures (rig/hyperv/physical/plant-files.ps1), with what
+    must arrive and what must not written down. Files in the test account's
+    own folders only; an earlier plant is replaced, so it can run again."""
+    writes = False
+    needs = ()
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "windows":
+            return untouched("wrong-system", "the files are planted in Windows, before the job is written")
+        link.run(f"New-Item -ItemType Directory -Force -Path '{PLANT_DIR}' | Out-Null", "windows", 60)
+        ff = os.path.join(ctx.stage_dir, "firefox.jsonlz4")
+        subprocess.run([sys.executable, os.path.join(REPO, "rig", "hyperv", "pull-firefox.py"), ff], capture_output=True, text=True)
+        fx = ""
+        if os.path.isfile(ff) and link.push(ff, PLANT_DIR + "\\firefox.jsonlz4", "windows").ok:
+            fx = PLANT_DIR + "\\firefox.jsonlz4"
+        r = link.run(windows_script("plant-files.ps1", "-Out", f"'{PLANT_DIR}'", "-Firefox", f"'{fx}'"), "windows", 900)
+        ctx.save("plant.out", r.out + r.err)
+        if "EXPECTED=" not in r.out:
+            return untouched("plant-failed", (r.out + r.err).strip()[-300:])
+        local = os.path.join(ctx.stage_dir, "expected.json")
+        if not link.pull(PLANT_DIR + "\\expected.json", local, "windows").ok or not os.path.isfile(local):
+            return untouched("plant-failed", "what was planted could not be read back")
+        with open(local, encoding="utf-8-sig") as f:
+            exp = json.load(f)
+        marks = ", ".join(f"{k} {v}" for k, v in (exp.get("bookmarks") or {}).items()) or "none"
+        return Outcome("files-planted", True, f"{len(exp['copy'])} files planted in the account's Documents and Pictures, "
+                       f"{len(exp['not_copied'])} entries that must not be copied (links, Windows' own settings file); bookmarks planted: {marks}; "
+                       "no OneDrive-only files (R43's residue stays owed)")
+
+
+PULL_TOOLS = ("for t in ntfs-3g cryptsetup systemd-inhibit; do printf 'TOOL %s=%s\\n' $t \"$(command -v $t || echo MISSING)\"; done; "
+              "echo \"NTFS3G=$( (rpm -q ntfs-3g 2>/dev/null | grep -v 'not installed') || dpkg-query -W -f '${Package} ${Version}' ntfs-3g 2>/dev/null || echo unknown)\"; "
+              "echo \"CRYPTSETUP=$(cryptsetup --version 2>/dev/null | head -1)\"; echo \"KERNEL=$(uname -r)\"; . /etc/os-release; echo \"OS=$PRETTY_NAME\"")
+
+
+class Pull:
+    """After the install beside Windows: settle-in's own file copy, as the
+    person's click runs it (check, then run), then every planted file hashed
+    where it landed. A second run must find nothing to do."""
+    writes = True
+    needs = ("password",)
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "linux":
+            return untouched("wrong-system", "the file copy runs in the installed Linux")
+        ep = stage_file(ctx, "plant-files", "expected.json")
+        if not ep:
+            return untouched("nothing-planted", "this run has no plant-files stage before the install, so there is nothing to hold the copy against")
+        with open(ep, encoding="utf-8-sig") as f:
+            exp = json.load(f)
+        tools = sudo(ctx, PULL_TOOLS, 120)
+        ctx.save("tools.txt", tools.out + tools.err)
+        tv = kv_lines(tools.out)
+        chk = sudo(ctx, f"{SETTLE_IN} pull check", int(args.get("check_limit_s", 900)))
+        ctx.save("pull-check.out", chk.out + chk.err)
+        c = last_json(chk.out) or {}
+        if c.get("result") != "plan":
+            self.row(ctx, tv, exp, c.get("result") or "unread", "not-reached", 0, "refused" if c.get("result") == "refused" else "fail",
+                     "; ".join(c.get("why") or []) or (chk.out + chk.err).strip()[-200:])
+            return untouched("pull-refused", "; ".join(c.get("why") or []) or (chk.out + chk.err).strip()[-300:])
+        run = sudo(ctx, f"{SETTLE_IN} pull run", int(args.get("limit_s", 3600)))
+        ctx.save("pull-run.out", run.out + run.err)
+        r = last_json(run.out) or {}
+        if r.get("result") != "done":
+            why = "; ".join(r.get("why") or []) if isinstance(r.get("why"), list) else str(r.get("why") or "")
+            self.row(ctx, tv, exp, "plan", r.get("result") or "unread", 0, "fail", why or (run.out + run.err).strip()[-200:])
+            return Outcome("pull-" + (r.get("result") or "unread"), False, why or (run.out + run.err).strip()[-300:])
+        tos = {f["name"]: f["to"] for f in r.get("folders", [])}
+        look = "".join(f"echo '== {name}'; if [ -d {shq(to)}/pull-test ]; then cd {shq(to)} && find pull-test -type f -exec sha256sum {{}} + ; "
+                       f"find pull-test -printf 'ENTRY %y %u %p\\n'; fi; " for name, to in sorted(tos.items()))
+        docs_to = tos.get("Documents", "")
+        look += (f"echo '== bookmarks'; ls -1 {shq(docs_to)} 2>/dev/null | grep '^Bookmarks from Windows' | sed 's/^/MARKS /'; "
+                 "echo '== after'; echo \"MOUNTED=$(findmnt -n /run/upgrade_/pull-windows >/dev/null && echo yes || echo no)\"; "
+                 "echo \"MAPPED=$([ -e /dev/mapper/upgrade_-pull-windows ] && echo yes || echo no)\"; "
+                 "echo \"KEY_LEFT=$([ -e /var/lib/upgrade_/artifacts/credentials/bitlocker-C.txt ] && echo yes || echo no)\"; echo \"PERSON=$SUDO_USER\"")
+        seen = sudo(ctx, look, 600)
+        ctx.save("landed.txt", seen.out + seen.err)
+        got, entries, owners, folder = {}, set(), set(), None
+        for l in seen.out.splitlines():
+            if l.startswith("== "):
+                folder = l[3:].strip()
+            elif l.startswith("ENTRY "):
+                _, _kind, owner, path = l.split(" ", 3)
+                entries.add((folder, path))
+                owners.add(owner)
+            elif re.match(r"^[0-9a-f]{64}  ", l):
+                got[(folder, l[66:])] = l[:64]
+        sv = kv_lines(seen.out)
+        want = {(e["folder"], e["rel"]): e["sha256"] for e in exp["copy"]}
+        missing = sorted(f"{k[0]}/{k[1]}" for k in want if k not in got)
+        differ = sorted(f"{k[0]}/{k[1]}" for k in want if k in got and got[k] != want[k])
+        extra = sorted(f"{k[0]}/{k[1]}" for k in got if k not in want)
+        wrongly = sorted(n for n in exp.get("not_copied", []) if ("Documents", n) in entries)
+        marks_seen = [l[6:] for l in seen.out.splitlines() if l.startswith("MARKS ")]
+        marks_missing = sorted(b for b in (exp.get("bookmarks") or {}) if not any(b in m for m in marks_seen))
+        strangers = sorted(o for o in owners if o != sv.get("PERSON"))
+        again = sudo(ctx, f"{SETTLE_IN} pull run", 900)
+        ctx.save("pull-again.out", again.out + again.err)
+        a = last_json(again.out) or {}
+        faults = []
+        if missing:
+            faults.append(f"{len(missing)} planted file(s) did not arrive (the first: {missing[0]})")
+        if differ:
+            faults.append(f"{len(differ)} arrived with other bytes (the first: {differ[0]})")
+        if extra:
+            faults.append(f"{len(extra)} file(s) arrived that were not planted to be copied (the first: {extra[0]})")
+        if wrongly:
+            faults.append("copied though it must not be: " + ", ".join(wrongly))
+        if marks_missing:
+            faults.append("no bookmarks file for " + ", ".join(marks_missing))
+        if strangers:
+            faults.append("copied files belong to " + ", ".join(strangers) + ", not the person")
+        if sv.get("MOUNTED") != "no" or sv.get("MAPPED") != "no":
+            faults.append("Windows' drive was left open after the copy")
+        if a.get("result") != "nothing-to-do":
+            faults.append(f"a second run said {a.get('result') or 'nothing readable'}, not nothing-to-do")
+        n_ok = len(want) - len(missing) - len(differ)
+        marks = " ".join(f"{b}={n}" for b, n in (exp.get("bookmarks") or {}).items())
+        self.row(ctx, tv, exp, "plan", "done", n_ok, "fail" if faults else ("pass" if link.kind == "ssh" else "pass-plumbing"),
+                 "; ".join(faults) or "no OneDrive-only files planted (R43's residue stays owed); a second run found nothing to do; the one click test manager's stage",
+                 key_deleted="yes" if sv.get("KEY_LEFT") == "no" else "no", marks=marks)
+        if faults:
+            return Outcome("files-differ", False, "; ".join(faults))
+        return Outcome("files-brought", True, f"settle-in's own copy brought all {len(want)} planted files into the person's folders, each identical (sha256); "
+                       f"the {len(exp.get('not_copied', []))} links and settings files were not copied; bookmarks written for {marks or 'none'}; "
+                       f"Windows' drive closed again; a second run found nothing to do; {tv.get('OS', '')}, {tv.get('NTFS3G', '')}; no OneDrive-only files were planted")
+
+    def row(self, ctx, tv, exp, check, run, n_ok, result, notes, key_deleted="", marks=""):
+        """This stage's own line for v3-pull.csv, kept in the stage folder."""
+        facts = run_facts(ctx)
+        machine = " ".join(x for x in (facts.get("manufacturer"), facts.get("model")) if x)
+        firmware = " ".join(x for x in (facts.get("bios_vendor"), facts.get("bios_version")) if x)
+        with open(os.path.join(REPO, "settle-in", "Cargo.toml"), encoding="utf-8") as f:
+            sv = re.search(r'^version = "([^"]+)"', f.read(), re.M).group(1)
+        ctx.save("v3-pull.row.csv", csv_line([
+            utc()[:10], f"oneclick {VERSION} pull", firmware, f"installed {tv.get('OS', 'Linux')} (alongside), {machine}",
+            f"settle-in {sv}", exp.get("windows_build", ""), tv.get("KERNEL", ""), tv.get("CRYPTSETUP", "").replace("cryptsetup ", "").split(" ")[0],
+            tv.get("NTFS3G", ""), "0", len(exp["copy"]), n_ok, 0, 0, "none planted", marks, key_deleted, check, run, result, notes]))
+
+
+def shq(text):
+    """One shell word."""
+    return "'" + str(text).replace("'", "'\"'\"'") + "'"
+
+
+RECLAIM_STATE = ("echo \"BOOT=$(efibootmgr 2>/dev/null | grep -E '^(BootNext|BootOrder|Boot[0-9A-F]{4})' | sha256sum | cut -c1-64)\"; "
+                 "D=/dev/$(lsblk -no PKNAME \"$(findmnt -no SOURCE /)\" | head -1); echo \"DISK=$D\"; "
+                 "echo \"TABLE=$(sfdisk -d $D 2>/dev/null | sha256sum | cut -c1-64)\"; echo \"DISK_BYTES=$(blockdev --getsize64 $D)\"; "
+                 "echo \"RECORDS=$(cat /var/lib/upgrade_/job.json /var/lib/upgrade_/outcome.json | sha256sum | cut -c1-64)\"; "
+                 "echo \"WINMOUNT=$(findmnt -n /run/upgrade_/reclaim-windows >/dev/null && echo yes || echo no)\"")
+
+# The planted faults (VALIDATION V15), each made by changing what the fault is about and
+# nothing else, on the RIG only, and put back after the check. arm -> (what is planted,
+# words the refusal must carry).
+RECLAIM_PLANTS = {
+    "wrong-guid": ("outcome", "d['windows']['partition']['guid'] = '0fc63daf-0000-4000-8000-00000000beef'", "is not on the disk Linux runs from"),
+    "drive-health": ("job", "d['storage']['physical_disk']['health_status'] = 'Warning'", "did not report itself healthy"),
+    "bitlocker-locked": ("job", "d['harvest']['bitlocker']['status'] = 'on'", "locked with BitLocker"),
+    "other-profiles": ("windows", None, "other people's accounts are on Windows"),
+}
+
+
+class ReclaimCheck:
+    """Reclaim's own check (settle-in reclaim check; R41, V15): what it would
+    delete, or why it refuses. It writes nothing and arms nothing, and this
+    stage holds it to that: the firmware's entries, the partition table and
+    the install's records are the same after as before. With "arm" in the
+    plan, one fault is planted first (the rig only) and put back after."""
+    writes = False
+    needs = ("password",)
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "linux":
+            return untouched("wrong-system", "reclaim is checked from the installed Linux")
+        arm = args.get("arm", "as-found")
+        want = args.get("expect", "refused")
+        must = list(args.get("expect_why", []))
+        if arm != "as-found":
+            if arm not in RECLAIM_PLANTS:
+                return untouched("manager-error", f"no planted fault is named {arm}")
+            if link.kind != "hyperv":
+                return untouched("plant-refused", "a fault is planted on the rig only, never on a real machine")
+            must.append(RECLAIM_PLANTS[arm][2])
+        before = kv_lines(sudo(ctx, RECLAIM_STATE, 120).out)
+        planted = self.plant(ctx, arm) if arm != "as-found" else None
+        if planted is False:
+            self.unplant(ctx, arm)
+            return untouched("plant-failed", f"the {arm} fault could not be planted: read plant.out")
+        try:
+            chk = sudo(ctx, f"{SETTLE_IN} reclaim check", int(args.get("limit_s", 900)))
+        finally:
+            if arm != "as-found":
+                put_back = self.unplant(ctx, arm)
+        ctx.save("reclaim-check.out", chk.out + chk.err)
+        c = last_json(chk.out) or {}
+        after = kv_lines(sudo(ctx, RECLAIM_STATE, 120).out)
+        ctx.save("state.txt", "before " + json.dumps(before, sort_keys=True) + "\nafter  " + json.dumps(after, sort_keys=True) + "\n")
+        why = [str(w) for w in (c.get("why") or [])]
+        result = c.get("result") or "unread"
+        faults = []
+        for k in ("BOOT", "TABLE", "RECORDS"):
+            if not before.get(k) or before.get(k) != after.get(k):
+                faults.append({"BOOT": "the firmware's start entries", "TABLE": "the partition table", "RECORDS": "the install's records"}[k] + " changed across the check")
+        if after.get("WINMOUNT") != "no":
+            faults.append("Windows' drive was left mounted after the check")
+        if arm != "as-found" and not put_back:
+            faults.append("the planted fault could not be put back: read plant.out")
+        if result != want:
+            faults.append(f"the check said {result}, the plan expects {want}")
+        absent = [m for m in must if not any(m in w for w in why)]
+        if result == "refused" and absent:
+            faults.append("the refusal does not carry: " + " / ".join(absent))
+        if arm != "as-found":
+            self.row(ctx, arm, before, c, result, faults)
+        words = "; ".join(why)[:400] if why else ""
+        if faults:
+            return Outcome("reclaim-check-wrong", False, "; ".join(faults) + (f" | it said: {words}" if words else ""))
+        if result == "refused":
+            return Outcome("reclaim-refused", True, f"{'planted fault ' + arm if arm != 'as-found' else 'the computer as found'}: reclaim's check refused "
+                           f"({len(why)} reason(s): {words}); nothing was armed, and the firmware's entries, the partition table and the install's records are unchanged")
+        return Outcome("reclaim-plan-made", True, f"the computer as found: reclaim's check gave a plan (it would delete {c.get('deleted_bytes', '?')} bytes of Windows "
+                       f"and move Linux {((c.get('move') or {}).get('shift_sectors', '?'))} sectors); nothing was armed or changed. The move itself is not run by this stage")
+
+    def plant(self, ctx, arm):
+        where, edit, _ = RECLAIM_PLANTS[arm]
+        if where == "windows":
+            script = ("set -e; G=$(python3 -c \"import json; print(json.load(open('/var/lib/upgrade_/outcome.json'))['windows']['partition']['guid'])\"); "
+                      "mkdir -p /run/upgrade_-plant; mount -t ntfs-3g /dev/disk/by-partuuid/$G /run/upgrade_-plant; "
+                      "mkdir '/run/upgrade_-plant/Users/someone-else'; echo planted > '/run/upgrade_-plant/Users/someone-else/a-file.txt'; "
+                      "umount /run/upgrade_-plant; echo PLANTED=yes")
+        else:
+            f = f"/var/lib/upgrade_/{where}.json"
+            script = (f"set -e; cp -p {f} {f}.upgrade_-plant-keep; python3 - <<'PY'\nimport json\nd = json.load(open('{f}'))\n{edit}\n"
+                      f"json.dump(d, open('{f}', 'w'), indent=1)\nPY\necho PLANTED=yes")
+        r = sudo(ctx, script, 300)
+        ctx.save("plant.out", r.out + r.err)
+        return "PLANTED=yes" in r.out
+
+    def unplant(self, ctx, arm):
+        where = RECLAIM_PLANTS[arm][0]
+        if where == "windows":
+            script = ("G=$(python3 -c \"import json; print(json.load(open('/var/lib/upgrade_/outcome.json'))['windows']['partition']['guid'])\"); "
+                      "mkdir -p /run/upgrade_-plant; mountpoint -q /run/upgrade_-plant || mount -t ntfs-3g /dev/disk/by-partuuid/$G /run/upgrade_-plant; "
+                      "rm -rf '/run/upgrade_-plant/Users/someone-else'; [ ! -e '/run/upgrade_-plant/Users/someone-else' ] && G1=gone; "
+                      "umount /run/upgrade_-plant && rmdir /run/upgrade_-plant; echo \"PUT_BACK=${G1:-no}\"")
+        else:
+            f = f"/var/lib/upgrade_/{where}.json"
+            script = f"if [ -e {f}.upgrade_-plant-keep ]; then mv -f {f}.upgrade_-plant-keep {f} && echo PUT_BACK=gone; else echo PUT_BACK=gone; fi"
+        r = sudo(ctx, script, 300)
+        with open(os.path.join(ctx.stage_dir, "plant.out"), "a", encoding="utf-8") as f:
+            f.write("\n--- put back\n" + r.out + r.err)
+        return "PUT_BACK=gone" in r.out
+
+    def row(self, ctx, arm, before, c, result, faults):
+        """This stage's own line for r41-reclaim.csv, kept in the stage folder."""
+        facts = run_facts(ctx)
+        machine = " ".join(x for x in (facts.get("manufacturer"), facts.get("model")) if x)
+        firmware = " ".join(x for x in (facts.get("bios_vendor"), facts.get("bios_version")) if x)
+        with open(os.path.join(REPO, "settle-in", "Cargo.toml"), encoding="utf-8") as f:
+            sv = re.search(r'^version = "([^"]+)"', f.read(), re.M).group(1)
+        ok = result == "refused" and not faults
+        notes = ("settle-in reclaim check, the fault planted and put back by the one click test manager; nothing armed, firmware entries, table and records unchanged; "
+                 + "; ".join(str(w) for w in (c.get("why") or []))) if ok else "; ".join(faults)
+        ctx.save("r41-reclaim.row.csv", csv_line([
+            utc(), f"oneclick {VERSION} reclaim-check", machine, firmware, sv, arm, before.get("DISK_BYTES", ""), "", str(64 << 20),
+            result if result == "refused" else "not-started", ("pass" if ctx.link.kind == "ssh" else "pass-plumbing") if ok else "fail", notes[:600]]))
+
+
 # --- one stick, no swaps -----------------------------------------------------
 #
 # Decided (2026-11-15, the owner): one stick on the way back too, and a test
@@ -1352,7 +1682,8 @@ class KitStick:
 
 STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(), "rollback-existing": Rollback(),
           "stick-left-in": StickLeftIn(), "clean-slate": CleanSlate(), "stick-left-in-erased": StickLeftIn(),
-          "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown(), "kit-stick": KitStick()}
+          "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown(), "kit-stick": KitStick(),
+          "plant-files": PlantFiles(), "pull": Pull(), "reclaim-check": ReclaimCheck()}
 
 
 def stage_impl(name):

@@ -1,6 +1,6 @@
 {
   "plan": "aspire-one-stick",
-  "version": 2,
+  "version": 3,
   "machine": "acer-aspire-a515-51g",
   "desktop": "kde",
   "why_desktop": "Fedora 44 with KDE, the desktop every Fedora run on the Aspire has used",
@@ -26,6 +26,10 @@
       "fetch": true
     },
     {
+      "stage": "plant-files",
+      "why": "known files in Windows before the job is written, so the product's own harvest counts them and the copy can be held to them"
+    },
+    {
       "stage": "look",
       "expect": [
         "GREEN",
@@ -44,6 +48,19 @@
     {
       "stage": "stick-left-in",
       "why": "people forget the stick: it must not install again"
+    },
+    {
+      "stage": "pull",
+      "why": "the file copy (V3): settle-in's own command, then every planted file hashed where it landed; a second run must find nothing to do"
+    },
+    {
+      "stage": "reclaim-check",
+      "expect": "refused",
+      "why": "the Aspire can only refuse (RISKS R41): its conversion carries the data-loss sentence and its second disk holds a Windows drive. The check writes nothing and arms nothing; the stage holds it to that",
+      "expect_why": [
+        "that sentence does not cover reclaim",
+        "another internal disk holds a Windows drive"
+      ]
     },
     {
       "stage": "rollback",
@@ -90,5 +107,6 @@
   ],
   "why_no_sleep_lock": "the two-stick plans held a sleep lock of the test's through the walk-away (settle-in held none then). settle-in holds its own since roadmap item 16, so this plan takes none",
   "why_retry": "a stage that stops is tried again in the same run (oneclick.py retry), with the approvals typed at kickoff",
-  "why_no_cancel": "the owner, 2026-11-02: the last click in the window is the commit line; no countdown and no cancel after it"
+  "why_no_cancel": "the owner, 2026-11-02: the last click in the window is the commit line; no countdown and no cancel after it",
+  "why_files": "the file copy and reclaim's check sit after the install beside Windows and before the rollback: the copy refuses once Windows starts first again (the owner's prompt, 2026-11-17: plan them into the run order after a keep-Windows install)"
 }

@@ -153,7 +153,16 @@ try { if (@(Get-WinEvent -FilterHashtable @{ LogName="System"; Id=98; StartTime=
     guest "New-Item -ItemType Directory -Force -Path C:\\upgrade_\\v1 | Out-Null; & ${L}:\\upgrade-job.exe harvest-settings --out C:\\upgrade_\\v1\\settings.json --out-dir ${L}:\\upgrade_" | tee "$A/settings-harvest.log"
     guest 'Get-Content C:\upgrade_\v1\settings.json -Raw' > "$A/settings.json"
     python3 -c 'import json,sys; json.load(open(sys.argv[1], encoding="utf-8-sig"))' "$A/settings.json" || { echo "v1: the guest's clock + Wi-Fi harvest gave no JSON - read $A/settings-harvest.log" >&2; exit 1; }
-    python3 v1-job.py "$A/facts.json" "$HASH" "$A/job.json" "$SUID" "$SSIZE" "$A/settings.json"
+    # ONECLICK_FOLDER_MAP (the one click test's file copy, 2026-11-18): the product's own harvester counts
+    # the account's folders in the guest, and the job carries that count, as the job writer's would
+    FMAP=()
+    if [ -n "${ONECLICK_FOLDER_MAP:-}" ]; then
+        guest "& ${L}:\\upgrade-harvest.exe folder-map --out C:\\upgrade_\\v1\\folder-map.json" | tee "$A/folder-map.log"
+        guest 'Get-Content C:\upgrade_\v1\folder-map.json -Raw' > "$A/folder-map.json"
+        python3 -c 'import json,sys; json.load(open(sys.argv[1], encoding="utf-8-sig"))["UserFolders"]' "$A/folder-map.json" || { echo "v1: the guest's folder map gave no JSON - read $A/folder-map.log" >&2; exit 1; }
+        FMAP=("$A/folder-map.json")
+    fi
+    python3 v1-job.py "$A/facts.json" "$HASH" "$A/job.json" "$SUID" "$SSIZE" "$A/settings.json" "${FMAP[@]}"
     "$KICKSTART" --job "$A/job.json" --out "$A/ks.cfg" --label UPGV0 --manifest "$KIT/SHA256SUMS" < /dev/null | tr -d '\r'
     L=$(stick_letter); [ -n "$L" ] || { echo "v1: no UPGV0 volume in the guest" >&2; exit 1; }
     PS copy "$(wslpath -w "$A/job.json")" "${L}:\\upgrade_\\job.json" | tr -d '\r'
