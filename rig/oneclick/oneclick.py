@@ -47,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.4.1"
+VERSION = "0.4.2"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -1710,14 +1710,30 @@ class KitStick:
         if not args.get("fetch"):
             return Outcome("kit-stick-written", True, notes)
         lx = ctx.plan.get("linux") or {}
-        g = link.run(f"& {L}\\upgrade-fetch.exe get --release {lx.get('release', '')} --desktop {lx.get('desktop', '')}" +
-                     (f" --from {args['fetch_from']}" if args.get("fetch_from") else "") + "; Write-Output \"FETCH_RC=$LASTEXITCODE\"",
-                     "windows", int(args.get("fetch_limit_s", 14400)))
-        ctx.save("fetch.out", clean(g.out + g.err))
+        # On the machine's own desktop, as the window runs it, and not inside the manager's connection: on
+        # 2026-11-18 the Aspire did not answer for a minute while the fetch read the stick back, the
+        # connection closed, and the fetch died with it. A task there goes on; the manager takes it up again.
+        if not wait_signed_in(ctx, int(args.get("signin_limit_s", 21600))):
+            return Outcome("nobody-signed-in", False, notes + "; nobody was signed in on the machine's screen, so the Linux was not fetched")
+        limit = int(args.get("fetch_limit_s", 10800))
+        g = on_desktop(link, f"{L}\\upgrade-fetch.exe get --release {lx.get('release', '')} --desktop {lx.get('desktop', '')}" +
+                       (f" --from {args['fetch_from']}" if args.get("fetch_from") else ""), "DESKTOP_RC=", limit)
+        fetched = g.out + g.err
+        if "DESKTOP_RC=" not in g.out:
+            ctx.note("the manager's connection closed while the fetch ran on the machine; waiting for the fetch's own end there", out=fetched[-200:])
+
+            def ended():
+                r = link.run(f"Get-Content {DESKTOP_DIR}\\desktop.log -Raw -ErrorAction SilentlyContinue", "windows", 120)
+                return r.out if "DESKTOP_RC=" in r.out else None
+            again = ctx.wait_for("the fetch, which goes on at the machine's desktop", ended, limit, every_s=60)
+            if again:
+                fetched = again
+                notes += "; the manager's connection closed during the fetch and was taken up again (the fetch ran on at the machine)"
+        ctx.save("fetch.out", clean(fetched))
         ok, said = fetch_status(ctx)
         ctx.save("fetch-status.out", said)
-        if kv_lines(g.out).get("FETCH_RC") != "0" or not ok:
-            return Outcome("linux-not-fetched", False, clean(g.out + g.err).strip()[-300:])
+        if not re.search(r"DESKTOP_RC=0\b", fetched) or not ok:
+            return Outcome("linux-not-fetched", False, clean(fetched).strip()[-300:])
         return Outcome("kit-stick-written", True, notes + f"; the manager fetched {lx.get('release')} ({lx.get('desktop')}) onto it with the window's own call"
                        + (" from a local copy (--from)" if args.get("fetch_from") else ""))
 

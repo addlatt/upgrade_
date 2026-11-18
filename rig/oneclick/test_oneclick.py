@@ -1113,7 +1113,7 @@ class KitStickTests(unittest.TestCase):
         self.addCleanup(setattr, oneclick, "REPO", self._repo)
         self.kit = kit
 
-    def run_stage(self, args=None, secrets=None, writer_rc=0, tar_ok=True, usb_bytes=15728640000, fetch_rc=0, plan=None):
+    def run_stage(self, args=None, secrets=None, writer_rc=0, tar_ok=True, usb_bytes=15728640000, fetch_rc=0, plan=None, drop=False):
         link_box = []
 
         def answer(script):
@@ -1126,6 +1126,12 @@ class KitStickTests(unittest.TestCase):
                 return tr.Result(0, ("  written and verified: 31 files on E:\n" if writer_rc == 0 else "  confirmation did not match. nothing written.\n") + f"WRITER_RC={writer_rc}\n", "")
             if "TARGET=" in script:
                 return tr.Result(0, f"TARGET={self.ID}\nBYTES={usb_bytes}\nMODEL=General UDisk\nLABEL=WINSETUP\n", "")
+            if "explorer.exe" in script:
+                return tr.Result(0, "SIGNED_IN\n", "")
+            if "Start-ScheduledTask" in script:   # the fetch, on the machine's desktop
+                return tr.Result(255, "fetch: progress 1 2\n", "Timeout, server not responding.") if drop else tr.Result(0, f"fetch: ready\nDESKTOP_RC={fetch_rc}\n", "")
+            if "desktop.log -Raw" in script:      # taken up again after a closed connection
+                return tr.Result(0, f"fetch: ready\nDESKTOP_RC={fetch_rc}\n", "")
             if "upgrade-fetch.exe" in script:
                 return tr.Result(0, f"FETCH_RC={fetch_rc}\n", "")
             if "STICK=$L" in script:
@@ -1189,9 +1195,20 @@ class KitStickTests(unittest.TestCase):
         plan = {"heartbeat_s": 300, "linux": {"release": "ubuntu-26.04.1", "desktop": "gnome"}}
         o, link, _ = self.run_stage({"after_walkaway": True, "fetch": True}, plan=plan)
         self.assertEqual((o.word, o.expected), ("kit-stick-written", True), o.notes)
-        self.assertTrue([x for x in link.commands if "E:\\upgrade-fetch.exe get --release ubuntu-26.04.1 --desktop gnome" in x])
+        import base64
+        tasks = [base64.b64decode(re.search(r"FromBase64String\('([^']+)'\)", x).group(1)).decode() for x in link.commands if "Start-ScheduledTask" in x]
+        self.assertTrue([b for b in tasks if "E:\\upgrade-fetch.exe get --release ubuntu-26.04.1 --desktop gnome" in b], "the fetch runs on the machine's desktop")
         self.assertTrue([x for x in link.commands if "upgrade-fetch.exe\" status --release ubuntu-26.04.1 --desktop gnome" in x])
         o, _, _ = self.run_stage({"fetch": True}, plan=plan, fetch_rc=1)
+        self.assertEqual((o.word, o.expected), ("linux-not-fetched", False))
+
+    def test_a_closed_connection_does_not_end_the_fetch_the_manager_takes_it_up_again(self):
+        # the Aspire, 2026-11-18: no answer for a minute while the fetch read the stick back
+        plan = {"heartbeat_s": 300, "linux": {"release": "fedora-44", "desktop": "kde"}}
+        o, link, _ = self.run_stage({"fetch": True}, plan=plan, drop=True)
+        self.assertEqual((o.word, o.expected), ("kit-stick-written", True), o.notes)
+        self.assertIn("taken up again", o.notes)
+        o, _, _ = self.run_stage({"fetch": True}, plan=plan, drop=True, fetch_rc=1)
         self.assertEqual((o.word, o.expected), ("linux-not-fetched", False))
 
     def test_the_stage_asks_for_the_word_that_fits_where_it_sits(self):
