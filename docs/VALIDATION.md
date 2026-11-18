@@ -841,8 +841,10 @@ images (settle-in's tests: the plan, and the move cut at every chunk). Then
 the rig: a Hyper-V keep-Windows guest, reclaimed, power cut by the host.
 Then a real machine with a healthy drive.
 
-**Where it stands.** `[#...]` planned (2026-11-02,
-[log](log/2026-11.md#2026-11-02-reclaim-decided-delete-everything-on-a-typed-sentence-move-linux-into-the-space-r41-v15)).
+**Where it stands.** `[#...]` planned: the move has no bench yet (the arm
+wants a USB stick, Hyper-V has none). The check's refusals for four planted
+faults are in `r41-reclaim.csv` lines 2 to 5
+([log](log/2026-11.md#2026-11-17-to-2026-11-18-one-stick-with-no-hand-ubuntus-whole-run-on-the-aspire-the-file-copy-and-reclaims-check-on-the-rig-r16-r21-r23-r33-r36-r37-r41-r43-v3-v11-v15-v18-roadmap-items-21-and-23)).
 
 ## V16: The key step enrolls Bazzite's key, or refuses with nothing erased · kills: Bazzite with Secure Boot on · RISKS R42 · planned
 
