@@ -47,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.4.3"
+VERSION = "0.4.4"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -2163,7 +2163,21 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None, password_from=None
     run_dir = os.path.join(root or runs_root(), f"{plan.get('machine', 'machine')}-{stamp()}")
     os.makedirs(run_dir, exist_ok=False)
     if (follow if follow is not None else link.kind == "ssh") and not tr.seed_follow(link.host, run_dir, plan.get("machine", "machine"), out):
-        out("  (the run reaches the machine as `ssh " + link.host + "` does; a new address or key stops it)")
+        took = False
+        if password_from:
+            # The Linux an earlier run installed answers with its own key, often at its own address, so
+            # the owner's login finds nothing. That run's manager proved both by the machine's identity:
+            # this run goes on with what it proved (the Aspire, 2026-11-18).
+            em, ek = os.path.join(password_from, "machine.json"), os.path.join(password_from, "known_hosts")
+            if os.path.exists(em) and os.path.exists(ek) and load(password_from)[0]["plan"].get("machine") == plan.get("machine"):
+                shutil.copy(em, os.path.join(run_dir, "machine.json"))
+                fd = os.open(os.path.join(run_dir, "known_hosts"), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as f, open(ek, encoding="utf-8") as g:
+                    f.write(g.read())
+                took = True
+                out(f"oneclick: following the machine with the identity, address and keys the run {os.path.basename(password_from)} proved")
+        if not took:
+            out("  (the run reaches the machine as `ssh " + link.host + "` does; a new address or key stops it)")
     commit = subprocess.run(["git", "-C", REPO, "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
     with open(os.path.join(run_dir, "run.json"), "w", encoding="utf-8") as f:
         json.dump({"manager": VERSION, "commit": commit, "created": utc(), "transport": spec, "plan": plan}, f, indent=2)

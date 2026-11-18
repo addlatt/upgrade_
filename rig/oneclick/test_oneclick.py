@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import oneclick  # noqa: E402
@@ -471,6 +472,26 @@ class KickoffTests(unittest.TestCase):
         tail = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: s, out=lambda *_: None, root=os.path.join(self.tmp, "t"), password_from=first)
         with open(os.path.join(first, "secrets.json")) as f, open(os.path.join(tail, "secrets.json")) as g:
             self.assertEqual(json.load(f)["password"], json.load(g)["password"])
+
+    def test_a_tail_run_follows_the_machine_as_the_earlier_run_proved_it(self):
+        # the Aspire, 2026-11-18: the installed Linux answers with its own key at its own address,
+        # so the owner's login finds nothing at kickoff
+        s = oneclick.sentence("erase")
+        with mock.patch.object(tr, "seed_follow", return_value=False):
+            first = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: s, out=lambda *_: None, root=self.tmp, follow=True)
+            self.assertFalse(os.path.exists(os.path.join(first, "machine.json")))
+            with open(os.path.join(first, "machine.json"), "w") as f:
+                json.dump({"alias": "oneclick-fake", "address": "10.0.0.7"}, f)
+            with open(os.path.join(first, "known_hosts"), "w") as f:
+                f.write("oneclick-fake ssh-ed25519 AAAA\n")
+            said = []
+            tail = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: s, out=lambda *a: said.append(" ".join(map(str, a))),
+                                    root=os.path.join(self.tmp, "t"), password_from=first, follow=True)
+        with open(os.path.join(tail, "machine.json")) as f:
+            self.assertEqual(json.load(f)["address"], "10.0.0.7")
+        self.assertEqual(open(os.path.join(tail, "known_hosts")).read(), "oneclick-fake ssh-ed25519 AAAA\n")
+        self.assertEqual(os.stat(os.path.join(tail, "known_hosts")).st_mode & 0o777, 0o600)
+        self.assertTrue([x for x in said if "the run " + os.path.basename(first) + " proved" in x], said)
 
     def test_a_sentence_missing_from_the_source_refuses(self):
         os.makedirs(os.path.join(self.tmp, "evaluate/job/src"))
