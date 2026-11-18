@@ -1,6 +1,6 @@
 {
   "plan": "aspire-one-stick",
-  "version": 1,
+  "version": 2,
   "machine": "acer-aspire-a515-51g",
   "desktop": "kde",
   "why_desktop": "Fedora 44 with KDE, the desktop every Fedora run on the Aspire has used",
@@ -8,9 +8,9 @@
     "release": "fedora-44",
     "desktop": "kde"
   },
-  "why_linux": "the Linux the owner picks in the window at the start, and the one the manager fetches again after the walk-away",
+  "why_linux": "the Linux the manager fetches onto the stick with the window's own call (upgrade-fetch get), at the start and again after the walk-away",
   "stick": "one stick for the whole run, never taken out (decided 2026-11-15, the owner). The kit is built once (./make-kit.sh --release none) and every kit-stick stage writes that same kit",
-  "owner_touches": "one: the window at the start (pick the Linux). Everything typed at kickoff is typed at the manager's own computer",
+  "owner_touches": "none (the owner, 2026-11-17: the fill is part of the test). Version 1 of this plan waited for the owner to pick the Linux in the window; the window's own picker is not exercised by this plan (V12 is its gate)",
   "why_this_order": "most likely in the wild first (the owner, 2026-10-27); state forces the rollback before the erase and the refusal after the walk-away",
   "heartbeat_s": 300,
   "test_password": "password",
@@ -22,7 +22,8 @@
   "stages": [
     {
       "stage": "kit-stick",
-      "why": "the kit onto the one stick, in the machine itself: the stick is never carried to another computer"
+      "why": "the kit onto the one stick, in the machine itself, and the Linux fetched onto it: the stick is never carried to another computer and no hand fills it",
+      "fetch": true
     },
     {
       "stage": "look",
@@ -31,10 +32,7 @@
         "YELLOW",
         "RED"
       ],
-      "limit_s": 900,
-      "owner_step": "At the Aspire: open the stick in File Explorer and start UPGRADE. On the red screen type the sentence it shows, pick Fedora 44 with KDE, wait until the download is finished, then close the window.",
-      "owner_check": "linux-on-stick",
-      "why_owner_step": "the owner fills the stick through the window, as a person does; the manager sees the fetch program say the stick carries the Linux and goes on"
+      "limit_s": 900
     },
     {
       "stage": "keep-windows",

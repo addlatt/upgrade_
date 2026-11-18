@@ -1242,12 +1242,13 @@ class OneStickPlanTests(unittest.TestCase):
             self.assertTrue(p["stages"][8]["after_walkaway"], name)
             self.assertTrue(all(s["stage"] in oneclick.STAGES for s in p["stages"]), name)
 
-    def test_the_aspire_is_touched_once_at_the_window(self):
+    def test_the_aspire_is_never_touched(self):
+        # the owner, 2026-11-17: the fill is part of the test, so the manager fetches the Linux both times
         for name, release in (("aspire-ubuntu-one-stick.json", "ubuntu-26.04.1"), ("aspire-one-stick.json", "fedora-44")):
             p = self.plan(name)
-            steps = [(i, s["owner_check"]) for i, s in enumerate(p["stages"]) if s.get("owner_step")]
-            self.assertEqual(steps, [(1, "linux-on-stick")], name)
+            self.assertFalse([s for s in p["stages"] if s.get("owner_step")], name)
             self.assertEqual(p["linux"]["release"], release)
+            self.assertTrue(p["stages"][0]["fetch"], "at the start the manager fetches the Linux itself")
             self.assertTrue(p["stages"][8]["fetch"], "after the walk-away the manager fetches the Linux itself")
             self.assertEqual(oneclick.plan_needs(p["stages"]), ["data-loss", "erase", "kit-stick", "kit-stick-after-walkaway", "password", "walkaway",
                                                                 "walkaway-account", "walkaway-stick"], name)
