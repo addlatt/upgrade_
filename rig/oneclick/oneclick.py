@@ -47,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -1227,11 +1227,70 @@ def csv_line(values):
 
 
 def run_facts(ctx):
+    """The machine's facts as promote reads them: the run's own, or a look
+    stage's (the rig is off at the run's start: 2026-11-18, the first rows
+    of the new stages named no machine)."""
+    import rows
     try:
-        with open(os.path.join(ctx.run_dir, "facts.json"), encoding="utf-8") as f:
-            return json.load(f)
+        return rows.find_facts(ctx.run_dir)[0]
     except (OSError, ValueError):
         return {}
+
+
+STAGE_ROW_FILES = {"v3-pull.row.csv": ("v3-pull.csv", "pull"), "r41-reclaim.row.csv": ("r41-reclaim.csv", "reclaim")}
+
+
+def stage_rows(run_dir, results_dir=None, out=print):
+    """The lines the pull and reclaim-check stages wrote for their own CSVs
+    (v3-pull.csv, r41-reclaim.csv), appended there once per run. A line that
+    names no machine or firmware (manager 0.4.0 on the rig) is given the
+    run's own facts, the ones promote uses; nothing else is touched."""
+    import csv
+    import io
+    import rows
+    results_dir = results_dir or os.path.join(REPO, "docs", "validation-results")
+    marker = os.path.join(run_dir, ".stage-rows")
+    if os.path.exists(marker):
+        out(f"stage-rows: REFUSED - this run's stage rows were already written ({open(marker).read().strip()})")
+        return 2
+    facts = rows.find_facts(run_dir)[0]
+    machine = " ".join(x for x in (facts.get("manufacturer"), facts.get("model")) if x)
+    firmware = " ".join(x for x in (facts.get("bios_vendor"), facts.get("bios_version")) if x)
+    said = []
+    stages = os.path.join(run_dir, "stages")
+    for name, (target, kind) in STAGE_ROW_FILES.items():
+        lines = []
+        for d in sorted(os.listdir(stages)):
+            f = os.path.join(stages, d, name)
+            if not os.path.isfile(f):
+                continue
+            for row in csv.reader(open(f, encoding="utf-8", newline="")):
+                if kind == "pull":
+                    row[2] = row[2] or firmware
+                    if row[3].rstrip().endswith(","):
+                        row[3] = row[3].rstrip() + " " + machine
+                    row[-1] += f" | run {os.path.basename(os.path.normpath(run_dir))}/{d}"
+                else:
+                    row[2], row[3] = row[2] or machine, row[3] or firmware
+                    row[-1] += f" | run {os.path.basename(os.path.normpath(run_dir))}/{d}"
+                buf = io.StringIO()
+                csv.writer(buf, quoting=csv.QUOTE_MINIMAL, lineterminator="\n").writerow(row)
+                lines.append(buf.getvalue())
+        if not lines:
+            continue
+        path = os.path.join(results_dir, target)
+        with open(path, "a", encoding="utf-8", newline="") as f:
+            f.write("".join(lines))
+        with open(path, encoding="utf-8") as f:
+            last = sum(1 for _ in f)
+        said.append(f"{target} lines {last - len(lines) + 1}-{last}")
+    if not said:
+        out("stage-rows: no pull or reclaim-check stage wrote a line in this run")
+        return 1
+    with open(marker, "w", encoding="utf-8") as f:
+        f.write("; ".join(said) + "\n")
+    out("stage-rows: " + "; ".join(said))
+    return 0
 
 
 class PlantFiles:
@@ -2243,6 +2302,8 @@ def main(argv=None):
     pr.add_argument("--csv", default=os.path.join(REPO, "docs", "validation-results", "oneclick-runs.csv"))
     pr.add_argument("--facts", help="another run's facts.json, for a run that recorded none (said in the notes)")
     pr.add_argument("--dry-run", action="store_true")
+    sr = sub.add_parser("stage-rows", help="the pull and reclaim-check stages' own lines, into v3-pull.csv and r41-reclaim.csv")
+    sr.add_argument("run_dir")
     a = ap.parse_args(argv)
     if a.cmd == "kickoff":
         d = kickoff(a.plan, a.transport, password_from=a.password_from)
@@ -2262,6 +2323,8 @@ def main(argv=None):
     if a.cmd == "autologon-off":
         run, _ = load(a.run_dir)
         return 0 if autologon_off(tr.from_spec(run["transport"], a.run_dir), Journal(os.path.join(a.run_dir, "journal.jsonl"))) else 1
+    if a.cmd == "stage-rows":
+        return stage_rows(a.run_dir)
     if a.cmd == "promote":
         import rows
         return rows.promote(a.run_dir, a.csv, a.facts, a.dry_run)

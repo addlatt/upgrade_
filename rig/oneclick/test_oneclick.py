@@ -1530,5 +1530,36 @@ class WindowsAwakeTests(unittest.TestCase):
             self.assertFalse([s for s in p["stages"] if s.get("hold_awake")])
 
 
+class StageRowsTests(unittest.TestCase):
+    def test_the_stages_lines_go_to_their_csvs_once_with_the_runs_own_facts(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        run, res = os.path.join(tmp, "rig-x"), os.path.join(tmp, "res")
+        os.makedirs(os.path.join(run, "stages", "03-look"))
+        os.makedirs(os.path.join(run, "stages", "06-pull"))
+        os.makedirs(os.path.join(run, "stages", "08-reclaim-check"))
+        os.makedirs(res)
+        with open(os.path.join(run, "stages", "03-look", "facts.json"), "w") as f:
+            json.dump({"manufacturer": "Microsoft Corporation", "model": "Virtual Machine", "bios_vendor": "Microsoft Corporation", "bios_version": "Hyper-V UEFI Release v4.1"}, f)
+        with open(os.path.join(run, "stages", "06-pull", "v3-pull.row.csv"), "w") as f:
+            f.write('2026-11-18,oneclick 0.4.0 pull,,"installed Fedora (alongside), ",settle-in 0.12.0,b,k,c,n,0,7,7,0,0,none planted,Chrome=5,yes,plan,done,pass-plumbing,notes\n')
+        with open(os.path.join(run, "stages", "08-reclaim-check", "r41-reclaim.row.csv"), "w") as f:
+            f.write('2026-11-18T05:44:24Z,oneclick 0.4.0 reclaim-check,,,0.12.0,wrong-guid,8,,67108864,refused,pass-plumbing,"a, b"\n')
+        for n in ("v3-pull.csv", "r41-reclaim.csv"):
+            with open(os.path.join(res, n), "w") as f:
+                f.write("header\n")
+        said = []
+        self.assertEqual(oneclick.stage_rows(run, res, said.append), 0)
+        with open(os.path.join(res, "v3-pull.csv")) as f:
+            pull = f.read().splitlines()[1]
+        self.assertIn(',Microsoft Corporation Hyper-V UEFI Release v4.1,"installed Fedora (alongside), Microsoft Corporation Virtual Machine",', pull)
+        self.assertTrue(pull.endswith("notes | run rig-x/06-pull"))
+        with open(os.path.join(res, "r41-reclaim.csv")) as f:
+            rec = f.read().splitlines()[1]
+        self.assertIn(",Microsoft Corporation Virtual Machine,Microsoft Corporation Hyper-V UEFI Release v4.1,0.12.0,wrong-guid,", rec)
+        self.assertIn("v3-pull.csv lines 2-2; r41-reclaim.csv lines 2-2", said[0])
+        self.assertEqual(oneclick.stage_rows(run, res, said.append), 2, "never twice")
+
+
 if __name__ == "__main__":
     unittest.main()
