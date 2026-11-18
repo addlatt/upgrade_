@@ -18,6 +18,8 @@
   "test_autologon": true,
   "windows_password": "test_password",
   "why_test_autologon": "the owner, 2026-10-28 and 2026-10-31: signing in by hand after each restart is not one click; the test signs Windows in by itself, says so in every row, and switches it off when the run finishes",
+  "test_windows_awake": true,
+  "why_test_windows_awake": "the Aspire, 2026-11-18: Windows had sat idle past its sleep timer when the fetch ended, slept at that moment, and the run stopped. The product's programs each keep the computer awake while they work; the gaps between them have no person in a test. So the test switches idle sleep off in Windows, says so in every row, and puts it back at the end. These runs are therefore no evidence for R33 on the Windows side",
   "why_data_loss": "the Aspire's scan is RED (its dying drive, R23): every stage that writes a job names the sentence, so the owner types it at kickoff, never added in silence",
   "stages": [
     {

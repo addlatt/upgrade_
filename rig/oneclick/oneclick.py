@@ -1823,6 +1823,44 @@ def release_awake(ctx):
         sudo(ctx, f"systemctl stop {AWAKE_UNIT} 2>/dev/null; echo RELEASED", 60)
 
 
+WINDOWS_AWAKE = ("$q = powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE | Select-String 'Current AC Power Setting Index'; "
+                 "$was = -1; if ($q) { try { $was = [Convert]::ToInt32((\"$q\" -replace '.*0x', '').Trim(), 16) } catch { } }; "
+                 "powercfg /change standby-timeout-ac 0; powercfg /change hibernate-timeout-ac 0; Write-Output \"AWAKE_WAS=$was\"")
+
+
+def windows_awake(ctx):
+    """The plan's test_windows_awake: idle sleep on mains power switched off in
+    the machine's Windows, by the TEST, never by the product. Each of the
+    product's programs keeps the computer awake while it works (R33), and a
+    person at the keyboard covers the gaps between them. The test has no
+    person: on 2026-11-18 the Aspire had sat idle past its sleep timer when
+    the fetch ended, slept at that moment, and the manager's next call got
+    no answer. Said in the journal and in every row it was on for; put back
+    when the run finishes. True when Windows answered and took it."""
+    if ctx.link.probe() != "windows":
+        return False
+    r = ctx.link.run(WINDOWS_AWAKE, "windows", 120)
+    was = kv_lines(r.out).get("AWAKE_WAS")
+    if was is None:
+        ctx.note("test_windows_awake: Windows did not take the setting", out=(r.out + r.err)[-200:])
+        return False
+    if was not in ("0", "-1"):
+        ctx.journal.write("windows-awake", was_s=int(was))
+    return True
+
+
+def windows_awake_off(link, journal, out=print):
+    """At the run's end: the idle sleep time the test found, put back (when
+    Windows answers and a time was recorded for it)."""
+    was = [e["was_s"] for e in journal.entries() if e["event"] == "windows-awake"]
+    if not was or link.probe() != "windows":
+        return
+    r = link.run(f"powercfg /change standby-timeout-ac {max(1, was[-1] // 60)}; Write-Output AWAKE_BACK", "windows", 120)
+    journal.write("windows-awake-off", minutes=max(1, was[-1] // 60), ok="AWAKE_BACK" in r.out)
+    out(f"oneclick: Windows' idle sleep on mains power is back at {max(1, was[-1] // 60)} minutes" if "AWAKE_BACK" in r.out
+        else "oneclick: Windows' idle sleep could not be put back (the test left it off)")
+
+
 def run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=print):
     if link is not None:   # a test's made-up machine: no helper on the real computer
         return _run_chain(run_dir, link, sleep, clock, out)
@@ -1847,6 +1885,7 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
             journal.write("run-finished")
             out("oneclick: every stage ran and ended as the plan expects")
             autologon_off(link, journal, out)
+            windows_awake_off(link, journal, out)
             return 0
         if action == "wait":
             st = plan["stages"][arg]
@@ -1895,6 +1934,7 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
         autologon_before = bool(autologon_state(journal.entries()))
         out(f"oneclick: stage {i + 1} {st['stage']} ...")
         held = hold_awake(ctx) if st.get("hold_awake") else False
+        no_sleep = windows_awake(ctx) if plan.get("test_windows_awake") else False
         try:
             o = impl.run(ctx, st)
         except Exception as e:  # a manager bug is a stop, never a pass
@@ -1902,6 +1942,8 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
         if held:
             release_awake(ctx)
             o.notes = (o.notes + "; " if o.notes else "") + "the TEST held a sleep lock on Linux for this stage (settle-in holds none: 2026-10-04, 2026-10-28)"
+        if no_sleep:
+            o.notes = (o.notes + "; " if o.notes else "") + "the TEST had idle sleep off in Windows for this stage (test_windows_awake; no person is at the keyboard between the product's programs)"
         if st.get("row_note"):   # what this run's plan says a hand did before the stage: in the row, never left out
             o.notes = (o.notes + "; " if o.notes else "") + st["row_note"]
         if autologon_before or autologon_state(journal.entries()):

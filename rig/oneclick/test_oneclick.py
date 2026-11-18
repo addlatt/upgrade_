@@ -1496,5 +1496,39 @@ class ReclaimCheckTests(unittest.TestCase):
         self.assertNotIn("reclaim run", src)
 
 
+class WindowsAwakeTests(unittest.TestCase):
+    def ctx(self, answer, probes=("windows",)):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        link = ScriptLink(answer, probes=probes)
+        c = oneclick.Context(tmp, {}, {}, link, oneclick.Journal(os.path.join(tmp, "j")))
+        return c
+
+    def test_the_time_found_is_written_down_once_and_put_back_at_the_end(self):
+        was = ["900"]
+        c = self.ctx(lambda s: tr.Result(0, f"AWAKE_WAS={was[0]}\nAWAKE_BACK\n", ""))
+        self.assertTrue(oneclick.windows_awake(c))
+        was[0] = "0"   # the next stage finds the test's own setting, which is not a time to put back
+        self.assertTrue(oneclick.windows_awake(c))
+        self.assertEqual([e["was_s"] for e in c.journal.entries() if e["event"] == "windows-awake"], [900])
+        said = []
+        oneclick.windows_awake_off(c.link, c.journal, said.append)
+        self.assertIn("standby-timeout-ac 15;", c.link.commands[-1])
+        self.assertIn("15 minutes", said[0])
+
+    def test_linux_is_left_alone(self):
+        c = self.ctx(lambda s: tr.Result(0, "", ""), probes=("linux",))
+        self.assertFalse(oneclick.windows_awake(c))
+        self.assertFalse(c.link.commands)
+
+    def test_the_aspire_plans_say_so_and_the_walk_away_takes_no_lock_of_the_tests(self):
+        for name in ("aspire-ubuntu-one-stick.json", "aspire-one-stick.json"):
+            with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", name)) as f:
+                p = json.load(f)
+            self.assertTrue(p["test_windows_awake"])
+            self.assertIn("no evidence for R33 on the Windows side", p["why_test_windows_awake"])
+            self.assertFalse([s for s in p["stages"] if s.get("hold_awake")])
+
+
 if __name__ == "__main__":
     unittest.main()
