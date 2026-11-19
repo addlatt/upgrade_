@@ -47,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.4.4"
+VERSION = "0.4.5"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -627,19 +627,24 @@ def autologon_off(ctx_or_link, journal, out=print):
 def sign_in_by_itself(ctx):
     """'signed-in', 'not-signed-in' (the owner can still sign in) or
     'wrong-system' (the restart reached something else: the stage stops)."""
-    if autologon_on(ctx) != "SET":
-        return "not-signed-in"
-    before = boot_mark(ctx, "windows")
-    ctx.note("restarting Windows once so the test's automatic sign-in signs it in")
-    ctx.link.run("shutdown /r /t 5", "windows", 60)
-    got = wait_new_boot(ctx, "Windows, restarted to sign itself in", before, 1800)
-    if got != "windows":
-        ctx.note(f"after the restart for the automatic sign-in, {got or 'nothing'} answered")
-        return "wrong-system"
-    if ctx.wait_for("Windows to sign itself in", lambda: signed_in(ctx), 600, every_s=20):
-        ctx.note("the TEST signed Windows in by itself (automatic sign-in)")
-        return "signed-in"
-    ctx.note("the automatic sign-in did not reach the desktop within 10 minutes")
+    # Twice on the Aspire, 2026-11-18, both on a Windows the way back had just returned to: the
+    # setting was written, Windows restarted, did not sign in, and the setting read 0 afterwards
+    # (cause not found; it worked twice in the same place). So the test sets it once more and
+    # restarts once more before it waits for the owner, and the journal says which try signed in.
+    for attempt in (1, 2):
+        if autologon_on(ctx) != "SET":
+            return "not-signed-in"
+        before = boot_mark(ctx, "windows")
+        ctx.note("restarting Windows once so the test's automatic sign-in signs it in" + (" (second try)" if attempt == 2 else ""))
+        ctx.link.run("shutdown /r /t 5", "windows", 60)
+        got = wait_new_boot(ctx, "Windows, restarted to sign itself in", before, 1800)
+        if got != "windows":
+            ctx.note(f"after the restart for the automatic sign-in, {got or 'nothing'} answered")
+            return "wrong-system"
+        if ctx.wait_for("Windows to sign itself in", lambda: signed_in(ctx), 240 if attempt == 1 else 600, every_s=20):
+            ctx.note("the TEST signed Windows in by itself (automatic sign-in)" + (", at the second try" if attempt == 2 else ""))
+            return "signed-in"
+        ctx.note(f"the automatic sign-in did not reach the desktop (try {attempt} of 2)")
     return "not-signed-in"
 
 

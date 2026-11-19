@@ -1,6 +1,6 @@
 {
   "plan": "aspire-one-stick",
-  "version": 4,
+  "version": 5,
   "machine": "acer-aspire-a515-51g",
   "desktop": "kde",
   "why_desktop": "Fedora 44 with KDE, the desktop every Fedora run on the Aspire has used",
@@ -56,6 +56,15 @@
       "why": "the file copy (V3): settle-in's own command, then every planted file hashed where it landed; a second run must find nothing to do"
     },
     {
+      "stage": "reclaim-check",
+      "expect": "refused",
+      "why": "the Aspire can only refuse (RISKS R41): its conversion carries the data-loss sentence and its second disk holds a Windows drive. The check writes nothing and arms nothing; the stage holds it to that",
+      "expect_why": [
+        "that sentence does not cover reclaim",
+        "another internal disk holds a Windows drive"
+      ]
+    },
+    {
       "stage": "rollback",
       "why": "someone changes their mind"
     },
@@ -102,5 +111,5 @@
   "why_retry": "a stage that stops is tried again in the same run (oneclick.py retry), with the approvals typed at kickoff",
   "why_no_cancel": "the owner, 2026-11-02: the last click in the window is the commit line; no countdown and no cancel after it",
   "why_files": "the file copy and reclaim's check sit after the install beside Windows and before the rollback: the copy refuses once Windows starts first again (the owner's prompt, 2026-11-17: plan them into the run order after a keep-Windows install)",
-  "why_no_reclaim_check": "reclaim's check is read-only and can only refuse on the Aspire, but the owner says yes before anything of reclaim runs on the real machine (2026-11-17), and has not yet: the stage is left out until then"
+  "why_reclaim_check": "the owner said yes on 2026-11-18 to reclaim's read-only check on the Aspire. Only the check: nothing here arms or runs reclaim, and the move still needs the owner's yes of its own"
 }
