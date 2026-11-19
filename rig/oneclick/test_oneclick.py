@@ -1370,6 +1370,94 @@ def unsudo(script):
     return base64.b64decode(m.group(1)).decode() if m else script
 
 
+class ReclaimMoveTests(unittest.TestCase):
+    """Reclaim's move: nothing armed without a plan, and a pass only for a whole one."""
+    PLAN = {"result": "plan", "deleted_bytes": 500, "root_grows_to_bytes": 1000, "data_loss_accepted": True,
+            "move": {"shift_sectors": 64, "chunk_bytes": 67108864}}
+
+    def ctx(self, check=None, armed=True, record="reclaimed", after=None, second_check=None):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        st = {"boot": 0, "rebooted": False, "checks": 0}
+        moved = {"ROOT_BYTES": "990", "WINDOWS_PARTS": "0", "WINDOWS_ENTRIES": "0", "RECLAIM_ENTRIES": "0", "DONE_MARK": "yes", "CONTENT": "a" * 64}
+        moved.update(after or {})
+        self.bodies = []
+
+        def answer(script):
+            if "boot_id" in script:
+                return tr.Result(0, f"boot-{st['boot']}", "")
+            body = unsudo(script)
+            self.bodies.append(body)
+            if "systemd-run" in body:
+                st["rebooted"] = True
+                return tr.Result(0, "REBOOTING", "")
+            if "reclaim check" in body:
+                st["checks"] += 1
+                c = (check or self.PLAN) if st["checks"] == 1 else (second_check or {"result": "refused", "why": ["Windows' space was already given to Linux on this computer (reclaim has run)"]})
+                return tr.Result(0, json.dumps(c, indent=2), "")
+            if "reclaim arm" in body:
+                return tr.Result(0, json.dumps({"result": "ready"} if armed else {"result": "refused", "why": ["the computer is running on its battery"]}, indent=2), "")
+            if "record.json" in body:
+                return tr.Result(0, json.dumps({"result": record, "why": ["the disk changed"]}, indent=2), "")
+            if "CONTENT=" in body:
+                d = moved if st["boot"] else {"ROOT_BYTES": "400", "WINDOWS_PARTS": "2", "WINDOWS_ENTRIES": "1", "RECLAIM_ENTRIES": "0", "DONE_MARK": "no", "CONTENT": "a" * 64}
+                return tr.Result(0, "".join(f"{k}={v}\n" for k, v in d.items()), "")
+            if "efibootmgr" in body:
+                return tr.Result(0, "BOOT=b\nDISK=/dev/sda\nTABLE=t\nDISK_BYTES=2000\nRECORDS=r\nWINMOUNT=no\n", "")
+            return tr.Result(0, "", "")
+        link = ScriptLink(answer, probes=("linux",))
+
+        def probe():
+            if st["rebooted"]:
+                st["boot"] += 1
+                st["rebooted"] = False
+            return "linux"
+        link.probe = probe
+        clock = Clock()
+        c = oneclick.Context(tmp, {"stages": []}, {"password": "p", "reclaim": "the sentence"}, link, oneclick.Journal(os.path.join(tmp, "j")), sleep=clock.sleep, clock=clock)
+        c.stage_dir = tmp
+        return c
+
+    def row(self, c):
+        with open(os.path.join(c.stage_dir, "r41-reclaim.row.csv")) as f:
+            return f.read()
+
+    def test_a_whole_move_is_a_pass_and_its_row_says_data_loss_accepted(self):
+        c = self.ctx()
+        o = oneclick.ReclaimMove().run(c, {})
+        self.assertEqual((o.word, o.expected), ("moved-started", True), o.notes)
+        self.assertIn(",clean,2000,500,67108864,moved-started,pass,", self.row(c))
+        self.assertIn("DATA LOSS ACCEPTED", self.row(c))
+        self.assertTrue(any("reclaim arm --typed 'the sentence'" in b for b in self.bodies))
+
+    def test_no_plan_arms_nothing(self):
+        c = self.ctx(check={"result": "refused", "why": ["another internal disk holds a Windows drive (sda)"]})
+        o = oneclick.ReclaimMove().run(c, {})
+        self.assertEqual((o.word, o.expected, o.untouched), ("reclaim-refused", False, True))
+        self.assertFalse(any("reclaim arm" in b or "systemd-run" in b for b in self.bodies))
+
+    def test_an_arm_refused_restarts_nothing(self):
+        c = self.ctx(armed=False)
+        o = oneclick.ReclaimMove().run(c, {})
+        self.assertEqual((o.word, o.untouched), ("reclaim-not-armed", True))
+        self.assertFalse(any("systemd-run" in b for b in self.bodies))
+
+    def test_what_went_wrong_has_its_word(self):
+        for kw, word in (({"after": {"WINDOWS_PARTS": "1"}}, "left-behind"), ({"after": {"WINDOWS_ENTRIES": "1"}}, "left-behind"),
+                         ({"after": {"ROOT_BYTES": "400"}}, "space-not-used"), ({"after": {"CONTENT": "b" * 64}}, "moved-broken"),
+                         ({"record": "stopped"}, "moved-broken"), ({"second_check": {"result": "plan"}}, "moved-broken")):
+            c = self.ctx(**kw)
+            o = oneclick.ReclaimMove().run(c, {})
+            self.assertEqual((o.word, o.expected), (word, False), kw)
+            self.assertIn(f",{word},fail,", self.row(c))
+
+    def test_a_refusal_on_the_stick_with_windows_still_there_is_a_refusal(self):
+        c = self.ctx(record="refused", after={"WINDOWS_PARTS": "2", "WINDOWS_ENTRIES": "1", "DONE_MARK": "no", "ROOT_BYTES": "400"})
+        o = oneclick.ReclaimMove().run(c, {})
+        self.assertEqual((o.word, o.expected), ("refused", False))
+        self.assertIn("the disk changed", o.notes)
+
+
 class FilesTests(unittest.TestCase):
     """The file copy: planted before the job, copied by settle-in, hashed where it landed."""
     EXPECTED = {"windows_build": "10.0.26100.0", "copy": [

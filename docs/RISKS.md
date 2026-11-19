@@ -1355,8 +1355,8 @@ starting after the move. Critical.
 the person's files with it, after a typed sentence that names what is lost,
 in the erase's style; the commit line is the window's last click (rule #3).
 It refuses while other profiles are on the disk (R5), on any drive-health
-warning (R23's sentence does not lift it: it consented to the conversion,
-not to this), and while anything is unreadable.
+warning, and while anything is unreadable. **Decided (2026-11-19, the
+owner):** R23's sentence covers reclaim; its screens say DATA LOSS ACCEPTED.
 
 **Decided (2026-11-02, the owner):** Linux is moved to the front so `/`
 grows into all the space; not a second partition, not left empty. The move
@@ -1366,7 +1366,7 @@ could already have reached.
 
 **Closes when.** On the rig, every planted fault refuses and a power cut
 mid-move resumes to a starting Linux; then a healthy-drive machine reclaims
-and starts Linux with no key (`r41-reclaim.csv`). The Aspire can only refuse.
+and starts Linux with no key (`r41-reclaim.csv`). The Aspire's row is no healthy-drive row.
 
 **Where it stands.** `[##..]` built, whole (settle-in 0.9.0); the move has
 never run. Its check refused four planted faults on the rig
