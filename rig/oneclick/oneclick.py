@@ -47,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.4.5"
+VERSION = "0.4.6"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -1695,6 +1695,14 @@ class KitStick:
             return untouched("stick-not-the-approved-one", f"the USB disk is {kv.get('BYTES')} bytes; the one approved at kickoff was {want_bytes}")
         if f"id: {kv['TARGET']}" not in clean(lst.out):
             return untouched("stick-not-listed", "the stick writer's own list does not show the USB disk by that id")
+        # A stage tried again finds the stick it wrote the first time: the kit's label, not Windows'
+        # installer's (the Aspire, 2026-11-19: the fetch could not reach the server after the write).
+        # Both words were approved at kickoff for this one stick, held to its size above; the stage
+        # gives the one that is the label now, and says so.
+        other = ctx.secrets.get("kit-stick" if args.get("after_walkaway") else "kit-stick-after-walkaway")
+        if kv.get("LABEL") and kv["LABEL"] != word and kv["LABEL"] == other:
+            ctx.note(f"the stick is labelled {other} now, not {word}: the stage gives the other word approved at kickoff for this stick")
+            word = other
         w = link.run(f"& {KIT_DIR}\\upgrade-stick.exe write --target {psq(kv['TARGET'])} --expected-bytes {kv['BYTES']} --source {KIT_DIR}\\stick "
                      f"--boot-size-gb {int(args.get('boot_size_gb', 8))} --confirmed-label {psq(word)} --results-csv {KIT_CSV}; "
                      "Write-Output \"WRITER_RC=$LASTEXITCODE\"", "windows", int(args.get("write_limit_s", 7200)))
