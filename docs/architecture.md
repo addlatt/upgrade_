@@ -914,7 +914,7 @@ deletes Linux and `/home`, so (rule #4) it is reviewed hardest. Three answers:
 ```text
 Linux, the "Go back to Windows" program            (nothing changed yet)
   cost first -> which Windows -> both drives named -> the typed sentence
-  -> choose the stick (R16's rules; the kit stick too, after an erase: 2026-11-15) -> download from Microsoft's catalog
+  -> choose the stick (R16's rules; the kit stick too, after an erase or after reclaim: 2026-11-15, 2026-11-19) -> download from Microsoft's catalog
   -> check size + SHA-1 -> build the stick from the .esd -> read it back
   -> start from the stick once (BootNext: the firmware's own USB entry
      when it has one, else our own) -> "Restart now": THE COMMIT LINE

@@ -46,11 +46,11 @@ someone.
    flag. A person may type, verbatim, on the RED screen (2026-11-14, the owner), *"I confirm
    that I understand the risks and could lose data"*. That lifts exactly two refusals, the
    drive-health and volume-health ones, whose failure mode is losing that machine's
-   own files, and only after the scanner has said RED in full. It lifts nothing
-   whose failure mode is "cannot work" or "wrong machine". The sentence travels in
-   `job.json` and `outcome.json`, every screen after it says DATA LOSS ACCEPTED, and
-   no shorter form of consent is accepted anywhere. Widening this exception is the
-   thing rule #1 forbids.
+   own files, and only after the scanner has said RED in full (2026-11-19, the owner:
+   reclaim's drive-health refusal too, on a computer converted under it). It lifts
+   nothing whose failure mode is "cannot work" or "wrong machine". The sentence travels
+   in `job.json` and `outcome.json`, every screen after it says DATA LOSS ACCEPTED, and no
+   shorter form is accepted anywhere. Widening this exception is what rule #1 forbids.
 
 2. **Evidence, not argument.** A risk closes only when a primary source or a real
    machine confirms it, never because the reasoning sounds right. This applies to

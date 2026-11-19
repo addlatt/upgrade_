@@ -597,6 +597,12 @@ pub fn words(plan: &Value) -> Value {
             "heading": format!("Linux gets {:.0} GB more room.", gb(&plan["deleted_bytes"])),
             "folders_heading": "These Windows folders, and everything else on Windows, will be deleted:",
             "folders": folders,
+            // every screen after the data-loss sentence says so (CLAUDE.md rule #1, RISKS R23)
+            "data_loss": if plan["data_loss_accepted"] == true { json!([
+                "DATA LOSS ACCEPTED",
+                "This computer's drive was found failing when it was converted, and you typed that you accept the risk.",
+                "Deleting Windows removes the only other system on this drive. Moving Linux rewrites all of it on a failing drive: Linux and your files in it could be lost too.",
+            ]) } else { Value::Null },
         },
         "consent": {
             "heading": "Type this sentence exactly to go on:",
@@ -1905,5 +1911,6 @@ mod tests {
         assert_eq!(w["consent"]["sentence"], reclaim::SENTENCE);
         assert!(w["ready"]["lines"][0].as_str().unwrap().contains("no turning back"));
         assert_eq!(w["what"]["heading"], "Linux gets 120 GB more room.");
+        assert!(w["what"]["data_loss"].is_null());
     }
 }

@@ -129,13 +129,24 @@ pub fn erased_outcome(outcome: &Value) -> bool {
     s(outcome, "status") == "completed" && s(outcome, "path_taken") == "clean-slate" && outcome.pointer("/windows/kept") == Some(&json!(false))
 }
 
+/// Was the kept Windows deleted since, by reclaim, on this conversion? Pure.
+pub fn reclaimed(outcome: &Value, job: &Value, mark: &Value) -> bool {
+    s(outcome, "status") == "completed" && outcome.pointer("/windows/kept") == Some(&json!(true))
+        && s(mark, "schema") == "reclaimed/1" && !s(job, "job_id").is_empty() && s(mark, "job_id") == s(job, "job_id")
+}
+
 /// The same, read on this computer: the record itself (root reads it), else
 /// the fact settle-in's first start left for the window (`windows_erased`).
 pub fn kit_may_go(root: &str) -> bool {
     let root = root.trim_end_matches('/');
     let read = |p: String| std::fs::read_to_string(p).ok().and_then(|t| serde_json::from_str::<Value>(&t).ok());
     if let Some(o) = read(format!("{}/var/lib/upgrade_/outcome.json", root)) {
-        return erased_outcome(&o);
+        // Decided (2026-11-19, the owner): after reclaim too. Windows is deleted, so the stick's
+        // rollback snapshot restores nothing any more. Reclaim's own mark on the EFI partition
+        // says so, and it must be for this conversion.
+        let job = read(format!("{}/var/lib/upgrade_/job.json", root)).unwrap_or(Value::Null);
+        let mark = read(format!("{}/boot/efi/{}", root, crate::reclaimrun::ESP_DONE_REL)).unwrap_or(Value::Null);
+        return erased_outcome(&o) || reclaimed(&o, &job, &mark);
     }
     read(format!("{}/{}/summary.json", root, crate::summary::PUBLIC_DIR)).map(|v| v["windows_erased"] == json!(true)).unwrap_or(false)
 }
@@ -301,6 +312,13 @@ mod tests {
     fn the_upgrade_stick_may_go_only_after_an_erase() {
         let erased = json!({ "status": "completed", "path_taken": "clean-slate", "windows": { "kept": false, "partition": null } });
         assert!(erased_outcome(&erased));
+        // after reclaim (decided 2026-11-19, the owner): only with reclaim's own mark for this conversion
+        let kept = json!({ "status": "completed", "path_taken": "keep-windows", "windows": { "kept": true } });
+        let job = json!({ "job_id": "j1" });
+        assert!(reclaimed(&kept, &job, &json!({ "schema": "reclaimed/1", "job_id": "j1" })));
+        assert!(!reclaimed(&kept, &job, &Value::Null));
+        assert!(!reclaimed(&kept, &job, &json!({ "schema": "reclaimed/1", "job_id": "another" })));
+        assert!(!reclaimed(&kept, &json!({}), &json!({ "schema": "reclaimed/1" })));
         // Windows kept, a stopped conversion, a record that does not say, no record: the stick stays
         for o in [json!({ "status": "completed", "path_taken": "keep-windows", "windows": { "kept": true } }),
                   json!({ "status": "completed", "path_taken": "clean-slate", "windows": { "kept": true } }),

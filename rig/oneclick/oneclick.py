@@ -47,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.4.7"
+VERSION = "0.5.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -78,6 +78,7 @@ SENTENCE_SOURCES = {
     "data-loss": ("evaluate/job/src/lib.rs", r'pub const RISK_STATEMENT: &str = "([^"]+)"'),
     "erase": ("evaluate/job/src/lib.rs", r'pub const ERASE_STATEMENT: &str = "([^"]+)"'),
     "walkaway": ("settle-in/src/walkaway.rs", r'pub const SENTENCE: &str = "([^"]+)"'),
+    "reclaim": ("settle-in/src/reclaim.rs", r'pub const SENTENCE: &str = "([^"]+)"'),
 }
 
 
@@ -1577,6 +1578,169 @@ class ReclaimCheck:
             result if result == "refused" else "not-started", ("pass" if ctx.link.kind == "ssh" else "pass-plumbing") if ok else "fail", notes[:600]]))
 
 
+# What the move must leave, read from the installed Linux. CONTENT is every file of /usr and of
+# the person's Documents and Pictures, hashed: the move rewrites every block of Linux, and this
+# is how the test knows the blocks arrived whole.
+RECLAIM_MOVED = ("D=/dev/$(lsblk -no PKNAME \"$(findmnt -no SOURCE /)\" | head -1); "
+                 "echo \"ROOT_BYTES=$(df -B1 --output=size / | tail -1 | tr -d ' ')\"; "
+                 "echo \"WINDOWS_PARTS=$(lsblk -nro PARTTYPE $D | grep -ci -e ebd0a0a2-b9e5-4433-87c0-68b6b72699c7 -e e3c9e316-0b5c-4db8-817d-f92df00215ae -e de94bba4-06d1-4d40-a16a-bfd50179d6ac)\"; "
+                 "echo \"WINDOWS_ENTRIES=$(efibootmgr 2>/dev/null | grep -ci 'Windows Boot Manager')\"; "
+                 "echo \"RECLAIM_ENTRIES=$(efibootmgr 2>/dev/null | grep -c 'upgrade_ reclaim')\"; "
+                 "echo \"DONE_MARK=$(test -f /boot/efi/upgrade_/reclaimed.json && echo yes || echo no)\"; "
+                 "echo \"CONTENT=$( (find /usr /home/*/Documents /home/*/Pictures -xdev -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null) | sha256sum | cut -c1-64)\"")
+
+RECLAIM_RECORD = ("M=/run/upgrade_oneclick-stick; mkdir -p $M; S=$(lsblk -nrpo NAME,TRAN,TYPE | awk '$2==\"usb\" && $3==\"disk\" {print $1; exit}'); "
+                  "P=$(lsblk -nrpo NAME,FSTYPE $S | awk '$2==\"vfat\" {print $1; exit}'); "
+                  "mount -o ro $P $M 2>/dev/null && { cat $M/upgrade_/reclaim/record.json 2>/dev/null; umount $M; }")
+
+
+class ReclaimMove:
+    """Reclaim's move (settle-in reclaim arm, then the run from the stick;
+    R41, V15): Windows deleted, Linux moved into its space and grown. The
+    stage types reclaim's own sentence, the one approved at kickoff, the way
+    the window passes it. It is the one stage after which nothing comes
+    back: the check must give a plan first, or nothing is armed."""
+    writes = True
+    needs = ("password", "reclaim")
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "linux":
+            return untouched("wrong-system", "reclaim starts in the installed Linux")
+        chk = sudo(ctx, f"{SETTLE_IN} reclaim check", 900)
+        ctx.save("reclaim-check.out", chk.out + chk.err)
+        c = last_json(chk.out) or {}
+        if c.get("result") != "plan":
+            return untouched("reclaim-refused", "the check gave no plan, so nothing was armed: " + "; ".join(str(w) for w in (c.get("why") or ["unread"]))[:400])
+        state = kv_lines(sudo(ctx, RECLAIM_STATE, 120).out)
+        before = kv_lines(sudo(ctx, RECLAIM_MOVED, 3600).out)
+        ctx.save("before.txt", json.dumps({**state, **before}, sort_keys=True, indent=1) + "\n")
+        if len(before.get("CONTENT", "")) != 64 or not before.get("ROOT_BYTES", "").isdigit():
+            return untouched("manager-error", "Linux's files could not be read before the move; nothing was armed")
+        arm = sudo(ctx, f"{SETTLE_IN} reclaim arm --typed {shq(ctx.secrets['reclaim'])}", 900)
+        ctx.save("reclaim-arm.out", arm.out + arm.err)
+        a = last_json(arm.out) or {}
+        if a.get("result") != "ready":
+            return untouched("reclaim-not-armed", "; ".join(str(w) for w in (a.get("why") if isinstance(a.get("why"), list) else [a.get("why") or "unread"]))[:400])
+        self.c, self.state = c, state
+        accepted = " DATA LOSS ACCEPTED: the drive was found failing when this computer was converted, and the sentence typed then covers reclaim (decided 2026-11-19, the owner);" if c.get("data_loss_accepted") else ""
+        # the last click: from here the stick deletes Windows and moves Linux
+        mark = boot_mark(ctx, "linux")
+        started = ctx.clock()
+        sudo(ctx, "systemd-run --on-active=5 systemctl reboot >/dev/null; echo REBOOTING")
+        got = wait_new_boot(ctx, "Linux, started again after the move", mark, int(args.get("limit_s", 4 * 3600)))
+        took = int(ctx.clock() - started)
+        if got != "linux":
+            return self.end(ctx, "not-started", f"{got or 'nothing'} answered after the restart from the stick ({took} s);{accepted}")
+        after = kv_lines(sudo(ctx, RECLAIM_MOVED, 3600).out)
+        rec_text = sudo(ctx, RECLAIM_RECORD, 300).out
+        ctx.save("reclaim-record.json", rec_text)
+        ctx.save("after.txt", json.dumps(after, sort_keys=True, indent=1) + "\n")
+        rec = last_json(rec_text) or {}
+        if rec.get("result") != "reclaimed":
+            # Linux answering with no finished move: a refusal on the stick (nothing changed), or worse
+            why = "; ".join(str(w) for w in rec.get("why", [])) if isinstance(rec.get("why"), list) else str(rec.get("why", "no record on the stick"))
+            if rec.get("result") == "refused" and after.get("WINDOWS_PARTS") == before.get("WINDOWS_PARTS"):
+                return self.end(ctx, "refused", f"the stick's own check refused before anything was deleted: {why[:300]};{accepted}")
+            return self.end(ctx, "moved-broken", f"Linux answered but the stick's record says {rec.get('result', 'nothing')}: {why[:300]};{accepted}")
+        left = []
+        if after.get("WINDOWS_PARTS") != "0":
+            left.append(f"{after.get('WINDOWS_PARTS')} Windows partition(s) still on the disk")
+        if after.get("WINDOWS_ENTRIES") != "0":
+            left.append("the firmware still lists Windows Boot Manager")
+        if after.get("RECLAIM_ENTRIES") != "0":
+            left.append("the firmware still lists the reclaim's own entry")
+        if after.get("DONE_MARK") != "yes":
+            left.append("the mark that reclaim has run is not on the EFI partition")
+        if left:
+            return self.end(ctx, "left-behind", "; ".join(left) + f";{accepted}")
+        want = int(c.get("root_grows_to_bytes") or 0)
+        got_bytes = int(after.get("ROOT_BYTES") or 0)
+        if not want or got_bytes < 0.93 * want:
+            return self.end(ctx, "space-not-used", f"/ is {got_bytes} bytes, the plan gave it {want};{accepted}")
+        if after.get("CONTENT") != before["CONTENT"]:
+            return self.end(ctx, "moved-broken", f"Linux's files are not what they were before the move (/usr, Documents, Pictures hashed);{accepted}")
+        again = last_json(sudo(ctx, f"{SETTLE_IN} reclaim check", 900).out) or {}
+        if again.get("result") != "refused" or not any("reclaim has run" in str(w) for w in again.get("why") or []):
+            return self.end(ctx, "moved-broken", f"a second check does not say reclaim has run;{accepted}")
+        # once more with no key, the stick still in
+        mark = boot_mark(ctx, "linux")
+        sudo(ctx, "systemd-run --on-active=5 systemctl reboot >/dev/null; echo REBOOTING")
+        if wait_new_boot(ctx, "Linux, started a second time with no key", mark, 1800) != "linux":
+            return self.end(ctx, "not-started", f"Linux started once after the move and not a second time;{accepted}")
+        return self.end(ctx, "moved-started", f"Windows deleted ({c.get('deleted_bytes')} bytes) and Linux moved {(c.get('move') or {}).get('shift_sectors')} sectors down, "
+                        f"{took} s from the restart to Linux answering; / is {got_bytes} bytes (the plan: {want}); no Windows partition, no Windows entry and no reclaim entry left; "
+                        f"every file of /usr and of the planted Documents and Pictures hashes as before; Linux started twice with no key, the stick in;{accepted}")
+
+    def end(self, ctx, result, notes):
+        ok = result == "moved-started"
+        facts = run_facts(ctx)
+        machine = " ".join(x for x in (facts.get("manufacturer"), facts.get("model")) if x)
+        firmware = " ".join(x for x in (facts.get("bios_vendor"), facts.get("bios_version")) if x)
+        with open(os.path.join(REPO, "settle-in", "Cargo.toml"), encoding="utf-8") as f:
+            sv = re.search(r'^version = "([^"]+)"', f.read(), re.M).group(1)
+        notes = notes.rstrip(";")
+        ctx.save("r41-reclaim.row.csv", csv_line([
+            utc(), f"oneclick {VERSION} reclaim-move", machine, firmware, sv, "clean", self.state.get("DISK_BYTES", ""), str(self.c.get("deleted_bytes", "")),
+            str((self.c.get("move") or {}).get("chunk_bytes", "")), result, ("pass" if ctx.link.kind == "ssh" else "pass-plumbing") if ok else "fail", notes[:900]]))
+        return Outcome(result, ok, notes)
+
+
+# The walk-away's fresh Windows makes one empty NTFS partition, labelled Data, on every other
+# internal disk (settle-in gate, logic.rs). Reclaim rightly refuses while another disk holds a
+# Windows drive, so a bench with two disks could never reach the move. This TEST helper deletes
+# that partition, and only that: labelled Data, no file on it, on an internal disk that is not
+# the system's. Decided (2026-11-19, the owner), for the Aspire.
+EMPTY_DISK_SENTENCE = "delete the empty Data partition on the second disk"
+
+EMPTY_SECOND_DISK = r"""
+$ErrorActionPreference = 'Stop'
+$parts = @(Get-Disk | Where-Object { $_.BusType -ne 'USB' -and -not $_.IsBoot -and -not $_.IsSystem } | Get-Partition |
+           Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' })
+"FOUND=$($parts.Count)"
+foreach ($p in $parts) {
+  $v = $p | Get-Volume
+  if ($v.FileSystemLabel -ne 'Data' -or -not $p.DriveLetter) { "REFUSED=partition $($p.PartitionNumber) of disk $($p.DiskNumber) is not the walk-away's Data drive (label '$($v.FileSystemLabel)')"; exit 3 }
+  $files = @(Get-ChildItem "$($p.DriveLetter):\" -Recurse -File -Force -ErrorAction SilentlyContinue |
+             Where-Object { $_.FullName -notmatch '\\System Volume Information\\|\\\$RECYCLE\.BIN\\' })
+  if ($files.Count -ne 0) { "REFUSED=drive $($p.DriveLetter): holds $($files.Count) file(s)"; exit 3 }
+}
+foreach ($p in $parts) {
+  Remove-Partition -DiskNumber $p.DiskNumber -PartitionNumber $p.PartitionNumber -Confirm:$false
+  "DELETED=disk $($p.DiskNumber) partition $($p.PartitionNumber), $([math]::Round($p.Size/1e9,1)) GB"
+}
+$left = @(Get-Disk | Where-Object { $_.BusType -ne 'USB' -and -not $_.IsBoot -and -not $_.IsSystem } | Get-Partition |
+          Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' })
+"LEFT=$($left.Count)"
+"""
+
+
+class EmptySecondDisk:
+    """A TEST helper, never the product's: delete the empty Data partition
+    the walk-away's Windows made on the other internal disk, so reclaim's
+    move can be reached on a bench with two disks. Refuses anything that is
+    not that partition, and says in its row what it did."""
+    writes = True
+    needs = ("empty-second-disk",)
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "windows":
+            return untouched("wrong-system", "the second disk is emptied from Windows")
+        r = link.run(EMPTY_SECOND_DISK, "windows", 600)
+        ctx.save("empty-second-disk.out", r.out + r.err)
+        kv = kv_lines(r.out)
+        if kv.get("REFUSED"):
+            return untouched("second-disk-not-empty", kv["REFUSED"] + "; nothing was deleted")
+        if kv.get("FOUND") == "0":
+            return Outcome("second-disk-emptied", True, "the TEST found no Windows partition on another internal disk; nothing to delete")
+        if kv.get("LEFT") != "0" or not r.ok:
+            return Outcome("second-disk-not-emptied", False, (r.out + r.err).strip()[-300:])
+        did = "; ".join(l.split("=", 1)[1] for l in r.out.splitlines() if l.startswith("DELETED="))
+        return Outcome("second-disk-emptied", True, f"the TEST deleted the empty Data partition the walk-away's Windows made on the other internal disk ({did}; no file was on it), "
+                       "so reclaim does not refuse for it: test_empty_second_disk, the owner's yes of 2026-11-19; the product never does this")
+
+
 # --- one stick, no swaps -----------------------------------------------------
 #
 # Decided (2026-11-15, the owner): one stick on the way back too, and a test
@@ -1779,7 +1943,7 @@ class KitStick:
 STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(), "rollback-existing": Rollback(),
           "stick-left-in": StickLeftIn(), "clean-slate": CleanSlate(), "stick-left-in-erased": StickLeftIn(),
           "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown(), "kit-stick": KitStick(),
-          "plant-files": PlantFiles(), "pull": Pull(), "reclaim-check": ReclaimCheck()}
+          "plant-files": PlantFiles(), "pull": Pull(), "reclaim-check": ReclaimCheck(), "reclaim-move": ReclaimMove(), "empty-second-disk": EmptySecondDisk()}
 
 
 def stage_impl(name):
@@ -2116,7 +2280,7 @@ def ask_consents(needed, link, secrets, ask=input, out=print):
                 return False
             secrets[key] = want
             continue
-        s = sentence(key)
+        s = EMPTY_DISK_SENTENCE if key == "empty-second-disk" else sentence(key)
         out(f"\nType this sentence exactly, to approve the {key} step for every loop of this run:\n  {s}")
         if ask("> ") != s:
             out("oneclick: that is not the sentence. Nothing started.")

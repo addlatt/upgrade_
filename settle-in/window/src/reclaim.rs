@@ -131,6 +131,10 @@ impl Reclaim {
                     ctx.request_repaint_after(std::time::Duration::from_millis(500));
                 }
                 Page::What => {
+                    for (i, l) in plan_words.pointer("/what/data_loss").and_then(Value::as_array).cloned().unwrap_or_default().iter().enumerate() {
+                        let t = egui::RichText::new(l.as_str().unwrap_or("")).color(egui::Color32::from_rgb(200, 40, 40));
+                        ui.label(if i == 0 { t.strong().size(17.0) } else { t });
+                    }
                     ui.label(egui::RichText::new(plan_words.pointer("/what/heading").and_then(Value::as_str).unwrap_or("")).strong().size(17.0));
                     ui.label(plan_words.pointer("/what/folders_heading").and_then(Value::as_str).unwrap_or(""));
                     for f in plan_words.pointer("/what/folders").and_then(Value::as_array).cloned().unwrap_or_default() {
@@ -138,12 +142,18 @@ impl Reclaim {
                     }
                 }
                 Page::Consent => {
+                    if let Some(l) = plan_words.pointer("/what/data_loss/0").and_then(Value::as_str) {
+                        ui.label(egui::RichText::new(l).strong().color(egui::Color32::from_rgb(200, 40, 40)));
+                    }
                     ui.label(egui::RichText::new(self.w("/consent/heading")).strong().size(17.0));
                     ui.label(egui::RichText::new(self.w("/consent/sentence")).strong());
                     ui.add(egui::TextEdit::multiline(&mut self.typed).desired_rows(2));
                     ui.label(egui::RichText::new(self.w("/consent/note")).weak());
                 }
                 Page::Ready => {
+                    if let Some(l) = plan_words.pointer("/what/data_loss/0").and_then(Value::as_str) {
+                        ui.label(egui::RichText::new(l).strong().color(egui::Color32::from_rgb(200, 40, 40)));
+                    }
                     ui.label(egui::RichText::new(self.w("/ready/heading")).strong().size(17.0));
                     self.lines(ui, &words, "/ready/lines");
                 }

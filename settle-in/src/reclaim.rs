@@ -43,6 +43,14 @@ const MIB: u64 = 1 << 20;
 
 /// A draft (ROADMAP, decisions owed: the owner approves the words). Typed
 /// verbatim; no shorter form is accepted (the same rule as R23's).
+/// The data-loss sentence of the RED screen (RISKS R23), as `job.json` carries it.
+pub const DATA_LOSS_SENTENCE: &str = "I confirm that I understand the risks and could lose data";
+
+/// Did the person type the data-loss sentence, word for word, when this computer was converted?
+pub fn data_loss_accepted(job: &Value) -> bool {
+    job.pointer("/risk_acknowledgement/statement").and_then(Value::as_str) == Some(DATA_LOSS_SENTENCE)
+}
+
 pub const SENTENCE: &str = "I confirm that Windows and every file in it will be deleted for good, including the folders listed here";
 
 /// What the live half read on the Windows partition, mounted read-only.
@@ -107,12 +115,17 @@ pub fn plan(f: &Facts) -> Value {
         no.push("Windows was made to start first again (the rollback): reclaim is for a person who stays in Linux".into());
     }
     // --- the drive: a move reads and writes every block of Linux
+    // Decided (2026-11-19, the owner): the data-loss sentence, typed verbatim on the RED screen
+    // (RISKS R23), covers reclaim too. A job that carries it is not refused for the drive's
+    // health; the plan says so, and every screen after it says DATA LOSS ACCEPTED. Nothing
+    // else is lifted, and a job without the sentence is refused as before.
+    let accepted = data_loss_accepted(job);
     let health = s(job, "/storage/physical_disk/health_status");
-    if health != "Healthy" {
-        no.push(format!("the drive did not report itself healthy when it was scanned ({}): moving every block of Linux on it could lose Linux too", if health.is_empty() { "not recorded" } else { health }));
+    if job.get("risk_acknowledgement").is_some_and(|v| !v.is_null()) && !accepted {
+        no.push("the job carries a data-loss acknowledgement that is not the sentence, word for word: it lifts nothing".into());
     }
-    if job.get("risk_acknowledgement").is_some_and(|v| !v.is_null()) {
-        no.push("this conversion went ahead on a drive the scanner found failing (the data-loss sentence); that sentence does not cover reclaim".into());
+    if health != "Healthy" && !accepted {
+        no.push(format!("the drive did not report itself healthy when it was scanned ({}): moving every block of Linux on it could lose Linux too", if health.is_empty() { "not recorded" } else { health }));
     }
     if s(job, "/harvest/bitlocker/status") != "off" {
         no.push("Windows' drive is locked with BitLocker (or its state is not recorded): what is on it cannot be read, so it cannot be shown before it is deleted".into());
@@ -246,6 +259,7 @@ pub fn plan(f: &Facts) -> Value {
     json!({
         "result": "plan",
         "sentence": SENTENCE,
+        "data_loss_accepted": accepted,
         "folders_lost": folders,
         "delete": delete.iter().map(|e| json!({ "number": e.number(), "type": ty(e), "bytes": e.sectors() * sector })).collect::<Vec<_>>(),
         "deleted_bytes": deleted_bytes,
@@ -782,13 +796,25 @@ mod tests {
         let mut j2 = j.clone();
         j2["harvest"]["bitlocker"]["status"] = json!("on");
         assert!(refused_for(&plan(&facts(&j2, &o, layout())), "BitLocker"));
-        // the drive: not healthy, or the data-loss sentence was used
+        // the drive: not healthy is refused
         let mut j2 = j.clone();
         j2["storage"]["physical_disk"]["health_status"] = json!("Warning");
         assert!(refused_for(&plan(&facts(&j2, &o, layout())), "healthy"));
-        let mut j2 = j.clone();
-        j2["risk_acknowledgement"] = json!({ "sentence": "I confirm that I understand the risks and could lose data" });
-        assert!(refused_for(&plan(&facts(&j2, &o, layout())), "does not cover reclaim"));
+        // the data-loss sentence covers reclaim (decided 2026-11-19, the owner): a plan, and it says so
+        assert_eq!(plan(&facts(&j, &o, layout()))["data_loss_accepted"], false);
+        let ack = json!({ "statement": DATA_LOSS_SENTENCE, "accepted_utc": "2026-11-19T00:00:00Z", "overrides": ["disk-health"] });
+        let mut j3 = j2.clone();
+        j3["risk_acknowledgement"] = ack.clone();
+        let p3 = plan(&facts(&j3, &o, layout()));
+        assert_eq!((p3["result"].as_str(), p3["data_loss_accepted"].as_bool()), (Some("plan"), Some(true)), "{}", p3);
+        // nothing shorter than the sentence, and nothing else is lifted by it
+        let mut j4 = j2.clone();
+        j4["risk_acknowledgement"] = json!({ "statement": "I confirm" });
+        let p4 = plan(&facts(&j4, &o, layout()));
+        assert!(refused_for(&p4, "word for word") && refused_for(&p4, "healthy"));
+        let mut j5 = j3.clone();
+        j5["harvest"]["bitlocker"]["status"] = json!("on");
+        assert!(refused_for(&plan(&facts(&j5, &o, layout())), "BitLocker"));
         // Windows' size changed since the install
         let mut o2 = o.clone();
         o2["windows"]["partition"]["size_bytes"] = json!(5);
