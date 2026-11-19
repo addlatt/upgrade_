@@ -1371,7 +1371,7 @@ and starts Linux with no key (`r41-reclaim.csv`). The Aspire can only refuse.
 **Where it stands.** `[##..]` built, whole (settle-in 0.9.0); the move has
 never run. Its check refused four planted faults on the rig
 (`r41-reclaim.csv` lines 2 to 5, [log](log/2026-11.md#2026-11-17-to-2026-11-18-one-stick-with-no-hand-ubuntus-whole-run-on-the-aspire-the-file-copy-and-reclaims-check-on-the-rig-r16-r21-r23-r33-r36-r37-r41-r43-v3-v11-v15-v18-roadmap-items-21-and-23)).
-Owed: a bench with a USB stick for the move, Ubuntu, a healthy-drive machine.
+On the Aspire the check refused for the machine's two reasons, nothing armed (`oneclick-runs.csv` lines 174 and 188, [log](log/2026-11.md#2026-11-19-both-linuxes-whole-on-the-aspire-with-no-hand-reclaims-check-on-a-real-machine-r16-r33-r41-v3-v11-v15-v18-roadmap-items-21-and-23)). Owed: a bench with a USB stick for the move, Ubuntu, a healthy-drive machine.
 
 ## R42: Bazzite's installed system starts only after a person enrolls its key · critical · planned
 

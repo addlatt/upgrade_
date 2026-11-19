@@ -843,7 +843,8 @@ Then a real machine with a healthy drive.
 
 **Where it stands.** `[#...]` planned: the move has no bench yet (the arm
 wants a USB stick, Hyper-V has none). The check's refusals for four planted
-faults are in `r41-reclaim.csv` lines 2 to 5
+faults are in `r41-reclaim.csv` lines 2 to 5, and its refusal on the Aspire for
+the machine's two reasons in `oneclick-runs.csv` lines 174 and 188
 ([log](log/2026-11.md#2026-11-17-to-2026-11-18-one-stick-with-no-hand-ubuntus-whole-run-on-the-aspire-the-file-copy-and-reclaims-check-on-the-rig-r16-r21-r23-r33-r36-r37-r41-r43-v3-v11-v15-v18-roadmap-items-21-and-23)).
 
 ## V16: The key step enrolls Bazzite's key, or refuses with nothing erased · kills: Bazzite with Secure Boot on · RISKS R42 · planned
