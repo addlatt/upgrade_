@@ -1458,6 +1458,37 @@ class ReclaimMoveTests(unittest.TestCase):
         self.assertIn("the disk changed", o.notes)
 
 
+class EmptySecondDiskTests(unittest.TestCase):
+    def run_with(self, out, rc=0):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        link = ScriptLink(lambda script: tr.Result(rc, out, ""), probes=("windows",))
+        c = oneclick.Context(tmp, {"stages": []}, {}, link, oneclick.Journal(os.path.join(tmp, "j")))
+        c.stage_dir = tmp
+        return oneclick.EmptySecondDisk().run(c, {})
+
+    def test_the_empty_data_partition_is_deleted_and_the_row_says_the_test_did_it(self):
+        o = self.run_with("FOUND=1\nDELETED=disk 0 partition 1, 1000.2 GB\nLEFT=0\n")
+        self.assertEqual((o.word, o.expected), ("second-disk-emptied", True))
+        self.assertIn("the TEST deleted", o.notes)
+        self.assertIn("the product never does this", o.notes)
+
+    def test_a_drive_with_files_or_another_label_is_left_alone(self):
+        o = self.run_with("FOUND=1\nREFUSED=drive D: holds 3 file(s)\n", rc=3)
+        self.assertEqual((o.word, o.expected, o.untouched), ("second-disk-not-empty", False, True))
+
+    def test_a_partition_still_there_is_a_fail(self):
+        o = self.run_with("FOUND=1\nLEFT=1\n")
+        self.assertEqual((o.word, o.expected), ("second-disk-not-emptied", False))
+
+    def test_it_needs_its_own_typed_approval(self):
+        self.assertIn("empty-second-disk", oneclick.stage_needs({"stage": "empty-second-disk"}))
+        said = []
+        ok = oneclick.ask_consents(["empty-second-disk"], None, {}, ask=lambda p: "yes", out=said.append)
+        self.assertFalse(ok)
+        self.assertIn(oneclick.EMPTY_DISK_SENTENCE, said[0])
+
+
 class FilesTests(unittest.TestCase):
     """The file copy: planted before the job, copied by settle-in, hashed where it landed."""
     EXPECTED = {"windows_build": "10.0.26100.0", "copy": [

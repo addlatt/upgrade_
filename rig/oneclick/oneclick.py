@@ -1686,6 +1686,61 @@ class ReclaimMove:
         return Outcome(result, ok, notes)
 
 
+# The walk-away's fresh Windows makes one empty NTFS partition, labelled Data, on every other
+# internal disk (settle-in gate, logic.rs). Reclaim rightly refuses while another disk holds a
+# Windows drive, so a bench with two disks could never reach the move. This TEST helper deletes
+# that partition, and only that: labelled Data, no file on it, on an internal disk that is not
+# the system's. Decided (2026-11-19, the owner), for the Aspire.
+EMPTY_DISK_SENTENCE = "delete the empty Data partition on the second disk"
+
+EMPTY_SECOND_DISK = r"""
+$ErrorActionPreference = 'Stop'
+$parts = @(Get-Disk | Where-Object { $_.BusType -ne 'USB' -and -not $_.IsBoot -and -not $_.IsSystem } | Get-Partition |
+           Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' })
+"FOUND=$($parts.Count)"
+foreach ($p in $parts) {
+  $v = $p | Get-Volume
+  if ($v.FileSystemLabel -ne 'Data' -or -not $p.DriveLetter) { "REFUSED=partition $($p.PartitionNumber) of disk $($p.DiskNumber) is not the walk-away's Data drive (label '$($v.FileSystemLabel)')"; exit 3 }
+  $files = @(Get-ChildItem "$($p.DriveLetter):\" -Recurse -File -Force -ErrorAction SilentlyContinue |
+             Where-Object { $_.FullName -notmatch '\\System Volume Information\\|\\\$RECYCLE\.BIN\\' })
+  if ($files.Count -ne 0) { "REFUSED=drive $($p.DriveLetter): holds $($files.Count) file(s)"; exit 3 }
+}
+foreach ($p in $parts) {
+  Remove-Partition -DiskNumber $p.DiskNumber -PartitionNumber $p.PartitionNumber -Confirm:$false
+  "DELETED=disk $($p.DiskNumber) partition $($p.PartitionNumber), $([math]::Round($p.Size/1e9,1)) GB"
+}
+$left = @(Get-Disk | Where-Object { $_.BusType -ne 'USB' -and -not $_.IsBoot -and -not $_.IsSystem } | Get-Partition |
+          Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' })
+"LEFT=$($left.Count)"
+"""
+
+
+class EmptySecondDisk:
+    """A TEST helper, never the product's: delete the empty Data partition
+    the walk-away's Windows made on the other internal disk, so reclaim's
+    move can be reached on a bench with two disks. Refuses anything that is
+    not that partition, and says in its row what it did."""
+    writes = True
+    needs = ("empty-second-disk",)
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "windows":
+            return untouched("wrong-system", "the second disk is emptied from Windows")
+        r = link.run(EMPTY_SECOND_DISK, "windows", 600)
+        ctx.save("empty-second-disk.out", r.out + r.err)
+        kv = kv_lines(r.out)
+        if kv.get("REFUSED"):
+            return untouched("second-disk-not-empty", kv["REFUSED"] + "; nothing was deleted")
+        if kv.get("FOUND") == "0":
+            return Outcome("second-disk-emptied", True, "the TEST found no Windows partition on another internal disk; nothing to delete")
+        if kv.get("LEFT") != "0" or not r.ok:
+            return Outcome("second-disk-not-emptied", False, (r.out + r.err).strip()[-300:])
+        did = "; ".join(l.split("=", 1)[1] for l in r.out.splitlines() if l.startswith("DELETED="))
+        return Outcome("second-disk-emptied", True, f"the TEST deleted the empty Data partition the walk-away's Windows made on the other internal disk ({did}; no file was on it), "
+                       "so reclaim does not refuse for it: test_empty_second_disk, the owner's yes of 2026-11-19; the product never does this")
+
+
 # --- one stick, no swaps -----------------------------------------------------
 #
 # Decided (2026-11-15, the owner): one stick on the way back too, and a test
@@ -1888,7 +1943,7 @@ class KitStick:
 STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(), "rollback-existing": Rollback(),
           "stick-left-in": StickLeftIn(), "clean-slate": CleanSlate(), "stick-left-in-erased": StickLeftIn(),
           "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown(), "kit-stick": KitStick(),
-          "plant-files": PlantFiles(), "pull": Pull(), "reclaim-check": ReclaimCheck(), "reclaim-move": ReclaimMove()}
+          "plant-files": PlantFiles(), "pull": Pull(), "reclaim-check": ReclaimCheck(), "reclaim-move": ReclaimMove(), "empty-second-disk": EmptySecondDisk()}
 
 
 def stage_impl(name):
@@ -2225,7 +2280,7 @@ def ask_consents(needed, link, secrets, ask=input, out=print):
                 return False
             secrets[key] = want
             continue
-        s = sentence(key)
+        s = EMPTY_DISK_SENTENCE if key == "empty-second-disk" else sentence(key)
         out(f"\nType this sentence exactly, to approve the {key} step for every loop of this run:\n  {s}")
         if ask("> ") != s:
             out("oneclick: that is not the sentence. Nothing started.")

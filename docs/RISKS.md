@@ -1121,8 +1121,8 @@ switch does. **Decided (2026-10-04, the owner):** it carries the time and
 remote access (SSH, keys only) too. **Decided (2026-10-05, the owner):** the
 product keeps the computer awake while it works, on both sides.
 **Decided (2026-11-15, the owner):** one stick: after an erase the kit stick
-itself may become the installer (settle-in 0.12.0). With Windows kept it
-stays refused: it holds the rollback's snapshot and may hold the key.
+itself may become the installer (settle-in 0.12.0); with Windows kept, only
+once reclaim has deleted it (**decided (2026-11-19, the owner)**, 0.13.1).
 
 **Closes when.** Rig arms refuse and erase pass with Secure Boot on, nobody
 at the keyboard, ending at the Windows sign-in; then one real machine (the
