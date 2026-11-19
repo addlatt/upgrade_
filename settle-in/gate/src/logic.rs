@@ -322,6 +322,20 @@ pub fn clock_fix(job: &Value, wall: &[u16; 6]) -> Option<[u16; 6]> {
     Some(from_unix(to_unix(wall) + offset))
 }
 
+/// The moment of the commit line, in UTC, and where it was read from. WinPE
+/// takes the hardware clock as local time in its own zone (Pacific, unless
+/// told), so its UTC is hours off whenever the hardware clock holds UTC:
+/// the Aspire's record of 2026-11-16 said 07:03Z the next day at 23:03Z
+/// (Ubuntu keeps the clock in UTC). With `rtc` "utc", what WinPE shows as
+/// local time IS the true UTC (`clock_fix`, above). `wall` is that reading,
+/// taken before the clock is changed; `system_utc` is WinPE's own UTC. Pure.
+pub fn crossed_utc(job: &Value, wall: &[u16; 6], system_utc: &str) -> (String, &'static str) {
+    if job["clock"]["rtc"].as_str() == Some("utc") && wall[0] >= 2025 {
+        return (format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", wall[0], wall[1], wall[2], wall[3], wall[4], wall[5]), "the hardware clock, which Linux kept in UTC");
+    }
+    (system_utc.to_string(), "the installer's own clock: the job does not say the hardware clock holds UTC, so this may be off by the installer's zone")
+}
+
 /// Civil time <-> seconds since 1970 (proleptic Gregorian; Howard Hinnant's algorithms).
 fn to_unix(w: &[u16; 6]) -> i64 {
     let (y, m, d) = (w[0] as i64 - if w[1] <= 2 { 1 } else { 0 }, w[1] as i64, w[2] as i64);
@@ -495,6 +509,17 @@ mod tests {
         assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc" } }), &w), None);
         assert_eq!(clock_fix(&json!({}), &w), None);
         assert_eq!(clock_fix(&json!({ "clock": { "rtc": "utc", "offset_seconds": -14400 } }), &[2001, 1, 1, 0, 0, 0]), None);
+        // the commit line's time: the Aspire, 2026-11-16, hardware clock in UTC at 23:03:41, WinPE's own UTC eight hours on
+        let (t, from) = crossed_utc(&json!({ "clock": { "rtc": "utc" } }), &[2026, 11, 16, 23, 3, 41], "2026-11-17T07:03:41Z");
+        assert_eq!(t, "2026-11-16T23:03:41Z");
+        assert!(from.starts_with("the hardware clock"));
+        // a hardware clock in local time, or not said, or never set: WinPE's own clock, and the record says it may be off
+        for job in [json!({ "clock": { "rtc": "local" } }), json!({})] {
+            let (t, from) = crossed_utc(&job, &[2026, 11, 16, 23, 3, 41], "2026-11-17T07:03:41Z");
+            assert_eq!(t, "2026-11-17T07:03:41Z");
+            assert!(from.contains("may be off"));
+        }
+        assert_eq!(crossed_utc(&json!({ "clock": { "rtc": "utc" } }), &[2001, 1, 1, 0, 0, 0], "s").0, "s");
     }
 
     #[test]

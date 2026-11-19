@@ -62,6 +62,14 @@ job["storage"]["esp"] = {"size_bytes": int(facts["esp"]["size"]), "free_bytes": 
 job["harvest"]["folders"] = [f for f in job["harvest"]["folders"] if f["name"] == "Documents"]
 job["harvest"]["folders"][0].update({"path": "C:\\Users\\rig\\Documents", "is_onedrive": False, "files": 0, "bytes": 0, "cloud_only_files": 0})
 job["harvest"]["cloud_files"] = {"placeholders_found": 0, "materialized": 0, "failed": 0, "result": "none-found"}
+# the folder map, when the guest's own harvester gave one (2026-11-18, the one click test's file copy):
+# the PRODUCT's count of the account's folders, as the job writer records it, in place of the empty stand-in
+if len(sys.argv) > 7 and os.path.getsize(sys.argv[7]) > 2:
+    _m = json.load(open(sys.argv[7], encoding="utf-8-sig"))
+    job["harvest"]["folders"] = [{"name": f["Name"], "path": f["Path"], "exists": f["Exists"], "is_onedrive": f["IsOneDrive"], "files": f["Files"],
+                                  "bytes": f["Bytes"], "cloud_only_files": f["CloudOnlyFiles"], "truncated": f["Truncated"]} for f in _m["UserFolders"]]
+    _cloud = sum(f["cloud_only_files"] for f in job["harvest"]["folders"])
+    job["harvest"]["cloud_files"] = {"placeholders_found": _cloud, "materialized": 0, "failed": 0, "result": "left-in-cloud" if _cloud else "none-found"}
 job["harvest"]["browsers"] = []
 job["harvest"]["clock"] = settings["clock"]
 job["harvest"]["wifi"] = settings["wifi"]

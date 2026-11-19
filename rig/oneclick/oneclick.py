@@ -25,6 +25,9 @@ The rules it keeps:
     (the owner, 2026-10-27).
   - A run folder is never overwritten; a stage tried again gets a new
     folder. Every stage folder ends with a SHA256SUMS.
+  - One stick, no swaps (the owner, 2026-11-15): the kit-stick stage writes
+    the kit onto the stick while it sits in the machine, once at the start
+    and once after the walk-away made it Windows' installer.
   - The run folder lives under rig/hyperv/artifacts/runs/, which git
     ignores: it holds the test account's password and the machine's facts.
 """
@@ -44,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.2.1"
+VERSION = "0.4.7"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -466,7 +469,22 @@ def walkaway_stick_in(ctx):
     return sum(1 for d in sticks if isinstance(d, dict) and d.get("offered")) == 1
 
 
-OWNER_CHECKS = {"kit-stick-in": kit_stick_in, "walkaway-stick-in": walkaway_stick_in}
+def fetch_status(ctx):
+    """The fetch program's own word on whether the stick carries the plan's
+    Linux (`upgrade-fetch status`, the call the window makes)."""
+    lx = ctx.plan.get("linux") or {}
+    r = ctx.link.run(FIND_STICK + f"& \"$L\\upgrade-fetch.exe\" status --release {lx.get('release', '')} --desktop {lx.get('desktop', '')}; "
+                     "Write-Output \"FETCH_RC=$LASTEXITCODE\"", "windows", 600)
+    return bool(re.search(r"^FETCH_RC=0\s*$", r.out, re.M)), clean(r.out + r.err)
+
+
+def linux_on_stick(ctx):
+    """Windows answers and the one kit stick carries the plan's Linux, every
+    file checked: the owner's fill through the window (UPGRADE.exe) is done."""
+    return ctx.link.probe() == "windows" and fetch_status(ctx)[0]
+
+
+OWNER_CHECKS = {"kit-stick-in": kit_stick_in, "walkaway-stick-in": walkaway_stick_in, "linux-on-stick": linux_on_stick}
 
 
 def wait_owner_seen(ctx, st, limit_s):
@@ -609,19 +627,24 @@ def autologon_off(ctx_or_link, journal, out=print):
 def sign_in_by_itself(ctx):
     """'signed-in', 'not-signed-in' (the owner can still sign in) or
     'wrong-system' (the restart reached something else: the stage stops)."""
-    if autologon_on(ctx) != "SET":
-        return "not-signed-in"
-    before = boot_mark(ctx, "windows")
-    ctx.note("restarting Windows once so the test's automatic sign-in signs it in")
-    ctx.link.run("shutdown /r /t 5", "windows", 60)
-    got = wait_new_boot(ctx, "Windows, restarted to sign itself in", before, 1800)
-    if got != "windows":
-        ctx.note(f"after the restart for the automatic sign-in, {got or 'nothing'} answered")
-        return "wrong-system"
-    if ctx.wait_for("Windows to sign itself in", lambda: signed_in(ctx), 600, every_s=20):
-        ctx.note("the TEST signed Windows in by itself (automatic sign-in)")
-        return "signed-in"
-    ctx.note("the automatic sign-in did not reach the desktop within 10 minutes")
+    # Twice on the Aspire, 2026-11-18, both on a Windows the way back had just returned to: the
+    # setting was written, Windows restarted, did not sign in, and the setting read 0 afterwards
+    # (cause not found; it worked twice in the same place). So the test sets it once more and
+    # restarts once more before it waits for the owner, and the journal says which try signed in.
+    for attempt in (1, 2):
+        if autologon_on(ctx) != "SET":
+            return "not-signed-in"
+        before = boot_mark(ctx, "windows")
+        ctx.note("restarting Windows once so the test's automatic sign-in signs it in" + (" (second try)" if attempt == 2 else ""))
+        ctx.link.run("shutdown /r /t 5", "windows", 60)
+        got = wait_new_boot(ctx, "Windows, restarted to sign itself in", before, 1800)
+        if got != "windows":
+            ctx.note(f"after the restart for the automatic sign-in, {got or 'nothing'} answered")
+            return "wrong-system"
+        if ctx.wait_for("Windows to sign itself in", lambda: signed_in(ctx), 240 if attempt == 1 else 600, every_s=20):
+            ctx.note("the TEST signed Windows in by itself (automatic sign-in)" + (", at the second try" if attempt == 2 else ""))
+            return "signed-in"
+        ctx.note(f"the automatic sign-in did not reach the desktop (try {attempt} of 2)")
     return "not-signed-in"
 
 
@@ -673,6 +696,8 @@ def write_job(ctx, L, args, erase=False):
     if link.kind == "hyperv":
         pub = os.path.expanduser("~/.ssh/upgrade_rig.pub")
         env = dict(os.environ, ONECLICK_HASH=hashed, ONECLICK_SSH_PUB=pub)
+        if any(s.get("stage") == "plant-files" for s in ctx.plan.get("stages", [])):
+            env["ONECLICK_FOLDER_MAP"] = "1"   # the stand-in job carries the product harvester's own folder count
         cmd = ["./v9.sh", "job", f"--spoof-ssh={pub}", *args.get("rig_job_args", [])] if erase else ["./v1.sh", "job"]
         j = subprocess.run(cmd, cwd=os.path.join(REPO, "rig", "hyperv"), env=env, capture_output=True, text=True, timeout=1800)
         ctx.save("job-standin.log", j.stdout + j.stderr)
@@ -734,8 +759,11 @@ def wait_after_arm(ctx, L, want, limit_s):
     ('linux' after an install, 'windows' after a refusal):
     Windows may answer in between (an update, the disk check, the return);
     a stopped outcome ends the wait early. Returns 'linux' | 'windows' |
-    'stopped' | None (a hang)."""
+    'stopped' | 'returned' (Windows is back to stay after a completed
+    install) | None (a hang)."""
     link = ctx.link
+    settled = [None]
+
     def arrived():
         who = link.probe()
         if who == "linux" and want == "linux":
@@ -743,15 +771,30 @@ def wait_after_arm(ctx, L, want, limit_s):
         if who == "windows":
             # only this job's outcome counts: a stopped record left by an earlier try of the stage
             # ended the wait while the conversion was going (the Aspire, 2026-11-15)
-            st = link.run(FIND_STICK + "if (Test-Path \"$L\\upgrade_\\outcome.json\") { $o = Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json; "
-                          "$j = Get-Content \"$L\\upgrade_\\job.json\" -Raw | ConvertFrom-Json; if ($o.job_id -eq $j.job_id) { $o.status } }; "
+            st = link.run(FIND_STICK + "$j = Get-Content \"$L\\upgrade_\\job.json\" -Raw | ConvertFrom-Json; "
+                          "if (Test-Path \"$L\\upgrade_\\outcome.json\") { $o = Get-Content \"$L\\upgrade_\\outcome.json\" -Raw | ConvertFrom-Json; "
+                          "if ($o.job_id -eq $j.job_id) { \"OUTCOME=$($o.status)\" } }; "
+                          "if (Test-Path \"$L\\upgrade_\\prologue-return.json\") { $r = Get-Content \"$L\\upgrade_\\prologue-return.json\" -Raw | ConvertFrom-Json; "
+                          "if ($r.job_id -eq $j.job_id) { if ($r.windows_slot) { 'RETURN=SLOT' } else { 'RETURN=PLAIN' } } }; "
                           "if (Test-Path \"$L\\upgrade_\\report\\refusal.json\") { 'REFUSED' }", "windows", timeout=60)
             # a refusal is ALSO a stopped outcome (the prologue's return writes one): when
             # Windows is what the stage waits for, it comes first (the rig, 2026-10-27)
             if want == "windows" and "REFUSED" in st.out:
                 return "windows"
-            if "stopped" in st.out:
+            if "OUTCOME=stopped" in st.out:
                 return "stopped"
+            # the install completed, the firmware started Windows, and the prologue's return step
+            # ran and arranged no restart (its record carries no windows_slot): nothing will start
+            # Linux now. The Aspire, 2026-11-14, sat like this while the manager waited out three
+            # hours. Wanted twice in the same Windows boot: the return writes its record a moment
+            # before it adds windows_slot and restarts
+            if want == "linux" and "OUTCOME=completed" in st.out and "RETURN=PLAIN" in st.out:
+                mark = boot_mark(ctx, "windows")
+                if mark is not None and mark == settled[0]:
+                    return "returned"
+                settled[0] = mark
+            else:
+                settled[0] = None
         return None
     return ctx.wait_for(f"the conversion, until {want} answers", arrived, limit_s, every_s=60)
 
@@ -795,6 +838,11 @@ class KeepWindows:
         if got == "stopped":
             link.pull(f"{L}\\upgrade_\\outcome.json", os.path.join(ctx.stage_dir, "outcome-stopped.json"), "windows")
             return Outcome("prologue-stopped", False, "the prologue stopped after a restart: outcome-stopped.json")
+        if got == "returned":
+            link.pull(f"{L}\\upgrade_\\prologue-return.json", os.path.join(ctx.stage_dir, "prologue-return.json"), "windows")
+            link.pull(f"{L}\\upgrade_\\outcome.json", os.path.join(ctx.stage_dir, "outcome-on-stick.json"), "windows")
+            return Outcome("windows-came-back", False, "the install completed, the firmware started Windows, and the prologue's return arranged no "
+                           "restart: nothing will start Linux (prologue-return.json, outcome-on-stick.json)")
         if not ctx.wait_for("settle-in's first start", lambda: "done" in sudo(
                 ctx, "test -e /var/lib/upgrade_/settle-in/first-start.done && echo done", 60).out, 1200, every_s=30):
             return Outcome("first-start-missing", False, "Linux answered but settle-in's first start did not finish")
@@ -853,6 +901,11 @@ class CleanSlate:
             return Outcome("hang-install", False, "no Linux within the limit (the journal has the heartbeats)")
         if got == "stopped":
             return Outcome("prologue-stopped", False, "the prologue stopped after a restart")
+        if got == "returned":
+            link.pull(f"{L}\\upgrade_\\prologue-return.json", os.path.join(ctx.stage_dir, "prologue-return.json"), "windows")
+            link.pull(f"{L}\\upgrade_\\outcome.json", os.path.join(ctx.stage_dir, "outcome-on-stick.json"), "windows")
+            return Outcome("windows-came-back", False, "the install completed, the firmware started Windows, and the prologue's return arranged no "
+                           "restart: nothing will start Linux (prologue-return.json, outcome-on-stick.json)")
         if not ctx.wait_for("settle-in's first start", lambda: "done" in sudo(
                 ctx, "test -e /var/lib/upgrade_/settle-in/first-start.done && echo done", 60).out, 1200, every_s=30):
             return Outcome("first-start-missing", False, "Linux answered but settle-in's first start did not finish")
@@ -1036,6 +1089,10 @@ class WalkAway:
         ctx.save("walkaway-prepare.out", prep.out + prep.err)
         if '"ready"' not in prep.out:
             return Outcome("walkaway-not-ready", False, (prep.out + prep.err).strip()[-300:])
+        # what the firmware is about to be asked, written down before every walk-away restart: on
+        # 2026-11-16 this restart left the Aspire before any system for 19 hours, with nothing kept to read
+        cap = sudo(ctx, BEFORE_WALKAWAY_RESTART, 300)
+        ctx.save("before-restart.txt", cap.out + cap.err)
         before = boot_mark(ctx, "linux")
         sudo(ctx, "systemd-run --on-active=5 systemctl reboot >/dev/null; echo REBOOTING")
         # Setup, the first sign-in, then Windows' SSH (installed from Windows Update by the walk-away's
@@ -1068,6 +1125,20 @@ class WalkAway:
             return Outcome("rig-standin-failed", False, "the fresh image's Windows did not answer")
         return Outcome("rig-standin-fresh-windows", True, "the rig cannot hold the walk-away (no USB stick with a serial): a fresh copy of the rig's Windows image stands in; not a walk-away row")
 
+
+# read-only: the firmware's entries, BootNext and BootOrder (efibootmgr -v), every USB drive's partition
+# table and first sector, the boot files on it (hashed from a read-only mount of the test's own), and
+# that the restart that follows is a warm one (systemctl reboot, this boot's id and start time)
+BEFORE_WALKAWAY_RESTART = (
+    "echo \"== utc $(date -u +%FT%TZ)\"; echo '== efibootmgr -v'; efibootmgr -v; "
+    "echo '== drives'; lsblk -o NAME,SIZE,TYPE,TRAN,FSTYPE,LABEL,PARTTYPE,PARTFLAGS,MODEL,SERIAL; "
+    "for d in $(lsblk -dno NAME,TRAN | awk '$2==\"usb\"{print $1}'); do "
+    "echo \"== sfdisk -d /dev/$d\"; sfdisk -d /dev/$d; echo \"== first sector of /dev/$d, sha256\"; head -c 512 /dev/$d | sha256sum; "
+    "for p in $(lsblk -lno NAME,TYPE /dev/$d | awk '$2==\"part\"{print $1}'); do m=$(mktemp -d); "
+    "if mount -o ro /dev/$p $m 2>/dev/null; then echo \"== /dev/$p: its root, and the files under EFI\"; ls -la $m; "
+    "(cd $m && find . -maxdepth 4 -ipath './efi/*' -type f -exec sha256sum {} +); umount $m; else echo \"== /dev/$p: not mounted read-only\"; fi; rmdir $m; done; done; "
+    "echo '== this boot (the restart that follows is warm: systemctl reboot)'; uptime -s; cat /proc/sys/kernel/random/boot_id; "
+    "echo '== sleep locks'; systemd-inhibit --list --no-legend; echo CAPTURED")
 
 SETTLE_IN = "/usr/local/libexec/upgrade_/settle-in"
 # the window's own floor (settle-in/window/src/goback.rs refresh_sticks): Windows 11 takes about 7 GB, 16 GB sticks
@@ -1113,9 +1184,602 @@ class Rollback:
         return Outcome("rolled-back", True, "Windows started first with no key; the guard stood down")
 
 
+# --- the file copy, and reclaim's refusals -----------------------------------
+#
+# The file copy (settle-in pull; V3, R8, R19, R20): known files are planted in
+# Windows before the job is written (stage plant-files), so the product's own
+# harvest counts them; after the install beside Windows, the pull runs through
+# settle-in's own command and every planted file is hashed where it landed.
+# Reclaim (R41, V15): only its check runs here. The check writes nothing and
+# never arms; the move itself needs a USB stick the rig does not have and a
+# healthy drive the Aspire does not have.
+
+PLANT_DIR = "C:\\upgrade_oneclick\\plant"
+
+
+def last_json(text):
+    """The last whole JSON object a program printed (settle-in prints pretty
+    JSON, after any progress lines)."""
+    lines = text.splitlines()
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].rstrip() == "{":
+            try:
+                return json.loads("\n".join(lines[i:]))
+            except ValueError:
+                continue
+    for l in reversed(lines):
+        if l.startswith("{") and l.rstrip().endswith("}"):
+            try:
+                return json.loads(l)
+            except ValueError:
+                continue
+    return None
+
+
+def stage_file(ctx, stage, name):
+    """A file an earlier stage of this run kept (the latest such stage)."""
+    import glob
+    found = sorted(glob.glob(os.path.join(ctx.run_dir, "stages", f"*-{stage}", name)))
+    return found[-1] if found else None
+
+
+def csv_line(values):
+    import csv
+    import io
+    buf = io.StringIO()
+    csv.writer(buf, quoting=csv.QUOTE_MINIMAL, lineterminator="\n").writerow(values)
+    return buf.getvalue()
+
+
+def run_facts(ctx):
+    """The machine's facts as promote reads them: the run's own, or a look
+    stage's (the rig is off at the run's start: 2026-11-18, the first rows
+    of the new stages named no machine)."""
+    import rows
+    try:
+        return rows.find_facts(ctx.run_dir)[0]
+    except (OSError, ValueError):
+        return {}
+
+
+STAGE_ROW_FILES = {"v3-pull.row.csv": ("v3-pull.csv", "pull"), "r41-reclaim.row.csv": ("r41-reclaim.csv", "reclaim")}
+
+
+def stage_rows(run_dir, results_dir=None, out=print):
+    """The lines the pull and reclaim-check stages wrote for their own CSVs
+    (v3-pull.csv, r41-reclaim.csv), appended there once per run. A line that
+    names no machine or firmware (manager 0.4.0 on the rig) is given the
+    run's own facts, the ones promote uses; nothing else is touched."""
+    import csv
+    import io
+    import rows
+    results_dir = results_dir or os.path.join(REPO, "docs", "validation-results")
+    marker = os.path.join(run_dir, ".stage-rows")
+    if os.path.exists(marker):
+        out(f"stage-rows: REFUSED - this run's stage rows were already written ({open(marker).read().strip()})")
+        return 2
+    facts = rows.find_facts(run_dir)[0]
+    machine = " ".join(x for x in (facts.get("manufacturer"), facts.get("model")) if x)
+    firmware = " ".join(x for x in (facts.get("bios_vendor"), facts.get("bios_version")) if x)
+    said = []
+    stages = os.path.join(run_dir, "stages")
+    for name, (target, kind) in STAGE_ROW_FILES.items():
+        lines = []
+        for d in sorted(os.listdir(stages)):
+            f = os.path.join(stages, d, name)
+            if not os.path.isfile(f):
+                continue
+            for row in csv.reader(open(f, encoding="utf-8", newline="")):
+                if kind == "pull":
+                    row[2] = row[2] or firmware
+                    if row[3].rstrip().endswith(","):
+                        row[3] = row[3].rstrip() + " " + machine
+                    row[-1] += f" | run {os.path.basename(os.path.normpath(run_dir))}/{d}"
+                else:
+                    row[2], row[3] = row[2] or machine, row[3] or firmware
+                    row[-1] += f" | run {os.path.basename(os.path.normpath(run_dir))}/{d}"
+                buf = io.StringIO()
+                csv.writer(buf, quoting=csv.QUOTE_MINIMAL, lineterminator="\n").writerow(row)
+                lines.append(buf.getvalue())
+        if not lines:
+            continue
+        path = os.path.join(results_dir, target)
+        with open(path, "a", encoding="utf-8", newline="") as f:
+            f.write("".join(lines))
+        with open(path, encoding="utf-8") as f:
+            last = sum(1 for _ in f)
+        said.append(f"{target} lines {last - len(lines) + 1}-{last}")
+    if not said:
+        out("stage-rows: no pull or reclaim-check stage wrote a line in this run")
+        return 1
+    with open(marker, "w", encoding="utf-8") as f:
+        f.write("; ".join(said) + "\n")
+    out("stage-rows: " + "; ".join(said))
+    return 0
+
+
+class PlantFiles:
+    """Before the job is written: a known tree of files in the account's own
+    Documents and Pictures (rig/hyperv/physical/plant-files.ps1), with what
+    must arrive and what must not written down. Files in the test account's
+    own folders only; an earlier plant is replaced, so it can run again."""
+    writes = False
+    needs = ()
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "windows":
+            return untouched("wrong-system", "the files are planted in Windows, before the job is written")
+        link.run(f"New-Item -ItemType Directory -Force -Path '{PLANT_DIR}' | Out-Null", "windows", 60)
+        ff = os.path.join(ctx.stage_dir, "firefox.jsonlz4")
+        subprocess.run([sys.executable, os.path.join(REPO, "rig", "hyperv", "pull-firefox.py"), ff], capture_output=True, text=True)
+        fx = ""
+        if os.path.isfile(ff) and link.push(ff, PLANT_DIR + "\\firefox.jsonlz4", "windows").ok:
+            fx = PLANT_DIR + "\\firefox.jsonlz4"
+        r = link.run(windows_script("plant-files.ps1", "-Out", f"'{PLANT_DIR}'", "-Firefox", f"'{fx}'"), "windows", 900)
+        ctx.save("plant.out", r.out + r.err)
+        if "EXPECTED=" not in r.out:
+            return untouched("plant-failed", (r.out + r.err).strip()[-300:])
+        local = os.path.join(ctx.stage_dir, "expected.json")
+        if not link.pull(PLANT_DIR + "\\expected.json", local, "windows").ok or not os.path.isfile(local):
+            return untouched("plant-failed", "what was planted could not be read back")
+        with open(local, encoding="utf-8-sig") as f:
+            exp = json.load(f)
+        marks = ", ".join(f"{k} {v}" for k, v in (exp.get("bookmarks") or {}).items()) or "none"
+        return Outcome("files-planted", True, f"{len(exp['copy'])} files planted in the account's Documents and Pictures, "
+                       f"{len(exp['not_copied'])} entries that must not be copied (links, Windows' own settings file); bookmarks planted: {marks}; "
+                       "no OneDrive-only files (R43's residue stays owed)")
+
+
+PULL_TOOLS = ("for t in ntfs-3g cryptsetup systemd-inhibit; do printf 'TOOL %s=%s\\n' $t \"$(command -v $t || echo MISSING)\"; done; "
+              "echo \"NTFS3G=$( (rpm -q ntfs-3g 2>/dev/null | grep -v 'not installed') || dpkg-query -W -f '${Package} ${Version}' ntfs-3g 2>/dev/null || echo unknown)\"; "
+              "echo \"CRYPTSETUP=$(cryptsetup --version 2>/dev/null | head -1)\"; echo \"KERNEL=$(uname -r)\"; . /etc/os-release; echo \"OS=$PRETTY_NAME\"")
+
+
+class Pull:
+    """After the install beside Windows: settle-in's own file copy, as the
+    person's click runs it (check, then run), then every planted file hashed
+    where it landed. A second run must find nothing to do."""
+    writes = True
+    needs = ("password",)
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "linux":
+            return untouched("wrong-system", "the file copy runs in the installed Linux")
+        ep = stage_file(ctx, "plant-files", "expected.json")
+        if not ep:
+            return untouched("nothing-planted", "this run has no plant-files stage before the install, so there is nothing to hold the copy against")
+        with open(ep, encoding="utf-8-sig") as f:
+            exp = json.load(f)
+        tools = sudo(ctx, PULL_TOOLS, 120)
+        ctx.save("tools.txt", tools.out + tools.err)
+        tv = kv_lines(tools.out)
+        chk = sudo(ctx, f"{SETTLE_IN} pull check", int(args.get("check_limit_s", 900)))
+        ctx.save("pull-check.out", chk.out + chk.err)
+        c = last_json(chk.out) or {}
+        if c.get("result") != "plan":
+            self.row(ctx, tv, exp, c.get("result") or "unread", "not-reached", 0, "refused" if c.get("result") == "refused" else "fail",
+                     "; ".join(c.get("why") or []) or (chk.out + chk.err).strip()[-200:])
+            return untouched("pull-refused", "; ".join(c.get("why") or []) or (chk.out + chk.err).strip()[-300:])
+        run = sudo(ctx, f"{SETTLE_IN} pull run", int(args.get("limit_s", 3600)))
+        ctx.save("pull-run.out", run.out + run.err)
+        r = last_json(run.out) or {}
+        if r.get("result") != "done":
+            why = "; ".join(r.get("why") or []) if isinstance(r.get("why"), list) else str(r.get("why") or "")
+            self.row(ctx, tv, exp, "plan", r.get("result") or "unread", 0, "fail", why or (run.out + run.err).strip()[-200:])
+            return Outcome("pull-" + (r.get("result") or "unread"), False, why or (run.out + run.err).strip()[-300:])
+        tos = {f["name"]: f["to"] for f in r.get("folders", [])}
+        look = "".join(f"echo '== {name}'; if [ -d {shq(to)}/pull-test ]; then cd {shq(to)} && find pull-test -type f -exec sha256sum {{}} + ; "
+                       f"find pull-test -printf 'ENTRY %y %u %p\\n'; fi; " for name, to in sorted(tos.items()))
+        docs_to = tos.get("Documents", "")
+        look += (f"echo '== bookmarks'; ls -1 {shq(docs_to)} 2>/dev/null | grep '^Bookmarks from Windows' | sed 's/^/MARKS /'; "
+                 "echo '== after'; echo \"MOUNTED=$(findmnt -n /run/upgrade_/pull-windows >/dev/null && echo yes || echo no)\"; "
+                 "echo \"MAPPED=$([ -e /dev/mapper/upgrade_-pull-windows ] && echo yes || echo no)\"; "
+                 "echo \"KEY_LEFT=$([ -e /var/lib/upgrade_/artifacts/credentials/bitlocker-C.txt ] && echo yes || echo no)\"; echo \"PERSON=$SUDO_USER\"")
+        seen = sudo(ctx, look, 600)
+        ctx.save("landed.txt", seen.out + seen.err)
+        got, entries, owners, folder = {}, set(), set(), None
+        for l in seen.out.splitlines():
+            if l.startswith("== "):
+                folder = l[3:].strip()
+            elif l.startswith("ENTRY "):
+                _, _kind, owner, path = l.split(" ", 3)
+                entries.add((folder, path))
+                owners.add(owner)
+            elif re.match(r"^[0-9a-f]{64}  ", l):
+                got[(folder, l[66:])] = l[:64]
+        sv = kv_lines(seen.out)
+        want = {(e["folder"], e["rel"]): e["sha256"] for e in exp["copy"]}
+        missing = sorted(f"{k[0]}/{k[1]}" for k in want if k not in got)
+        differ = sorted(f"{k[0]}/{k[1]}" for k in want if k in got and got[k] != want[k])
+        extra = sorted(f"{k[0]}/{k[1]}" for k in got if k not in want)
+        wrongly = sorted(n for n in exp.get("not_copied", []) if ("Documents", n) in entries)
+        marks_seen = [l[6:] for l in seen.out.splitlines() if l.startswith("MARKS ")]
+        marks_missing = sorted(b for b in (exp.get("bookmarks") or {}) if not any(b in m for m in marks_seen))
+        strangers = sorted(o for o in owners if o != sv.get("PERSON"))
+        again = sudo(ctx, f"{SETTLE_IN} pull run", 900)
+        ctx.save("pull-again.out", again.out + again.err)
+        a = last_json(again.out) or {}
+        faults = []
+        if missing:
+            faults.append(f"{len(missing)} planted file(s) did not arrive (the first: {missing[0]})")
+        if differ:
+            faults.append(f"{len(differ)} arrived with other bytes (the first: {differ[0]})")
+        if extra:
+            faults.append(f"{len(extra)} file(s) arrived that were not planted to be copied (the first: {extra[0]})")
+        if wrongly:
+            faults.append("copied though it must not be: " + ", ".join(wrongly))
+        if marks_missing:
+            faults.append("no bookmarks file for " + ", ".join(marks_missing))
+        if strangers:
+            faults.append("copied files belong to " + ", ".join(strangers) + ", not the person")
+        if sv.get("MOUNTED") != "no" or sv.get("MAPPED") != "no":
+            faults.append("Windows' drive was left open after the copy")
+        if a.get("result") != "nothing-to-do":
+            faults.append(f"a second run said {a.get('result') or 'nothing readable'}, not nothing-to-do")
+        n_ok = len(want) - len(missing) - len(differ)
+        marks = " ".join(f"{b}={n}" for b, n in (exp.get("bookmarks") or {}).items())
+        self.row(ctx, tv, exp, "plan", "done", n_ok, "fail" if faults else ("pass" if link.kind == "ssh" else "pass-plumbing"),
+                 "; ".join(faults) or "no OneDrive-only files planted (R43's residue stays owed); a second run found nothing to do; the one click test manager's stage",
+                 key_deleted="yes" if sv.get("KEY_LEFT") == "no" else "no", marks=marks)
+        if faults:
+            return Outcome("files-differ", False, "; ".join(faults))
+        return Outcome("files-brought", True, f"settle-in's own copy brought all {len(want)} planted files into the person's folders, each identical (sha256); "
+                       f"the {len(exp.get('not_copied', []))} links and settings files were not copied; bookmarks written for {marks or 'none'}; "
+                       f"Windows' drive closed again; a second run found nothing to do; {tv.get('OS', '')}, {tv.get('NTFS3G', '')}; no OneDrive-only files were planted")
+
+    def row(self, ctx, tv, exp, check, run, n_ok, result, notes, key_deleted="", marks=""):
+        """This stage's own line for v3-pull.csv, kept in the stage folder."""
+        facts = run_facts(ctx)
+        machine = " ".join(x for x in (facts.get("manufacturer"), facts.get("model")) if x)
+        firmware = " ".join(x for x in (facts.get("bios_vendor"), facts.get("bios_version")) if x)
+        with open(os.path.join(REPO, "settle-in", "Cargo.toml"), encoding="utf-8") as f:
+            sv = re.search(r'^version = "([^"]+)"', f.read(), re.M).group(1)
+        ctx.save("v3-pull.row.csv", csv_line([
+            utc()[:10], f"oneclick {VERSION} pull", firmware, f"installed {tv.get('OS', 'Linux')} (alongside), {machine}",
+            f"settle-in {sv}", exp.get("windows_build", ""), tv.get("KERNEL", ""), tv.get("CRYPTSETUP", "").replace("cryptsetup ", "").split(" ")[0],
+            tv.get("NTFS3G", ""), "0", len(exp["copy"]), n_ok, 0, 0, "none planted", marks, key_deleted, check, run, result, notes]))
+
+
+def shq(text):
+    """One shell word."""
+    return "'" + str(text).replace("'", "'\"'\"'") + "'"
+
+
+RECLAIM_STATE = ("echo \"BOOT=$(efibootmgr 2>/dev/null | grep -E '^(BootNext|BootOrder|Boot[0-9A-F]{4})' | sha256sum | cut -c1-64)\"; "
+                 "D=/dev/$(lsblk -no PKNAME \"$(findmnt -no SOURCE /)\" | head -1); echo \"DISK=$D\"; "
+                 "echo \"TABLE=$(sfdisk -d $D 2>/dev/null | sha256sum | cut -c1-64)\"; echo \"DISK_BYTES=$(blockdev --getsize64 $D)\"; "
+                 "echo \"RECORDS=$(cat /var/lib/upgrade_/job.json /var/lib/upgrade_/outcome.json | sha256sum | cut -c1-64)\"; "
+                 "echo \"WINMOUNT=$(findmnt -n /run/upgrade_/reclaim-windows >/dev/null && echo yes || echo no)\"")
+
+# The planted faults (VALIDATION V15), each made by changing what the fault is about and
+# nothing else, on the RIG only, and put back after the check. arm -> (what is planted,
+# words the refusal must carry).
+RECLAIM_PLANTS = {
+    "wrong-guid": ("outcome", "d['windows']['partition']['guid'] = '0fc63daf-0000-4000-8000-00000000beef'", "is not on the disk Linux runs from"),
+    "drive-health": ("job", "d['storage']['physical_disk']['health_status'] = 'Warning'", "did not report itself healthy"),
+    "bitlocker-locked": ("job", "d['harvest']['bitlocker']['status'] = 'on'", "locked with BitLocker"),
+    "other-profiles": ("windows", None, "other people's accounts are on Windows"),
+}
+
+
+class ReclaimCheck:
+    """Reclaim's own check (settle-in reclaim check; R41, V15): what it would
+    delete, or why it refuses. It writes nothing and arms nothing, and this
+    stage holds it to that: the firmware's entries, the partition table and
+    the install's records are the same after as before. With "arm" in the
+    plan, one fault is planted first (the rig only) and put back after."""
+    writes = False
+    needs = ("password",)
+
+    def run(self, ctx, args):
+        link = ctx.link
+        if link.probe() != "linux":
+            return untouched("wrong-system", "reclaim is checked from the installed Linux")
+        arm = args.get("arm", "as-found")
+        want = args.get("expect", "refused")
+        must = list(args.get("expect_why", []))
+        if arm != "as-found":
+            if arm not in RECLAIM_PLANTS:
+                return untouched("manager-error", f"no planted fault is named {arm}")
+            if link.kind != "hyperv":
+                return untouched("plant-refused", "a fault is planted on the rig only, never on a real machine")
+            must.append(RECLAIM_PLANTS[arm][2])
+        before = kv_lines(sudo(ctx, RECLAIM_STATE, 120).out)
+        planted = self.plant(ctx, arm) if arm != "as-found" else None
+        if planted is False:
+            self.unplant(ctx, arm)
+            return untouched("plant-failed", f"the {arm} fault could not be planted: read plant.out")
+        try:
+            chk = sudo(ctx, f"{SETTLE_IN} reclaim check", int(args.get("limit_s", 900)))
+        finally:
+            if arm != "as-found":
+                put_back = self.unplant(ctx, arm)
+        ctx.save("reclaim-check.out", chk.out + chk.err)
+        c = last_json(chk.out) or {}
+        after = kv_lines(sudo(ctx, RECLAIM_STATE, 120).out)
+        ctx.save("state.txt", "before " + json.dumps(before, sort_keys=True) + "\nafter  " + json.dumps(after, sort_keys=True) + "\n")
+        why = [str(w) for w in (c.get("why") or [])]
+        result = c.get("result") or "unread"
+        faults = []
+        for k in ("BOOT", "TABLE", "RECORDS"):
+            if not before.get(k) or before.get(k) != after.get(k):
+                faults.append({"BOOT": "the firmware's start entries", "TABLE": "the partition table", "RECORDS": "the install's records"}[k] + " changed across the check")
+        if after.get("WINMOUNT") != "no":
+            faults.append("Windows' drive was left mounted after the check")
+        if arm != "as-found" and not put_back:
+            faults.append("the planted fault could not be put back: read plant.out")
+        if result != want:
+            faults.append(f"the check said {result}, the plan expects {want}")
+        absent = [m for m in must if not any(m in w for w in why)]
+        if result == "refused" and absent:
+            faults.append("the refusal does not carry: " + " / ".join(absent))
+        # The Aspire, 2026-11-19: the check refused for its two reasons and for a third that was a flaw
+        # of its own (it could not read a drive it had opened). A plan that knows the machine's reasons
+        # says how many there are, and one more is a fault.
+        if result == "refused" and args.get("expect_reasons") is not None and len(why) != int(args["expect_reasons"]):
+            extra = [w for w in why if not any(m in w for m in must)]
+            faults.append(f"the refusal carries {len(why)} reason(s), the plan expects {args['expect_reasons']}" + (": not expected: " + " / ".join(extra)[:300] if extra else ""))
+        if arm != "as-found":
+            self.row(ctx, arm, before, c, result, faults)
+        words = "; ".join(why)[:400] if why else ""
+        if faults:
+            return Outcome("reclaim-check-wrong", False, "; ".join(faults) + (f" | it said: {words}" if words else ""))
+        if result == "refused":
+            return Outcome("reclaim-refused", True, f"{'planted fault ' + arm if arm != 'as-found' else 'the computer as found'}: reclaim's check refused "
+                           f"({len(why)} reason(s): {words}); nothing was armed, and the firmware's entries, the partition table and the install's records are unchanged")
+        return Outcome("reclaim-plan-made", True, f"the computer as found: reclaim's check gave a plan (it would delete {c.get('deleted_bytes', '?')} bytes of Windows "
+                       f"and move Linux {((c.get('move') or {}).get('shift_sectors', '?'))} sectors); nothing was armed or changed. The move itself is not run by this stage")
+
+    def plant(self, ctx, arm):
+        where, edit, _ = RECLAIM_PLANTS[arm]
+        if where == "windows":
+            script = ("set -e; G=$(python3 -c \"import json; print(json.load(open('/var/lib/upgrade_/outcome.json'))['windows']['partition']['guid'])\"); "
+                      "mkdir -p /run/upgrade_-plant; mount -t ntfs-3g /dev/disk/by-partuuid/$G /run/upgrade_-plant; "
+                      "mkdir '/run/upgrade_-plant/Users/someone-else'; echo planted > '/run/upgrade_-plant/Users/someone-else/a-file.txt'; "
+                      "umount /run/upgrade_-plant; echo PLANTED=yes")
+        else:
+            f = f"/var/lib/upgrade_/{where}.json"
+            script = (f"set -e; cp -p {f} {f}.upgrade_-plant-keep; python3 - <<'PY'\nimport json\nd = json.load(open('{f}'))\n{edit}\n"
+                      f"json.dump(d, open('{f}', 'w'), indent=1)\nPY\necho PLANTED=yes")
+        r = sudo(ctx, script, 300)
+        ctx.save("plant.out", r.out + r.err)
+        return "PLANTED=yes" in r.out
+
+    def unplant(self, ctx, arm):
+        where = RECLAIM_PLANTS[arm][0]
+        if where == "windows":
+            script = ("G=$(python3 -c \"import json; print(json.load(open('/var/lib/upgrade_/outcome.json'))['windows']['partition']['guid'])\"); "
+                      "mkdir -p /run/upgrade_-plant; mountpoint -q /run/upgrade_-plant || mount -t ntfs-3g /dev/disk/by-partuuid/$G /run/upgrade_-plant; "
+                      "rm -rf '/run/upgrade_-plant/Users/someone-else'; [ ! -e '/run/upgrade_-plant/Users/someone-else' ] && G1=gone; "
+                      "umount /run/upgrade_-plant && rmdir /run/upgrade_-plant; echo \"PUT_BACK=${G1:-no}\"")
+        else:
+            f = f"/var/lib/upgrade_/{where}.json"
+            script = f"if [ -e {f}.upgrade_-plant-keep ]; then mv -f {f}.upgrade_-plant-keep {f} && echo PUT_BACK=gone; else echo PUT_BACK=gone; fi"
+        r = sudo(ctx, script, 300)
+        with open(os.path.join(ctx.stage_dir, "plant.out"), "a", encoding="utf-8") as f:
+            f.write("\n--- put back\n" + r.out + r.err)
+        return "PUT_BACK=gone" in r.out
+
+    def row(self, ctx, arm, before, c, result, faults):
+        """This stage's own line for r41-reclaim.csv, kept in the stage folder."""
+        facts = run_facts(ctx)
+        machine = " ".join(x for x in (facts.get("manufacturer"), facts.get("model")) if x)
+        firmware = " ".join(x for x in (facts.get("bios_vendor"), facts.get("bios_version")) if x)
+        with open(os.path.join(REPO, "settle-in", "Cargo.toml"), encoding="utf-8") as f:
+            sv = re.search(r'^version = "([^"]+)"', f.read(), re.M).group(1)
+        ok = result == "refused" and not faults
+        notes = ("settle-in reclaim check, the fault planted and put back by the one click test manager; nothing armed, firmware entries, table and records unchanged; "
+                 + "; ".join(str(w) for w in (c.get("why") or []))) if ok else "; ".join(faults)
+        ctx.save("r41-reclaim.row.csv", csv_line([
+            utc(), f"oneclick {VERSION} reclaim-check", machine, firmware, sv, arm, before.get("DISK_BYTES", ""), "", str(64 << 20),
+            result if result == "refused" else "not-started", ("pass" if ctx.link.kind == "ssh" else "pass-plumbing") if ok else "fail", notes[:600]]))
+
+
+# --- one stick, no swaps -----------------------------------------------------
+#
+# Decided (2026-11-15, the owner): one stick on the way back too, and a test
+# with no stick swaps. The kit used to be written on the manager's own
+# computer and the stick carried over; a second stick took Windows' installer.
+# Now the stick never leaves the machine: the product's stick writer
+# (upgrade-stick.exe, R16) runs on the machine itself, from a copy of the kit
+# pushed there, with the word it asks for typed at kickoff.
+
+KIT_DIR = "C:\\upgrade_oneclick\\kit"
+KIT_TAR = "C:\\upgrade_oneclick\\kit.tar"
+KIT_CSV = "C:\\upgrade_oneclick\\r16-stick-writer.csv"
+ONE_USB = ("$ProgressPreference = 'SilentlyContinue'; $u = @(Get-Disk | Where-Object BusType -eq 'USB'); "
+           "if ($u.Count -ne 1) { Write-Output \"USB_DISKS=$($u.Count)\"; exit 3 }; $d = $u[0]; ")
+# the word the stick writer asks for: the first volume's label, else the model name (evaluate/stick judge.rs confirm_word)
+# the label the stick writer asks for is the first partition's that has one: read in partition order (the Aspire, 2026-11-18:
+# unsorted, Windows gave the second partition's label first, the word given at kickoff was that one, and the writer rightly refused)
+USB_FACTS = (ONE_USB + "$lab = @(Get-Partition -DiskNumber $d.Number -ErrorAction SilentlyContinue | Sort-Object PartitionNumber | "
+             "ForEach-Object { ($_ | Get-Volume -ErrorAction SilentlyContinue).FileSystemLabel } | Where-Object { $_ }) | Select-Object -First 1; "
+             "Write-Output \"TARGET=$($d.UniqueId)\"; Write-Output \"BYTES=$($d.Size)\"; Write-Output \"MODEL=$($d.FriendlyName.Trim())\"; Write-Output \"LABEL=$lab\"")
+WALKAWAY_LABEL_SOURCE = ("settle-in/src/stickwrite.rs", r'const LABEL: &str = "([^"]+)"')
+
+
+def walkaway_label(repo=REPO):
+    """The label settle-in gives the stick it makes Windows' installer (read
+    from the product's source: one home per fact)."""
+    path, rx = WALKAWAY_LABEL_SOURCE
+    with open(os.path.join(repo, path), encoding="utf-8") as f:
+        m = re.search(rx, f.read())
+    if not m:
+        raise SystemExit(f"oneclick: the walk-away stick's label is not where it was ({path}); refusing to guess it")
+    return m.group(1)
+
+
+def kv_lines(text):
+    return dict(re.findall(r"^(\w+)=(.*?)\s*$", clean(text), re.M))
+
+
+def file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def psq(text):
+    """A PowerShell single-quoted string."""
+    return "'" + text.replace("'", "''") + "'"
+
+
+class KitStick:
+    """The kit onto the stick, on the machine itself: dist/kit is pushed over
+    as one file (its hash checked on the machine before it is unpacked), then
+    the product's stick writer erases the one USB stick and writes the kit,
+    reading every file back. With the plan's "fetch", the Linux is then
+    fetched onto it by the same call the window makes (upgrade-fetch get).
+
+    Every kit-stick stage of a run must write the same kit (the journal's
+    'kit' line holds its SHA256SUMS' hash): one kit per run.
+
+    Not counted as a writer of the machine's drives: it erases the stick and
+    nothing else, and an interrupted write is simply done again. What stops
+    it from touching a drive is the stick writer's own refusals (R16), the
+    size the owner saw at kickoff, and the word typed there.
+
+    The rig cannot hold it (the writer rightly refuses Hyper-V's SCSI
+    "stick"): there the rig's own stick builder stands in, named so."""
+    writes = False
+    needs = ()   # the word: stage_needs (which one depends on where the stage sits)
+
+    def run(self, ctx, args):
+        link = ctx.link
+        kit = os.path.join(REPO, "dist", "kit")
+        sums, writer = os.path.join(kit, "stick", "SHA256SUMS"), os.path.join(kit, "upgrade-stick.exe")
+        if not (os.path.exists(sums) and (link.kind == "hyperv" or os.path.exists(writer))):
+            return untouched("kit-not-built", f"no kit at {kit} (./make-kit.sh)")
+        kit_id = file_sha256(sums)
+        first = [e for e in ctx.journal.entries() if e["event"] == "kit"]
+        if first and first[0].get("sums_sha256") != kit_id:
+            return untouched("kit-changed", f"this run's kit was {first[0].get('sums_sha256', '')[:12]}; dist/kit is now {kit_id[:12]}: one kit per run")
+        manifest = os.path.join(kit, "stick", "KIT-MANIFEST.txt")
+        if os.path.exists(manifest):
+            shutil.copy(manifest, os.path.join(ctx.stage_dir, "KIT-MANIFEST.txt"))
+        if not first:
+            ctx.journal.write("kit", sums_sha256=kit_id)
+        if link.kind == "hyperv":
+            return self.rig_standin(ctx, kit_id)
+        if link.probe() != "windows":
+            return untouched("wrong-system", "the stick writer runs on Windows")
+        word = ctx.secrets["kit-stick-after-walkaway" if args.get("after_walkaway") else "kit-stick"]
+        # the kit, as one file
+        tar = os.path.join(ctx.stage_dir, "kit.tar")
+        t = subprocess.run(["tar", "-C", kit, "-cf", tar, "stick", "upgrade-stick.exe"], capture_output=True, text=True)
+        if t.returncode != 0:
+            return untouched("manager-error", f"tar: {t.stderr.strip()[:200]}")
+        tar_id, tar_bytes = file_sha256(tar), os.path.getsize(tar)
+        link.run(f"Remove-Item {KIT_DIR}, {KIT_TAR}, {KIT_CSV} -Recurse -Force -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force {KIT_DIR} | Out-Null",
+                 "windows", 300)
+        p = link.push(tar, KIT_TAR, "windows", timeout=int(args.get("push_limit_s", 7200)))
+        os.remove(tar)
+        if not p.ok:
+            return untouched("push-failed", f"the kit did not reach the machine: {p.err.strip()[:200]}")
+        un = link.run(f"$h = (Get-FileHash {KIT_TAR} -Algorithm SHA256).Hash.ToLower(); Write-Output \"TAR=$h\"; "
+                      f"if ($h -eq '{tar_id}') {{ tar.exe -xf {KIT_TAR} -C {KIT_DIR}; Write-Output \"UNPACKED=$LASTEXITCODE\" }}; "
+                      f"Remove-Item {KIT_TAR} -Force", "windows", 1800)
+        ctx.save("unpack.out", clean(un.out + un.err))
+        kv = kv_lines(un.out)
+        if kv.get("TAR") != tar_id:
+            return untouched("kit-copy-differs", f"the kit's copy on the machine hashes {kv.get('TAR', '?')[:12]}, not {tar_id[:12]}; nothing was unpacked")
+        if kv.get("UNPACKED") != "0":
+            return untouched("kit-unpack-failed", clean(un.out + un.err).strip()[-200:])
+        # the one USB stick, and the stick writer's own list of it
+        facts = link.run(USB_FACTS, "windows", 120)
+        lst = link.run(f"& {KIT_DIR}\\upgrade-stick.exe list", "windows", 300)
+        ctx.save("stick-before.txt", clean(facts.out + facts.err + lst.out + lst.err))
+        kv = kv_lines(facts.out)
+        if "USB_DISKS" in kv or not kv.get("TARGET"):
+            return untouched("stick-not-found", f"{kv.get('USB_DISKS', '?')} USB disks on the machine (want exactly 1)")
+        want_bytes = ctx.secrets.get("kit-stick-bytes")
+        if want_bytes and str(want_bytes) != kv.get("BYTES"):
+            return untouched("stick-not-the-approved-one", f"the USB disk is {kv.get('BYTES')} bytes; the one approved at kickoff was {want_bytes}")
+        if f"id: {kv['TARGET']}" not in clean(lst.out):
+            return untouched("stick-not-listed", "the stick writer's own list does not show the USB disk by that id")
+        # A stage tried again finds the stick it wrote the first time: the kit's label, not Windows'
+        # installer's (the Aspire, 2026-11-19: the fetch could not reach the server after the write).
+        # Both words were approved at kickoff for this one stick, held to its size above; the stage
+        # gives the one that is the label now, and says so.
+        other = ctx.secrets.get("kit-stick" if args.get("after_walkaway") else "kit-stick-after-walkaway")
+        if kv.get("LABEL") and kv["LABEL"] != word and kv["LABEL"] == other:
+            ctx.note(f"the stick is labelled {other} now, not {word}: the stage gives the other word approved at kickoff for this stick")
+            word = other
+        w = link.run(f"& {KIT_DIR}\\upgrade-stick.exe write --target {psq(kv['TARGET'])} --expected-bytes {kv['BYTES']} --source {KIT_DIR}\\stick "
+                     f"--boot-size-gb {int(args.get('boot_size_gb', 8))} --confirmed-label {psq(word)} --results-csv {KIT_CSV}; "
+                     "Write-Output \"WRITER_RC=$LASTEXITCODE\"", "windows", int(args.get("write_limit_s", 7200)))
+        ctx.save("stick-writer.out", clean(w.out + w.err))
+        link.pull(KIT_CSV, os.path.join(ctx.stage_dir, "r16-stick-writer.csv"), "windows")
+        rc = kv_lines(w.out).get("WRITER_RC")
+        if rc == "2":
+            return untouched("stick-writer-refused", clean(w.out + w.err).strip()[-300:])
+        if rc != "0":
+            return Outcome("stick-not-verified", False, clean(w.out + w.err).strip()[-300:])
+        L = find_stick(ctx)
+        if not L:
+            return Outcome("stick-not-found-after-write", False, "no single volume labelled UPGV0 after the write")
+        link.pull(f"{L}\\stick.json", os.path.join(ctx.stage_dir, "stick.json"), "windows")
+        files = (re.findall(r"written and verified: (\d+) files", w.out) or ["?"])[-1]
+        notes = (f"upgrade-stick wrote the kit (SHA256SUMS {kit_id[:12]}) onto the {kv.get('MODEL', 'stick')} in the machine itself, {files} files read back; "
+                 f"the kit travelled as one file of {tar_bytes} bytes, its hash checked on the machine")
+        if args.get("after_walkaway"):
+            notes += "; the stick was Windows' installer from the walk-away: one stick, no swap"
+        if not args.get("fetch"):
+            return Outcome("kit-stick-written", True, notes)
+        lx = ctx.plan.get("linux") or {}
+        # On the machine's own desktop, as the window runs it, and not inside the manager's connection: on
+        # 2026-11-18 the Aspire did not answer for a minute while the fetch read the stick back, the
+        # connection closed, and the fetch died with it. A task there goes on; the manager takes it up again.
+        if not wait_signed_in(ctx, int(args.get("signin_limit_s", 21600))):
+            return Outcome("nobody-signed-in", False, notes + "; nobody was signed in on the machine's screen, so the Linux was not fetched")
+        limit = int(args.get("fetch_limit_s", 10800))
+        g = on_desktop(link, f"{L}\\upgrade-fetch.exe get --release {lx.get('release', '')} --desktop {lx.get('desktop', '')}" +
+                       (f" --from {args['fetch_from']}" if args.get("fetch_from") else ""), "DESKTOP_RC=", limit)
+        fetched = g.out + g.err
+        if "DESKTOP_RC=" not in g.out:
+            ctx.note("the manager's connection closed while the fetch ran on the machine; waiting for the fetch's own end there", out=fetched[-200:])
+
+            def ended():
+                r = link.run(f"Get-Content {DESKTOP_DIR}\\desktop.log -Raw -ErrorAction SilentlyContinue", "windows", 120)
+                return r.out if "DESKTOP_RC=" in r.out else None
+            again = ctx.wait_for("the fetch, which goes on at the machine's desktop", ended, limit, every_s=60)
+            if again:
+                fetched = again
+                notes += "; the manager's connection closed during the fetch and was taken up again (the fetch ran on at the machine)"
+        ctx.save("fetch.out", clean(fetched))
+        ok, said = fetch_status(ctx)
+        ctx.save("fetch-status.out", said)
+        if not re.search(r"DESKTOP_RC=0\b", fetched) or not ok:
+            return Outcome("linux-not-fetched", False, clean(fetched).strip()[-300:])
+        return Outcome("kit-stick-written", True, notes + f"; the manager fetched {lx.get('release')} ({lx.get('desktop')}) onto it with the window's own call"
+                       + (" from a local copy (--from)" if args.get("fetch_from") else ""))
+
+    def rig_standin(self, ctx, kit_id):
+        hv = os.path.join(REPO, "rig", "hyperv")
+        logs = []
+        for cmd in (["powershell.exe", "-NoProfile", "-Command",
+                     f"if ((Get-VM -Name '{ctx.link.vm}').State -ne 'Off') {{ Stop-VM -Name '{ctx.link.vm}' -Force }}; (Get-VM -Name '{ctx.link.vm}').State"],
+                    ["./v9.sh", "stick"], ["./v9.sh", "windows"]):
+            r = subprocess.run(cmd, cwd=hv, capture_output=True, text=True, timeout=3600, stdin=subprocess.DEVNULL)
+            logs.append(f"$ {' '.join(cmd)}\n{r.stdout}{r.stderr}")
+            if r.returncode != 0:
+                ctx.save("rig-standin.log", "\n".join(logs))
+                return Outcome("rig-standin-failed", False, f"{cmd[-1]} exit {r.returncode}")
+        ctx.save("rig-standin.log", "\n".join(logs))
+        if ctx.link.probe() != "windows":
+            return Outcome("rig-standin-failed", False, "Windows did not answer after the rig's stick was built again")
+        return Outcome("rig-standin-kit-stick", True, f"the rig cannot hold the stick writer (it refuses Hyper-V's SCSI stick, R16): the rig's own "
+                       f"stick builder made the stick again from the kit (SHA256SUMS {kit_id[:12]}); not a stick writer row")
+
+
 STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(), "rollback-existing": Rollback(),
           "stick-left-in": StickLeftIn(), "clean-slate": CleanSlate(), "stick-left-in-erased": StickLeftIn(),
-          "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown()}
+          "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown(), "kit-stick": KitStick(),
+          "plant-files": PlantFiles(), "pull": Pull(), "reclaim-check": ReclaimCheck()}
 
 
 def stage_impl(name):
@@ -1131,7 +1795,12 @@ def stage_needs(st):
     unknown = [n for n in extra if n not in SENTENCE_SOURCES]
     if unknown:
         raise SystemExit(f"oneclick: stage '{st['stage']}' names approvals the manager does not know: {', '.join(unknown)}")
-    return tuple(stage_impl(st["stage"]).needs) + tuple(n for n in extra if n not in stage_impl(st["stage"]).needs)
+    own = tuple(stage_impl(st["stage"]).needs)
+    if st["stage"] == "kit-stick":
+        # the stick writer's word differs with what the stick is then: what it shows at kickoff,
+        # or the label the walk-away leaves on it
+        own += ("kit-stick-after-walkaway" if st.get("after_walkaway") else "kit-stick",)
+    return own + tuple(n for n in extra if n not in own)
 
 
 def plan_needs(stages):
@@ -1250,6 +1919,44 @@ def release_awake(ctx):
         sudo(ctx, f"systemctl stop {AWAKE_UNIT} 2>/dev/null; echo RELEASED", 60)
 
 
+WINDOWS_AWAKE = ("$q = powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE | Select-String 'Current AC Power Setting Index'; "
+                 "$was = -1; if ($q) { try { $was = [Convert]::ToInt32((\"$q\" -replace '.*0x', '').Trim(), 16) } catch { } }; "
+                 "powercfg /change standby-timeout-ac 0; powercfg /change hibernate-timeout-ac 0; Write-Output \"AWAKE_WAS=$was\"")
+
+
+def windows_awake(ctx):
+    """The plan's test_windows_awake: idle sleep on mains power switched off in
+    the machine's Windows, by the TEST, never by the product. Each of the
+    product's programs keeps the computer awake while it works (R33), and a
+    person at the keyboard covers the gaps between them. The test has no
+    person: on 2026-11-18 the Aspire had sat idle past its sleep timer when
+    the fetch ended, slept at that moment, and the manager's next call got
+    no answer. Said in the journal and in every row it was on for; put back
+    when the run finishes. True when Windows answered and took it."""
+    if ctx.link.probe() != "windows":
+        return False
+    r = ctx.link.run(WINDOWS_AWAKE, "windows", 120)
+    was = kv_lines(r.out).get("AWAKE_WAS")
+    if was is None:
+        ctx.note("test_windows_awake: Windows did not take the setting", out=(r.out + r.err)[-200:])
+        return False
+    if was not in ("0", "-1"):
+        ctx.journal.write("windows-awake", was_s=int(was))
+    return True
+
+
+def windows_awake_off(link, journal, out=print):
+    """At the run's end: the idle sleep time the test found, put back (when
+    Windows answers and a time was recorded for it)."""
+    was = [e["was_s"] for e in journal.entries() if e["event"] == "windows-awake"]
+    if not was or link.probe() != "windows":
+        return
+    r = link.run(f"powercfg /change standby-timeout-ac {max(1, was[-1] // 60)}; Write-Output AWAKE_BACK", "windows", 120)
+    journal.write("windows-awake-off", minutes=max(1, was[-1] // 60), ok="AWAKE_BACK" in r.out)
+    out(f"oneclick: Windows' idle sleep on mains power is back at {max(1, was[-1] // 60)} minutes" if "AWAKE_BACK" in r.out
+        else "oneclick: Windows' idle sleep could not be put back (the test left it off)")
+
+
 def run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=print):
     if link is not None:   # a test's made-up machine: no helper on the real computer
         return _run_chain(run_dir, link, sleep, clock, out)
@@ -1274,6 +1981,7 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
             journal.write("run-finished")
             out("oneclick: every stage ran and ended as the plan expects")
             autologon_off(link, journal, out)
+            windows_awake_off(link, journal, out)
             return 0
         if action == "wait":
             st = plan["stages"][arg]
@@ -1322,6 +2030,7 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
         autologon_before = bool(autologon_state(journal.entries()))
         out(f"oneclick: stage {i + 1} {st['stage']} ...")
         held = hold_awake(ctx) if st.get("hold_awake") else False
+        no_sleep = windows_awake(ctx) if plan.get("test_windows_awake") else False
         try:
             o = impl.run(ctx, st)
         except Exception as e:  # a manager bug is a stop, never a pass
@@ -1329,6 +2038,8 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
         if held:
             release_awake(ctx)
             o.notes = (o.notes + "; " if o.notes else "") + "the TEST held a sleep lock on Linux for this stage (settle-in holds none: 2026-10-04, 2026-10-28)"
+        if no_sleep:
+            o.notes = (o.notes + "; " if o.notes else "") + "the TEST had idle sleep off in Windows for this stage (test_windows_awake; no person is at the keyboard between the product's programs)"
         if st.get("row_note"):   # what this run's plan says a hand did before the stage: in the row, never left out
             o.notes = (o.notes + "; " if o.notes else "") + st["row_note"]
         if autologon_before or autologon_state(journal.entries()):
@@ -1375,6 +2086,36 @@ def ask_consents(needed, link, secrets, ask=input, out=print):
                 out("oneclick: no word typed. Nothing started.")
                 return False
             continue
+        if key == "kit-stick":
+            if link.kind != "ssh":
+                secrets[key] = ""   # the rig's stand-in builds its own stick
+                continue
+            kv = kv_lines(link.run(USB_FACTS, "windows", 120).out) if link.probe() == "windows" else {}
+            if not kv.get("TARGET"):
+                out("oneclick: the kit-stick stage needs Windows answering and exactly one USB stick in the machine "
+                    f"(found: {kv.get('USB_DISKS', 'no answer')}). Nothing started.")
+                return False
+            want, what = (kv["LABEL"], "label") if kv.get("LABEL") else (kv.get("MODEL", ""), "model name")
+            out(f"\nThe one USB stick in the machine now: {kv.get('MODEL')}, {int(kv['BYTES']) / 1e9:.1f} GB" +
+                (f", labelled {kv['LABEL']}" if kv.get("LABEL") else ", no label") +
+                f".\nThe run ERASES it and writes the kit onto it. Type its {what} exactly to approve (the stick writer checks the same word):")
+            if ask("> ").strip() != want or not want:
+                out(f"oneclick: that is not the stick's {what}. Nothing started.")
+                return False
+            secrets[key], secrets["kit-stick-bytes"] = want, int(kv["BYTES"])
+            continue
+        if key == "kit-stick-after-walkaway":
+            if link.kind != "ssh":
+                secrets[key] = ""
+                continue
+            want = walkaway_label()
+            out(f"\nAfter the walk-away the same stick is Windows' installer, labelled {want}. The run ERASES it again there, to write the kit back "
+                f"for the last stages.\nType {want} to approve:")
+            if ask("> ").strip() != want:
+                out("oneclick: that is not the label. Nothing started.")
+                return False
+            secrets[key] = want
+            continue
         s = sentence(key)
         out(f"\nType this sentence exactly, to approve the {key} step for every loop of this run:\n  {s}")
         if ask("> ") != s:
@@ -1414,6 +2155,10 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None, password_from=None
     bad = [st["owner_check"] for st in plan["stages"] if "owner_check" in st and st["owner_check"] not in OWNER_CHECKS]
     if bad:
         raise SystemExit(f"oneclick: the plan names owner checks the manager does not know: {', '.join(bad)}")
+    lx = plan.get("linux") or {}
+    wants_linux = any(st.get("owner_check") == "linux-on-stick" or (st["stage"] == "kit-stick" and st.get("fetch")) for st in plan["stages"])
+    if wants_linux and not all(re.fullmatch(r"[A-Za-z0-9._-]+", str(lx.get(k, ""))) for k in ("release", "desktop")):
+        raise SystemExit("oneclick: the plan fetches a Linux (or waits for the window to) and does not name it: \"linux\": {\"release\": ..., \"desktop\": ...}")
     needed = plan_needs(plan["stages"])
     out(f"oneclick {VERSION}: {len(plan['stages'])} stages on {plan.get('machine', '?')} over {link.describe()}")
     for i, st in enumerate(plan["stages"]):
@@ -1437,7 +2182,21 @@ def kickoff(plan_path, spec, ask=input, out=print, root=None, password_from=None
     run_dir = os.path.join(root or runs_root(), f"{plan.get('machine', 'machine')}-{stamp()}")
     os.makedirs(run_dir, exist_ok=False)
     if (follow if follow is not None else link.kind == "ssh") and not tr.seed_follow(link.host, run_dir, plan.get("machine", "machine"), out):
-        out("  (the run reaches the machine as `ssh " + link.host + "` does; a new address or key stops it)")
+        took = False
+        if password_from:
+            # The Linux an earlier run installed answers with its own key, often at its own address, so
+            # the owner's login finds nothing. That run's manager proved both by the machine's identity:
+            # this run goes on with what it proved (the Aspire, 2026-11-18).
+            em, ek = os.path.join(password_from, "machine.json"), os.path.join(password_from, "known_hosts")
+            if os.path.exists(em) and os.path.exists(ek) and load(password_from)[0]["plan"].get("machine") == plan.get("machine"):
+                shutil.copy(em, os.path.join(run_dir, "machine.json"))
+                fd = os.open(os.path.join(run_dir, "known_hosts"), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as f, open(ek, encoding="utf-8") as g:
+                    f.write(g.read())
+                took = True
+                out(f"oneclick: following the machine with the identity, address and keys the run {os.path.basename(password_from)} proved")
+        if not took:
+            out("  (the run reaches the machine as `ssh " + link.host + "` does; a new address or key stops it)")
     commit = subprocess.run(["git", "-C", REPO, "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
     with open(os.path.join(run_dir, "run.json"), "w", encoding="utf-8") as f:
         json.dump({"manager": VERSION, "commit": commit, "created": utc(), "transport": spec, "plan": plan}, f, indent=2)
@@ -1594,6 +2353,8 @@ def main(argv=None):
     pr.add_argument("--csv", default=os.path.join(REPO, "docs", "validation-results", "oneclick-runs.csv"))
     pr.add_argument("--facts", help="another run's facts.json, for a run that recorded none (said in the notes)")
     pr.add_argument("--dry-run", action="store_true")
+    sr = sub.add_parser("stage-rows", help="the pull and reclaim-check stages' own lines, into v3-pull.csv and r41-reclaim.csv")
+    sr.add_argument("run_dir")
     a = ap.parse_args(argv)
     if a.cmd == "kickoff":
         d = kickoff(a.plan, a.transport, password_from=a.password_from)
@@ -1613,6 +2374,8 @@ def main(argv=None):
     if a.cmd == "autologon-off":
         run, _ = load(a.run_dir)
         return 0 if autologon_off(tr.from_spec(run["transport"], a.run_dir), Journal(os.path.join(a.run_dir, "journal.jsonl"))) else 1
+    if a.cmd == "stage-rows":
+        return stage_rows(a.run_dir)
     if a.cmd == "promote":
         import rows
         return rows.promote(a.run_dir, a.csv, a.facts, a.dry_run)

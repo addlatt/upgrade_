@@ -665,7 +665,7 @@ stands: see [STATUS.md](STATUS.md).
    it installs nothing. The design: safe here because the hardware
    is proven and Windows is still whole as a complete backup. Following the
    folder map from `job.json`, `settle-in` mounts the shrunk-aside Windows
-   partition, unlocking BitLocker with the harvested recovery key (`cryptsetup`
+   partition, unlocking BitLocker with the harvested recovery key, or with no key when Windows itself keeps the drive unlocked (decided 2026-11-18, the owner: a fresh Windows 11 has no recovery key; a locked drive still refuses) (`cryptsetup`
    BITLK, Linux's reader for BitLocker volumes); mounts it read-only through
    **ntfs-3g**, not the kernel `ntfs3` driver (decided 2026-09-01: the install
    kernel's `ntfs3` crashed on the rig; RISKS R19); reads inside OneDrive

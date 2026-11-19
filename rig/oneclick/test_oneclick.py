@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import oneclick  # noqa: E402
@@ -471,6 +472,26 @@ class KickoffTests(unittest.TestCase):
         tail = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: s, out=lambda *_: None, root=os.path.join(self.tmp, "t"), password_from=first)
         with open(os.path.join(first, "secrets.json")) as f, open(os.path.join(tail, "secrets.json")) as g:
             self.assertEqual(json.load(f)["password"], json.load(g)["password"])
+
+    def test_a_tail_run_follows_the_machine_as_the_earlier_run_proved_it(self):
+        # the Aspire, 2026-11-18: the installed Linux answers with its own key at its own address,
+        # so the owner's login finds nothing at kickoff
+        s = oneclick.sentence("erase")
+        with mock.patch.object(tr, "seed_follow", return_value=False):
+            first = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: s, out=lambda *_: None, root=self.tmp, follow=True)
+            self.assertFalse(os.path.exists(os.path.join(first, "machine.json")))
+            with open(os.path.join(first, "machine.json"), "w") as f:
+                json.dump({"alias": "oneclick-fake", "address": "10.0.0.7"}, f)
+            with open(os.path.join(first, "known_hosts"), "w") as f:
+                f.write("oneclick-fake ssh-ed25519 AAAA\n")
+            said = []
+            tail = oneclick.kickoff(self.plan, "ssh:fake", ask=lambda _: s, out=lambda *a: said.append(" ".join(map(str, a))),
+                                    root=os.path.join(self.tmp, "t"), password_from=first, follow=True)
+        with open(os.path.join(tail, "machine.json")) as f:
+            self.assertEqual(json.load(f)["address"], "10.0.0.7")
+        self.assertEqual(open(os.path.join(tail, "known_hosts")).read(), "oneclick-fake ssh-ed25519 AAAA\n")
+        self.assertEqual(os.stat(os.path.join(tail, "known_hosts")).st_mode & 0o777, 0o600)
+        self.assertTrue([x for x in said if "the run " + os.path.basename(first) + " proved" in x], said)
 
     def test_a_sentence_missing_from_the_source_refuses(self):
         os.makedirs(os.path.join(self.tmp, "evaluate/job/src"))
@@ -1015,6 +1036,578 @@ class AutologonTests(unittest.TestCase):
             plan = json.load(f)
         self.assertTrue(plan["test_autologon"])
         self.assertEqual(plan["windows_password"], "test_password")
+
+
+class ScriptLink:
+    """A machine whose answers come from a function of the command."""
+
+    kind = "ssh"
+
+    def __init__(self, answer, probes=("windows",)):
+        self.answer, self.probes, self.commands, self.pushed = answer, list(probes), [], []
+
+    def describe(self):
+        return "fake"
+
+    def probe(self):
+        return self.probes.pop(0) if len(self.probes) > 1 else self.probes[0]
+
+    def run(self, script, os_kind, timeout=600, stdin=""):
+        self.commands.append(script)
+        return self.answer(script) or tr.Result(1, "", "no answer scripted")
+
+    def pull(self, remote, local, os_kind, timeout=1800):
+        with open(local, "w") as f:
+            f.write("{}")
+        return tr.Result(0, "", "")
+
+    def push(self, local, remote, os_kind, timeout=600):
+        self.pushed.append((oneclick.file_sha256(local), remote))
+        return tr.Result(0, "", "")
+
+
+class CameBackTests(unittest.TestCase):
+    """The Aspire, 2026-11-14: the install completed, the firmware started
+    Windows, the return arranged nothing, and the manager waited three hours."""
+
+    def wait(self, answers):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        seq = list(answers)
+
+        def answer(script):
+            if "prologue-return.json" in script:
+                return tr.Result(0, seq.pop(0) if len(seq) > 1 else seq[0], "")
+            if "LastBootUpTime" in script:
+                return tr.Result(0, "2026-11-14T22:40:00Z\n", "")
+        clock = Clock()
+        c = oneclick.Context(tmp, {"heartbeat_s": 300}, {}, ScriptLink(answer), oneclick.Journal(os.path.join(tmp, "j")), clock.sleep, clock)
+        return oneclick.wait_after_arm(c, "E:", "linux", 3600), clock
+
+    def test_windows_back_to_stay_after_a_completed_install_ends_the_wait(self):
+        got, clock = self.wait(["OUTCOME=completed\nRETURN=PLAIN\n"])
+        self.assertEqual(got, "returned")
+        self.assertLess(clock.t, 300, "seen twice a minute apart, not waited out")
+
+    def test_a_return_that_is_about_to_restart_into_the_slot_is_waited_for(self):
+        got, _ = self.wait(["OUTCOME=completed\nRETURN=PLAIN\n", "OUTCOME=completed\nRETURN=SLOT\n"])
+        self.assertIsNone(got, "the record gained windows_slot: the restart is coming, so the wait goes on to its limit")
+
+    def test_a_completed_install_whose_return_has_not_run_is_waited_for(self):
+        got, _ = self.wait(["OUTCOME=completed\n"])
+        self.assertIsNone(got)
+
+    def test_a_stopped_outcome_still_ends_the_wait(self):
+        self.assertEqual(self.wait(["OUTCOME=stopped\n"])[0], "stopped")
+
+    def test_keep_windows_says_windows_came_back(self):
+        link = keep_link("  restarting in 15 s: starting the installer from the USB stick\n")
+        link.runs.update({"prologue-return.json": tr.Result(0, "OUTCOME=completed\nRETURN=PLAIN\n", ""),
+                          "LastBootUpTime": tr.Result(0, "2026-11-14T22:40:00Z\n", "")})
+        link.files["E:\\upgrade_\\prologue-return.json"] = "{}"
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        clock = Clock()
+        c = oneclick.Context(tmp, {"heartbeat_s": 300}, {"password": "p"}, link, oneclick.Journal(os.path.join(tmp, "j")), clock.sleep, clock)
+        c.stage_dir = tmp
+        o = oneclick.KeepWindows().run(c, {})
+        self.assertEqual((o.word, o.expected), ("windows-came-back", False))
+        self.assertTrue(os.path.exists(os.path.join(tmp, "prologue-return.json")))
+
+
+class KitStickTests(unittest.TestCase):
+    """One stick, no swaps (the owner, 2026-11-15): the kit is written onto
+    the stick in the machine itself, by the product's stick writer."""
+
+    ID = "USBSTOR\\DISK&VEN_GENERAL&PROD_UDISK&REV_5.00\\6&24BF04BF&0&_&0:DESKTOP-TEST"
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        kit = os.path.join(self.tmp, "repo", "dist", "kit")
+        os.makedirs(os.path.join(kit, "stick"))
+        for name, text in (("stick/SHA256SUMS", "abc  ./UPGRADE.exe\n"), ("stick/KIT-MANIFEST.txt", "commit: test\n"), ("upgrade-stick.exe", "MZ")):
+            with open(os.path.join(kit, name), "w") as f:
+                f.write(text)
+        self._repo = oneclick.REPO
+        oneclick.REPO = os.path.join(self.tmp, "repo")
+        self.addCleanup(setattr, oneclick, "REPO", self._repo)
+        self.kit = kit
+
+    def run_stage(self, args=None, secrets=None, writer_rc=0, tar_ok=True, usb_bytes=15728640000, fetch_rc=0, plan=None, drop=False):
+        link_box = []
+
+        def answer(script):
+            if "Get-FileHash" in script:
+                h = link_box[0].pushed[-1][0] if tar_ok else "0" * 64
+                return tr.Result(0, f"TAR={h}\n" + ("UNPACKED=0\n" if tar_ok else ""), "")
+            if "upgrade-stick.exe list" in script:
+                return tr.Result(0, f"  disk 2  General UDisk\n          id: {self.ID}   serial: \n", "")
+            if "upgrade-stick.exe write" in script:
+                return tr.Result(0, ("  written and verified: 31 files on E:\n" if writer_rc == 0 else "  confirmation did not match. nothing written.\n") + f"WRITER_RC={writer_rc}\n", "")
+            if "TARGET=" in script:
+                return tr.Result(0, f"TARGET={self.ID}\nBYTES={usb_bytes}\nMODEL=General UDisk\nLABEL=WINSETUP\n", "")
+            if "explorer.exe" in script:
+                return tr.Result(0, "SIGNED_IN\n", "")
+            if "Start-ScheduledTask" in script:   # the fetch, on the machine's desktop
+                return tr.Result(255, "fetch: progress 1 2\n", "Timeout, server not responding.") if drop else tr.Result(0, f"fetch: ready\nDESKTOP_RC={fetch_rc}\n", "")
+            if "desktop.log -Raw" in script:      # taken up again after a closed connection
+                return tr.Result(0, f"fetch: ready\nDESKTOP_RC={fetch_rc}\n", "")
+            if "upgrade-fetch.exe" in script:
+                return tr.Result(0, f"FETCH_RC={fetch_rc}\n", "")
+            if "STICK=$L" in script:
+                return tr.Result(0, "STICK=E:\n", "")
+            return tr.Result(0, "", "")
+        link = ScriptLink(answer)
+        link_box.append(link)
+        run = os.path.join(self.tmp, f"run{len(os.listdir(self.tmp))}")
+        os.makedirs(os.path.join(run, "stage"))
+        c = oneclick.Context(run, plan or {"heartbeat_s": 300}, secrets or {"kit-stick": "WINSETUP", "kit-stick-after-walkaway": "WINSETUP", "kit-stick-bytes": 15728640000},
+                             link, oneclick.Journal(os.path.join(run, "j")))
+        c.stage_dir = os.path.join(run, "stage")
+        return oneclick.KitStick().run(c, args or {}), link, c
+
+    def test_the_kit_is_pushed_checked_and_written_with_the_word_typed_at_kickoff(self):
+        o, link, c = self.run_stage()
+        self.assertEqual((o.word, o.expected), ("kit-stick-written", True), o.notes)
+        write = [x for x in link.commands if "upgrade-stick.exe write" in x][0]
+        self.assertIn(f"--target '{self.ID}' --expected-bytes 15728640000", write)
+        self.assertIn("--confirmed-label 'WINSETUP'", write)
+        self.assertIn("--boot-size-gb 8", write)
+        self.assertEqual(link.pushed[0][1], oneclick.KIT_TAR)
+        self.assertFalse(os.path.exists(os.path.join(c.stage_dir, "kit.tar")), "the local copy of the kit's one file is removed")
+        self.assertEqual([e["event"] for e in c.journal.entries()], ["kit"])
+        self.assertNotIn("DESKTOP-TEST", o.notes, "the disk's id (it holds the computer's name) stays out of the row")
+
+    def test_a_copy_that_hashes_differently_is_never_unpacked_or_written(self):
+        o, link, _ = self.run_stage(tar_ok=False)
+        self.assertEqual((o.word, o.untouched), ("kit-copy-differs", True))
+        self.assertFalse([x for x in link.commands if "upgrade-stick.exe" in x])
+
+    def test_a_stick_of_another_size_than_the_one_approved_is_never_written(self):
+        o, link, _ = self.run_stage(usb_bytes=64000000000)
+        self.assertEqual((o.word, o.untouched), ("stick-not-the-approved-one", True))
+        self.assertFalse([x for x in link.commands if "upgrade-stick.exe write" in x])
+
+    def test_the_writers_own_refusal_is_a_stop_that_changed_nothing(self):
+        o, _, _ = self.run_stage(writer_rc=2)
+        self.assertEqual((o.word, o.expected, o.untouched), ("stick-writer-refused", False, True))
+
+    def test_a_write_that_did_not_verify_is_a_fail(self):
+        o, _, _ = self.run_stage(writer_rc=1)
+        self.assertEqual((o.word, o.expected, o.untouched), ("stick-not-verified", False, False))
+
+    def test_a_second_kit_stick_stage_refuses_another_kit(self):
+        o, link, c = self.run_stage()
+        with open(os.path.join(self.kit, "stick", "SHA256SUMS"), "a") as f:
+            f.write("def  ./other.exe\n")
+        os.makedirs(os.path.join(c.run_dir, "stage2"))
+        c.stage_dir = os.path.join(c.run_dir, "stage2")
+        o = oneclick.KitStick().run(c, {"after_walkaway": True})
+        self.assertEqual((o.word, o.untouched), ("kit-changed", True))
+
+    def test_no_kit_built_stops_before_the_machine_is_touched(self):
+        os.remove(os.path.join(self.kit, "upgrade-stick.exe"))
+        o, link, _ = self.run_stage()
+        self.assertEqual(o.word, "kit-not-built")
+        self.assertFalse(link.commands)
+
+    def test_with_fetch_the_manager_makes_the_windows_own_call_and_asks_the_status(self):
+        plan = {"heartbeat_s": 300, "linux": {"release": "ubuntu-26.04.1", "desktop": "gnome"}}
+        o, link, _ = self.run_stage({"after_walkaway": True, "fetch": True}, plan=plan)
+        self.assertEqual((o.word, o.expected), ("kit-stick-written", True), o.notes)
+        import base64
+        tasks = [base64.b64decode(re.search(r"FromBase64String\('([^']+)'\)", x).group(1)).decode() for x in link.commands if "Start-ScheduledTask" in x]
+        self.assertTrue([b for b in tasks if "E:\\upgrade-fetch.exe get --release ubuntu-26.04.1 --desktop gnome" in b], "the fetch runs on the machine's desktop")
+        self.assertTrue([x for x in link.commands if "upgrade-fetch.exe\" status --release ubuntu-26.04.1 --desktop gnome" in x])
+        o, _, _ = self.run_stage({"fetch": True}, plan=plan, fetch_rc=1)
+        self.assertEqual((o.word, o.expected), ("linux-not-fetched", False))
+
+    def test_a_closed_connection_does_not_end_the_fetch_the_manager_takes_it_up_again(self):
+        # the Aspire, 2026-11-18: no answer for a minute while the fetch read the stick back
+        plan = {"heartbeat_s": 300, "linux": {"release": "fedora-44", "desktop": "kde"}}
+        o, link, _ = self.run_stage({"fetch": True}, plan=plan, drop=True)
+        self.assertEqual((o.word, o.expected), ("kit-stick-written", True), o.notes)
+        self.assertIn("taken up again", o.notes)
+        o, _, _ = self.run_stage({"fetch": True}, plan=plan, drop=True, fetch_rc=1)
+        self.assertEqual((o.word, o.expected), ("linux-not-fetched", False))
+
+    def test_the_stage_asks_for_the_word_that_fits_where_it_sits(self):
+        self.assertEqual(oneclick.stage_needs({"stage": "kit-stick"}), ("kit-stick",))
+        self.assertEqual(oneclick.stage_needs({"stage": "kit-stick", "after_walkaway": True}), ("kit-stick-after-walkaway",))
+
+    def test_the_walkaway_label_is_read_from_settle_in(self):
+        self.assertEqual(oneclick.walkaway_label(self._repo), "WINSETUP")
+
+    def consents(self, typed, facts="TARGET=x\nBYTES=15728640000\nMODEL=General UDisk\nLABEL=WINSETUP\n"):
+        link = ScriptLink(lambda s: tr.Result(0, facts, ""))
+        secrets, said = {}, []
+        typed = list(typed)
+        oneclick.REPO = self._repo   # the label comes from the real settle-in source
+        ok = oneclick.ask_consents(["kit-stick", "kit-stick-after-walkaway"], link, secrets, ask=lambda _: typed.pop(0), out=said.append)
+        return ok, secrets, "\n".join(said)
+
+    def test_kickoff_takes_the_sticks_own_word_and_its_size(self):
+        ok, secrets, said = self.consents(["WINSETUP", "WINSETUP"])
+        self.assertTrue(ok)
+        self.assertEqual(secrets, {"kit-stick": "WINSETUP", "kit-stick-bytes": 15728640000, "kit-stick-after-walkaway": "WINSETUP"})
+        self.assertIn("ERASES", said)
+
+    def test_a_stick_with_no_label_is_approved_by_its_model_name(self):
+        ok, secrets, said = self.consents(["General UDisk", "WINSETUP"], facts="TARGET=x\nBYTES=1\nMODEL=General UDisk\nLABEL=\n")
+        self.assertTrue(ok)
+        self.assertEqual(secrets["kit-stick"], "General UDisk")
+
+    def test_the_wrong_word_or_two_sticks_start_nothing(self):
+        self.assertFalse(self.consents(["General Udisk"], facts="TARGET=x\nBYTES=1\nMODEL=General UDisk\nLABEL=\n")[0])
+        self.assertFalse(self.consents(["WINSETUP", "winsetup"])[0])
+        self.assertFalse(self.consents(["WINSETUP"], facts="USB_DISKS=2\n")[0])
+
+
+class OneStickPlanTests(unittest.TestCase):
+    def plan(self, name):
+        with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", name)) as f:
+            return json.load(f)
+
+    def test_no_stage_asks_for_a_stick_swap_and_the_test_holds_no_sleep_lock(self):
+        for name in ("aspire-ubuntu-one-stick.json", "aspire-one-stick.json", "rig-one-stick.json"):
+            p = self.plan(name)
+            names = [s["stage"] for s in p["stages"]]
+            added = ("plant-files", "pull", "reclaim-check")
+            self.assertEqual([n for n in names if n not in added],
+                             ["kit-stick", "look", "keep-windows", "stick-left-in", "rollback", "clean-slate", "stick-left-in-erased",
+                              "walk-away", "kit-stick", "look", "refused-before-countdown"], name)
+            # the files are planted before the job is written; the copy and reclaim's check come after the install
+            # beside Windows and before the rollback (the copy refuses once Windows starts first again)
+            self.assertLess(names.index("plant-files"), names.index("keep-windows"), name)
+            self.assertLess(names.index("keep-windows"), names.index("pull"), name)
+            self.assertLess(names.index("pull"), names.index("rollback"), name)
+            self.assertTrue(all(names.index("keep-windows") < i < names.index("rollback") for i, n in enumerate(names) if n == "reclaim-check"), name)
+            self.assertFalse([s for s in p["stages"] if s.get("hold_awake")], name)
+            self.assertFalse([s for s in p["stages"] if s.get("owner_check") in ("kit-stick-in", "walkaway-stick-in")], name)
+            self.assertTrue([s for s in p["stages"] if s["stage"] == "kit-stick"][1]["after_walkaway"], name)
+            self.assertTrue(all(s["stage"] in oneclick.STAGES for s in p["stages"]), name)
+
+    def test_the_aspire_is_never_touched(self):
+        # the owner, 2026-11-17: the fill is part of the test, so the manager fetches the Linux both times
+        for name, release in (("aspire-ubuntu-one-stick.json", "ubuntu-26.04.1"), ("aspire-one-stick.json", "fedora-44")):
+            p = self.plan(name)
+            self.assertFalse([s for s in p["stages"] if s.get("owner_step")], name)
+            self.assertEqual(p["linux"]["release"], release)
+            self.assertTrue(p["stages"][0]["fetch"], "at the start the manager fetches the Linux itself")
+            self.assertTrue([s for s in p["stages"] if s["stage"] == "kit-stick"][1]["fetch"], "after the walk-away the manager fetches the Linux itself")
+            # a real machine is never given a planted fault, and the Aspire's reclaim check is expected to refuse
+            checks = [s for s in p["stages"] if s["stage"] == "reclaim-check"]
+            self.assertFalse([s for s in checks if s.get("arm") or s["expect"] != "refused"], name)
+            self.assertTrue(checks or "the owner says yes" in p["why_no_reclaim_check"], name)
+            self.assertEqual(oneclick.plan_needs(p["stages"]), ["data-loss", "erase", "kit-stick", "kit-stick-after-walkaway", "password", "walkaway",
+                                                                "walkaway-account", "walkaway-stick"], name)
+
+    def test_the_rig_plan_has_no_step_for_hands(self):
+        self.assertFalse([s for s in self.plan("rig-one-stick.json")["stages"] if s.get("owner_step")])
+
+    def test_a_plan_that_waits_for_the_window_must_name_its_linux(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        plan = os.path.join(tmp, "plan.json")
+        with open(plan, "w") as f:
+            json.dump({"machine": "fake", "stages": [{"stage": "look", "owner_step": "x", "owner_check": "linux-on-stick"}]}, f)
+        with self.assertRaises(SystemExit):
+            oneclick.kickoff(plan, "ssh:fake", out=lambda *_: None, root=tmp, follow=False)
+
+    def test_the_window_is_done_when_the_fetch_program_says_the_stick_carries_the_linux(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        rc = ["3"]
+        link = ScriptLink(lambda s: tr.Result(0, f"fetch: ...\nFETCH_RC={rc[0]}\n", ""))
+        c = oneclick.Context(tmp, {"linux": {"release": "fedora-44", "desktop": "kde"}}, {}, link, oneclick.Journal(os.path.join(tmp, "j")))
+        self.assertFalse(oneclick.linux_on_stick(c))
+        rc[0] = "0"
+        self.assertTrue(oneclick.linux_on_stick(c))
+        self.assertIn("status --release fedora-44 --desktop kde", link.commands[-1])
+
+
+class WalkAwayCaptureTests(unittest.TestCase):
+    def test_the_firmwares_entries_and_the_stick_are_written_down_before_the_restart(self):
+        import base64
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        order = []
+
+        def answer(script):
+            m = re.search(r"echo (\S+) \| base64 -d\)", script)
+            body = base64.b64decode(m.group(1)).decode() if m else script
+            if "walkaway plan" in body:
+                return tr.Result(0, WalkAwayStickTests.PLAN, "")
+            if "go-back sticks" in body:
+                return tr.Result(0, json.dumps([{"confirm_word": "UDisk", "offered": True, "serial": "s", "size_bytes": 15728640000, "upgrade_stick": True}]), "")
+            if "walkaway prepare" in body:
+                return tr.Result(0, '{"result": "ready"}', "")
+            if "efibootmgr -v" in body:
+                order.append("capture")
+                return tr.Result(0, "BootNext: 2001\nCAPTURED\n", "")
+            if "systemctl reboot" in body:
+                order.append("reboot")
+            return tr.Result(0, "user", "")
+        link = ScriptLink(answer, probes=("linux", "linux", None))
+        clock = Clock()
+        c = oneclick.Context(tmp, {"heartbeat_s": 300}, {"password": "p", "walkaway": "s", "walkaway-stick": "UDisk", "walkaway-account": "a"},
+                             link, oneclick.Journal(os.path.join(tmp, "j")), clock.sleep, clock)
+        c.stage_dir = tmp
+        o = oneclick.WalkAway().run(c, {"limit_s": 600})
+        self.assertEqual(o.word, "hang-walkaway")
+        self.assertEqual(order, ["capture", "reboot"])
+        with open(os.path.join(tmp, "before-restart.txt")) as f:
+            self.assertIn("BootNext: 2001", f.read())
+        for want in ("efibootmgr -v", "sfdisk -d", "sha256sum", "mount -o ro", "boot_id"):
+            self.assertIn(want, oneclick.BEFORE_WALKAWAY_RESTART)
+
+
+def unsudo(script):
+    """The script a sudo() call carries."""
+    import base64
+    m = re.search(r"echo (\S+) \| base64 -d\)", script)
+    return base64.b64decode(m.group(1)).decode() if m else script
+
+
+class FilesTests(unittest.TestCase):
+    """The file copy: planted before the job, copied by settle-in, hashed where it landed."""
+    EXPECTED = {"windows_build": "10.0.26100.0", "copy": [
+        {"folder": "Documents", "rel": "pull-test/letter.txt", "size": 5, "sha256": "a" * 64},
+        {"folder": "Pictures", "rel": "pull-test/sunset.png", "size": 9, "sha256": "b" * 64}],
+        "not_copied": ["pull-test/desktop.ini", "pull-test/LinkToWindows"], "bookmarks": {"Chrome": 5}}
+    DONE = json.dumps({"result": "done", "folders": [{"name": "Documents", "to": "/home/p/Documents"}, {"name": "Pictures", "to": "/home/p/Pictures"}]}, indent=2)
+
+    def ctx(self, answer, kind="ssh", planted=True):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        if planted:
+            os.makedirs(os.path.join(tmp, "stages", "02-plant-files"))
+            with open(os.path.join(tmp, "stages", "02-plant-files", "expected.json"), "w") as f:
+                json.dump(self.EXPECTED, f)
+        os.makedirs(os.path.join(tmp, "stages", "06-pull"))
+        link = ScriptLink(lambda s: answer(unsudo(s)), probes=("linux",))
+        link.kind = kind
+        c = oneclick.Context(tmp, {"stages": []}, {"password": "p"}, link, oneclick.Journal(os.path.join(tmp, "j")))
+        c.stage_dir = os.path.join(tmp, "stages", "06-pull")
+        return c
+
+    def landed(self, letter="a" * 64, extra="", owner="p", mounted="no"):
+        return ("== Documents\n" + letter + "  pull-test/letter.txt\n" + extra + f"ENTRY d {owner} pull-test\nENTRY f {owner} pull-test/letter.txt\n"
+                "== Pictures\n" + "b" * 64 + "  pull-test/sunset.png\nENTRY f p pull-test/sunset.png\n"
+                "== bookmarks\nMARKS Bookmarks from Windows - Chrome.html\n== after\n" + f"MOUNTED={mounted}\nMAPPED=no\nKEY_LEFT=no\nPERSON=p\n")
+
+    def machine(self, landed, check='{\n  "result": "plan"\n}', again='{\n  "result": "nothing-to-do"\n}'):
+        runs = []
+
+        def answer(body):
+            if "pull check" in body:
+                return tr.Result(0, check, "")
+            if "pull run" in body:
+                runs.append(1)
+                return tr.Result(0, 'progress {"folder":"Documents"}\n' + self.DONE, "") if len(runs) == 1 else tr.Result(0, again, "")
+            if "sha256sum" in body:
+                return tr.Result(0, landed, "")
+            return tr.Result(0, "TOOL ntfs-3g=/usr/bin/ntfs-3g\nNTFS3G=ntfs-3g 1\nOS=Ubuntu 26.04.1 LTS\nKERNEL=6\n", "")
+        return answer
+
+    def test_every_planted_file_identical_and_a_second_run_idle_is_a_pass(self):
+        c = self.ctx(self.machine(self.landed()))
+        o = oneclick.Pull().run(c, {})
+        self.assertEqual((o.word, o.expected), ("files-brought", True))
+        with open(os.path.join(c.stage_dir, "v3-pull.row.csv")) as f:
+            row = f.read()
+        self.assertIn(",2,2,0,0,none planted,Chrome=5,yes,plan,done,pass,", row)
+
+    def test_the_rig_is_plumbing(self):
+        c = self.ctx(self.machine(self.landed()), kind="hyperv")
+        oneclick.Pull().run(c, {})
+        with open(os.path.join(c.stage_dir, "v3-pull.row.csv")) as f:
+            self.assertIn(",plan,done,pass-plumbing,", f.read())
+
+    def test_other_bytes_a_copied_link_a_strangers_file_or_an_open_drive_fail(self):
+        for landed, words in ((self.landed(letter="c" * 64), "other bytes"),
+                              (self.landed(extra="ENTRY f p pull-test/desktop.ini\n"), "must not be"),
+                              (self.landed(owner="root"), "belong to root"),
+                              (self.landed(mounted="yes"), "left open")):
+            o = oneclick.Pull().run(self.ctx(self.machine(landed)), {})
+            self.assertEqual((o.word, o.expected), ("files-differ", False), words)
+            self.assertIn(words, o.notes)
+
+    def test_a_missing_file_and_a_second_copy_fail(self):
+        o = oneclick.Pull().run(self.ctx(self.machine(self.landed().replace("a" * 64 + "  pull-test/letter.txt\n", ""))), {})
+        self.assertIn("did not arrive", o.notes)
+        o = oneclick.Pull().run(self.ctx(self.machine(self.landed(), again=self.DONE)), {})
+        self.assertIn("a second run said done", o.notes)
+
+    def test_a_refusal_is_untouched_and_keeps_its_words(self):
+        c = self.ctx(self.machine("", check=json.dumps({"result": "refused", "why": ["Windows' drive could not be read: x"]}, indent=2)))
+        o = oneclick.Pull().run(c, {})
+        self.assertEqual((o.word, o.untouched), ("pull-refused", True))
+        self.assertIn("could not be read", o.notes)
+        self.assertFalse([s for s in c.link.commands if "pull run" in unsudo(s)], "nothing is copied after a refusal")
+
+    def test_no_plant_no_copy(self):
+        o = oneclick.Pull().run(self.ctx(self.machine(""), planted=False), {})
+        self.assertEqual(o.word, "nothing-planted")
+
+    def test_last_json_reads_past_progress_lines(self):
+        self.assertEqual(oneclick.last_json('progress {"a":1}\n{\n  "result": "done",\n  "x": {\n    "y": 1\n  }\n}\n')["result"], "done")
+        self.assertEqual(oneclick.last_json('noise\n{"result": "plan"}\n')["result"], "plan")
+        self.assertIsNone(oneclick.last_json("sudo: a password is required"))
+
+
+class ReclaimCheckTests(unittest.TestCase):
+    STATE = "BOOT=b1\nDISK=/dev/sda\nTABLE=t1\nDISK_BYTES=1000\nRECORDS=r1\nWINMOUNT=no\n"
+
+    def ctx(self, check, kind="hyperv", states=None, plant_ok=True):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        states = list(states or [self.STATE, self.STATE])
+        self.bodies = []
+
+        def answer(script):
+            body = unsudo(script)
+            self.bodies.append(body)
+            if "reclaim check" in body:
+                return tr.Result(1, json.dumps(check, indent=2), "")
+            if "efibootmgr" in body:
+                return tr.Result(0, states.pop(0), "")
+            if "PLANTED=yes" in body:
+                return tr.Result(0, "PLANTED=yes\n" if plant_ok else "", "")
+            if "PUT_BACK" in body:
+                return tr.Result(0, "PUT_BACK=gone\n", "")
+            return tr.Result(0, "", "")
+        link = ScriptLink(answer, probes=("linux",))
+        link.kind = kind
+        c = oneclick.Context(tmp, {"stages": []}, {"password": "p"}, link, oneclick.Journal(os.path.join(tmp, "j")))
+        c.stage_dir = tmp
+        return c
+
+    def test_a_planted_fault_refused_with_its_own_words_is_a_pass_and_is_put_back(self):
+        c = self.ctx({"result": "refused", "why": ["the drive did not report itself healthy when it was scanned (Warning): moving..."]})
+        o = oneclick.ReclaimCheck().run(c, {"arm": "drive-health", "expect": "refused"})
+        self.assertEqual((o.word, o.expected), ("reclaim-refused", True))
+        order = [("plant" if "PLANTED=yes" in b else "check" if "reclaim check" in b else "back" if "PUT_BACK" in b else None) for b in self.bodies]
+        self.assertEqual([x for x in order if x], ["plant", "check", "back"])
+        with open(os.path.join(c.stage_dir, "r41-reclaim.row.csv")) as f:
+            row = f.read()
+        self.assertIn(",drive-health,1000,,67108864,refused,pass-plumbing,", row)
+
+    def test_a_reason_more_than_the_plan_counts_is_a_fault(self):
+        # the Aspire, 2026-11-19: two reasons the machine has, and a third that was the check's own flaw
+        two = ["...(the data-loss sentence); that sentence does not cover reclaim", "another internal disk holds a Windows drive (sda): ..."]
+        args = {"expect": "refused", "expect_why": ["that sentence does not cover reclaim", "another internal disk holds a Windows drive"], "expect_reasons": 2}
+        o = oneclick.ReclaimCheck().run(self.ctx({"result": "refused", "why": two}, kind="ssh"), dict(args))
+        self.assertEqual((o.word, o.expected), ("reclaim-refused", True), o.notes)
+        o = oneclick.ReclaimCheck().run(self.ctx({"result": "refused", "why": two + ["the Windows partition could not be read (...)"]}, kind="ssh"), dict(args))
+        self.assertEqual((o.word, o.expected), ("reclaim-check-wrong", False))
+        self.assertIn("not expected: the Windows partition could not be read", o.notes)
+
+    def test_a_refusal_for_another_reason_is_not_the_arms_pass(self):
+        c = self.ctx({"result": "refused", "why": ["the computer is running on its battery"]})
+        o = oneclick.ReclaimCheck().run(c, {"arm": "drive-health", "expect": "refused"})
+        self.assertEqual((o.word, o.expected), ("reclaim-check-wrong", False))
+        with open(os.path.join(c.stage_dir, "r41-reclaim.row.csv")) as f:
+            self.assertIn(",fail,", f.read())
+
+    def test_a_fault_is_never_planted_on_a_real_machine(self):
+        c = self.ctx({"result": "refused", "why": []}, kind="ssh")
+        o = oneclick.ReclaimCheck().run(c, {"arm": "wrong-guid"})
+        self.assertEqual((o.word, o.untouched), ("plant-refused", True))
+        self.assertFalse(self.bodies, "nothing ran on the machine")
+
+    def test_a_check_that_changes_the_firmware_the_table_or_the_records_fails(self):
+        for key in ("BOOT=b1", "TABLE=t1", "RECORDS=r1", "WINMOUNT=no"):
+            after = self.STATE.replace(key, key.split("=")[0] + "=other")
+            c = self.ctx({"result": "refused", "why": ["that sentence does not cover reclaim"]}, kind="ssh", states=[self.STATE, after])
+            o = oneclick.ReclaimCheck().run(c, {"expect": "refused", "expect_why": ["that sentence does not cover reclaim"]})
+            self.assertEqual((o.word, o.expected), ("reclaim-check-wrong", False), key)
+
+    def test_the_aspire_as_found_refuses_and_the_stage_never_arms(self):
+        c = self.ctx({"result": "refused", "why": ["this conversion went ahead ... that sentence does not cover reclaim", "another internal disk holds a Windows drive (sda2)"]}, kind="ssh")
+        o = oneclick.ReclaimCheck().run(c, {"expect": "refused", "expect_why": ["that sentence does not cover reclaim", "another internal disk holds a Windows drive"]})
+        self.assertEqual((o.word, o.expected), ("reclaim-refused", True))
+        self.assertFalse([b for b in self.bodies if "reclaim arm" in b or "reclaim run" in b])
+        self.assertFalse(os.path.exists(os.path.join(c.stage_dir, "r41-reclaim.row.csv")), "the computer as found is not one of V15's planted arms")
+
+    def test_a_plan_where_a_refusal_is_expected_fails_and_the_rig_as_found_may_plan(self):
+        plan = {"result": "plan", "deleted_bytes": 5, "move": {"shift_sectors": 7}}
+        o = oneclick.ReclaimCheck().run(self.ctx(plan, kind="ssh"), {"expect": "refused"})
+        self.assertEqual((o.word, o.expected), ("reclaim-check-wrong", False))
+        o = oneclick.ReclaimCheck().run(self.ctx(plan), {"expect": "plan"})
+        self.assertEqual((o.word, o.expected), ("reclaim-plan-made", True))
+
+    def test_the_stage_has_no_call_that_arms_or_runs_reclaim(self):
+        import inspect
+        src = inspect.getsource(oneclick.ReclaimCheck)
+        self.assertNotIn("reclaim arm", src)
+        self.assertNotIn("reclaim run", src)
+
+
+class WindowsAwakeTests(unittest.TestCase):
+    def ctx(self, answer, probes=("windows",)):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        link = ScriptLink(answer, probes=probes)
+        c = oneclick.Context(tmp, {}, {}, link, oneclick.Journal(os.path.join(tmp, "j")))
+        return c
+
+    def test_the_time_found_is_written_down_once_and_put_back_at_the_end(self):
+        was = ["900"]
+        c = self.ctx(lambda s: tr.Result(0, f"AWAKE_WAS={was[0]}\nAWAKE_BACK\n", ""))
+        self.assertTrue(oneclick.windows_awake(c))
+        was[0] = "0"   # the next stage finds the test's own setting, which is not a time to put back
+        self.assertTrue(oneclick.windows_awake(c))
+        self.assertEqual([e["was_s"] for e in c.journal.entries() if e["event"] == "windows-awake"], [900])
+        said = []
+        oneclick.windows_awake_off(c.link, c.journal, said.append)
+        self.assertIn("standby-timeout-ac 15;", c.link.commands[-1])
+        self.assertIn("15 minutes", said[0])
+
+    def test_linux_is_left_alone(self):
+        c = self.ctx(lambda s: tr.Result(0, "", ""), probes=("linux",))
+        self.assertFalse(oneclick.windows_awake(c))
+        self.assertFalse(c.link.commands)
+
+    def test_the_aspire_plans_say_so_and_the_walk_away_takes_no_lock_of_the_tests(self):
+        for name in ("aspire-ubuntu-one-stick.json", "aspire-one-stick.json"):
+            with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", name)) as f:
+                p = json.load(f)
+            self.assertTrue(p["test_windows_awake"])
+            self.assertIn("no evidence for R33 on the Windows side", p["why_test_windows_awake"])
+            self.assertFalse([s for s in p["stages"] if s.get("hold_awake")])
+
+
+class StageRowsTests(unittest.TestCase):
+    def test_the_stages_lines_go_to_their_csvs_once_with_the_runs_own_facts(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        run, res = os.path.join(tmp, "rig-x"), os.path.join(tmp, "res")
+        os.makedirs(os.path.join(run, "stages", "03-look"))
+        os.makedirs(os.path.join(run, "stages", "06-pull"))
+        os.makedirs(os.path.join(run, "stages", "08-reclaim-check"))
+        os.makedirs(res)
+        with open(os.path.join(run, "stages", "03-look", "facts.json"), "w") as f:
+            json.dump({"manufacturer": "Microsoft Corporation", "model": "Virtual Machine", "bios_vendor": "Microsoft Corporation", "bios_version": "Hyper-V UEFI Release v4.1"}, f)
+        with open(os.path.join(run, "stages", "06-pull", "v3-pull.row.csv"), "w") as f:
+            f.write('2026-11-18,oneclick 0.4.0 pull,,"installed Fedora (alongside), ",settle-in 0.12.0,b,k,c,n,0,7,7,0,0,none planted,Chrome=5,yes,plan,done,pass-plumbing,notes\n')
+        with open(os.path.join(run, "stages", "08-reclaim-check", "r41-reclaim.row.csv"), "w") as f:
+            f.write('2026-11-18T05:44:24Z,oneclick 0.4.0 reclaim-check,,,0.12.0,wrong-guid,8,,67108864,refused,pass-plumbing,"a, b"\n')
+        for n in ("v3-pull.csv", "r41-reclaim.csv"):
+            with open(os.path.join(res, n), "w") as f:
+                f.write("header\n")
+        said = []
+        self.assertEqual(oneclick.stage_rows(run, res, said.append), 0)
+        with open(os.path.join(res, "v3-pull.csv")) as f:
+            pull = f.read().splitlines()[1]
+        self.assertIn(',Microsoft Corporation Hyper-V UEFI Release v4.1,"installed Fedora (alongside), Microsoft Corporation Virtual Machine",', pull)
+        self.assertTrue(pull.endswith("notes | run rig-x/06-pull"))
+        with open(os.path.join(res, "r41-reclaim.csv")) as f:
+            rec = f.read().splitlines()[1]
+        self.assertIn(",Microsoft Corporation Virtual Machine,Microsoft Corporation Hyper-V UEFI Release v4.1,0.12.0,wrong-guid,", rec)
+        self.assertIn("v3-pull.csv lines 2-2; r41-reclaim.csv lines 2-2", said[0])
+        self.assertEqual(oneclick.stage_rows(run, res, said.append), 2, "never twice")
 
 
 if __name__ == "__main__":

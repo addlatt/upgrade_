@@ -631,6 +631,21 @@ pub fn valid_key(k: &str) -> bool {
     g.len() == 8 && g.iter().all(|g| g.len() == 6 && g.bytes().all(|b| b.is_ascii_digit()) && g.parse::<u32>().is_ok_and(|n| n % 11 == 0 && n < 720_896))
 }
 
+/// What a locked drive with no key says.
+pub const NO_KEY: &str = "Windows' drive is locked with BitLocker, and its recovery key did not come across. Find it at aka.ms/myrecoverykey (sign in with the Microsoft account you use on Windows) and type it in";
+
+/// The key to open a BitLocker drive with: the one typed (refused when it is
+/// not a key), else the one carried, else none. None is not a refusal yet: the
+/// drive is tried with no key, which opens only one Windows itself keeps
+/// unlocked.
+pub fn key_choice(typed: Option<&str>, carried: &[String]) -> Result<Option<String>, String> {
+    match typed {
+        Some(k) if valid_key(k.trim()) => Ok(Some(k.trim().to_string())),
+        Some(_) => Err("that is not a BitLocker recovery key: it is eight groups of six digits, like 123456-123456-...".into()),
+        None => Ok(carried.first().cloned()),
+    }
+}
+
 pub mod live {
     use super::*;
     use crate::reclaimrun::live::run;
@@ -674,11 +689,37 @@ pub mod live {
     }
 
     /// BitLocker's signature, `-FVE-FS-` at byte 3 of the partition.
-    fn is_bitlocker(dev: &str) -> Result<bool, String> {
+    pub(crate) fn is_bitlocker(dev: &str) -> Result<bool, String> {
         let mut f = std::fs::File::open(dev).map_err(|e| format!("{}: {}", dev, e))?;
         let mut b = [0u8; 11];
         f.read_exact(&mut b).map_err(|e| format!("{}: {}", dev, e))?;
         Ok(&b[3..11] == b"-FVE-FS-")
+    }
+
+    /// Open a BitLocker partition read-only as `/dev/mapper/<mapper>`. The key
+    /// goes on stdin, as the rig read it (rig/hyperv/guest/v3-read.sh), never
+    /// on a command line. An empty key opens only a drive Windows itself
+    /// keeps unlocked (its key on the disk in the clear), and fails on a
+    /// locked one.
+    pub(crate) fn open_bitlk(dev: &str, mapper: &str, key: &str) -> Result<(), String> {
+        let mut c = Command::new("cryptsetup")
+            .args(["open", "--type", "bitlk", "--readonly", dev, mapper])
+            .env("PATH", PATH_ENV)
+            .env("LC_ALL", "C")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("cryptsetup could not start ({})", e))?;
+        if let Some(mut i) = c.stdin.take() {
+            let _ = i.write_all(format!("{}\n", key).as_bytes());
+        }
+        let o = c.wait_with_output().map_err(|e| e.to_string())?;
+        if o.status.success() {
+            Ok(())
+        } else {
+            Err(String::from_utf8_lossy(&o.stderr).trim().to_string())
+        }
     }
 
     /// The person: who started pkexec, their uid, gid and home.
@@ -711,27 +752,16 @@ pub mod live {
                 Some(2..=5) => return Err("Windows was still encrypting or decrypting its drive when it was checked, and a drive caught halfway is not read here. Start Windows, let it finish (Settings, Privacy and security, Device encryption), then try again".into()),
                 _ => return Err("this Linux does not know whether Windows' drive is wholly encrypted (the record from Windows is missing or from an older kit), so it is not read".into()),
             }
-            let key = match typed_key {
-                Some(k) if valid_key(k.trim()) => k.trim().to_string(),
-                Some(_) => return Err("that is not a BitLocker recovery key: it is eight groups of six digits, like 123456-123456-...".into()),
-                None => keys.first().cloned().ok_or("Windows' drive is locked with BitLocker, and its recovery key did not come across. Find it at aka.ms/myrecoverykey (sign in with the Microsoft account you use on Windows) and type it in")?,
-            };
-            // the key on stdin, as the rig read it (rig/hyperv/guest/v3-read.sh), never on a command line
-            let mut c = Command::new("cryptsetup")
-                .args(["open", "--type", "bitlk", "--readonly", &dev, MAPPER])
-                .env("PATH", PATH_ENV)
-                .env("LC_ALL", "C")
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()
-                .map_err(|e| format!("cryptsetup could not start ({})", e))?;
-            if let Some(mut i) = c.stdin.take() {
-                let _ = i.write_all(format!("{}\n", key).as_bytes());
-            }
-            let o = c.wait_with_output().map_err(|e| e.to_string())?;
-            if !o.status.success() {
-                return Err(format!("Windows' drive could not be unlocked with its recovery key ({})", String::from_utf8_lossy(&o.stderr).trim()));
+            // No key typed and none carried: the drive may be one Windows keeps unlocked, its key
+            // on the disk in the clear (a fresh Windows 11 before a Microsoft account signs in; the
+            // Aspire, 2026-11-18). cryptsetup opens that with no key, and fails on a locked one.
+            let key = key_choice(typed_key, &keys)?.unwrap_or_default();
+            let no_key = key.is_empty();
+            if let Err(e) = open_bitlk(&dev, MAPPER, &key) {
+                if no_key {
+                    return Err(NO_KEY.into());
+                }
+                return Err(format!("Windows' drive could not be unlocked with its recovery key ({})", e));
             }
             mapped = true;
             source = format!("/dev/mapper/{}", MAPPER);
@@ -1066,5 +1096,19 @@ mod tests {
         assert_eq!(read_key_file(t), (Some(1), vec!["000011-000022-000033-000044-000055-000066-000077-000088".to_string()]));
         assert_eq!(read_key_file("conversion-status: unknown\n# none: x\n"), (None, vec![]));
         assert!(!valid_key("000012-000022-000033-000044-000055-000066-000077-000088"));
+    }
+
+    #[test]
+    fn the_key_to_open_with() {
+        let k = "000011-000022-000033-000044-000055-000066-000077-000088".to_string();
+        // typed wins, and a typed thing that is no key is refused before the drive is touched
+        assert_eq!(key_choice(Some(&format!(" {} ", k)), &[]), Ok(Some(k.clone())));
+        assert!(key_choice(Some("hunter2"), std::slice::from_ref(&k)).unwrap_err().contains("not a BitLocker recovery key"));
+        assert_eq!(key_choice(None, std::slice::from_ref(&k)), Ok(Some(k)));
+        // the Aspire, 2026-11-18: a key file that says "none" (a drive Windows keeps unlocked) is
+        // no refusal by itself; the drive is tried with no key, and only a failed try refuses
+        let (status, keys) = read_key_file("conversion-status: 1\n# none: C: has no recovery password protector\n");
+        assert_eq!((status, key_choice(None, &keys)), (Some(1), Ok(None)));
+        assert!(NO_KEY.contains("aka.ms/myrecoverykey"), "the refusal still asks for the key (needs_key reads this)");
     }
 }

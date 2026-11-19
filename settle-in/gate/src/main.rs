@@ -127,6 +127,7 @@ fn run() -> i32 {
         return 2;
     }
     let started = now_utc();
+    let started_wall = win::local_wall();
     let mut rec = json!({ "schema": "go-back-gate/1", "gate_version": VERSION, "started_utc": started });
     // On a real machine the USB stick appears some seconds after WinPE starts
     // (the Aspire, 2026-10-02: the gate looked once, at once, and refused with
@@ -153,6 +154,11 @@ fn run() -> i32 {
         return refuse_and_restart(Some(&rec_path), rec, "the instructions on this USB stick could not be read");
     };
     rec["job_id"] = job["job_id"].clone();
+    // 0.5.2: the start is read the same way as the crossing (the Aspire, 2026-11-18:
+    // the crossing said 03:43Z, rightly, and the start still said 11:43Z)
+    let (started_true, started_from) = logic::crossed_utc(&job, &started_wall, &started);
+    rec["started_utc"] = json!(started_true);
+    rec["started_utc_from"] = json!(started_from);
     if let Some(p) = &previous {
         rec["previous"] = json!({ "job_id": p["job_id"], "result": p["result"], "ended_utc": p["ended_utc"] });
     }
@@ -208,7 +214,10 @@ fn run() -> i32 {
     // commit line. Every check above still refuses before anything is erased.
     // ---- the commit line ----
     rec["result"] = json!("crossed");
-    rec["crossed_utc"] = json!(now_utc());
+    // read before the clock is changed below (0.5.1: WinPE's own UTC was eight hours on, the Aspire, 2026-11-16)
+    let (crossed, crossed_from) = logic::crossed_utc(&job, &win::local_wall(), &now_utc());
+    rec["crossed_utc"] = json!(crossed);
+    rec["crossed_utc_from"] = json!(crossed_from);
     if let Err(e) = save(&rec_path, &rec) {
         // never cross on a stick that does not hold the crossing: it could erase twice
         rec["result"] = json!("refused");

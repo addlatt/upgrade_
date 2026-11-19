@@ -1,0 +1,117 @@
+{
+  "plan": "aspire-erase-first",
+  "version": 2,
+  "machine": "acer-aspire-a515-51g",
+  "desktop": "kde",
+  "why_desktop": "Fedora 44 with KDE, the desktop every Fedora run on the Aspire has used",
+  "linux": {
+    "release": "fedora-44",
+    "desktop": "kde"
+  },
+  "why_linux": "the Linux the manager fetches onto the stick with the window's own call (upgrade-fetch get), at the start and again after the walk-away",
+  "stick": "one stick for the whole run, never taken out (decided 2026-11-15, the owner). The kit is built once (./make-kit.sh --release none) and every kit-stick stage writes that same kit",
+  "owner_touches": "none (the owner, 2026-11-17: the fill is part of the test). Version 1 of this plan waited for the owner to pick the Linux in the window; the window's own picker is not exercised by this plan (V12 is its gate)",
+  "heartbeat_s": 300,
+  "test_password": "password",
+  "why_test_password": "the owner, 2026-10-28: the test account's password is 'password' on a test machine, so the owner can sign in at the screen",
+  "test_autologon": true,
+  "windows_password": "test_password",
+  "why_test_autologon": "the owner, 2026-10-28 and 2026-10-31: signing in by hand after each restart is not one click; the test signs Windows in by itself, says so in every row, and switches it off when the run finishes",
+  "test_windows_awake": true,
+  "why_test_windows_awake": "the Aspire, 2026-11-18: Windows had sat idle past its sleep timer when the fetch ended, slept at that moment, and the run stopped. The product's programs each keep the computer awake while they work; the gaps between them have no person in a test. So the test switches idle sleep off in Windows, says so in every row, and puts it back at the end. These runs are therefore no evidence for R33 on the Windows side",
+  "why_data_loss": "the Aspire's scan is RED (its dying drive, R23): every stage that writes a job names the sentence, so the owner types it at kickoff, never added in silence",
+  "why_no_sleep_lock": "the two-stick plans held a sleep lock of the test's through the walk-away (settle-in held none then). settle-in holds its own since roadmap item 16, so this plan takes none",
+  "why_retry": "a stage that stops is tried again in the same run (oneclick.py retry), with the approvals typed at kickoff",
+  "why_no_cancel": "the owner, 2026-11-02: the last click in the window is the commit line; no countdown and no cancel after it",
+  "why_files": "the file copy and reclaim's check sit after the install beside Windows and before the rollback: the copy refuses once Windows starts first again (the owner's prompt, 2026-11-17: plan them into the run order after a keep-Windows install)",
+  "why_reclaim_check": "the owner said yes on 2026-11-18 to reclaim's read-only check on the Aspire. Only the check: nothing here arms or runs reclaim, and the move still needs the owner's yes of its own",
+  "why_this_order": "the same fourteen stages as aspire-one-stick, the erase half first. A run in this order may start on a Windows that still holds a Linux an earlier run left (the keep-Windows path rightly refuses there; the erase takes it along), and the walk-away gives the keep-Windows half a fresh Windows. It ends on a Windows the way back returned to, which the next run in this order erases. A bench order, not the order in the wild (the Aspire, 2026-11-18 and 19)",
+  "stages": [
+    {
+      "stage": "kit-stick",
+      "why": "the kit onto the one stick, in the machine itself, and the Linux fetched onto it: the stick is never carried to another computer and no hand fills it",
+      "fetch": true
+    },
+    {
+      "stage": "look",
+      "expect": [
+        "GREEN",
+        "YELLOW",
+        "RED"
+      ],
+      "limit_s": 900
+    },
+    {
+      "stage": "clean-slate",
+      "needs": [
+        "data-loss"
+      ],
+      "why": "erase and install (V9 arm C)"
+    },
+    {
+      "stage": "stick-left-in-erased",
+      "why": "V9 arm D"
+    },
+    {
+      "stage": "walk-away",
+      "why": "back to a fresh Windows after a clean slate, written onto the kit stick itself (settle-in 0.12.0 allows it only after an erase). No sleep lock of the test's: settle-in's own is the one proven (R33)"
+    },
+    {
+      "stage": "kit-stick",
+      "after_walkaway": true,
+      "fetch": true,
+      "why": "Windows is back and the stick is its installer: the same kit goes back on, and the manager fetches the Linux with the window's own call (no hand)"
+    },
+    {
+      "stage": "plant-files",
+      "why": "known files in Windows before the job is written, so the product's own harvest counts them and the copy can be held to them"
+    },
+    {
+      "stage": "look",
+      "expect": [
+        "GREEN",
+        "YELLOW",
+        "RED"
+      ],
+      "limit_s": 900,
+      "why": "the fresh Windows gets its own scan: the job writer reads it from the stick"
+    },
+    {
+      "stage": "keep-windows",
+      "needs": [
+        "data-loss"
+      ],
+      "why": "the default path: install beside Windows, settle-in's first start, both systems start"
+    },
+    {
+      "stage": "stick-left-in",
+      "why": "people forget the stick: it must not install again"
+    },
+    {
+      "stage": "pull",
+      "why": "the file copy (V3): settle-in's own command, then every planted file hashed where it landed; a second run must find nothing to do"
+    },
+    {
+      "stage": "reclaim-check",
+      "expect": "refused",
+      "why": "the Aspire can only refuse (RISKS R41): its conversion carries the data-loss sentence and its second disk holds a Windows drive. The check writes nothing and arms nothing; the stage holds it to that",
+      "expect_why": [
+        "that sentence does not cover reclaim",
+        "another internal disk holds a Windows drive"
+      ],
+      "expect_reasons": 2,
+      "why_expect_reasons": "the Aspire has exactly these two; a third is a flaw of the check (2026-11-19: it could not read a drive it had opened)"
+    },
+    {
+      "stage": "rollback",
+      "why": "someone changes their mind"
+    },
+    {
+      "stage": "refused-before-countdown",
+      "needs": [
+        "data-loss"
+      ],
+      "why": "V9 arm A, the rarest"
+    }
+  ]
+}
