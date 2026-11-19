@@ -709,11 +709,33 @@ pub mod live {
             return crate::reclaim::live::plan_with(root, None);
         };
         let _ = std::fs::create_dir_all(&mp);
-        if let Err(e) = run("mount", &["-t", "ntfs-3g", "-o", "ro", &dev, &mp]) {
+        // A fresh Windows 11 keeps its drive encrypted with BitLocker but unlocked, the key on
+        // the disk in the clear, and says "off" when asked (the Aspire, 2026-11-19: ntfs-3g
+        // found no NTFS there). Such a drive is opened with no key, read-only, to be read like
+        // any other. A locked one does not open, and is refused: nothing is deleted unseen.
+        const MAPPER: &str = "upgrade_-reclaim-windows";
+        let mut source = dev.clone();
+        let mut mapped = false;
+        if crate::pullrun::live::is_bitlocker(&format!("{}{}", r, dev)).unwrap_or(false) {
+            let _ = run("cryptsetup", &["close", MAPPER]);
+            if let Err(e) = crate::pullrun::live::open_bitlk(&dev, MAPPER, "") {
+                return refused(format!("Windows' drive is locked with BitLocker: what is on it cannot be read, so it cannot be shown before it is deleted ({})", e));
+            }
+            mapped = true;
+            source = format!("/dev/mapper/{}", MAPPER);
+        }
+        let close = |mapped: bool| {
+            if mapped {
+                let _ = run("cryptsetup", &["close", MAPPER]);
+            }
+        };
+        if let Err(e) = run("mount", &["-t", "ntfs-3g", "-o", "ro", &source, &mp]) {
+            close(mapped);
             return refused(format!("Windows' drive could not be opened read-only ({}). If it is open in the file manager, close it there and try again. Nothing is deleted unseen", e));
         }
         let out = crate::reclaim::live::plan_with(root, Some(rel));
         let _ = run("umount", &[&mp]);
+        close(mapped);
         out
     }
 

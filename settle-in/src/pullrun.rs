@@ -689,11 +689,37 @@ pub mod live {
     }
 
     /// BitLocker's signature, `-FVE-FS-` at byte 3 of the partition.
-    fn is_bitlocker(dev: &str) -> Result<bool, String> {
+    pub(crate) fn is_bitlocker(dev: &str) -> Result<bool, String> {
         let mut f = std::fs::File::open(dev).map_err(|e| format!("{}: {}", dev, e))?;
         let mut b = [0u8; 11];
         f.read_exact(&mut b).map_err(|e| format!("{}: {}", dev, e))?;
         Ok(&b[3..11] == b"-FVE-FS-")
+    }
+
+    /// Open a BitLocker partition read-only as `/dev/mapper/<mapper>`. The key
+    /// goes on stdin, as the rig read it (rig/hyperv/guest/v3-read.sh), never
+    /// on a command line. An empty key opens only a drive Windows itself
+    /// keeps unlocked (its key on the disk in the clear), and fails on a
+    /// locked one.
+    pub(crate) fn open_bitlk(dev: &str, mapper: &str, key: &str) -> Result<(), String> {
+        let mut c = Command::new("cryptsetup")
+            .args(["open", "--type", "bitlk", "--readonly", dev, mapper])
+            .env("PATH", PATH_ENV)
+            .env("LC_ALL", "C")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("cryptsetup could not start ({})", e))?;
+        if let Some(mut i) = c.stdin.take() {
+            let _ = i.write_all(format!("{}\n", key).as_bytes());
+        }
+        let o = c.wait_with_output().map_err(|e| e.to_string())?;
+        if o.status.success() {
+            Ok(())
+        } else {
+            Err(String::from_utf8_lossy(&o.stderr).trim().to_string())
+        }
     }
 
     /// The person: who started pkexec, their uid, gid and home.
@@ -731,25 +757,11 @@ pub mod live {
             // Aspire, 2026-11-18). cryptsetup opens that with no key, and fails on a locked one.
             let key = key_choice(typed_key, &keys)?.unwrap_or_default();
             let no_key = key.is_empty();
-            // the key on stdin, as the rig read it (rig/hyperv/guest/v3-read.sh), never on a command line
-            let mut c = Command::new("cryptsetup")
-                .args(["open", "--type", "bitlk", "--readonly", &dev, MAPPER])
-                .env("PATH", PATH_ENV)
-                .env("LC_ALL", "C")
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()
-                .map_err(|e| format!("cryptsetup could not start ({})", e))?;
-            if let Some(mut i) = c.stdin.take() {
-                let _ = i.write_all(format!("{}\n", key).as_bytes());
-            }
-            let o = c.wait_with_output().map_err(|e| e.to_string())?;
-            if !o.status.success() {
+            if let Err(e) = open_bitlk(&dev, MAPPER, &key) {
                 if no_key {
                     return Err(NO_KEY.into());
                 }
-                return Err(format!("Windows' drive could not be unlocked with its recovery key ({})", String::from_utf8_lossy(&o.stderr).trim()));
+                return Err(format!("Windows' drive could not be unlocked with its recovery key ({})", e));
             }
             mapped = true;
             source = format!("/dev/mapper/{}", MAPPER);
