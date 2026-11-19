@@ -1,6 +1,6 @@
 {
   "plan": "aspire-ubuntu-erase-first",
-  "version": 1,
+  "version": 2,
   "machine": "acer-aspire-a515-51g",
   "desktop": "gnome",
   "why_desktop": "the stick carries Ubuntu 26.04.1 LTS, which the kit offers with GNOME only (the full desktop, decided 2026-11-17)",
@@ -98,7 +98,9 @@
       "expect_why": [
         "that sentence does not cover reclaim",
         "another internal disk holds a Windows drive"
-      ]
+      ],
+      "expect_reasons": 2,
+      "why_expect_reasons": "the Aspire has exactly these two; a third is a flaw of the check (2026-11-19: it could not read a drive it had opened)"
     },
     {
       "stage": "rollback",

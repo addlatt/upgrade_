@@ -398,6 +398,21 @@ pub mod live {
         mounts(r).into_iter().rev().find(|(_, m, _, _)| m == at).map(|(d, _, o, src)| (d, o, src))
     }
 
+    /// The one partition a device-mapper device (`/dev/mapper/x`) sits on, as
+    /// `/dev/sda3`: what the kernel itself lists under the mapping's `slaves`.
+    /// None when it is not a mapping, or sits on more than one device.
+    pub(crate) fn mapping_of(r: &str, src: &str) -> Option<String> {
+        if !src.starts_with("/dev/mapper/") {
+            return None;
+        }
+        let dm = std::fs::canonicalize(format!("{}{}", r, src)).ok()?.file_name()?.to_string_lossy().to_string();
+        let slaves: Vec<String> = std::fs::read_dir(format!("{}/sys/block/{}/slaves", r, dm)).ok()?.flatten().map(|e| e.file_name().to_string_lossy().to_string()).collect();
+        match slaves.as_slice() {
+            [one] => Some(format!("/dev/{}", one)),
+            _ => None,
+        }
+    }
+
     /// The kernel's name of a partition (`sda3`, `nvme0n1p3`) from its major:minor.
     pub(crate) fn name_of(r: &str, devnum: &str) -> Option<String> {
         let link = std::fs::read_link(format!("{}/sys/dev/block/{}", r, devnum)).ok()?;
@@ -480,7 +495,8 @@ pub mod live {
                 match mount_of(r, m.trim_end_matches('/')) {
                     None => Err(format!("{} is not a mount point", m)),
                     // ntfs-3g is a FUSE mount: its own number is not the partition's, its source is
-                    Some((dev, _, src)) if Some(&dev) != want_num.as_ref() && Some(&src) != want.as_ref() => Err(format!("{} is not the Windows partition the install recorded", m)),
+                    // a drive BitLocker keeps unlocked is read through our own read-only mapping of that partition
+                    Some((dev, _, src)) if Some(&dev) != want_num.as_ref() && Some(&src) != want.as_ref() && mapping_of(r, &src) != want => Err(format!("{} is not the Windows partition the install recorded", m)),
                     Some((_, opts, _)) if !opts.split(',').any(|o| o == "ro") => Err(format!("{} is mounted read-write; reclaim reads Windows only read-only", m)),
                     Some(_) => {
                         let base = format!("{}{}", r, m.trim_end_matches('/'));
@@ -529,6 +545,25 @@ mod tests {
     use super::*;
     use crate::gpttable::tests::{entry, image, table};
     use std::io::Cursor;
+
+    #[test]
+    fn a_mapping_names_the_one_partition_under_it() {
+        // the Aspire, 2026-11-19: a drive BitLocker keeps unlocked is read through /dev/mapper/..., and
+        // the plan must know that mapping sits on the Windows partition the install recorded, or refuse
+        let d = std::env::temp_dir().join(format!("upg-mapping-{}", std::process::id()));
+        let r = d.to_string_lossy().to_string();
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join("dev/mapper")).unwrap();
+        std::fs::write(d.join("dev/dm-3"), b"").unwrap();
+        std::os::unix::fs::symlink("../dm-3", d.join("dev/mapper/x")).unwrap();
+        std::fs::create_dir_all(d.join("sys/block/dm-3/slaves/sdb3")).unwrap();
+        assert_eq!(live::mapping_of(&r, "/dev/mapper/x"), Some("/dev/sdb3".to_string()));
+        assert_eq!(live::mapping_of(&r, "/dev/sdb3"), None, "a plain partition is no mapping");
+        assert_eq!(live::mapping_of(&r, "/dev/mapper/missing"), None);
+        std::fs::create_dir_all(d.join("sys/block/dm-3/slaves/sdc1")).unwrap();
+        assert_eq!(live::mapping_of(&r, "/dev/mapper/x"), None, "a mapping over two devices is not one partition");
+        let _ = std::fs::remove_dir_all(&d);
+    }
 
     struct Mem(Option<Value>);
     impl Journal for Mem {

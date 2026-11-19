@@ -1494,6 +1494,16 @@ class ReclaimCheckTests(unittest.TestCase):
             row = f.read()
         self.assertIn(",drive-health,1000,,67108864,refused,pass-plumbing,", row)
 
+    def test_a_reason_more_than_the_plan_counts_is_a_fault(self):
+        # the Aspire, 2026-11-19: two reasons the machine has, and a third that was the check's own flaw
+        two = ["...(the data-loss sentence); that sentence does not cover reclaim", "another internal disk holds a Windows drive (sda): ..."]
+        args = {"expect": "refused", "expect_why": ["that sentence does not cover reclaim", "another internal disk holds a Windows drive"], "expect_reasons": 2}
+        o = oneclick.ReclaimCheck().run(self.ctx({"result": "refused", "why": two}, kind="ssh"), dict(args))
+        self.assertEqual((o.word, o.expected), ("reclaim-refused", True), o.notes)
+        o = oneclick.ReclaimCheck().run(self.ctx({"result": "refused", "why": two + ["the Windows partition could not be read (...)"]}, kind="ssh"), dict(args))
+        self.assertEqual((o.word, o.expected), ("reclaim-check-wrong", False))
+        self.assertIn("not expected: the Windows partition could not be read", o.notes)
+
     def test_a_refusal_for_another_reason_is_not_the_arms_pass(self):
         c = self.ctx({"result": "refused", "why": ["the computer is running on its battery"]})
         o = oneclick.ReclaimCheck().run(c, {"arm": "drive-health", "expect": "refused"})

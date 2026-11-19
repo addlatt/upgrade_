@@ -47,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.4.6"
+VERSION = "0.4.7"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -1515,6 +1515,12 @@ class ReclaimCheck:
         absent = [m for m in must if not any(m in w for w in why)]
         if result == "refused" and absent:
             faults.append("the refusal does not carry: " + " / ".join(absent))
+        # The Aspire, 2026-11-19: the check refused for its two reasons and for a third that was a flaw
+        # of its own (it could not read a drive it had opened). A plan that knows the machine's reasons
+        # says how many there are, and one more is a fault.
+        if result == "refused" and args.get("expect_reasons") is not None and len(why) != int(args["expect_reasons"]):
+            extra = [w for w in why if not any(m in w for m in must)]
+            faults.append(f"the refusal carries {len(why)} reason(s), the plan expects {args['expect_reasons']}" + (": not expected: " + " / ".join(extra)[:300] if extra else ""))
         if arm != "as-found":
             self.row(ctx, arm, before, c, result, faults)
         words = "; ".join(why)[:400] if why else ""

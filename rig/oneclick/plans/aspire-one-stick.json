@@ -1,6 +1,6 @@
 {
   "plan": "aspire-one-stick",
-  "version": 5,
+  "version": 6,
   "machine": "acer-aspire-a515-51g",
   "desktop": "kde",
   "why_desktop": "Fedora 44 with KDE, the desktop every Fedora run on the Aspire has used",
@@ -62,7 +62,9 @@
       "expect_why": [
         "that sentence does not cover reclaim",
         "another internal disk holds a Windows drive"
-      ]
+      ],
+      "expect_reasons": 2,
+      "why_expect_reasons": "the Aspire has exactly these two; a third is a flaw of the check (2026-11-19: it could not read a drive it had opened)"
     },
     {
       "stage": "rollback",
