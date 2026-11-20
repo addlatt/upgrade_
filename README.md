@@ -21,8 +21,8 @@ come back it's a working Linux machine, already on your Wi-Fi.
 </div>
 
 > [!IMPORTANT]
-> **Pre-alpha: you can try it, at your own risk** (decided 2026-11-20, the
-> owner). Back up anything you can't lose first. Every step has run on one
+> **Pre-alpha. Feel free to try it at your own risk.** It's probably smart to
+> back up anything you absolutely cannot lose. Every step has run on one
 > real laptop, for Fedora and for Ubuntu. One machine is not proof for
 > yours. Nothing is signed, and there is no download yet: you build the kit
 > from this source. Every step, failures included: [docs/STATUS.md](docs/STATUS.md).
