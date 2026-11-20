@@ -137,6 +137,7 @@ grep -q 'boot-reclaim' "$PAYLOAD/grub.cfg" || fail "grub.cfg lacks the reclaim b
 # the Ubuntu stick's menu (roadmap item 23): the same markers, the same mark, and never a start without `autoinstall`
 for m in converted boot-verify boot-install 'save_env --file /EFI/BOOT/grubenv upg_fired'; do grep -q -- "$m" "$PAYLOAD/grub-ubuntu.cfg" || fail "grub-ubuntu.cfg lacks '$m'"; done
 [ "$(grep -c '^ *linux ' "$PAYLOAD/grub-ubuntu.cfg")" = "$(grep -c '^ *linux  */casper/vmlinuz autoinstall ' "$PAYLOAD/grub-ubuntu.cfg")" ] || fail "grub-ubuntu.cfg starts Ubuntu's installer without autoinstall (it would ask the person, RISKS R45)"
+grep -q '^ *linux  */casper/vmlinuz autoinstall upg.mode=reclaim ---$' "$PAYLOAD/grub-ubuntu.cfg" || fail "grub-ubuntu.cfg lacks the reclaim branch (RISKS R41)"
 grep -q 'settle-in reclaim run' "$PAYLOAD/ks-reclaim.cfg" || fail "ks-reclaim.cfg does not run settle-in's reclaim"
 ! grep -qE '^(liveimg|part|clearpart|autopart|%include|ignoredisk)' "$PAYLOAD/ks-reclaim.cfg" || fail "ks-reclaim.cfg must install nothing"
 # UPGRADE.exe: the window in front of the scripts (Rust, decided 2026-09-27);

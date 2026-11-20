@@ -8,9 +8,9 @@ Plug in a USB stick, pick a desktop, hit convert, and walk away. When you
 come back it's a working Linux machine, already on your Wi-Fi.
 
 [![Licence: GPL-3.0](https://img.shields.io/badge/licence-GPL--3.0-blue)](LICENSE)
-![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)
+![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-orange)
 ![Source: Windows 10/11](https://img.shields.io/badge/source-Windows%2010%20%2F%2011-0078D6)
-![Target: Fedora](https://img.shields.io/badge/target-Fedora-51A2DA)
+![Target: Fedora or Ubuntu](https://img.shields.io/badge/target-Fedora%20%7C%20Ubuntu-51A2DA)
 ![Built in Rust](https://img.shields.io/badge/built%20in-Rust-B7410E)
 ![Secure Boot: on](https://img.shields.io/badge/Secure%20Boot-stays%20on-2ea44f)
 
@@ -21,10 +21,11 @@ come back it's a working Linux machine, already on your Wi-Fi.
 </div>
 
 > [!IMPORTANT]
-> **Not ready for your machine yet.** One real laptop has gone from Windows
-> to Fedora with nobody touching it, both erasing and keeping Windows beside
-> it. It does not copy your files into Linux, and nothing is signed.
-> Where every step stands, failures included: [docs/STATUS.md](docs/STATUS.md).
+> **Pre-alpha. Feel free to try it at your own risk.** It's probably smart to
+> back up anything you absolutely cannot lose. Every step has run on one
+> real laptop, for Fedora and for Ubuntu. One machine is not proof for
+> yours. Nothing is signed, and there is no download yet: you build the kit
+> from this source. Every step, failures included: [docs/STATUS.md](docs/STATUS.md).
 
 ---
 
@@ -52,12 +53,12 @@ flowchart LR
         C{{"YOUR LAST CLICK<br/>no turning back after it"}}
         P["<b>upgrade_</b> prologue<br/>disk check · shrink<br/>BitLocker · boot handoff"]
     end
-    subgraph I["Fedora installer on the stick"]
+    subgraph I["Linux installer on the stick"]
         V["check it's the right machine<br/>and the hardware works"]
         X["install · check it boots<br/>write outcome.json"]
     end
     subgraph L["On Linux · first boot"]
-        S["<b>settle-in</b><br/>check again · Wi-Fi, clock, SSH<br/>undo, if you want"]
+        S["<b>settle-in</b><br/>check again · Wi-Fi, clock, SSH<br/>copy your files · undo, if you want"]
     end
     E --> C --> P --> V --> X --> S
     V -. "any check fails" .-> R["back to Windows,<br/>nothing erased"]
@@ -67,7 +68,7 @@ flowchart LR
 |---|---|---|
 | **`evaluate`** | Windows, read-only | Looks the machine over and asks what you want. Grabs the stuff only Windows knows (where your folders are, the BitLocker key and so on), writes the stick, and says no to anything it can't do safely. |
 | **`upgrade_`** | Windows → Linux | Does the actual move. Normally it shrinks Windows and puts Linux next to it. It only erases the disk if you ask it to. |
-| **`settle-in`** | Linux | Makes sure the hardware works, sets up Wi-Fi and the clock, then gets out of your way. Your files stay on the Windows side for now: copying them over comes later. |
+| **`settle-in`** | Linux | Makes sure the hardware works, sets up Wi-Fi and the clock, then gets out of your way. If you kept Windows, it copies your files and browser bookmarks over from the Windows side, and can later delete Windows to give Linux the whole disk. |
 
 > [!NOTE]
 > **Right now it only works from Windows.** Nothing about the idea (look,
@@ -81,7 +82,7 @@ right up until then.
 
 | Path | The point of no return | What protects you |
 |---|---|---|
-| **Keep Windows** (the default) | **Clean-up**, deleting the old Windows part. It isn't built yet, so for now there is no point of no return: Windows, with your files, stays one pick away in the boot menu. | You decide, after Linux is already running |
+| **Keep Windows** (the default) | **Clean-up**, deleting the old Windows part. It only happens if you ask for it from Linux and type a sentence. Until then Windows, with your files, stays one pick away in the boot menu. | You decide, after Linux is already running |
 | **Erase and install** | **Your last click.** After the typed sentence and the drive list, the button you click is the point of no return. There's no countdown and no cancel after it. | A sentence you type out, every drive named, and checks that must all pass before anything is erased |
 
 That leads to two rules:
@@ -98,13 +99,14 @@ The full design is in [docs/architecture.md](docs/architecture.md).
 
 ## Where it stands
 
-One real laptop, an Acer Aspire A515-51G with a dying drive, has done the whole
-conversion for real: one click on Windows, nobody at the keyboard, a Fedora desktop
-at the end with the clock set, Wi-Fi joined and remote access kept. It has kept
-Windows beside Linux and undone that from Linux, and gone back to Windows. Runs
-failed on the way; every one is in the record. Not built yet: copying your files
-into Linux (it waits until the project has users) and the clean-up that deletes the
-old Windows. One machine is one data point, not proof. Every step, with the test row behind each bar:
+**Pre-alpha.** One real laptop, an Acer Aspire A515-51G with a dying drive, has
+done every step for real, for Fedora and for Ubuntu: one click on Windows, nobody
+at the keyboard, a Linux desktop at the end with the clock set and Wi-Fi joined.
+It has erased the disk, kept Windows beside Linux, copied files over, deleted
+Windows to give Linux the whole disk, and gone back to a fresh Windows. Runs
+failed on the way; every one is in the record. Not shown yet: a second machine, a
+healthy drive, files that live only in OneDrive. One machine is one data point,
+not proof. Every step, with the test row behind each bar:
 [docs/STATUS.md](docs/STATUS.md). The story, run by run: [docs/log/](docs/log/).
 
 ---

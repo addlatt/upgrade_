@@ -1451,6 +1451,39 @@ class ReclaimMoveTests(unittest.TestCase):
             self.assertEqual((o.word, o.expected), (word, False), kw)
             self.assertIn(f",{word},fail,", self.row(c))
 
+    def test_the_entry_linux_starts_through_is_not_windows_left_behind(self):
+        # the Aspire, 2026-11-20: shim in Windows' slot, the entry kept by reclaim's own rule
+        import oneclick as oc
+        real = oc.last_json
+        c = self.ctx(after={"WINDOWS_ENTRIES": "1"})
+        def with_cleanup(text):
+            v = real(text)
+            if isinstance(v, dict) and v.get("result") == "reclaimed":
+                v["run"] = {"finish": {"cleanup": {"remove_windows_entries": False, "remove_microsoft_folder": False}}}
+            return v
+        with mock.patch.object(oc, "last_json", with_cleanup):
+            o = oneclick.ReclaimMove().run(c, {})
+        self.assertEqual((o.word, o.expected), ("moved-started", True), o.notes)
+        self.assertIn("stays by reclaim's own rule", o.notes)
+
+    def test_a_later_try_judges_the_move_an_earlier_try_ran(self):
+        c = self.ctx(check={"result": "refused", "why": ["Windows' space was already given to Linux on this computer (reclaim has run)"]})
+        os.makedirs(os.path.join(c.run_dir, "stages", "14-reclaim-move"))
+        with open(os.path.join(c.run_dir, "stages", "14-reclaim-move", "reclaim-check.out"), "w") as f:
+            f.write(json.dumps(self.PLAN, indent=2))
+        with open(os.path.join(c.run_dir, "stages", "14-reclaim-move", "before.txt"), "w") as f:
+            json.dump({"CONTENT": "a" * 64, "ROOT_BYTES": "400", "DISK_BYTES": "2000"}, f)
+        c.stage_dir = os.path.join(c.run_dir, "stages", "14-reclaim-move-try2")
+        os.makedirs(c.stage_dir)
+        # the fake's boot counter starts at 0: the judging reads the "after" answers once a restart happened,
+        # so this try's first read is told it is after the move
+        for b in ("after",):
+            pass
+        o = oneclick.ReclaimMove().run(c, {})
+        self.assertFalse(any("reclaim arm" in b for b in self.bodies))
+        self.assertIn(o.word, ("moved-started", "left-behind"))
+        self.assertIn("an earlier try", o.notes)
+
     def test_a_refusal_on_the_stick_with_windows_still_there_is_a_refusal(self):
         c = self.ctx(record="refused", after={"WINDOWS_PARTS": "2", "WINDOWS_ENTRIES": "1", "DONE_MARK": "no", "ROOT_BYTES": "400"})
         o = oneclick.ReclaimMove().run(c, {})

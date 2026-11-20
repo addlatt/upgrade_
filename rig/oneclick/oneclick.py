@@ -47,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.5.0"
+VERSION = "0.5.2"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -1594,6 +1594,13 @@ RECLAIM_RECORD = ("M=/run/upgrade_oneclick-stick; mkdir -p $M; S=$(lsblk -nrpo N
                   "mount -o ro $P $M 2>/dev/null && { cat $M/upgrade_/reclaim/record.json 2>/dev/null; umount $M; }")
 
 
+UPDATES_OFF = ("U=''; for u in apt-daily.timer apt-daily-upgrade.timer apt-daily.service apt-daily-upgrade.service unattended-upgrades.service "
+               "dnf-automatic.timer dnf5-automatic.timer packagekit-offline-update.service; do "
+               "if systemctl cat $u >/dev/null 2>&1; then systemctl stop $u 2>/dev/null; systemctl mask $u >/dev/null 2>&1 && U=\"$U $u\"; fi; done; "
+               "for i in $(seq 1 60); do pgrep -x 'apt|apt-get|dpkg|dnf|dnf5|unattended-upgr' >/dev/null || break; sleep 10; done; "
+               "[ -n \"$U\" ] && echo HELD=yes; echo \"UNITS=$U\"")
+
+
 class ReclaimMove:
     """Reclaim's move (settle-in reclaim arm, then the run from the stick;
     R41, V15): Windows deleted, Linux moved into its space and grown. The
@@ -1611,8 +1618,24 @@ class ReclaimMove:
         ctx.save("reclaim-check.out", chk.out + chk.err)
         c = last_json(chk.out) or {}
         if c.get("result") != "plan":
+            # a later try of this stage, after the move ran and the stage stopped while judging it:
+            # the judging is taken up from what the earlier try kept, and nothing is armed again
+            kept = [stage_file(ctx, "reclaim-move", n) for n in ("reclaim-check.out", "before.txt")]
+            if any("reclaim has run" in str(w) for w in c.get("why") or []) and all(kept) and os.path.dirname(kept[0]) != ctx.stage_dir:
+                with open(kept[0], encoding="utf-8") as f:
+                    self.c = last_json(f.read()) or {}
+                with open(kept[1], encoding="utf-8") as f:
+                    before = json.load(f)
+                self.state = before
+                ctx.note("reclaim has run on this computer (an earlier try of this stage): only the judging runs now, from what that try kept")
+                return self.judge(ctx, before, None, " this try judged a move an earlier try of the stage ran;" + self.accepted_words())
             return untouched("reclaim-refused", "the check gave no plan, so nothing was armed: " + "; ".join(str(w) for w in (c.get("why") or ["unread"]))[:400])
         state = kv_lines(sudo(ctx, RECLAIM_STATE, 120).out)
+        # Ubuntu updates itself in the background, which would change /usr between the two readings
+        # and read as a broken move. The TEST holds the system's own updates off; the row says so.
+        held = sudo(ctx, UPDATES_OFF, 300).out
+        ctx.save("updates-off.txt", held)
+        self.updates_held = "HELD=yes" in held
         before = kv_lines(sudo(ctx, RECLAIM_MOVED, 3600).out)
         ctx.save("before.txt", json.dumps({**state, **before}, sort_keys=True, indent=1) + "\n")
         if len(before.get("CONTENT", "")) != 64 or not before.get("ROOT_BYTES", "").isdigit():
@@ -1623,7 +1646,7 @@ class ReclaimMove:
         if a.get("result") != "ready":
             return untouched("reclaim-not-armed", "; ".join(str(w) for w in (a.get("why") if isinstance(a.get("why"), list) else [a.get("why") or "unread"]))[:400])
         self.c, self.state = c, state
-        accepted = " DATA LOSS ACCEPTED: the drive was found failing when this computer was converted, and the sentence typed then covers reclaim (decided 2026-11-19, the owner);" if c.get("data_loss_accepted") else ""
+        accepted = self.accepted_words()
         # the last click: from here the stick deletes Windows and moves Linux
         mark = boot_mark(ctx, "linux")
         started = ctx.clock()
@@ -1632,6 +1655,14 @@ class ReclaimMove:
         took = int(ctx.clock() - started)
         if got != "linux":
             return self.end(ctx, "not-started", f"{got or 'nothing'} answered after the restart from the stick ({took} s);{accepted}")
+        return self.judge(ctx, before, took, accepted)
+
+    def accepted_words(self):
+        return (" DATA LOSS ACCEPTED: the drive was found failing when this computer was converted, and the sentence typed then covers reclaim "
+                "(decided 2026-11-19, the owner);") if self.c.get("data_loss_accepted") else ""
+
+    def judge(self, ctx, before, took, accepted):
+        c = self.c
         after = kv_lines(sudo(ctx, RECLAIM_MOVED, 3600).out)
         rec_text = sudo(ctx, RECLAIM_RECORD, 300).out
         ctx.save("reclaim-record.json", rec_text)
@@ -1646,7 +1677,12 @@ class ReclaimMove:
         left = []
         if after.get("WINDOWS_PARTS") != "0":
             left.append(f"{after.get('WINDOWS_PARTS')} Windows partition(s) still on the disk")
-        if after.get("WINDOWS_ENTRIES") != "0":
+        # The Aspire, 2026-11-20: its firmware starts only the entry named Windows Boot Manager, so shim
+        # sits in Windows' slot and Linux starts through that entry (R21). Reclaim keeps the slot and
+        # its entry there by its own rule and says so in its record; that is not Windows left behind.
+        slot_kept = ((rec.get("run") or {}).get("finish") or {}).get("cleanup") or {}
+        through_slot = slot_kept.get("remove_windows_entries") is False and slot_kept.get("remove_microsoft_folder") is False
+        if after.get("WINDOWS_ENTRIES") != "0" and not through_slot:
             left.append("the firmware still lists Windows Boot Manager")
         if after.get("RECLAIM_ENTRIES") != "0":
             left.append("the firmware still lists the reclaim's own entry")
@@ -1668,12 +1704,19 @@ class ReclaimMove:
         sudo(ctx, "systemd-run --on-active=5 systemctl reboot >/dev/null; echo REBOOTING")
         if wait_new_boot(ctx, "Linux, started a second time with no key", mark, 1800) != "linux":
             return self.end(ctx, "not-started", f"Linux started once after the move and not a second time;{accepted}")
+        entry = ("no Windows partition and no reclaim entry left; the firmware's entry named Windows Boot Manager stays by reclaim's own rule, because Linux starts through Windows' slot on this machine (R21)"
+                 if after.get("WINDOWS_ENTRIES") != "0" else "no Windows partition, no Windows entry and no reclaim entry left")
+        timed = f"{took} s from the restart to Linux answering; " if took is not None else ""
         return self.end(ctx, "moved-started", f"Windows deleted ({c.get('deleted_bytes')} bytes) and Linux moved {(c.get('move') or {}).get('shift_sectors')} sectors down, "
-                        f"{took} s from the restart to Linux answering; / is {got_bytes} bytes (the plan: {want}); no Windows partition, no Windows entry and no reclaim entry left; "
+                        f"{timed}/ is {got_bytes} bytes (the plan: {want}); {entry}; "
                         f"every file of /usr and of the planted Documents and Pictures hashes as before; Linux started twice with no key, the stick in;{accepted}")
+
+    updates_held = False
 
     def end(self, ctx, result, notes):
         ok = result == "moved-started"
+        if self.updates_held:
+            notes = notes.rstrip(";") + "; the TEST held the system's own background updates off (masked) so Linux's files could be compared before and after"
         facts = run_facts(ctx)
         machine = " ".join(x for x in (facts.get("manufacturer"), facts.get("model")) if x)
         firmware = " ".join(x for x in (facts.get("bios_vendor"), facts.get("bios_version")) if x)

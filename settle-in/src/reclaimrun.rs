@@ -412,6 +412,27 @@ pub trait Ops {
     fn say(&mut self, _line: &str) {}
 }
 
+/// Which installer on the stick can run reclaim: `fedora` or `ubuntu`. `has`
+/// says whether a file is on the stick, `says` whether a file holds a text.
+/// Pure. An older kit (no reclaim branch in the menu the stick's GRUB reads)
+/// and a stick with no installer on it are refused in plain words.
+pub fn stick_installer(has: &dyn Fn(&str) -> bool, says: &dyn Fn(&str, &str) -> bool) -> Result<&'static str, String> {
+    let fedora = has("images/pxeboot/vmlinuz") && has("images/install.img");
+    let ubuntu = has("casper/vmlinuz") && has("casper/initrd");
+    let old = "this computer's USB stick was made by an older kit that cannot free Windows' space, and that cannot be fixed from here yet";
+    if fedora {
+        return if has(KS_REL) && says("EFI/BOOT/grub.cfg", "boot-reclaim") { Ok("fedora") } else { Err(old.into()) };
+    }
+    if ubuntu {
+        return if says("boot/grub/grub.cfg", "upg.mode=reclaim") && says("autoinstall.yaml", "upgrade-installer early") && has("upgrade_/upgrade-installer") {
+            Ok("ubuntu")
+        } else {
+            Err(old.into())
+        };
+    }
+    Err("this computer's USB stick does not carry the installer that frees Windows' space (it must still hold the Linux it installed)".into())
+}
+
 /// The state a run starts from once every check has passed: the commit.
 pub fn committed(o: &Value, at_utc: &str) -> Result<Value, String> {
     Ok(json!({ "schema": "reclaim-run/1", "id": order_move_id(o)?, "job_id": o["job_id"], "phase": "committed", "committed_utc": at_utc }))
@@ -812,13 +833,14 @@ pub mod live {
         if find_ci(sd, "upgrade_/converted").is_none() {
             no.push("the USB stick does not record that it converted this computer".into());
         }
-        if find_ci(sd, KS_REL).is_none() || !find_ci(sd, "EFI/BOOT/grub.cfg").and_then(|p| std::fs::read_to_string(p).ok()).is_some_and(|t| t.contains("boot-reclaim")) {
-            no.push("this computer's USB stick was made by an older kit that cannot free Windows' space, and that cannot be fixed from here yet".into());
-        }
-        // the run happens inside Fedora's installer, started from the stick: a stick that carries
-        // another Linux (Ubuntu, roadmap item 23) has nothing for the marker to start
-        if find_ci(sd, "images/pxeboot/vmlinuz").is_none() || find_ci(sd, "images/install.img").is_none() {
-            no.push("this computer's USB stick does not carry the installer that frees Windows' space (only a stick with Fedora on it does, so far)".into());
+        // the run happens inside the stick's own installer, started by the stick's menu: Fedora's
+        // (its menu and the reclaim kickstart) or Ubuntu's (its menu and the answer file whose early
+        // step is ours). An older kit's menu has no reclaim branch, and would start nothing.
+        let has = |rel: &str| find_ci(sd, rel).is_some();
+        let says = |rel: &str, what: &str| find_ci(sd, rel).and_then(|p| std::fs::read_to_string(p).ok()).is_some_and(|t| t.contains(what));
+        match stick_installer(&has, &says) {
+            Ok(_) => {}
+            Err(e) => no.push(e),
         }
         if find_ci(sd, "upgrade_/esp-snapshot/SHA256SUMS").is_none() {
             no.push("the USB stick does not hold the record of the startup files taken before the install, so Windows' own loader cannot be told from shim".into());
@@ -1218,17 +1240,20 @@ pub mod live {
             {
                 let lp = Loop::new(&format!("/dev/{}", self.disk), bo, bl, false)?;
                 let m = Mount::new(&lp.0, &format!("{}/boot", WORK), "ext4", false)?;
-                let cfg = format!("{}/grub2/grub.cfg", m.0);
+                // Fedora keeps it in /boot/grub2, Ubuntu in /boot/grub
+                let dir = if Path::new(&format!("{}/grub2/grub.cfg", m.0)).exists() || !Path::new(&format!("{}/grub/grub.cfg", m.0)).exists() { "grub2" } else { "grub" };
+                let cfg = format!("{}/{}/grub.cfg", m.0, dir);
+                let keep = format!("boot-{}-grub.cfg", dir);
                 if let Ok(b) = std::fs::read(&cfg)
-                    && !Path::new(&self.saved("boot-grub2-grub.cfg")).exists() {
+                    && !Path::new(&self.saved(&keep)).exists() {
                         if b.is_empty() {
-                            return Err("/boot/grub2/grub.cfg is empty and no copy of it was saved".into());
+                            return Err(format!("/boot/{}/grub.cfg is empty and no copy of it was saved", dir));
                         }
-                        self.save_once("boot-grub2-grub.cfg", &b)?;
+                        self.save_once(&keep, &b)?;
                     }
-                let orig = std::fs::read_to_string(self.saved("boot-grub2-grub.cfg")).ok();
+                let orig = std::fs::read_to_string(self.saved(&keep)).ok();
                 done["grub_cfg"] = match orig.as_deref() {
-                    None => json!("no grub.cfg in /boot/grub2"),
+                    None => json!(format!("no grub.cfg in /boot/{}", dir)),
                     Some(text) => {
                         let new = without_kept_block(text).unwrap_or_else(|| text.to_string());
                         // the same file written over: it keeps its SELinux label
@@ -1901,6 +1926,24 @@ mod tests {
         assert!(is_stub(&s));
         assert!(!s.contains("configfile") && !s.contains("linux") && !s.contains("blscfg"));
         assert!(!is_stub("search --fs-uuid --set=dev abc\nconfigfile $prefix/grub.cfg\n"));
+    }
+
+    #[test]
+    fn either_installer_on_the_stick_can_run_reclaim_and_an_old_kit_cannot() {
+        let pick = |files: &[&str], texts: &[(&str, &str)]| {
+            let (files, texts) = (files.to_vec(), texts.to_vec());
+            stick_installer(&|f| files.contains(&f), &|f, w| texts.iter().any(|(tf, t)| *tf == f && t.contains(w)))
+        };
+        let fed = ["images/pxeboot/vmlinuz", "images/install.img", KS_REL];
+        assert_eq!(pick(&fed, &[("EFI/BOOT/grub.cfg", "if [ -f /upgrade_/boot-reclaim ]")]), Ok("fedora"));
+        assert!(pick(&fed, &[("EFI/BOOT/grub.cfg", "boot-install")]).unwrap_err().contains("older kit"));
+        let ubu = ["casper/vmlinuz", "casper/initrd", "upgrade_/upgrade-installer"];
+        let menu = ("boot/grub/grub.cfg", "linux /casper/vmlinuz autoinstall upg.mode=reclaim ---");
+        let answer = ("autoinstall.yaml", "cp x /tmp/upgrade-installer && /tmp/upgrade-installer early /cdrom/upgrade_/job.json");
+        assert_eq!(pick(&ubu, &[menu, answer]), Ok("ubuntu"));
+        assert!(pick(&ubu, &[answer]).unwrap_err().contains("older kit"), "an Ubuntu menu with no reclaim branch starts nothing");
+        assert!(pick(&ubu, &[menu]).unwrap_err().contains("older kit"), "without the answer file's early step the installer would only wait");
+        assert!(pick(&["upgrade_/job.json"], &[]).unwrap_err().contains("does not carry the installer"));
     }
 
     #[test]

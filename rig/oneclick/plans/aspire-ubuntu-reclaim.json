@@ -1,0 +1,115 @@
+{
+  "plan": "aspire-ubuntu-reclaim",
+  "version": 1,
+  "machine": "acer-aspire-a515-51g",
+  "desktop": "gnome",
+  "why_desktop": "the stick carries Ubuntu 26.04.1 LTS, which the kit offers with GNOME only (the full desktop, decided 2026-11-17)",
+  "linux": {
+    "release": "ubuntu-26.04.1",
+    "desktop": "gnome"
+  },
+  "why_linux": "the Linux the manager fetches onto the stick with the window's own call (upgrade-fetch get), at the start and again after the walk-away",
+  "stick": "one stick for the whole run, never taken out (decided 2026-11-15, the owner). The kit is built once (./make-kit.sh --release none) and every kit-stick stage writes that same kit",
+  "owner_touches": "none (the owner, 2026-11-17: the fill is part of the test). Version 1 of this plan waited for the owner to pick the Linux in the window; the window's own picker is not exercised by this plan (V12 is its gate)",
+  "heartbeat_s": 300,
+  "test_password": "password",
+  "why_test_password": "the owner, 2026-10-28: the test account's password is 'password' on a test machine, so the owner can sign in at the screen",
+  "test_autologon": true,
+  "windows_password": "test_password",
+  "why_test_autologon": "the owner, 2026-10-28 and 2026-10-31: signing in by hand after each restart is not one click; the test signs Windows in by itself, says so in every row, and switches it off when the run finishes",
+  "test_windows_awake": true,
+  "why_test_windows_awake": "the Aspire, 2026-11-18: Windows had sat idle past its sleep timer when the fetch ended, slept at that moment, and the run stopped. The product's programs each keep the computer awake while they work; the gaps between them have no person in a test. So the test switches idle sleep off in Windows, says so in every row, and puts it back at the end. These runs are therefore no evidence for R33 on the Windows side",
+  "why_data_loss": "the Aspire's scan is RED (its dying drive, R23): every stage that writes a job names the sentence, so the owner types it at kickoff, never added in silence",
+  "why_no_sleep_lock": "the two-stick plans held a sleep lock of the test's through the walk-away (settle-in held none then). settle-in holds its own since roadmap item 16, so this plan takes none",
+  "why_retry": "a stage that stops is tried again in the same run (oneclick.py retry), with the approvals typed at kickoff",
+  "why_no_cancel": "the owner, 2026-11-02: the last click in the window is the commit line; no countdown and no cancel after it",
+  "why_files": "the file copy sits after the install beside Windows and before reclaim: reclaim deletes what the copy reads",
+  "why_reclaim_check": "as aspire-reclaim, for Ubuntu 26.04.1. The row is no healthy-drive row: the Aspire's drive is failing, and the row says DATA LOSS ACCEPTED",
+  "why_this_order": "the erase half first, as in aspire-erase-first, so the run may start on whatever the run before left; then Linux beside a fresh Windows, the file copy, reclaim's check and its move, and the walk-away back to Windows. A bench order",
+  "stages": [
+    {
+      "stage": "kit-stick",
+      "why": "the kit onto the one stick, in the machine itself, and the Linux fetched onto it: the stick is never carried to another computer and no hand fills it",
+      "fetch": true
+    },
+    {
+      "stage": "look",
+      "expect": [
+        "GREEN",
+        "YELLOW",
+        "RED"
+      ],
+      "limit_s": 900
+    },
+    {
+      "stage": "clean-slate",
+      "needs": [
+        "data-loss"
+      ],
+      "why": "erase and install (V9 arm C)"
+    },
+    {
+      "stage": "stick-left-in-erased",
+      "why": "V9 arm D"
+    },
+    {
+      "stage": "walk-away",
+      "why": "back to a fresh Windows after a clean slate, written onto the kit stick itself (settle-in 0.12.0 allows it only after an erase). No sleep lock of the test's: settle-in's own is the one proven (R33)"
+    },
+    {
+      "stage": "kit-stick",
+      "after_walkaway": true,
+      "fetch": true,
+      "why": "Windows is back and the stick is its installer: the same kit goes back on, and the manager fetches the Linux with the window's own call (no hand)"
+    },
+    {
+      "stage": "empty-second-disk",
+      "why": "a TEST helper (the owner's yes, 2026-11-19): the walk-away's fresh Windows makes an empty Data partition on the Aspire's second disk, and reclaim rightly refuses while another disk holds a Windows drive. The test deletes it only if it is labelled Data and holds no file. The product never does this"
+    },
+    {
+      "stage": "plant-files",
+      "why": "known files in Windows before the job is written, so the product's own harvest counts them and the copy can be held to them"
+    },
+    {
+      "stage": "look",
+      "expect": [
+        "GREEN",
+        "YELLOW",
+        "RED"
+      ],
+      "limit_s": 900,
+      "why": "the fresh Windows gets its own scan: the job writer reads it from the stick"
+    },
+    {
+      "stage": "keep-windows",
+      "needs": [
+        "data-loss"
+      ],
+      "why": "the default path: install beside Windows, settle-in's first start, both systems start"
+    },
+    {
+      "stage": "stick-left-in",
+      "why": "people forget the stick: it must not install again"
+    },
+    {
+      "stage": "pull",
+      "why": "the file copy (V3): settle-in's own command, then every planted file hashed where it landed; a second run must find nothing to do"
+    },
+    {
+      "stage": "reclaim-check",
+      "expect": "plan",
+      "why": "the check must give a plan here: the data-loss sentence covers reclaim (decided 2026-11-19, the owner), and the second disk's empty Windows partition was deleted by hand with the owner's yes before this run. It writes nothing and arms nothing"
+    },
+    {
+      "stage": "reclaim-move",
+      "needs": [
+        "reclaim"
+      ],
+      "why": "reclaim's move from an Ubuntu stick, its first run (V15; the owner's ask of 2026-11-20, under the decision of 2026-11-13 that both Linuxes go through every stage): the stick's live system starts with upg.mode=reclaim and the answer file's early step runs settle-in's reclaim. The stage types reclaim's own sentence, approved at kickoff"
+    },
+    {
+      "stage": "walk-away",
+      "why": "back to a fresh Windows from the reclaimed Linux, onto the kit stick itself: allowed after reclaim since settle-in 0.13.1 (decided 2026-11-19, the owner). It also leaves the bench on Windows for the next run"
+    }
+  ]
+}
