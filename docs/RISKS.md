@@ -1333,7 +1333,7 @@ Secure Boot on, has a rig row (`ubuntu-install.csv` line 11;
 [log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). No real machine. Bazzite: its ISO measured 2026-11-07, its
 unattended start unmeasured ([BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
 
-## R41: Reclaim deletes the kept Windows and moves Linux into the space · critical · built
+## R41: Reclaim deletes the kept Windows and moves Linux into the space · critical · held-on-machine
 
 **What.** On the keep-Windows path, reclaim deletes Windows' partitions and
 moves Linux's `/boot` and `/` to the front of the freed space, then grows `/`
@@ -1368,10 +1368,10 @@ could already have reached.
 mid-move resumes to a starting Linux; then a healthy-drive machine reclaims
 and starts Linux with no key (`r41-reclaim.csv`). The Aspire's row is no healthy-drive row.
 
-**Where it stands.** `[##..]` built, whole (settle-in 0.9.0); the move has
-never run. Its check refused four planted faults on the rig
-(`r41-reclaim.csv` lines 2 to 5, [log](log/2026-11.md#2026-11-17-to-2026-11-18-one-stick-with-no-hand-ubuntus-whole-run-on-the-aspire-the-file-copy-and-reclaims-check-on-the-rig-r16-r21-r23-r33-r36-r37-r41-r43-v3-v11-v15-v18-roadmap-items-21-and-23)).
-On the Aspire the check refused for the machine's two reasons, nothing armed (`oneclick-runs.csv` lines 174 and 188, [log](log/2026-11.md#2026-11-19-both-linuxes-whole-on-the-aspire-with-no-hand-reclaims-check-on-a-real-machine-r16-r33-r41-v3-v11-v15-v18-roadmap-items-21-and-23)). Owed: a bench with a USB stick for the move, Ubuntu, a healthy-drive machine.
+**Where it stands.** `[####]` held-on-machine, one run on a failing drive:
+the move ran whole on the Aspire (`r41-reclaim.csv` line 7, [log](log/2026-11.md#2026-11-20-reclaims-move-on-the-aspire-its-first-run-anywhere-and-the-walk-away-after-it-r16-r21-r33-r41-v3-v11-v15)).
+The check refused four planted faults on the rig (lines 2 to 5).
+Owed: a healthy-drive machine, a power cut mid-move, Ubuntu.
 
 ## R42: Bazzite's installed system starts only after a person enrolls its key · critical · planned
 

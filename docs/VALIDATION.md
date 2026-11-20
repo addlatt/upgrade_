@@ -821,7 +821,7 @@ Aspire's rows for each piece, the installer's first), the stick writer's
 write rows, settle-in's starter, and the second-person rebuild
 ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
 
-## V15: Reclaim deletes only Windows and Linux starts in the whole disk · kills: the keep-Windows path's ending · RISKS R41 · planned
+## V15: Reclaim deletes only Windows and Linux starts in the whole disk · kills: the keep-Windows path's ending · RISKS R41 · held-on-machine
 
 **Why it has its own gate.** It is the only writer that runs after the
 person has lived in Linux, and the one that moves the system it runs beside.
@@ -832,7 +832,8 @@ Nothing earlier in the conversion tests it.
 disk, other profiles, a drive-health warning, BitLocker unreadable, shim in
 Windows' slot unaccounted for, too little room for a resumable move);
 `moved-started` for a move that ends with Linux starting with no key, `/`
-filling the space, Windows' entries and the guard gone; `resumed-started`
+filling the space, Windows' entries and the guard gone (the entry stays where
+Linux starts through Windows' slot, R21); `resumed-started`
 for a move cut mid-copy and finished on the next start. The words are in
 `validation-results/README.md`.
 
@@ -841,11 +842,11 @@ images (settle-in's tests: the plan, and the move cut at every chunk). Then
 the rig: a Hyper-V keep-Windows guest, reclaimed, power cut by the host.
 Then a real machine with a healthy drive.
 
-**Where it stands.** `[#...]` planned: the move has no bench yet (the arm
-wants a USB stick, Hyper-V has none). The check's refusals for four planted
-faults are in `r41-reclaim.csv` lines 2 to 5, and its refusal on the Aspire for
-the machine's two reasons in `oneclick-runs.csv` lines 174 and 188
-([log](log/2026-11.md#2026-11-17-to-2026-11-18-one-stick-with-no-hand-ubuntus-whole-run-on-the-aspire-the-file-copy-and-reclaims-check-on-the-rig-r16-r21-r23-r33-r36-r37-r41-r43-v3-v11-v15-v18-roadmap-items-21-and-23)).
+**Where it stands.** `[####]` held-on-machine, not passed: the move ran
+whole on the Aspire, whose drive is failing (`r41-reclaim.csv` line 7,
+[log](log/2026-11.md#2026-11-20-reclaims-move-on-the-aspire-its-first-run-anywhere-and-the-walk-away-after-it-r16-r21-r33-r41-v3-v11-v15)).
+The check's refusals for four planted faults are lines 2 to 5. Owed: a
+healthy drive, a power cut mid-move, the other planted arms, Ubuntu.
 
 ## V16: The key step enrolls Bazzite's key, or refuses with nothing erased · kills: Bazzite with Secure Boot on · RISKS R42 · planned
 

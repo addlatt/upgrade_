@@ -771,7 +771,7 @@ settle-in's own suite writes no row: it is logic, not evidence (rule #5).
 | `settle_in_version` | the program that ran |
 | `arm` | what was planted or done: `clean`, `wrong-guid`, `second-disk`, `other-profiles`, `drive-health`, `bitlocker-locked`, `slot-unaccounted`, `power-cut` |
 | `disk_bytes`, `windows_bytes`, `chunk_bytes` | the disk, the Windows partitions deleted, the move's chunk |
-| `result` | `refused` (nothing written; the reason in `notes`), `moved-started` (Linux started with no key, `/` fills the space, Windows' entries and the guard gone), `resumed-started` (a move cut mid-copy finished on the next start, then the same), or what went wrong: `not-started`, `space-not-used`, `left-behind`, `moved-broken` |
+| `result` | `refused` (nothing written; the reason in `notes`), `moved-started` (Linux started with no key, `/` fills the space, Windows' entries and the guard gone; where Linux starts through Windows' slot, R21, reclaim keeps that one entry and the row says so), `resumed-started` (a move cut mid-copy finished on the next start, then the same), or what went wrong: `not-started`, `space-not-used`, `left-behind`, `moved-broken` |
 | `class` | `pass` (a real machine, as the arm expects), `pass-plumbing` (the rig, as the arm expects), `fail` (anything else) |
 | `notes` | one line, no personal values |
 
