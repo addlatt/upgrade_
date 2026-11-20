@@ -26,6 +26,7 @@ const REPORT: &str = "/cdrom/upgrade_/report";
 const LOG: &str = "/tmp/upgrade_-early.log";
 const ANSWER: &str = "/autoinstall.yaml";
 const PROGRAM: &str = "/tmp/upgrade-installer";
+const RECLAIM_PROGRAM: &str = "/tmp/upgrade-settle-in";
 
 /// One disk the job names, as this machine shows it.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -463,8 +464,44 @@ fn refuse_and_restart(log: &Log, code: i32, plain: &str, detail: &str) -> ! {
     std::process::exit(code);
 }
 
+/// Reclaim's start on an Ubuntu stick (RISKS R41): the menu started the live
+/// system with `upg.mode=reclaim`, and this is the only step taken. settle-in
+/// checks everything itself, restarts the computer itself, and never comes
+/// back. If it does come back, or cannot start, the computer is restarted:
+/// the stick decides again, and the installer is never gone on to (its
+/// answer file names no disk, so it could install nothing, but it would
+/// wait at a screen with Linux kept from starting).
+pub fn reclaim_mode(cmdline: &str) -> bool {
+    cmdline.split_whitespace().any(|w| w == "upg.mode=reclaim")
+}
+
+fn reclaim(log: &Log) -> ! {
+    log.say(&format!("== upgrade_ reclaim start (upgrade-installer {}, Rust)  {}", env!("CARGO_PKG_VERSION"), utc_now()));
+    let from = format!("{STICK}/upgrade_/settle-in/settle-in");
+    // the stick's own filesystem does not run programs: a copy in /tmp does
+    let copied = std::fs::copy(&from, RECLAIM_PROGRAM).is_ok() && run("chmod", &["755", RECLAIM_PROGRAM]).ok();
+    if !copied {
+        log.say(&format!("!! {from} could not be copied to {RECLAIM_PROGRAM}: nothing was touched"));
+    } else {
+        let st = std::process::Command::new(RECLAIM_PROGRAM).args(["reclaim", "run", "--stick", STICK]).status();
+        log.say(&format!("!! settle-in reclaim run came back ({st:?}); it restarts the computer itself when it can"));
+    }
+    stick_rw();
+    let _ = std::fs::create_dir_all(REPORT);
+    let _ = std::fs::copy(LOG, format!("{REPORT}/reclaim-early.log"));
+    sync();
+    sleep("60");
+    reboot();
+    loop {
+        sleep("3600");
+    }
+}
+
 pub fn early(job_path: &str) -> i32 {
     let log = Log { path: LOG.into() };
+    if reclaim_mode(&read_to_string("/proc/cmdline")) {
+        reclaim(&log);
+    }
     log.say(&format!("== upgrade_ early check (upgrade-installer {}, Rust; upgrade-autoinstall {})  {}", env!("CARGO_PKG_VERSION"), upgrade_autoinstall::GENERATOR_VERSION, utc_now()));
     let facts = collect(job_path, &log);
     let decision = judge(&facts);
@@ -772,6 +809,14 @@ mod tests {
         assert_eq!(judge(&f), Decision::ReportOnly, "verify mode stops before the keep-windows checks");
         f.system = Found::default();
         assert_eq!(code(&f), 20);
+    }
+
+    #[test]
+    fn reclaims_start_is_its_own_word_on_the_command_line() {
+        assert!(reclaim_mode("BOOT_IMAGE=/casper/vmlinuz autoinstall upg.mode=reclaim ---"));
+        assert!(!reclaim_mode("BOOT_IMAGE=/casper/vmlinuz autoinstall upg.mode=verify ---"));
+        assert!(!reclaim_mode("BOOT_IMAGE=/casper/vmlinuz autoinstall ---"));
+        assert!(!reclaim_mode("autoinstall upg.mode=reclaimed"));
     }
 
     #[test]

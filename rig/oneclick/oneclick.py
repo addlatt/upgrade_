@@ -47,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.5.1"
+VERSION = "0.5.2"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -1594,6 +1594,13 @@ RECLAIM_RECORD = ("M=/run/upgrade_oneclick-stick; mkdir -p $M; S=$(lsblk -nrpo N
                   "mount -o ro $P $M 2>/dev/null && { cat $M/upgrade_/reclaim/record.json 2>/dev/null; umount $M; }")
 
 
+UPDATES_OFF = ("U=''; for u in apt-daily.timer apt-daily-upgrade.timer apt-daily.service apt-daily-upgrade.service unattended-upgrades.service "
+               "dnf-automatic.timer dnf5-automatic.timer packagekit-offline-update.service; do "
+               "if systemctl cat $u >/dev/null 2>&1; then systemctl stop $u 2>/dev/null; systemctl mask $u >/dev/null 2>&1 && U=\"$U $u\"; fi; done; "
+               "for i in $(seq 1 60); do pgrep -x 'apt|apt-get|dpkg|dnf|dnf5|unattended-upgr' >/dev/null || break; sleep 10; done; "
+               "[ -n \"$U\" ] && echo HELD=yes; echo \"UNITS=$U\"")
+
+
 class ReclaimMove:
     """Reclaim's move (settle-in reclaim arm, then the run from the stick;
     R41, V15): Windows deleted, Linux moved into its space and grown. The
@@ -1624,6 +1631,11 @@ class ReclaimMove:
                 return self.judge(ctx, before, None, " this try judged a move an earlier try of the stage ran;" + self.accepted_words())
             return untouched("reclaim-refused", "the check gave no plan, so nothing was armed: " + "; ".join(str(w) for w in (c.get("why") or ["unread"]))[:400])
         state = kv_lines(sudo(ctx, RECLAIM_STATE, 120).out)
+        # Ubuntu updates itself in the background, which would change /usr between the two readings
+        # and read as a broken move. The TEST holds the system's own updates off; the row says so.
+        held = sudo(ctx, UPDATES_OFF, 300).out
+        ctx.save("updates-off.txt", held)
+        self.updates_held = "HELD=yes" in held
         before = kv_lines(sudo(ctx, RECLAIM_MOVED, 3600).out)
         ctx.save("before.txt", json.dumps({**state, **before}, sort_keys=True, indent=1) + "\n")
         if len(before.get("CONTENT", "")) != 64 or not before.get("ROOT_BYTES", "").isdigit():
@@ -1699,8 +1711,12 @@ class ReclaimMove:
                         f"{timed}/ is {got_bytes} bytes (the plan: {want}); {entry}; "
                         f"every file of /usr and of the planted Documents and Pictures hashes as before; Linux started twice with no key, the stick in;{accepted}")
 
+    updates_held = False
+
     def end(self, ctx, result, notes):
         ok = result == "moved-started"
+        if self.updates_held:
+            notes = notes.rstrip(";") + "; the TEST held the system's own background updates off (masked) so Linux's files could be compared before and after"
         facts = run_facts(ctx)
         machine = " ".join(x for x in (facts.get("manufacturer"), facts.get("model")) if x)
         firmware = " ".join(x for x in (facts.get("bios_vendor"), facts.get("bios_version")) if x)
