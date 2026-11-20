@@ -1364,14 +1364,14 @@ runs from the kit stick, records its progress off the disk being moved, and
 resumes after a power cut; it never copies a chunk whose source a write
 could already have reached.
 
-**Closes when.** On the rig, every planted fault refuses and a power cut
-mid-move resumes to a starting Linux; then a healthy-drive machine reclaims
+**Closes when.** On the rig, every planted fault refuses; then a
+healthy-drive machine reclaims (no power cut on a machine: 2026-11-20)
 and starts Linux with no key (`r41-reclaim.csv`). The Aspire's row is no healthy-drive row.
 
 **Where it stands.** `[####]` held-on-machine, one run for each Linux on a
 failing drive: the Aspire (`r41-reclaim.csv` lines 7 and 8, [log](log/2026-11.md#2026-11-20-reclaims-move-on-the-aspire-its-first-run-anywhere-and-the-walk-away-after-it-r16-r21-r33-r41-v3-v11-v15)).
 The check refused four planted faults on the rig (lines 2 to 5).
-Owed: a healthy-drive machine, a power cut mid-move.
+Owed: a healthy-drive machine.
 
 ## R42: Bazzite's installed system starts only after a person enrolls its key · critical · planned
 

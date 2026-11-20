@@ -833,13 +833,14 @@ disk, other profiles, a drive-health warning, BitLocker unreadable, shim in
 Windows' slot unaccounted for, too little room for a resumable move);
 `moved-started` for a move that ends with Linux starting with no key, `/`
 filling the space, Windows' entries and the guard gone (the entry stays where
-Linux starts through Windows' slot, R21); `resumed-started`
-for a move cut mid-copy and finished on the next start. The words are in
+Linux starts through Windows' slot, R21). **Decided (2026-11-20, the
+owner):** a power cut mid-move is not tested on a bench or a machine; the
+resume stays held by settle-in's own tests only. The words are in
 `validation-results/README.md`.
 
 **How it is run.** First the logic on made-up partition tables and disk
 images (settle-in's tests: the plan, and the move cut at every chunk). Then
-the rig: a Hyper-V keep-Windows guest, reclaimed, power cut by the host.
+the rig: a Hyper-V keep-Windows guest, reclaimed.
 Then a real machine with a healthy drive.
 
 **Where it stands.** `[####]` held-on-machine, not passed: the move ran
@@ -847,7 +848,7 @@ whole on the Aspire, whose drive is failing, from a Fedora stick and from
 an Ubuntu stick (`r41-reclaim.csv` lines 7 and 8,
 [log](log/2026-11.md#2026-11-20-reclaims-move-on-the-aspire-its-first-run-anywhere-and-the-walk-away-after-it-r16-r21-r33-r41-v3-v11-v15)).
 The check's refusals for four planted faults are lines 2 to 5. Owed: a
-healthy drive, a power cut mid-move, the other planted arms.
+healthy drive, the other planted arms.
 
 ## V16: The key step enrolls Bazzite's key, or refuses with nothing erased · kills: Bazzite with Secure Boot on · RISKS R42 · planned
 
