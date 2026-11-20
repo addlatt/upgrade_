@@ -843,10 +843,11 @@ the rig: a Hyper-V keep-Windows guest, reclaimed, power cut by the host.
 Then a real machine with a healthy drive.
 
 **Where it stands.** `[####]` held-on-machine, not passed: the move ran
-whole on the Aspire, whose drive is failing (`r41-reclaim.csv` line 7,
+whole on the Aspire, whose drive is failing, from a Fedora stick and from
+an Ubuntu stick (`r41-reclaim.csv` lines 7 and 8,
 [log](log/2026-11.md#2026-11-20-reclaims-move-on-the-aspire-its-first-run-anywhere-and-the-walk-away-after-it-r16-r21-r33-r41-v3-v11-v15)).
 The check's refusals for four planted faults are lines 2 to 5. Owed: a
-healthy drive, a power cut mid-move, the other planted arms, Ubuntu.
+healthy drive, a power cut mid-move, the other planted arms.
 
 ## V16: The key step enrolls Bazzite's key, or refuses with nothing erased · kills: Bazzite with Secure Boot on · RISKS R42 · planned
 

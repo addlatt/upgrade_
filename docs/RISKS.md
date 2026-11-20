@@ -1368,10 +1368,10 @@ could already have reached.
 mid-move resumes to a starting Linux; then a healthy-drive machine reclaims
 and starts Linux with no key (`r41-reclaim.csv`). The Aspire's row is no healthy-drive row.
 
-**Where it stands.** `[####]` held-on-machine, one run on a failing drive:
-the move ran whole on the Aspire (`r41-reclaim.csv` line 7, [log](log/2026-11.md#2026-11-20-reclaims-move-on-the-aspire-its-first-run-anywhere-and-the-walk-away-after-it-r16-r21-r33-r41-v3-v11-v15)).
+**Where it stands.** `[####]` held-on-machine, one run for each Linux on a
+failing drive: the Aspire (`r41-reclaim.csv` lines 7 and 8, [log](log/2026-11.md#2026-11-20-reclaims-move-on-the-aspire-its-first-run-anywhere-and-the-walk-away-after-it-r16-r21-r33-r41-v3-v11-v15)).
 The check refused four planted faults on the rig (lines 2 to 5).
-Owed: a healthy-drive machine, a power cut mid-move, Ubuntu.
+Owed: a healthy-drive machine, a power cut mid-move.
 
 ## R42: Bazzite's installed system starts only after a person enrolls its key · critical · planned
 
