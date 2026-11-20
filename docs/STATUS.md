@@ -18,6 +18,7 @@ nearly every `[####]` below is the Acer Aspire A515-51G, Secure Boot on.
 
 ## Right now (2026-11-20)
 
+**Decided (2026-11-20, the owner):** the project is pre-alpha, and people may try it at their own risk ([log](log/2026-11.md#2026-11-20-night-pre-alpha-the-owners-decision)).
 **Decided (2026-11-17, the owner):** the one click test fills the stick itself and needs no hand.
 On the Aspire, 2026-11-19, each Linux ran whole from one kit on one stick with no hand, 14 stages:
 Ubuntu (`oneclick-runs.csv` lines 163 to 176) and Fedora (lines 177 to 190). In both: the erase,
