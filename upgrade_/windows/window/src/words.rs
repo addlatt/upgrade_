@@ -86,20 +86,26 @@ pub const CHOOSE_HEADING: &str = "What would you like to do?";
 pub const CHOOSE_VERIFY: &str = "Test this computer with Linux";
 pub const CHOOSE_VERIFY_LINE: &str = "Nothing is installed and nothing on this computer's drive is changed.";
 pub const CHOOSE_CONVERT: &str = "Convert this computer to Linux";
-pub const CHOOSE_CONVERT_LINE: &str = "Keep Windows beside Linux (the default), or erase this computer for a clean slate. You choose on the next screen, and you type before anything changes.";
-// What happens to Windows: Convert's one switch (roadmap item 20, 2026-10-17). The clean
-// slate is the erase flow, its sentence and drive list unchanged (R27). No countdown
-// since 2026-11-02 (the owner): the last click in this window is the commit line.
-pub const PATH_HEADING: &str = "What happens to Windows";
-pub const PATH_KEEP: &str = "Keep Windows beside Linux (recommended)";
-pub const PATH_KEEP_LINE: &str = "Windows is shrunk to make room and stays on the computer, so you can roll back. Your files stay where they are, on the Windows side: nothing is copied into Linux for you yet.";
-pub const PATH_CLEAN: &str = "Clean slate: erase this computer";
-pub const PATH_CLEAN_LINE: &str = "Everything on this computer's drives is deleted and Linux is installed alone. Nothing is kept. You type one sentence before anything changes.";
+pub const CHOOSE_CONVERT_LINE: &str = "Keep Windows beside Linux, or erase everything and have Linux only. You choose after it has looked at this computer, and you type before anything changes.";
+// What happens to Windows (decided 2026-11-23, the owner): the two answers are equals,
+// asked on their own screen right after the scan, before anything is downloaded. Nothing
+// is chosen for the person. Erasing keeps its sentence and its drive list unchanged (R27).
+// No countdown since 2026-11-02 (the owner): the last click in this window is the commit line.
+pub const PATH_HEADING: &str = "What should happen to Windows?";
+pub const PATH_LEAD: &str = "Both are ordinary ways to do this. Nothing changes until you have typed your answer, later on.";
+pub const PATH_KEEP: &str = "Keep Windows beside Linux";
+pub const PATH_KEEP_LINE: &str = "Windows is shrunk to make room and stays on the computer, with everything in it. Linux is installed beside it. Once Linux has started it can copy your files into your folders there, and you can go back to Windows.";
+pub const PATH_CLEAN: &str = "Erase everything, Linux only";
+pub const PATH_CLEAN_LINE: &str = "Everything on this computer's drives is deleted: Windows, every program and every file. Nothing is kept and nothing is copied. Linux gets the whole computer. Copy what you want to keep off this computer first.";
+pub const PATH_CHOSEN: &str = "What happens to Windows";
 
 // ---------------------------------------------------------------- convert: the words of RUN-CONVERT.cmd (2026-10-07)
 
-pub const CONVERT_HEADING: &str = "Convert this computer";
-pub const CONVERT_LEAD: &str = "This is the converter. It changes the internal drive: it may run Windows' own disk check (with a restart), it shrinks the Windows partition to make room, and it restarts into the Linux installer from this stick. Windows is kept and stays bootable from the boot menu until you choose to reclaim it later, in Linux.";
+// Same screens on both paths, each in its own words (decided 2026-11-23, the owner):
+// a heading says which of the two is happening, from the set-up to the restart.
+pub const CONVERT_HEADING: &str = "Install Linux beside Windows";
+pub const ERASE_HEADING: &str = "Erase this computer and install Linux";
+pub const CONVERT_LEAD: &str = "Windows is kept. This changes the internal drive: it may run Windows' own disk check (with a restart), it shrinks the Windows partition to make room, and it restarts into the Linux installer from this stick. Windows is kept and stays bootable from the boot menu until you choose to reclaim it later, in Linux.";
 pub const CONVERT_ORDER: [&str; 6] = [
     "It looks at this computer (nothing is changed).",
     "You choose what the computer shows when it starts, and the password for your Linux account.",
@@ -149,22 +155,24 @@ pub const CONVERT_STEPS: [&str; 5] = [
     "Your decision",
     "The prologue: the disk check, the shrink, the one-time restart",
 ];
-pub const CONVERT_RUNNING_HEADING: &str = "Converting this computer";
+pub const CONVERT_RUNNING_HEADING: &str = "Getting ready to install Linux beside Windows";
+pub const ERASE_RUNNING_HEADING: &str = "Getting ready to erase this computer and install Linux";
 pub const CONVERT_RUNNING_PROLOGUE: &str = "The prologue is running. It stops by itself if anything is not as it should be, and nothing is changed until it says so. The window cannot be closed now.";
 
 pub const SIGN_IN_HEADING: &str = "Your Linux sign-in";
 pub const SIGN_IN_USER: &str = "user";
 pub const SIGN_IN_PASSWORD: &str = "password: the one you just chose";
 pub const DECIDE_HEADING: &str = "Your decision";
+pub const ERASE_DECIDE_HEADING: &str = "Your decision: erase this computer";
 pub const DECIDE_LINES: [&str; 3] = [
     "This will change the internal disk of this computer: Windows' disk check may run (with a restart), the Windows partition will be shrunk, and Linux will be installed beside it. Windows stays bootable from the boot menu until you reclaim it later. If the disk check runs it may be slow: do not switch the computer off while it runs. If Windows has an update waiting to finish, the computer restarts first to let it finish, then carries on by itself.",
     "If Windows' restore points are what stops the partition shrinking, they will be deleted. Restore points are Windows' own undo history for system changes, not your files, and deleting them cannot be undone. The same goes for Windows' change journal, its running list of which files changed recently: if it is what stops the shrinking, it is deleted and started again empty. Your files are not touched, but search and sync programs will look through them again afterwards.",
-    "Nothing else is deleted before Linux is installed. Your files stay on the Windows side; this version does not copy them into Linux.",
+    "Nothing else is deleted before Linux is installed. Your files stay on the Windows side. Once Linux has started, it can copy them into your folders there.",
 ];
 pub const DECIDE_TYPE: &str = "Type CONVERT (in capitals) to continue. Anything else stops.";
 pub const DECIDE_NOT_CONFIRMED: &str = "Not confirmed. Nothing was changed.";
 
-pub const CONVERT_RESTARTING_HEADING: &str = "Restarting into the installer in about 15 seconds";
+pub const CONVERT_RESTARTING_HEADING: &str = "Restarting to install Linux beside Windows, in about 15 seconds";
 pub const CONVERT_RESTARTING_LINES: [&str; 3] = [
     "Leave the USB stick in.",
     "Windows is still here and still bootable; it stays that way until you reclaim it in Linux.",
@@ -176,31 +184,36 @@ pub const LINUX_NAME_UNKNOWN: &str = "The Linux account name could not be worked
 
 // ---------------------------------------------------------------- erase: the words of RUN-ERASE-AND-INSTALL.cmd (2026-10-08)
 
-pub const ERASE_HEADING: &str = "Erase this computer and install Linux";
-pub const ERASE_READ_FIRST: &str = "Read this first";
-pub const ERASE_LINES: [&str; 5] = [
-    "This deletes EVERYTHING on this computer's drives: Windows, every program, every setting and every file. Nothing is kept and nothing is copied anywhere. Linux is installed in its place.",
-    "Before you type anything, copy every file you want to keep OFF this computer.",
+// The same shape as the keep-Windows screen (decided 2026-11-23, the owner): a lead, the
+// "What happens" list, the lines after it. Every sentence of the old "Read this first"
+// list is still here, word for word.
+pub const ERASE_LEAD: &str = "This deletes EVERYTHING on this computer's drives: Windows, every program, every setting and every file. Nothing is kept and nothing is copied anywhere. Linux is installed in its place.";
+pub const ERASE_COPY_FIRST: &str = "Before you type anything, copy every file you want to keep OFF this computer.";
+pub const ERASE_ORDER: [&str; 5] = [
+    "It looks at this computer (nothing is changed).",
+    "You choose what the computer shows when it starts, and the password for your Linux account.",
+    "You type one sentence, below, to say that everything will be deleted.",
+    "It writes the plan for this computer. The plan names every drive that will be erased.",
     "The last button you click in this window is the last moment to stop. When you click it, the computer restarts into the installer and the drives are erased. There is no countdown and no way to stop it after that click. You can walk away.",
+];
+pub const ERASE_AFTER: [&str; 2] = [
     "If you change your mind later, you can put Windows back, but it will be a new, empty Windows: nothing on this computer today comes back. On many older computers that means Windows 10, which no longer gets free security updates.",
-    "Your saved Wi-Fi networks and their passwords are copied onto this stick, so Linux can connect to them on its own. They are removed from the stick at the end of the install and from Linux once it has set them up.",
+    "Every refusal happens before anything is erased. If a safety check fails in the installer, it stops before erasing anything and Windows comes back untouched.",
 ];
 pub const ERASE_TYPE: &str = "To erase everything on this computer and install Linux, type the following sentence exactly. Anything else stops here.";
 pub const ERASE_STEPS: [&str; 5] = [
     "Check the USB stick",
     "Look at this computer",
-    "Write the plan: it names every drive that will be erased",
+    "Write the plan for this computer: it names every drive that will be erased",
     "Your decision",
     "The prologue: the one-time restart into the installer",
 ];
-pub const ERASE_RUNNING_HEADING: &str = "Preparing to erase this computer";
-pub const ERASE_DECIDE_HEADING: &str = "Restarting into the installer";
 pub const ERASE_DECIDE_LINES: [&str; 2] = [
     "This is the last moment to stop. When you click the button below, the computer restarts and the drives are erased. There is no countdown and no turning back after this click. Leave the USB stick in.",
     "If Windows has an update waiting, the computer restarts first to let it finish, then carries on by itself.",
 ];
-pub const ERASE_GO: &str = "Restart into the installer";
-pub const ERASE_RESTARTING_HEADING: &str = "Restarting into the installer in about 15 seconds";
+pub const ERASE_GO: &str = "Restart and erase this computer";
+pub const ERASE_RESTARTING_HEADING: &str = "Restarting to erase this computer and install Linux, in about 15 seconds";
 pub const ERASE_RESTARTING_LINES: [&str; 2] = [
     "Leave the USB stick in. There is no turning back now: the drives are erased and Linux is installed.",
     "If a safety check fails in the installer, it stops before erasing anything and Windows comes back untouched. You can walk away.",

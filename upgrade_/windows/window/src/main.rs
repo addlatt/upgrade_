@@ -583,6 +583,8 @@ enum Screen {
     Choose,
     /// the picker's scan is running
     Picking,
+    /// what happens to Windows: keep it or erase everything (decided 2026-11-23, the owner)
+    Path,
     /// the picker: one release with one desktop
     Pick,
     /// the download: bytes so far and in all
@@ -743,7 +745,8 @@ impl App {
                     // nothing chosen for the person, as the desktop never was
                     self.picked = None;
                     self.choices = c;
-                    self.screen = Screen::Pick;
+                    // the question first, before anything is downloaded; neither answer is chosen for the person
+                    self.screen = Screen::Path;
                 }
                 Msg::Fetched => {
                     let c = self.picked.and_then(|i| self.choices.get(i)).cloned();
@@ -911,10 +914,11 @@ impl eframe::App for App {
         }
         let mut press = Press::None;
         let mut go: Option<Flow> = None;
+        let mut path: Option<Flow> = None;
         egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 ui.add_space(6.0);
-                if self.accepting_data_loss && matches!(self.screen, Screen::Picking | Screen::Pick | Screen::Fetching { .. } | Screen::ConvertSetup | Screen::Running { .. } | Screen::Decide { .. } | Screen::ConvertRestarting | Screen::Stopped(_)) {
+                if self.accepting_data_loss && matches!(self.screen, Screen::Picking | Screen::Path | Screen::Pick | Screen::Fetching { .. } | Screen::ConvertSetup | Screen::Running { .. } | Screen::Decide { .. } | Screen::ConvertRestarting | Screen::Stopped(_)) {
                     banner(ui);
                 }
                 match &self.screen {
@@ -942,6 +946,23 @@ impl eframe::App for App {
                             ui.label(words::PICKING_LINE);
                         });
                         details(ui, &self.log);
+                    }
+                    Screen::Path => {
+                        heading(ui, words::PATH_HEADING);
+                        para(ui, words::PATH_LEAD);
+                        ui.add_space(8.0);
+                        // two equal answers: the same button, the same weight, in the same place
+                        for (label, line, f) in [(words::PATH_KEEP, words::PATH_KEEP_LINE, Flow::Convert), (words::PATH_CLEAN, words::PATH_CLEAN_LINE, Flow::Erase)] {
+                            if ui.add(egui::Button::new(egui::RichText::new(label).size(17.0))).clicked() {
+                                path = Some(f);
+                            }
+                            para(ui, line);
+                            ui.add_space(10.0);
+                        }
+                        ui.add_space(6.0);
+                        if ui.button(words::CLOSE).clicked() {
+                            press = Press::Close;
+                        }
                     }
                     Screen::Pick => {
                         heading(ui, words::PICK_HEADING);
@@ -1020,35 +1041,34 @@ impl eframe::App for App {
                             }
                             ui.add_space(8.0);
                         }
-                        // Convert's one switch: keep Windows, or the clean slate (the erase
-                        // flow, unchanged). A switch clears the typed erase sentence, so it is
-                        // always typed under the words it answers.
-                        ui.label(egui::RichText::new(words::PATH_HEADING).strong().size(17.0));
+                        // The answer given on the Path screen, still changeable here. A switch
+                        // clears the typed erase sentence, so it is always typed under the words
+                        // it answers. Both answers get the same screen: a lead, "What happens",
+                        // the lines after it (decided 2026-11-23, the owner).
+                        heading(ui, if self.flow == Flow::Erase { words::ERASE_HEADING } else { words::CONVERT_HEADING });
+                        ui.label(egui::RichText::new(words::PATH_CHOSEN).strong().size(17.0));
                         let before = self.flow;
                         ui.radio_value(&mut self.flow, Flow::Convert, words::PATH_KEEP);
-                        para(ui, words::PATH_KEEP_LINE);
                         ui.radio_value(&mut self.flow, Flow::Erase, words::PATH_CLEAN);
-                        para(ui, words::PATH_CLEAN_LINE);
                         if self.flow != before {
                             self.setup.erase.clear();
                         }
-                        ui.add_space(10.0);
+                        ui.add_space(8.0);
+                        let (lead, order, after): (&str, &[&str], &[&str]) = if self.flow == Flow::Erase { (words::ERASE_LEAD, &words::ERASE_ORDER, &words::ERASE_AFTER) } else { (words::CONVERT_LEAD, &words::CONVERT_ORDER, &[]) };
+                        para(ui, lead);
                         if self.flow == Flow::Erase {
-                            heading(ui, words::ERASE_HEADING);
-                            ui.label(egui::RichText::new(words::ERASE_READ_FIRST).strong().size(17.0));
-                            for l in words::ERASE_LINES {
-                                para(ui, l);
-                            }
-                        } else {
-                            heading(ui, words::CONVERT_HEADING);
-                            para(ui, words::CONVERT_LEAD);
-                            ui.label(egui::RichText::new(words::WELCOME_STEPS_HEADING).strong());
-                            for (i, s) in words::CONVERT_ORDER.iter().enumerate() {
-                                para(ui, &format!("{}.  {}", i + 1, s));
-                            }
-                            para(ui, words::CONVERT_WIFI);
-                            para(ui, words::CONVERT_AWAKE);
+                            ui.label(egui::RichText::new(words::ERASE_COPY_FIRST).strong());
+                            ui.add_space(4.0);
                         }
+                        ui.label(egui::RichText::new(words::WELCOME_STEPS_HEADING).strong());
+                        for (i, l) in order.iter().enumerate() {
+                            para(ui, &format!("{}.  {}", i + 1, l));
+                        }
+                        for l in after {
+                            para(ui, l);
+                        }
+                        para(ui, words::CONVERT_WIFI);
+                        para(ui, words::CONVERT_AWAKE);
                         ui.add_space(10.0);
                         if let Some(c) = &self.fetched {
                             ui.label(egui::RichText::new(format!("{} {}", c.title(), words::FETCHED_LINE)).strong());
@@ -1337,6 +1357,12 @@ impl eframe::App for App {
                 }
             });
         });
+        if let Some(f) = path {
+            log_line(&stick_root(&self.stick), if f == Flow::Erase { "the person chose to erase everything" } else { "the person chose to keep Windows" });
+            self.flow = f;
+            self.setup.erase.clear();
+            self.screen = Screen::Pick;
+        }
         if let Some(f) = go {
             self.flow = f;
             self.screen = match f {
@@ -1379,7 +1405,7 @@ impl eframe::App for App {
             }
             Press::Go => match self.flow {
                 Flow::Erase => {
-                    log_line(&stick_root(&self.stick), "the person pressed Restart into the installer");
+                    log_line(&stick_root(&self.stick), "the person pressed Restart and erase this computer");
                     if let Some(tx) = self.word_tx.take() {
                         let _ = tx.send(String::new());
                     }
@@ -1450,9 +1476,11 @@ fn preview(name: &str) -> (Screen, Flow, bool) {
         "result-refused" => (Screen::Result(flow::result_view(true, None, Some(&json!({"reason":"the copy of Linux on this USB stick is damaged"})), Some("fired-once"))), Flow::Verify, false),
         "no-linux" => (Screen::Result(flow::result_view(true, None, None, Some("ignored"))), Flow::Verify, false),
         "picking" => (Screen::Picking, Flow::Convert, false),
+        "path" => (Screen::Path, Flow::Convert, false),
         "convert" => (Screen::ConvertSetup, Flow::Convert, false),
         "convert-ack" => (Screen::ConvertSetup, Flow::Convert, true),
         "convert-running" => (Screen::Running { step: 2 }, Flow::Convert, false),
+        "erase-running" => (Screen::Running { step: 2 }, Flow::Erase, false),
         "decide" => (Screen::Decide { linux_name: "ann".into() }, Flow::Convert, false),
         "convert-restarting" => (Screen::ConvertRestarting, Flow::Convert, false),
         "erase" => (Screen::ConvertSetup, Flow::Erase, false),
@@ -1501,11 +1529,11 @@ fn preview_picker(app: &mut App, name: &str) {
             app.screen = Screen::Fetching { done: 1_300_000_000, total: 4_597_067_776 };
         }
         "fetch-stopped" => app.screen = Screen::Stopped(Stop::Fetch(vec!["the download of Fedora-KDE-Desktop-Live-44-1.7.x86_64.iso did not match its measured sha256; nothing was kept".into()])),
-        "convert-fetched" | "convert-fetched-ubuntu" | "erase-fetched-ubuntu" => {
-            let c = if name == "convert-fetched" { yes.first() } else { ubuntu.and_then(|i| yes.get(i)) };
+        "convert-fetched" | "erase-fetched" | "convert-fetched-ubuntu" | "erase-fetched-ubuntu" => {
+            let c = if !name.ends_with("-ubuntu") { yes.first() } else { ubuntu.and_then(|i| yes.get(i)) };
             app.setup.desktop = c.and_then(desktop_of);
             app.fetched = c.cloned();
-            if name == "erase-fetched-ubuntu" {
+            if name.starts_with("erase") {
                 app.flow = Flow::Erase;
             }
             app.screen = Screen::ConvertSetup;
@@ -1612,6 +1640,20 @@ mod tests {
     fn verify_and_probe_only_with_the_developer_flag() {
         assert_eq!(flows(false), ["convert", "rollback"], "no cancel button since 2026-11-02");
         assert_eq!(flows(true), ["verify", "convert", "rollback", "probe"]);
+    }
+
+    #[test]
+    fn keeping_and_erasing_are_asked_as_equals_before_the_download() {
+        // decided 2026-11-23, the owner: its own screen, neither answer marked or chosen
+        assert!(matches!(preview("path").0, Screen::Path));
+        for w in [words::PATH_KEEP, words::PATH_CLEAN, words::PATH_KEEP_LINE, words::PATH_CLEAN_LINE] {
+            assert!(!w.to_lowercase().contains("recommended") && !w.to_lowercase().contains("default"), "{w}");
+        }
+        // erasing loses none of its warnings by sharing the keep-Windows screen's shape
+        let erase = [words::ERASE_LEAD, words::ERASE_COPY_FIRST].iter().chain(words::ERASE_ORDER.iter()).chain(words::ERASE_AFTER.iter()).copied().collect::<Vec<_>>().join(" ");
+        for must in ["EVERYTHING", "Nothing is kept and nothing is copied anywhere", "copy every file you want to keep OFF this computer", "no way to stop it after that click", "a new, empty Windows"] {
+            assert!(erase.contains(must), "{must}");
+        }
     }
 
     #[test]
