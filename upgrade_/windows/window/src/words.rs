@@ -98,6 +98,14 @@ pub const PATH_KEEP_LINE: &str = "Windows is shrunk to make room and stays on th
 pub const PATH_CLEAN: &str = "Erase everything, Linux only";
 pub const PATH_CLEAN_LINE: &str = "Everything on this computer's drives is deleted: Windows, every program and every file. Nothing is kept and nothing is copied. Linux gets the whole computer. Copy what you want to keep off this computer first.";
 pub const PATH_CHOSEN: &str = "What happens to Windows";
+// the small picture of this computer's drive under each answer (2026-11-23; draft words)
+pub const SPLIT_DRIVE: &str = "This computer's main drive";
+pub const SPLIT_WINDOWS: &str = "Windows";
+pub const SPLIT_LINUX: &str = "Linux";
+pub const SPLIT_KEEP_NOTE: &str = "Linux starts with that much, plus room for your files. You can give it Windows' space later.";
+pub const SPLIT_ERASE_NOTE: &str = "Linux gets all of it.";
+pub const SPLIT_SHORT_A: &str = "Right now Windows can only make";
+pub const SPLIT_SHORT_B: &str = "GB of room. The converter tries to make more. If it cannot, it stops and nothing is changed.";
 
 // ---------------------------------------------------------------- convert: the words of RUN-CONVERT.cmd (2026-10-07)
 

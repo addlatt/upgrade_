@@ -161,6 +161,33 @@ pub fn choices(table: &str, report: Option<&Value>) -> Vec<Choice> {
         .collect()
 }
 
+/// How this computer's main drive is shared out on each path, in whole GB
+/// (2026-11-23): what the small picture on the question screen draws. From
+/// the scan report's `Storage` block; no report or no drive size, no picture.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Split {
+    pub total_gb: u64,
+    /// keeping Windows: what Linux starts with (the job writer's minimum; the
+    /// prologue adds room for the person's files, measured later)
+    pub keep_linux_gb: u64,
+    pub keep_windows_gb: u64,
+    /// how far Windows can shrink right now, when the scan measured it and it
+    /// is less than Linux needs: the prologue tries for more, and stops if it cannot
+    pub short_gb: Option<u64>,
+}
+
+pub fn split(report: Option<&Value>) -> Option<Split> {
+    const GIB: f64 = 1_073_741_824.0;
+    let st = report?.get("Storage")?;
+    let total = st.get("DiskBytes").and_then(Value::as_f64).filter(|b| *b > 0.0)? / GIB;
+    let linux = upgrade_job::LINUX_MIN_GB;
+    if total <= linux {
+        return None;
+    }
+    let short = st.get("ShrinkGB").and_then(Value::as_f64).filter(|g| *g < linux).map(|g| g.max(0.0).floor() as u64);
+    Some(Split { total_gb: total.round() as u64, keep_linux_gb: linux.round() as u64, keep_windows_gb: (total - linux).round() as u64, short_gb: short })
+}
+
 /// The read-only scan the picker needs (the same call as Convert's step 1).
 pub fn pick_scan_call(stick: &str) -> Call {
     call(0, false, stick, "upgrade-scan.exe", &["scan", "--json", "--out", "{root}upgrade_\\reports", "--kit", "{root}"])
@@ -728,6 +755,24 @@ mod tests {
         assert!(choices(table, Some(&json!({"Releases": []}))).iter().all(|c| c.starts == Starts::Unknown), "not judged: greyed out");
         let other = table.replace("\"Family\": \"fedora\"", "\"Family\": \"bazzite\"").replace("\"Family\": \"ubuntu\"", "\"Family\": \"arch\"");
         assert!(choices(&other, Some(&yes)).is_empty(), "a layout the fetch cannot carry is not offered, even when the scan says it starts");
+    }
+
+    #[test]
+    fn the_drive_picture_comes_from_the_scan_or_is_not_drawn() {
+        let r = |disk: Value, shrink: Value| json!({"Storage": {"DiskBytes": disk, "ShrinkGB": shrink}});
+        // a 256 GB drive (238 GiB): Linux starts with the job writer's 25 GB, Windows keeps the rest
+        let s = split(Some(&r(json!(256_060_514_304u64), json!(140.2)))).unwrap();
+        assert_eq!((s.total_gb, s.keep_linux_gb, s.keep_windows_gb, s.short_gb), (238, 25, 213, None));
+        assert_eq!(s.keep_linux_gb as f64, upgrade_job::LINUX_MIN_GB, "the picture uses the job writer's own number");
+        // Windows cannot free enough right now: said, not hidden
+        assert_eq!(split(Some(&r(json!(256_060_514_304u64), json!(7.2)))).unwrap().short_gb, Some(7));
+        // a shrink that was not measured is not a shortfall
+        assert_eq!(split(Some(&r(json!(256_060_514_304u64), Value::Null))).unwrap().short_gb, None);
+        // no size, no picture: never a guess
+        assert_eq!(split(Some(&r(Value::Null, json!(100)))), None);
+        assert_eq!(split(Some(&json!({}))), None);
+        assert_eq!(split(None), None);
+        assert_eq!(split(Some(&r(json!(16_000_000_000u64), Value::Null))), None, "a drive smaller than Linux needs");
     }
 
     #[test]

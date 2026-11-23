@@ -119,6 +119,8 @@ enum Msg {
     Done(i32, Vec<String>),
     /// the picker's scan is done: the buttons
     Choices(Vec<flow::Choice>),
+    /// how the main drive is shared out on each path, when the scan read its size
+    Split(Option<flow::Split>),
     /// the download is done and checked
     Fetched,
 }
@@ -471,6 +473,7 @@ fn pick(stick: String, acknowledged: bool, tx: Sender<Msg>, guard: Shared) {
     if !choices.iter().any(|c| c.starts == flow::Starts::Yes) {
         return stop(Stop::NoRelease(choices));
     }
+    let _ = tx.send(Msg::Split(flow::split(report.as_ref())));
     let _ = tx.send(Msg::Choices(choices));
 }
 
@@ -622,6 +625,8 @@ struct App {
     choices: Vec<flow::Choice>,
     picked: Option<usize>,
     fetched: Option<flow::Choice>,
+    /// the drive picture's numbers (None: the scan did not read the size, so nothing is drawn)
+    split: Option<flow::Split>,
     /// --developer --from <http folder>: the rig's local copy of the releases
     from: Option<String>,
     stick: String,
@@ -642,7 +647,7 @@ struct App {
 
 impl App {
     fn new(screen: Screen, stick: String, after: bool, accepting_data_loss: bool, rx: Option<Receiver<Msg>>, guard: Shared) -> App {
-        App { screen, choices: vec![], picked: None, fetched: None, from: None, stick, after, arming: false, flow: Flow::Verify, accepting_data_loss, developer: false, setup: Setup::default(), word: String::new(), word_tx: None, log: vec![], rx, guard }
+        App { screen, choices: vec![], picked: None, fetched: None, split: None, from: None, stick, after, arming: false, flow: Flow::Verify, accepting_data_loss, developer: false, setup: Setup::default(), word: String::new(), word_tx: None, log: vec![], rx, guard }
     }
 
     fn channel(&mut self, ctx: &egui::Context) -> Sender<Msg> {
@@ -741,6 +746,7 @@ impl App {
                     }
                     None => self.log.push(l),
                 },
+                Msg::Split(s) => self.split = s,
                 Msg::Choices(c) => {
                     // nothing chosen for the person, as the desktop never was
                     self.picked = None;
@@ -888,6 +894,45 @@ fn banner(ui: &mut egui::Ui) {
     ui.add_space(6.0);
 }
 
+/// The small picture of the main drive on one path: a bar to scale, and under
+/// it what each colour is and how many GB it gets. The numbers are the scan's.
+fn drive_picture(ui: &mut egui::Ui, s: &flow::Split, erase: bool) {
+    let windows = egui::Color32::from_rgb(58, 124, 201);
+    let linux = egui::Color32::from_rgb(226, 138, 36);
+    ui.add_space(4.0);
+    ui.label(egui::RichText::new(format!("{}: {} GB", words::SPLIT_DRIVE, s.total_gb)).weak());
+    let width = ui.available_width().min(560.0);
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 20.0), egui::Sense::hover());
+    let p = ui.painter();
+    if erase {
+        p.rect_filled(rect, 4.0, linux);
+    } else {
+        // to scale, but never so thin that Linux's part cannot be seen
+        let share = (s.keep_linux_gb as f32 / s.total_gb.max(1) as f32).clamp(0.04, 0.96);
+        let cut = rect.right() - rect.width() * share;
+        p.rect_filled(rect, 4.0, windows);
+        p.rect_filled(egui::Rect::from_min_max(egui::pos2(cut, rect.top()), rect.max), egui::CornerRadius { nw: 0, sw: 0, ne: 4, se: 4 }, linux);
+    }
+    let key = |ui: &mut egui::Ui, c: egui::Color32, t: String| {
+        let (r, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+        ui.painter().rect_filled(r, 2.0, c);
+        ui.label(t);
+        ui.add_space(10.0);
+    };
+    ui.horizontal_wrapped(|ui| {
+        if erase {
+            key(ui, linux, format!("{} {} GB", words::SPLIT_LINUX, s.total_gb));
+        } else {
+            key(ui, windows, format!("{} about {} GB", words::SPLIT_WINDOWS, s.keep_windows_gb));
+            key(ui, linux, format!("{} about {} GB", words::SPLIT_LINUX, s.keep_linux_gb));
+        }
+    });
+    para(ui, if erase { words::SPLIT_ERASE_NOTE } else { words::SPLIT_KEEP_NOTE });
+    if let (false, Some(g)) = (erase, s.short_gb) {
+        para(ui, &format!("{} {} {}", words::SPLIT_SHORT_A, g, words::SPLIT_SHORT_B));
+    }
+}
+
 enum Press {
     None,
     /// the picker's one button
@@ -957,7 +1002,10 @@ impl eframe::App for App {
                                 path = Some(f);
                             }
                             para(ui, line);
-                            ui.add_space(10.0);
+                            if let Some(s) = &self.split {
+                                drive_picture(ui, s, f == Flow::Erase);
+                            }
+                            ui.add_space(14.0);
                         }
                         ui.add_space(6.0);
                         if ui.button(words::CLOSE).clicked() {
@@ -1056,6 +1104,10 @@ impl eframe::App for App {
                         ui.add_space(8.0);
                         let (lead, order, after): (&str, &[&str], &[&str]) = if self.flow == Flow::Erase { (words::ERASE_LEAD, &words::ERASE_ORDER, &words::ERASE_AFTER) } else { (words::CONVERT_LEAD, &words::CONVERT_ORDER, &[]) };
                         para(ui, lead);
+                        if let Some(s) = &self.split {
+                            drive_picture(ui, s, self.flow == Flow::Erase);
+                            ui.add_space(6.0);
+                        }
                         if self.flow == Flow::Erase {
                             ui.label(egui::RichText::new(words::ERASE_COPY_FIRST).strong());
                             ui.add_space(4.0);
@@ -1476,7 +1528,7 @@ fn preview(name: &str) -> (Screen, Flow, bool) {
         "result-refused" => (Screen::Result(flow::result_view(true, None, Some(&json!({"reason":"the copy of Linux on this USB stick is damaged"})), Some("fired-once"))), Flow::Verify, false),
         "no-linux" => (Screen::Result(flow::result_view(true, None, None, Some("ignored"))), Flow::Verify, false),
         "picking" => (Screen::Picking, Flow::Convert, false),
-        "path" => (Screen::Path, Flow::Convert, false),
+        "path" | "path-short" => (Screen::Path, Flow::Convert, false),
         "convert" => (Screen::ConvertSetup, Flow::Convert, false),
         "convert-ack" => (Screen::ConvertSetup, Flow::Convert, true),
         "convert-running" => (Screen::Running { step: 2 }, Flow::Convert, false),
@@ -1592,6 +1644,8 @@ fn main() {
         let (screen, flow, ack) = preview(&name);
         let mut app = App::new(screen, "E:".into(), false, ack, None, guard);
         app.flow = flow;
+        // a made-up 256 GB drive, so the drive picture shows (short: Windows can free only 7 GB)
+        app.split = flow::split(Some(&json!({"Storage": {"DiskBytes": 256_060_514_304u64, "ShrinkGB": if name == "path-short" { 7.2 } else { 140.2 }}})));
         preview_picker(&mut app, &name);
         return open(app);
     }
