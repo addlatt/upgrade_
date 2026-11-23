@@ -1465,11 +1465,15 @@ fn preview(name: &str) -> (Screen, Flow, bool) {
     }
 }
 
-/// The picker's previews (item 24): made-up buttons, nothing fetched.
+/// The picker's previews (item 24): the kit's own release table, so both
+/// lines show (Fedora and Ubuntu, 2026-11-13); every row said to start, nothing fetched.
 fn preview_picker(app: &mut App, name: &str) {
-    let c = |desktop: &str, label: &str, starts: flow::Starts| flow::Choice { id: "fedora-44".into(), name: "Fedora 44".into(), desktop: desktop.into(), label: label.into(), starts };
-    let yes = vec![c("kde", "KDE Plasma", flow::Starts::Yes), c("gnome", "GNOME", flow::Starts::Yes)];
-    let no = vec![c("kde", "KDE Plasma", flow::Starts::No("grub,3 < grub,5".into())), c("gnome", "GNOME", flow::Starts::Unknown)];
+    let mut yes = flow::choices(upgrade_scan::data::RELEASES_JSON, None);
+    for c in &mut yes {
+        c.starts = flow::Starts::Yes;
+    }
+    let ubuntu = yes.iter().position(|c| c.id.starts_with("ubuntu"));
+    let desktop_of = |c: &flow::Choice| flow::desktops_for(&c.desktop).first().copied();
     app.flow = Flow::Convert;
     match name {
         "pick" => {
@@ -1478,20 +1482,32 @@ fn preview_picker(app: &mut App, name: &str) {
             app.screen = Screen::Pick;
         }
         "pick-refused" => {
-            app.choices = vec![c("kde", "KDE Plasma", flow::Starts::Yes), c("gnome", "GNOME", flow::Starts::No("grub,3 < grub,5".into()))];
+            if let Some(c) = yes.get_mut(1) {
+                c.starts = flow::Starts::No("grub,3 < grub,5".into());
+            }
+            app.choices = yes;
             app.picked = Some(0);
             app.screen = Screen::Pick;
         }
-        "pick-none" => app.screen = Screen::Stopped(Stop::NoRelease(no)),
-        "fetching" => {
+        "pick-none" => {
+            for (i, c) in yes.iter_mut().enumerate() {
+                c.starts = if i == 0 { flow::Starts::No("grub,3 < grub,5".into()) } else { flow::Starts::Unknown };
+            }
+            app.screen = Screen::Stopped(Stop::NoRelease(yes));
+        }
+        "fetching" | "fetching-ubuntu" => {
+            app.picked = if name == "fetching" { Some(0) } else { ubuntu };
             app.choices = yes;
-            app.picked = Some(0);
             app.screen = Screen::Fetching { done: 1_300_000_000, total: 4_597_067_776 };
         }
         "fetch-stopped" => app.screen = Screen::Stopped(Stop::Fetch(vec!["the download of Fedora-KDE-Desktop-Live-44-1.7.x86_64.iso did not match its measured sha256; nothing was kept".into()])),
-        "convert-fetched" => {
-            app.fetched = Some(yes[0].clone());
-            app.setup.desktop = Some(Desktop::Kde);
+        "convert-fetched" | "convert-fetched-ubuntu" | "erase-fetched-ubuntu" => {
+            let c = if name == "convert-fetched" { yes.first() } else { ubuntu.and_then(|i| yes.get(i)) };
+            app.setup.desktop = c.and_then(desktop_of);
+            app.fetched = c.cloned();
+            if name == "erase-fetched-ubuntu" {
+                app.flow = Flow::Erase;
+            }
             app.screen = Screen::ConvertSetup;
         }
         _ => {}
