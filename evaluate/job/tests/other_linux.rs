@@ -18,7 +18,7 @@ fn facts(overrides: Value) -> Value {
 }
 
 fn job(f: &Value, erase: &str) -> Result<Value, Vec<String>> {
-    let choice = Choices { desktop: "kde", start_at: "desktop", password_hash: HASH, report_rel: "upgrade-report.json", acknowledge_data_loss: "", erase_everything: erase };
+    let choice = Choices { desktop: "kde", start_at: "desktop", password_hash: HASH, report_rel: "upgrade-report.json", acknowledge_data_loss: "", erase_everything: erase, linux_name: "" };
     job_document(f, &choice, &Stamp { job_id: "00000000-0000-4000-8000-000000000000", now_utc: "2026-11-11T12:00:00Z", writer_version: FOLLOWS_JOB_WRITER })
 }
 

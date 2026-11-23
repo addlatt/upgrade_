@@ -314,6 +314,8 @@ struct ConvertInputs {
     desktop: Desktop,
     /// the release the picker fetched onto the stick (item 24)
     release: String,
+    /// the Linux sign-in name the person chose (2026-11-23)
+    name: String,
     password: String,
     /// the acknowledgement sentence as typed on the data-loss path, else empty
     ack: String,
@@ -366,9 +368,10 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
     };
     let hash_text = format!("{}\n", hash);
     let hash_file_text = hash_file.to_string_lossy().to_string();
-    let calls = if inputs.erase.is_empty() { flow::convert_calls(&stick, inputs.desktop, &hash_file_text, &inputs.ack) } else { flow::erase_calls(&stick, inputs.desktop, &hash_file_text, &inputs.erase, &inputs.ack) };
+    let calls = if inputs.erase.is_empty() { flow::convert_calls(&stick, inputs.desktop, &hash_file_text, &inputs.ack, &inputs.name) } else { flow::erase_calls(&stick, inputs.desktop, &hash_file_text, &inputs.erase, &inputs.ack, &inputs.name) };
     let wifi_dir = root.join("upgrade_").join("artifacts").join("credentials").join("wifi");
-    let mut linux_name = String::new();
+    let linux_name = inputs.name.clone();
+    log_line(&root, &format!("sign-in name: {}", linux_name));
 
     for (i, call) in calls.iter().enumerate() {
         let _ = tx.send(Msg::Step(call.step));
@@ -392,15 +395,6 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
         if i == 0 {
             if let Some(s) = scan_stop(&root, !inputs.ack.is_empty()) {
                 return stop(s);
-            }
-            // the Linux account name, as the launcher asks it before the password (RUN-CONVERT.cmd line 102)
-            let Some((ncode, nlines)) = run(&flow::linux_name_call(&stick), &root, &tx, &guard) else { return };
-            match flow::linux_name_from(&nlines) {
-                Some(n) if ncode == 0 => linux_name = n,
-                _ => {
-                    log_line(&root, "the Linux account name could not be worked out; stopped");
-                    return stop(Stop::Refused(vec![words::LINUX_NAME_UNKNOWN.into()]));
-                }
             }
         }
     }
@@ -612,6 +606,8 @@ enum Screen {
 #[derive(Default)]
 struct Setup {
     desktop: Option<Desktop>,
+    /// the Linux sign-in name: starts as the Windows one in Linux's letters, the person may change it
+    name: String,
     password: String,
     again: String,
     ack: String,
@@ -647,7 +643,7 @@ struct App {
 
 impl App {
     fn new(screen: Screen, stick: String, after: bool, accepting_data_loss: bool, rx: Option<Receiver<Msg>>, guard: Shared) -> App {
-        App { screen, choices: vec![], picked: None, fetched: None, split: None, from: None, stick, after, arming: false, flow: Flow::Verify, accepting_data_loss, developer: false, setup: Setup::default(), word: String::new(), word_tx: None, log: vec![], rx, guard }
+        App { screen, choices: vec![], picked: None, fetched: None, split: None, from: None, stick, after, arming: false, flow: Flow::Verify, accepting_data_loss, developer: false, setup: Setup { name: flow::first_linux_name(&std::env::var("USERNAME").unwrap_or_default()), ..Setup::default() }, word: String::new(), word_tx: None, log: vec![], rx, guard }
     }
 
     fn channel(&mut self, ctx: &egui::Context) -> Sender<Msg> {
@@ -711,6 +707,7 @@ impl App {
         let inputs = ConvertInputs {
             desktop: self.setup.desktop.unwrap_or(Desktop::Kde),
             release: self.fetched.as_ref().map(|c| c.id.clone()).unwrap_or_default(),
+            name: self.setup.name.clone(),
             password: std::mem::take(&mut self.setup.password),
             ack: if self.accepting_data_loss { self.setup.ack.clone() } else { String::new() },
             erase: if self.flow == Flow::Erase { self.setup.erase.clone() } else { String::new() },
@@ -834,6 +831,9 @@ impl App {
         }
         if self.flow == Flow::Erase && !flow::erase_ok(&self.setup.erase) {
             return Some(words::ERASE_TYPE.into());
+        }
+        if let Some(why) = upgrade_job::maps::linux_name_refusal(&self.setup.name) {
+            return Some(format!("{}: {}.", words::NAME_NOT_SET, why));
         }
         flow::password_refusal(&self.setup.password, &self.setup.again).map(|why| format!("{}: {}.", words::PASSWORD_NOT_SET, why))
     }
@@ -1148,6 +1148,12 @@ impl eframe::App for App {
                         ui.label(egui::RichText::new(words::PASSWORD_HEADING).strong().size(17.0));
                         para(ui, words::PASSWORD_LEAD);
                         egui::Grid::new("pw").num_columns(2).spacing([12.0, 6.0]).show(ui, |ui| {
+                            ui.label(words::NAME_LABEL);
+                            if ui.add(egui::TextEdit::singleline(&mut self.setup.name).char_limit(32).desired_width(260.0)).changed() {
+                                // Linux names are small letters: a capital typed is taken as its small letter
+                                self.setup.name = self.setup.name.to_lowercase();
+                            }
+                            ui.end_row();
                             ui.label(words::PASSWORD_LABEL);
                             ui.add(egui::TextEdit::singleline(&mut self.setup.password).password(true).desired_width(260.0));
                             ui.end_row();
@@ -1644,6 +1650,7 @@ fn main() {
         let (screen, flow, ack) = preview(&name);
         let mut app = App::new(screen, "E:".into(), false, ack, None, guard);
         app.flow = flow;
+        app.setup.name = "ann".into(); // a made-up person, never the name of whoever runs the preview
         // a made-up 256 GB drive, so the drive picture shows (short: Windows can free only 7 GB)
         app.split = flow::split(Some(&json!({"Storage": {"DiskBytes": 256_060_514_304u64, "ShrinkGB": if name == "path-short" { 7.2 } else { 140.2 }}})));
         preview_picker(&mut app, &name);

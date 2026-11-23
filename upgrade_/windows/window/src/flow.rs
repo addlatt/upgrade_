@@ -262,24 +262,21 @@ pub fn wipe(s: &mut String) {
     upgrade_job::password::wipe(s)
 }
 
-/// `upgrade-job linux-name`: the Linux account name from the Windows one
-/// (New-Job.ps1 -PrintLinuxName). Its one line of output is the name.
-pub fn linux_name_call(stick: &str) -> Call {
-    call(2, false, stick, "upgrade-job.exe", &["linux-name"])
-}
-
-/// The name from the program's output: its last non-empty line, or None.
-pub fn linux_name_from(output: &[String]) -> Option<String> {
-    output.iter().map(|l| l.trim()).filter(|l| !l.is_empty()).last().map(String::from)
+/// The sign-in name the set-up screen starts with: made from the Windows
+/// account name as the job writer makes it, or empty when that is not a name
+/// a person may have (they type their own).
+pub fn first_linux_name(windows_name: &str) -> String {
+    let n = upgrade_job::maps::linux_name(windows_name);
+    if upgrade_job::maps::linux_name_refusal(&n).is_some() { String::new() } else { n }
 }
 
 /// RUN-CONVERT.cmd's steps 1 and 3-4 as calls: the scan (and the capture),
 /// then the job with its kickstart. `hash_file` is where the window wrote
 /// the password hash (deleted after the call); `ack` is the acknowledgement
 /// sentence when the person typed it on the data-loss path, else empty.
-pub fn convert_calls(stick: &str, desktop: Desktop, hash_file: &str, ack: &str) -> Vec<Call> {
+pub fn convert_calls(stick: &str, desktop: Desktop, hash_file: &str, ack: &str, name: &str) -> Vec<Call> {
     let (d, s) = desktop.job_args();
-    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS", "--autoinstall", "{root}autoinstall.yaml"];
+    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS", "--autoinstall", "{root}autoinstall.yaml", "--linux-name", name];
     if !ack.is_empty() {
         job.push("--acknowledge-data-loss");
         job.push(ack);
@@ -322,9 +319,9 @@ pub fn erase_ok(typed: &str) -> bool {
 /// RUN-ERASE-AND-INSTALL.cmd's steps 1 and 5-6 as calls: the scan, then the
 /// job that names every drive it will erase (-EraseEverything with the
 /// sentence as typed; -AcknowledgeDataLoss on the data-loss variant).
-pub fn erase_calls(stick: &str, desktop: Desktop, hash_file: &str, erase: &str, ack: &str) -> Vec<Call> {
+pub fn erase_calls(stick: &str, desktop: Desktop, hash_file: &str, erase: &str, ack: &str, name: &str) -> Vec<Call> {
     let (d, s) = desktop.job_args();
-    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--erase-everything", erase, "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS", "--autoinstall", "{root}autoinstall.yaml"];
+    let mut job = vec!["write", "--stick", "{stick}", "--out", "{root}upgrade_", "--scan", "{root}upgrade_\\reports", "--desktop", d, "--start-at", s, "--if-cannot-keep", "stop", "--erase-everything", erase, "--password-hash-file", hash_file, "--kickstart", "{root}upgrade_\\ks.cfg", "--stick-label", "UPGV0", "--manifest", "{root}SHA256SUMS", "--autoinstall", "{root}autoinstall.yaml", "--linux-name", name];
     if !ack.is_empty() {
         job.push("--acknowledge-data-loss");
         job.push(ack);
@@ -669,14 +666,13 @@ mod tests {
     #[test]
     fn convert_calls_match_run_convert_cmd() {
         // RUN-CONVERT.cmd lines 61-62 (the scan), 102 (the name), 124 (the job, -IfCannotKeep stop -PasswordHashFile), 137 (the kickstart)
-        let v = convert_calls("E:", Desktop::Gnome, r"C:\Users\a\AppData\Local\Temp\upgrade-pw-1.txt", "");
+        let v = convert_calls("E:", Desktop::Gnome, r"C:\Users\a\AppData\Local\Temp\upgrade-pw-1.txt", "", "ann");
         assert_eq!(command_line(&v[0]), r"E:\upgrade-scan.exe scan --json --out E:\upgrade_\reports --kit E:\");
         assert!(v[1].may_fail);
         assert_eq!(
             command_line(&v[2]),
-            r"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop gnome --start-at desktop --if-cannot-keep stop --password-hash-file C:\Users\a\AppData\Local\Temp\upgrade-pw-1.txt --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS --autoinstall E:\autoinstall.yaml"
+            r"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop gnome --start-at desktop --if-cannot-keep stop --password-hash-file C:\Users\a\AppData\Local\Temp\upgrade-pw-1.txt --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS --autoinstall E:\autoinstall.yaml --linux-name ann"
         );
-        assert_eq!(command_line(&linux_name_call("E:")), r"E:\upgrade-job.exe linux-name");
         // line 187: the prologue with the word as typed
         assert_eq!(command_line(&prologue_start_call("E:", "CONVERT", "")), r"E:\upgrade-prologue.exe start --stick E: --confirm-word CONVERT");
     }
@@ -685,7 +681,7 @@ mod tests {
     fn the_data_loss_path_carries_the_sentence_to_the_job_and_the_prologue() {
         // RUN-CONVERT-ACCEPTING-DATA-LOSS.cmd: -AcknowledgeDataLoss "%ACK%" on both
         let s = upgrade_job::RISK_STATEMENT;
-        let v = convert_calls("E:", Desktop::Kde, "h", s);
+        let v = convert_calls("E:", Desktop::Kde, "h", s, "ann");
         assert_eq!(v[2].args[v[2].args.len() - 2..], ["--acknowledge-data-loss".to_string(), s.to_string()]);
         assert_eq!(command_line(&prologue_start_call("E:", "CONVERT", s)), format!(r#"E:\upgrade-prologue.exe start --stick E: --confirm-word CONVERT --acknowledge-data-loss "{}""#, s));
         assert!(ack_ok(s));
@@ -719,9 +715,14 @@ mod tests {
     }
 
     #[test]
-    fn the_linux_name_is_the_programs_last_line() {
-        assert_eq!(linux_name_from(&["".into(), "ann".into(), "".into()]), Some("ann".into()));
-        assert_eq!(linux_name_from(&["".into()]), None);
+    fn the_sign_in_name_starts_from_the_windows_one_and_reaches_the_job() {
+        assert_eq!(first_linux_name("Ann Smith"), "annsmith");
+        assert_eq!(first_linux_name("Admin"), "", "a name Linux keeps is not offered");
+        assert_eq!(first_linux_name("-x"), "");
+        let v = convert_calls("E:", Desktop::Kde, "h", "", "ann");
+        assert!(command_line(&v[2]).ends_with("--linux-name ann"));
+        let v = erase_calls("E:", Desktop::Kde, "h", upgrade_job::ERASE_STATEMENT, "", "sam-2");
+        assert!(command_line(&v[2]).ends_with("--linux-name sam-2"));
     }
 
     #[test]
@@ -785,22 +786,22 @@ mod tests {
         assert_eq!(desktops_for("kde"), [Desktop::Kde, Desktop::Console]);
         assert_eq!(desktops_for("gnome"), [Desktop::Gnome]);
         assert!(desktops_for("").is_empty());
-        assert_eq!(pick_scan_call("E:").args, convert_calls("E:", Desktop::Kde, "h", "")[0].args, "the picker's scan is Convert's own");
+        assert_eq!(pick_scan_call("E:").args, convert_calls("E:", Desktop::Kde, "h", "", "ann")[0].args, "the picker's scan is Convert's own");
     }
 
     #[test]
     fn erase_calls_match_run_erase_and_install_cmd() {
         // RUN-ERASE-AND-INSTALL.cmd line 155: -IfCannotKeep stop -EraseEverything "%ERASE%" -PasswordHashFile; line 189: -EraseConsent "%ERASE%"
         let e = upgrade_job::ERASE_STATEMENT;
-        let v = erase_calls("E:", Desktop::Kde, "h", e, "");
+        let v = erase_calls("E:", Desktop::Kde, "h", e, "", "ann");
         assert_eq!(
             command_line(&v[2]),
-            format!(r#"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop kde --start-at desktop --if-cannot-keep stop --erase-everything "{e}" --password-hash-file h --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS --autoinstall E:\autoinstall.yaml"#)
+            format!(r#"E:\upgrade-job.exe write --stick E: --out E:\upgrade_ --scan E:\upgrade_\reports --desktop kde --start-at desktop --if-cannot-keep stop --erase-everything "{e}" --password-hash-file h --kickstart E:\upgrade_\ks.cfg --stick-label UPGV0 --manifest E:\SHA256SUMS --autoinstall E:\autoinstall.yaml --linux-name ann"#)
         );
         assert_eq!(command_line(&erase_prologue_call("E:", e, "")), format!(r#"E:\upgrade-prologue.exe start --stick E: --erase-consent "{e}""#));
         // the data-loss variant (line 181, 215): -AcknowledgeDataLoss on both
         let s = upgrade_job::RISK_STATEMENT;
-        let v = erase_calls("E:", Desktop::Kde, "h", e, s);
+        let v = erase_calls("E:", Desktop::Kde, "h", e, s, "ann");
         assert_eq!(v[2].args[v[2].args.len() - 2..], ["--acknowledge-data-loss".to_string(), s.to_string()]);
         assert!(erase_prologue_call("E:", e, s).args.contains(&"--acknowledge-data-loss".to_string()));
         assert!(erase_ok(e));

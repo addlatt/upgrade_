@@ -5,7 +5,7 @@
 //!                     --desktop kde|gnome --start-at desktop|console
 //!                     [--password-hash-file <file>] [--if-cannot-keep stop]
 //!                     [--acknowledge-data-loss "<sentence>"] [--erase-everything "<sentence>"]
-//!                     [--verify-only] [--materialize]
+//!                     [--verify-only] [--materialize] [--linux-name <name>]
 //!                     [--kickstart <file> --stick-label <label> --manifest <SHA256SUMS>]
 //!       read this machine, judge, write job.json (only as a document that
 //!       passed the contract), the Wi-Fi password files and, when asked,
@@ -243,7 +243,14 @@ mod on_windows {
         let now = live::now_utc_z();
         let ack = value_of("--acknowledge-data-loss").unwrap_or_default();
         let erase = value_of("--erase-everything").unwrap_or_default();
-        let choice = Choices { desktop: &desktop, start_at: &start_at, password_hash: &password_hash, report_rel: &report_rel, acknowledge_data_loss: &ack, erase_everything: &erase };
+        // the sign-in name the person chose (2026-11-23); none given, it is made from the Windows name
+        let linux_name = value_of("--linux-name").unwrap_or_default();
+        if has("--linux-name") {
+            if let Some(why) = maps::linux_name_refusal(&linux_name) {
+                return refused(&[format!("the Linux sign-in name '{linux_name}' cannot be used: {why}")]);
+            }
+        }
+        let choice = Choices { desktop: &desktop, start_at: &start_at, password_hash: &password_hash, report_rel: &report_rel, acknowledge_data_loss: &ack, erase_everything: &erase, linux_name: &linux_name };
         let mut job = match job_document(&facts, &choice, &Stamp { job_id: &job_id, now_utc: &now, writer_version: env!("CARGO_PKG_VERSION") }) {
             Ok(j) => j,
             Err(refusals) => return refused(&refusals),

@@ -93,7 +93,7 @@ fn run(fn_name: &str, a: &Value) -> Value {
         "Get-JobReleaseRefusal" => json!(decide::release_refusal(arg("Kit"), arg("Releases"))),
         "New-JobDocument" => {
             let (desktop, start_at, hash, rel, ack, erase) = (text(a, "Desktop"), a.get("StartAt").map_or("desktop".to_string(), s), text(a, "PasswordHash"), text(a, "ReportRel"), text(a, "AcknowledgeDataLoss"), text(a, "EraseEverything"));
-            let choice = Choices { desktop: &desktop, start_at: &start_at, password_hash: &hash, report_rel: &rel, acknowledge_data_loss: &ack, erase_everything: &erase };
+            let choice = Choices { desktop: &desktop, start_at: &start_at, password_hash: &hash, report_rel: &rel, acknowledge_data_loss: &ack, erase_everything: &erase, linux_name: "" };
             match job_document(&facts(arg("F")), &choice, &Stamp { job_id: JOB_ID, now_utc: NOW, writer_version: FOLLOWS_JOB_WRITER }) {
                 Ok(job) => json!({"Refusals": [], "Job": job}),
                 Err(why) => json!({"Refusals": why, "Job": null}),

@@ -150,7 +150,9 @@ pub const DESKTOP_CONSOLE_LINE: &str = "No desktop: a black screen where you typ
 pub const DESKTOP_UNSURE: &str = "Not sure? Choose KDE Plasma.";
 
 pub const PASSWORD_HEADING: &str = "Your Linux account and its password";
-pub const PASSWORD_LEAD: &str = "You sign in to Linux with the password you choose now. Write it down if you need to: nothing else stores it.";
+pub const PASSWORD_LEAD: &str = "You sign in to Linux with this name and the password you choose now. The name starts as your Windows one; change it if you like (small letters and digits, no spaces). Write the password down if you need to: nothing else stores it.";
+pub const NAME_LABEL: &str = "Sign-in name";
+pub const NAME_NOT_SET: &str = "The sign-in name";
 pub const PASSWORD_LABEL: &str = "Password";
 pub const PASSWORD_AGAIN: &str = "Type it again";
 pub const PASSWORD_NOT_SET: &str = "Not set";
@@ -188,7 +190,6 @@ pub const CONVERT_RESTARTING_LINES: [&str; 3] = [
 ];
 pub const CONVERT_STOPPED_HEADING: &str = "The conversion stopped";
 pub const CONVERT_STOPPED_FOOT: &str = "Windows is as it was. The record is in upgrade_\\outcome.json on this stick.";
-pub const LINUX_NAME_UNKNOWN: &str = "The Linux account name could not be worked out. Nothing was changed.";
 
 // ---------------------------------------------------------------- erase: the words of RUN-ERASE-AND-INSTALL.cmd (2026-10-08)
 
