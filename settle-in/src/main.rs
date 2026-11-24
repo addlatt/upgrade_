@@ -156,7 +156,7 @@ pub(crate) fn record_pull(r: &str, out: &Value) -> Result<(), String> {
     })).collect();
     let bookmarks: Vec<Value> = out["bookmarks"].as_array().cloned().unwrap_or_default().iter()
         .map(|b| json!({ "browser": b["browser"], "result": b["result"], "bookmarks": b["bookmarks"], "why": b["why"], "file_name": b["file"].as_str().and_then(|f| f.rsplit('/').next()) })).collect();
-    s["files"] = json!({ "result": out["result"], "why": out["why"], "folders": folders, "bytes": out["bytes"], "key": out["key"], "bookmarks": bookmarks });
+    s["files"] = json!({ "result": out["result"], "chosen": out["chosen"], "why": out["why"], "folders": folders, "bytes": out["bytes"], "key": out["key"], "bookmarks": bookmarks });
     save_public(root, &s)
 }
 
@@ -644,6 +644,13 @@ fn main() {
                 let _ = std::io::stdin().read_line(&mut l);
                 l.trim().to_string()
             });
+            // what the person chose to bring (2026-11-23): one line of JSON on stdin, after the key's
+            let only = args.iter().any(|a| a == "--only-stdin").then(|| {
+                let mut l = String::new();
+                let _ = std::io::stdin().read_line(&mut l);
+                // a line that is not JSON becomes a choice the plan refuses
+                serde_json::from_str::<Value>(l.trim()).unwrap_or(Value::Bool(false))
+            });
             let r = match args.get(1).map(String::as_str) {
                 Some("plan") if args.iter().any(|a| a == "--windows-mount") && args.iter().any(|a| a == "--home") => {
                     let mut r = pull::live::plan_at(&root, &opt("--windows-mount", ""), &opt("--home", ""));
@@ -656,12 +663,12 @@ fn main() {
                     r
                 }
                 Some("run") => {
-                    let mut r = pullrun::live::run_pull(&root, typed.as_deref());
+                    let mut r = pullrun::live::run_pull(&root, typed.as_deref(), only.as_ref());
                     r["words"] = summary::pull_done_words(&r);
                     r
                 }
                 _ => {
-                    eprintln!("usage: settle-in pull plan --windows-mount DIR --home DIR [--root DIR] | check [--key-stdin] | run [--key-stdin]");
+                    eprintln!("usage: settle-in pull plan --windows-mount DIR --home DIR [--root DIR] | check [--key-stdin] | run [--key-stdin] [--only-stdin]");
                     std::process::exit(64);
                 }
             };

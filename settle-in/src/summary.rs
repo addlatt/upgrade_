@@ -217,9 +217,14 @@ fn files_section(f: &Value) -> Value {
             if sum("in_onedrive") > 0 {
                 l.push(format!("{} files live only in OneDrive and were not copied. Sign in at onedrive.live.com to reach them.", sum("in_onedrive")));
             }
+            if f["chosen"] == "some" {
+                l.push("That is what you chose. The rest is still in Windows, and you can bring more whenever you like.".into());
+            }
             if f["result"] == "done-with-failures" {
                 l.push(format!("{} files could not be read from Windows. They are still there; pressing the button tries them again.", sum("failed")));
                 button = Some("Try the rest again");
+            } else if f["chosen"] == "some" {
+                button = Some("Bring more files");
             } else {
                 button = None;
             }
@@ -250,6 +255,7 @@ pub fn pull_words(p: &Value) -> Value {
         Some("plan") => {
             let n: u64 = p["folders"].as_array().into_iter().flatten().map(|f| f["files"].as_u64().unwrap_or(0)).sum();
             l.push(format!("This copies {} files ({}) from Windows into this computer's own folders:", n, gb(&p["bytes"])));
+            let lead = l.len();
             for f in p["folders"].as_array().cloned().unwrap_or_default() {
                 l.push(format!("  {}: {} files, {}, into {}", f["name"].as_str().unwrap_or(""), f["files"], gb(&f["bytes"]), f["to"].as_str().unwrap_or("")));
             }
@@ -272,7 +278,17 @@ pub fn pull_words(p: &Value) -> Value {
             }
             l.push("Only bookmarks come from the browsers: not saved passwords, history or open tabs. Sign in to the browser's own account to bring those.".into());
             l.push("Windows is only read: nothing on it changes, and it keeps its own copies. If the copy is stopped, it carries on next time.".into());
-            json!({ "lines": l, "button": "Copy them", "button_note": "Keep the computer plugged in. It can take a while." })
+            // for the window's tick boxes (2026-11-23; draft words): the lines above without the list of folders
+            let folder_lines = p["folders"].as_array().map_or(0, Vec::len);
+            let notes: Vec<String> = l[(lead + folder_lines).min(l.len())..].to_vec();
+            let mut intro = vec!["Choose what to bring from Windows. Everything is ticked to start with. Untick a folder to leave it behind, or open it and tick only what you want.".to_string()];
+            if p["short"] == json!(true) {
+                intro.insert(0, format!("Not all of it fits: this Linux has {} free, and everything is {}. Untick things until it fits.", gb(&p["free"]), gb(&p["bytes"])));
+            }
+            json!({ "lines": l, "button": "Copy them", "button_note": "Keep the computer plugged in. It can take a while.",
+                    "intro": intro, "notes": notes, "all": "Tick everything", "none": "Untick everything",
+                    "chosen": "Chosen: {files} of {all_files} files, {size} of {all_size}.",
+                    "too_big": "That is more than fits: this Linux has {free} free, and room to spare is kept. Untick some." })
         }
         Some("nothing-to-do") => json!({ "lines": p["why"].as_array().cloned().unwrap_or_default() }),
         _ => {
@@ -295,7 +311,7 @@ pub fn pull_done_words(o: &Value) -> Value {
     let bookmarks: Vec<Value> = o["bookmarks"].as_array().cloned().unwrap_or_default().iter()
         .map(|b| json!({ "browser": b["browser"], "result": b["result"], "bookmarks": b["bookmarks"], "why": b["why"], "file_name": b["file"].as_str().and_then(|f| f.rsplit('/').next()) })).collect();
     let mut sec = files_section(&json!({
-        "result": o["result"], "why": o["why"], "bytes": o["bytes"], "key": o["key"], "bookmarks": bookmarks,
+        "result": o["result"], "chosen": o["chosen"], "why": o["why"], "bytes": o["bytes"], "key": o["key"], "bookmarks": bookmarks,
         "folders": o["folders"].as_array().cloned().unwrap_or_default().iter().map(|f| json!({
             "name": f["name"], "copied": f["copied"].as_u64().unwrap_or(0) + f["already_copied"].as_u64().unwrap_or(0),
             "failed": f["failed"].as_array().map_or(0, Vec::len), "renamed": f["renamed"].as_array().map_or(0, Vec::len), "in_onedrive": f["in_onedrive"] })).collect::<Vec<_>>(),
