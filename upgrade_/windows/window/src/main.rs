@@ -1021,6 +1021,9 @@ impl eframe::App for App {
                             ui.add_enabled_ui(ok, |ui| {
                                 ui.radio_value(&mut self.picked, Some(i), egui::RichText::new(c.title()).size(17.0));
                             });
+                            if c.nvidia_pick {
+                                para(ui, words::PICK_NVIDIA);
+                            }
                             match &c.starts {
                                 flow::Starts::Yes => para(ui, desktop_line(&c.desktop)),
                                 flow::Starts::No(why) => para(ui, &format!("{} {}", words::PICK_CANNOT, why)),
@@ -1028,7 +1031,10 @@ impl eframe::App for App {
                             }
                             ui.add_space(6.0);
                         }
-                        para(ui, words::DESKTOP_UNSURE);
+                        // with a first choice named for this computer, no second piece of advice beside it
+                        if !self.choices.iter().any(|c| c.nvidia_pick) {
+                            para(ui, words::DESKTOP_UNSURE);
+                        }
                         ui.add_space(6.0);
                         para(ui, words::PICK_SIZE);
                         ui.add_space(12.0);
@@ -1565,6 +1571,14 @@ fn preview_picker(app: &mut App, name: &str) {
         "pick" => {
             app.choices = yes;
             app.picked = Some(0);
+            app.screen = Screen::Pick;
+        }
+        "pick-nvidia" => {
+            for c in yes.iter_mut().filter(|c| flow::sets_up_nvidia(upgrade_scan::data::RELEASES_JSON, &c.id)) {
+                c.nvidia_pick = true;
+            }
+            yes.sort_by_key(|c| !c.nvidia_pick);
+            app.choices = yes;
             app.screen = Screen::Pick;
         }
         "pick-refused" => {
