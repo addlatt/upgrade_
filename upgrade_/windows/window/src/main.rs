@@ -119,6 +119,8 @@ enum Msg {
     Done(i32, Vec<String>),
     /// the picker's scan is done: the buttons
     Choices(Vec<flow::Choice>),
+    /// how the main drive is shared out on each path, when the scan read its size
+    Split(Option<flow::Split>),
     /// the download is done and checked
     Fetched,
 }
@@ -312,6 +314,8 @@ struct ConvertInputs {
     desktop: Desktop,
     /// the release the picker fetched onto the stick (item 24)
     release: String,
+    /// the Linux sign-in name the person chose (2026-11-23)
+    name: String,
     password: String,
     /// the acknowledgement sentence as typed on the data-loss path, else empty
     ack: String,
@@ -364,9 +368,10 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
     };
     let hash_text = format!("{}\n", hash);
     let hash_file_text = hash_file.to_string_lossy().to_string();
-    let calls = if inputs.erase.is_empty() { flow::convert_calls(&stick, inputs.desktop, &hash_file_text, &inputs.ack) } else { flow::erase_calls(&stick, inputs.desktop, &hash_file_text, &inputs.erase, &inputs.ack) };
+    let calls = if inputs.erase.is_empty() { flow::convert_calls(&stick, inputs.desktop, &hash_file_text, &inputs.ack, &inputs.name) } else { flow::erase_calls(&stick, inputs.desktop, &hash_file_text, &inputs.erase, &inputs.ack, &inputs.name) };
     let wifi_dir = root.join("upgrade_").join("artifacts").join("credentials").join("wifi");
-    let mut linux_name = String::new();
+    let linux_name = inputs.name.clone();
+    log_line(&root, &format!("sign-in name: {}", linux_name));
 
     for (i, call) in calls.iter().enumerate() {
         let _ = tx.send(Msg::Step(call.step));
@@ -390,15 +395,6 @@ fn convert(stick: String, mut inputs: ConvertInputs, tx: Sender<Msg>, guard: Sha
         if i == 0 {
             if let Some(s) = scan_stop(&root, !inputs.ack.is_empty()) {
                 return stop(s);
-            }
-            // the Linux account name, as the launcher asks it before the password (RUN-CONVERT.cmd line 102)
-            let Some((ncode, nlines)) = run(&flow::linux_name_call(&stick), &root, &tx, &guard) else { return };
-            match flow::linux_name_from(&nlines) {
-                Some(n) if ncode == 0 => linux_name = n,
-                _ => {
-                    log_line(&root, "the Linux account name could not be worked out; stopped");
-                    return stop(Stop::Refused(vec![words::LINUX_NAME_UNKNOWN.into()]));
-                }
             }
         }
     }
@@ -471,6 +467,7 @@ fn pick(stick: String, acknowledged: bool, tx: Sender<Msg>, guard: Shared) {
     if !choices.iter().any(|c| c.starts == flow::Starts::Yes) {
         return stop(Stop::NoRelease(choices));
     }
+    let _ = tx.send(Msg::Split(flow::split(report.as_ref())));
     let _ = tx.send(Msg::Choices(choices));
 }
 
@@ -583,6 +580,8 @@ enum Screen {
     Choose,
     /// the picker's scan is running
     Picking,
+    /// what happens to Windows: keep it or erase everything (decided 2026-11-23, the owner)
+    Path,
     /// the picker: one release with one desktop
     Pick,
     /// the download: bytes so far and in all
@@ -607,6 +606,8 @@ enum Screen {
 #[derive(Default)]
 struct Setup {
     desktop: Option<Desktop>,
+    /// the Linux sign-in name: starts as the Windows one in Linux's letters, the person may change it
+    name: String,
     password: String,
     again: String,
     ack: String,
@@ -620,6 +621,8 @@ struct App {
     choices: Vec<flow::Choice>,
     picked: Option<usize>,
     fetched: Option<flow::Choice>,
+    /// the drive picture's numbers (None: the scan did not read the size, so nothing is drawn)
+    split: Option<flow::Split>,
     /// --developer --from <http folder>: the rig's local copy of the releases
     from: Option<String>,
     stick: String,
@@ -640,7 +643,7 @@ struct App {
 
 impl App {
     fn new(screen: Screen, stick: String, after: bool, accepting_data_loss: bool, rx: Option<Receiver<Msg>>, guard: Shared) -> App {
-        App { screen, choices: vec![], picked: None, fetched: None, from: None, stick, after, arming: false, flow: Flow::Verify, accepting_data_loss, developer: false, setup: Setup::default(), word: String::new(), word_tx: None, log: vec![], rx, guard }
+        App { screen, choices: vec![], picked: None, fetched: None, split: None, from: None, stick, after, arming: false, flow: Flow::Verify, accepting_data_loss, developer: false, setup: Setup { name: flow::first_linux_name(&std::env::var("USERNAME").unwrap_or_default()), ..Setup::default() }, word: String::new(), word_tx: None, log: vec![], rx, guard }
     }
 
     fn channel(&mut self, ctx: &egui::Context) -> Sender<Msg> {
@@ -704,6 +707,7 @@ impl App {
         let inputs = ConvertInputs {
             desktop: self.setup.desktop.unwrap_or(Desktop::Kde),
             release: self.fetched.as_ref().map(|c| c.id.clone()).unwrap_or_default(),
+            name: self.setup.name.clone(),
             password: std::mem::take(&mut self.setup.password),
             ack: if self.accepting_data_loss { self.setup.ack.clone() } else { String::new() },
             erase: if self.flow == Flow::Erase { self.setup.erase.clone() } else { String::new() },
@@ -739,11 +743,13 @@ impl App {
                     }
                     None => self.log.push(l),
                 },
+                Msg::Split(s) => self.split = s,
                 Msg::Choices(c) => {
                     // nothing chosen for the person, as the desktop never was
                     self.picked = None;
                     self.choices = c;
-                    self.screen = Screen::Pick;
+                    // the question first, before anything is downloaded; neither answer is chosen for the person
+                    self.screen = Screen::Path;
                 }
                 Msg::Fetched => {
                     let c = self.picked.and_then(|i| self.choices.get(i)).cloned();
@@ -826,6 +832,9 @@ impl App {
         if self.flow == Flow::Erase && !flow::erase_ok(&self.setup.erase) {
             return Some(words::ERASE_TYPE.into());
         }
+        if let Some(why) = upgrade_job::maps::linux_name_refusal(&self.setup.name) {
+            return Some(format!("{}: {}.", words::NAME_NOT_SET, why));
+        }
         flow::password_refusal(&self.setup.password, &self.setup.again).map(|why| format!("{}: {}.", words::PASSWORD_NOT_SET, why))
     }
 }
@@ -885,6 +894,45 @@ fn banner(ui: &mut egui::Ui) {
     ui.add_space(6.0);
 }
 
+/// The small picture of the main drive on one path: a bar to scale, and under
+/// it what each colour is and how many GB it gets. The numbers are the scan's.
+fn drive_picture(ui: &mut egui::Ui, s: &flow::Split, erase: bool) {
+    let windows = egui::Color32::from_rgb(58, 124, 201);
+    let linux = egui::Color32::from_rgb(226, 138, 36);
+    ui.add_space(4.0);
+    ui.label(egui::RichText::new(format!("{}: {} GB", words::SPLIT_DRIVE, s.total_gb)).weak());
+    let width = ui.available_width().min(560.0);
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 20.0), egui::Sense::hover());
+    let p = ui.painter();
+    if erase {
+        p.rect_filled(rect, 4.0, linux);
+    } else {
+        // to scale, but never so thin that Linux's part cannot be seen
+        let share = (s.keep_linux_gb as f32 / s.total_gb.max(1) as f32).clamp(0.04, 0.96);
+        let cut = rect.right() - rect.width() * share;
+        p.rect_filled(rect, 4.0, windows);
+        p.rect_filled(egui::Rect::from_min_max(egui::pos2(cut, rect.top()), rect.max), egui::CornerRadius { nw: 0, sw: 0, ne: 4, se: 4 }, linux);
+    }
+    let key = |ui: &mut egui::Ui, c: egui::Color32, t: String| {
+        let (r, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+        ui.painter().rect_filled(r, 2.0, c);
+        ui.label(t);
+        ui.add_space(10.0);
+    };
+    ui.horizontal_wrapped(|ui| {
+        if erase {
+            key(ui, linux, format!("{} {} GB", words::SPLIT_LINUX, s.total_gb));
+        } else {
+            key(ui, windows, format!("{} about {} GB", words::SPLIT_WINDOWS, s.keep_windows_gb));
+            key(ui, linux, format!("{} about {} GB", words::SPLIT_LINUX, s.keep_linux_gb));
+        }
+    });
+    para(ui, if erase { words::SPLIT_ERASE_NOTE } else { words::SPLIT_KEEP_NOTE });
+    if let (false, Some(g)) = (erase, s.short_gb) {
+        para(ui, &format!("{} {} {}", words::SPLIT_SHORT_A, g, words::SPLIT_SHORT_B));
+    }
+}
+
 enum Press {
     None,
     /// the picker's one button
@@ -911,10 +959,11 @@ impl eframe::App for App {
         }
         let mut press = Press::None;
         let mut go: Option<Flow> = None;
+        let mut path: Option<Flow> = None;
         egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 ui.add_space(6.0);
-                if self.accepting_data_loss && matches!(self.screen, Screen::Picking | Screen::Pick | Screen::Fetching { .. } | Screen::ConvertSetup | Screen::Running { .. } | Screen::Decide { .. } | Screen::ConvertRestarting | Screen::Stopped(_)) {
+                if self.accepting_data_loss && matches!(self.screen, Screen::Picking | Screen::Path | Screen::Pick | Screen::Fetching { .. } | Screen::ConvertSetup | Screen::Running { .. } | Screen::Decide { .. } | Screen::ConvertRestarting | Screen::Stopped(_)) {
                     banner(ui);
                 }
                 match &self.screen {
@@ -942,6 +991,26 @@ impl eframe::App for App {
                             ui.label(words::PICKING_LINE);
                         });
                         details(ui, &self.log);
+                    }
+                    Screen::Path => {
+                        heading(ui, words::PATH_HEADING);
+                        para(ui, words::PATH_LEAD);
+                        ui.add_space(8.0);
+                        // two equal answers: the same button, the same weight, in the same place
+                        for (label, line, f) in [(words::PATH_KEEP, words::PATH_KEEP_LINE, Flow::Convert), (words::PATH_CLEAN, words::PATH_CLEAN_LINE, Flow::Erase)] {
+                            if ui.add(egui::Button::new(egui::RichText::new(label).size(17.0))).clicked() {
+                                path = Some(f);
+                            }
+                            para(ui, line);
+                            if let Some(s) = &self.split {
+                                drive_picture(ui, s, f == Flow::Erase);
+                            }
+                            ui.add_space(14.0);
+                        }
+                        ui.add_space(6.0);
+                        if ui.button(words::CLOSE).clicked() {
+                            press = Press::Close;
+                        }
                     }
                     Screen::Pick => {
                         heading(ui, words::PICK_HEADING);
@@ -1020,35 +1089,38 @@ impl eframe::App for App {
                             }
                             ui.add_space(8.0);
                         }
-                        // Convert's one switch: keep Windows, or the clean slate (the erase
-                        // flow, unchanged). A switch clears the typed erase sentence, so it is
-                        // always typed under the words it answers.
-                        ui.label(egui::RichText::new(words::PATH_HEADING).strong().size(17.0));
+                        // The answer given on the Path screen, still changeable here. A switch
+                        // clears the typed erase sentence, so it is always typed under the words
+                        // it answers. Both answers get the same screen: a lead, "What happens",
+                        // the lines after it (decided 2026-11-23, the owner).
+                        heading(ui, if self.flow == Flow::Erase { words::ERASE_HEADING } else { words::CONVERT_HEADING });
+                        ui.label(egui::RichText::new(words::PATH_CHOSEN).strong().size(17.0));
                         let before = self.flow;
                         ui.radio_value(&mut self.flow, Flow::Convert, words::PATH_KEEP);
-                        para(ui, words::PATH_KEEP_LINE);
                         ui.radio_value(&mut self.flow, Flow::Erase, words::PATH_CLEAN);
-                        para(ui, words::PATH_CLEAN_LINE);
                         if self.flow != before {
                             self.setup.erase.clear();
                         }
-                        ui.add_space(10.0);
-                        if self.flow == Flow::Erase {
-                            heading(ui, words::ERASE_HEADING);
-                            ui.label(egui::RichText::new(words::ERASE_READ_FIRST).strong().size(17.0));
-                            for l in words::ERASE_LINES {
-                                para(ui, l);
-                            }
-                        } else {
-                            heading(ui, words::CONVERT_HEADING);
-                            para(ui, words::CONVERT_LEAD);
-                            ui.label(egui::RichText::new(words::WELCOME_STEPS_HEADING).strong());
-                            for (i, s) in words::CONVERT_ORDER.iter().enumerate() {
-                                para(ui, &format!("{}.  {}", i + 1, s));
-                            }
-                            para(ui, words::CONVERT_WIFI);
-                            para(ui, words::CONVERT_AWAKE);
+                        ui.add_space(8.0);
+                        let (lead, order, after): (&str, &[&str], &[&str]) = if self.flow == Flow::Erase { (words::ERASE_LEAD, &words::ERASE_ORDER, &words::ERASE_AFTER) } else { (words::CONVERT_LEAD, &words::CONVERT_ORDER, &[]) };
+                        para(ui, lead);
+                        if let Some(s) = &self.split {
+                            drive_picture(ui, s, self.flow == Flow::Erase);
+                            ui.add_space(6.0);
                         }
+                        if self.flow == Flow::Erase {
+                            ui.label(egui::RichText::new(words::ERASE_COPY_FIRST).strong());
+                            ui.add_space(4.0);
+                        }
+                        ui.label(egui::RichText::new(words::WELCOME_STEPS_HEADING).strong());
+                        for (i, l) in order.iter().enumerate() {
+                            para(ui, &format!("{}.  {}", i + 1, l));
+                        }
+                        for l in after {
+                            para(ui, l);
+                        }
+                        para(ui, words::CONVERT_WIFI);
+                        para(ui, words::CONVERT_AWAKE);
                         ui.add_space(10.0);
                         if let Some(c) = &self.fetched {
                             ui.label(egui::RichText::new(format!("{} {}", c.title(), words::FETCHED_LINE)).strong());
@@ -1076,6 +1148,12 @@ impl eframe::App for App {
                         ui.label(egui::RichText::new(words::PASSWORD_HEADING).strong().size(17.0));
                         para(ui, words::PASSWORD_LEAD);
                         egui::Grid::new("pw").num_columns(2).spacing([12.0, 6.0]).show(ui, |ui| {
+                            ui.label(words::NAME_LABEL);
+                            if ui.add(egui::TextEdit::singleline(&mut self.setup.name).char_limit(32).desired_width(260.0)).changed() {
+                                // Linux names are small letters: a capital typed is taken as its small letter
+                                self.setup.name = self.setup.name.to_lowercase();
+                            }
+                            ui.end_row();
                             ui.label(words::PASSWORD_LABEL);
                             ui.add(egui::TextEdit::singleline(&mut self.setup.password).password(true).desired_width(260.0));
                             ui.end_row();
@@ -1337,6 +1415,12 @@ impl eframe::App for App {
                 }
             });
         });
+        if let Some(f) = path {
+            log_line(&stick_root(&self.stick), if f == Flow::Erase { "the person chose to erase everything" } else { "the person chose to keep Windows" });
+            self.flow = f;
+            self.setup.erase.clear();
+            self.screen = Screen::Pick;
+        }
         if let Some(f) = go {
             self.flow = f;
             self.screen = match f {
@@ -1379,7 +1463,7 @@ impl eframe::App for App {
             }
             Press::Go => match self.flow {
                 Flow::Erase => {
-                    log_line(&stick_root(&self.stick), "the person pressed Restart into the installer");
+                    log_line(&stick_root(&self.stick), "the person pressed Restart and erase this computer");
                     if let Some(tx) = self.word_tx.take() {
                         let _ = tx.send(String::new());
                     }
@@ -1450,9 +1534,11 @@ fn preview(name: &str) -> (Screen, Flow, bool) {
         "result-refused" => (Screen::Result(flow::result_view(true, None, Some(&json!({"reason":"the copy of Linux on this USB stick is damaged"})), Some("fired-once"))), Flow::Verify, false),
         "no-linux" => (Screen::Result(flow::result_view(true, None, None, Some("ignored"))), Flow::Verify, false),
         "picking" => (Screen::Picking, Flow::Convert, false),
+        "path" | "path-short" => (Screen::Path, Flow::Convert, false),
         "convert" => (Screen::ConvertSetup, Flow::Convert, false),
         "convert-ack" => (Screen::ConvertSetup, Flow::Convert, true),
         "convert-running" => (Screen::Running { step: 2 }, Flow::Convert, false),
+        "erase-running" => (Screen::Running { step: 2 }, Flow::Erase, false),
         "decide" => (Screen::Decide { linux_name: "ann".into() }, Flow::Convert, false),
         "convert-restarting" => (Screen::ConvertRestarting, Flow::Convert, false),
         "erase" => (Screen::ConvertSetup, Flow::Erase, false),
@@ -1465,11 +1551,15 @@ fn preview(name: &str) -> (Screen, Flow, bool) {
     }
 }
 
-/// The picker's previews (item 24): made-up buttons, nothing fetched.
+/// The picker's previews (item 24): the kit's own release table, so both
+/// lines show (Fedora and Ubuntu, 2026-11-13); every row said to start, nothing fetched.
 fn preview_picker(app: &mut App, name: &str) {
-    let c = |desktop: &str, label: &str, starts: flow::Starts| flow::Choice { id: "fedora-44".into(), name: "Fedora 44".into(), desktop: desktop.into(), label: label.into(), starts };
-    let yes = vec![c("kde", "KDE Plasma", flow::Starts::Yes), c("gnome", "GNOME", flow::Starts::Yes)];
-    let no = vec![c("kde", "KDE Plasma", flow::Starts::No("grub,3 < grub,5".into())), c("gnome", "GNOME", flow::Starts::Unknown)];
+    let mut yes = flow::choices(upgrade_scan::data::RELEASES_JSON, None);
+    for c in &mut yes {
+        c.starts = flow::Starts::Yes;
+    }
+    let ubuntu = yes.iter().position(|c| c.id.starts_with("ubuntu"));
+    let desktop_of = |c: &flow::Choice| flow::desktops_for(&c.desktop).first().copied();
     app.flow = Flow::Convert;
     match name {
         "pick" => {
@@ -1478,20 +1568,32 @@ fn preview_picker(app: &mut App, name: &str) {
             app.screen = Screen::Pick;
         }
         "pick-refused" => {
-            app.choices = vec![c("kde", "KDE Plasma", flow::Starts::Yes), c("gnome", "GNOME", flow::Starts::No("grub,3 < grub,5".into()))];
+            if let Some(c) = yes.get_mut(1) {
+                c.starts = flow::Starts::No("grub,3 < grub,5".into());
+            }
+            app.choices = yes;
             app.picked = Some(0);
             app.screen = Screen::Pick;
         }
-        "pick-none" => app.screen = Screen::Stopped(Stop::NoRelease(no)),
-        "fetching" => {
+        "pick-none" => {
+            for (i, c) in yes.iter_mut().enumerate() {
+                c.starts = if i == 0 { flow::Starts::No("grub,3 < grub,5".into()) } else { flow::Starts::Unknown };
+            }
+            app.screen = Screen::Stopped(Stop::NoRelease(yes));
+        }
+        "fetching" | "fetching-ubuntu" => {
+            app.picked = if name == "fetching" { Some(0) } else { ubuntu };
             app.choices = yes;
-            app.picked = Some(0);
             app.screen = Screen::Fetching { done: 1_300_000_000, total: 4_597_067_776 };
         }
         "fetch-stopped" => app.screen = Screen::Stopped(Stop::Fetch(vec!["the download of Fedora-KDE-Desktop-Live-44-1.7.x86_64.iso did not match its measured sha256; nothing was kept".into()])),
-        "convert-fetched" => {
-            app.fetched = Some(yes[0].clone());
-            app.setup.desktop = Some(Desktop::Kde);
+        "convert-fetched" | "erase-fetched" | "convert-fetched-ubuntu" | "erase-fetched-ubuntu" => {
+            let c = if !name.ends_with("-ubuntu") { yes.first() } else { ubuntu.and_then(|i| yes.get(i)) };
+            app.setup.desktop = c.and_then(desktop_of);
+            app.fetched = c.cloned();
+            if name.starts_with("erase") {
+                app.flow = Flow::Erase;
+            }
             app.screen = Screen::ConvertSetup;
         }
         _ => {}
@@ -1548,6 +1650,9 @@ fn main() {
         let (screen, flow, ack) = preview(&name);
         let mut app = App::new(screen, "E:".into(), false, ack, None, guard);
         app.flow = flow;
+        app.setup.name = "ann".into(); // a made-up person, never the name of whoever runs the preview
+        // a made-up 256 GB drive, so the drive picture shows (short: Windows can free only 7 GB)
+        app.split = flow::split(Some(&json!({"Storage": {"DiskBytes": 256_060_514_304u64, "ShrinkGB": if name == "path-short" { 7.2 } else { 140.2 }}})));
         preview_picker(&mut app, &name);
         return open(app);
     }
@@ -1596,6 +1701,20 @@ mod tests {
     fn verify_and_probe_only_with_the_developer_flag() {
         assert_eq!(flows(false), ["convert", "rollback"], "no cancel button since 2026-11-02");
         assert_eq!(flows(true), ["verify", "convert", "rollback", "probe"]);
+    }
+
+    #[test]
+    fn keeping_and_erasing_are_asked_as_equals_before_the_download() {
+        // decided 2026-11-23, the owner: its own screen, neither answer marked or chosen
+        assert!(matches!(preview("path").0, Screen::Path));
+        for w in [words::PATH_KEEP, words::PATH_CLEAN, words::PATH_KEEP_LINE, words::PATH_CLEAN_LINE] {
+            assert!(!w.to_lowercase().contains("recommended") && !w.to_lowercase().contains("default"), "{w}");
+        }
+        // erasing loses none of its warnings by sharing the keep-Windows screen's shape
+        let erase = [words::ERASE_LEAD, words::ERASE_COPY_FIRST].iter().chain(words::ERASE_ORDER.iter()).chain(words::ERASE_AFTER.iter()).copied().collect::<Vec<_>>().join(" ");
+        for must in ["EVERYTHING", "Nothing is kept and nothing is copied anywhere", "copy every file you want to keep OFF this computer", "no way to stop it after that click", "a new, empty Windows"] {
+            assert!(erase.contains(must), "{must}");
+        }
     }
 
     #[test]

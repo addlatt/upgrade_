@@ -533,7 +533,9 @@ pub fn copy_all(plan: &Value, win: &Path, home: &Path, journal: &mut Journal, ow
         if stopped.is_none() {
             let to_rel = to_rel.unwrap_or_default();
             let w = crate::pull::walk(&crate::pull::Mounted::new(win.to_path_buf(), probe, raw), &from);
-            for (rel, size) in &w.copy {
+            // only what the person chose (the plan carries the choice; none is everything)
+            let only = plan.get("only").filter(|v| !v.is_null());
+            for (rel, size) in w.copy.iter().filter(|(r, _)| crate::pull::chosen(only, &name, r)) {
                 let relp = Path::new(rel);
                 let file_name = relp.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
                 let key = format!("{}/{}", name, rel);
@@ -607,6 +609,8 @@ pub fn copy_all(plan: &Value, win: &Path, home: &Path, journal: &mut Journal, ow
         "folders": folders,
         "files": files_done,
         "bytes": bytes_done,
+        "chosen": if plan["chosen"] == "some" { "some" } else { "all" },
+        "only": plan["only"].clone(),
     })
 }
 
@@ -789,7 +793,7 @@ pub mod live {
         Ok(f)
     }
 
-    fn facts<'a>(r: &str, job: &'a Value, outcome: &'a Value, win: Result<PathBuf, String>, home: &'a Path) -> crate::pull::Facts<'a> {
+    fn facts<'a>(r: &str, job: &'a Value, outcome: &'a Value, win: Result<PathBuf, String>, home: &'a Path, only: Option<&'a Value>, choosing: bool) -> crate::pull::Facts<'a> {
         crate::pull::Facts {
             job,
             outcome,
@@ -799,6 +803,8 @@ pub mod live {
             rolled_back: Path::new(&format!("{}/boot/efi/upgrade_/rolled-back.json", r)).exists(),
             reclaimed: Path::new(&format!("{}/boot/efi/{}", r, crate::reclaimrun::ESP_DONE_REL)).exists(),
             already_home: Journal::open(Path::new(&format!("{}/{}", r, JOURNAL_REL))).bytes_home(),
+            only,
+            choosing,
         }
     }
 
@@ -819,14 +825,19 @@ pub mod live {
             Err(v) => return v,
         };
         // nothing to open when there is nothing to pull
-        let pre = crate::pull::plan(&facts(r, &job, &outcome, Err("not opened".into()), &home), &crate::pull::live::Ntfs3g, None);
+        let pre = crate::pull::plan(&facts(r, &job, &outcome, Err("not opened".into()), &home, None, true), &crate::pull::live::Ntfs3g, None);
         if pre["result"] == "nothing-to-do" {
             return pre;
         }
         let opened = open_windows(r, typed_key);
         let win = opened.as_ref().map(|o| o.dir.clone()).map_err(|e| e.clone());
         let vol = opened.as_ref().ok().and_then(|o| o.volume());
-        let mut p = crate::pull::plan(&facts(r, &job, &outcome, win, &home), &crate::pull::live::Ntfs3g, vol);
+        let mut p = crate::pull::plan(&facts(r, &job, &outcome, win, &home, None, true), &crate::pull::live::Ntfs3g, vol);
+        // what was chosen last time, so a copy that stopped is offered again as it was
+        let before = crate::read_json(&format!("{}/{}", r, REPORT_REL)).unwrap_or(Value::Null);
+        if before["chosen"] == "some" {
+            p["last_only"] = before["only"].clone();
+        }
         if let Err(e) = &opened {
             p["needs_key"] = json!(e.contains("aka.ms/myrecoverykey") || e.contains("not a BitLocker recovery key") || e.contains("could not be unlocked"));
         }
@@ -836,7 +847,7 @@ pub mod live {
 
     /// `settle-in pull run` (root): the plan made again, then the copy,
     /// then the key deleted. Prints `progress {...}` lines, then the result.
-    pub fn run_pull(root: &str, typed_key: Option<&str>) -> Value {
+    pub fn run_pull(root: &str, typed_key: Option<&str>, only: Option<&Value>) -> Value {
         let r = root.trim_end_matches('/');
         if r.is_empty() && !is_root() {
             return json!({ "result": "refused", "why": ["this needs administrator rights (run it through pkexec)"] });
@@ -852,7 +863,8 @@ pub mod live {
         };
         // once every file is home, a second run copies nothing
         let before = crate::read_json(&format!("{}/{}", r, REPORT_REL)).unwrap_or(Value::Null);
-        if before["result"] == "done" {
+        // (a run that brought only what was chosen leaves the rest to be chosen later)
+        if before["result"] == "done" && before["chosen"] != "some" {
             let mut out = before.clone();
             out["result"] = json!("nothing-to-do");
             out["why"] = json!(["your files were already brought over"]);
@@ -867,7 +879,7 @@ pub mod live {
             }
         };
         let vol = opened.volume();
-        let plan = crate::pull::plan(&facts(r, &job, &outcome, Ok(opened.dir.clone()), &home), &crate::pull::live::Ntfs3g, vol);
+        let plan = crate::pull::plan(&facts(r, &job, &outcome, Ok(opened.dir.clone()), &home, only, false), &crate::pull::live::Ntfs3g, vol);
         let mut journal = Journal::open(Path::new(&format!("{}/{}", r, JOURNAL_REL)));
         let mut out = copy_all(&plan, &opened.dir, &home, &mut journal, Some(owner), &crate::pull::live::Ntfs3g, vol, &mut |p| {
             println!("progress {}", p);
@@ -896,7 +908,8 @@ pub mod live {
         // the key is spent here once every file is home (R13; scrub_after: settle-in-pull). The
         // stick's copy is kept: the kept Windows is still encrypted and may ask for it after a
         // startup change, and it may be the person's only copy (review, 2026-11-07; decision owed)
-        if out["result"] == "done" {
+        // not after a choice of only some: the rest may be wanted later, and needs the key
+        if out["result"] == "done" && out["chosen"] != "some" {
             let here = std::fs::remove_file(format!("{}/{}", r, KEY_REL)).is_ok() || !Path::new(&format!("{}/{}", r, KEY_REL)).exists();
             let bitlocker = before.get("bitlocker").is_some() || job.pointer("/harvest/bitlocker/recovery_key_file").is_some_and(Value::is_string);
             out["key"] = json!({ "deleted_here": here, "stick": if bitlocker { "kept" } else { "none" } });
@@ -1049,6 +1062,26 @@ mod tests {
         assert_eq!(again["folders"][0]["copied"], 0);
         assert_eq!(again["folders"][0]["already_copied"], 2);
         assert_eq!(std::fs::read_dir(&to).unwrap().count(), 2, "a.txt and Taxes, no copies");
+        // only what was chosen is copied, and more can be chosen later without a second copy
+        let d2 = dir("some");
+        let docs = d2.join("win/Users/Ann/Documents");
+        std::fs::create_dir_all(docs.join("Taxes")).unwrap();
+        std::fs::write(docs.join("a.txt"), "one").unwrap();
+        std::fs::write(docs.join("Taxes/b.pdf"), vec![9u8; 4000]).unwrap();
+        std::fs::write(docs.join("Taxes/c.pdf"), vec![8u8; 10]).unwrap();
+        std::fs::create_dir_all(d2.join("home")).unwrap();
+        let to = d2.join("home/Documents");
+        let mut plan = json!({ "result": "plan", "bytes": 4000, "chosen": "some", "only": { "Documents": ["Taxes/b.pdf"] },
+            "folders": [{ "name": "Documents", "from": "C:\\Users\\Ann\\Documents", "to": to.to_string_lossy(), "files": 1, "not_copied": [], "in_onedrive": 0 }] });
+        let mut j = Journal::open(&d2.join("j.tsv"));
+        let out = copy_all(&plan, &d2.join("win"), &d2.join("home"), &mut j, None, &Plain, None, &mut |_| {});
+        assert_eq!((out["result"].as_str(), out["chosen"].as_str(), out["folders"][0]["copied"].as_u64()), (Some("done"), Some("some"), Some(1)), "{out:#}");
+        assert!(to.join("Taxes/b.pdf").exists() && !to.join("Taxes/c.pdf").exists() && !to.join("a.txt").exists());
+        plan["only"] = json!({ "Documents": ["Taxes/"] });
+        let more = copy_all(&plan, &d2.join("win"), &d2.join("home"), &mut j, None, &Plain, None, &mut |_| {});
+        assert_eq!((more["folders"][0]["copied"].as_u64(), more["folders"][0]["already_copied"].as_u64()), (Some(1), Some(1)));
+        assert!(to.join("Taxes/c.pdf").exists() && !to.join("a.txt").exists());
+        assert_eq!(std::fs::read_dir(to.join("Taxes")).unwrap().count(), 2, "b.pdf is not copied twice");
         // a refused plan copies nothing
         assert_eq!(copy_all(&json!({ "result": "refused", "why": ["x"] }), &d, &d, &mut j, None, &Plain, None, &mut |_| {})["result"], "refused");
     }

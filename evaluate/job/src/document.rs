@@ -22,6 +22,9 @@ pub struct Choices<'a> {
     pub acknowledge_data_loss: &'a str,
     /// what was typed for the erase sentence (R27), or empty
     pub erase_everything: &'a str,
+    /// the sign-in name the person chose (checked by the caller), or empty:
+    /// then it is made from the Windows account name
+    pub linux_name: &'a str,
 }
 
 /// What the writer stamps on the job. Given from outside so the judging
@@ -177,7 +180,7 @@ pub fn job_document(f: &Value, choice: &Choices, stamp: &Stamp) -> Result<Value,
             "path": path, "path_reason": path_reason, "desktop": choice.desktop, "start_at": choice.start_at,
             "distro": {"name": distro_name(at(f, "KitRelease.family")), "release": s(at(f, "KitRelease.release"))},
             "account": {"windows_name": at(f, "UserName"), "full_name": text_or_null(at(f, "FullName")),
-                        "linux_name": maps::linux_name(&s(at(f, "UserName"))), "password_hash": choice.password_hash},
+                        "linux_name": if choice.linux_name.is_empty() { maps::linux_name(&s(at(f, "UserName"))) } else { choice.linux_name.to_string() }, "password_hash": choice.password_hash},
             "locale": {"lang": format!("{}.UTF-8", s(at(f, "Locale")).replace('-', "_")), "timezone": iana, "keymap": keymap},
         },
         // The launcher's decision screen says restore points and NTFS's change

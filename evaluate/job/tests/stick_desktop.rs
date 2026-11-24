@@ -20,7 +20,7 @@ fn job(desktop_on_stick: Option<&str>, asked: &str) -> Result<Value, Vec<String>
             f["KitRelease"].as_object_mut().unwrap().remove("desktop");
         }
     }
-    let choice = Choices { desktop: asked, start_at: "desktop", password_hash: HASH, report_rel: "upgrade-report.json", acknowledge_data_loss: "", erase_everything: "" };
+    let choice = Choices { desktop: asked, start_at: "desktop", password_hash: HASH, report_rel: "upgrade-report.json", acknowledge_data_loss: "", erase_everything: "", linux_name: "" };
     job_document(&f, &choice, &Stamp { job_id: "00000000-0000-4000-8000-000000000000", now_utc: "2026-11-13T12:00:00Z", writer_version: FOLLOWS_JOB_WRITER })
 }
 

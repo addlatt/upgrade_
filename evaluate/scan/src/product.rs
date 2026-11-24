@@ -94,10 +94,23 @@ pub fn report_json(r: &ScanRun) -> Value {
     doc.insert("Checks".into(), Value::Array(checks));
     doc.insert("Releases".into(), serde_json::to_value(&o.scan.releases).unwrap_or(Value::Array(vec![])));
     doc.insert("UnmatchedIds".into(), json!(report::unmatched_sorted(&o.scan.unmatched)));
+    doc.insert("Storage".into(), storage_block(&r.machine.disk));
     if !r.read_errors.is_empty() {
         doc.insert("ReadErrors".into(), json!(r.read_errors));
     }
     Value::Object(doc)
+}
+
+/// The sizes the window draws (2026-11-23): the drive Windows starts from, the
+/// Windows volume and how far it can shrink. Facts the scan already read, as
+/// numbers; nothing here is judged, and a size that was not read is null.
+pub fn storage_block(d: &crate::facts::DiskFacts) -> Value {
+    json!({
+        "DiskBytes": d.disks.first().and_then(|x| x.size),
+        "WindowsBytes": d.sys_volume.as_ref().map(|v| v.size),
+        "WindowsFreeBytes": d.sys_volume.as_ref().map(|v| v.size_remaining),
+        "ShrinkGB": d.shrink_gb,
+    })
 }
 
 /// Write the report files into `out_dir` (made if missing). Returns the

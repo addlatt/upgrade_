@@ -361,6 +361,28 @@ pub struct Facts<'a> {
     pub reclaimed: bool,
     /// Bytes an earlier, cut-off run already put home (its journal): not needed again.
     pub already_home: u64,
+    /// What the person chose to bring (2026-11-23), or None: everything.
+    pub only: Option<&'a Value>,
+    /// The plan is for choosing from (the check), not for copying now: it
+    /// lists every file, and too little room for all of it is not a refusal,
+    /// since the person may choose less.
+    pub choosing: bool,
+}
+
+/// Whether a file is among what the person chose. A choice is, per folder
+/// name, a list of paths inside it: `""` the whole folder, `Taxes/` that
+/// folder and all under it, `Taxes/a.pdf` that one file. No choice at all
+/// means everything; a folder the choice does not name means none of it.
+/// A choice only ever narrows what the walk found: it cannot name a file
+/// the walk did not offer.
+pub fn chosen(only: Option<&Value>, folder: &str, rel: &str) -> bool {
+    let Some(o) = only else { return true };
+    o.get(folder).and_then(Value::as_array).is_some_and(|a| a.iter().filter_map(Value::as_str).any(|p| p.is_empty() || p == rel || (p.ends_with('/') && rel.starts_with(p))))
+}
+
+/// A choice that is not in the shape above is refused, never guessed at.
+pub fn choice_ok(only: &Value) -> bool {
+    only.as_object().is_some_and(|o| o.values().all(|v| v.as_array().is_some_and(|a| a.iter().all(Value::is_string))))
 }
 
 fn s<'a>(v: &'a Value, p: &str) -> &'a str {
@@ -428,9 +450,14 @@ pub fn plan(f: &Facts, probe: &dyn Probe, raw: Option<&crate::ntfsread::Volume>)
             no.push("Windows was not fully shut down (it hibernated, or Fast Startup kept it half-asleep), so its newest changes may not be on the drive. Start Windows, then choose Restart (not Shut down), let it reach the sign-in screen, and start Linux from there".into());
         }
     }
+    if f.only.is_some_and(|o| !choice_ok(o)) {
+        no.push("what was chosen to bring over could not be read".into());
+        return json!({ "result": "refused", "why": no });
+    }
     let dest = destinations(f.home);
     let mut out = Vec::new();
     let mut total = 0u64;
+    let (mut all, mut picked_files) = (true, 0usize);
     for (d, v) in &mapped {
         let name = s(d, "/name");
         let to = dest.iter().find(|(n, _)| n == name).map(|(_, p)| p.clone()).unwrap_or_else(|| f.home.join(name));
@@ -450,21 +477,36 @@ pub fn plan(f: &Facts, probe: &dyn Probe, raw: Option<&crate::ntfsread::Volume>)
         if w.placeholders != job_ph {
             no.push(format!("{} has {} files that live only in OneDrive, but {} were counted before the conversion: they could not all be recognised, so nothing is copied", name, w.placeholders, job_ph));
         }
-        total += w.bytes();
+        // the checks above are on the whole folder; the choice only narrows what is copied
+        let picked: Vec<&(String, u64)> = w.copy.iter().filter(|(r, _)| chosen(f.only, name, r)).collect();
+        let bytes: u64 = picked.iter().map(|(_, b)| b).sum();
+        all &= picked.len() == w.copy.len();
+        picked_files += picked.len();
+        total += bytes;
         out.push(json!({
             "name": name,
             "from": s(d, "/path"),
             "to": to.to_string_lossy(),
-            "files": w.copy.len(),
-            "bytes": w.bytes(),
+            "files": picked.len(),
+            "bytes": bytes,
+            "all_files": w.copy.len(),
+            "all_bytes": w.bytes(),
+            "entries": if f.choosing { w.copy.iter().map(|(r, b)| json!([r, b])).collect::<Vec<_>>() } else { Vec::new() },
             "in_onedrive": w.placeholders,
             "not_copied": w.skipped.iter().map(|(p, why, _)| json!({ "path": p, "why": why })).collect::<Vec<_>>(),
             "counted_before": { "files": job_files, "in_onedrive": job_ph },
         }));
     }
+    if f.only.is_some() && picked_files == 0 {
+        no.push("nothing was chosen to bring over".into());
+    }
+    // what an earlier run already put home counts only when everything is wanted: with a
+    // choice, it cannot be told here which of those files are among the chosen
+    let need = if all { total.saturating_sub(f.already_home) } else { total };
+    let mut short = false;
     match f.free {
-        Some(free) if free < total.saturating_sub(f.already_home).saturating_add(MARGIN) => {
-            let need = total.saturating_sub(f.already_home);
+        Some(free) if free < need.saturating_add(MARGIN) && f.choosing => short = true,
+        Some(free) if free < need.saturating_add(MARGIN) => {
             no.push(format!("this Linux has {} free, and the files need {} plus {} to spare: {} more space is needed",
                 gb(free), gb(need), gb(MARGIN), gb(need + MARGIN - free)))
         }
@@ -476,7 +518,8 @@ pub fn plan(f: &Facts, probe: &dyn Probe, raw: Option<&crate::ntfsread::Volume>)
     if !no.is_empty() {
         return json!({ "result": "refused", "why": no, "folders": out, "bookmarks": bookmarks });
     }
-    json!({ "result": "plan", "folders": out, "bytes": total, "free": f.free, "bookmarks": bookmarks })
+    json!({ "result": "plan", "folders": out, "bytes": total, "free": f.free, "bookmarks": bookmarks,
+            "chosen": if all { "all" } else { "some" }, "only": f.only, "short": short, "margin": MARGIN, "already_home": f.already_home })
 }
 
 pub fn gb(b: u64) -> String {
@@ -539,6 +582,8 @@ pub mod live {
             rolled_back: Path::new(&format!("{}/boot/efi/upgrade_/rolled-back.json", r)).exists(),
             reclaimed: Path::new(&format!("{}/boot/efi/{}", r, crate::reclaimrun::ESP_DONE_REL)).exists(),
             already_home: 0,
+            only: None,
+            choosing: false,
         };
         plan(&f, &Ntfs3g, None)
     }
@@ -594,8 +639,50 @@ mod tests {
     fn run(t: &Path, job: &Value, fake: HashMap<&'static str, Ntfs>, free: u64) -> Value {
         let o = outcome();
         let home = t.join("home");
-        let f = Facts { job, outcome: &o, windows: Ok(t.join("win")), home: &home, free: Some(free), rolled_back: false, reclaimed: false, already_home: 0 };
+        let f = Facts { job, outcome: &o, windows: Ok(t.join("win")), home: &home, free: Some(free), rolled_back: false, reclaimed: false, already_home: 0, only: None, choosing: false };
         plan(&f, &Fake(t.join("win"), fake), None)
+    }
+
+    #[test]
+    fn a_choice_narrows_the_copy_and_never_the_checks() {
+        let t = tree("choice");
+        let (o, home, jb, wrong) = (outcome(), t.join("home"), job(6, 1), job(9, 1));
+        let (only, bad) = (json!({ "Documents": ["Taxes/"] }), json!({ "Documents": "all" }));
+        let cases = [(json!({ "Documents": ["letter.txt"] }), 1), (json!({ "Documents": [""], "Pictures": [""] }), 3), (json!({ "Documents": ["Taxes"] }), 0), (json!({ "Documents": ["let"] }), 0)];
+        let mut f = Facts { job: &jb, outcome: &o, windows: Ok(t.join("win")), home: &home, free: Some(100 << 30), rolled_back: false, reclaimed: false, already_home: 0, only: None, choosing: true };
+        let go = |f: &Facts| plan(f, &Fake(t.join("win"), cloud_doc()), None);
+        // the plan to choose from lists every file
+        let p = go(&f);
+        assert_eq!((p["result"].as_str(), p["chosen"].as_str()), (Some("plan"), Some("all")));
+        assert_eq!(p["folders"][0]["entries"], json!([["letter.txt", 4], ["Taxes/2025/return.pdf", 5000]]));
+        // one folder inside Documents, and nothing of Pictures
+        f.only = Some(&only);
+        let p = go(&f);
+        assert_eq!((p["result"].as_str(), p["chosen"].as_str(), p["bytes"].as_u64()), (Some("plan"), Some("some"), Some(5000)), "{p:#}");
+        assert_eq!((&p["folders"][0]["files"], &p["folders"][0]["all_files"], &p["folders"][1]["files"]), (&json!(1), &json!(2), &json!(0)));
+        // one file; a whole folder; a name that is only the start of another is not it
+        for (c, files) in &cases {
+            let files = *files;
+            f.only = Some(c);
+            let p = go(&f);
+            let n: u64 = p["folders"].as_array().into_iter().flatten().map(|x| x["files"].as_u64().unwrap()).sum();
+            assert_eq!(n, files, "{c}");
+            assert_eq!(p["result"], if files == 0 { "refused" } else { "plan" }, "nothing chosen is refused: {c}");
+        }
+        // a choice does not get past the count check on the whole folder
+        f.job = &wrong;
+        f.only = Some(&only);
+        assert_eq!(go(&f)["result"], "refused");
+        f.job = &jb;
+        // a choice that is not a choice
+        f.only = Some(&bad);
+        assert_eq!(go(&f)["why"][0], "what was chosen to bring over could not be read");
+        // too little room for everything: a refusal when copying, not when choosing
+        f.only = None;
+        f.free = Some(1 << 30);
+        assert_eq!((go(&f)["result"].as_str(), go(&f)["short"].as_bool()), (Some("plan"), Some(true)));
+        f.choosing = false;
+        assert_eq!(go(&f)["result"], "refused");
     }
 
     fn cloud_doc() -> HashMap<&'static str, Ntfs> {
@@ -704,7 +791,7 @@ mod tests {
         let o = outcome();
         let home = t.join("home");
         let jb = job(6, 1);
-        let mut f = Facts { job: &jb, outcome: &o, windows: Ok(t.join("win")), home: &home, free: Some((2 << 30) + 100), rolled_back: false, reclaimed: false, already_home: 0 };
+        let mut f = Facts { job: &jb, outcome: &o, windows: Ok(t.join("win")), home: &home, free: Some((2 << 30) + 100), rolled_back: false, reclaimed: false, already_home: 0, only: None, choosing: false };
         assert_eq!(plan(&f, &Fake(t.join("win"), cloud_doc()), None)["result"], "refused", "8004 bytes plus 2 GiB spare do not fit");
         f.already_home = 8004;
         assert_eq!(plan(&f, &Fake(t.join("win"), cloud_doc()), None)["result"], "plan", "they do once the journal says they are home");
