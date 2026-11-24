@@ -748,7 +748,7 @@ mod tests {
         let c = choices(table, Some(&yes));
         assert_eq!(c.iter().map(|c| c.title()).collect::<Vec<_>>(), ["Fedora 45 with KDE Plasma", "Fedora 45 with GNOME", "Ubuntu 26.04.1 LTS with GNOME"]);
         assert!(c.iter().all(|c| c.starts == Starts::Yes));
-        let no = json!({"Releases": {"Id": "FEDORA-44", "Starts": "no", "Why": ["grub,3 < grub,5"]}});
+        let no = json!({"Releases": {"Id": "FEDORA-45", "Starts": "no", "Why": ["grub,3 < grub,5"]}});
         assert_eq!(choices(table, Some(&no))[0].starts, Starts::No("grub,3 < grub,5".into()), "one release as an object, the id in another case");
         let unknown = json!({"Releases": [{"Id": "fedora-45", "Starts": "unknown"}]});
         assert_eq!(choices(table, Some(&unknown))[0].starts, Starts::Unknown);
