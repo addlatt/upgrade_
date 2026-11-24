@@ -265,16 +265,16 @@ pub mod tests {
     use upgrade_scan::data::RELEASES_JSON;
 
     #[test]
-    fn fedora_44_kde_from_the_compiled_table() {
-        let p = plan(RELEASES_JSON, "fedora-44", "kde").unwrap();
+    fn fedora_kde_from_the_compiled_table() {
+        let p = plan(RELEASES_JSON, "fedora-45", "kde").unwrap();
         assert_eq!(p.parts.len(), 2);
-        assert!(p.parts[0].url.ends_with("Fedora-Server-netinst-x86_64-44-1.7.iso"));
-        assert_eq!(p.parts[0].sha256, "ae20c06bea746913cadea7d80463e13f4bf55bee4df2918111c921c674b70283");
-        assert_eq!(p.parts[0].extracts[0].sha256.as_deref(), Some("571ea56b855dcf73bec6acb63c5ded44c2a191138bca0d8cfa5aa93f60f46fff"));
+        assert!(p.parts[0].url.ends_with("Fedora-Server-netinst-x86_64-45-1.4.iso"));
+        assert_eq!(p.parts[0].sha256, "a1e916f139a05955b943cf183b020780cca9c399b02b8f5ec4354c9e5c1dff1a");
+        assert_eq!(p.parts[0].extracts[0].sha256.as_deref(), Some("351e131d3c4a636704e9cae7d1296baf8a05beca9922cfebbfa48933c9bf1ad3"));
         assert_eq!(p.parts[1].extracts[0].dest, "upgrade_\\LiveOS\\kde.squashfs");
-        assert_eq!(p.parts[1].extracts[0].sha256.as_deref(), Some("2b6c1d5727467be858481f16a9131f16fbcaf0cf77bf57139987446825a71330"));
+        assert_eq!(p.parts[1].extracts[0].sha256.as_deref(), Some("48b3a76cce28bc3c6969a5ab7ccaf336800079cc6324c89f089e5be94c198b65"));
         let rel: Value = serde_json::from_str(&p.release_json).unwrap();
-        assert_eq!((rel["id"].as_str(), rel["release"].as_str(), rel["desktop"].as_str()), (Some("fedora-44"), Some("44"), Some("kde")));
+        assert_eq!((rel["id"].as_str(), rel["release"].as_str(), rel["desktop"].as_str()), (Some("fedora-45"), Some("45"), Some("kde")));
         assert!(p.boot_chain.iter().any(|(n, _)| n == "upgrade_\\boot-chain\\kde-shimx64.sbat"));
         assert!(p.boot_chain.iter().any(|(n, _)| n == "upgrade_\\boot-chain\\kde-shimx64.sbatlevel"));
     }
@@ -282,19 +282,19 @@ pub mod tests {
     #[test]
     fn the_table_offers_fedora_44_with_two_desktops_and_ubuntu_with_one() {
         let o = offered(RELEASES_JSON).unwrap();
-        assert_eq!(o.iter().map(|x| format!("{}/{}", x.0, x.2)).collect::<Vec<_>>(), ["fedora-44/kde", "fedora-44/gnome", "ubuntu-26.04.1/gnome"]);
+        assert_eq!(o.iter().map(|x| format!("{}/{}", x.0, x.2)).collect::<Vec<_>>(), ["fedora-45/kde", "fedora-45/gnome", "ubuntu-26.04.1/gnome"]);
     }
 
     #[test]
     fn unknown_releases_desktops_and_families_refuse() {
         assert!(plan(RELEASES_JSON, "fedora-99", "kde").unwrap_err().contains("no release"));
-        assert!(plan(RELEASES_JSON, "fedora-44", "xfce").unwrap_err().contains("no desktop"));
+        assert!(plan(RELEASES_JSON, "fedora-45", "xfce").unwrap_err().contains("no desktop"));
         let other = RELEASES_JSON.replace("\"Family\": \"fedora\"", "\"Family\": \"bazzite\"");
-        assert!(plan(&other, "fedora-44", "kde").unwrap_err().contains("cannot carry that layout"));
+        assert!(plan(&other, "fedora-45", "kde").unwrap_err().contains("cannot carry that layout"));
         let http = RELEASES_JSON.replace("https://dl.fedoraproject.org", "http://dl.fedoraproject.org");
-        assert!(plan(&http, "fedora-44", "kde").unwrap_err().contains("not https"));
-        let bad = RELEASES_JSON.replace("ae20c06bea746913cadea7d80463e13f4bf55bee4df2918111c921c674b70283", "ae20");
-        assert!(plan(&bad, "fedora-44", "kde").unwrap_err().contains("malformed"));
+        assert!(plan(&http, "fedora-45", "kde").unwrap_err().contains("not https"));
+        let bad = RELEASES_JSON.replace("a1e916f139a05955b943cf183b020780cca9c399b02b8f5ec4354c9e5c1dff1a", "ae20");
+        assert!(plan(&bad, "fedora-45", "kde").unwrap_err().contains("malformed"));
     }
 
     /// Ubuntu's entry alone, as the table carries it (offered from 2026-11-13).

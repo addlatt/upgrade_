@@ -6,7 +6,7 @@
 #
 #   ./make-kit.sh [--release ID] [--allow-dirty] [--to DIR]
 #
-# --release names an entry in data/releases.json (default fedora-44). The kit
+# --release names an entry in data/releases.json (default fedora-45). The kit
 # carries that release's signed boot chain, installer and desktop images,
 # fetched and checked against the table by rig/vm/fetch-release.sh, and says
 # which release it is in release.json; the scanner and the job writer refuse
@@ -59,7 +59,7 @@ OUT="$ROOT/dist/kit"
 BITS="$ROOT/rig/vm/artifacts/payload-bits"
 PAYLOAD="$ROOT/upgrade_/windows/handoff-payload"
 
-ALLOW_DIRTY=0 TO= RELEASE=fedora-44
+ALLOW_DIRTY=0 TO= RELEASE=fedora-45
 while [ $# -gt 0 ]; do
     case "$1" in
         --allow-dirty) ALLOW_DIRTY=1; shift ;;

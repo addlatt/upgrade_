@@ -744,13 +744,13 @@ mod tests {
     #[test]
     fn the_picker_offers_the_table_and_greys_out_what_the_scan_refuses() {
         let table = upgrade_scan::data::RELEASES_JSON;
-        let yes = json!({"Releases": [{"Id": "fedora-44", "Name": "Fedora 44", "Starts": "yes", "Why": []}, {"Id": "ubuntu-26.04.1", "Name": "Ubuntu 26.04.1 LTS", "Starts": "yes", "Why": []}]});
+        let yes = json!({"Releases": [{"Id": "fedora-45", "Name": "Fedora 45", "Starts": "yes", "Why": []}, {"Id": "ubuntu-26.04.1", "Name": "Ubuntu 26.04.1 LTS", "Starts": "yes", "Why": []}]});
         let c = choices(table, Some(&yes));
-        assert_eq!(c.iter().map(|c| c.title()).collect::<Vec<_>>(), ["Fedora 44 with KDE Plasma", "Fedora 44 with GNOME", "Ubuntu 26.04.1 LTS with GNOME"]);
+        assert_eq!(c.iter().map(|c| c.title()).collect::<Vec<_>>(), ["Fedora 45 with KDE Plasma", "Fedora 45 with GNOME", "Ubuntu 26.04.1 LTS with GNOME"]);
         assert!(c.iter().all(|c| c.starts == Starts::Yes));
         let no = json!({"Releases": {"Id": "FEDORA-44", "Starts": "no", "Why": ["grub,3 < grub,5"]}});
         assert_eq!(choices(table, Some(&no))[0].starts, Starts::No("grub,3 < grub,5".into()), "one release as an object, the id in another case");
-        let unknown = json!({"Releases": [{"Id": "fedora-44", "Starts": "unknown"}]});
+        let unknown = json!({"Releases": [{"Id": "fedora-45", "Starts": "unknown"}]});
         assert_eq!(choices(table, Some(&unknown))[0].starts, Starts::Unknown);
         assert!(choices(table, None).iter().all(|c| c.starts == Starts::Unknown), "no report: nothing is offered as startable");
         assert!(choices(table, Some(&json!({"Releases": []}))).iter().all(|c| c.starts == Starts::Unknown), "not judged: greyed out");
@@ -778,10 +778,10 @@ mod tests {
 
     #[test]
     fn the_fetch_and_the_desktops_follow_the_choice() {
-        let c = Choice { id: "fedora-44".into(), name: "Fedora 44".into(), desktop: "gnome".into(), label: "GNOME".into(), starts: Starts::Yes };
+        let c = Choice { id: "fedora-45".into(), name: "Fedora 45".into(), desktop: "gnome".into(), label: "GNOME".into(), starts: Starts::Yes };
         let f = fetch_call("E:", &c, None);
         assert_eq!(f.program, "E:\\upgrade-fetch.exe");
-        assert_eq!(f.args, ["get", "--release", "fedora-44", "--desktop", "gnome"]);
+        assert_eq!(f.args, ["get", "--release", "fedora-45", "--desktop", "gnome"]);
         assert_eq!(fetch_call("E:", &c, Some("http://10.0.0.1:8044")).args[5..], ["--from", "http://10.0.0.1:8044"]);
         assert_eq!(desktops_for("kde"), [Desktop::Kde, Desktop::Console]);
         assert_eq!(desktops_for("gnome"), [Desktop::Gnome]);

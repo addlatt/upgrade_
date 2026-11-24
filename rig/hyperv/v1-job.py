@@ -43,7 +43,8 @@ job["identity"] = {
                     "size_bytes": int(facts["disk"]["size"]), "partition_style": facts["disk"]["style"]},
 }
 job["scan"]["verdict"] = "YELLOW"
-job["intent"]["account"] = {"windows_name": "rig", "full_name": None, "linux_name": "rig", "password_hash": pw_hash}
+# the Linux sign-in name the person chose (2026-11-23): the one click plan's "linux_name", or the Windows name as before
+job["intent"]["account"] = {"windows_name": "rig", "full_name": None, "linux_name": os.environ.get("ONECLICK_LINUX_NAME") or "rig", "password_hash": pw_hash}
 job["intent"]["locale"] = {"lang": "en_US.UTF-8", "timezone": settings["clock"]["iana"], "keymap": "us"}
 job["intent"]["desktop"] = "kde"
 # the release the kit carries (make-kit.sh writes release.json; R34, 2026-10-03), not the example's

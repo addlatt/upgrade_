@@ -4,7 +4,7 @@
   "machine": "acer-aspire-a515-51g",
   "desktop": "kde",
   "linux": {
-    "release": "fedora-44",
+    "release": "fedora-45",
     "desktop": "kde"
   },
   "heartbeat_s": 300,
