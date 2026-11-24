@@ -260,7 +260,7 @@ pub const PICK_SIZE: &str = "The download is about 4 GB. On a fast connection th
 pub const PICK_CANNOT: &str = "This computer cannot start it:";
 pub const PICK_UNKNOWN: &str = "The check could not tell whether this computer can start it, so it is not offered.";
 pub const PICK_NONE_HEADING: &str = "This computer cannot start the Linux this stick can fetch";
-/// Decided (2026-11-24, the owner): with an NVIDIA chip, Ubuntu is the first choice. A draft.
+/// Decided (2026-11-24, the owner): with an NVIDIA chip, Ubuntu is the first choice. The words approved by the owner, 2026-11-24.
 pub const PICK_NVIDIA: &str = "Recommended for this computer. It has an NVIDIA graphics chip, and Ubuntu sets up NVIDIA's own driver during the install, with nothing for you to do. The other choices run that chip on a basic driver: fine for everyday use, slower for games.";
 pub const PICK_GO: &str = "Download and continue";
 pub const FETCH_HEADING: &str = "Getting";
