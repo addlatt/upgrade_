@@ -135,7 +135,7 @@ picked a version that's older than your laptop.
 | **Graphics** | New AMD chips need a recent kernel or you get a black screen. NVIDIA needs a Linux that installs its driver for you. |
 | **Speaker amps** | On laptops with Cirrus or TI amps, headphones work but the built-in speakers stay silent. Really common since 2023. |
 | **BitLocker** | Resize an encrypted disk without the recovery key and your data is gone for good. |
-| **Fast Startup** | Windows secretly hibernates instead of shutting down, which makes the disk unsafe to resize. Clicking Shut down doesn't fix it. |
+| **Fast Startup** | Windows secretly hibernates instead of shutting down, which makes the disk unsafe to resize. The converter turns it off itself, so the scan only notes it. |
 | **Free space** | Measured two separate ways (run as admin) to see which route fits your machine. |
 | **Your programs** | Adobe, Office, CAD, games with anti-cheat. Sometimes the honest answer is "don't switch this one." |
 

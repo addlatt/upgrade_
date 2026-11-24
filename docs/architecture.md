@@ -88,7 +88,7 @@ evaluate extracts  ->  the USB carries  ->  upgrade_ injects before first boot
 
 If any decision is missing, the converter has to stop and ask a person, and
 walk-away is dead. So `evaluate` also collects what the computer starts at (KDE
-desktop, GNOME desktop or the text console), the account name, and the password
+desktop, GNOME desktop or the text console), the account name (**decided (2026-11-23, the owner): the person may change the sign-in name on the set-up screen**; the job writer refuses one that is not a login name or that Linux keeps for itself), and the password
 (hashed straight away to SHA-512 crypt, a one-way scrambled form that Linux can
 check but nobody can read back).
 
@@ -231,7 +231,7 @@ stands: see [STATUS.md](STATUS.md).
 There is no external drive anywhere in this design. Everything travels on the
 USB stick, or never moves at all:
 
-|  | keep Windows (default) | clean slate (opt-in / fallback) |
+|  | keep Windows | clean slate (the other answer / fallback) |
 |---|---|---|
 | User files | never leave the internal disk; pulled in `settle-in` from the untouched Windows partition | copied to the stick's exFAT partition, restored during cutover |
 | Qualifies when | shrinkable space >= Linux (~20 GB) + headroom | data + artifacts fit the stick |
@@ -336,7 +336,7 @@ decisions can be self-tested.
      turned off only when the measurement does not fit**, with one restart to
      re-measure. **Any stop puts both back as the prologue found them** (0.5.1,
      2026-09-20; recorded before they are touched). The return after an install
-     brings the pagefile back; hibernation stays off.
+     brings the pagefile back; hibernation stays off. **Decided (2026-11-24, the owner): so Fast Startup being on is a note in the scan, not a warning**, and it no longer counts toward YELLOW; the note says the converter turns it off and what to do if it is ever on again (Restart, not Shut down, before starting Linux).
    - **Restore points that pin the shrink are deleted** (0.6.0, decided
      2026-09-20) when Windows names their storage as the last unmovable file and
      the job carries consent (`fork.restore_points_consented`, asked in plain
@@ -355,7 +355,7 @@ decisions can be self-tested.
    A stop after the shrink grows C: back, re-enables BitLocker, removes the boot
    entry and scrubs the stick's credentials (decided 2026-09-12).
 
-   **Clean slate (opt-in / fallback):** copy user files and artifacts to the
+   **Clean slate (the other answer / fallback):** copy user files and artifacts to the
    stick's exFAT partition with per-file checksums; 0 folders or 0 files is a
    refusal. The write speed is measured and shown as a **computed** time
    estimate: cheap flash at 20 MB/s is not a ten-minute job, and the person must
@@ -464,8 +464,8 @@ After the machine has booted from the stick:
 no copy. They come across in `settle-in`, with Windows still there as a complete
 fallback; the commit line waits there, at reclaim.
 
-**Clean slate** (opt-in, or forced when the disk is too full to keep both) is
-the only path that wipes, so the person is present, by design:
+**Clean slate** is the only path that wipes, so the person is present, by design.
+**Decided (2026-11-23, the owner): keeping Windows and erasing everything are asked as equals, on their own screen after the scan; neither is the default.** Every sentence of the erase warning, the typed sentence, the drive list and the last click stay (RISKS R27). Words and layout only, so no rig or Aspire rows are owed for it (decided 2026-11-23, the owner):
 
 8. The live desktop asks for two minutes: speakers (*not headphones*), display,
    Wi-Fi. A human ear is the only test for a smart amp, and this is the last
@@ -681,7 +681,7 @@ stands: see [STATUS.md](STATUS.md).
    offers to sign in to OneDrive where those files still are. The person is
    present, so a stubborn unlock or a read error is *asked about*, not guessed
    at; Windows is intact, so a failure here loses nothing. (On the clean-slate
-   path the files were restored during cutover, so this step is skipped.)
+   path no files are carried, so this step is skipped.) **Decided (2026-11-23, the owner): the person chooses which files come over**: a tree of tick boxes, all ticked to start; a choice only narrows what the walk found, every check is still made on the whole folder, the rest can be brought later, and the BitLocker key stays on this Linux until everything has come (RISKS R13).
 3. **Confirm the data arrived:** counts and checksums against `outcome.json`.
 4. **Hand off:** where files went, what replaced what, and what is gone and is
    not coming back. On the clean-slate path, also: **keep the stick,** their
