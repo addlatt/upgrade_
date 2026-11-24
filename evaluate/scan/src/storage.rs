@@ -344,13 +344,15 @@ pub fn volume_health(scan: &mut Scan, is_admin: bool, health: Option<&VolumeHeal
 }
 
 /// `hiberboot_enabled`: 1 on, 0 off, nothing = the key could not be read
-/// (and then the check says nothing).
+/// (and then the check says nothing). On is information, not a warning.
 pub fn fast_startup(scan: &mut Scan, hiberboot_enabled: Option<i64>) {
     match hiberboot_enabled {
         Some(1) => {
-            scan.add("Storage", "Fast Startup", Status::Warn, "enabled")
-                .note("Windows Fast Startup does not fully shut down - it hibernates. That leaves the Windows partition in a state Linux will not write to, and makes resizing it unsafe. Shutting down does not clear it; only a restart or disabling the feature does.")
-                .remedy("Control Panel > Power Options > Choose what the power buttons do > Change settings that are currently unavailable > untick \"Turn on fast startup\". Then shut down normally.");
+            // not a warning (2026-11-24, the owner): the converter turns hibernation off itself
+            // before it shrinks Windows and leaves it off (prologue, the keep-Windows path), and
+            // an erase leaves no Windows. Nothing is asked of the person.
+            scan.add("Storage", "Fast Startup", Status::Info, "enabled - the converter turns it off for you")
+                .note("Windows Fast Startup does not fully shut down - it hibernates, and that leaves the Windows drive in a state Linux cannot safely read or shrink. When Windows is kept, the converter turns hibernation off before it shrinks Windows and leaves it off. If it is ever on again later, choose Restart (not Shut down) in Windows before starting Linux.");
         }
         Some(0) => {
             scan.add("Storage", "Fast Startup", Status::Ok, "disabled");
