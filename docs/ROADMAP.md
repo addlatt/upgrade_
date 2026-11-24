@@ -167,7 +167,7 @@ phase 3 (the data tables to JSON, `CLAUDE.md` rewritten). Proves: V13, R32. The 
 
 Fill the hardware list from linux-hardware.org instead of by hand, and let
 people opt in to sharing how their switch went, so the list gets smarter
-with every one. Proves: V7, R3. Waits on: the scanner shipping.
+with every one. Proves: V7. Waits on: the scanner shipping.
 
 ## 19. Rust unification: everything that can be Rust is Rust
 

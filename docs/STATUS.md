@@ -111,7 +111,6 @@ proven, and R39's refusal on a real disk. The order: `ROADMAP.md`.
 |---|---|---|---|---|
 | R1 | VMD detection has never fired on real hardware | `[###.]` held-on-rig | `v5-controller-mode.csv` line 2, `warn-rst-on-ahci` (the AHCI direction only) | a machine in RST RAID or VMD mode |
 | R2 | two-machine test corpus | `[##..]` built | none yet (captures: the G16, the Aspire, one spoof) | spread across vendors (V7) |
-| R3 | the distro kernel table is stale | `[#...]` planned | none yet | verify against release notes; Ubuntu 26.04 |
 | R4 | scanner and converter contradict each other | `[##..]` built | none yet | the stick-fit numbers fired on a job |
 | R5 | single-user assumption | `[##..]` built | none yet | the refusal fired on a machine with other profiles; reclaim's refusal |
 | R6 | truncated sizing undersizes the backup | `[##..]` built | none yet | the refusal fired for real |
@@ -153,5 +152,6 @@ proven, and R39's refusal on a real disk. The order: `ROADMAP.md`.
 | R43 | ntfs-3g cannot read inside a OneDrive folder | `[###.]` held-on-rig | `v3-pull.csv` line 5, `pass-plumbing` (2026-11-07, our own reader, [log](log/2026-11.md#2026-11-07-our-own-reader-inside-onedrive-folders-the-pull-passes-on-the-rig-r43-r8-v3-v8)) | a signed-in OneDrive on a real disk |
 | R44 | the release fetch puts unmeasured bytes on the stick, or writes outside it | `[###.]` held-on-rig (a rehearsal, not a stick) | `v17-fetch.csv` line 17, `pass-plumbing` (2026-11-13 UTC, upgrade-fetch 0.2.0's code; Ubuntu's whole disc, lines 14 to 17, [log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)) | a real FAT32 stick, the real internet, a stick pulled mid-download |
 | R45 | an Ubuntu stick erases the computer it starts on, and picks the disk itself | `[###.]` held-on-rig | `ubuntu-install.csv` line 16, `refused-two-spaces` (2026-11-13 UTC; lines 11 to 17 on a stick laid out as the product's: the erase, the hand-over, beside Windows, wrong machine, the fence, two free spaces, [log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)) | a real machine |
+| R46 | the kit falls behind the newest Fedora and Ubuntu | `[#...]` planned | none yet (a known gap, decided 2026-11-24) | a watcher, a one-command bump, an end-of-support refusal, updates at first start |
 
-Closed: F1 to F4, the four fixed defects of 2026-08-22; R38, closed by removal 2026-11-02 (the countdown it was about left the product). `RISKS.md`, Closed.
+Closed: F1 to F4, the four fixed defects of 2026-08-22; R38, closed by removal 2026-11-02 (the countdown it was about left the product). R3, closed by removal 2026-11-24 (the hand-typed kernel table left the product). `RISKS.md`, Closed.

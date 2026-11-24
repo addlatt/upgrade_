@@ -18,6 +18,10 @@ installs), and the facts of the boot files the installed system will start
 from (/boot/efi/EFI/fedora/shimx64.efi and grubx64.efi in that image).
 Facts per boot file (data/tools/pe_facts.py): sha256, the .sbat text, a
 shim's built-in levels, and the certificate authorities it is signed under.
+And under Kernels: the release every kernel image names itself (what
+`uname -r` will say), read from the image's own boot header: the stick's
+kernel, and each kernel inside what gets installed. The scanner compares
+the installed ones with the kernel the computer's hardware needs.
 
 The entry replaces the block between '# BEGIN <id>' and '# END <id>' in the
 table, or is added before the table's closing marker.
@@ -72,13 +76,36 @@ def image_files(img, wanted, tmp):
                        check=True, stdout=subprocess.DEVNULL)
     elif kind[:4] == b'hsqs':
         root = os.path.join(tmp, 'root')
-        subprocess.run(['unsquashfs', '-q', '-n', '-d', root, img] + [w.lstrip('/') for w in wanted], check=True)
+        subprocess.run(['unsquashfs', '-q', '-n', '-d', root, img] + [w.lstrip('/') for w in wanted] + ['boot/vmlinuz-*', 'usr/lib/modules/*/vmlinuz'], check=True)
     else:
         raise SystemExit('measure-release: %s is neither EROFS nor squashfs' % img)
     subprocess.run(['chmod', '-R', 'u+rwX', root], check=False)   # unpacked 0500 folders would block the clean-up
     for w in wanted:
         p = os.path.join(root, w.lstrip('/'))
         if os.path.exists(p): out[w] = p
+    return out
+
+def kernel_release(path):
+    """The release a kernel image names itself (what `uname -r` will say), read from its
+    boot header: 'HdrS' at 0x202, and at 0x20e the offset (less 0x200) of the version text."""
+    with open(path, 'rb') as f: d = f.read(1 << 16)
+    if d[0x202:0x206] != b'HdrS': raise SystemExit('measure-release: %s is not a Linux kernel image' % path)
+    at = struct.unpack_from('<H', d, 0x20e)[0] + 0x200
+    text = d[at:d.index(b'\0', at)].decode('ascii', 'replace').split()
+    if not text or not text[0][0].isdigit(): raise SystemExit('measure-release: %s names no kernel release' % path)
+    return text[0]
+
+def kernel_entry(role, path):
+    return {'Role': role, 'File': os.path.basename(path), 'Release': kernel_release(path), 'Sha256': sha256(path)}
+
+def image_kernels(root):
+    """Every kernel image inside an unpacked system, each once (by sha256)."""
+    found = [k for pat in ('boot/vmlinuz-*', 'usr/lib/modules/*/vmlinuz') for k in sorted(glob.glob(os.path.join(root, pat)))
+             if os.path.isfile(k) and not os.path.islink(k)]
+    seen, out = set(), []
+    for k in found:
+        h = sha256(k)
+        if h not in seen: seen.add(h); out.append(k)
     return out
 
 def boot_entry(role, f):
@@ -138,6 +165,7 @@ def casper(o):
         for inner in ('EFI/boot/bootx64.efi', 'EFI/boot/grubx64.efi', 'EFI/boot/mmx64.efi'):
             boot.append(boot_entry('stick', pe_facts.facts(iso_extract(iso, inner, tmp))))
         live_kernel = pe_facts.facts(iso_extract(iso, 'casper/vmlinuz', tmp))
+        kernels_out = [kernel_entry('stick', os.path.join(tmp, 'casper/vmlinuz'))]
         boot.append(boot_entry('stick kernel', live_kernel))
         # the installed system's boot files come from packages in the ISO's own pool
         for prefix, wanted in (('shim-signed_', 'usr/lib/shim/shimx64.efi.signed.latest'),
@@ -152,6 +180,7 @@ def casper(o):
                 raise SystemExit('measure-release: %s holds %d files matching %s; refusing to guess' % (debs[0], len(got), wanted))
             e = boot_entry('installed', pe_facts.facts(got[0])); e['Package'] = os.path.basename(debs[0])
             boot.append(e)
+            if prefix == 'linux-image-': kernels_out.append(kernel_entry('installed', got[0]))
         sources = yaml.safe_load(open(iso_extract(iso, 'casper/install-sources.yaml', tmp)))
         for n in sorted(files):
             if n.startswith('casper/') and n.endswith('.squashfs'):
@@ -167,6 +196,7 @@ def casper(o):
         subprocess.run(['chmod', '-R', 'u+rwX', root], check=False)
         kernels = [k for k in glob.glob(os.path.join(root, 'boot/vmlinuz-*')) if not os.path.islink(k)]
         base_kernels = [boot_entry('base layer kernel', pe_facts.facts(k)) for k in sorted(kernels)]
+        kernels_out += [kernel_entry('base layer', k) for k in sorted(kernels)]
         seed = os.path.join(root, 'var/lib/snapd/seed/snaps')
         snaps = sorted(os.listdir(seed)) if os.path.isdir(seed) else []
     doc = {'_about': {'what': 'one casper ISO, measured from its own files by data/tools/measure-release.py --casper; never typed or edited by hand',
@@ -177,7 +207,7 @@ def casper(o):
            'Sources': [{'Id': s['id'], 'Default': bool(s.get('default')), 'Path': s['path'], 'Type': s.get('type', ''),
                         'Variations': {k: v.get('path', '') for k, v in (s.get('variations') or {}).items()}} for s in sources['sources']],
            'Kernel': sources.get('kernel', {}),
-           'Layers': layers, 'Boot': boot + base_kernels,
+           'Layers': layers, 'Boot': boot + base_kernels, 'Kernels': kernels_out,
            'InstalledKernelIsLiveKernel': any(b['Role'] == 'installed' and b['Sha256'] == live_kernel['sha256'] for b in boot),
            'SeededSnaps': snaps, 'Pool': {'Packages': len(pool), 'Bytes': sum(pool.values())}}
     os.makedirs(os.path.dirname(os.path.abspath(o.out)), exist_ok=True)
@@ -190,7 +220,7 @@ def offer(o, a):
     if not o.offer_desktop: a.error('--offer needs --offer-desktop ID LABEL')
     entry = json.load(open(o.offer, encoding='utf-8'))
     entry.pop('_about', None)
-    for k in ('Id', 'Name', 'Family', 'Installer', 'Measured', 'Iso', 'Boot', 'Layers'):
+    for k in ('Id', 'Name', 'Family', 'Installer', 'Measured', 'Iso', 'Boot', 'Layers', 'Kernels'):
         if not entry.get(k): raise SystemExit('measure-release: %s has no %s; refusing to offer it' % (o.offer, k))
     entry['Desktops'] = [{'Id': o.offer_desktop[0], 'Label': o.offer_desktop[1]}]
     doc = json.load(open(o.table, encoding='utf-8'))
@@ -220,7 +250,7 @@ def main():
     if o.casper: return casper(o)
     if not o.netinst: a.error('--netinst is required (or --casper for a casper ISO)')
     today = datetime.date.today().isoformat()
-    boot, desktops = [], []
+    boot, desktops, kernels = [], [], []
     with tempfile.TemporaryDirectory() as tmp:
         url, iso = o.netinst
         print('measure-release: installer %s' % iso, file=sys.stderr)
@@ -228,6 +258,7 @@ def main():
         for inner in ('EFI/BOOT/BOOTX64.EFI', 'EFI/BOOT/grubx64.efi'):
             boot.append(boot_entry('stick', pe_facts.facts(iso_extract(iso, inner, tmp))))
         netinst = {'Url': url, 'Sha256': iso_sha}
+        kernels.append(kernel_entry('stick', iso_extract(iso, 'images/pxeboot/vmlinuz', tmp)))
         for did, label, durl, diso in o.desktop:
             print('measure-release: desktop %s (%s): unpacking its image, this takes minutes' % (did, diso), file=sys.stderr)
             d = os.path.join(tmp, did); os.makedirs(d)
@@ -239,10 +270,14 @@ def main():
                 raise SystemExit('measure-release: %s lacks the installed boot files (found %s); refusing to guess' % (did, list(got)))
             for w in ('/boot/efi/EFI/fedora/shimx64.efi', '/boot/efi/EFI/fedora/grubx64.efi'):
                 boot.append(boot_entry('installed ' + did, pe_facts.facts(got[w])))
+            inside = image_kernels(os.path.join(d, 'root'))
+            if not inside:
+                raise SystemExit('measure-release: %s holds no kernel image; refusing to guess' % did)
+            kernels += [kernel_entry('installed ' + did, k) for k in inside]
             desktops.append({'Id': did, 'Label': label, 'Url': durl, 'IsoSha256': dsha, 'ImagePath': o.image_path, 'ImageSha256': isha})
             shutil.rmtree(d, ignore_errors=True)
     entry = {'Id': o.id, 'Name': o.name, 'Family': o.family, 'Installer': o.installer, 'Measured': today, 'Note': o.note,
-             'Netinst': netinst, 'Desktops': desktops, 'Boot': boot}
+             'Netinst': netinst, 'Desktops': desktops, 'Boot': boot, 'Kernels': kernels}
     # the entry replaces one with the same Id, or goes at the end; the rest of the file is untouched
     doc = json.load(open(o.table, encoding='utf-8'))
     rels = doc['Releases']

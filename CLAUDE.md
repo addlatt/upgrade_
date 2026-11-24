@@ -123,8 +123,7 @@ finished until it does.
 ```
 data/            the knowledge tables, JSON, compiled into the scanner; community PRs land here (data/README.md)
   devices/*.json   Wi-Fi, GPU, audio, storage, vendor and app tables, one entry per line
-  distros.json     distro kernel table (goes stale; verify against release notes)
-  releases.json    the Linux releases the kit can carry, and what Secure Boot needs of each (measured by tools/measure-release.py, never typed)
+  releases.json    the Linux releases the kit can carry: what Secure Boot needs of each, and the kernel each installs (measured by data/tools/measure-release.py, never typed)
 evaluate/windows/  the corpus of machine recordings; the one PowerShell holdover (the stick writer; its port `evaluate/stick` is built and retires it when R16's rows read pass)
 evaluate/scan/, harvest/, job/, stick/  the scanner, harvester, job writer and stick writer in Rust; their judging halves held to the frozen PowerShell goldens
 upgrade_/          the converter: prologue/ the prologue, handoff, the slot and its guard in Rust (the rollback runs from Linux, settle-in); kickstart/ the kickstart generator in Rust; windows/window/ the window (UPGRADE.exe), windows/handoff-payload/ the stick's EFI payload and the two .cmd starters; linux/installer/ the installer's verify (%pre) and outcome (%post) steps in Rust

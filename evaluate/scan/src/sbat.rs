@@ -6,7 +6,7 @@
 use crate::check::{ReleaseVerdict, Scan, Status};
 use crate::data::Release;
 use crate::facts::{KitBootFile, SbatSource};
-use crate::ps::{eq_ci, matches, s, truthy};
+use crate::ps::{eq_ci, matches, s, truthy, Version};
 
 /// `component -> generation`, in the order first seen, plus the level's date.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -166,12 +166,54 @@ pub fn judge_releases(scan: &mut Scan, secure_boot: Option<i64>, level: &SbatMap
             }
         }
         let starts = if !why.is_empty() { "no" } else if !unknown.is_empty() { "unknown" } else { "yes" };
-        scan.releases.push(ReleaseVerdict { id: r.id.clone(), name: r.name.clone(), starts: starts.into(), why });
+        let kernel = r.installed_kernel().map_or(String::new(), |(_, text)| text.to_string());
+        scan.releases.push(ReleaseVerdict { id: r.id.clone(), name: r.name.clone(), starts: starts.into(), why, kernel });
     }
+    releases_check(scan, false);
+}
+
+/// The kernel half of the release check: a release whose installed kernel is
+/// older than the newest one this computer's hardware asks for is a "no",
+/// said plainly, so the picker does not offer it and the job writer refuses
+/// it. It runs after the hardware checks (they say what kernel is needed) and
+/// rewrites the "Linux releases" line where it stands. A release with no
+/// measured kernel is not guessed at: it is a "no" too.
+pub fn judge_release_kernels(scan: &mut Scan, required: Option<Version>, table: &[Release]) {
+    let Some(need) = required else { return };
+    let mut changed = false;
+    for v in scan.releases.iter_mut() {
+        let Some(r) = table.iter().find(|r| r.id == v.id) else { continue };
+        let why = match r.installed_kernel() {
+            Some((has, _)) if has >= need => continue,
+            Some((has, _)) => format!("its kernel {has} is older than the {need} this computer's hardware needs"),
+            None => format!("its kernel was not measured, and this computer's hardware needs {need} or newer"),
+        };
+        v.why.push(why);
+        v.starts = "no".into();
+        changed = true;
+    }
+    if !changed {
+        return;
+    }
+    let at = scan.checks.iter().position(|c| c.title == RELEASES_TITLE);
+    if let Some(at) = at {
+        scan.checks.remove(at);
+    }
+    releases_check(scan, true);
+    if let (Some(at), Some(made)) = (at, scan.checks.pop()) {
+        scan.checks.insert(at, made);
+    }
+}
+
+const RELEASES_TITLE: &str = "Linux releases";
+
+/// The one "Linux releases" line, from the verdicts so far. `by_kernel`: a
+/// kernel that is too old took part, so "start" alone would be the wrong word.
+fn releases_check(scan: &mut Scan, by_kernel: bool) {
     let named = |state: &str| scan.releases.iter().filter(|r| r.starts == state).cloned().collect::<Vec<_>>();
     let (yes, unk, no) = (named("yes"), named("unknown"), named("no"));
     let no_text = no.iter().map(|r| format!("{}: {}", r.name, r.why.join("; "))).collect::<Vec<_>>().join(" | ");
-    const T: &str = "Linux releases";
+    const T: &str = RELEASES_TITLE;
     if !yes.is_empty() {
         let names = yes.iter().map(|r| r.name.as_str()).collect::<Vec<_>>().join(", ");
         scan.add("Fundamentals", T, Status::Ok, format!("starts on this computer: {names}"))
@@ -181,8 +223,47 @@ pub fn judge_releases(scan: &mut Scan, secure_boot: Option<i64>, level: &SbatMap
             .note(if no.is_empty() { "The release check needs the firmware's key list.".to_string() } else { format!("Not these: {no_text}") })
             .remedy("Run the scanner as administrator.");
     } else {
-        scan.add("Fundamentals", T, Status::Fail, "no release the kit carries can start on this computer")
+        scan.add("Fundamentals", T, Status::Fail, if by_kernel { "no release the kit carries can be used on this computer" } else { "no release the kit carries can start on this computer" })
             .note(if no_text.is_empty() { "The release table is empty.".to_string() } else { no_text })
             .remedy("Nothing has been changed. A kit with a newer release is needed.");
+    }
+}
+
+#[cfg(test)]
+mod kernel_tests {
+    use super::*;
+    use crate::data::Kernel;
+
+    fn release(id: &str, kernel: &str) -> Release {
+        Release { id: id.into(), name: id.into(), installer: Some("kickstart".into()), kernels: vec![Kernel { role: "installed".into(), file: "vmlinuz".into(), release: kernel.into(), sha256: String::new() }], ..Default::default() }
+    }
+
+    /// The rewritten line stays where the first one stood: the report and
+    /// the JSON keep their order.
+    #[test]
+    fn the_releases_line_is_rewritten_in_place() {
+        let table = [release("old", "6.8.0-31-generic"), release("new", "7.0.0-30-generic")];
+        let mut sc = Scan::new();
+        sc.add("Fundamentals", "Before", Status::Ok, "");
+        judge_releases(&mut sc, Some(0), &SbatMap::default(), None, &table);
+        sc.add("Hardware", "After", Status::Ok, "");
+        judge_release_kernels(&mut sc, Version::parse("6.10"), &table);
+        let titles: Vec<&str> = sc.checks.iter().map(|c| c.title.as_str()).collect();
+        assert_eq!(titles, ["Before", "Linux releases", "After"]);
+        assert_eq!(sc.checks[1].status, Status::Ok);
+        assert!(sc.checks[1].note.contains("its kernel 6.8.0 is older than the 6.10 this computer's hardware needs"), "{}", sc.checks[1].note);
+        assert_eq!((sc.releases[0].starts.as_str(), sc.releases[1].starts.as_str()), ("no", "yes"));
+    }
+
+    /// Every release too old is a hardware "no": the verdict is RED.
+    #[test]
+    fn nothing_new_enough_is_a_fail() {
+        let table = [release("old", "6.8.0-31-generic")];
+        let mut sc = Scan::new();
+        judge_releases(&mut sc, Some(0), &SbatMap::default(), None, &table);
+        judge_release_kernels(&mut sc, Version::parse("6.10"), &table);
+        assert_eq!(sc.checks.len(), 1);
+        assert_eq!(sc.checks[0].status, Status::Fail);
+        assert_eq!(crate::verdict::verdict(&sc).level, crate::verdict::Level::Red);
     }
 }

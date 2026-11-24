@@ -789,7 +789,7 @@ at first startup; what every desktop Linux shares is the kernel. So:
    uses; its connection files are the same format everywhere) and a display.
    Anything missing gets a plain sentence, never a guess: a distribution with
    another Wi-Fi manager has its networks listed, not set up. Each supported
-   distribution is a row in `data/distros.json`, backed by a real install.
+   distribution is an entry in `data/releases.json`, backed by a real install.
 
 What stays Fedora-specific, on purpose: the installer adapter (kickstart,
 `%pre`, `%post`), which lives in `upgrade_`, not here.

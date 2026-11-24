@@ -459,7 +459,7 @@ Each one is stricter than the original, or changes no decision.
 ## The data tables
 
 **Decided (2026-10-14, the owner):** the tables are JSON, one file per
-table (`data/devices/*.json`, `data/distros.json`, `data/releases.json`),
+table (`data/devices/*.json`, `data/releases.json`; `data/distros.json` too until 2026-11-24, RISKS R3),
 compiled into the scanner; a device stays one line with a cited `Source`
 and a `Verified` date; the field meanings live in `data/README.md`. The
 `.ps1` tables, `export-tables.ps1` and the exported `tables.json` are gone,
@@ -485,7 +485,7 @@ evaluate/scan/       crate upgrade-scan: the judging half
   tests/golden.json    the PowerShell's answers
   src/main.rs          upgrade-scan --replay machine.json
 data/devices/*.json  the data tables (JSON, the source since 2026-10-14)
-data/distros.json, data/releases.json
+data/releases.json
 port-check.sh        the one command
 ```
 
