@@ -112,15 +112,17 @@ selftest "stick writer" "$ROOT/evaluate/windows/Write-UpgradeStick.ps1"
 # parity test against the scripts it replaced runs first (needs a user namespace)
 (cd "$ROOT/upgrade_/linux/installer" && cargo test --locked --quiet >/dev/null 2>&1) || fail "upgrade-installer tests fail (cd upgrade_/linux/installer && cargo test)"
 (cd "$ROOT/upgrade_/linux/installer" && cargo build --locked --release --quiet --target x86_64-unknown-linux-musl) || fail "upgrade-installer does not build"
-INSTALLER_BIN="$ROOT/upgrade_/linux/installer/target/x86_64-unknown-linux-musl/release/upgrade-installer"
+# a build with CARGO_TARGET_DIR set lands there, not in the crate's own target
+# folder: reading the crate's folder then packed an old installer (2026-11-24)
+INSTALLER_BIN="${CARGO_TARGET_DIR:-$ROOT/upgrade_/linux/installer/target}/x86_64-unknown-linux-musl/release/upgrade-installer"
 # settle-in: the first-startup program, one self-contained file (Rust, static,
 # decided 2026-09-27); its tests run before it is built into the kit
 (cd "$ROOT/settle-in" && cargo test --locked --quiet >/dev/null 2>&1) || fail "settle-in tests fail (cd settle-in && cargo test)"
 (cd "$ROOT/settle-in" && cargo build --locked --release --quiet --target x86_64-unknown-linux-musl) || fail "settle-in does not build"
-SETTLE_IN_BIN="$ROOT/settle-in/target/x86_64-unknown-linux-musl/release/settle-in"
+SETTLE_IN_BIN="${CARGO_TARGET_DIR:-$ROOT/settle-in/target}/x86_64-unknown-linux-musl/release/settle-in"
 SETTLE_IN_VERSION=$("$SETTLE_IN_BIN" --version | awk '{print $2}')
 (cd "$ROOT/settle-in/window" && cargo build --locked --release --quiet) || fail "the settle-in window does not build"
-SETTLE_IN_WINDOW="$ROOT/settle-in/window/target/release/settle-in-window"
+SETTLE_IN_WINDOW="${CARGO_TARGET_DIR:-$ROOT/settle-in/window/target}/release/settle-in-window"
 sh -n "$ROOT/settle-in/linux/upgrade_-settle-in.sh" || fail "the settle-in console hook does not parse"
 # "Go back to Windows" carries wimlib-imagex (static, pinned source; built once into settle-in/target/wimlib/)
 WIMLIB="$ROOT/settle-in/target/wimlib/wimlib-imagex"

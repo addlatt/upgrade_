@@ -11,4 +11,4 @@ command -v zig >/dev/null || { echo "build.sh: zig not found (see upgrade_/windo
 command -v cargo-zigbuild >/dev/null || { echo "build.sh: cargo-zigbuild not found" >&2; exit 1; }
 cargo test --quiet >/dev/null 2>&1 || { echo "build.sh: the gate's tests fail (cargo test)" >&2; exit 1; }
 cargo zigbuild --release --quiet --target x86_64-pc-windows-gnu
-echo "$PWD/target/x86_64-pc-windows-gnu/release/upgrade-gate.exe"
+echo "${CARGO_TARGET_DIR:-$PWD/target}/x86_64-pc-windows-gnu/release/upgrade-gate.exe"
