@@ -1535,11 +1535,9 @@ way back, which only the keep-Windows path has: high.
 **Decided (2026-11-25, the owner): Ubuntu installs NVIDIA's own driver from
 the stick, and Fedora is prepared for it.** The switch
 (`drivers: {install: true}`) is turned on by the early check only when this
-computer has an NVIDIA graphics card and the table lists a branch for it
-with a signed module. Every other computer installs as before. The
-installer picks the branch itself. The late step records whether the
-packages are there, and settle-in tells the person which driver the card
-runs on. Nothing refuses on it. **Decided (2026-11-25, the owner): on
+computer has an NVIDIA card the table lists with a signed module; the
+installer picks the branch. The late step records the packages, settle-in
+says which driver the card runs on, and nothing refuses on it. **Decided (2026-11-25, the owner): on
 Fedora, settle-in may go online, add RPM Fusion and start the key step, and
 it asks the person first.**
 
