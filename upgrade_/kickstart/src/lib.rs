@@ -18,9 +18,6 @@ use regress::Regex;
 use serde_json::Value;
 use upgrade_schema::Job;
 
-/// The PowerShell generator this port follows.
-/// The last PowerShell generator this followed, word for word, before the scripts left the product (2026-10-11); the Rust is the reference since.
-pub const FOLLOWS_GENERATOR: &str = "0.8.0";
 /// This generator's own version: 0.9.0 (2026-10-11) GRUB's Windows entry records the choice in GRUB's environment block;
 /// 0.11.0 (2026-10-17) the chroot %post's shell moved into `upgrade-installer outcome`: only exec lines are left.
 pub const GENERATOR_VERSION: &str = "0.11.0";

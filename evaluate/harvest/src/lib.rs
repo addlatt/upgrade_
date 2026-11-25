@@ -6,7 +6,6 @@
 
 pub mod capacity;
 pub mod cloud;
-pub mod compare;
 #[cfg(windows)]
 pub mod folders;
 #[cfg(windows)]

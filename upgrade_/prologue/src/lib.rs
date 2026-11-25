@@ -12,7 +12,6 @@
 //! It reads no machine and writes no file. `tests/parity.rs` holds every
 //! function to the PowerShell's answers, word for word.
 
-pub mod compare;
 #[cfg(windows)]
 pub mod flow;
 pub mod judge;
