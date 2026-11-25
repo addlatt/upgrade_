@@ -29,5 +29,5 @@ for crate in evaluate/scan evaluate/harvest evaluate/job upgrade_/prologue evalu
     name=$(basename "$crate"); bin="upgrade-$name"
     (cd "$ROOT/$crate" && cargo test --locked --quiet >/dev/null 2>&1) || { echo "build-rust.sh: tests fail in $crate" >&2; exit 1; }
     (cd "$ROOT/$crate" && cargo zigbuild --locked --release --quiet --target x86_64-pc-windows-gnu) || { echo "build-rust.sh: $crate does not build for Windows" >&2; exit 1; }
-    echo "$ROOT/target/x86_64-pc-windows-gnu/release/$bin.exe"
+    echo "${CARGO_TARGET_DIR:-$ROOT/target}/x86_64-pc-windows-gnu/release/$bin.exe"
 done
