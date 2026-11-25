@@ -3,9 +3,9 @@
   "version": 2,
   "machine": "acer-aspire-a515-51g",
   "desktop": "kde",
-  "why_desktop": "Fedora 44 with KDE, the desktop every Fedora run on the Aspire has used",
+  "why_desktop": "Fedora with KDE, the desktop every Fedora run on the Aspire has used (Fedora 44 until 2026-11-24)",
   "linux": {
-    "release": "fedora-44",
+    "release": "fedora-45",
     "desktop": "kde"
   },
   "why_linux": "the Linux the manager fetches onto the stick with the window's own call (upgrade-fetch get), at the start and again after the walk-away",

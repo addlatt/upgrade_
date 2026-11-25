@@ -400,6 +400,8 @@ class HyperV:
 
     def __init__(self, vm, key=os.path.expanduser("~/.ssh/upgrade_rig"), user="rig"):
         self.vm, self.key, self.user = vm, key, user
+        # the Linux sign-in name, when the plan chose one that is not the Windows name (2026-11-24)
+        self.linux_user = user
         self._linux = None
 
     def describe(self):
@@ -429,10 +431,10 @@ class HyperV:
             return None
         # the rig's guest is reinstalled every run: its host key is never remembered
         common = ["-o", "StrictHostKeyChecking=no", "-o", "LogLevel=ERROR"]
-        wsl = Ssh(f"{self.user}@{ip}", extra=["-i", self.key, *common, "-o", "UserKnownHostsFile=/dev/null"])
+        wsl = Ssh(f"{self.linux_user}@{ip}", extra=["-i", self.key, *common, "-o", "UserKnownHostsFile=/dev/null"])
         if "Linux" in wsl.raw("uname -s", timeout=20).out:
             return wsl
-        win = Ssh(f"{self.user}@{ip}", extra=["-i", self._windows_key(), *common, "-o", "UserKnownHostsFile=NUL"],
+        win = Ssh(f"{self.linux_user}@{ip}", extra=["-i", self._windows_key(), *common, "-o", "UserKnownHostsFile=NUL"],
                   ssh=self.WIN_SSH, scp=self.WIN_SCP, windows_client=True)
         if "Linux" in win.raw("uname -s", timeout=20).out:
             return win

@@ -1,0 +1,18 @@
+{
+  "plan": "rig-name-some-files",
+  "version": 2,
+  "machine": "rig-upgrighv",
+  "why_this_order": "a short rig run for three things that had no row (the owner, 2026-11-24): a new release in the kit, a Linux sign-in name that is not the Windows one, and a file copy of only some, then the rest",
+  "heartbeat_s": 300,
+  "linux_name": "benchpat",
+  "why_linux_name": "the Windows account is 'rig'. The rig's job is a stand-in, so this holds what the installer and settle-in do with a chosen name, not the job writer's own --linux-name",
+  "stages": [
+    {"stage": "kit-stick", "why": "the rig's stick, made by the rig's own builder (a stand-in for the stick writer)"},
+    {"stage": "plant-files", "why": "known files in Windows before the job is written"},
+    {"stage": "look", "expect": ["GREEN", "YELLOW", "RED"], "limit_s": 900},
+    {"stage": "keep-windows", "why": "install beside Windows under the chosen sign-in name; the test then reaches Linux as that name"},
+    {"stage": "pull", "only": {"Documents": ["pull-test/Taxes/", "pull-test/letter.txt"]}, "why": "the picker's choice, as the window hands it to settle-in: one folder and one file, none of the rest"},
+    {"stage": "pull", "why": "Bring more files: the rest comes, and a run after that finds nothing to do"},
+    {"stage": "rollback", "why": "leave the rig starting Windows first"}
+  ]
+}

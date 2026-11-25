@@ -104,9 +104,21 @@ pub fn utc_of(secs: i64) -> String {
     format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, m, d, rem / 3600, (rem % 3600) / 60, rem % 60)
 }
 
+/// Hashed in pieces: a desktop image is 3 GB, and reading it whole ran a
+/// 4 GB computer out of memory (rig, 2026-11-24, Fedora 45's KDE image).
 pub fn sha256_file(path: &Path) -> Option<String> {
-    let bytes = std::fs::read(path).ok()?;
-    Some(format!("{:x}", Sha256::digest(&bytes)))
+    use std::io::Read;
+    let mut f = std::fs::File::open(path).ok()?;
+    let mut h = Sha256::new();
+    let mut buf = vec![0u8; 1 << 20];
+    loop {
+        let n = f.read(&mut buf).ok()?;
+        if n == 0 {
+            break;
+        }
+        h.update(&buf[..n]);
+    }
+    Some(format!("{:x}", h.finalize()))
 }
 
 pub fn read_to_string(path: &str) -> String {

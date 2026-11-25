@@ -176,14 +176,11 @@ pub fn lines(m: &Machine, o: &Outcome, now: Stamp, version: &str) -> Vec<String>
         add("   1. Save your BitLocker recovery key somewhere that is not this computer");
         add("      - a phone note, another machine. An encrypted disk touched without it");
         add("      is gone for good.");
-        add("   2. Get a USB stick big enough for your files - the converter puts them");
-        add("      there. You do NOT need an external hard drive. (Or keep Windows itself");
-        add("      as the fallback: see \"Room to keep Windows\" above.)");
-        add("   3. Write the ISO to a USB stick and boot it WITHOUT installing.");
-        add("      Live mode runs the whole desktop from the USB and changes nothing.");
-        add("   4. In that live session, test: Wi-Fi, sound through the SPEAKERS (not");
-        add("      just headphones), screen brightness, and suspend/resume.");
-        add("   5. Only then decide. Nothing is irreversible until you commit.");
+        add("   2. Copy anything you cannot lose to another place. Keeping Windows leaves");
+        add("      your files where they are. Erasing everything carries none of them.");
+        add("   3. If you are unsure, keep Windows. You can go back to it from Linux,");
+        add("      and remove it later, once everything works.");
+        add("   4. Nothing is changed until your last click in the window.");
         add("");
     }
 

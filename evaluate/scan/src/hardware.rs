@@ -65,8 +65,7 @@ pub fn gpu(scan: &mut Scan, pnp: &[Pnp]) {
     }
     if gpus.len() > 1 {
         scan.add("Hardware", "Hybrid graphics", Status::Warn, format!("{} GPUs present", gpus.len()))
-            .note("This laptop switches between an integrated and a discrete GPU. On Linux that switching works but is manual and less transparent than under Windows - expect to choose which GPU an application uses, and expect worse battery life than Windows if the discrete GPU stays awake.")
-            .remedy("Pick a distribution with graphics switching built in - Pop!_OS and Fedora handle this best.");
+            .note("This laptop switches between an integrated and a discrete GPU. On Linux that switching works but is manual and less transparent than under Windows - expect to choose which GPU an application uses, and expect worse battery life than Windows if the discrete GPU stays awake.");
     }
 }
 
@@ -78,7 +77,7 @@ pub fn audio(scan: &mut Scan, pnp: &[Pnp]) {
             scan.add("Hardware", "Audio", status_of(&q.status), format!("{} detected", q.name))
                 .note(&*q.note)
                 .min_kernel(&*q.min_kernel)
-                .remedy("Test audio in the live USB session before installing. If headphones work but the internal speakers do not, that is this exact issue.");
+                .remedy("Keep Windows on the first try, and test the built-in speakers in Linux, not just headphones. If the speakers stay silent, that is this exact issue and you can go back.");
         }
     }
     if !found {

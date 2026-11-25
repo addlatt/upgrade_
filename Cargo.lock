@@ -3282,7 +3282,7 @@ dependencies = [
 
 [[package]]
 name = "upgrade-stick"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "serde_json",
  "sha2",

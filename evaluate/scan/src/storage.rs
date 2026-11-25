@@ -62,7 +62,7 @@ pub fn storage_mode(scan: &mut Scan, pnp: &[Pnp]) {
     if let Some(h) = rst_hit {
         scan.add("Storage", T, Status::Warn, format!("Intel RST driver present, controller not in RAID mode ({})", s(&h.service)))
             .note("Windows is using an Intel RST storage driver, but the disk controller reports plain AHCI/NVMe, so Linux installers should see the disk normally. This combination has not been confirmed on real hardware yet - please report what you find.")
-            .remedy("Before wiping anything, boot the Linux installer USB and confirm it lists your internal disk. If it shows no disks, look in the BIOS for a setting named VMD, RST, Optane or \"RAID mode\" and set it to AHCI.");
+            .remedy("The installer looks for this disk before it changes anything, and stops if it cannot see it. If it stops, look in the BIOS for a setting named VMD, RST, Optane or \"RAID mode\" and set it to AHCI.");
         return;
     }
     scan.add("Storage", T, Status::Ok, "standard AHCI / NVMe - visible to Linux installers");
@@ -84,7 +84,7 @@ pub fn disk(scan: &mut Scan, facts: &DiskFacts, is_admin: bool, repair_queued: b
     // No external drive anywhere in this design, so the scanner reports what
     // is used and how far the disk can shrink, never "buy a backup drive".
     scan.add("Storage", "Disk in use", Status::Info, format!("{} GB used, {} GB free", num(used), num(free)))
-        .note("Your personal files are part of that used space; the rest is Windows and installed programs. The converter puts your files on a USB stick, or leaves them in place while it fits Linux alongside. It never needs an external hard drive.");
+        .note("Your personal files are part of that used space; the rest is Windows and installed programs. Keeping Windows leaves them where they are, and Linux then copies over the ones you choose. Erasing everything carries no files. Neither needs an external hard drive.");
 
     let last = s(&facts.last_unmovable);
     if let Some(shrink) = facts.shrink_gb {
@@ -373,7 +373,7 @@ pub fn bitlocker(scan: &mut Scan, is_admin: bool, state: Option<&BitLockerState>
         Some(st) if !st.encrypted_mounts.is_empty() => {
             scan.add("Storage", T, Status::Warn, format!("enabled on {}", st.encrypted_mounts.join(", ")))
                 .note("This disk is encrypted. Any partition change without the recovery key destroys the data irrecoverably.")
-                .remedy("Save your recovery key before doing anything: run \"manage-bde -protectors -get C:\" as Administrator, or retrieve it from account.microsoft.com/devicerecoverykey. Save it somewhere that is not this computer. Then either suspend or fully decrypt BitLocker before touching partitions.");
+                .remedy("Save your recovery key before doing anything: run \"manage-bde -protectors -get C:\" as Administrator, or retrieve it from account.microsoft.com/devicerecoverykey. Save it somewhere that is not this computer. The converter pauses BitLocker itself before it changes anything.");
         }
         Some(_) => {
             scan.add("Storage", T, Status::Ok, "not enabled");

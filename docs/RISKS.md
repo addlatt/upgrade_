@@ -387,9 +387,11 @@ choose what to do are built and verified, not just designed.
 installer's move-and-delete step exists (`upgrade-installer outcome`
 records `moved` and `removed_from_stick` in `outcome.json`), and the
 Aspire's run 11 (2026-10-04) connected to Wi-Fi by itself, but no row in
-this risk's record names the removal, so it is not held. The BitLocker
-key's wipe after the pull and the permissions on write wait on `settle-in`'s
-file pull, which is not built.
+this risk's record names the removal, so it is not held. The pull is built
+and removes the BitLocker key when it ends. **Decided (2026-11-23, the
+owner): after a copy of only some files the key stays on this Linux until
+everything has come**, so it can sit there for as long as the person leaves
+files behind. No row names the key's removal or its permissions yet.
 [log](log/2026-08.md#2026-08-22-the-credential-wipe-moves-to-the-end-of-settle-ins-pull-r13)
 
 ## R14: Supply chain · medium · held-on-machine
@@ -1499,15 +1501,17 @@ point release ships, Fedora's at end of life) and the download fails; that
 failure is before anything is changed, so no files are at risk: medium.
 
 **Decided (2026-11-24, the owner): a known gap, left until the project
-matures.** Releases are bumped by hand for now.
+matures.** Releases are bumped by hand for now. **Decided (2026-11-24, the
+owner): the kit moves to Fedora 45 now.**
 
 **Closes when.** A scheduled check compares the table with the distros' own
 release lists and raises the gap; one command measures the new release into
 a pull request; a kit past its release's end of support says so and
 refuses; and settle-in updates the system at first start.
 
-**Where it stands.** `[#...]` planned. Nothing built.
-[log](log/2026-11.md#2026-11-24-the-kernel-comes-from-the-kits-own-releases-r3-r46)
+**Where it stands.** `[#...]` planned. Nothing built. The kit carries Fedora
+45 since 2026-11-24, bumped by hand.
+[log](log/2026-11.md#2026-11-24-the-kit-moves-to-fedora-45-and-the-installer-stops-reading-a-whole-image-into-memory-r46-v14-v3)
 
 # Closed
 
