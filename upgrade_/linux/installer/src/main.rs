@@ -11,6 +11,7 @@
 //! parity test only: UPG_TEST_REFUSAL_SECS (the countdown and its UPG_TEST_COUNTDOWN
 //! left in 0.2.0, 2026-11-02).
 
+mod nvidia;
 mod outcome;
 mod post;
 mod subiquity;

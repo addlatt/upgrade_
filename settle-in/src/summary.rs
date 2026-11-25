@@ -39,6 +39,8 @@ pub fn build(root: &str, report: &Value, job: &Value) -> Value {
             "passwords_deleted": report.pointer("/wifi/passwords_deleted"),
         },
         "ssh": report.get("ssh").cloned().unwrap_or(json!({ "result": "not-carried" })),
+        // which driver an NVIDIA card runs on (R47); device ids, no secret
+        "graphics": report.get("graphics").cloned().unwrap_or(Value::Null),
         "old_boot_entry": report.get("old_boot_entry").cloned().unwrap_or(json!({ "offered": false })),
         // for "Go back to Windows": which Windows it was, never a key (the
         // schema refuses key shapes in every field; R13, R30)
@@ -142,6 +144,10 @@ pub fn sections(s: &Value) -> Value {
             out.push(json!({ "heading": "Remote access (SSH)", "lines": [format!("Windows had it on, but it was not turned on here: {}.", h["why"].as_str().unwrap_or("the reason was not recorded"))] }));
         }
         _ => {}
+    }
+    // --- the graphics card (2026-11-25; words are a draft for the owner): only with an NVIDIA card
+    if let Some(lines) = crate::graphics::lines(&s["graphics"]) {
+        out.push(json!({ "heading": "The graphics card", "lines": lines }));
     }
     // --- the files (2026-11-07; words are a draft for the owner): only with Windows kept
     if s["windows_kept"] == json!(true) {

@@ -241,6 +241,14 @@ owner): Fedora alone first, Bazzite once V16 holds; the program is already
 on the stick. Built 2026-11-08.
 Proves: R44, V17, R31, R34, V12, V14. Stands: see [STATUS.md](STATUS.md).
 
+## 25. NVIDIA's own driver, installed for the person
+
+Decided (2026-11-25, the owner): Ubuntu installs it from the stick during
+the install, for a card the stick has a driver for; built 2026-11-25.
+Fedora next: a settle-in step, online, from RPM Fusion, with the key step
+item 23's Bazzite design describes. Waits on: the Aspire run for Ubuntu;
+the owner's calls below for Fedora. Proves: R47. Stands: see [STATUS.md](STATUS.md).
+
 ## Decisions owed
 
 The owner's open calls, one line each, naming what waits on them. When one
@@ -258,6 +266,9 @@ is decided, the dated line goes in its home and the item here is removed.
   launcher's "If you change your mind later", `UPGRADE.exe`'s screens (R31),
   the go-back screen, its Wi-Fi sentence, the SSH line, "Your programs" (R30, R33),
   the picker's and the download's (R31, R44).
+- Fedora's NVIDIA step (R47, item 25) needs the network, a third-party repository and a key step under Secure Boot: whether settle-in may do all three.
+- Whether "a setup plan per device" (an action per chip, per Linux) becomes the project's direction, NVIDIA its first slice (R47).
+- The graphics card's words in settle-in and the scanner's NVIDIA sentences are drafts (R47).
 - The pull: a folder changed in Windows since `evaluate` is refused for good (R8); the stick's key kept (R13).
 - Whether a wimlib-made `install.swm` split installs cleanly with Secure
   Boot on (R30).

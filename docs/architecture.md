@@ -512,8 +512,6 @@ rollback (hence its human gate before the commit line); its way back is below.
 
 ### Design constraints: offline, and one stick, honestly sized
 
-
-
 The live image carries Fedora as a squashfs (a compressed, read-only disk image)
 on the USB, both desktops, so the desktop choice costs a question, not a
 download. It does **not** install over the network: the machines most likely to
@@ -523,7 +521,8 @@ Fedora's own Workstation and KDE live ISOs, installed with kickstart `liveimg
 --checksum=`; the installer boot files come from the netinst ISO, also
 unmodified. There is no image of our own making.
 
-
+One thing is installed beyond the image, on Ubuntu only: NVIDIA's own driver,
+from the stick's packages, for a card the stick has one for (RISKS R47).
 
 `evaluate` works out what the stick must hold (live image, artifacts, and on the
 clean-slate path the staged files) and refuses a stick that cannot hold it, with

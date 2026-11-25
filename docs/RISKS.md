@@ -1513,6 +1513,46 @@ refuses; and settle-in updates the system at first start.
 45 since 2026-11-24, bumped by hand.
 [log](log/2026-11.md#2026-11-24-the-kit-moves-to-fedora-45-and-the-installer-stops-reading-a-whole-image-into-memory-r46-v14-v3)
 
+## R47: An NVIDIA card is left on the slow built-in driver, or the driver install breaks an install · high · built
+
+**What.** Linux starts an NVIDIA card on its built-in driver (nouveau): the
+desktop works, games and 3D are slow. Until 2026-11-25 nothing in the kit
+installed NVIDIA's own driver, and the scanner said it "is added
+afterwards". Ubuntu's stick carries that driver in two branches (580 and
+595), each with its kernel module built and signed by Canonical for the
+installed kernel. `data/devices/nvidia.json` holds the cards each package
+lists, measured from the ISO by `data/tools/measure-nvidia.py`. Fedora
+carries none: it comes from RPM Fusion, online, built on the computer.
+
+**If real.** Left on the built-in driver, nothing is lost, the computer is
+slower. The new step is the danger. Ubuntu's installer runs
+`ubuntu-drivers install` after the disk is written (read from its own code,
+`subiquity/server/controllers/install.py` in snap 665 on the ISO). If it
+fails the install fails, past the commit line; on the erase path there is no
+Windows left. A driver that installs and then shows a black screen needs the
+way back, which only the keep-Windows path has: high.
+
+**Decided (2026-11-25, the owner): Ubuntu installs NVIDIA's own driver from
+the stick, and Fedora is prepared for it.** The switch
+(`drivers: {install: true}`) is turned on by the early check only when this
+computer has an NVIDIA graphics card and the table lists a branch for it
+with a signed module. Every other computer installs as before. The
+installer picks the branch itself. The late step records whether the
+packages are there, and settle-in tells the person which driver the card
+runs on. Nothing refuses on it.
+
+**Closes when.** On a real machine with Secure Boot on, an Ubuntu install
+from the stick, offline, comes up with the card on NVIDIA's driver, for one
+card in each branch, and the card still is after a kernel update. And
+Fedora does the same by its own step, key step included, or its words say
+plainly that it does not.
+
+**Where it stands.** `[##..]` built, unfired. Ubuntu's half is built
+(installer 0.5.0, autoinstall 0.5.0, settle-in 0.16.0); tests only. Fedora's
+half is a design. The rig has no NVIDIA card, so it can prove only that
+nothing changed without one.
+[log](log/2026-11.md#2026-11-25-nvidias-own-driver-ubuntu-installs-it-from-the-stick-fedora-is-prepared-r47)
+
 # Closed
 
 ## R3: Distro kernel table is unverified and stale · high · closed
