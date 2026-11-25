@@ -5,14 +5,13 @@ use crate::check::Scan;
 use crate::data::tables;
 use crate::facts::Machine;
 use crate::ps::{s, truthy, Version};
-use crate::verdict::{recommendation, required_kernel, verdict, Recommendation, Verdict};
+use crate::verdict::{required_kernel, verdict, Verdict};
 use crate::{hardware, parse, sbat, software, storage, system};
 
 pub struct Outcome {
     pub scan: Scan,
     pub verdict: Verdict,
     pub required_kernel: Option<Version>,
-    pub recommendation: Recommendation,
 }
 
 pub fn scan(m: &Machine) -> Outcome {
@@ -44,9 +43,10 @@ pub fn scan(m: &Machine) -> Outcome {
     system::current_os(&mut sc, &m.sys);
 
     let required_kernel = required_kernel(&sc);
+    // the hardware has said what kernel it needs: a release older than that is not offered
+    sbat::judge_release_kernels(&mut sc, required_kernel, &tables().releases);
     let verdict = verdict(&sc);
-    let recommendation = recommendation(&sc, required_kernel);
-    Outcome { scan: sc, verdict, required_kernel, recommendation }
+    Outcome { scan: sc, verdict, required_kernel }
 }
 
 /// The checks a hardware-only recording can replay: the seven that read
@@ -62,6 +62,5 @@ pub fn scan_hardware_only(m: &Machine) -> Outcome {
     hardware::vendor(&mut sc, &m.sys);
     let required_kernel = required_kernel(&sc);
     let verdict = verdict(&sc);
-    let recommendation = recommendation(&sc, required_kernel);
-    Outcome { scan: sc, verdict, required_kernel, recommendation }
+    Outcome { scan: sc, verdict, required_kernel }
 }

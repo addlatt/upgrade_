@@ -116,28 +116,6 @@ Aspire (the one Intel laptop) and one synthetic VMD spoof. The spread above
 does not exist, so the mechanism counts as built, not held.
 [log](log/2026-08.md#2026-08-22-the-capture-mechanism-and-corpus-replay-r2)
 
-## R3: Distro kernel table is unverified and stale · high · planned
-
-**What.** `data/distros.json` marks Fedora (6.14) and Pop!_OS (6.9) with
-`"Approx": true`, meaning nobody checked them against release notes. Ubuntu
-26.04 LTS is missing entirely. This table produces the report's headline
-claim: the scanner tells people "RULED OUT for shipping an older kernel:
-Linux Mint, Ubuntu LTS, Pop!_OS" with total confidence, from data marked as
-a guess.
-
-**If real.** If Ubuntu 26.04 LTS ships a new enough kernel, we steer people
-away from the most popular, best-supported option for no reason. The
-recommendation then falls back to openSUSE Tumbleweed and Arch, which the
-same table rates as unsuitable for newcomers.
-
-**Closes when.** Every entry is confirmed against the distribution's own
-release notes, `Approx` is cleared, `$script:UpgDistroTableVerified` is
-updated, and Ubuntu 26.04 is added or explicitly left out with a reason.
-
-**Where it stands.** `[#...]` planned. Nothing done: the table still reads
-`UpgDistroTableVerified = '2026-08-16'`, the two `Approx` entries stand, and
-Ubuntu 26.04 is still missing. No log entry yet.
-
 ## R4: Scanner and converter contradict each other · medium · built
 
 **What.** The scanner's free-space check once said "Not enough free space
@@ -1507,7 +1485,43 @@ stick started again handed over to the installed system
 start refused by the check itself, line 6; [log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). Owed: a real
 machine.
 
+## R46: The kit falls behind the newest Fedora and Ubuntu · medium · planned
+
+**What.** The kit carries the releases that were measured into
+`data/releases.json`, at fixed download links. Nothing watches Fedora's or
+Ubuntu's release lists, so the table goes stale without anyone being told.
+Found 2026-11-24: Fedora 45 was out and the kit still carried Fedora 44.
+Nothing updates the installed Linux at first start either.
+
+**If real.** (It is.) A person is moved to a release that is one behind, or
+past its end of support. Later the old links move (Ubuntu's when the next
+point release ships, Fedora's at end of life) and the download fails; that
+failure is before anything is changed, so no files are at risk: medium.
+
+**Decided (2026-11-24, the owner): a known gap, left until the project
+matures.** Releases are bumped by hand for now.
+
+**Closes when.** A scheduled check compares the table with the distros' own
+release lists and raises the gap; one command measures the new release into
+a pull request; a kit past its release's end of support says so and
+refuses; and settle-in updates the system at first start.
+
+**Where it stands.** `[#...]` planned. Nothing built.
+[log](log/2026-11.md#2026-11-24-the-kernel-comes-from-the-kits-own-releases-r3-r46)
+
 # Closed
+
+## R3: Distro kernel table is unverified and stale · high · closed
+
+**What.** A hand-typed table of seven Linuxes and their kernels
+(`data/distros.json`), two marked as guesses, drove the report's "ruled out"
+and "recommended" lists. **If real.** (It was: on the G16 the report ruled
+out "Ubuntu LTS (kernel 6.8)" while the kit's Ubuntu carries kernel 7.0.)
+**Decided (2026-11-24, the owner): the report is about the kit's own Linuxes
+only.** **Where it stands.** Closed by removal, not by a row: the table is
+gone, each release's kernel is measured from its ISO into
+`data/releases.json`, and a release too old for the computer is not offered.
+[log](log/2026-11.md#2026-11-24-the-kernel-comes-from-the-kits-own-releases-r3-r46)
 
 ## R38: The installer's shell shares the countdown's console · critical · closed
 

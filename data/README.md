@@ -13,8 +13,7 @@ compiled into the scanner. Adding a device is one entry and a cited source.
 | `devices/vendors.json` | machine quirks | `Match`, a regular expression over `vendor model` |
 | `devices/apps.json` | installed programs with no Linux path | `Match`, a regular expression over the program's name |
 | `programs.json` | the Linux or web version of a Windows program, for `settle-in`'s list (compiled into `settle-in`, not the scanner) | `Match`, the same; the first match wins |
-| `distros.json` | the distribution kernel table | the distribution's name |
-| `releases.json` | the Linux releases the kit can carry, with what Secure Boot needs of each | the release id |
+| `releases.json` | the Linux releases the kit can carry, with what Secure Boot needs of each and the kernel each installs | the release id |
 
 Every file starts with an `_about` entry for the reader. The scanner
 ignores it; keep it true.
@@ -66,22 +65,18 @@ it before a pull request that touches the table; never type the date. Its
 first run (2026-11-07) found `org.mozilla.Thunderbird` end-of-life on
 Flathub (now `org.mozilla.thunderbird_esr`).
 
-## The distribution table
-
-`distros.json` goes stale faster than anything else here, and a stale
-kernel number gives advice that is confident and wrong. `Kernel` is the
-kernel a fresh install of the current stable release gives on first boot,
-never a backport. `"Approx": true` marks a number nobody checked against
-the release notes. When you refresh the table, set its `Verified` date and
-cite the release notes; the scanner warns the person when that date is
-over 120 days old.
-
 ## The releases
 
 Every fact under a release entry is measured from the release's own files
 by `tools/measure-release.py` and pinned by sha256: the installer image,
 each desktop's live image, and each boot file's SBAT generations, built-in
-revocation levels and signing authorities. Never type or edit one by hand:
+revocation levels and signing authorities. Under `Kernels` it records the
+release each kernel image names itself (what `uname -r` says), read from the
+image's boot header: the stick's kernel, and each kernel inside what gets
+installed. The scanner compares the installed ones with the newest
+`MinKernel` the computer's devices ask for, and a release that is older is
+not offered (decided 2026-11-24, the owner; RISKS R3). There is no
+hand-typed kernel table any more. Never type or edit one by hand:
 run the tool, which replaces the entry with that id or adds a new one. The
 kit builder and `rig/vm/fetch-release.sh` refuse any file whose hash
 differs from the entry.

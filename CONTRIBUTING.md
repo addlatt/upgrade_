@@ -75,17 +75,6 @@ technical.
 - No hedging that carries no information. "May or may not work" tells them
   nothing they didn't already know.
 
-## The distribution table
-
-`data/distros.json` goes stale faster than anything else here, and a stale
-kernel number gives advice that is confident and wrong. Entries marked
-`"Approx": true` were not checked against a primary source (the release
-notes themselves) and need confirming.
-
-If you refresh it, set the table's `Verified` date to the day you checked,
-and cite the release notes in your PR. The scanner warns users when the
-table is more than 120 days old.
-
 ## Code
 
 Rust, built with the pinned toolchain in `rust-toolchain.toml` and

@@ -559,7 +559,6 @@ fn main() -> ExitCode {
             "RanAsAdmin": machine.is_admin,
             "RequiredKernel": outcome.required_kernel.map(|k| k.to_string()),
             "Verdict": {"Level": outcome.verdict.level.as_str(), "Summary": outcome.verdict.summary},
-            "Recommended": outcome.recommendation.distros.iter().map(|d| d.name.clone()).collect::<Vec<_>>(),
             "Checks": checks,
             "Releases": outcome.scan.releases,
             "UnmatchedIds": report::unmatched_sorted(&outcome.scan.unmatched),

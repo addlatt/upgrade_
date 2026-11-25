@@ -10,7 +10,7 @@
       "Name": "Fedora 44",
       "Family": "fedora",
       "Installer": "kickstart",
-      "Measured": "2026-10-03",
+      "Measured": "2026-11-24",
       "Note": "",
       "Netinst": {
         "Url": "https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Server/x86_64/iso/Fedora-Server-netinst-x86_64-44-1.7.iso",
@@ -107,6 +107,26 @@
             "fedoraca"
           ]
         }
+      ],
+      "Kernels": [
+        {
+          "Role": "stick",
+          "File": "vmlinuz",
+          "Release": "6.19.10-300.fc44.x86_64",
+          "Sha256": "4b37e4e542a62c580c751787848be6c99e6f908f6712c8c6da85516b8d541de2"
+        },
+        {
+          "Role": "installed kde",
+          "File": "vmlinuz-0-rescue-b972505d158f4637b4467345ec041324",
+          "Release": "6.19.10-300.fc44.x86_64",
+          "Sha256": "4b37e4e542a62c580c751787848be6c99e6f908f6712c8c6da85516b8d541de2"
+        },
+        {
+          "Role": "installed gnome",
+          "File": "vmlinuz-0-rescue-4189730cf6c94d60bf67890447d58a3b",
+          "Release": "6.19.10-300.fc44.x86_64",
+          "Sha256": "4b37e4e542a62c580c751787848be6c99e6f908f6712c8c6da85516b8d541de2"
+        }
       ]
     },
     {
@@ -114,7 +134,7 @@
       "Name": "Ubuntu 26.04.1 LTS",
       "Family": "ubuntu",
       "Installer": "autoinstall",
-      "Measured": "2026-11-12",
+      "Measured": "2026-11-24",
       "Note": "",
       "Iso": {
         "Url": "https://releases.ubuntu.com/26.04.1/ubuntu-26.04.1-desktop-amd64.iso",
@@ -488,6 +508,26 @@
           "SignedBy": [
             "Canonical Ltd. Master Certificate Authority"
           ]
+        }
+      ],
+      "Kernels": [
+        {
+          "Role": "stick",
+          "File": "vmlinuz",
+          "Release": "7.0.0-30-generic",
+          "Sha256": "0ad39b13e289e1a5cf806d14541ac8f221eefe849017f5915e0846917ed67785"
+        },
+        {
+          "Role": "installed",
+          "File": "vmlinuz-7.0.0-30-generic",
+          "Release": "7.0.0-30-generic",
+          "Sha256": "0ad39b13e289e1a5cf806d14541ac8f221eefe849017f5915e0846917ed67785"
+        },
+        {
+          "Role": "base layer",
+          "File": "vmlinuz-7.0.0-30-generic",
+          "Release": "7.0.0-30-generic",
+          "Sha256": "0ad39b13e289e1a5cf806d14541ac8f221eefe849017f5915e0846917ed67785"
         }
       ],
       "InstalledKernelIsLiveKernel": true,

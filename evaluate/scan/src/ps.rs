@@ -168,6 +168,15 @@ impl Version {
     }
 }
 
+impl Version {
+    /// The version at the front of a kernel release as the kernel names
+    /// itself: `6.19.10-300.fc44.x86_64` is 6.19.10, `7.0.0-30-generic` is 7.0.0.
+    pub fn parse_release(text: &str) -> Option<Version> {
+        let end = text.find(|c: char| !(c.is_ascii_digit() || c == '.')).unwrap_or(text.len());
+        Version::parse(text[..end].trim_end_matches('.'))
+    }
+}
+
 impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let parts: Vec<String> = self.0.iter().take_while(|x| **x >= 0).map(|x| x.to_string()).collect();
