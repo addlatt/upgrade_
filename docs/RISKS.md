@@ -387,9 +387,11 @@ choose what to do are built and verified, not just designed.
 installer's move-and-delete step exists (`upgrade-installer outcome`
 records `moved` and `removed_from_stick` in `outcome.json`), and the
 Aspire's run 11 (2026-10-04) connected to Wi-Fi by itself, but no row in
-this risk's record names the removal, so it is not held. The BitLocker
-key's wipe after the pull and the permissions on write wait on `settle-in`'s
-file pull, which is not built.
+this risk's record names the removal, so it is not held. The pull is built
+and removes the BitLocker key when it ends. **Decided (2026-11-23, the
+owner): after a copy of only some files the key stays on this Linux until
+everything has come**, so it can sit there for as long as the person leaves
+files behind. No row names the key's removal or its permissions yet.
 [log](log/2026-08.md#2026-08-22-the-credential-wipe-moves-to-the-end-of-settle-ins-pull-r13)
 
 ## R14: Supply chain · medium · held-on-machine
