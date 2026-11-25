@@ -1539,7 +1539,9 @@ computer has an NVIDIA graphics card and the table lists a branch for it
 with a signed module. Every other computer installs as before. The
 installer picks the branch itself. The late step records whether the
 packages are there, and settle-in tells the person which driver the card
-runs on. Nothing refuses on it.
+runs on. Nothing refuses on it. **Decided (2026-11-25, the owner): on
+Fedora, settle-in may go online, add RPM Fusion and start the key step, and
+it asks the person first.**
 
 **Closes when.** On a real machine with Secure Boot on, an Ubuntu install
 from the stick, offline, comes up with the card on NVIDIA's driver, for one
@@ -1549,7 +1551,7 @@ plainly that it does not.
 
 **Where it stands.** `[##..]` built, unfired. Ubuntu's half is built
 (installer 0.5.0, autoinstall 0.5.0, settle-in 0.16.0); tests only. Fedora's
-half is a design. The rig has no NVIDIA card, so it can prove only that
+half is decided, not built. The rig has no NVIDIA card, so it can prove only that
 nothing changed without one.
 [log](log/2026-11.md#2026-11-25-nvidias-own-driver-ubuntu-installs-it-from-the-stick-fedora-is-prepared-r47)
 

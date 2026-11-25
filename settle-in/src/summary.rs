@@ -145,7 +145,7 @@ pub fn sections(s: &Value) -> Value {
         }
         _ => {}
     }
-    // --- the graphics card (2026-11-25; words are a draft for the owner): only with an NVIDIA card
+    // --- the graphics card (approved 2026-11-25): only with an NVIDIA card
     if let Some(lines) = crate::graphics::lines(&s["graphics"]) {
         out.push(json!({ "heading": "The graphics card", "lines": lines }));
     }

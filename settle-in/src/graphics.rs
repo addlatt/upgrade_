@@ -47,7 +47,7 @@ pub fn run(root: &str) -> Value {
     judge(&cards(root))
 }
 
-/// The lines for the person (2026-11-25; words are a draft for the owner).
+/// The lines for the person (approved 2026-11-25, the owner).
 /// Nothing for a computer with no NVIDIA card.
 pub fn lines(g: &Value) -> Option<Vec<String>> {
     match g["result"].as_str() {
