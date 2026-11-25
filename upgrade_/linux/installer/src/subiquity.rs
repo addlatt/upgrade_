@@ -1,5 +1,5 @@
 //! Ubuntu's installer (subiquity) has three hooks, and these are ours
-//! (roadmap item 23; RISKS R40, R45; docs/UBUNTU-DESIGN.md):
+//! (roadmap item 23; RISKS R40, R45; docs/archive/UBUNTU-DESIGN.md):
 //!
 //!   early   before the installer looks at any disk. The refusal gate, as
 //!           `verify` is Anaconda's %pre. The stick's own answer file

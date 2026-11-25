@@ -21,10 +21,10 @@ which steps carry over, which change, and which are new.
 ```text
   step                      today (Windows PC)                     reusable?
   ------------------------  -------------------------------------  ---------
-  1 scan + refuse           upgrade-scan.ps1                       rules yes, code per source OS
-  2 harvest + job           Harvest-UpgradeState.ps1, New-Job.ps1  job.json schema yes
-  3 write the stick         Write-UpgradeStick.ps1                 per source OS
-  4 prologue                Invoke-Prologue.ps1: check, shrink,    per source OS
+  1 scan + refuse           upgrade-scan                           rules yes, code per source OS
+  2 harvest + job           upgrade-harvest, upgrade-job           job.json schema yes
+  3 write the stick         upgrade-stick                          per source OS
+  4 prologue                upgrade-prologue: check, shrink,       per source OS
                               pause encryption, one-time boot
   5 installer on the stick  Fedora + shim + the verify step (%pre) yes on x86; new image on ARM
   6 install + outcome       kickstart, %post checks, outcome step  yes on x86
@@ -57,15 +57,17 @@ new:            input without a keyboard, at three moments
 
 What's new:
 
-1. **Typing without a keyboard.** The launchers ask for a typed sentence and
+1. **Typing without a keyboard.** The window asks for a typed sentence and
    a password. On a handheld that means Windows' on-screen keyboard. Owed:
-   check the launchers work with it.
-2. **The countdown's "any key cancels".** In the installer there is no
-   on-screen keyboard. The cancel must work with a controller button or the
-   power button *(to source: which buttons the installer's console sees)*.
+   check the window works with it.
+2. **The installer's screens with no keyboard.** In the installer there is
+   no on-screen keyboard. Since 2026-11-02 there is no countdown and no
+   cancel there (the last click in the window is the commit line), so
+   nothing needs a key: a refusal screen waits 60 seconds and restarts by
+   itself.
 3. **Screen orientation.** Some handheld panels are natively portrait and
-   show up sideways in a text console *(to source per model)*. The
-   countdown must be readable.
+   show up sideways in a text console *(to source per model)*. A refusal
+   screen must be readable.
 4. **Drivers.** Controller, fan and power controls may need newer kernels
    or extra packages. The scanner learns each model's needs, like it does
    for Wi-Fi today.
@@ -77,9 +79,9 @@ What's new:
 
 **Prove first (proposed gates, not yet in VALIDATION.md):**
 
-- a `-DumpMachine` capture of one handheld into the corpus;
+- an `upgrade-scan dump-machine` capture of one handheld into the corpus;
 - a V0 handoff row (the one-time boot fires, and fails safe);
-- the countdown cancelled with no keyboard attached.
+- a refusal screen read and left with no keyboard attached.
 
 **Who's stranded:** handhelds that shipped with Windows 10 and can't take
 Windows 11 *(to source: which models)*.
@@ -118,8 +120,8 @@ What's new:
 2. Surface firmware (UEFI) supports USB boot and a third-party certificate
    option (C34). Owed: does the one-time boot through `bcdedit` fire on
    Surface firmware? That's a V0 row.
-3. Surface keyboards that detach (Pro models): the countdown needs the Type
-   Cover attached, or a button.
+3. Surface keyboards that detach (Pro models): the window's typed sentence
+   needs the Type Cover attached, or the on-screen keyboard.
 
 **Prove first:** a V0 row on one Surface Pro 4 or Surface Laptop 1; a
 capture into the corpus; the scanner's per-model "won't work" list checked
@@ -408,7 +410,7 @@ What was read on 2026-11-02, research and not evidence:
   ([linuxconfig](https://linuxconfig.org/how-to-write-and-perform-ubuntu-unattended-installations-with-autoinstall),
   [a guide](https://oneuptime.com/blog/post/2026-03-02-subiquity-automate-ubuntu-server-deployments/markdown)).
   Measured 2026-11-12, and installed offline and unattended on the rig
-  (`docs/UBUNTU-DESIGN.md`; log 2026-11-12).
+  (`docs/archive/UBUNTU-DESIGN.md`; log 2026-11-12).
 
 ## Suggested order, once v1 ships
 

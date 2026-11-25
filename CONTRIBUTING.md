@@ -110,7 +110,7 @@ If a check is wrong, fix the check. Don't remove it.
 ## Scope
 
 The scanner reads. It never writes. The converter does write (it shrinks
-Windows, installs Fedora, and on one launcher erases the disks), and those
+Windows, installs Linux, and when the person chooses it erases the disks), and those
 parts are built last, behind real-hardware evidence, and reviewed hardest.
 Contributions that touch partitions, change firmware settings or install
 anything are out of scope until there's a much larger corpus of verified

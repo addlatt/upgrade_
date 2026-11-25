@@ -155,8 +155,8 @@ physical job.
 
 ## R5: Single-user assumption · high · built
 
-**What.** `Harvest-UpgradeState.ps1` collects only the current user's
-folders, browser profiles and account details.
+**What.** The harvester (`upgrade-harvest`) collects only the current
+user's folders and account details.
 
 **If real.** A family computer with three accounts moves one and silently
 leaves the other two behind. The conversion reports success. The other two
@@ -170,11 +170,13 @@ is an acceptable v1 answer. Silently moving one is not.
 
 **Where it stands.** `[##..]` built (harvester 0.3.0, job writer 0.10.0,
 2026-09-26). The folder map lists every other profile on the machine
-(local, domain and Microsoft Entra; `Win32_UserProfile`, not special). The
-job writer refuses a clean-slate job when any exist and names them; a
-keep-Windows job is still written and says plainly that their files are
-not in it, and `settle-in`'s reclaim will have to refuse on the same fact.
-It also refuses an elevated run under another account, comparing the
+(local, domain and Microsoft Entra; `Win32_UserProfile`, not special). A
+keep-Windows job says plainly that their files are not in it, and
+`settle-in`'s reclaim refuses while they are on the disk (R41). The job
+writer's refusal of a clean-slate job on such a machine left with the
+forced clean slate (2026-10-17, roadmap item 20): an erase the person chose
+is not refused for other accounts and does not name them. The job writer
+also refuses an elevated run under another account, comparing the
 elevated SID with the desktop owner's. Measured on the G16 (0 other
 profiles) and the Aspire (1), `harvest-folder-map.csv` lines 2 to 4; the
 refusal itself has not fired on a real machine. Owed: whether a Windows
@@ -488,13 +490,13 @@ cannot run it (no USB emulation; every VHDX is refused for its bus first).
 That row is exactly the rule-#5 residue.
 
 **Where it stands.** `[####]` held-on-machine, one device at a time. The
-refusal matrix (lines 2 to 7, 13, 14), the PowerShell writer's first write
-(2026-09-13, lines 11, 12), and `upgrade-stick` 0.2.0's first write
-(2026-10-27, line 18, `verified` = y), after three defects found on the
-Aspire's stick and fixed (`copy` deleted a stick's rollback input, `write`
-labelled it `UPGRADE`, a failed write logged `written n`). Owed: the
-several-devices write; a drop mid-write as a pause and a resume; an identity
-for serial-less sticks, which share a `UniqueId` in one port. Log:
+refusal matrix (lines 2 to 7, 13, 14); `upgrade-stick` 0.2.0's first write
+(2026-10-27, line 18), after three defects found on the Aspire's stick and
+fixed; and the Aspire's own writes under the one click manager since
+2026-11-18 (lines 22 to 46, the last `verified` = y, one a refusal of a
+wrong label). Owed: the several-devices write; a second device class; a
+drop mid-write as a pause and a resume; an identity for serial-less sticks,
+which share a `UniqueId` in one port. Log:
 [built](log/2026-09.md#2026-09-08-the-stick-writer-built-and-the-refusal-matrix-fired-r16),
 [first write](log/2026-09.md#2026-09-13-first-physical-stick-write-r16),
 [the Rust writer's](log/2026-10.md#2026-10-27-the-one-click-test-built-and-held-on-the-rig-all-nine-stages-the-aspires-stick-died-roadmap-item-21-r9-r16-r17-r21-r27-v1b-v9-v13).
@@ -597,8 +599,10 @@ files byte-identical through ntfs-3g; `ntfs3` rows read `guest-crashed` and
 `mismatch` (lines 6, 8 to 10). Design inputs found: zero-byte system files
 show as FIFOs (`lstat` first), app-execution aliases are reparse points, the
 shrunk-size warning is normal, and the harvest must hash last. Residue: real
-disks, Windows 11's BitLocker, 4Kn sectors, half-encrypted states. Owed:
-`settle-in`'s file pull, not built
+disks, Windows 11's BitLocker, 4Kn sectors, half-encrypted states. Owed: a
+drive BitLocker really locks, read on a real disk. The pull is built and has
+run on the Aspire (`v3-pull.csv` lines 8 to 15), but that drive is one
+BitLocker keeps unlocked, so no key was used
 ([log](log/2026-09.md#2026-09-01-the-bitlk-reads-vm-leg-ntfs-3g-passes-ntfs3-crashes-r19-v3)).
 
 ## R20: Browser profile porting is assumed, not verified · medium · planned
@@ -623,8 +627,9 @@ bookmark the Windows browser showed is in the Linux browser.
 browser and version pair, and `evaluate`'s claims are narrowed to what the
 evidence supports.
 
-**Where it stands.** `[#...]` nothing checked. The harvester lists the
-browsers in the folder map; no move has been tried on any machine. Owed: a
+**Where it stands.** `[#...]` planted bookmarks only. The pull writes the
+bookmarks as files to import; on the Aspire the counts held for planted
+ones (`v3-pull.csv` line 8: Chrome 5, Firefox 3). Owed: real browsers, and a
 bookmarks move per browser (Chrome, Edge, Firefox) into the Linux browser,
 counted on both sides ([log](log/2026-11.md#2026-11-07-the-file-pull-is-back-keep-windows-only-an-app-list-bookmarks-only-r8-r13-r19-r20-v3-v8-v10-roadmap-items-2-3)).
 
@@ -1071,9 +1076,9 @@ release rebuilt byte for byte by someone else.
 **Where it stands.** `[####]` the cut-over on the Aspire (`v2-install.csv`
 line 15, `pass`; `r18-prologue.csv` lines 18 and 19); phases 1 to 3 done
 (2026-10-11, 2026-10-14); the installer's two steps Rust since 2026-10-14 (42
-sandbox cases match the scripts); ledger 904 `pass`, 168 `owed`. Owed: the rig
-and Aspire rows for each piece (the installer's first), the stick writer's
-write rows, settle-in's starter, the rebuild by someone else ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
+sandbox cases match the scripts); ledger 985 `pass`, 87 `owed`. Owed: the
+Aspire rows for each piece, the stick writer's write rows, the rebuild by
+someone else ([log](log/2026-10.md#2026-10-14-the-installers-verify-and-outcome-steps-to-rust-r32-v13-v1-v9-r21-roadmap-item-19-step-5)).
 
 ## R33: The walk-away way back to Windows · critical · held-on-machine
 
@@ -1095,7 +1100,6 @@ it (Setup twice); Windows 11 refuses the processor; a passwordless account.
 the second left empty; the commit line in the gate on the stick, before Setup.
 **Amended (2026-11-02, the owner):** the commit line is "Restart now", the
 last click; the gate's countdown left with `upgrade-gate` 0.5.0.
-
 **Decided (2026-10-02, the owner):** the way back carries Wi-Fi, as every OS
 switch does. **Decided (2026-10-04, the owner):** it carries the time and
 remote access (SSH, keys only) too. **Decided (2026-10-05, the owner):** the
@@ -1103,17 +1107,18 @@ product keeps the computer awake while it works, on both sides.
 **Decided (2026-11-15, the owner):** one stick: after an erase the kit stick
 itself may become the installer (settle-in 0.12.0); with Windows kept, only
 once reclaim has deleted it (**decided (2026-11-19, the owner)**, 0.13.1).
+**Decided (2026-11-19, the owner):** the 19 hour stop of 2026-11-16 is no
+longer chased: not seen since, not explained; the fail row stays ([log](log/2026-11.md#2026-11-19-evening-four-decisions-by-the-owner-after-the-clean-runs-r33-v11)).
 
 **Closes when.** Rig arms refuse and erase pass with Secure Boot on, nobody
 at the keyboard, ending at the Windows sign-in; then one real machine (the
 Aspire, under R23). V11, step 4.
 
-**Where it stands.** `[####]` `oneclick-runs.csv` line 34 (2026-10-29,
-`windows-reached`); `[FAIL]` line 48 (2026-11-16, one stick, from Ubuntu: 19
-hours before any system started; set by hand it then reached Windows, [log](log/2026-11.md#2026-11-14-to-2026-11-16-ubuntus-one-click-test-on-the-aspire-three-bugs-found-one-stick-on-the-way-back-r21-r22-r23-r33-r16-r36-v11-v12-v18-roadmap-items-21-and-23)).
-Owed: that stop's cause; a whole run on one stick; never-twice on real firmware; the
-sleep lock on a machine (held on the rig 2026-11-11, `r33-awake.csv`); a no-serial stick refused (the owner's call); older lists:
-[log](log/2026-11.md#2026-11-01-an-audit-of-the-code-against-the-docs-roadmap-items-2-4-16-17-19-20-21-r9-r31-r32-r33-r39-v10-v12-v13).
+**Where it stands.** `[####]` `oneclick-runs.csv` line 221 (2026-11-20,
+`windows-reached`), the eleventh time on one stick on the Aspire ([log](log/2026-11.md#2026-11-20-evening-reclaims-move-from-an-ubuntu-stick-on-the-aspire-r16-r33-r41-v3-v11-v15-v18-roadmap-item-23));
+`[FAIL]` line 48 (2026-11-16: 19 hours before any system started, [log](log/2026-11.md#2026-11-14-to-2026-11-16-ubuntus-one-click-test-on-the-aspire-three-bugs-found-one-stick-on-the-way-back-r21-r22-r23-r33-r16-r36-v11-v12-v18-roadmap-items-21-and-23)).
+Owed: never-twice on real firmware; the sleep lock as a row of its own on a
+machine; a no-serial stick refused (the owner's call). All of it: `STATUS.md`.
 
 ## R34: Secure Boot revokes the kit's boot files · critical · held-on-machine
 
@@ -1276,7 +1281,7 @@ job beside it, or when it could not read the disk. Owed: one real machine.
 Not read: a Linux on a second drive, bare firmware entries. Found on the
 Aspire, 2026-10-28 ([log](log/2026-10.md#2026-10-28-the-one-click-test-on-the-aspire-every-stage-on-the-real-machine-roadmap-item-21-r21-r23-r27-r33-r38-v1b-v9-v11-found-r39)).
 
-## R40: A second installer cannot run offline and unattended with Secure Boot on · critical · held-on-rig
+## R40: A second installer cannot run offline and unattended with Secure Boot on · critical · held-on-machine
 
 **What.** Fedora's installer (Anaconda) installs from the image on the
 stick with no network and no question asked, and Fedora's shim starts
@@ -1307,11 +1312,13 @@ now. Bazzite's design stays decided and comes after.
 **Decided (2026-11-13, the owner):** Fedora and Ubuntu are two parallel
 lines through the whole project; Ubuntu is in `data/releases.json`.
 
-**Where it stands.** `[###.]` held-on-rig, for Ubuntu only: its erase
-from a stick laid out as the product's, network off, nothing typed,
-Secure Boot on, has a rig row (`ubuntu-install.csv` line 11;
-[log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). No real machine. Bazzite: its ISO measured 2026-11-07, its
-unattended start unmeasured ([BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
+**Where it stands.** `[####]` held-on-machine, for Ubuntu only, one
+machine: beside Windows and the erase on the Aspire with Secure Boot on,
+nothing typed (`oneclick-runs.csv` lines 216 and 209, 2026-11-20;
+[log](log/2026-11.md#2026-11-20-evening-reclaims-move-from-an-ubuntu-stick-on-the-aspire-r16-r33-r41-v3-v11-v15-v18-roadmap-item-23)). The network off is a rig row (`ubuntu-install.csv` line 11;
+[log](log/2026-11.md#2026-11-13-ubuntu-the-rest-of-the-branch-its-record-its-download-the-products-stick-on-the-rig-r40-r45-r44-r22-r41-v17-v18-roadmap-item-23)). Owed for Ubuntu: a second machine. Bazzite: its ISO measured
+2026-11-07, its unattended start unmeasured, nothing built
+([BAZZITE-DESIGN.md](BAZZITE-DESIGN.md)).
 
 ## R41: Reclaim deletes the kept Windows and moves Linux into the space · critical · held-on-machine
 

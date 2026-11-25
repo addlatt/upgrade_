@@ -78,6 +78,19 @@ Two more Hyper-V facts learned the same day:
 | `v3.sh`, `v3-verdict.py` | the V3 BITLK-read bench: builds the OEMDRV-v3 transport, drives the Windows plant and the Fedora read, writes the evidence rows |
 | `guest/oemdrv-run.sh`, `guest/v3-bootstrap.sh` | the Fedora-side **run hook**: a unit that runs `OEMDRV:/run.sh` as root on every boot and leaves `run.log` on the volume. The bootstrap installs it once from the console |
 | `guest/v3-plant.ps1`, `guest/v3-read.sh`, `guest/v3-encrypt.ps1` | V3 guest halves: Windows plants and hashes the corpus and `C:\Users`, then does a full shutdown; Fedora unlocks, mounts read-only and re-hashes; the encrypt script builds the other configs in the product's order (encrypt, then shrink) |
+| `v1.sh`, `v1-job.py`, `v1-verdict.py` | the V1 live-boot leg: the kit stick with a job and a kickstart, armed with `upgrade-prologue verify-arm`, started through the handoff, nothing installed; writes `v1-live-boot.csv`. The other benches call it to build and arm the stick |
+| `v2.sh`, `v2-verdict.py` | the keep-Windows install on the rig (`v2-install.csv`); the verdict script also judges the prologue bench's and the real machines' installs |
+| `v9.sh`, `v9-job.py`, `v9-inspect.py`, `v9-verdict.py` | the erase and install (V9, `v9-erase.csv`); the one click manager calls its `job`, `prepare`, `windows` and `stick` steps |
+| `v12.sh`, `v12-front.ps1`, `v12-verdict.py` | the window's verify flow, driven with the guest's keyboard (V12, `v12-window.csv`) |
+| `v11-stick.ps1`, `v11w-root.py`, `v11w-verdict.py` | the way back (V11): a guest with an empty disk to see Windows Setup start from a written stick, and the walk-away's verdict |
+| `r39.sh`, `guest/r39-arm.ps1` | a Linux already on the Windows disk (R39, `r39-other-linux.csv`) |
+| `awake.sh`, `guest/awake-win.ps1`, `guest/awake-linux.sh` | the product keeps the computer awake (R33, `r33-awake.csv`) |
+| `guest/pull-plant.ps1`, `guest/pull-read.sh`, `pull-verdict.py`, `pull-firefox.py` | the file pull's arm (`v3-pull.csv`): Windows plants files and bookmarks, Linux runs the product's pull, the verdict compares |
+| `ntfs-fixture.py`, `guest/ntfs-fixture.ps1` | the test disk for settle-in's own NTFS reader (R43) |
+| `settle-in-verdict.py`, `postlog.py` | one row of `settle-in-first-start.csv` from a run's evidence; the shared reader of the installer's logs |
+| `evict-builds.py` | gives WSL's page cache back to the host before a bench starts the guest |
+| `physical/` | the collectors for a real machine (`collect-windows.ps1`, `collect-linux.sh`, `assemble-image.py`, `plant-files.ps1`), read-only except the planted test files |
+| `../oneclick/` | the one click test manager (`oneclick.py`): drives the rig or a real machine through every stage with the product's own programs and writes `oneclick-runs.csv`. Most runs since 2026-10-27 go through it |
 
 Hyper-V cannot open files under `\\wsl.localhost`, so ISOs, VHDXs (Hyper-V's
 virtual disk files) and screenshots live on the Windows side in
@@ -181,7 +194,8 @@ Boot off. To boot Fedora again, pick its entry in the firmware order.
 `v1.sh run` rebuilds the stick and reruns the whole leg.
 
 **The prologue bench (2026-09-12):** `prologue.sh` runs the product's
-one-click `RUN-CONVERT.cmd` (with `CONVERT` on stdin) against
+one-click flow (`upgrade-prologue start --confirm-word CONVERT` today;
+`RUN-CONVERT.cmd` with `CONVERT` on stdin when this was written) against
 `UPGRIGHV.prologue.vhdx`, a Windows-side copy of `UPGRIGHV.fresh.vhdx`.
 That is the **unshrunk** install-day disk, because the prologue's job is the
 shrink and `pre-install.vhdx` already carries the V1b bench's 32 GiB gap.
@@ -210,6 +224,10 @@ about seven hours ahead of the Linux side in `boots.log`. That is a rig
 clock fact, not a finding.
 
 ## Run-books (written before each run; each now carries its result)
+
+Each names the scripts as they were on its date. `Test-Handoff.ps1 -Arm` and
+`-Check` are `upgrade-prologue verify-arm` and `verify-check` since
+2026-10-11.
 
 - **V0 rows 3, 5, 6. `[###.]` DONE 2026-08-30** (row 4 not meaningful here,
   see RISKS R15). How it ran: stick image → VHDX (`qemu-img convert -O vhdx`),
