@@ -1499,15 +1499,17 @@ point release ships, Fedora's at end of life) and the download fails; that
 failure is before anything is changed, so no files are at risk: medium.
 
 **Decided (2026-11-24, the owner): a known gap, left until the project
-matures.** Releases are bumped by hand for now.
+matures.** Releases are bumped by hand for now. **Decided (2026-11-24, the
+owner): the kit moves to Fedora 45 now.**
 
 **Closes when.** A scheduled check compares the table with the distros' own
 release lists and raises the gap; one command measures the new release into
 a pull request; a kit past its release's end of support says so and
 refuses; and settle-in updates the system at first start.
 
-**Where it stands.** `[#...]` planned. Nothing built.
-[log](log/2026-11.md#2026-11-24-the-kernel-comes-from-the-kits-own-releases-r3-r46)
+**Where it stands.** `[#...]` planned. Nothing built. The kit carries Fedora
+45 since 2026-11-24, bumped by hand.
+[log](log/2026-11.md#2026-11-24-the-kit-moves-to-fedora-45-and-the-installer-stops-reading-a-whole-image-into-memory-r46-v14-v3)
 
 # Closed
 

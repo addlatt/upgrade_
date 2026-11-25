@@ -1290,7 +1290,7 @@ class OneStickPlanTests(unittest.TestCase):
 
     def test_the_aspire_is_never_touched(self):
         # the owner, 2026-11-17: the fill is part of the test, so the manager fetches the Linux both times
-        for name, release in (("aspire-ubuntu-one-stick.json", "ubuntu-26.04.1"), ("aspire-one-stick.json", "fedora-44")):
+        for name, release in (("aspire-ubuntu-one-stick.json", "ubuntu-26.04.1"), ("aspire-one-stick.json", "fedora-45")):
             p = self.plan(name)
             self.assertFalse([s for s in p["stages"] if s.get("owner_step")], name)
             self.assertEqual(p["linux"]["release"], release)
@@ -1760,6 +1760,27 @@ class StageRowsTests(unittest.TestCase):
         self.assertIn(",Microsoft Corporation Virtual Machine,Microsoft Corporation Hyper-V UEFI Release v4.1,0.12.0,wrong-guid,", rec)
         self.assertIn("v3-pull.csv lines 2-2; r41-reclaim.csv lines 2-2", said[0])
         self.assertEqual(oneclick.stage_rows(run, res, said.append), 2, "never twice")
+
+
+class ChosenFiles(unittest.TestCase):
+    """The manager's copy of settle-in's rule for a choice (settle-in/src/pull.rs, `chosen`)."""
+
+    def test_no_choice_is_everything_and_a_choice_only_narrows(self):
+        only = {"Documents": ["pull-test/Taxes/", "pull-test/letter.txt"], "Music": [""]}
+        self.assertTrue(oneclick.chosen(None, "Documents", "a.txt"))
+        self.assertTrue(oneclick.chosen(only, "Documents", "pull-test/Taxes/2025/return.pdf"))
+        self.assertTrue(oneclick.chosen(only, "Documents", "pull-test/letter.txt"))
+        self.assertFalse(oneclick.chosen(only, "Documents", "pull-test/letter.txt.bak"))
+        self.assertFalse(oneclick.chosen(only, "Documents", "pull-test/big.bin"))
+        self.assertTrue(oneclick.chosen(only, "Music", "any/song.mp3"))
+        self.assertFalse(oneclick.chosen(only, "Pictures", "pull-test/a.jpg"), "a folder the choice does not name brings none of it")
+
+    def test_the_rig_plan_for_the_name_and_some_files_reads(self):
+        with open(os.path.join(oneclick.REPO, "rig", "oneclick", "plans", "rig-name-some-files.json")) as f:
+            p = json.load(f)
+        self.assertEqual(p["linux_name"], "benchpat")
+        pulls = [s for s in p["stages"] if s["stage"] == "pull"]
+        self.assertEqual([bool(s.get("only")) for s in pulls], [True, False], "some first, then the rest")
 
 
 if __name__ == "__main__":

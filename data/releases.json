@@ -6,39 +6,39 @@
   },
   "Releases": [
     {
-      "Id": "fedora-44",
-      "Name": "Fedora 44",
+      "Id": "fedora-45",
+      "Name": "Fedora 45",
       "Family": "fedora",
       "Installer": "kickstart",
       "Measured": "2026-11-24",
       "Note": "",
       "Netinst": {
-        "Url": "https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Server/x86_64/iso/Fedora-Server-netinst-x86_64-44-1.7.iso",
-        "Sha256": "ae20c06bea746913cadea7d80463e13f4bf55bee4df2918111c921c674b70283"
+        "Url": "https://dl.fedoraproject.org/pub/fedora/linux/releases/45/Server/x86_64/iso/Fedora-Server-netinst-x86_64-45-1.4.iso",
+        "Sha256": "a1e916f139a05955b943cf183b020780cca9c399b02b8f5ec4354c9e5c1dff1a"
       },
       "Desktops": [
         {
           "Id": "kde",
           "Label": "KDE Plasma",
-          "Url": "https://dl.fedoraproject.org/pub/fedora/linux/releases/44/KDE/x86_64/iso/Fedora-KDE-Desktop-Live-44-1.7.x86_64.iso",
-          "IsoSha256": "c8295961d4c41adbf785a31a17c21a971d3b7415fda72dcad0c11c49577bf03a",
+          "Url": "https://dl.fedoraproject.org/pub/fedora/linux/releases/45/KDE/x86_64/iso/Fedora-KDE-Desktop-Live-45-1.4.x86_64.iso",
+          "IsoSha256": "79703d9f3b21a4f7873f2874ec129d6511cb00a08532d8f9b36daacaa96e97a5",
           "ImagePath": "LiveOS/squashfs.img",
-          "ImageSha256": "2b6c1d5727467be858481f16a9131f16fbcaf0cf77bf57139987446825a71330"
+          "ImageSha256": "48b3a76cce28bc3c6969a5ab7ccaf336800079cc6324c89f089e5be94c198b65"
         },
         {
           "Id": "gnome",
           "Label": "GNOME",
-          "Url": "https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Workstation/x86_64/iso/Fedora-Workstation-Live-44-1.7.x86_64.iso",
-          "IsoSha256": "1620295f6a00c27c3208f0c00b8ece4eab1ec69b9002152d97488bf26a426ddf",
+          "Url": "https://dl.fedoraproject.org/pub/fedora/linux/releases/45/Workstation/x86_64/iso/Fedora-Workstation-Live-45-1.4.x86_64.iso",
+          "IsoSha256": "68338c6bfe4f0d64151f2e47efe9f44a8855ad05b460e56b844fb3fa2c9a3beb",
           "ImagePath": "LiveOS/squashfs.img",
-          "ImageSha256": "e4303ff920701e7bb293b18b034de25fe6d046c6f011e56f0820d3bce692879c"
+          "ImageSha256": "16b9177298f9835fa6f00070624e2cee50a68907d8c09f3fdaae07047214e573"
         }
       ],
       "Boot": [
         {
           "Role": "stick",
           "File": "BOOTX64.EFI",
-          "Sha256": "571ea56b855dcf73bec6acb63c5ded44c2a191138bca0d8cfa5aa93f60f46fff",
+          "Sha256": "351e131d3c4a636704e9cae7d1296baf8a05beca9922cfebbfa48933c9bf1ad3",
           "Sbat": "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\nshim,4,UEFI shim,shim,1,https://github.com/rhboot/shim\nshim.rh,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64\nshim.redhat,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64\nshim.fedora,3,The Fedora Project,shim,16.1-1,https://src.fedoraproject.org/rpms/shim-unsigned-x64",
           "SbatLevel": [
             "sbat,1,2024040900\nshim,4\ngrub,4\ngrub.peimage,2\n",
@@ -46,23 +46,26 @@
           ],
           "SignedBy": [
             "Microsoft Corporation UEFI CA 2011",
-            "Microsoft Corporation Third Party Marketplace Root"
+            "Microsoft Corporation Third Party Marketplace Root",
+            "Microsoft UEFI CA 2023",
+            "Microsoft RSA Devices Root CA 2021"
           ]
         },
         {
           "Role": "stick",
           "File": "grubx64.efi",
-          "Sha256": "51d290821cd0df32de5c2462cd63252276b63ef8dfc53fda79855fe51c9d1e45",
-          "Sbat": "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\ngrub,5,Free Software Foundation,grub,2.12,https//www.gnu.org/software/grub/\ngrub.rh,2,Red Hat,grub2,2.12-56.fc44,mailto:secalert@redhat.com",
+          "Sha256": "d833dd186af6c24fa2b8a2973e25df2cb7d73fbe8deca8062975ecc469a48d6f",
+          "Sbat": "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\ngrub,5,Free Software Foundation,grub,2.12,https//www.gnu.org/software/grub/\ngrub.rh,2,Red Hat,grub2,2.12-81.fc45,mailto:secalert@redhat.com",
           "SbatLevel": [],
           "SignedBy": [
+            "fedora-ca-20250530",
             "fedoraca"
           ]
         },
         {
           "Role": "installed kde",
           "File": "shimx64.efi",
-          "Sha256": "571ea56b855dcf73bec6acb63c5ded44c2a191138bca0d8cfa5aa93f60f46fff",
+          "Sha256": "351e131d3c4a636704e9cae7d1296baf8a05beca9922cfebbfa48933c9bf1ad3",
           "Sbat": "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\nshim,4,UEFI shim,shim,1,https://github.com/rhboot/shim\nshim.rh,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64\nshim.redhat,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64\nshim.fedora,3,The Fedora Project,shim,16.1-1,https://src.fedoraproject.org/rpms/shim-unsigned-x64",
           "SbatLevel": [
             "sbat,1,2024040900\nshim,4\ngrub,4\ngrub.peimage,2\n",
@@ -70,23 +73,26 @@
           ],
           "SignedBy": [
             "Microsoft Corporation UEFI CA 2011",
-            "Microsoft Corporation Third Party Marketplace Root"
+            "Microsoft Corporation Third Party Marketplace Root",
+            "Microsoft UEFI CA 2023",
+            "Microsoft RSA Devices Root CA 2021"
           ]
         },
         {
           "Role": "installed kde",
           "File": "grubx64.efi",
-          "Sha256": "b8e335da604169cb5bf61cfe474a9ef9c4f88f3c3140f77d94cca50021b3882b",
-          "Sbat": "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\ngrub,5,Free Software Foundation,grub,2.12,https//www.gnu.org/software/grub/\ngrub.rh,2,Red Hat,grub2,2.12-56.fc44,mailto:secalert@redhat.com",
+          "Sha256": "a3af8ec994afc588c2c4e1158f789d5bc5832f8a145df11119e90d277dfed765",
+          "Sbat": "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\ngrub,5,Free Software Foundation,grub,2.12,https//www.gnu.org/software/grub/\ngrub.rh,2,Red Hat,grub2,2.12-81.fc45,mailto:secalert@redhat.com",
           "SbatLevel": [],
           "SignedBy": [
+            "fedora-ca-20250530",
             "fedoraca"
           ]
         },
         {
           "Role": "installed gnome",
           "File": "shimx64.efi",
-          "Sha256": "571ea56b855dcf73bec6acb63c5ded44c2a191138bca0d8cfa5aa93f60f46fff",
+          "Sha256": "351e131d3c4a636704e9cae7d1296baf8a05beca9922cfebbfa48933c9bf1ad3",
           "Sbat": "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\nshim,4,UEFI shim,shim,1,https://github.com/rhboot/shim\nshim.rh,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64\nshim.redhat,3,The Fedora Project,shim,16.1,https://src.fedoraproject.org/rpms/shim-unsigned-x64\nshim.fedora,3,The Fedora Project,shim,16.1-1,https://src.fedoraproject.org/rpms/shim-unsigned-x64",
           "SbatLevel": [
             "sbat,1,2024040900\nshim,4\ngrub,4\ngrub.peimage,2\n",
@@ -94,16 +100,19 @@
           ],
           "SignedBy": [
             "Microsoft Corporation UEFI CA 2011",
-            "Microsoft Corporation Third Party Marketplace Root"
+            "Microsoft Corporation Third Party Marketplace Root",
+            "Microsoft UEFI CA 2023",
+            "Microsoft RSA Devices Root CA 2021"
           ]
         },
         {
           "Role": "installed gnome",
           "File": "grubx64.efi",
-          "Sha256": "b8e335da604169cb5bf61cfe474a9ef9c4f88f3c3140f77d94cca50021b3882b",
-          "Sbat": "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\ngrub,5,Free Software Foundation,grub,2.12,https//www.gnu.org/software/grub/\ngrub.rh,2,Red Hat,grub2,2.12-56.fc44,mailto:secalert@redhat.com",
+          "Sha256": "a3af8ec994afc588c2c4e1158f789d5bc5832f8a145df11119e90d277dfed765",
+          "Sbat": "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md\ngrub,5,Free Software Foundation,grub,2.12,https//www.gnu.org/software/grub/\ngrub.rh,2,Red Hat,grub2,2.12-81.fc45,mailto:secalert@redhat.com",
           "SbatLevel": [],
           "SignedBy": [
+            "fedora-ca-20250530",
             "fedoraca"
           ]
         }
@@ -112,20 +121,20 @@
         {
           "Role": "stick",
           "File": "vmlinuz",
-          "Release": "6.19.10-300.fc44.x86_64",
-          "Sha256": "4b37e4e542a62c580c751787848be6c99e6f908f6712c8c6da85516b8d541de2"
+          "Release": "7.2.11-300.fc45.x86_64",
+          "Sha256": "3de692df9e8d14d8dc3c0d935ec4c04fbe9231d8bdc18aeda1b6f0e20c7a1d1c"
         },
         {
           "Role": "installed kde",
-          "File": "vmlinuz-0-rescue-b972505d158f4637b4467345ec041324",
-          "Release": "6.19.10-300.fc44.x86_64",
-          "Sha256": "4b37e4e542a62c580c751787848be6c99e6f908f6712c8c6da85516b8d541de2"
+          "File": "vmlinuz-0-rescue-76939ab7235f447bb4be9d5bc77d3bb4",
+          "Release": "7.2.11-300.fc45.x86_64",
+          "Sha256": "3de692df9e8d14d8dc3c0d935ec4c04fbe9231d8bdc18aeda1b6f0e20c7a1d1c"
         },
         {
           "Role": "installed gnome",
-          "File": "vmlinuz-0-rescue-4189730cf6c94d60bf67890447d58a3b",
-          "Release": "6.19.10-300.fc44.x86_64",
-          "Sha256": "4b37e4e542a62c580c751787848be6c99e6f908f6712c8c6da85516b8d541de2"
+          "File": "vmlinuz-0-rescue-a0392668f99f47748ab6430dcf8d99e5",
+          "Release": "7.2.11-300.fc45.x86_64",
+          "Sha256": "3de692df9e8d14d8dc3c0d935ec4c04fbe9231d8bdc18aeda1b6f0e20c7a1d1c"
         }
       ]
     },

@@ -27,10 +27,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # (`rehearse --table`); now it reads the kit's own. Each file that lands is also compared
 # with the ISO's own files as bsdtar reads them, not only with the program's record.
 HARNESS=0.3.0
-RELEASE=fedora-44
+RELEASE=fedora-45
 ISO="${UPG_RELEASE_ISOS:-$ROOT/rig/vm/artifacts/releases/$RELEASE/iso}"
 [ -d "$ISO" ] || ISO="$(git -C "$ROOT" rev-parse --git-common-dir)/../rig/vm/artifacts/releases/$RELEASE/iso"
-[ -f "$ISO/Fedora-Server-netinst-x86_64-44-1.7.iso" ] || { echo "arms: the rig's Fedora 44 ISOs are not at $ISO (rig/vm/fetch-release.sh $RELEASE)" >&2; exit 1; }
+[ -f "$ISO/Fedora-Server-netinst-x86_64-45-1.4.iso" ] || { echo "arms: the rig's Fedora 45 ISOs are not at $ISO (rig/vm/fetch-release.sh $RELEASE)" >&2; exit 1; }
 CSV="$ROOT/docs/validation-results/v17-fetch.csv"
 OUT="$ROOT/rig/fetch/artifacts/$(date -u +%Y-%m-%d)"
 mkdir -p "$OUT"
