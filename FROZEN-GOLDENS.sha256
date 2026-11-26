@@ -1,4 +1,4 @@
-82db7b59eb1c1dbd33122e81c1a4c797202a4927debc96b37e354a6d6def6739  evaluate/scan/tests/golden.json
+b11b892e418ed316fd99ebe0103297850dbaeb294d2cf9c997bd3d13579cceaf  evaluate/scan/tests/golden.json
 34446f8900467c81b97f9bdeba86199d33df84d672203f15af680a0f82c45220  evaluate/scan/tests/diag-golden.json
 a3bf42ee54cf20940b9446de5e64f799ccb89459c2b740653e729f0613667376  evaluate/harvest/tests/golden.json
 58419a0b0d59ec0f4f76dd30cf05c0ff035bdc2be7b53634ae29e2d4957b78fc  evaluate/job/tests/golden.json
