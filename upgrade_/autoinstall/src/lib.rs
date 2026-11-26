@@ -19,7 +19,7 @@
 
 use serde_json::Value;
 
-pub const GENERATOR_VERSION: &str = "0.5.0";
+pub const GENERATOR_VERSION: &str = "0.6.0";
 
 /// What gets installed: the disc's full desktop (`ubuntu-desktop` in its
 /// `casper/install-sources.yaml`), not the installer's default small one.
@@ -333,7 +333,11 @@ fn beside_ok(kept: &[Kept], esp: u32, boot: &New, root: &New) -> Result<(), Stri
 /// The real answer file, for one machine. `program` is the installer
 /// program as the early check left it (`/tmp/upgrade-installer`); `job` is
 /// the job on the stick.
-pub fn autoinstall(job: &Value, s: &Storage, program: &str, job_path: &str) -> Result<String, String> {
+/// `drivers` is the caller's finding, not the job's: true only when this
+/// computer has an NVIDIA graphics card the stick carries a driver for
+/// (`upgrade-installer`'s `nvidia`, RISKS R47). The installer then picks
+/// the driver itself, from the stick's own packages.
+pub fn autoinstall(job: &Value, s: &Storage, program: &str, job_path: &str, drivers: bool) -> Result<String, String> {
     check(job)?;
     let at = |p: &str| text(job.pointer(p));
     let erase = !at("/erase_consent/statement").is_empty();
@@ -367,10 +371,11 @@ pub fn autoinstall(job: &Value, s: &Storage, program: &str, job_path: &str) -> R
     l.push("  # offline: everything comes from the stick (architecture.md, \"Design constraints: offline\")".into());
     l.push("  apt: {fallback: offline-install, geoip: false}".into());
     l.push("  codecs: {install: false}".into());
-    // Decided (2026-11-24, the owner): Ubuntu's installer sets up the graphics driver. It looks
-    // at this machine's own hardware and installs what its disc carries for it (NVIDIA's driver,
-    // signed by Ubuntu, so Secure Boot needs no key from the person). No such hardware, nothing added.
-    l.push("  drivers: {install: true}".into());
+    // Decided (2026-11-24, the owner): Ubuntu's installer sets up the graphics driver from what its
+    // disc carries (NVIDIA's driver, signed by Ubuntu, so Secure Boot needs no key from the person).
+    // Decided (2026-11-25, the owner): only when the caller found an NVIDIA card the stick has a
+    // driver for. The installer's driver step fails the whole install if it fails (RISKS R47).
+    l.push(format!("  drivers: {{install: {drivers}}}"));
     l.push("  refresh-installer: {update: false}".into());
     // Remote access is carried only if Windows had it on (job harvest.ssh). Ubuntu's small
     // desktop has no SSH server (the full one is not measured for it), so the installer adds it from the stick's own packages;
@@ -433,7 +438,7 @@ mod tests {
 
     #[test]
     fn beside_windows_every_partition_is_named_and_nothing_kept_is_formatted() {
-        let t = autoinstall(&keep_job(), &beside(), "p", "j").unwrap();
+        let t = autoinstall(&keep_job(), &beside(), "p", "j", false).unwrap();
         assert!(t.contains("    version: 2\n    config:"));
         assert_eq!(t.matches("type: disk").count(), 1);
         assert_eq!(t.matches("type: partition").count(), 5);
@@ -453,7 +458,7 @@ mod tests {
         let with = |f: &dyn Fn(&mut Vec<Kept>, &mut u32, &mut New, &mut New)| {
             let Storage::Beside { disk, mut kept, mut esp, mut boot, mut root } = beside() else { unreachable!() };
             f(&mut kept, &mut esp, &mut boot, &mut root);
-            autoinstall(&keep_job(), &Storage::Beside { disk, kept, esp, boot, root }, "p", "j").unwrap_err()
+            autoinstall(&keep_job(), &Storage::Beside { disk, kept, esp, boot, root }, "p", "j", false).unwrap_err()
         };
         assert!(with(&|_, _, b, _| b.offset = 49150 * MIB).contains("overlap"));
         assert!(with(&|_, _, _, r| r.offset = 50174 * MIB).contains("overlap"));
@@ -463,11 +468,11 @@ mod tests {
         assert!(with(&|_, _, _, r| r.size = 0).contains("no size"));
         assert!(with(&|k, _, _, _| k[1].type_guid = "msftres".into()).contains("not a GPT type"));
         // the storage and the job must agree
-        assert!(autoinstall(&job(), &beside(), "p", "j").unwrap_err().contains("does not keep Windows"));
-        assert!(autoinstall(&keep_job(), &erase(), "p", "j").unwrap_err().contains("without the job's erase consent"));
+        assert!(autoinstall(&job(), &beside(), "p", "j", false).unwrap_err().contains("does not keep Windows"));
+        assert!(autoinstall(&keep_job(), &erase(), "p", "j", false).unwrap_err().contains("without the job's erase consent"));
         let mut both = job();
         both["intent"]["path"] = json!("keep-windows");
-        assert!(autoinstall(&both, &erase(), "p", "j").unwrap_err().contains("keeps Windows"));
+        assert!(autoinstall(&both, &erase(), "p", "j", false).unwrap_err().contains("keeps Windows"));
     }
 
     #[test]
@@ -482,7 +487,7 @@ mod tests {
 
     #[test]
     fn the_real_file_names_the_disk_by_path_and_serial_and_never_a_default() {
-        let t = autoinstall(&job(), &erase(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap();
+        let t = autoinstall(&job(), &erase(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json", false).unwrap();
         assert!(t.contains("path: \"/dev/sda\""));
         assert!(t.contains("serial: \"360022480d990bd51d172abb88dc5d7c3\""));
         assert!(t.contains("fallback: offline-install"));
@@ -501,47 +506,48 @@ mod tests {
     #[test]
     fn the_full_desktop_is_the_one_installed() {
         for (j, s) in [(job(), erase()), (keep_job(), beside())] {
-            let text = autoinstall(&j, &s, "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap();
+            let text = autoinstall(&j, &s, "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json", false).unwrap();
             assert!(text.contains("\n  source: {id: ubuntu-desktop}\n"), "{text}");
             assert!(!text.contains("ubuntu-desktop-minimal"));
         }
     }
 
     #[test]
-    fn the_installer_sets_up_the_graphics_driver_from_the_stick() {
-        // decided 2026-11-24, the owner; still offline, and codecs stay off
-        for (j, s) in [(job(), erase()), (keep_job(), beside())] {
-            let text = autoinstall(&j, &s, "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap();
-            assert!(text.contains("\n  drivers: {install: true}\n") && text.contains("\n  codecs: {install: false}\n"), "{text}");
-            assert!(text.contains("\n  apt: {fallback: offline-install, geoip: false}\n"));
-        }
-        assert!(!the_stick_file().contains("drivers"), "the stick's own file installs nothing");
-    }
-
-    #[test]
     fn the_ssh_server_only_when_windows_had_one_and_cryptsetup_only_beside_windows() {
-        let plain = autoinstall(&job(), &erase(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap();
+        let plain = autoinstall(&job(), &erase(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json", false).unwrap();
         assert!(!plain.contains("  ssh:") && !plain.contains("  packages:"), "an erase with no remote access adds nothing");
         let mut j = job();
         j["harvest"]["ssh"] = serde_json::json!({"result": "carried", "keys": ["ssh-ed25519 AAAA x"], "sources": [], "why": null});
-        let with = autoinstall(&j, &erase(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap();
+        let with = autoinstall(&j, &erase(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json", false).unwrap();
         assert!(with.contains("\n  ssh: {install-server: true, allow-pw: false}\n"));
         j["harvest"]["ssh"]["result"] = serde_json::json!("not-carried");
-        assert!(!autoinstall(&j, &erase(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap().contains("  ssh:"));
-        let b = autoinstall(&keep_job(), &beside(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap();
+        assert!(!autoinstall(&j, &erase(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json", false).unwrap().contains("  ssh:"));
+        let b = autoinstall(&keep_job(), &beside(), "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json", false).unwrap();
         assert!(b.contains("\n  packages: [cryptsetup-bin]\n") && !b.contains("  ssh:"));
+    }
+
+    #[test]
+    fn the_drivers_only_when_the_caller_found_a_card_for_them() {
+        let plain = autoinstall(&job(), &erase(), "p", "j", false).unwrap();
+        assert!(plain.contains("\n  drivers: {install: false}\n"), "{plain}");
+        let with = autoinstall(&job(), &erase(), "p", "j", true).unwrap();
+        assert!(with.contains("\n  drivers: {install: true}\n"), "{with}");
+        // nothing else differs, and nothing reaches the network for it
+        assert_eq!(plain.replace("install: false}\n  refresh", "install: true}\n  refresh"), with);
+        assert!(with.contains("apt: {fallback: offline-install, geoip: false}"));
+        assert!(!the_stick_file().contains("drivers"), "the stick's own file installs nothing");
     }
 
     #[test]
     fn a_home_drive_is_a_second_named_disk() {
         let s = Storage::Erase { system: sda(), home: Some(Disk { path: "/dev/sdb".into(), serial: String::new() }) };
-        let t = autoinstall(&job(), &s, "p", "j").unwrap();
+        let t = autoinstall(&job(), &s, "p", "j", false).unwrap();
         assert_eq!(t.matches("type: disk").count(), 2);
         assert!(t.contains("path: \"/dev/sdb\"") && t.contains("path: /home"));
         // a disk with no serial is named by path alone, never by a made-up one
         assert_eq!(t.matches("serial:").count(), 1);
         let same = Storage::Erase { system: sda(), home: Some(sda()) };
-        assert!(autoinstall(&job(), &same, "p", "j").unwrap_err().contains("home drive is the system drive"));
+        assert!(autoinstall(&job(), &same, "p", "j", false).unwrap_err().contains("home drive is the system drive"));
     }
 
     #[test]
@@ -549,7 +555,7 @@ mod tests {
         let edit = |ptr: &str, v: Value| {
             let mut j = job();
             *j.pointer_mut(ptr).unwrap() = v;
-            autoinstall(&j, &erase(), "p", "j").unwrap_err()
+            autoinstall(&j, &erase(), "p", "j", false).unwrap_err()
         };
         assert!(edit("/schema", json!("job/2")).contains("not job/1"));
         assert!(edit("/intent/distro/name", json!("fedora")).contains("not ubuntu"));
@@ -561,13 +567,13 @@ mod tests {
         assert!(edit("/erase_consent/statement", json!("")).contains("without the job's erase consent"));
         let mut j = job();
         j.as_object_mut().unwrap().remove("stick");
-        assert!(autoinstall(&j, &erase(), "p", "j").unwrap_err().contains("lacks 'stick'"));
+        assert!(autoinstall(&j, &erase(), "p", "j", false).unwrap_err().contains("lacks 'stick'"));
         for bad in ["sda", "/dev/", "/dev/sda; rm", "/dev/disk/by-id/x", ""] {
             let s = Storage::Erase { system: Disk { path: bad.into(), serial: String::new() }, home: None };
-            assert!(autoinstall(&job(), &s, "p", "j").unwrap_err().contains("not a disk device"), "{bad}");
+            assert!(autoinstall(&job(), &s, "p", "j", false).unwrap_err().contains("not a disk device"), "{bad}");
         }
         let s = Storage::Erase { system: Disk { path: "/dev/sda".into(), serial: NO_DISK.into() }, home: None };
-        assert!(autoinstall(&job(), &s, "p", "j").unwrap_err().contains("placeholder"));
+        assert!(autoinstall(&job(), &s, "p", "j", false).unwrap_err().contains("placeholder"));
     }
 
     #[test]
@@ -575,7 +581,7 @@ mod tests {
         let mut j = job();
         j["intent"]["locale"]["timezone"] = json!("UTC\n  storage:\n    layout: {name: direct}");
         j["identity"]["model"] = json!("x\nautoinstall: {}");
-        let t = autoinstall(&j, &erase(), "p", "j").unwrap();
+        let t = autoinstall(&j, &erase(), "p", "j", false).unwrap();
         // the job's text stays inside its quotes: no line of the file starts a key it brought
         assert_eq!(t.lines().filter(|l| l.trim_start().starts_with("storage:")).count(), 1);
         assert_eq!(t.lines().filter(|l| l.trim_start().starts_with("layout:")).count(), 0);

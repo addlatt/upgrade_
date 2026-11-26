@@ -310,7 +310,7 @@ device on the test machine. The moment any check prints device names into
 **Decided (2026-11-24, the owner): on a computer with an NVIDIA graphics
 chip, Ubuntu is the picker's first choice.** Ubuntu signs NVIDIA's driver and
 carries it on its disc, so its installer sets it up offline with Secure Boot
-on (`upgrade-autoinstall` 0.5.0, `drivers: {install: true}`). Fedora's needs
+on, since 2026-11-25 only for a card the stick has a driver for (R47). Fedora's needs
 a key approved by hand at the next start (as R42), which is not built, so
 Fedora runs the chip on the open driver. Nothing is chosen for the person,
 and a release the computer cannot start is never first. This raises the
@@ -1534,6 +1534,46 @@ refuses; and settle-in updates the system at first start.
 **Where it stands.** `[#...]` planned. Nothing built. The kit carries Fedora
 45 since 2026-11-24, bumped by hand.
 [log](log/2026-11.md#2026-11-24-the-kit-moves-to-fedora-45-and-the-installer-stops-reading-a-whole-image-into-memory-r46-v14-v3)
+
+## R47: An NVIDIA card is left on the slow built-in driver, or the driver install breaks an install · high · built
+
+**What.** Linux starts an NVIDIA card on its built-in driver (nouveau): the
+desktop works, games and 3D are slow. Until 2026-11-25 nothing in the kit
+installed NVIDIA's own driver, and the scanner said it "is added
+afterwards". Ubuntu's stick carries that driver in two branches (580 and
+595), each with its kernel module built and signed by Canonical for the
+installed kernel. `data/devices/nvidia.json` holds the cards each package
+lists, measured from the ISO by `data/tools/measure-nvidia.py`. Fedora
+carries none: it comes from RPM Fusion, online, built on the computer.
+
+**If real.** Left on the built-in driver, nothing is lost, the computer is
+slower. The new step is the danger. Ubuntu's installer runs
+`ubuntu-drivers install` after the disk is written (read from its own code,
+`subiquity/server/controllers/install.py` in snap 665 on the ISO). If it
+fails the install fails, past the commit line; on the erase path there is no
+Windows left. A driver that installs and then shows a black screen needs the
+way back, which only the keep-Windows path has: high.
+
+**Decided (2026-11-25, the owner): Ubuntu installs NVIDIA's own driver from
+the stick, and Fedora is prepared for it.** The switch
+(`drivers: {install: true}`) is turned on by the early check only when this
+computer has an NVIDIA card the table lists with a signed module; the
+installer picks the branch. The late step records the packages, settle-in
+says which driver the card runs on, and nothing refuses on it. **Decided (2026-11-25, the owner): on
+Fedora, settle-in may go online, add RPM Fusion and start the key step, and
+it asks the person first.**
+
+**Closes when.** On a real machine with Secure Boot on, an Ubuntu install
+from the stick, offline, comes up with the card on NVIDIA's driver, for one
+card in each branch, and the card still is after a kernel update. And
+Fedora does the same by its own step, key step included, or its words say
+plainly that it does not.
+
+**Where it stands.** `[##..]` built, unfired. Ubuntu's half is built
+(installer 0.5.0, autoinstall 0.5.0, settle-in 0.16.0); tests only. Fedora's
+half is decided, not built. The rig has no NVIDIA card, so it can prove only that
+nothing changed without one.
+[log](log/2026-11.md#2026-11-25-nvidias-own-driver-ubuntu-installs-it-from-the-stick-fedora-is-prepared-r47)
 
 # Closed
 

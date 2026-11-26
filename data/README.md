@@ -8,6 +8,7 @@ compiled into the scanner. Adding a device is one entry and a cited source.
 |---|---|---|
 | `devices/wifi.json` | Wi-Fi adapters, then a fallback by vendor | PCI id `vvvv:dddd`, lower-case hex; vendor `vvvv` |
 | `devices/gpu.json` | graphics adapters, then a rule by vendor | the same |
+| `devices/nvidia.json` | which NVIDIA driver branch a card gets on the Ubuntu the kit carries (RISKS R47); measured, never typed | the branch; ids are `dddd` under vendor `10de` |
 | `devices/audio.json` | audio quirks (smart amplifiers and the like) | `Match`, a regular expression over the device path |
 | `devices/storage.json` | Intel VMD controller ids (RISKS R1) | PCI id |
 | `devices/vendors.json` | machine quirks | `Match`, a regular expression over `vendor model` |
@@ -86,6 +87,18 @@ A release the kit does not offer yet is measured into its own file under
 `releases.json`: an entry in the table is an offer to a person, and no
 program reads `data/measured/`. `measure-release.py --offer` moves such a
 file into the table as it is. Ubuntu 26.04.1 went that way (2026-11-13).
+
+## The NVIDIA drivers
+
+`devices/nvidia.json` is measured by `tools/measure-nvidia.py` from the
+driver packages on the Ubuntu ISO that `releases.json` pins (it refuses any
+other file). Per branch: the package and its sha256, the cards its own
+`Modaliases` field lists, and whether the ISO carries that branch's kernel
+module built and signed for the installed kernel. A card gets the newest
+branch that lists it. The scanner's words, the installer's switch and
+nothing else read it. Run the tool again whenever the Ubuntu entry in
+`releases.json` changes; the scanner refuses a table measured from a
+release that is not in the table. Never add an id by hand.
 
 ## What is not here yet
 

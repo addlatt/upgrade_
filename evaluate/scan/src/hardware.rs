@@ -42,6 +42,26 @@ pub fn wifi(scan: &mut Scan, pnp: &[Pnp]) {
     }
 }
 
+/// For an NVIDIA card (`10de:dddd`), the table's note and then what each
+/// Linux in the kit does about NVIDIA's own driver: the release whose
+/// stick was measured (`data/devices/nvidia.json`) installs the branch its
+/// own package lists for this card, and no other release installs one yet
+/// (RISKS R47). Any other card: the note as it is.
+pub fn with_nvidia(note: &str, id: &str) -> String {
+    let Some(device) = id.strip_prefix("10de:") else { return note.to_string() };
+    let t = tables();
+    let name = |measured: bool| t.releases.iter().filter(|r| (r.id == t.nvidia.measured.release) == measured).map(|r| r.name.as_str()).collect::<Vec<_>>().join(" and ");
+    let (with, without) = (name(true), name(false));
+    let mut words = match t.nvidia.branch_for(device) {
+        Some(b) => format!("{with} installs NVIDIA's own driver for this card (version {}) from the USB stick, during the install.", b.branch),
+        None => format!("The USB stick carries no NVIDIA driver for this card, so {with} keeps the built-in one."),
+    };
+    if !without.is_empty() {
+        words += &format!(" {without} keeps the built-in driver: installing NVIDIA's own there is not built yet.");
+    }
+    format!("{note} {words}")
+}
+
 pub fn gpu(scan: &mut Scan, pnp: &[Pnp]) {
     let t = tables();
     let gpus: Vec<&Pnp> = pnp.iter().filter(|d| eq_ci(s(&d.pnp_class), "Display") && starts_with_ci(s(&d.device_id), "PCI\\")).collect();
@@ -54,10 +74,10 @@ pub fn gpu(scan: &mut Scan, pnp: &[Pnp]) {
         let vendor = &id[..4];
         let name = s(&g.name);
         if let Some(e) = t.gpu.get(&id) {
-            scan.add("Hardware", "Graphics", status_of(&e.status), format!("{} [{id}] - driver {}", e.name, e.driver)).note(&*e.note).min_kernel(&*e.min_kernel);
+            scan.add("Hardware", "Graphics", status_of(&e.status), format!("{} [{id}] - driver {}", e.name, e.driver)).note(with_nvidia(&e.note, &id)).min_kernel(&*e.min_kernel);
         } else if let Some(e) = t.gpu_vendor_rules.get(vendor) {
             scan.unmatched.push(format!("gpu {id} ({name})"));
-            scan.add("Hardware", "Graphics", status_of(&e.status), format!("{name} [{id}] - driver {}", e.driver)).note(&*e.note);
+            scan.add("Hardware", "Graphics", status_of(&e.status), format!("{name} [{id}] - driver {}", e.driver)).note(with_nvidia(&e.note, &id));
         } else {
             scan.unmatched.push(format!("gpu {id} ({name})"));
             scan.add("Hardware", "Graphics", Status::Unknown, format!("{name} [{id}]")).note("Unrecognised graphics vendor.");

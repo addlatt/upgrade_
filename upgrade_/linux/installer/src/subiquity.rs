@@ -521,7 +521,13 @@ pub fn early(job_path: &str) -> i32 {
         }
         Decision::Install(s) => s,
     };
-    let text = match upgrade_autoinstall::autoinstall(&facts.job, &storage, PROGRAM, job_path) {
+    // NVIDIA's own driver, from the stick, only for a card the stick carries one for (R47)
+    let nvidia = crate::nvidia::plan(&serde_json::from_str(crate::nvidia::TABLE).unwrap_or(Value::Null), &format!("{}-{}", jq(&facts.job, "intent.distro.name"), jq(&facts.job, "intent.distro.release")), &crate::nvidia::cards("/sys/bus/pci/devices"));
+    log.say(&format!("== NVIDIA: {}", if nvidia.cards.is_empty() { "no NVIDIA graphics card".to_string() } else { format!("{} -> drivers {}", nvidia.record()["cards"], if nvidia.install() { "on" } else { "off" }) }));
+    if !nvidia.why_not.is_empty() {
+        log.say(&format!("   drivers stay off: {}", nvidia.why_not));
+    }
+    let text = match upgrade_autoinstall::autoinstall(&facts.job, &storage, PROGRAM, job_path, nvidia.install()) {
         Ok(t) => t,
         Err(why) => refuse_and_restart(&log, 27, "the installer could not work out where to put Linux", &format!("no answer file: {why}")),
     };
@@ -543,6 +549,7 @@ pub fn early(job_path: &str) -> i32 {
         refuse_and_restart(&log, 27, "the installer could not work out where to put Linux", &format!("could not write {ANSWER}: {e}"));
     }
     save("autoinstall.yaml", &text);
+    save("nvidia.json", &serde_json::to_string_pretty(&json!({"schema": "nvidia/1", "job_id": jq(&facts.job, "job_id"), "created_utc": utc_now(), "plan": nvidia.record(), "branches": nvidia.branches()})).unwrap_or_default());
     save("commit.json", &serde_json::to_string_pretty(&json!({"schema": "commit/1", "by": "the-window", "crossed_utc": utc_now()})).unwrap_or_default());
     save("early.json", &serde_json::to_string_pretty(&json!({"schema": "early/1", "mode": "install", "job_id": jq(&facts.job, "job_id"), "system": facts.system.dev, "matched_by": facts.system.matched_by, "system_serial": facts.system.serial, "home": facts.home.as_ref().map(|h| h.dev.clone()), "payload": facts.payload.clone().unwrap_or_default(), "secure_boot": run("mokutil", &["--sb-state"]).out.trim(), "created_utc": utc_now()})).unwrap_or_default());
     // the record `outcome` reads after the install, in the shape `verify` writes it for Fedora.
@@ -592,10 +599,13 @@ pub fn late(job_path: &str) -> i32 {
         let _ = std::os::unix::fs::symlink("/etc/systemd/system/upg-bench-firstboot.service", "/target/etc/systemd/system/multi-user.target.wants/upg-bench-firstboot.service");
     }
     stick_rw();
+    let expected: Vec<String> = serde_json::from_str::<Value>(&read_to_string(&format!("{REPORT}/nvidia.json"))).ok().and_then(|v| v["branches"].as_array().map(|a| a.iter().filter_map(|b| b.as_str().map(str::to_string)).collect())).unwrap_or_default();
     let rec = json!({"schema": "late/1", "job_id": jq(&job, "job_id"), "created_utc": utc_now(),
         "lsblk": run("lsblk", &["-b", "-o", "NAME,SIZE,TYPE,FSTYPE,PARTTYPENAME,MOUNTPOINTS"]).out,
         "firmware_entries": run("efibootmgr", &["-v"]).merged(), "fstab": read_to_string("/target/etc/fstab"),
-        "kernel": run("uname", &["-r"]).out.trim(), "secure_boot": run("mokutil", &["--sb-state"]).out.trim()});
+        "kernel": run("uname", &["-r"]).out.trim(), "secure_boot": run("mokutil", &["--sb-state"]).out.trim(),
+        // NVIDIA's own driver: what the early check expected, and whether the new system has it (R47). Recorded, never refused on.
+        "nvidia": crate::nvidia::installed(&read_to_string("/target/var/lib/dpkg/status"), &expected)});
     save("late.json", &serde_json::to_string_pretty(&rec).unwrap_or_default());
     run("tar", &["czf", &format!("{REPORT}/installer-logs.tgz"), "/var/log/installer"]);
     sync();
@@ -732,7 +742,7 @@ mod tests {
         }
         j["intent"] = json!({"path": "keep-windows", "desktop": "gnome", "start_at": "desktop", "distro": {"name": "ubuntu", "release": "26.04.1"},
             "account": {"linux_name": "rig", "password_hash": "$6$a$b"}, "locale": {"lang": "en_US.UTF-8", "timezone": "Etc/UTC", "keymap": "us"}});
-        let text = upgrade_autoinstall::autoinstall(&j, &Storage::Beside { disk, kept, esp, boot, root }, "p", "j").unwrap();
+        let text = upgrade_autoinstall::autoinstall(&j, &Storage::Beside { disk, kept, esp, boot, root }, "p", "j", false).unwrap();
         assert_eq!(text.matches("preserve: true").count(), 5);
     }
 

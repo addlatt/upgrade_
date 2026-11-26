@@ -15,6 +15,7 @@ use std::sync::OnceLock;
 
 pub const WIFI_JSON: &str = include_str!("../../../data/devices/wifi.json");
 pub const GPU_JSON: &str = include_str!("../../../data/devices/gpu.json");
+pub const NVIDIA_JSON: &str = include_str!("../../../data/devices/nvidia.json");
 pub const AUDIO_JSON: &str = include_str!("../../../data/devices/audio.json");
 pub const STORAGE_JSON: &str = include_str!("../../../data/devices/storage.json");
 pub const VENDORS_JSON: &str = include_str!("../../../data/devices/vendors.json");
@@ -25,6 +26,7 @@ pub const RELEASES_JSON: &str = include_str!("../../../data/releases.json");
 pub struct Files<'a> {
     pub wifi: &'a str,
     pub gpu: &'a str,
+    pub nvidia: &'a str,
     pub audio: &'a str,
     pub storage: &'a str,
     pub vendors: &'a str,
@@ -32,7 +34,7 @@ pub struct Files<'a> {
     pub releases: &'a str,
 }
 
-pub const FILES: Files<'static> = Files { wifi: WIFI_JSON, gpu: GPU_JSON, audio: AUDIO_JSON, storage: STORAGE_JSON, vendors: VENDORS_JSON, apps: APPS_JSON, releases: RELEASES_JSON };
+pub const FILES: Files<'static> = Files { wifi: WIFI_JSON, gpu: GPU_JSON, nvidia: NVIDIA_JSON, audio: AUDIO_JSON, storage: STORAGE_JSON, vendors: VENDORS_JSON, apps: APPS_JSON, releases: RELEASES_JSON };
 
 #[derive(Debug, Deserialize, Default, Clone)]
 #[serde(rename_all = "PascalCase", default)]
@@ -100,6 +102,46 @@ impl Release {
     }
 }
 
+/// One NVIDIA driver branch on the measured release's stick, as
+/// `measure-nvidia.py` read it from the package's own list.
+#[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "PascalCase", default)]
+pub struct NvidiaBranch {
+    /// `580`
+    pub branch: String,
+    pub package_sha256: String,
+    /// the installed kernel the stick carries this branch's module built
+    /// and signed for, or empty
+    pub signed_module_for: String,
+    /// the PCI device ids (vendor 10de) the package lists, `dddd` each
+    pub ids: String,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "PascalCase", default)]
+pub struct NvidiaMeasured {
+    /// the release id in `releases.json` whose ISO was read
+    pub release: String,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "PascalCase", default)]
+pub struct Nvidia {
+    pub measured: NvidiaMeasured,
+    pub branches: Vec<NvidiaBranch>,
+}
+
+impl Nvidia {
+    /// The branch the measured release's installer picks for a card: the
+    /// newest one whose package lists it. Nothing when none does. A branch
+    /// with no module built and signed for the installed kernel does not
+    /// count: it would have to be built on the computer, and under Secure
+    /// Boot that needs a key step nobody is there for.
+    pub fn branch_for(&self, device: &str) -> Option<&NvidiaBranch> {
+        self.branches.iter().filter(|b| !b.signed_module_for.is_empty() && b.ids.split(' ').any(|i| i == device)).max_by_key(|b| b.branch.parse::<u32>().unwrap_or(0))
+    }
+}
+
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct Tables {
@@ -107,6 +149,7 @@ pub struct Tables {
     pub wifi_vendor_fallback: HashMap<String, Device>,
     pub gpu: HashMap<String, Device>,
     pub gpu_vendor_rules: HashMap<String, Device>,
+    pub nvidia: Nvidia,
     pub audio_quirks: Vec<Quirk>,
     pub vmd_device_ids: Vec<String>,
     pub vendor_quirks: Vec<Quirk>,
@@ -160,11 +203,13 @@ impl Tables {
         let vendors: QuirksFile = read("data/devices/vendors.json", f.vendors)?;
         let apps: QuirksFile = read("data/devices/apps.json", f.apps)?;
         let releases: ReleasesFile = read("data/releases.json", f.releases)?;
+        let nvidia: Nvidia = read("data/devices/nvidia.json", f.nvidia)?;
         let t = Tables {
             wifi: wifi.devices,
             wifi_vendor_fallback: wifi.vendor_fallback,
             gpu: gpu.devices,
             gpu_vendor_rules: gpu.vendor_rules,
+            nvidia,
             audio_quirks: audio.quirks,
             vmd_device_ids: storage.vmd_device_ids,
             vendor_quirks: vendors.quirks,
@@ -186,6 +231,17 @@ impl Tables {
             }
             if Status::parse(&d.status).is_none() {
                 return Err(format!("devices: {id} has the status '{}'", d.status));
+            }
+        }
+        if !t.releases.iter().any(|r| r.id == t.nvidia.measured.release) {
+            return Err(format!("nvidia: measured from '{}', which is not a release in the table: run data/tools/measure-nvidia.py", t.nvidia.measured.release));
+        }
+        for b in &t.nvidia.branches {
+            if b.branch.parse::<u32>().is_err() || !is_hex(&b.package_sha256, 64) {
+                return Err(format!("nvidia: the branch '{}' is not a number, or its package has no sha256", b.branch));
+            }
+            if b.ids.is_empty() || b.ids.split(' ').any(|i| !is_hex(i, 4)) {
+                return Err(format!("nvidia: the branch {} lists an id that is not dddd in lower-case hex", b.branch));
             }
         }
         for id in &t.vmd_device_ids {

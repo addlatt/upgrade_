@@ -134,7 +134,7 @@ impl Choice {
 /// each judged by the scan report's `Releases` list. A release the scan did
 /// not judge is greyed out too (unknown is a refusal, as in the job writer).
 pub fn choices(table: &str, report: Option<&Value>) -> Vec<Choice> {
-    let nvidia = has_nvidia(report);
+    let nvidia = has_nvidia(report) && stick_has_nvidia_driver(report);
     let offered = upgrade_fetch::plan::offered(table).unwrap_or_default();
     let judged = report.and_then(|r| r.get("Releases")).cloned().unwrap_or(Value::Null);
     let judged: Vec<Value> = match judged {
@@ -160,7 +160,7 @@ pub fn choices(table: &str, report: Option<&Value>) -> Vec<Choice> {
                 }
                 _ => Starts::Unknown,
             };
-            let nvidia_pick = nvidia && starts == Starts::Yes && sets_up_nvidia(table, &id);
+            let nvidia_pick = nvidia && starts == Starts::Yes && sets_up_nvidia(table, &id) && id.eq_ignore_ascii_case(&upgrade_scan::data::tables().nvidia.measured.release);
             Choice { id, name, desktop, label, starts, nvidia_pick }
         })
         .collect();
@@ -180,11 +180,24 @@ pub fn has_nvidia(report: Option<&Value>) -> bool {
     })
 }
 
+/// Whether the stick carries NVIDIA's own driver for a graphics chip the scan
+/// found (RISKS R47). The chip's id is read from the `Graphics` check's
+/// `[10de:dddd]` and looked up in the measured table, the one the installer
+/// itself reads. A chip no package lists gets no driver on any release, so
+/// no release is the first choice for it.
+pub fn stick_has_nvidia_driver(report: Option<&Value>) -> bool {
+    let checks = report.and_then(|r| r.get("Checks")).and_then(Value::as_array).cloned().unwrap_or_default();
+    checks.iter().any(|c| {
+        let t = |k: &str| c.get(k).and_then(Value::as_str).unwrap_or("").to_lowercase();
+        t("Title") == "graphics" && t("Detail").split("[10de:").skip(1).any(|rest| rest.split(']').next().is_some_and(|d| upgrade_scan::data::tables().nvidia.branch_for(d).is_some()))
+    })
+}
+
 /// Whether a release's install sets up NVIDIA's own driver with nothing for
 /// the person to do, Secure Boot on. Today that is Ubuntu's installer alone:
 /// its disc carries the driver signed by Ubuntu (measured 2026-11-24) and
-/// `upgrade-autoinstall` 0.5.0 asks for it. Fedora's needs a key approved by
-/// hand at the next start, which is not built.
+/// the installer asks for it for a card the stick has a driver for (R47).
+/// Fedora's needs a key approved by hand at the next start, which is not built.
 pub fn sets_up_nvidia(table: &str, id: &str) -> bool {
     let t: Value = serde_json::from_str(table).unwrap_or(Value::Null);
     t["Releases"].as_array().is_some_and(|a| {
@@ -812,6 +825,12 @@ mod tests {
         let c = choices(table, Some(&no));
         assert!(c.iter().all(|c| !c.nvidia_pick) && c[0].id == "fedora-45", "{c:?}");
         assert!(sets_up_nvidia(table, "ubuntu-26.04.1") && !sets_up_nvidia(table, "fedora-45") && !sets_up_nvidia(table, "nothing"));
+        // a chip the stick carries no driver for (a GTX 650): Ubuntu would keep the built-in driver too, so nothing is first (R47)
+        let old = json!({"Section": "Hardware", "Title": "Graphics", "Status": "warn", "Detail": "NVIDIA GeForce GTX 650 [10de:0fc6] - driver nvidia (proprietary)"});
+        assert!(choices(table, Some(&json!({"Releases": releases, "Checks": [old]}))).iter().all(|c| !c.nvidia_pick));
+        // a GTX 1060 is in the older branch the stick carries
+        let gtx = json!({"Section": "Hardware", "Title": "Graphics", "Status": "warn", "Detail": "NVIDIA GeForce GTX 1060 6GB [10de:1c03] - driver nvidia (proprietary)"});
+        assert!(choices(table, Some(&json!({"Releases": releases, "Checks": [gtx]})))[0].nvidia_pick);
     }
 
     #[test]

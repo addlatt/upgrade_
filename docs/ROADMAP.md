@@ -242,16 +242,25 @@ owner): Fedora alone first, Bazzite once V16 holds; the program is already
 on the stick. Built 2026-11-08; Ubuntu offered since 2026-11-13.
 Proves: R44, V17, R31, R34, V12, V14. Stands: see [STATUS.md](STATUS.md).
 
-## 25. Fedora: NVIDIA's driver, offered by settle-in
+## 25. NVIDIA's own driver, installed for the person
 
-Decided (2026-11-24, the owner): on Fedora, settle-in offers NVIDIA's own
-driver at first start, never by itself. It fetches and builds it (RPM
-Fusion; the internet is needed), makes the key, and shows the one firmware
-screen where a person approves it, with the password to type; the next start
-checks the driver loaded. Ubuntu stays first for these machines (R10). The
-key step is Bazzite's, built once. Owed: a risk of its own the day it is
-built; the Aspire (MX150), by hand. Waits on: the kernel table work and the
-G16's open rows. Proves: R10, R42, V16. Stands: see [STATUS.md](STATUS.md).
+Decided (2026-11-25, the owner): Ubuntu installs it from the stick during
+the install, for a card the stick has a driver for; built 2026-11-25.
+Decided (2026-11-24, the owner): on Fedora, settle-in offers it at first
+start, never by itself (it asks first: 2026-11-25, in R47). It fetches and
+builds it (RPM Fusion; the internet is needed), makes the key, and shows the
+one firmware screen where a person approves it; the next start checks the
+driver loaded. The key step is Bazzite's, built once. Waits on: the Aspire
+run for Ubuntu. Proves: R47, R10, R42, V16. Stands: see [STATUS.md](STATUS.md).
+
+## 26. Missing drivers: find them, and offer to get them
+
+Decided (2026-11-25, the owner): the kit needs a way to scan for drivers a
+computer is missing and to let the person pull them. Every chip the scan
+finds gets an action per Linux: nothing needed, from the stick, fetched at
+first start when the person says yes, or refuse. NVIDIA (item 25) is the
+first slice; each action needs a cited source and a real machine. Waits
+on: item 25. Proves: R47. Stands: see [STATUS.md](STATUS.md).
 
 ## Decisions owed
 

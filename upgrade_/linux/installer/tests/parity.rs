@@ -26,8 +26,11 @@
 //! none of the other 7, and the fixture kit's SHA256SUMS naming it. The
 //! version line moved once more for 0.4.0 (2026-11-20: reclaim's start on
 //! an Ubuntu stick, a step no case here reaches): 42 lines, each only
-//! `upgrade-installer 0.3.0` to `0.4.0`, and this test then passed. This
-//! test runs the program through the same sandbox for every case and requires the same result: the exit code,
+//! `upgrade-installer 0.3.0` to `0.4.0`, and this test then passed. And
+//! for 0.5.0 (2026-11-25: Ubuntu's early check turns the installer's
+//! drivers on for an NVIDIA card the stick carries a driver for, R47, a
+//! step no case here reaches): the same lines, each only the version.
+//! This test runs the program through the same sandbox for every case and requires the same result: the exit code,
 //! every line printed, every file left on the stick, in the installed
 //! system and under /tmp, every tool called in order, every screen drawn
 //! on the console, and the firmware's entries after.

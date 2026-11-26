@@ -486,7 +486,8 @@ the shipped kernel. The images are the unmodified `LiveOS/squashfs.img` out of
 Fedora's own Workstation and KDE live ISOs, installed with kickstart `liveimg
 --checksum=`; the installer boot files come from the netinst ISO, also
 unmodified. There is no image of our own making. An Ubuntu stick carries its
-ISO's own files the same way (`upgrade-fetch`).
+ISO's own files the same way (`upgrade-fetch`); on Ubuntu only, NVIDIA's own
+driver is installed from them, for a card the stick has one for (RISKS R47).
 
 `evaluate` works out what the stick must hold (the live image and the
 artifacts) and refuses a stick that cannot hold it. Whether the person's

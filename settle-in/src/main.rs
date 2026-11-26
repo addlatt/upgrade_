@@ -89,6 +89,7 @@ mod efi;
 mod goback;
 mod walkaway;
 mod gpt;
+mod graphics;
 // Reclaim's writers (the table writer, the move, the run from the stick):
 // built and tested on images; not yet held on the rig (RISKS R41, V15).
 mod gpttable;
@@ -282,6 +283,10 @@ fn first_start(root: &str, rtc: &str) -> i32 {
     // remote access, only if Windows had it on (decided 2026-10-04)
     report["ssh"] = ssh::run(root, &job);
     println!("settle-in: ssh: {} {}", report["ssh"]["result"], report["ssh"].get("why").map(|w| w.to_string()).unwrap_or_default());
+
+    // --- the graphics card: which driver an NVIDIA card is on (R47). Read only.
+    report["graphics"] = graphics::run(root);
+    println!("settle-in: graphics: {} {}", report["graphics"]["result"], report["graphics"]["cards"]);
 
     // --- our own one-time entry: removed automatically (the owner, 2026-09-27)
     report["own_boot_entry"] = bootentry::remove_ours(root, &outcome);
