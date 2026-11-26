@@ -1,6 +1,6 @@
 //! `upgrade-scan diag`: the three read-only diagnostics that were
 //! `Diag-SecureBoot.ps1`, `Diag-Smart.ps1` and the inline PowerShell of
-//! `DIAG-VOLUME.cmd` on the stick (phase 2 of docs/RUST-PORT.md, 2026-10-14). Each has a facts half (what was read; the
+//! `DIAG-VOLUME.cmd` on the stick (phase 2 of docs/archive/RUST-PORT.md, 2026-10-14). Each has a facts half (what was read; the
 //! collectors in `collect::diag` fill it on Windows) and a render half (the
 //! lines of the text file, held to the script's word for word). The render
 //! halves are tested in `tests/diag.rs` against what the scripts answered
@@ -62,7 +62,7 @@ pub fn ascii(bytes: &[u8]) -> String {
 
 /// A date and time as `"{0}" -f $date` prints it on an English (United
 /// States) Windows: `10/3/2026 4:01:02 PM`. The scripts printed the
-/// machine's own culture; the port prints this one (docs/RUST-PORT.md,
+/// machine's own culture; the port prints this one (docs/archive/RUST-PORT.md,
 /// "Differences kept on purpose").
 pub fn en_us(t: &Stamp) -> String {
     let (hour, half) = match t.hour {

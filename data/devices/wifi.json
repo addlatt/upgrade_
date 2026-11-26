@@ -33,7 +33,7 @@
   },
   "VendorFallback": {
     "10ec": {"Vendor": "Realtek", "Driver": "rtw88/rtw89", "Status": "warn", "Note": "Unrecognised Realtek card. Support ranges from fine to flaky depending on the exact part.", "Source": "", "Verified": ""},
-    "14c3": {"Vendor": "MediaTek", "Driver": "mt76", "Status": "warn", "Note": "Unrecognised MediaTek card. Recent MediaTek parts are supported but often only on very new kernels - prefer a current-release distro.", "Source": "", "Verified": ""},
+    "14c3": {"Vendor": "MediaTek", "Driver": "mt76", "Status": "warn", "Note": "Unrecognised MediaTek card. Recent MediaTek parts are supported but often only on very new kernels.", "Source": "", "Verified": ""},
     "14e4": {"Vendor": "Broadcom", "Driver": "broadcom-wl", "Status": "fail", "Note": "Unrecognised Broadcom card. Broadcom wireless is the single most common cause of \"no internet after installing Linux\". Bring USB Ethernet or a tethered phone.", "Source": "", "Verified": ""},
     "168c": {"Vendor": "Atheros", "Driver": "ath9k/ath10k", "Status": "ok", "Note": "Unrecognised Atheros card. This family is generally well supported.", "Source": "", "Verified": ""},
     "17cb": {"Vendor": "Qualcomm", "Driver": "ath11k/ath12k", "Status": "warn", "Note": "Unrecognised Qualcomm card. Newer ath12k parts need very recent kernels and firmware.", "Source": "", "Verified": ""},

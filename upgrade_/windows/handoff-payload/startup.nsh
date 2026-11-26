@@ -4,7 +4,7 @@
 # prove, in a machine-readable way, that the firmware actually ran our boot
 # entry - then get out of the way and go back to Windows.
 #
-# Keep the marker name in sync with $FiredMarker in Test-Handoff.ps1.
+# Keep the marker name in sync with FIRED_MARKER in upgrade_/prologue/src/verify.rs.
 #
 # We must write the marker to THE STICK, not to whatever the shell happens to
 # map as fs0:. On any machine that already has Windows installed there is also

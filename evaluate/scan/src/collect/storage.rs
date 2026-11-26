@@ -7,7 +7,7 @@
 
 use super::events::{self, within};
 use super::win::{now_local, run_tool, wide};
-use super::wmi::{wmi_error, Wmi, BITLOCKER, CIMV2, STORAGE, WMI_ROOT};
+use super::wmi::{Wmi, BITLOCKER, CIMV2, STORAGE, WMI_ROOT};
 use crate::facts::DiskEvent;
 use crate::parse::{chkdsk_event, defrag_259, disk_events, diskpart_query_max, fsutil_dirty, smart_attributes};
 use crate::ps::{matches, round1, Stamp};
@@ -587,10 +587,4 @@ pub fn esp_facts() -> Value {
     })();
     let _ = run_tool("cmd", &["/c", &format!("mountvol {letter} /D")], 60);
     result.unwrap_or(failed)
-}
-
-/// The PowerShell error for a volume query, for the record.
-#[allow(dead_code)]
-fn volume_error(e: &windows::core::Error) -> String {
-    wmi_error(e)
 }

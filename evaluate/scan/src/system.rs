@@ -15,9 +15,9 @@ pub fn architecture(scan: &mut Scan, sys: &Sys) {
                 .remedy("Do not attempt a conversion on this machine.");
         }
         Some(0) => {
-            scan.add("Fundamentals", "CPU architecture", Status::Warn, format!("{cpu} (32-bit)"))
-                .note("32-bit only CPU. Most distributions dropped 32-bit support years ago. Debian and a few lightweight distributions still work.")
-                .remedy("Use Debian 32-bit, antiX or Q4OS.");
+            scan.add("Fundamentals", "CPU architecture", Status::Fail, format!("{cpu} (32-bit)"))
+                .note("32-bit only CPU. The Linux this kit installs needs a 64-bit processor, so it cannot run on this computer.")
+                .remedy("Do not attempt a conversion on this machine.");
         }
         _ => {
             scan.add("Fundamentals", "CPU architecture", Status::Ok, format!("{cpu} (64-bit, {} cores)", n(sys.cpu_cores)));
@@ -30,8 +30,7 @@ pub fn memory(scan: &mut Scan, sys: &Sys) {
     // an unread amount compares as less than 3, as it does in PowerShell
     if sys.ram_gb.is_none_or(|x| x < 3.0) {
         scan.add("Fundamentals", "Memory", Status::Warn, format!("{shown} GB"))
-            .note("Under 4 GB. A mainstream desktop will feel slow. This machine will run Linux noticeably better than it runs Windows, but pick a lightweight desktop.")
-            .remedy("Choose Xubuntu, Linux Mint Xfce or Lubuntu rather than a GNOME/KDE default.");
+            .note("Under 4 GB. The desktops this kit installs will feel slow with this little memory.");
         return;
     }
     scan.add("Fundamentals", "Memory", Status::Ok, format!("{shown} GB"));
@@ -44,8 +43,8 @@ pub fn firmware(scan: &mut Scan, sys: &Sys, secure_boot: Option<i64>) {
     match secure_boot {
         Some(1) => {
             scan.add("Fundamentals", "Secure Boot", Status::Ok, "enabled")
-                .note("Ubuntu, Fedora, Linux Mint, Debian and openSUSE all boot with Secure Boot on. Smaller distributions may not, and the proprietary NVIDIA driver needs an extra enrolment step.")
-                .remedy("Leave it on unless your chosen distribution refuses to boot.");
+                .note("The Linux this kit installs starts with Secure Boot on. Whether each one starts on this computer is the \"Linux releases\" check.")
+                .remedy("Leave it on.");
         }
         Some(0) => {
             scan.add("Fundamentals", "Secure Boot", Status::Ok, "disabled");

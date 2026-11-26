@@ -1,21 +1,19 @@
 //! The harvester's live half, Windows only, following
 //! `Harvest-UpgradeState.ps1` 0.3.0: the known folders (`Get-HarvestUserFolders`),
-//! the stick's volume facts (`Get-HarvestStick`), whose desktop this is
-//! (`Get-HarvestOwner`), the browsers (`Get-HarvestBrowsers`), and the folder
-//! map the job writer reads (`-FolderMapOut`), in the script's field names.
+//! whose desktop this is (`Get-HarvestOwner`), and the folder map the job
+//! writer reads (`-FolderMapOut`), in the script's field names.
 //!
-//! Read-only. The one step that is not a read, materializing cloud
-//! placeholders, runs only when asked, as in the script, and no launcher
-//! asks (decided 2026-09-26: online-only files stay in the cloud).
+//! Read-only. Online-only files stay in the cloud (decided 2026-09-26);
+//! the step that downloaded them, and the stick's volume facts, left on
+//! 2026-11-26.
 //!
-//! Proven side by side: the script's `-FolderMapOut` and
-//! `upgrade-harvest folder-map` on the same machine in the same minute,
-//! then `upgrade-harvest compare-maps`.
+//! Proven side by side with the script's `-FolderMapOut` before the script
+//! left (docs/validation-results/harvest-folder-map.csv).
 
-use crate::folders::{folder_stats, materialize};
-use crate::stick::{n2, stick_fit, Folder, RESERVE_BYTES};
+use crate::folders::folder_stats;
+use crate::stick::n2;
 use serde_json::{json, Value};
-use upgrade_scan::collect::wmi::{Wmi, CIMV2, STORAGE};
+use upgrade_scan::collect::wmi::{Wmi, CIMV2};
 use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Foundation::{CloseHandle, HANDLE};
 use windows::Win32::Security::Authentication::Identity::{GetUserNameExW, NameSamCompatible};
@@ -98,49 +96,24 @@ pub fn known_folders() -> Vec<(&'static str, String)> {
     t
 }
 
-/// Get-HarvestUserFolders, sized (`skip_sizes` false) or not, with the
-/// on-stick size when `cluster_bytes` is above zero.
-pub fn user_folders(skip_sizes: bool, cluster_bytes: i64) -> Vec<Value> {
+/// Get-HarvestUserFolders, sized (`skip_sizes` false) or not.
+pub fn user_folders(skip_sizes: bool) -> Vec<Value> {
     let mut out = Vec::new();
     for (name, path) in known_folders() {
         if path.is_empty() || !std::path::Path::new(&path).exists() {
             out.push(json!({"Name": name, "Path": path, "Exists": false, "IsOneDrive": false, "Files": 0, "Bytes": 0,
-                            "CloudOnlyFiles": 0, "Truncated": false, "Unreadable": 0, "UnreadableFirst": [], "MaxFileBytes": 0, "FilesOver4GiB": 0, "StickBytes": 0}));
+                            "CloudOnlyFiles": 0, "Truncated": false, "Unreadable": 0, "UnreadableFirst": [], "MaxFileBytes": 0, "FilesOver4GiB": 0}));
             continue;
         }
         if !skip_sizes {
             println!("  sizing {name}...");
         }
-        let s = if skip_sizes { Default::default() } else { folder_stats(std::path::Path::new(&path), MAX_FILES, cluster_bytes, name) };
+        let s = if skip_sizes { Default::default() } else { folder_stats(std::path::Path::new(&path), MAX_FILES) };
         out.push(json!({"Name": name, "Path": path, "Exists": true, "IsOneDrive": path.to_lowercase().contains("onedrive"),
                         "Files": s.files, "Bytes": s.bytes, "CloudOnlyFiles": s.cloud_only_files, "Truncated": s.truncated, "Unreadable": s.unreadable,
-                        "UnreadableFirst": s.unreadable_first, "MaxFileBytes": s.max_file_bytes, "FilesOver4GiB": s.files_over_4gib, "StickBytes": s.stick_bytes}));
+                        "UnreadableFirst": s.unreadable_first, "MaxFileBytes": s.max_file_bytes, "FilesOver4GiB": s.files_over_4gib}));
     }
     out
-}
-
-/// Get-HarvestStick: the stick volume's filesystem, cluster and free
-/// space, read as `Get-Volume -DriveLetter` reads them (`MSFT_Volume`), so
-/// an error says what the cmdlet would have said.
-pub fn stick(drive: &str) -> Value {
-    let letter = drive.trim_end_matches([':', '\\']).to_string();
-    let label = format!("{letter}:");
-    let failed = |why: String| json!({"Drive": label, "FileSystem": null, "ClusterBytes": 0, "FreeBytes": 0, "SizeBytes": 0, "Error": why.split_whitespace().collect::<Vec<_>>().join(" ")});
-    if letter.len() != 1 || !letter.chars().all(|c| c.is_ascii_alphabetic()) {
-        return failed(format!("Cannot process argument transformation on parameter 'DriveLetter'. Cannot convert value \"{letter}\" to type \"System.Char\". Error: \"String must be exactly one character long.\""));
-    }
-    let w = match Wmi::connect(STORAGE) {
-        Ok(w) => w,
-        Err(e) => return failed(e),
-    };
-    match w.query_where("MSFT_Volume", &["FileSystem", "AllocationUnitSize", "SizeRemaining", "Size"], &format!("DriveLetter='{letter}'")) {
-        Ok(l) if !l.is_empty() => {
-            let v = &l[0];
-            json!({"Drive": label, "FileSystem": text(&v["FileSystem"]), "ClusterBytes": int(&v["AllocationUnitSize"]), "FreeBytes": int(&v["SizeRemaining"]), "SizeBytes": int(&v["Size"]), "Error": null})
-        }
-        Ok(_) => failed(format!("No MSFT_Volume objects found with property 'DriveLetter' equal to '{letter}'. Verify the value of the property and retry.")),
-        Err(e) => failed(e),
-    }
 }
 
 /// This process's account SID as text.
@@ -225,77 +198,25 @@ pub fn owner() -> Value {
     json!({"ProcessSid": sid, "ProcessName": name, "SessionId": session, "DesktopOwnerSids": owners, "OtherProfiles": others})
 }
 
-/// Get-HarvestBrowsers: the three profile folders, sized unless `skip_sizes`.
-pub fn browsers(skip_sizes: bool) -> Vec<Value> {
-    let appdata = std::env::var("APPDATA").unwrap_or_default();
-    let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
-    let candidates = [
-        ("Firefox", format!("{appdata}\\Mozilla\\Firefox"), "~/.mozilla/firefox", true, "Only bookmarks are brought over (decided 2026-11-07; RISKS R20). History, extensions, open tabs and saved passwords are not: sign in to a Firefox account BEFORE converting to keep them."),
-        ("Chrome", format!("{local}\\Google\\Chrome\\User Data"), "~/.config/google-chrome", false, "Only bookmarks are brought over (decided 2026-11-07; RISKS R20). History, extensions and saved passwords are not (the passwords are encrypted with Windows DPAPI, which has no Linux equivalent). Sign in to Chrome sync or export passwords to CSV BEFORE converting."),
-        ("Edge", format!("{local}\\Microsoft\\Edge\\User Data"), "~/.config/microsoft-edge", false, "Only bookmarks are brought over (decided 2026-11-07; RISKS R20). History, extensions and saved passwords are not (Windows DPAPI encryption). Export them or enable sync BEFORE converting."),
-    ];
-    let mut found = Vec::new();
-    for (name, path, target, passwords_port, note) in candidates {
-        if !std::path::Path::new(&path).exists() {
-            continue;
-        }
-        if !skip_sizes {
-            println!("  measuring {name} profile...");
-        }
-        let s = if skip_sizes { Default::default() } else { folder_stats(std::path::Path::new(&path), MAX_FILES, 0, "") };
-        found.push(json!({"Name": name, "Path": path, "LinuxTarget": target, "PasswordsPort": passwords_port, "Note": note, "Bytes": s.bytes, "Files": s.files}));
-    }
-    found
-}
-
-/// The folder map as `-FolderMapOut` writes it, and whether the cloud
-/// step refused (then the script exits 3). `now_utc_o` is the clock in
-/// .NET's round-trip form.
-pub fn folder_map(stick_drive: Option<&str>, materialize_placeholders: bool, timeout_secs: u64, now_utc_o: &str) -> (Value, bool) {
-    let stick_facts = stick_drive.map(stick);
-    let cluster = stick_facts.as_ref().map_or(0, |s| int(&s["ClusterBytes"]));
-    let mut folders = user_folders(false, cluster);
+/// The folder map as `-FolderMapOut` wrote it, less the stick: its free
+/// space is not read and no fit is worked out (decided 2026-11-26, the
+/// owner), so `Stick`, `StickFit` and each folder's `StickBytes` are gone
+/// from the map. The second value is whether the cloud step refused; it
+/// never does, because nothing is downloaded (decided 2026-09-26).
+/// `now_utc_o` is the clock in .NET's round-trip form.
+pub fn folder_map(now_utc_o: &str) -> (Value, bool) {
+    let mut folders = user_folders(false);
     let found: i64 = folders.iter().map(|f| int(&f["CloudOnlyFiles"])).sum();
-    let mut cloud = json!({"PlaceholdersFound": found, "Materialized": 0, "Failed": 0, "Bytes": 0, "Result": if found == 0 { "none-found" } else { "not-attempted" }, "FailedFiles": []});
-    let before: Vec<(String, i64)> = folders.iter().map(|f| (text(&f["Name"]), int(&f["CloudOnlyFiles"]))).collect();
-    if materialize_placeholders && found > 0 {
-        println!("  cloud placeholders...");
-        let paths: Vec<std::path::PathBuf> = folders.iter().filter(|f| f["Exists"] == true).map(|f| std::path::PathBuf::from(text(&f["Path"]))).collect();
-        let refs: Vec<&std::path::Path> = paths.iter().map(|p| p.as_path()).collect();
-        let m = materialize(&refs, timeout_secs, MAX_FILES);
-        let failed: Vec<Value> = m.files.iter().filter(|f| !f.materialized).take(20).map(|f| json!({"Path": f.path, "Error": f.error})).collect();
-        cloud = json!({"PlaceholdersFound": m.placeholders_found, "Materialized": m.materialized, "Failed": m.failed, "Bytes": m.bytes, "Result": m.result, "FailedFiles": failed});
-        folders = user_folders(false, cluster);
-    }
-    // CloudOnlyFiles is what was online-only at harvest, before any
-    // materialization (the job's cloud_only_files); CloudOnlyNow is what a
-    // fresh read finds after it - anything above 0 there is a refusal.
+    let cloud = json!({"PlaceholdersFound": found, "Materialized": 0, "Failed": 0, "Bytes": 0, "Result": if found == 0 { "none-found" } else { "not-attempted" }, "FailedFiles": []});
+    // CloudOnlyNow is what a second read would find after a download; with
+    // no download it is the same count (the job writer still reads it).
     for f in folders.iter_mut() {
         let now = int(&f["CloudOnlyFiles"]);
-        let name = text(&f["Name"]);
-        let was = before.iter().find(|(n, _)| *n == name).map_or(0, |(_, c)| *c);
         f["CloudOnlyNow"] = json!(now);
-        f["CloudOnlyFiles"] = json!(was);
     }
-    let fit = match &stick_facts {
-        Some(s) if s["Error"].is_null() => {
-            let list: Vec<Folder> = folders.iter().map(|f| Folder { exists: f["Exists"] == true, bytes: int(&f["Bytes"]), stick_bytes: int(&f["StickBytes"]), files_over_4gib: int(&f["FilesOver4GiB"]) }).collect();
-            let r = stick_fit(&list, int(&s["FreeBytes"]), &text(&s["FileSystem"]), int(&s["ClusterBytes"]), RESERVE_BYTES);
-            json!({"FileSystem": r.file_system, "ClusterBytes": r.cluster_bytes, "FreeBytes": r.free_bytes, "FilesBytes": r.files_bytes, "NeededBytes": r.needed_bytes,
-                   "FilesOver4GiB": r.files_over_4gib, "Fits": r.fits, "GapBytes": r.gap_bytes, "Reason": r.reason})
-        }
-        _ => Value::Null,
-    };
     let present = folders.iter().filter(|f| f["Exists"] == true).count();
     let total: i64 = folders.iter().filter(|f| f["Exists"] == true).map(|f| int(&f["Bytes"])).sum();
-    let stick_line = if fit.is_null() {
-        String::new()
-    } else if fit["Fits"] == true {
-        "; stick: fits".to_string()
-    } else {
-        format!("; stick: does not fit - {}", text(&fit["Reason"]))
-    };
-    println!("  folder map: {present} folder(s), {} GB, {found} online-only file(s) found{stick_line}", n2(total as f64 / GB));
+    println!("  folder map: {present} folder(s), {} GB, {found} online-only file(s) found", n2(total as f64 / GB));
     let refused = cloud["Result"] == "refused";
     let map = json!({
         "HarvestVersion": crate::FOLLOWS_HARVESTER,
@@ -304,8 +225,6 @@ pub fn folder_map(stick_drive: Option<&str>, materialize_placeholders: bool, tim
         "Owner": owner(),
         "UserFolders": folders,
         "CloudFiles": cloud,
-        "Stick": stick_facts,
-        "StickFit": fit,
     });
     (map, refused)
 }

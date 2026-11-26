@@ -1,6 +1,6 @@
-//! The knowledge tables: devices, distributions, releases.
+//! The knowledge tables: devices and releases.
 //!
-//! `data/devices/*.json`, `data/distros.json` and `data/releases.json` are
+//! `data/devices/*.json` and `data/releases.json` are
 //! the source (CLAUDE.md, "the contribution surface"; decided 2026-10-14,
 //! the owner: JSON, one file per table) and are compiled into this crate.
 //! Every file carries an `_about` entry for the reader and a `Source` and
@@ -8,7 +8,7 @@
 //! `load` refuses a table a check could not use.
 
 use crate::check::Status;
-use crate::ps::one_or_many;
+use crate::ps::{one_or_many, Version};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -19,10 +19,9 @@ pub const AUDIO_JSON: &str = include_str!("../../../data/devices/audio.json");
 pub const STORAGE_JSON: &str = include_str!("../../../data/devices/storage.json");
 pub const VENDORS_JSON: &str = include_str!("../../../data/devices/vendors.json");
 pub const APPS_JSON: &str = include_str!("../../../data/devices/apps.json");
-pub const DISTROS_JSON: &str = include_str!("../../../data/distros.json");
 pub const RELEASES_JSON: &str = include_str!("../../../data/releases.json");
 
-/// The eight files, as this build carries them.
+/// The seven files, as this build carries them.
 pub struct Files<'a> {
     pub wifi: &'a str,
     pub gpu: &'a str,
@@ -30,11 +29,10 @@ pub struct Files<'a> {
     pub storage: &'a str,
     pub vendors: &'a str,
     pub apps: &'a str,
-    pub distros: &'a str,
     pub releases: &'a str,
 }
 
-pub const FILES: Files<'static> = Files { wifi: WIFI_JSON, gpu: GPU_JSON, audio: AUDIO_JSON, storage: STORAGE_JSON, vendors: VENDORS_JSON, apps: APPS_JSON, distros: DISTROS_JSON, releases: RELEASES_JSON };
+pub const FILES: Files<'static> = Files { wifi: WIFI_JSON, gpu: GPU_JSON, audio: AUDIO_JSON, storage: STORAGE_JSON, vendors: VENDORS_JSON, apps: APPS_JSON, releases: RELEASES_JSON };
 
 #[derive(Debug, Deserialize, Default, Clone)]
 #[serde(rename_all = "PascalCase", default)]
@@ -59,14 +57,16 @@ pub struct Quirk {
     pub note: String,
 }
 
+/// One kernel image of a release, as `measure-release.py` read it.
 #[derive(Debug, Deserialize, Default, Clone)]
 #[serde(rename_all = "PascalCase", default)]
-pub struct Distro {
-    pub name: String,
-    pub kernel: String,
-    pub nvidia_easy: bool,
-    pub newcomer: i64,
-    pub note: String,
+pub struct Kernel {
+    /// `stick`, or `installed ...` for a kernel the installed system gets
+    pub role: String,
+    pub file: String,
+    /// what the image names itself (`uname -r`): `6.19.10-300.fc44.x86_64`
+    pub release: String,
+    pub sha256: String,
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
@@ -89,6 +89,15 @@ pub struct Release {
     pub name: String,
     pub installer: Option<String>,
     pub boot: Vec<BootFile>,
+    pub kernels: Vec<Kernel>,
+}
+
+impl Release {
+    /// The oldest kernel the installed system can come up on, with its
+    /// release text. Nothing when the table records none.
+    pub fn installed_kernel(&self) -> Option<(Version, &str)> {
+        self.kernels.iter().filter(|k| k.role.starts_with("installed")).filter_map(|k| Version::parse_release(&k.release).map(|v| (v, k.release.as_str()))).min_by_key(|(v, _)| *v)
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -102,8 +111,6 @@ pub struct Tables {
     pub vmd_device_ids: Vec<String>,
     pub vendor_quirks: Vec<Quirk>,
     pub app_risk: Vec<Quirk>,
-    pub distro_table_verified: String,
-    pub distros: Vec<Distro>,
     pub releases: Vec<Release>,
 }
 
@@ -132,12 +139,6 @@ struct StorageFile {
 }
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "PascalCase", default)]
-struct DistrosFile {
-    verified: String,
-    distros: Vec<Distro>,
-}
-#[derive(Deserialize, Default)]
-#[serde(rename_all = "PascalCase", default)]
 struct ReleasesFile {
     releases: Vec<Release>,
 }
@@ -150,7 +151,7 @@ impl Tables {
     /// Reads the files and refuses a table a check could not use: a status
     /// outside the five, a pattern that is not a regular expression, a
     /// device id that is not `vvvv:dddd` in lower case, a sha256 that is not
-    /// 64 hex digits.
+    /// 64 hex digits, a release with no measured installed kernel.
     pub fn load(f: &Files) -> Result<Tables, String> {
         let wifi: WifiFile = read("data/devices/wifi.json", f.wifi)?;
         let gpu: GpuFile = read("data/devices/gpu.json", f.gpu)?;
@@ -158,7 +159,6 @@ impl Tables {
         let storage: StorageFile = read("data/devices/storage.json", f.storage)?;
         let vendors: QuirksFile = read("data/devices/vendors.json", f.vendors)?;
         let apps: QuirksFile = read("data/devices/apps.json", f.apps)?;
-        let distros: DistrosFile = read("data/distros.json", f.distros)?;
         let releases: ReleasesFile = read("data/releases.json", f.releases)?;
         let t = Tables {
             wifi: wifi.devices,
@@ -169,8 +169,6 @@ impl Tables {
             vmd_device_ids: storage.vmd_device_ids,
             vendor_quirks: vendors.quirks,
             app_risk: apps.risks,
-            distro_table_verified: distros.verified,
-            distros: distros.distros,
             releases: releases.releases,
         };
         let is_hex = |s: &str, n: usize| s.len() == n && s.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase());
@@ -208,9 +206,6 @@ impl Tables {
         for q in t.audio_quirks.iter().chain(&t.vendor_quirks).chain(&t.app_risk) {
             regress::Regex::with_flags(&q.pattern, "i").map_err(|e| format!("devices: the pattern {} does not read ({e})", q.pattern))?;
         }
-        if crate::ps::Stamp::parse(&format!("{}T00:00:00", t.distro_table_verified)).is_none() {
-            return Err(format!("distros: Verified '{}' is not a date", t.distro_table_verified));
-        }
         let mut ids = std::collections::HashSet::new();
         for r in &t.releases {
             if r.id.is_empty() || !ids.insert(r.id.clone()) {
@@ -220,6 +215,14 @@ impl Tables {
                 if !is_hex(&b.sha256, 64) {
                     return Err(format!("releases: {} {} has no sha256", r.id, b.file));
                 }
+            }
+            for k in &r.kernels {
+                if !is_hex(&k.sha256, 64) || Version::parse_release(&k.release).is_none() {
+                    return Err(format!("releases: {} kernel {} has no sha256 or no release that reads ('{}')", r.id, k.file, k.release));
+                }
+            }
+            if r.installed_kernel().is_none() {
+                return Err(format!("releases: {} records no installed kernel (measure-release.py writes it)", r.id));
             }
         }
         Ok(t)

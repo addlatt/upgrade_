@@ -3,8 +3,7 @@
 //! RED into anything else here (CLAUDE.md rule #1).
 
 use crate::check::{Check, Scan, Status};
-use crate::data::{tables, Distro};
-use crate::ps::{eq_ci, matches, Version};
+use crate::ps::{eq_ci, Version};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Level {
@@ -91,30 +90,4 @@ pub fn verdict(scan: &Scan) -> Verdict {
         return Verdict { level: Level::Yellow, summary: "Convertible, with specific steps to take first.", groups };
     }
     Verdict { level: Level::Green, summary: "No obstacles found. This machine should convert cleanly.", groups: Vec::new() }
-}
-
-#[derive(Debug, Clone)]
-pub struct Recommendation {
-    pub distros: Vec<&'static Distro>,
-    pub has_nvidia: bool,
-    pub low_ram: bool,
-    /// Ruled out for shipping an older kernel than the machine needs.
-    pub excluded: Vec<&'static Distro>,
-}
-
-pub fn recommendation(scan: &Scan, required: Option<Version>) -> Recommendation {
-    let has_nvidia = scan.checks.iter().any(|c| matches("NVIDIA", &c.detail));
-    let low_ram = scan.checks.iter().any(|c| eq_ci(&c.title, "Memory") && c.status == Status::Warn);
-    let too_old = |d: &&Distro| match (required, Version::parse(&d.kernel)) {
-        (Some(need), Some(has)) => has < need,
-        _ => false,
-    };
-    let table = &tables().distros;
-    let mut candidates: Vec<&Distro> = table.iter().filter(|d| !too_old(d) && !(has_nvidia && !d.nvidia_easy)).collect();
-    // PowerShell 5.1's `Sort-Object -Descending` puts equal entries in the
-    // reverse of their table order; golden.json holds it to that
-    candidates.sort_by_key(|d| d.newcomer);
-    candidates.reverse();
-    candidates.truncate(3);
-    Recommendation { distros: candidates, has_nvidia, low_ram, excluded: table.iter().filter(too_old).collect() }
 }

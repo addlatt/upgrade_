@@ -150,7 +150,7 @@ machine, the window's Verify (`UPGRADE.exe --developer` since 2026-10-17;
 (`upgrade_/windows/New-Kickstart.ps1`, now the Rust `upgrade_/kickstart`),
 handoff, the live session, the return. The stick carries Fedora's own
 Workstation and KDE live `squashfs.img`, unmodified, checked against
-Fedora's published ISO hashes when fetched (`rig/vm/fetch-desktops.sh`),
+Fedora's published ISO hashes when fetched (`rig/vm/fetch-release.sh`),
 shipped by `make-kit.sh` and named with `--checksum=` in the kickstart.
 Residue a real machine proves: Secure Boot on through shim on that
 vendor's firmware, a real stick's read speed (22.6 MB/s on the Aspire's,
@@ -221,16 +221,12 @@ install are steered to clean slate, and `evaluate` says so before anything
 is committed. The product still converts them, without the safety net.
 
 **Where it stands.** `[####]` held-on-machine, one machine with a dying
-drive (R23). The Aspire, 2026-10-11: the return applied shim in Windows'
-slot from its own evidence, then Fedora and Windows were each reached
-with nobody at the keyboard, Secure Boot on, the clock right
-(`v2-install.csv` line 15, `pass`). The rig held the return, the guard
-after servicing and the rollback (lines 12, 13; `r21-rollback.csv` line 5).
-The rollback on this machine: `r21-rollback.csv` line 6, `windows-not-direct`
-(2026-10-12), everything held but the direct boot; it now runs from Linux,
-held on the rig (`r21-rollback.csv` line 7; kickstart 0.10.0's flag unforced,
-`v2-install.csv` line 17). Owed: the Aspire's Linux-side rollback, R22, a
-healthy drive ([log](log/2026-10.md#2026-10-12-late-the-rig-answers-again-the-linux-side-rollback-holds-on-the-rig-r21-r22-r36-v1b)).
+drive (R23). On the Aspire both systems start with no key and the rollback,
+run from Linux, puts Windows first again, for Fedora and for Ubuntu
+(`oneclick-runs.csv` line 216, `kept-both-start`; line 189, `rolled-back`).
+The row that stays from the Windows-side rollback it replaced:
+`r21-rollback.csv` line 6, `windows-not-direct` (2026-10-12). Owed: R22, a
+healthy drive; the rest in `STATUS.md` ([log](log/2026-10.md#2026-10-12-late-the-rig-answers-again-the-linux-side-rollback-holds-on-the-rig-r21-r22-r36-v1b).
 
 # Tier 2: a core promise breaks (recoverable, but the default is broken)
 
@@ -313,7 +309,9 @@ current kernel (`v3-bitlk-read.csv` lines 2 to 4 and 11 to 16,
 `pass-plumbing`, latest 2026-09-02). Lines 6 and 7 (`guest-crashed`,
 `incomplete`) are the install kernel's `ntfs3`; lines 8 to 10 (`mismatch`)
 are one crypt32 cache entry the classifier then learned; all stay. Owed: a
-real disk, and the file pull in `settle-in`, which is not built
+drive BitLocker really locks, on a real disk. The file pull is built and
+has run on the Aspire, from a drive BitLocker keeps unlocked (`v3-pull.csv`
+lines 8 to 15, `pass`)
 ([log](log/2026-09.md#2026-09-01-the-v3-bitlk-read-fired-on-the-rig-v3-r19)).
 
 ## V4: Real disks can actually shrink · kills: whether the default even applies · RISKS R18 · held-on-machine
@@ -409,19 +407,17 @@ there compares partition tables only). Residue: a vendor's firmware
 starting the stick again after the install, and the sign-in screen on
 real graphics.
 
-**Where it stands.** `[####]` held-on-machine, one vendor. The Aspire, kit
-aba09ec, Fedora 44, KDE, Secure Boot on, the stick left in throughout:
-`v9-erase.csv` line 30, `erased-installed`, and line 31,
-`not-installed-again` (2026-10-04, run 11, the first clean conversion);
-line 32, `cancelled-untouched` (2026-10-06). Runs 9 and 10 are `[FAIL]`
-rows that stay (lines 11 and 22, `fail`: a text login; a second install,
-R35). The rig's latest, with the countdown on tty9 (R38): lines 41 and 42
-(`cancelled-untouched`), 43 (`erased-installed`) and 44
-(`not-installed-again`), 2026-10-17 ([log](log/2026-10.md#2026-10-17-later-r38-built-held-on-the-rig-arms-b-c-and-d-pass-r38-v9-r37-v13)); line 40 (`fail`, arm C
-cancelled itself) stays; lines 33 to 38 were judged from older runs'
-records ([log](log/2026-10.md#2026-10-16-the-rigs-v9-rows-since-2026-10-08-were-judged-from-older-runs-records-v9-r27-r37-r38-roadmap-item-19-step-5)). Owed: arms A, C and D with `upgrade-installer` 0.2.0 (no countdown), other vendors' firmware, and the old-entry button on
-real firmware (nothing was left for it to remove)
-([log](log/2026-10.md#2026-10-04-the-aspires-run-11-passed-the-first-clean-conversion-v9-v10-r27-r35)).
+**Where it stands.** `[####]` held-on-machine, one vendor. Since the
+countdown left (2026-11-02) the Aspire's rows are the one click test's:
+`oneclick-runs.csv` line 209, `erased-installed`, and line 210,
+`not-installed-again` (2026-11-20); line 190, `refused-before-countdown`
+(2026-11-19). Before that: `v9-erase.csv` lines 30 and 31 (2026-10-04, run
+11, the first clean conversion, [log](log/2026-10.md#2026-10-04-the-aspires-run-11-passed-the-first-clean-conversion-v9-v10-r27-r35) and line 32, `cancelled-untouched`.
+Runs 9 and 10 are `[FAIL]` rows that stay (lines 11 and 22, `fail`: a text
+login; a second install, R35); so does the rig's line 40 (`fail`, arm C
+cancelled itself, [log](log/2026-10.md#2026-10-17-later-r38-built-held-on-the-rig-arms-b-c-and-d-pass-r38-v9-r37-v13); lines 33 to 38 were judged from older runs'
+records ([log](log/2026-10.md#2026-10-16-the-rigs-v9-rows-since-2026-10-08-were-judged-from-older-runs-records-v9-r27-r37-r38-roadmap-item-19-step-5). Owed: other vendors' firmware, a healthy drive, and the
+old-entry button on real firmware (nothing was left for it to remove).
 
 ## V10: settle-in runs on any Linux · RISKS R28 · held-on-machine
 
@@ -465,8 +461,8 @@ The Aspire's run 11: the clock corrected, Wi-Fi connected by itself, SSH
 carried, KDE (`settle-in-first-start.csv` line 20, `pass`, 2026-10-04;
 lines 18 and 19 are run 10's `fail`, R35). The rig holds KDE, GNOME and
 the console (latest line 17, `pass`, 2026-10-04). Owed: a non-Fedora
-distribution, the old-entry button on real firmware, the file pull (not
-built)
+distribution as a row here (settle-in has run on Ubuntu on the Aspire in
+the one click runs), the old-entry button on real firmware
 ([log](log/2026-10.md#2026-10-04-the-aspires-run-11-passed-the-first-clean-conversion-v9-v10-r27-r35)).
 
 ## V11: The way back to Windows · RISKS R30 · held-on-machine
@@ -516,9 +512,11 @@ kind. The Aspire: `v11-walkaway.csv` line 2, `fail` (2026-10-03: Windows
 that day); line 3, `windows-reached` (2026-10-04); line 4,
 `cancelled-untouched` (2026-10-06); line 5, `windows-reached` (2026-10-11,
 driven over ssh, a second stick). The guided stick, gone since 2026-10-17:
-`v11-way-back.csv` line 3, `pass-plumbing` (rig, 2026-09-27). Owed: a second machine with a
-firmware key, the Windows 10 path on a machine that cannot run Windows 11,
-the licence harvest as a row, gate 0.5.0 (no countdown) on a machine ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
+`v11-way-back.csv` line 3, `pass-plumbing` (rig, 2026-09-27). Since
+2026-11-18 on one stick, under the one click test: `oneclick-runs.csv` line
+221, `windows-reached` (2026-11-20), the eleventh; `[FAIL]` line 48 (R33).
+Owed: a second machine with a firmware key, the Windows 10 path on a
+machine that cannot run Windows 11, the licence harvest as a row ([log](log/2026-10.md#2026-10-11-the-way-back-run-3-driven-over-ssh-r33-v11)).
 
 # Tier 3: silent data loss (the trust-ending class)
 
@@ -534,11 +532,11 @@ bytes, and the person finds out later. This is the trust-ending class.
 in OneDrive, where their bytes already are. The job records them
 (`cloud_files.result = left-in-cloud`) and `settle-in` reconnects OneDrive.
 The danger left is copying a stub as if it were the file, and that is
-`settle-in`'s to refuse (R8). The materializer stays built, unused by the
-launchers.
+`settle-in`'s to refuse (R8). The materializer (the download step) left
+the code on 2026-11-26 (the owner); its rows stay.
 
 **What passes.** No cloud-only stub survives into the pulled data as a
-0-byte file. For the materializer: a `v8-materialize.csv` row reads
+0-byte file. For the materializer, while it existed: a `v8-materialize.csv` row reads
 `pass-plumbing` when every placeholder was detected, pinned, read through,
 and the NTFS bytes afterwards hash to the known content, with a refusal on
 any failure; the pinned and unpinned attribute bits (`0x00080000` /
@@ -568,7 +566,8 @@ turn someone away than to lose their photos.
 on Windows 10 19045 and the G16 on Windows 11 26200; lines 2 and 3,
 `setup-failed`, stay). The G16 row is the same synthetic provider, so it
 is plumbing, not a real-hardware pass. Owed: a signed-in OneDrive, and
-`settle-in`'s refusal, which is not built
+`settle-in`'s refusal against a real OneDrive folder (built 2026-11-07,
+held on the rig, `v3-pull.csv` line 5)
 ([log](log/2026-09.md#2026-09-08-the-cfapi-leg-fired-v8-r8)).
 
 # Tier 4: kills adoption, not the mechanism
@@ -756,16 +755,17 @@ another's (RISKS R40).
 scan over SSH said Fedora 42's files FAIL (`grub,3 < grub,5`) and Fedora
 44's OK (2026-10-03); the Fedora 44 kit booted and installed with Secure
 Boot on in run 10 (`v9-erase.csv` line 22, a `fail` row for R35, not for
-this) and run 11 (line 30, `erased-installed`, 2026-10-04). Fedora 44 is
-measured and committed (47bc8cf); Fedora 42's record is owed. Owed: a
-second firmware, and a machine that refuses the kit's release on the day
+this) and run 11 (line 30, `erased-installed`, 2026-10-04). Fedora 44 was
+measured and committed (47bc8cf). The kit is Fedora 45 since 2026-11-24,
+measured the same way; it has started on the rig only. Owed: Fedora 45 on
+the Aspire, a second firmware, and a machine that refuses the kit's release on the day
 ([log](log/2026-10.md#2026-10-03-the-kits-release-chosen-from-what-the-machine-accepts-step-by-step-v14-r34)).
 
 ## V13: The port from PowerShell to Rust · kills: trust in every row the Windows side earned · RISKS R32 · held-on-machine
 
 **Why it has its own gate.** Rust becomes the conversion's one language,
 piece by piece (decided 2026-09-27, the owner; `architecture.md`, "Stack";
-the roadmap is `docs/RUST-PORT.md`). Every row the PowerShell earned says
+the roadmap is `docs/archive/RUST-PORT.md`). Every row the PowerShell earned says
 nothing about the Rust: a line is never marked `pass` because its
 PowerShell row passed.
 
@@ -798,7 +798,7 @@ called, a replay test closes the decision; the effect on the firmware or
 the disk still takes one re-run on the machine. `./port-check.sh` runs the
 whole check. **Since 2026-10-11** (the PowerShell left the product, R32):
 `schemas/check.py`, the data tables fresh until they move to JSON, the
-frozen goldens unchanged (`FROZEN-GOLDENS.sha256`; thirteen), `cargo test` in
+frozen goldens unchanged (`FROZEN-GOLDENS.sha256`; twelve), `cargo test` in
 every crate, the harvester's Windows cases, the schema differential. **Decided (2026-10-04, the owner):** the whole port is
 built on the branch `rust-port`, and the project cuts over to Rust after
 one success of the PowerShell process on `main`; the order is every

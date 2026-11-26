@@ -154,7 +154,7 @@ pub fn job_document(f: &Value, choice: &Choices, stamp: &Stamp) -> Result<Value,
         let why = if !esp_fits { format!("the EFI system partition has {} MB free, too little for Linux's boot files beside Windows'", num(round1(esp_free as f64 / 1048576.0))) } else { format!("the system disk reports '{health}'") };
         return Err(vec![format!("Windows cannot be kept on this machine ({why}), and you chose to stop rather than wipe it - no job; nothing was changed")]);
     };
-    let (folders, cloud_files, stick_fit) = harvest::to_job(h);
+    let (folders, cloud_files) = harvest::to_job(h);
     let health_status = if one_of(&health, &["Healthy", "Warning", "Unhealthy"]) { health.clone() } else { "Unknown".to_string() };
     let text_or_null = |v: &Value| if truthy(v) { json!(s(v)) } else { Value::Null };
     let lic = at(f, "License");
@@ -200,7 +200,6 @@ pub fn job_document(f: &Value, choice: &Choices, stamp: &Stamp) -> Result<Value,
             "windows_license": license,
             "folders": folders,
             "cloud_files": cloud_files,
-            "stick_fit": stick_fit,
             "browsers": [],
             // the Wi-Fi export runs after every refusal has had its say: a
             // refused job never leaves passwords on the stick

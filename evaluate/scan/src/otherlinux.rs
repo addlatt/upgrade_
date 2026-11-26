@@ -106,7 +106,7 @@ pub fn check(scan: &mut crate::Scan, disk: &DiskFacts, esp: Option<&EspFacts>) {
     }
     scan.add("Storage", "Linux already here", crate::Status::Warn, format!("a Linux is already on the Windows disk: {}", found.join("; ")))
         .note("This computer already holds a Linux beside Windows (from an earlier conversion, or one installed by hand). Putting a second Linux beside it would leave two sets of boot files, and which system starts would no longer be known. Linux is not installed beside Windows on this computer as it is.")
-        .remedy("The clean-slate path erases the old Linux along with everything else. To keep Windows, the old Linux has to be removed first; do not delete partitions unless you know they hold nothing you need.");
+        .remedy("Erasing everything removes the old Linux along with everything else. To keep Windows, the old Linux has to be removed first; do not delete partitions unless you know they hold nothing you need.");
 }
 
 #[cfg(test)]

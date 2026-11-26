@@ -49,6 +49,9 @@ pub struct ReleaseVerdict {
     /// `yes`, `no` or `unknown`
     pub starts: String,
     pub why: Vec<String>,
+    /// the oldest kernel the installed system comes up on, as the table
+    /// measured it (`6.19.10-300.fc44.x86_64`); empty when it records none
+    pub kernel: String,
 }
 
 /// Everything one scan has said so far. The judging functions add to it,

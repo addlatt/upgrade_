@@ -24,15 +24,15 @@ Done before the numbering began (all `[####]` in `STATUS.md`): the handoff
 on a real machine (V0), the schemas, kickstart generator, stick writer and
 image read-back (R16, R17), the disk check, shrink, handoff, alongside
 install and undo on the rig (R18, R21), the walk-away resume (R24), the
-folder map and the stick-fit gate (R5, R6).
+folder map (R5, R6) and the stick-fit gate (removed 2026-11-26).
 
 ## 0. One-click erase and install
 
-Erase every internal drive, install Fedora, keep nothing. The commit line
-is the last click in the window (decided 2026-11-02, the owner: the 2-minute
-countdown left the product). Proves: V9, R27, R35. Done on the Aspire
-2026-10-04 (run 11). Still owed: `upgrade-installer` 0.2.0's rows, other
-brands. Stands: see [STATUS.md](STATUS.md).
+Erase every internal drive, install the chosen Linux, keep nothing. The
+commit line is the last click in the window (decided 2026-11-02, the owner:
+the 2-minute countdown left the product). Proves: V9, R27, R35. Done on the
+Aspire 2026-10-04 (run 11), and with no countdown since 2026-11-18. Still
+owed: other brands. Stands: see [STATUS.md](STATUS.md).
 
 ## 1. A real keep-Windows install with Secure Boot on
 
@@ -46,15 +46,15 @@ Aspire's drive is dying, R23). Stands: see [STATUS.md](STATUS.md).
 ## 2. settle-in
 
 Hardware check on first boot, a "you used these programs, here is the Linux
-version" list, undo from the Linux side (the rollback, built 2026-10-12, held on
-the rig; waits on an Aspire row), clean-up. The clock, Wi-Fi and remote
-access are done (2026-10-04, the Aspire). Reclaim, decided 2026-11-02
-(R41: delete all of Windows on a typed sentence, move Linux into the
-space), is built whole and waits on the rig (V15). **Decided (2026-11-02, the owner): copying the
-person's files (unlock BitLocker, copy, double-check, never a OneDrive stub)
-waits until the project has traction.** **Amended (2026-11-07, the owner):**
-built whole 2026-11-07 (settle-in 0.10.0), keep-Windows only, with the
-programs list and the bookmarks; waits on the rig arm (V3, V8), then a machine. Proves: V10, R28, V15, R41; the pull,
+version" list, undo from the Linux side (the rollback, held on the Aspire
+2026-10-28), clean-up. The clock, Wi-Fi and remote access are done
+(2026-10-04, the Aspire). Reclaim, decided 2026-11-02 (R41: delete all of
+Windows on a typed sentence, move Linux into the space), ran on the Aspire
+for each Linux on 2026-11-20 (V15), on a failing drive. **Decided
+(2026-11-02, the owner): copying the person's files waits until the project
+has traction.** **Amended (2026-11-07, the owner):** built 2026-11-07,
+keep-Windows only, with the programs list and the bookmarks; held on the
+Aspire since 2026-11-18 from a drive BitLocker keeps unlocked. Proves: V10, R28, V15, R41; the pull,
 V3, R19, R13. Stands: see [STATUS.md](STATUS.md).
 
 ## 3. The rest of the collecting
@@ -92,7 +92,7 @@ hold the certificate. Proves: V6, R12, R14. Stands: see
 
 For machines turned down because of their drive (R23's case): copy off
 whatever can still be read, and check every copy. Proves: R17, R23. Waits
-on: item 2's file pull (back on 2026-11-07, not built). Stands: see [STATUS.md](STATUS.md).
+on: item 2's file pull (built 2026-11-07). Stands: see [STATUS.md](STATUS.md).
 
 ## 8. Offer to delete Windows when it cannot be kept
 
@@ -156,18 +156,16 @@ One Rust product (decided 2026-09-27 and, for the leaving, 2026-10-11, the
 owner). Done: the whole Windows side in Rust, the cut-over on the Aspire
 (2026-10-10), and phase 1 of the leaving: the ten product scripts, their
 recorders, the launchers, `build.sh` and `dist/` gone, the port check
-Rust-only with frozen goldens. Waits on: the rig answering again for the
-unforced row. Owed: phase 2's last rows (the stick writer is built, 2026-10-14; its
-R16 write rows and the rig's refusals are still owed, then the script goes),
-the `owed` ledger lines (see STATUS.md, V13). Done 2026-10-14 as well:
-phase 3 (the data tables to JSON, `CLAUDE.md` rewritten). Proves: V13, R32. The phases: `RUST-PORT.md`,
-"What comes next". Stands: see [STATUS.md](STATUS.md).
+Rust-only with frozen goldens; phase 3 (2026-10-14: the data tables to JSON).
+Owed: phase 2's last rows (the stick writer's R16 write rows and the rig's
+refusals, then the script goes), the `owed` ledger lines (STATUS.md, V13). Proves: V13, R32. The phases, as history:
+`docs/archive/RUST-PORT.md`. Stands: see [STATUS.md](STATUS.md).
 
 ## 18. Further out
 
 Fill the hardware list from linux-hardware.org instead of by hand, and let
 people opt in to sharing how their switch went, so the list gets smarter
-with every one. Proves: V7, R3. Waits on: the scanner shipping.
+with every one. Proves: V7. Waits on: the scanner shipping.
 
 ## 19. Rust unification: everything that can be Rust is Rust
 
@@ -178,7 +176,7 @@ the Linux side the person's computer runs: the installer's `verify.sh` and
 script (built the same day), the kickstart's chroot `%post` and the way
 back's first sign-in (built 2026-10-17). The build and check tools, the rig's boot
 marker and the stick's `.cmd` starters stay as they are (decided
-2026-10-17, the owner; `RUST-PORT.md`, "What comes next"). The stick
+2026-10-17, the owner; `architecture.md`, "Stack"). The stick
 writer writes disks, so R16's rows run again (rule #4); the installer
 re-earns V1's, V9's and R21's rows. After this item the work turns to the
 mission's open killers (item 2's file pull, back on 2026-11-07).
@@ -206,9 +204,11 @@ Aspire, 2026-10-28/29. Decided (2026-10-31, the owner): the test machine
 signs itself in for the test, as Windows' own automatic sign-in does, said
 in every row and switched off at the end. Built 2026-10-31: following the
 machine, the sign-in, the stick swaps seen, a stop tried again in the same
-run (log 2026-10-31). The cancel stage left with the countdown (2026-11-02):
-eight stages. Decided (2026-11-15, the owner): one stick, no swaps. Owed: that plan, a run
-with no hand, the window's screens (V12), the old verdicts wired in, a pull-request check (R9). Proves:
+run (log 2026-10-31). The cancel stage left with the countdown (2026-11-02).
+Decided (2026-11-15, the owner): one stick, no swaps. Decided (2026-11-17,
+the owner): the test fills the stick itself and needs no hand. Whole runs
+with no hand on the Aspire, 2026-11-18 and 2026-11-19, for each Linux. Owed:
+the window's screens (V12), the old verdicts wired in, a pull-request check (R9). Proves:
 R9, V13, then V1b, V9, V10, V11 per machine. Stands: see [STATUS.md](STATUS.md).
 
 ## 22. Open firmware, for the curious (parked)
@@ -227,7 +227,8 @@ a time (`architecture.md`, "Linux releases beyond Fedora"). Bazzite's ISO
 was measured 2026-11-07; its design was decided 2026-11-08 (`BAZZITE-DESIGN.md`).
 Steps: record the release with `measure-release.py`; cut the seam, Fedora's
 goldens unchanged; the unattended start and the key step on the rig; a real
-machine (any order). Decided (2026-11-12, the owner): Ubuntu second (R40).
+machine (any order). Decided (2026-11-12, the owner): Ubuntu second (R40);
+built, and held on the Aspire since 2026-11-15 (V18). Bazzite is what is left.
 Proves: R40, R42, R45, V14, V16, V18. Stands: see [STATUS.md](STATUS.md).
 
 ## 24. The release picker: choose a Linux, then fetch it onto the stick
@@ -238,7 +239,7 @@ checks every byte against its measured entry in `data/releases.json` and
 writes it to the stick. One release per stick, offered only if the scan
 finds it startable, before the last click. Decided (2026-11-08, the
 owner): Fedora alone first, Bazzite once V16 holds; the program is already
-on the stick. Built 2026-11-08.
+on the stick. Built 2026-11-08; Ubuntu offered since 2026-11-13.
 Proves: R44, V17, R31, R34, V12, V14. Stands: see [STATUS.md](STATUS.md).
 
 ## 25. Fedora: NVIDIA's driver, offered by settle-in
@@ -262,8 +263,8 @@ is decided, the dated line goes in its home and the item here is removed.
   clauses it still names.
 - Whether R34's release check (held on the Aspire 2026-10-04) meets R11's
   closing clause, or R11's wording still promises more than it verifies.
-- R8's closing clause (`-Materialize` against a signed-in client) predates
-  the 2026-09-26 decision not to download; what clause replaces it.
+- R8's closing clause named a download step, and R4's a clean-slate stick
+  gate; both left the code on 2026-11-26. Close them, or what replaces each.
 - R12's "What" still describes imaging a disk, a design that is gone; the wording.
 - The words shown to people are drafts awaiting approval: the erase
   launcher's "If you change your mind later", `UPGRADE.exe`'s screens (R31),
@@ -286,11 +287,10 @@ is decided, the dated line goes in its home and the item here is removed.
 - Whose one-click test results count (item 21): whether a pass from an
   unknown contributor can mark a model as working, or only one from an
   approved developer or a second run that agrees (rule #1; R9).
-- Ubuntu (item 23, V18): `/boot` apart, as built (`UBUNTU-DESIGN.md`).
+- Ubuntu (item 23, V18): `/boot` apart, as built (`architecture.md`, "Linux releases beyond Fedora").
   Where Bazzite's ISO copy is kept (R42, V16).
 - How the kit reaches a person's stick (item 24, R44).
-- Reclaim (R41, V15; log 2026-11-18): its bench (the arm wants a USB stick, Hyper-V has none: QEMU, or a healthy-drive machine first);
-  how an Ubuntu stick runs it (built for Fedora only); V15 calls an unaccounted slot a refusal, the code keeps the slot;
+- Reclaim (R41, V15; log 2026-11-18): V15 calls an unaccounted slot a refusal, the code keeps the slot;
   the clock back to UTC once Windows is gone (R36 says "may"); the words of its typed sentence and its screen.
 - Who owns `shutdown /g` (Automatic Restart Sign-On), named in
   `architecture.md` as a courtesy to add later (R24).

@@ -5574,7 +5574,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -5719,7 +5719,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -5916,16 +5916,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -6520,7 +6510,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0003,0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0003,0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -6665,7 +6655,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0003,0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0003,0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -6862,16 +6852,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -7472,7 +7452,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0002,0001,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0002,0001,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -7617,7 +7597,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0002,0001,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0002,0001,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -7814,16 +7794,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -8415,7 +8385,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\ngrub2-mkconfig: error: failed\n+ (exit 1)\n+ grub.cfg lines naming Windows: 0\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\ngrub2-mkconfig: error: failed\n+ (exit 1)\n+ grub.cfg lines naming Windows: 0\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    }
   },
   "sysroot": {
@@ -8510,7 +8480,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\ngrub2-mkconfig: error: failed\n+ (exit 1)\n+ grub.cfg lines naming Windows: 0\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\ngrub2-mkconfig: error: failed\n+ (exit 1)\n+ grub.cfg lines naming Windows: 0\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -8707,16 +8677,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -9309,7 +9269,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -9454,7 +9414,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -9651,16 +9611,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -10255,7 +10205,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -10385,7 +10335,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "var/lib/upgrade_/job.json": {
     "mode": "0o600",
@@ -10550,16 +10500,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -11152,7 +11092,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -11297,7 +11237,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/settle-in": {
     "mode": "0o755",
@@ -11478,16 +11418,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -12085,7 +12015,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -12238,7 +12168,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -12439,16 +12369,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -13039,7 +12959,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default multi-user.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/multi-user.target'.\n+ systemctl get-default\nmulti-user.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default multi-user.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/multi-user.target'.\n+ systemctl get-default\nmulti-user.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -13181,7 +13101,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default multi-user.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/multi-user.target'.\n+ systemctl get-default\nmulti-user.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default multi-user.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/multi-user.target'.\n+ systemctl get-default\nmulti-user.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -13378,16 +13298,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -13941,7 +13851,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -14074,7 +13984,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -14214,16 +14124,6 @@
        "materialized": 0,
        "failed": 0,
        "result": "none-found"
-      },
-      "stick_fit": {
-       "filesystem": "exFAT",
-       "cluster_bytes": 32768,
-       "free_bytes": 30000000000,
-       "files_bytes": 1610612736,
-       "needed_bytes": 1709933855,
-       "files_over_4gib": 0,
-       "fits": true,
-       "gap_bytes": 0
       },
       "browsers": [],
       "wifi": {
@@ -14778,7 +14678,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -14911,7 +14811,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -15051,16 +14951,6 @@
        "materialized": 0,
        "failed": 0,
        "result": "none-found"
-      },
-      "stick_fit": {
-       "filesystem": "exFAT",
-       "cluster_bytes": 32768,
-       "free_bytes": 30000000000,
-       "files_bytes": 1610612736,
-       "needed_bytes": 1709933855,
-       "files_over_4gib": 0,
-       "fits": true,
-       "gap_bytes": 0
       },
       "browsers": [],
       "wifi": {
@@ -15599,7 +15489,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -15732,7 +15622,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -15872,16 +15762,6 @@
        "materialized": 0,
        "failed": 0,
        "result": "none-found"
-      },
-      "stick_fit": {
-       "filesystem": "exFAT",
-       "cluster_bytes": 32768,
-       "free_bytes": 30000000000,
-       "files_bytes": 1610612736,
-       "needed_bytes": 1709933855,
-       "files_over_4gib": 0,
-       "fits": true,
-       "gap_bytes": 0
       },
       "browsers": [],
       "wifi": {
@@ -16363,7 +16243,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -16508,7 +16388,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -16705,16 +16585,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -17314,7 +17184,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -17459,7 +17329,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -17656,16 +17526,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -18260,7 +18120,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -18393,7 +18253,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -18533,16 +18393,6 @@
        "materialized": 0,
        "failed": 0,
        "result": "none-found"
-      },
-      "stick_fit": {
-       "filesystem": "exFAT",
-       "cluster_bytes": 32768,
-       "free_bytes": 30000000000,
-       "files_bytes": 1610612736,
-       "needed_bytes": 1709933855,
-       "files_over_4gib": 0,
-       "fits": true,
-       "gap_bytes": 0
       },
       "browsers": [],
       "wifi": {
@@ -19109,7 +18959,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -19254,7 +19104,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -19451,16 +19301,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -20056,7 +19896,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default multi-user.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/multi-user.target'.\n+ systemctl get-default\nmulti-user.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default multi-user.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/multi-user.target'.\n+ systemctl get-default\nmulti-user.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -20201,7 +20041,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default multi-user.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/multi-user.target'.\n+ systemctl get-default\nmulti-user.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default multi-user.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/multi-user.target'.\n+ systemctl get-default\nmulti-user.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -20398,16 +20238,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -21003,7 +20833,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: (none: the entry cannot find the ESP)\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: (none: the entry cannot find the ESP)\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -21148,7 +20978,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: (none: the entry cannot find the ESP)\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: (none: the entry cannot find the ESP)\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -21345,16 +21175,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -21950,7 +21770,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -22095,7 +21915,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/default/grub (GRUB_DISABLE_OS_PROBER=true)\n+ findmnt -no UUID /boot/efi: A1B2-C3D4\n+ grub2-editenv /boot/efi/EFI/fedora/grubenv create\n+ write /etc/grub.d/25_windows_kept\n+ grub2-mkconfig -o /boot/grub2/grub.cfg\nGenerating grub configuration file ...\ndone\n+ grub.cfg lines naming Windows: 5\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0003\nTimeout: 0 seconds\nBootOrder: 0001,0002,0003\nBoot0001* Windows Boot Manager\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\Microsoft\\Boot\\bootmgfw.efi)\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\nBoot0003* UEFI: USB Stick\tPciRoot(0x0)/Pci(0x14,0x0)/USB(2,0)\n+ restorecon /etc/default/grub /etc/grub.d/25_windows_kept /root/upgrade_-grub-windows-entries.txt /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -22292,16 +22112,6 @@
        "materialized": 41,
        "failed": 0,
        "result": "materialized"
-      },
-      "stick_fit": {
-       "filesystem": "FAT32",
-       "cluster_bytes": 4096,
-       "free_bytes": 1833394176,
-       "files_bytes": 29726081024,
-       "needed_bytes": 30387711509,
-       "files_over_4gib": 0,
-       "fits": false,
-       "gap_bytes": 28554317333
       },
       "browsers": [
        {
@@ -22888,7 +22698,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ (exit 1)\n+ systemctl set-default multi-user.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/multi-user.target'.\n+ systemctl get-default\nmulti-user.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ (exit 1)\n+ systemctl set-default multi-user.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/multi-user.target'.\n+ systemctl get-default\nmulti-user.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -23017,7 +22827,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ (exit 1)\n+ systemctl set-default multi-user.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/multi-user.target'.\n+ systemctl get-default\nmulti-user.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ (exit 1)\n+ systemctl set-default multi-user.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/multi-user.target'.\n+ systemctl get-default\nmulti-user.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -23157,16 +22967,6 @@
        "materialized": 0,
        "failed": 0,
        "result": "none-found"
-      },
-      "stick_fit": {
-       "filesystem": "exFAT",
-       "cluster_bytes": 32768,
-       "free_bytes": 30000000000,
-       "files_bytes": 1610612736,
-       "needed_bytes": 1709933855,
-       "files_over_4gib": 0,
-       "fits": true,
-       "gap_bytes": 0
       },
       "browsers": [],
       "wifi": {
@@ -23724,7 +23524,7 @@
    },
    "upgrade_/report/post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "upgrade_/report/verify.json": {
     "mode": "0o644",
@@ -23850,7 +23650,7 @@
    },
    "root/upgrade_-post.log": {
     "mode": "0o644",
-    "text": "== upgrade-installer 0.4.0 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
+    "text": "== upgrade-installer 0.4.1 post <time>\n+ write /etc/plasma-setup-done\n+ systemctl disable plasma-setup.service\n+ systemctl set-default graphical.target\nRemoved '/etc/systemd/system/default.target'.\nCreated symlink '/etc/systemd/system/default.target' → '/usr/lib/systemd/system/graphical.target'.\n+ systemctl get-default\ngraphical.target\n+ efibootmgr -v\nBootCurrent: 0002\nTimeout: 0 seconds\nBootOrder: 0002\nBoot0002* Fedora\tHD(1,GPT,11111111-0001-4000-8000-000000000001,0x800,0x32000)/File(\\EFI\\fedora\\shimx64.efi)\n+ restorecon /etc/plasma-setup-done /root/upgrade_-default-target.txt /root/upgrade_-efibootmgr.txt /root/upgrade_-post.log"
    },
    "usr/local/libexec/upgrade_/cabextract": {
     "mode": "0o755",
@@ -23990,16 +23790,6 @@
        "materialized": 0,
        "failed": 0,
        "result": "none-found"
-      },
-      "stick_fit": {
-       "filesystem": "exFAT",
-       "cluster_bytes": 32768,
-       "free_bytes": 30000000000,
-       "files_bytes": 1610612736,
-       "needed_bytes": 1709933855,
-       "files_over_4gib": 0,
-       "fits": true,
-       "gap_bytes": 0
       },
       "browsers": [],
       "wifi": {

@@ -1,9 +1,8 @@
 //! The text report, line for line as the PowerShell scanner prints it.
 
 use crate::check::Status;
-use crate::data::tables;
 use crate::facts::Machine;
-use crate::ps::{eq_ci, matches, num, s, Stamp};
+use crate::ps::{eq_ci, matches, num, s, Stamp, Version};
 use crate::run::Outcome;
 use crate::verdict::Level;
 
@@ -55,13 +54,6 @@ pub fn wrap(text: &str, width: usize, indent: &str) -> Vec<String> {
         }
     }
     out
-}
-
-/// How many days ago the distro table was checked, as `[int]` rounds it.
-pub fn distro_table_age(now: Stamp) -> i64 {
-    let v = &tables().distro_table_verified;
-    let verified = Stamp::parse(&format!("{v}T00:00:00")).map_or(0, |t| t.seconds());
-    ((now.seconds() - verified) as f64 / 86400.0).round_ties_even() as i64
 }
 
 /// The unmatched devices as the report lists them: sorted, each once.
@@ -140,70 +132,55 @@ pub fn lines(m: &Machine, o: &Outcome, now: Stamp, version: &str) -> Vec<String>
         add("");
     }
 
-    let rec = &o.recommendation;
-    if let Some(kernel) = o.required_kernel {
-        add("-- THE ONE NUMBER THAT MATTERS ------------------------------------------------");
+    // the kit's own Linuxes, and nothing else: what this stick can install here
+    // under RED nothing is put forward: only the releases that are refused, and why
+    let red = o.verdict.level == Level::Red;
+    let shown: Vec<_> = o.scan.releases.iter().filter(|r| !red || r.starts == "no").collect();
+    if !shown.is_empty() {
+        add("-- THE LINUX THIS KIT INSTALLS ------------------------------------------------");
         add("");
-        add(&format!("  This machine needs Linux kernel {kernel} or newer."));
-        add("");
-        add("  A distribution older than that will not merely run slower - the specific");
-        add("  hardware listed above will not work at all. This is the mistake that sends");
-        add("  people back to Windows convinced Linux is broken.");
-        add("");
-        if !rec.excluded.is_empty() {
-            add("  RULED OUT for shipping an older kernel by default:");
-            for x in &rec.excluded {
-                add(&format!("    x {}  (kernel {})", x.name, x.kernel));
-            }
+        if let Some(kernel) = o.required_kernel {
+            add(&format!("  This computer's hardware needs Linux kernel {kernel} or newer."));
+            add("  An older Linux would install, and the hardware listed above would not work.");
             add("");
-            add("  Those are popular, and they are the ones a first-time user is most");
-            add("  likely to be pointed at. On this machine they are the wrong answer.");
+        }
+        for r in shown {
+            let kernel = Version::parse_release(&r.kernel).map_or(String::new(), |k| format!("  (kernel {k})"));
+            match r.starts.as_str() {
+                "yes" => {
+                    add(&format!("  * {}{kernel}", r.name));
+                    add(if o.required_kernel.is_some() { "      Starts on this computer, and its kernel is new enough." } else { "      Starts on this computer." });
+                }
+                "no" => {
+                    add(&format!("  x {}{kernel}", r.name));
+                    add("      Not offered on this computer:");
+                    for why in &r.why {
+                        for w in wrap(why, 66, "        ") {
+                            add(&w);
+                        }
+                    }
+                }
+                _ => {
+                    add(&format!("  ? {}{kernel}", r.name));
+                    add("      Whether it starts here could not be checked. Run the scanner as");
+                    add("      administrator.");
+                }
+            }
             add("");
         }
     }
 
-    // a RED verdict never recommends a distribution
     if o.verdict.level != Level::Red {
-        add("-- RECOMMENDED ----------------------------------------------------------------");
-        add("");
-        if rec.distros.is_empty() {
-            add("  No distribution in our table ships a new enough kernel by default.");
-            add("  Use a rolling-release distribution, or Fedora, and expect to be on");
-            add("  recent-hardware territory.");
-        } else {
-            for d in &rec.distros {
-                add(&format!("  * {}  (kernel {})", d.name, d.kernel));
-                for w in wrap(&d.note, 68, "      ") {
-                    add(&w);
-                }
-                add("");
-            }
-        }
-        if rec.has_nvidia {
-            add("  NVIDIA present - only distributions that install the proprietary driver");
-            add("  for you are listed above.");
-            add("");
-        }
         add("-- BEFORE YOU DO ANYTHING -----------------------------------------------------");
         add("");
         add("   1. Save your BitLocker recovery key somewhere that is not this computer");
         add("      - a phone note, another machine. An encrypted disk touched without it");
         add("      is gone for good.");
-        add("   2. Get a USB stick big enough for your files - the converter puts them");
-        add("      there. You do NOT need an external hard drive. (Or keep Windows itself");
-        add("      as the fallback: see \"Room to keep Windows\" above.)");
-        add("   3. Write the ISO to a USB stick and boot it WITHOUT installing.");
-        add("      Live mode runs the whole desktop from the USB and changes nothing.");
-        add("   4. In that live session, test: Wi-Fi, sound through the SPEAKERS (not");
-        add("      just headphones), screen brightness, and suspend/resume.");
-        add("   5. Only then decide. Nothing is irreversible until you commit.");
-        add("");
-    }
-
-    let age = distro_table_age(now);
-    if age > 120 {
-        add(&format!("  ! The distribution table in this scanner was last verified {age} days ago."));
-        add("    Kernel versions move; confirm against the distribution release notes.");
+        add("   2. Copy anything you cannot lose to another place. Keeping Windows leaves");
+        add("      your files where they are. Erasing everything carries none of them.");
+        add("   3. If you are unsure, keep Windows. You can go back to it from Linux,");
+        add("      and remove it later, once everything works.");
+        add("   4. Nothing is changed until your last click in the window.");
         add("");
     }
 

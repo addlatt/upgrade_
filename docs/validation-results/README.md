@@ -48,15 +48,17 @@ account name.
 
 The handoff is how Windows tells the firmware (UEFI, the code that runs
 before any operating system) to boot the stick exactly once, then go back to
-normal. One row per run, appended by `upgrade_/windows/Test-Handoff.ps1
--Check`; physical rows come from the stick's own file (`RUN-TEST.cmd`'s
-`-Auto` return check, or `CHECK-HANDOFF.cmd`), and the machine's
-`-DumpMachine` capture from the same run is curated into
-`evaluate/windows/corpus/`.
+normal. One row per run, appended by `upgrade-prologue verify-check` when
+Windows comes back (`--results-csv` names the file; the window's Verify,
+`UPGRADE.exe --developer`, runs it), and the machine's `upgrade-scan
+dump-machine` capture from the same run is curated into
+`evaluate/windows/corpus/`. Rows before 2026-10-11 were appended by
+`Test-Handoff.ps1 -Check` (`RUN-TEST.cmd`, `CHECK-HANDOFF.cmd`), which the
+Rust replaced.
 
 | Column | Meaning |
 |---|---|
-| `harness` | Test-Handoff.ps1 version |
+| `harness` | the version of what armed and checked: Test-Handoff.ps1 in old rows, `upgrade-prologue` since |
 | `vendor`, `model`, `firmware_version` | the machine under test |
 | `secureboot`, `bitlocker` | on / off / unknown at arm time; C: protection state at arm time |
 | `payload`, `failmode` | the `BOOTX64.EFI` leaf (which payload); blank for a baseline run, else the fail-mode armed |
@@ -197,43 +199,34 @@ real disk.
 
 ## `v8-materialize.csv`: OneDrive placeholders are materialized at evaluate (gate V8, risk R8)
 
+**No new rows are written.** The harness that wrote them,
+`evaluate/windows/Test-Materialize.ps1`, left the tree with the PowerShell
+scripts, and since the no-download decision (2026-09-26, R8) nothing in the
+product materializes: online-only files stay in OneDrive and the check that
+matters is `settle-in`'s (`v3-pull.csv`). The four rows (2026-09-08/09) stay
+as the record of a tool that was built and never used.
+
 A OneDrive "free up space" file is a **placeholder**: its directory entry
-shows the full size, but no bytes are on the disk, and pulled from Linux it
-arrives empty. **Materializing** means forcing the real bytes onto the disk.
-One row per run, appended by `evaluate/windows/Test-Materialize.ps1`, which
-proves the harvester's `-Materialize` step (seam `-MaterializePath`) against
-the **real** cloud files filter with ground truth: a temporary sync root
-through the Cloud Files API (what OneDrive is built on), dehydrated
-placeholders whose bytes only the harness knows, the harvester in a separate
-process, then a hash of the NTFS volume. One placeholder is one the provider
-refuses to serve, so the refuse arm runs every time.
+shows the full size, but no bytes are on the disk. **Materializing** means
+forcing the real bytes onto the disk. Each row is one run against the real
+cloud files filter: a temporary sync root, placeholders whose bytes only the
+harness knew, the harvester in a separate process, then a hash of the
+volume. One placeholder was one the provider refuses to serve.
 
-| Column | Meaning |
-|---|---|
-| `timestamp` | as the harness wrote it; rows are transported verbatim |
-| `harness`, `os_build` | Test-Materialize.ps1 version; the Windows build the filter belongs to |
-| `provider` | `cfapi-test-provider` (the harness is the sync provider) or `onedrive` (the signed-in client, `-OneDrive`) |
-| `files`, `bytes`, `placeholders_confirmed` | placeholders created and their total logical size; how many carried `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS` **and** allocated 0 bytes on disk before the run |
-| `materialized`, `bytes_verified` | files the harvester reported materialized; files whose on-disk sha256 equals the ground truth **and** whose placeholder attribute is gone **and** which allocate on disk |
-| `refused_expected`, `refused_reported` | files the provider refuses to serve, and how many of those the harvester reported as failed |
-| `harvest_exit`, `notes` | the harvester's exit code (0 = all materialized; 3 = at least one failure, the refusal); harness-written facts first (OS, provider, hydration policy, sizes), then FETCH_DATA counts and the harvester's summary line |
+Columns: `harness`, `os_build`; `provider` (`cfapi-test-provider`: the
+harness was the sync provider); `files`, `bytes`, `placeholders_confirmed`
+(created, their logical size, how many allocated 0 bytes before the run);
+`materialized`, `bytes_verified` (reported materialized; on-disk sha256
+equal to the ground truth); `refused_expected`, `refused_reported`;
+`harvest_exit` (0 = all materialized, 3 = at least one failure).
 
-| Result | Meaning | Verdict |
-|---|---|---|
-| `pass-plumbing` | every servable placeholder materialized and byte-verified; the refused one reported failed with a non-zero exit | **pass for the filter and the harvester**. The provider was ours, so plumbing only (rule #5) |
-| `pass` | the same with `provider=onedrive` | **pass**: the residue |
-| `setup-failed` | the placeholders did not come out dehydrated. A harness or API problem; nothing learned about materialization | fix the harness |
-| `wrong-bytes` | a file materialized but its bytes differ from the ground truth | **fail-loud**: the trust-ending class |
-| `not-materialized` | a servable file stayed a placeholder, or was reported materialized without bytes on disk | fail: the harvester's judgment is wrong |
-| `refusal-missed` | the unservable file was reported materialized, or a failure came back with exit 0 | **fail-loud**: "materialize, or refuse" would have written a job over an empty file |
-
-**What a pass requires.** `pass-plumbing` on the rig and on at least one
-physical machine; `pass` with `provider=onedrive` on a signed-in machine with
-Files On-Demand (`-OneDrive` uploads a few MB, asks the client to free up
-space, then materializes; only on a machine and account you own, never
-unattended). Since the no-download decision (2026-09-26, R8) the launchers do
-not use the materializer: that row proves a built but unused tool, and the
-check that matters moved to `settle-in`.
+**Result vocabulary.** `pass-plumbing`: every servable placeholder
+materialized and byte-verified, the refused one reported failed with a
+non-zero exit; the provider was ours, so plumbing only (rule #5).
+`setup-failed`: the placeholders did not come out dehydrated, a harness
+problem, nothing learned. Never written: `pass` (the same against the
+signed-in OneDrive client), `wrong-bytes`, `not-materialized`,
+`refusal-missed`.
 
 ## `r16-stick-writer.csv`: the stick writer refuses the wrong device (risk R16)
 
@@ -260,7 +253,8 @@ The result words are the `decision` column: `selected` (every rule held) or
 `refused` (`refusals` names each broken rule). A `write` row passes only with
 `decision=selected`, `written=y` and `verified=y`.
 
-**What R16 closes requires.** The refusal matrix, fabricated (`-SelfTest`,
+**What R16 closes requires.** The refusal matrix, fabricated (the stick
+writers' own cases: `Write-UpgradeStick.ps1 -SelfTest` and `evaluate/stick`'s tests,
 23 cases: the system disk pointed at, two sticks and a USB hard drive with the
 right one selected, a USB SSD enclosure, cloned serials, wrong size,
 off-by-one bytes, SD bus, SAS bus, offline, Windows To Go); live and
@@ -274,7 +268,8 @@ after, in `notes`). No VM can run it: Hyper-V has no USB emulation.
 ## `v1-live-boot.csv`: the stick boots through the handoff and verifies, nothing installed (gate V1, reversible half)
 
 One row per run, appended by `rig/hyperv/v1-verdict.py` from the V0 harness
-row the guest wrote when Windows came back (`Test-Handoff.ps1 -Check -Auto`)
+row the guest wrote when Windows came back (`upgrade-prologue verify-check
+--auto`; `Test-Handoff.ps1 -Check -Auto` in rows before 2026-10-11)
 and the report the `%pre` verifier left on the stick
 (`upgrade_/report/verify.json`, by `upgrade-installer verify` inside
 Anaconda's stage2; `%pre` runs before the installer touches any disk). The
@@ -289,7 +284,7 @@ report, reboot, Windows. Bench: `rig/hyperv/v1.sh run`.
 | `handoff_result`, `windows_returned` | the V0 row's result (`fired-once` is the only pass) and its `windows_returned` |
 | `stage2_booted`, `storage_include` | y/n: a `verify.json` exists on the stick, so Anaconda's stage2 came up from the stick and ran our `%pre`; the `%include` the install would have used was written |
 | `identity` | `pass` / `fail` / `not-reached`: the job's disk was found by unique id or serial **and** its size matched exactly |
-| `esp`, `display`, `wifi`, `audio_firmware` | `pass` / `fail` / `skipped`: for keep-windows, an EFI partition holding `bootmgfw.efi` was found on that disk; the hardware checks (see `verify.sh` for each). `skipped` is "nothing to test on this machine", never "not checked" |
+| `esp`, `display`, `wifi`, `audio_firmware` | `pass` / `fail` / `skipped`: for keep-windows, an EFI partition holding `bootmgfw.efi` was found on that disk; the hardware checks (see `upgrade_/linux/installer/src/verify.rs` for each). `skipped` is "nothing to test on this machine", never "not checked" |
 | `notes` | the V0 row's notes prefix, then the verifier's facts (kernel, disk, how it was matched, connector and mode, ESP device, the SecureBoot variable, and from harness 0.2.0 `desktop_image=pass/fail` with the image's size, sha256 verdict against the stick's `SHA256SUMS` and the read speed in MB/s: the cutover's read-back step and R17's counterfeit-flash test) |
 
 | Result | Meaning | Verdict |
@@ -362,7 +357,8 @@ return record (`upgrade_/prologue-return.json`: the handoff, classified when
 Windows next boots), `outcome.json` validated against the schema, the bench's
 fault injection (`fsutil dirty set C:`, which sets NTFS's "dirty" flag) and
 the offline GPT inspections before and after. What runs is the one-click flow
-(`RUN-CONVERT.cmd`, then `Invoke-Prologue.ps1 -Start`) against a copy of the
+(`upgrade-prologue start`, which the window runs; `RUN-CONVERT.cmd` and
+`Invoke-Prologue.ps1 -Start` in rows before 2026-10-11) against a copy of the
 unshrunk install-day disk; the install then runs as in `v2-install.csv`,
 whose verdict writes its own row for the same run. Bench:
 `rig/hyperv/prologue.sh run`. A **rung** is one step on the ladder of disk
@@ -442,7 +438,8 @@ a Linux install put its own entry first?
 "Walk away" means the person clicks once and leaves: after each restart the
 conversion must carry on by itself, before anyone signs in. This probe tests
 only that. Written by **the prologue's own `-Probe` task, from session 0**
-(`Invoke-Prologue.ps1 -Probe`, launched by `RUN-PROBE.cmd` on the kit), never
+(`upgrade-prologue probe`, behind the window's `--developer` flag;
+`Invoke-Prologue.ps1 -Probe` from `RUN-PROBE.cmd` in the rows so far), never
 by a bench script and never by hand: it registers the same SYSTEM startup
 task the conversion uses and restarts once; the task appends the row to the
 stick's `upgrade_/walkaway-probe.csv` (and `upgrade_/probe.json`), queues the
@@ -489,7 +486,8 @@ to change SATA Mode, boots Safe Mode once through a copied boot entry, scans
 again as SYSTEM with nobody signed in, asks for the mode back and scans a
 third time; `rig/v5-verdict.py --from-run <folder>` then writes one row per
 leg, the mode being what the harness **asked** the person to set. **The
-two-file path** (a plain `RUN-SCANNER.cmd` run): `rig/v5-verdict.py
+two-file path** (a plain scan, `upgrade-scan scan --json`, with its
+`dump-machine` capture): `rig/v5-verdict.py
 --sata-mode-set raid|ahci|absent <report> <capture>`, the mode the setup was
 set to being the one operator input. Either way `result` compares the mode
 word against the PCI class code the controller declared to Windows, so a
@@ -623,18 +621,15 @@ pass is every line `pass`; until then the script stays in use.
 
 ## `v13-rust-scanner.csv`: the Rust scanner on real machines (gate V13, risk R32)
 
-One row per run of the Rust scanner beside the PowerShell scanner on a real
-Windows machine, written from the two programs' own outputs; the captures
-hold the machine's details and are never committed. `elevated` (y/n) and
-`rust_build` (the commit; `(this commit)` from the working tree).
-`facts_equal`: `yes` when `upgrade-scan --compare-facts` found every fact the
-Rust read equal to what the PowerShell read in the same minute; `n/a` when
-the row records one specific read instead (named in `notes`). `end_to_end`:
-`SAME` when `upgrade-scan --replay <Rust capture> --against <PowerShell
-capture>` found the report Rust prints from its own reads equal to
-PowerShell's, line for line (`report_lines`, `checks`, `verdict` say what was
-compared); `not run`; `n/a`. A pass is `facts_equal=yes` and
-`end_to_end=SAME`, elevated, on each real machine the project has.
+**No new rows are written:** the PowerShell scanner it was run beside left
+the product on 2026-10-11. One row per run of the two scanners on a real
+Windows machine, from their own outputs. `elevated` (y/n) and `rust_build`
+(the commit). `facts_equal`: `yes` when `upgrade-scan --compare-facts` found
+every fact equal to what the PowerShell read in the same minute; `n/a` when
+the row records one specific read (named in `notes`). `end_to_end`: `SAME`
+when the report Rust prints from its own reads equalled PowerShell's, line
+for line (`report_lines`, `checks`, `verdict` say what was compared); `not
+run`; `n/a`. A pass was `facts_equal=yes` and `end_to_end=SAME`, elevated.
 
 ## `v11-walkaway.csv`: the walk-away way back to Windows (gate V11 step 4, risk R33)
 
@@ -661,21 +656,19 @@ by hand.
 
 ## `v11-way-back.csv`: the guided stick for the way back (gate V11 step 3, risk R30)
 
-One row per run of the way back's stick step: `settle-in`'s go-back writes
-Microsoft's installer to a stick (or an image file on the rig) and Windows
-Setup is started from it. Written from the writer's record and the rig's
-observations. Columns: `step` (`3-stick`); `installer` and
-`installer_sha256_in_table` (the installer used; y/n: its sha256 is in the
-known table); `target` and `written` (y/n, or `stopped-at-read-back`);
-`files_read_back`, `swm_parts`, `editions` (files read back; parts of the
-split `install.swm`; its editions against `install.wim`); `setup_started`,
-`secure_boot`, `installed`, `activation` (`not tested` on a VM, which has no
-licence).
+**No new rows are written:** the guided stick left the product on
+2026-10-17 and the walk-away is the only way back (`v11-walkaway.csv`,
+`oneclick-runs.csv`). One row per run of the stick step: `settle-in`'s
+go-back wrote Microsoft's installer to a stick (an image file on the rig)
+and Windows Setup was started from it. Columns: `step` (`3-stick`);
+`installer`, `installer_sha256_in_table` (y/n); `target`, `written` (y/n, or
+`stopped-at-read-back`); `files_read_back`, `swm_parts`, `editions`;
+`setup_started`, `secure_boot`, `installed`, `activation`.
 
 **Result vocabulary.** `pass-plumbing`: every file read back, the editions
 the same as the original, Setup started with Secure Boot on and installed (a
 rig row). `fail`: the writer stopped itself, or a check did not hold; the
-reason in `notes`. Only a real stick in a real machine closes the step.
+reason in `notes`.
 
 ## `v12-window.csv`: the window's verify flow on the rig (gate V12, risk R31)
 
@@ -700,30 +693,27 @@ must never do this), `not-reopened`, `handoff-mismatch`, `result-mismatch`,
 
 ## `v13-rust-job.csv`: the Rust job writer beside New-Job.ps1 (gate V13, risk R32)
 
-One row per side-by-side run of `upgrade-job` and `New-Job.ps1` on a real
-machine, from the two programs' own outputs (`elevated` y/n, `rust_build` the
-commit, as in `v13-rust-scanner.csv`). `facts_equal`: `upgrade-job facts`
-beside `tools/Record-JobFacts.ps1`, field for field (`yes`, `yes, except <the
-named differences>`, or `not run`). `wifi_equal`: the Wi-Fi block with its
-keys (`yes` / `not run`). `job_equal`: a `job.json` written by each against
-the same scan (`yes (<kept differences>)` / `not run (<why>)`). Every
-difference is named in `notes`. A pass is `yes` on all three, elevated, with
-only the differences kept on purpose.
+**No new rows are written:** `New-Job.ps1` left the product on 2026-10-11.
+One row per side-by-side run on a real machine (`elevated`, `rust_build` as
+in `v13-rust-scanner.csv`). `facts_equal`: `upgrade-job facts` beside the
+script's own facts, field for field (`yes`, `yes, except <the named
+differences>`, or `not run`). `wifi_equal`: the Wi-Fi block with its keys
+(`yes` / `not run`). `job_equal`: a `job.json` written by each against the
+same scan (`yes (<kept differences>)` / `not run (<why>)`). Every difference
+is named in `notes`.
 
 ## `v13-rust-prologue.csv`: the Rust prologue's reads beside Invoke-Prologue.ps1 (gate V13, risk R32)
 
-One row per side-by-side run of `upgrade-prologue facts` and
-`tools/Record-PrologueFacts.ps1` (`Invoke-Prologue.ps1`'s `Get-PrologueFacts`)
-on a real machine, written from the two programs' own outputs (`elevated`,
-`rust_build` as in `v13-rust-scanner.csv`). `facts_equal` reads `yes`, or
-`yes, except <the named differences>`, each named in `notes`. A pass is every
-fact the same, elevated, with only the differences kept on purpose (a record
-in the state that nothing decides on).
+**No new rows are written:** `Invoke-Prologue.ps1` left the product on
+2026-10-11. One row per side-by-side run of `upgrade-prologue facts` and the
+script's `Get-PrologueFacts` on a real machine (`elevated`, `rust_build` as
+in `v13-rust-scanner.csv`). `facts_equal` reads `yes`, or `yes, except <the
+named differences>`, each named in `notes`.
 
-## `r14-rebuild.csv`: the five Windows programs build to the same bytes twice (risk R14)
+## `r14-rebuild.csv`: the Windows programs build to the same bytes twice (risk R14)
 
 One row per program per run of `./rebuild-check.sh`, which clones HEAD into a
-fresh directory, builds the five Windows programs there the same way (the
+fresh directory, builds the Windows programs there the same way (the
 pinned toolchain, `--locked`, paths remapped) and compares their sha256 with
 this checkout's. `commit`, `program`, `sha256_here`, `sha256_fresh_clone`,
 `toolchain` say what was compared; `same` is the result: `y` (the bytes

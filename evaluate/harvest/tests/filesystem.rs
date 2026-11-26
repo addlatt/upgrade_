@@ -1,13 +1,14 @@
 //! The harvester self-test's filesystem cases (Harvest-UpgradeState.ps1
-//! -SelfTest, the 12 in tests/owed-selftest.txt), on a real Windows
-//! filesystem: a generated tree, a real junction, a folder this account may
-//! not list, the offline attribute, allocated bytes, the read-through.
+//! -SelfTest), on a real Windows filesystem: a generated tree, a real
+//! junction, a folder this account may not list, the offline attribute.
+//! Five of the twelve are left: the on-stick size, the allocated bytes and
+//! the read-through cases left with their code on 2026-11-26.
 //! Windows only; run through evaluate/harvest/windows-tests.sh.
 #![cfg(windows)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use upgrade_harvest::folders::{allocated_bytes, folder_stats, materialize, materialize_file};
+use upgrade_harvest::folders::folder_stats;
 
 const OFFLINE: u32 = 0x1000;
 
@@ -59,30 +60,15 @@ fn set_offline(p: &Path) {
 #[test]
 fn folder_stats_counts_files_and_bytes_recursively() {
     let w = Work::new("count");
-    let s = folder_stats(&tree(&w), 250000, 0, "");
+    let s = folder_stats(&tree(&w), 250000);
     assert_eq!((s.files, s.bytes, s.truncated, s.cloud_only_files), (3, 60, false, 0), "{s:?}");
 }
 
 #[test]
 fn folder_stats_file_cap_truncates_and_says_so() {
     let w = Work::new("cap");
-    let s = folder_stats(&tree(&w), 2, 0, "");
+    let s = folder_stats(&tree(&w), 2);
     assert_eq!((s.files, s.truncated), (2, true), "{s:?}");
-}
-
-#[test]
-fn folder_stats_on_stick_size_is_clusters_plus_directories_plus_manifest_lines() {
-    // 3 files x one 4 KB cluster, two directories x one cluster, and the
-    // three manifest lines (64 + 2 + len("./staging/Documents/a.txt") + 1 = 92, 92, 96)
-    let w = Work::new("stick");
-    let s = folder_stats(&tree(&w), 250000, 4096, "Documents");
-    assert_eq!((s.stick_bytes, s.max_file_bytes, s.files_over_4gib, s.unreadable), (20760, 30, 0, 0), "{s:?}");
-}
-
-#[test]
-fn folder_stats_no_cluster_size_no_on_stick_size() {
-    let w = Work::new("nocluster");
-    assert_eq!(folder_stats(&tree(&w), 250000, 0, "").stick_bytes, 0);
 }
 
 #[test]
@@ -93,7 +79,7 @@ fn folder_stats_a_junction_is_not_followed() {
     let link = w.path("jt\\link");
     let made = Command::new("cmd").args(["/c", "mklink", "/J", link.to_str().unwrap(), w.path("outside").to_str().unwrap()]).output().unwrap();
     assert!(made.status.success(), "mklink: {}", String::from_utf8_lossy(&made.stderr));
-    let s = folder_stats(&w.path("jt"), 250000, 0, "");
+    let s = folder_stats(&w.path("jt"), 250000);
     let _ = std::fs::remove_dir(&link);
     assert_eq!((s.files, s.bytes, s.unreadable), (1, 1, 0), "{s:?}");
 }
@@ -107,7 +93,7 @@ fn folder_stats_a_directory_windows_will_not_list_is_counted_as_unreadable() {
     let me = std::env::var("USERNAME").unwrap();
     let denied = Command::new("icacls").args([locked.to_str().unwrap(), "/deny", &format!("{me}:(RD)")]).output().unwrap();
     assert!(denied.status.success(), "icacls: {}", String::from_utf8_lossy(&denied.stdout));
-    let s = folder_stats(&w.path("lt"), 250000, 0, "");
+    let s = folder_stats(&w.path("lt"), 250000);
     let _ = Command::new("icacls").args([locked.to_str().unwrap(), "/remove:d", &me]).output();
     assert!(s.unreadable >= 1 && s.files == 1 && s.unreadable_first.iter().any(|f| f.contains("locked")), "{s:?}");
 }
@@ -117,49 +103,6 @@ fn folder_stats_offline_attribute_file_counts_as_cloud_only() {
     let w = Work::new("offline");
     let t = tree(&w);
     set_offline(&w.file("tree\\placeholder.txt", 1, b'x'));
-    assert_eq!(folder_stats(&t, 250000, 0, "").cloud_only_files, 1);
+    assert_eq!(folder_stats(&t, 250000).cloud_only_files, 1);
 }
 
-#[test]
-fn materialize_a_real_10_byte_file_reports_allocated_bytes() {
-    let w = Work::new("alloc");
-    tree(&w);
-    assert!(allocated_bytes(&w.path("tree\\a.txt")).unwrap() > 0);
-}
-
-#[test]
-fn materialize_an_ordinary_file_passes_through_as_materialized() {
-    let w = Work::new("ordinary");
-    tree(&w);
-    let m = materialize_file(&w.path("tree\\b.txt"), 20, 30);
-    assert!(m.materialized && m.bytes_read == 20 && m.error.is_none(), "{m:?}");
-}
-
-#[test]
-fn materialize_a_vanished_file_is_a_failure_with_the_reason_not_a_crash() {
-    let w = Work::new("vanished");
-    tree(&w);
-    let m = materialize_file(&w.path("tree\\missing.txt"), 5, 30);
-    assert!(!m.materialized && m.error.is_some(), "{m:?}");
-}
-
-#[test]
-fn materialize_a_stub_no_provider_will_fill_is_reported_failed() {
-    // the OFFLINE attribute set by hand is a placeholder the read cannot
-    // clear: the refuse arm
-    let w = Work::new("stub");
-    tree(&w);
-    let ph = w.file("tree\\placeholder.txt", 1, b'x');
-    set_offline(&ph);
-    let m = materialize_file(&ph, 1, 30);
-    assert!(!m.materialized, "{m:?}");
-}
-
-#[test]
-fn materialize_summary_counts_the_stub_as_found_and_failed_result_refused() {
-    let w = Work::new("summary");
-    let t = tree(&w);
-    set_offline(&w.file("tree\\placeholder.txt", 1, b'x'));
-    let s = materialize(&[&t], 30, 250000);
-    assert_eq!((s.placeholders_found, s.failed, s.result), (1, 1, "refused"), "{s:?}");
-}

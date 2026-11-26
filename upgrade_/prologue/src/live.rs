@@ -7,7 +7,6 @@ use crate::judge;
 use crate::tools::Recorder;
 use crate::val::{int, items, s, truthy};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use upgrade_scan::collect::registry::{self, Hive};
 use upgrade_scan::collect::storage::{bus_type, health_status, operational_status, storage_wmi};
@@ -22,7 +21,6 @@ pub const NOTICE_RUNONCE_NAME: &str = "upgrade_ prologue notice";
 pub const STICK_WAIT_SECONDS: i64 = 120;
 pub const GRUB_ENV_REL: &str = "EFI\\BOOT\\grubenv";
 pub const PAYLOAD_EFI: &str = "\\EFI\\BOOT\\BOOTX64.EFI";
-pub const STAGE_PROBE_BYTES: usize = 32 * 1048576;
 const RUNONCE: &str = r"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce";
 
 fn text(v: &Value) -> String {

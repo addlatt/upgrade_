@@ -1,3 +1,5 @@
+Archived 2026-11-26: decided by the owner. Phases 1 to 3 of the leaving are done; the 87 ledger lines still owed and the rebuild by someone else are tracked in RISKS R32 and VALIDATION V13 (`docs/STATUS.md`). What stays outside Rust on purpose is in `docs/architecture.md`, "Stack". Nothing below this line changes.
+
 # The Rust port: roadmap
 
 Expires when: phases 2 and 3 of the leaving are done (no PowerShell on the stick or in data/), every line of docs/validation-results/port-parity.csv reads pass in Rust, and RISKS R32 closes. Then this file moves to docs/archive/.
@@ -459,7 +461,7 @@ Each one is stricter than the original, or changes no decision.
 ## The data tables
 
 **Decided (2026-10-14, the owner):** the tables are JSON, one file per
-table (`data/devices/*.json`, `data/distros.json`, `data/releases.json`),
+table (`data/devices/*.json`, `data/releases.json`; `data/distros.json` too until 2026-11-24, RISKS R3),
 compiled into the scanner; a device stays one line with a cited `Source`
 and a `Verified` date; the field meanings live in `data/README.md`. The
 `.ps1` tables, `export-tables.ps1` and the exported `tables.json` are gone,
@@ -485,7 +487,7 @@ evaluate/scan/       crate upgrade-scan: the judging half
   tests/golden.json    the PowerShell's answers
   src/main.rs          upgrade-scan --replay machine.json
 data/devices/*.json  the data tables (JSON, the source since 2026-10-14)
-data/distros.json, data/releases.json
+data/releases.json
 port-check.sh        the one command
 ```
 

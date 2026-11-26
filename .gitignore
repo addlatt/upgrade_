@@ -18,9 +18,6 @@ handoff-state.json
 # VM rig generated artifacts (ISO, disk images, firmware copies, QEMU build)
 rig/vm/artifacts/
 
-# guest SMB share-write probe files (from rig prep.ps1)
-.rigprobe-*.tmp
-
 # Hyper-V rig generated artifacts (OEMDRV pulls, inspections, screenshots, extracted certs)
 rig/hyperv/artifacts/
 # the release fetch's rehearsal logs (they name this machine's folders)

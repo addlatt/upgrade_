@@ -9,7 +9,7 @@
 //!   CRLF line ends).
 //! - `upgrade-report-<model>-<stamp>.json`: the fields the PowerShell writes,
 //!   in its order (`ScannerVersion`, `ScannedUtc`, `System`, `RanAsAdmin`,
-//!   `RequiredKernel`, `Verdict`, `Recommended`, `Checks`, `Releases`,
+//!   `RequiredKernel`, `Verdict`, `Checks`, `Releases`,
 //!   `UnmatchedIds`), plus `Scanner` (which program wrote it) and, only when
 //!   a read failed, `ReadErrors`. Plain UTF-8, no byte order mark: every
 //!   reader of this file (`New-Job.ps1`, the window, the Rust) accepts both.
@@ -90,7 +90,6 @@ pub fn report_json(r: &ScanRun) -> Value {
     doc.insert("RanAsAdmin".into(), json!(r.machine.is_admin));
     doc.insert("RequiredKernel".into(), o.required_kernel.map_or(Value::Null, |k| json!(k.to_string())));
     doc.insert("Verdict".into(), json!({"Level": o.verdict.level.as_str(), "Summary": o.verdict.summary, "Groups": groups}));
-    doc.insert("Recommended".into(), json!(o.recommendation.distros.iter().map(|d| d.name.clone()).collect::<Vec<_>>()));
     doc.insert("Checks".into(), Value::Array(checks));
     doc.insert("Releases".into(), serde_json::to_value(&o.scan.releases).unwrap_or(Value::Array(vec![])));
     doc.insert("UnmatchedIds".into(), json!(report::unmatched_sorted(&o.scan.unmatched)));
@@ -196,7 +195,7 @@ pub fn report_differences(rust: &Value, ps: &Value) -> Vec<String> {
             out.push(format!("{path}:\n    PowerShell: {b}\n    Rust:       {a}"));
         }
     };
-    for k in ["ScannerVersion", "RanAsAdmin", "RequiredKernel", "Verdict", "Recommended", "Releases", "UnmatchedIds"] {
+    for k in ["ScannerVersion", "RanAsAdmin", "RequiredKernel", "Verdict", "Releases", "UnmatchedIds"] {
         diff(k, &rust[k], &ps[k]);
     }
     let (rc, pc) = (rust["Checks"].as_array().cloned().unwrap_or_default(), ps["Checks"].as_array().cloned().unwrap_or_default());

@@ -47,7 +47,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import transport as tr  # noqa: E402
 
-VERSION = "0.5.2"
+VERSION = "0.6.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 
@@ -699,6 +699,8 @@ def write_job(ctx, L, args, erase=False):
         env = dict(os.environ, ONECLICK_HASH=hashed, ONECLICK_SSH_PUB=pub)
         if any(s.get("stage") == "plant-files" for s in ctx.plan.get("stages", [])):
             env["ONECLICK_FOLDER_MAP"] = "1"   # the stand-in job carries the product harvester's own folder count
+        if ctx.plan.get("linux_name"):
+            env["ONECLICK_LINUX_NAME"] = ctx.plan["linux_name"]   # a sign-in name that is not the Windows one (2026-11-23)
         cmd = ["./v9.sh", "job", f"--spoof-ssh={pub}", *args.get("rig_job_args", [])] if erase else ["./v1.sh", "job"]
         j = subprocess.run(cmd, cwd=os.path.join(REPO, "rig", "hyperv"), env=env, capture_output=True, text=True, timeout=1800)
         ctx.save("job-standin.log", j.stdout + j.stderr)
@@ -717,6 +719,7 @@ def write_job(ctx, L, args, erase=False):
             f"{L}\\upgrade-job.exe write --stick {L} --out {L}\\upgrade_ --scan {L}\\upgrade_\\reports --desktop {args.get('desktop', ctx.plan.get('desktop', 'kde'))} "
             f"--start-at {args.get('start_at', 'desktop')} --if-cannot-keep stop --password-hash-file C:\\upgrade_oneclick\\pw.txt "
             f"--kickstart {L}\\upgrade_\\ks.cfg --stick-label UPGV0 --manifest {L}\\SHA256SUMS --autoinstall {L}\\autoinstall.yaml" +
+            (f" --linux-name {ctx.plan['linux_name']}" if ctx.plan.get("linux_name") else "") +
             (f" --erase-everything \"{ctx.secrets['erase']}\"" if erase else "") +
             (f" --acknowledge-data-loss \"{ack}\"" if ack else ""), "DESKTOP_RC=", 1800)
         link.run("Remove-Item C:\\upgrade_oneclick\\pw.txt -Force -ErrorAction SilentlyContinue", "windows", timeout=60)
@@ -1363,7 +1366,10 @@ class Pull:
             self.row(ctx, tv, exp, c.get("result") or "unread", "not-reached", 0, "refused" if c.get("result") == "refused" else "fail",
                      "; ".join(c.get("why") or []) or (chk.out + chk.err).strip()[-200:])
             return untouched("pull-refused", "; ".join(c.get("why") or []) or (chk.out + chk.err).strip()[-300:])
-        run = sudo(ctx, f"{SETTLE_IN} pull run", int(args.get("limit_s", 3600)))
+        # the person's choice (2026-11-23), as the window hands it over: one line of JSON on stdin
+        only = args.get("only")
+        choice = f"echo {b64(json.dumps(only) + chr(10))} | base64 -d | " if only else ""
+        run = sudo(ctx, f"{choice}{SETTLE_IN} pull run" + (" --only-stdin" if only else ""), int(args.get("limit_s", 3600)))
         ctx.save("pull-run.out", run.out + run.err)
         r = last_json(run.out) or {}
         if r.get("result") != "done":
@@ -1391,7 +1397,9 @@ class Pull:
             elif re.match(r"^[0-9a-f]{64}  ", l):
                 got[(folder, l[66:])] = l[:64]
         sv = kv_lines(seen.out)
-        want = {(e["folder"], e["rel"]): e["sha256"] for e in exp["copy"]}
+        want = {(e["folder"], e["rel"]): e["sha256"] for e in exp["copy"] if chosen(only, e["folder"], e["rel"])}
+        if only and not (0 < len(want) < len(exp["copy"])):
+            return untouched("manager-error", f"the plan's choice names {len(want)} of the {len(exp['copy'])} planted files: not a copy of only some")
         missing = sorted(f"{k[0]}/{k[1]}" for k in want if k not in got)
         differ = sorted(f"{k[0]}/{k[1]}" for k in want if k in got and got[k] != want[k])
         extra = sorted(f"{k[0]}/{k[1]}" for k in got if k not in want)
@@ -1399,9 +1407,13 @@ class Pull:
         marks_seen = [l[6:] for l in seen.out.splitlines() if l.startswith("MARKS ")]
         marks_missing = sorted(b for b in (exp.get("bookmarks") or {}) if not any(b in m for m in marks_seen))
         strangers = sorted(o for o in owners if o != sv.get("PERSON"))
-        again = sudo(ctx, f"{SETTLE_IN} pull run", 900)
-        ctx.save("pull-again.out", again.out + again.err)
-        a = last_json(again.out) or {}
+        if only:   # the rest comes in the next pull stage ("Bring more files"); no second run here
+            a = {"result": "nothing-to-do"}
+            marks_missing = []   # whether a part copy writes the bookmarks is recorded, not judged
+        else:
+            again = sudo(ctx, f"{SETTLE_IN} pull run", 900)
+            ctx.save("pull-again.out", again.out + again.err)
+            a = last_json(again.out) or {}
         faults = []
         if missing:
             faults.append(f"{len(missing)} planted file(s) did not arrive (the first: {missing[0]})")
@@ -1415,6 +1427,9 @@ class Pull:
             faults.append("no bookmarks file for " + ", ".join(marks_missing))
         if strangers:
             faults.append("copied files belong to " + ", ".join(strangers) + ", not the person")
+        named = ctx.plan.get("linux_name")
+        if named and sv.get("PERSON") != named:
+            faults.append("the person signed in to Linux is not the sign-in name the plan chose")
         if sv.get("MOUNTED") != "no" or sv.get("MAPPED") != "no":
             faults.append("Windows' drive was left open after the copy")
         if a.get("result") != "nothing-to-do":
@@ -1422,10 +1437,15 @@ class Pull:
         n_ok = len(want) - len(missing) - len(differ)
         marks = " ".join(f"{b}={n}" for b, n in (exp.get("bookmarks") or {}).items())
         self.row(ctx, tv, exp, "plan", "done", n_ok, "fail" if faults else ("pass" if link.kind == "ssh" else "pass-plumbing"),
-                 "; ".join(faults) or "no OneDrive-only files planted (R43's residue stays owed); a second run found nothing to do; the one click test manager's stage",
+                 "; ".join(faults) or ((f"a copy of only some: {len(want)} of {len(exp['copy'])} planted files chosen, none of the others arrived; " if only else "a second run found nothing to do; ") +
+                                       "no OneDrive-only files planted (R43's residue stays owed); the one click test manager's stage"),
                  key_deleted="yes" if sv.get("KEY_LEFT") == "no" else "no", marks=marks)
         if faults:
             return Outcome("files-differ", False, "; ".join(faults))
+        if only:
+            return Outcome("some-files-brought", True, f"a copy of only some: the {len(want)} chosen of the {len(exp['copy'])} planted files arrived in the person's folders, "
+                           f"each identical (sha256), and none of the others; bookmarks files seen: {len(marks_seen)}; the recovery key was "
+                           f"{'kept' if sv.get('KEY_LEFT') == 'yes' else 'not there'} afterwards; Windows' drive closed again; {tv.get('OS', '')}")
         return Outcome("files-brought", True, f"settle-in's own copy brought all {len(want)} planted files into the person's folders, each identical (sha256); "
                        f"the {len(exp.get('not_copied', []))} links and settings files were not copied; bookmarks written for {marks or 'none'}; "
                        f"Windows' drive closed again; a second run found nothing to do; {tv.get('OS', '')}, {tv.get('NTFS3G', '')}; no OneDrive-only files were planted")
@@ -1441,6 +1461,15 @@ class Pull:
             utc()[:10], f"oneclick {VERSION} pull", firmware, f"installed {tv.get('OS', 'Linux')} (alongside), {machine}",
             f"settle-in {sv}", exp.get("windows_build", ""), tv.get("KERNEL", ""), tv.get("CRYPTSETUP", "").replace("cryptsetup ", "").split(" ")[0],
             tv.get("NTFS3G", ""), "0", len(exp["copy"]), n_ok, 0, 0, "none planted", marks, key_deleted, check, run, result, notes]))
+
+
+def chosen(only, folder, rel):
+    """settle-in's own rule (settle-in/src/pull.rs, `chosen`): per folder name
+    a list of paths inside it: "" the whole folder, "Taxes/" that folder and
+    all under it, "Taxes/a.pdf" that one file. No choice means everything."""
+    if not only:
+        return True
+    return any(p == "" or p == rel or (p.endswith("/") and rel.startswith(p)) for p in only.get(folder) or [])
 
 
 def shq(text):
@@ -1983,7 +2012,7 @@ class KitStick:
                        f"stick builder made the stick again from the kit (SHA256SUMS {kit_id[:12]}); not a stick writer row")
 
 
-STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(), "rollback-existing": Rollback(),
+STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(),
           "stick-left-in": StickLeftIn(), "clean-slate": CleanSlate(), "stick-left-in-erased": StickLeftIn(),
           "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown(), "kit-stick": KitStick(),
           "plant-files": PlantFiles(), "pull": Pull(), "reclaim-check": ReclaimCheck(), "reclaim-move": ReclaimMove(), "empty-second-disk": EmptySecondDisk()}
@@ -2175,6 +2204,8 @@ def _run_chain(run_dir, link=None, sleep=time.sleep, clock=time.monotonic, out=p
     run, secrets = load(run_dir)
     plan = run["plan"]
     link = link or tr.from_spec(run["transport"], run_dir)
+    if plan.get("linux_name") and hasattr(link, "linux_user"):   # the rig: the installed Linux answers under the chosen name
+        link.linux_user = plan["linux_name"]
     journal = Journal(os.path.join(run_dir, "journal.jsonl"))
     if hasattr(link, "on_event"):   # Follow: a new address or a newly trusted key goes in the journal
         link.on_event = lambda event, **kv: journal.write(event, **kv)

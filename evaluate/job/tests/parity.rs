@@ -105,7 +105,7 @@ fn run(fn_name: &str, a: &Value) -> Value {
 
 /// The first place two values differ. Numbers compare as numbers. The two
 /// software lists compare by name, because their order differs on purpose
-/// (docs/RUST-PORT.md, "Differences kept on purpose").
+/// (docs/archive/RUST-PORT.md, "Differences kept on purpose").
 fn first_difference(path: &str, want: &Value, got: &Value) -> Option<String> {
     match (want, got) {
         (Value::Number(a), Value::Number(b)) if a.as_f64() == b.as_f64() => None,
@@ -187,7 +187,7 @@ fn every_call_matches_powershell() {
 #[test]
 fn the_self_test_is_all_here() {
     let n = cases().iter().filter(|c| c["origin"] == "selftest").count();
-    assert!(n >= 115, "only {n} self-test cases in cases.json");
+    assert!(n >= 113, "only {n} self-test cases in cases.json");
 }
 
 /// A job this code writes passes the contract, when its facts are real

@@ -257,7 +257,7 @@ pub const PICKING_LINE: &str = "Checking which Linux this computer can start. No
 pub const PICK_HEADING: &str = "Choose your Linux";
 pub const PICK_LEAD: &str = "This window downloads the one you choose onto this USB stick, checks every byte of it, and then shows the next step. Nothing on this computer changes while it downloads.";
 pub const PICK_SIZE: &str = "The download is about 4 GB. On a fast connection that takes about 10 minutes; on a slow one, longer. Leave the stick in.";
-pub const PICK_CANNOT: &str = "This computer cannot start it:";
+pub const PICK_CANNOT: &str = "This computer cannot use it:";
 pub const PICK_UNKNOWN: &str = "The check could not tell whether this computer can start it, so it is not offered.";
 pub const PICK_NONE_HEADING: &str = "This computer cannot start the Linux this stick can fetch";
 /// Decided (2026-11-24, the owner): with an NVIDIA chip, Ubuntu is the first choice. The words approved by the owner, 2026-11-24.

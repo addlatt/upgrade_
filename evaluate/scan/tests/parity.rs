@@ -44,12 +44,9 @@ fn run(scan: &mut Scan, fn_name: &str, a: &Value, extra: &mut Map<String, Value>
             }
             let kernel = verdict::required_kernel(scan);
             let v = verdict::verdict(scan);
-            let rec = verdict::recommendation(scan, kernel);
             let groups: Vec<Value> = v.groups.iter().map(|g| json!({"Priority": g.priority, "Label": g.label, "Items": g.items})).collect();
             extra.insert("verdict".into(), json!({"Level": v.level.as_str(), "Summary": v.summary, "Groups": groups}));
             extra.insert("kernel".into(), kernel.map_or(Value::Null, |k| json!(k.to_string())));
-            let names = |l: &[&upgrade_scan::data::Distro]| l.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
-            extra.insert("recommendation".into(), json!({"Distros": names(&rec.distros), "HasNvidia": rec.has_nvidia, "LowRam": rec.low_ram, "Excluded": names(&rec.excluded)}));
             Value::Null
         }
         "scan" => {
@@ -70,8 +67,7 @@ fn run(scan: &mut Scan, fn_name: &str, a: &Value, extra: &mut Map<String, Value>
             extra.insert("lines".into(), json!(report::lines(&machine, &o, now, upgrade_scan::FOLLOWS_SCANNER)));
             extra.insert("verdict".into(), json!({"Level": o.verdict.level.as_str(), "Summary": o.verdict.summary, "Groups": groups}));
             extra.insert("kernel".into(), o.required_kernel.map_or(Value::Null, |k| json!(k.to_string())));
-            let names = |l: &[&upgrade_scan::data::Distro]| l.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
-            extra.insert("recommendation".into(), json!({"Distros": names(&o.recommendation.distros), "HasNvidia": o.recommendation.has_nvidia, "LowRam": o.recommendation.low_ram, "Excluded": names(&o.recommendation.excluded)}));
+            extra.insert("releases".into(), json!(o.scan.releases));
             extra.insert("unmatchedIds".into(), json!(report::unmatched_sorted(&o.scan.unmatched)));
             *scan = o.scan;
             Value::Null
@@ -81,9 +77,14 @@ fn run(scan: &mut Scan, fn_name: &str, a: &Value, extra: &mut Map<String, Value>
             replay(scan, &cap);
             Value::Null
         }
-        "distro-table" => Value::Array(
-            tables().distros.iter().map(|d| json!({"Name": d.name, "Kernel": d.kernel, "Parsed": Version::parse(&d.kernel).map(|v| v.to_string())})).collect(),
+        "release-kernels" => Value::Array(
+            tables().releases.iter().map(|r| json!({"Name": r.name, "Kernel": r.installed_kernel().map(|(_, text)| text), "Parsed": r.installed_kernel().map(|(v, _)| v.to_string())})).collect(),
         ),
+        "Test-UpgReleaseKernels" => {
+            let table: Vec<Release> = if a["Table"] == "data" { tables().releases.clone() } else { arg(a, "Table") };
+            sbat::judge_release_kernels(scan, Version::parse(a["Required"].as_str().unwrap_or("")), &table);
+            Value::Null
+        }
         "Test-UpgArchitecture" => { system::architecture(scan, &arg(a, "Sys")); Value::Null }
         "Test-UpgMemory" => { system::memory(scan, &arg(a, "Sys")); Value::Null }
         "Test-UpgFirmware" => { system::firmware(scan, &arg(a, "Sys"), arg(a, "SecureBoot")); Value::Null }
@@ -202,7 +203,7 @@ fn first_difference(path: &str, want: &Value, got: &Value) -> Option<String> {
     }
 }
 
-/// The differences kept on purpose (docs/RUST-PORT.md): where the Rust is
+/// The differences kept on purpose (docs/archive/RUST-PORT.md): where the Rust is
 /// stricter than scanner 0.5.0, by case name. Each one checks both sides:
 /// the PowerShell still gives its softer answer (when it stops doing so, the
 /// exception is stale and must go), and the Rust gives exactly the stricter
@@ -355,10 +356,10 @@ fn the_self_test_expectations_hold() {
                 errors.push("RED verdict listed no reasons".to_string());
             }
         }
-        if name == "distro table: every kernel parses" {
+        if name == "release table: every installed kernel reads" {
             for d in out["returns"][0].as_array().unwrap() {
                 if d["Parsed"].is_null() {
-                    errors.push(format!("distro table: {} has unparseable kernel {}", d["Name"], d["Kernel"]));
+                    errors.push(format!("release table: {} has no installed kernel that reads ({})", d["Name"], d["Kernel"]));
                 }
             }
         }
@@ -366,7 +367,7 @@ fn the_self_test_expectations_hold() {
             wrong.push(format!("FAIL  {name}\n      {}", errors.join("\n      ")));
         }
     }
-    // 99 self-test cases, the distro table check, 3 recordings (scanner 0.5.0)
+    // 99 self-test cases, the release table check, 3 recordings (scanner 0.5.0)
     assert!(counted >= 103, "only {counted} self-test and corpus cases in cases.json");
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 }
