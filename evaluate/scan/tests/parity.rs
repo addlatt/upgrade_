@@ -203,7 +203,7 @@ fn first_difference(path: &str, want: &Value, got: &Value) -> Option<String> {
     }
 }
 
-/// The differences kept on purpose (docs/RUST-PORT.md): where the Rust is
+/// The differences kept on purpose (docs/archive/RUST-PORT.md): where the Rust is
 /// stricter than scanner 0.5.0, by case name. Each one checks both sides:
 /// the PowerShell still gives its softer answer (when it stops doing so, the
 /// exception is stale and must go), and the Rust gives exactly the stricter

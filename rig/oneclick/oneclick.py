@@ -2012,7 +2012,7 @@ class KitStick:
                        f"stick builder made the stick again from the kit (SHA256SUMS {kit_id[:12]}); not a stick writer row")
 
 
-STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(), "rollback-existing": Rollback(),
+STAGES = {"look": Look(), "keep-windows": KeepWindows(), "rollback": Rollback(),
           "stick-left-in": StickLeftIn(), "clean-slate": CleanSlate(), "stick-left-in-erased": StickLeftIn(),
           "walk-away": WalkAway(), "refused-before-countdown": RefusedBeforeCountdown(), "kit-stick": KitStick(),
           "plant-files": PlantFiles(), "pull": Pull(), "reclaim-check": ReclaimCheck(), "reclaim-move": ReclaimMove(), "empty-second-disk": EmptySecondDisk()}

@@ -1,3 +1,5 @@
+Archived 2026-11-26: decided by the owner. Phases 1 to 3 of the leaving are done; the 87 ledger lines still owed and the rebuild by someone else are tracked in RISKS R32 and VALIDATION V13 (`docs/STATUS.md`). What stays outside Rust on purpose is in `docs/architecture.md`, "Stack". Nothing below this line changes.
+
 # The Rust port: roadmap
 
 Expires when: phases 2 and 3 of the leaving are done (no PowerShell on the stick or in data/), every line of docs/validation-results/port-parity.csv reads pass in Rust, and RISKS R32 closes. Then this file moves to docs/archive/.

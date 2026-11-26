@@ -10,35 +10,27 @@
 //!       read this machine, judge, write job.json (only as a document that
 //!       passed the contract), the Wi-Fi password files and, when asked,
 //!       ks.cfg. Refusals print "REFUSED - no job written:" and exit 2.
-//!   upgrade-job password --out <file> --linux-name <name>
-//!       the new account's password, asked twice at the console, hidden;
-//!       only its SHA-512 crypt hash is written. Exit 0 when set, 1 when not.
-//!   upgrade-job linux-name
-//!       the Linux sign-in name for the Windows account running it
 //!   upgrade-job harvest-settings --out <file> --out-dir <dir>
 //!       only the clock, Wi-Fi, SSH and licence harvest (for the rig)
 //!   upgrade-job facts [--scan <dir>] [--stick <X:>] [--out <file>]
-//!       what the writer reads, as JSON, for the side-by-side comparison
-//!   upgrade-job compare-facts <rust.json> <powershell.json>
+//!       what the writer reads, as JSON (for the rig)
 //!
-//! The password prompt is never run through a logger: nothing typed there
-//! is logged.
+//! The password is asked by the window (`UPGRADE.exe`), which hashes it with
+//! this crate's `password` module and hands over only the hash file.
 
 #[cfg_attr(not(windows), allow(unused_imports))]
 use serde_json::{json, Value};
 #[cfg_attr(not(windows), allow(unused_imports))]
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+#[cfg_attr(not(windows), allow(unused_imports))]
 use upgrade_job::{maps, password};
 
 fn usage() -> ExitCode {
     eprintln!("upgrade-job {} (Rust; follows New-Job.ps1 {}, Read-Password.ps1 {})", env!("CARGO_PKG_VERSION"), upgrade_job::FOLLOWS_JOB_WRITER, password::FOLLOWS_HASHER);
     eprintln!("usage: upgrade-job write --stick <X:> --out <dir> --scan <dir> --desktop kde|gnome --start-at desktop|console [...]");
-    eprintln!("       upgrade-job password --out <file> --linux-name <name>");
-    eprintln!("       upgrade-job linux-name");
     eprintln!("       upgrade-job harvest-settings --out <file> --out-dir <dir>");
     eprintln!("       upgrade-job facts [--scan <dir>] [--stick <X:>] [--out <file>]");
-    eprintln!("       upgrade-job compare-facts <rust.json> <powershell.json>");
     ExitCode::from(2)
 }
 
@@ -51,42 +43,6 @@ fn refused(lines: &[String]) -> ExitCode {
     }
     println!();
     ExitCode::from(2)
-}
-
-fn load_json(p: &str) -> Result<Value, String> {
-    serde_json::from_str(std::fs::read_to_string(p).map_err(|e| format!("{p}: {e}"))?.trim_start_matches('\u{feff}')).map_err(|e| format!("{p}: {e}"))
-}
-
-fn compare_facts(rust_path: &str, ps_path: &str) -> ExitCode {
-    let (rust, ps) = match (load_json(rust_path), load_json(ps_path)) {
-        (Ok(a), Ok(b)) => (a, b),
-        (Err(e), _) | (_, Err(e)) => {
-            eprintln!("upgrade-job: {e}");
-            return ExitCode::from(2);
-        }
-    };
-    println!();
-    println!("  Rust:       {rust_path}   ({})", rust["Now"].as_str().unwrap_or(""));
-    println!("  PowerShell: {ps_path}   ({})", ps["Now"].as_str().unwrap_or(""));
-    println!();
-    let (mut differences, mut drifted) = upgrade_job::compare::facts_differences(&rust["Facts"], &ps["Facts"]);
-    let (d2, r2) = upgrade_job::compare::facts_differences(&rust["Wifi"], &ps["Wifi"]);
-    differences.extend(d2.into_iter().map(|d| format!("Wifi.{d}")));
-    drifted.extend(r2);
-    for d in &drifted {
-        println!("  drifted (allowed)  {d}");
-    }
-    if differences.is_empty() {
-        println!("  SAME: every fact the job is written from, and the Wi-Fi block, field for field.");
-        println!();
-        return ExitCode::SUCCESS;
-    }
-    println!("  DIFFERENT in {} places:", differences.len());
-    for d in &differences {
-        println!("  {d}");
-    }
-    println!();
-    ExitCode::from(1)
 }
 
 #[cfg(windows)]
@@ -336,20 +292,6 @@ mod on_windows {
         }
         ExitCode::SUCCESS
     }
-
-    /// `upgrade-job recovery-check`: whether a valid recovery key for C: can
-    /// be read, and the volume's state. Never prints a key (R13): a test
-    /// aid for the machines this reaches, so each leaves a fact behind.
-    pub fn recovery_check() -> ExitCode {
-        let (keys, conversion, why) = live::recovery_keys();
-        println!("{}", serde_json::to_string_pretty(&json!({
-            "conversion_status": conversion,
-            "keys_found": keys.len(),
-            "all_valid": !keys.is_empty() && keys.iter().all(|k| upgrade_job::recovery::valid(k)),
-            "why": why,
-        })).unwrap_or_default());
-        ExitCode::SUCCESS
-    }
 }
 
 #[cfg(not(windows))]
@@ -368,44 +310,20 @@ mod on_windows {
     pub fn write(_: &[String]) -> ExitCode {
         off("the job writer")
     }
-    pub fn recovery_check() -> ExitCode {
-        off("the recovery key check")
-    }
 }
 
 fn main() -> ExitCode {
     // no idle sleep while this program works (roadmap item 16, R33); ends with the process
     let _ = upgrade_scan::awake::hold();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let value_of = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned();
     if args.iter().any(|a| a == "--version") {
         println!("upgrade-job {} (Rust; follows New-Job.ps1 {}, Read-Password.ps1 {})", env!("CARGO_PKG_VERSION"), upgrade_job::FOLLOWS_JOB_WRITER, password::FOLLOWS_HASHER);
         return ExitCode::SUCCESS;
     }
     match args.first().map(String::as_str) {
-        Some("password") => {
-            let Some(out) = value_of("--out") else {
-                eprintln!("give --out <file> - where the hash goes");
-                return ExitCode::from(2);
-            };
-            let Some(name) = value_of("--linux-name") else {
-                eprintln!("give --linux-name <the sign-in name> - the person is told which account this password is for (2026-09-26)");
-                return ExitCode::from(2);
-            };
-            ExitCode::from(password::ask_and_write(Path::new(&out), &name) as u8)
-        }
-        Some("linux-name") => {
-            println!("{}", maps::linux_name(&std::env::var("USERNAME").unwrap_or_default()));
-            ExitCode::SUCCESS
-        }
         Some("write") => on_windows::write(&args[1..]),
         Some("facts") => on_windows::facts(&args[1..]),
-        Some("recovery-check") => on_windows::recovery_check(),
         Some("harvest-settings") => on_windows::harvest_settings(&args[1..]),
-        Some("compare-facts") => {
-            let (Some(a), Some(b)) = (args.get(1), args.get(2)) else { return usage() };
-            compare_facts(a, b)
-        }
         _ => usage(),
     }
 }

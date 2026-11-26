@@ -4,7 +4,7 @@ version = "0.4.1"
 edition = "2024"
 license = "GPL-3.0-only"
 
-# The installer's two steps in Rust (RISKS R32; docs/RUST-PORT.md, the
+# The installer's two steps in Rust (RISKS R32; docs/archive/RUST-PORT.md, the
 # Linux side): `verify`, the refusal gate before the commit line that ran
 # as upgrade_/linux/verify.sh 0.6.0 inside Anaconda's %pre, and `outcome`,
 # the boot-chain checklist and installer adapter that ran as outcome.sh

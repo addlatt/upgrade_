@@ -1,16 +1,15 @@
 //! The harvester's live half, Windows only, following
 //! `Harvest-UpgradeState.ps1` 0.3.0: the known folders (`Get-HarvestUserFolders`),
 //! the stick's volume facts (`Get-HarvestStick`), whose desktop this is
-//! (`Get-HarvestOwner`), the browsers (`Get-HarvestBrowsers`), and the folder
+//! (`Get-HarvestOwner`), and the folder
 //! map the job writer reads (`-FolderMapOut`), in the script's field names.
 //!
 //! Read-only. The one step that is not a read, materializing cloud
 //! placeholders, runs only when asked, as in the script, and no launcher
 //! asks (decided 2026-09-26: online-only files stay in the cloud).
 //!
-//! Proven side by side: the script's `-FolderMapOut` and
-//! `upgrade-harvest folder-map` on the same machine in the same minute,
-//! then `upgrade-harvest compare-maps`.
+//! Proven side by side with the script's `-FolderMapOut` before the script
+//! left (docs/validation-results/harvest-folder-map.csv).
 
 use crate::folders::{folder_stats, materialize};
 use crate::stick::{n2, stick_fit, Folder, RESERVE_BYTES};
@@ -223,29 +222,6 @@ pub fn owner() -> Value {
     owners.sort_by_key(|s| s.to_lowercase());
     owners.dedup_by_key(|s| s.to_lowercase());
     json!({"ProcessSid": sid, "ProcessName": name, "SessionId": session, "DesktopOwnerSids": owners, "OtherProfiles": others})
-}
-
-/// Get-HarvestBrowsers: the three profile folders, sized unless `skip_sizes`.
-pub fn browsers(skip_sizes: bool) -> Vec<Value> {
-    let appdata = std::env::var("APPDATA").unwrap_or_default();
-    let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
-    let candidates = [
-        ("Firefox", format!("{appdata}\\Mozilla\\Firefox"), "~/.mozilla/firefox", true, "Only bookmarks are brought over (decided 2026-11-07; RISKS R20). History, extensions, open tabs and saved passwords are not: sign in to a Firefox account BEFORE converting to keep them."),
-        ("Chrome", format!("{local}\\Google\\Chrome\\User Data"), "~/.config/google-chrome", false, "Only bookmarks are brought over (decided 2026-11-07; RISKS R20). History, extensions and saved passwords are not (the passwords are encrypted with Windows DPAPI, which has no Linux equivalent). Sign in to Chrome sync or export passwords to CSV BEFORE converting."),
-        ("Edge", format!("{local}\\Microsoft\\Edge\\User Data"), "~/.config/microsoft-edge", false, "Only bookmarks are brought over (decided 2026-11-07; RISKS R20). History, extensions and saved passwords are not (Windows DPAPI encryption). Export them or enable sync BEFORE converting."),
-    ];
-    let mut found = Vec::new();
-    for (name, path, target, passwords_port, note) in candidates {
-        if !std::path::Path::new(&path).exists() {
-            continue;
-        }
-        if !skip_sizes {
-            println!("  measuring {name} profile...");
-        }
-        let s = if skip_sizes { Default::default() } else { folder_stats(std::path::Path::new(&path), MAX_FILES, 0, "") };
-        found.push(json!({"Name": name, "Path": path, "LinuxTarget": target, "PasswordsPort": passwords_port, "Note": note, "Bytes": s.bytes, "Files": s.files}));
-    }
-    found
 }
 
 /// The folder map as `-FolderMapOut` writes it, and whether the cloud

@@ -7,9 +7,8 @@
 //! on the stick. Nothing here decides: the judging half does, and a job is
 //! written only as an `upgrade_schema::Job` that passed the whole contract.
 //!
-//! Proven side by side: `tools/Record-JobFacts.ps1` (the script's own
-//! `Get-JobFacts`) and `upgrade-job facts` on the same machine in the same
-//! minute, then `upgrade-job compare-facts`.
+//! Proven side by side with the script's own `Get-JobFacts` before the
+//! script left (docs/validation-results/v13-rust-job.csv).
 
 use crate::val::{at, int as vint, s, truthy};
 use crate::wifi::{self, SecretFile};

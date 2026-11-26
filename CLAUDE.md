@@ -73,9 +73,9 @@ someone.
 5. **Spoof everything spoofable, and never confuse a spoof with evidence.** (Decided
    2026-08-22.) Everything that *can* be checked without real hardware *must* be, at
    three levels:
-   - **logic:** detection functions fed made-up objects (the `-SelfTest` cases);
-   - **recordings:** real machines' hardware lists captured with `-DumpMachine`,
-     curated into `evaluate/windows/corpus/`, and replayed on every self-test run. A
+   - **logic:** detection functions fed made-up objects (each crate's test cases);
+   - **recordings:** real machines' hardware lists captured with `upgrade-scan
+     dump-machine`, curated into `evaluate/windows/corpus/`, and replayed on every test run. A
      recording is ground truth for that machine, forever;
    - **simulated hardware:** VMs presenting spoofed devices, so the full Windows
      enumeration → WMI → scanner pipeline runs for hardware we don't own.
@@ -93,9 +93,9 @@ The standing priority, above all feature work: validate the killers before build
 anything that writes. Several things the whole project depends on exist only as
 argument, which by rule #2 counts for nothing, so no component that writes to a disk
 is built until the spine it depends on is proven on real hardware. As of
-2026-11-01: every stage of the one click test held on the Aspire (2026-10-28/29);
-next is that run with no hand but the stick swaps, then the sleep lock (R33) and R39's
-refusal on a real machine (both held on the rig 2026-11-11). The file pull is being built again (decided 2026-11-07). Where every gate stands:
+2026-11-25: each Linux has run whole on the Aspire from one stick with no hand
+(2026-11-19), and the file pull and reclaim have run there (2026-11-20). Next is
+one Aspire run for the kit's Fedora 45, then a healthy-drive machine. Where every gate stands:
 `docs/STATUS.md`. What is next, and the decisions owed: `docs/ROADMAP.md`. What
 happened, run by run: `docs/log/`.
 
@@ -125,10 +125,10 @@ data/            the knowledge tables, JSON, compiled into the scanner; communit
   devices/*.json   Wi-Fi, GPU, audio, storage, vendor and app tables, one entry per line
   releases.json    the Linux releases the kit can carry: what Secure Boot needs of each, and the kernel each installs (measured by data/tools/measure-release.py, never typed)
 evaluate/windows/  the corpus of machine recordings; the one PowerShell holdover (the stick writer; its port `evaluate/stick` is built and retires it when R16's rows read pass)
-evaluate/scan/, harvest/, job/, stick/  the scanner, harvester, job writer and stick writer in Rust; their judging halves held to the frozen PowerShell goldens
-upgrade_/          the converter: prologue/ the prologue, handoff, the slot and its guard in Rust (the rollback runs from Linux, settle-in); kickstart/ the kickstart generator in Rust; windows/window/ the window (UPGRADE.exe), windows/handoff-payload/ the stick's EFI payload and the two .cmd starters; linux/installer/ the installer's verify (%pre) and outcome (%post) steps in Rust
-settle-in/         first start, the Linux-side rollback, the walk-away way back; gate/ its Windows program; window/; reclaim and the file pull (both held on the Aspire, 2026-11-20; docs/STATUS.md)
-rig/               the test benches: hyperv/ and vm/ (the rig), oneclick/ (the one click test manager, tooling)
+evaluate/scan/, harvest/, job/, stick/, fetch/  the scanner, harvester, job writer, stick writer and release fetcher in Rust; their judging halves held to the frozen PowerShell goldens
+upgrade_/          the converter: prologue/ the prologue, handoff, the slot and its guard in Rust (the rollback runs from Linux, settle-in); kickstart/ and autoinstall/ the kickstart (Fedora) and autoinstall (Ubuntu) generators in Rust; windows/window/ the window (UPGRADE.exe), windows/handoff-payload/ the stick's EFI payload and its .cmd starter; linux/installer/ the installer's verify (%pre) and outcome (%post) steps in Rust
+settle-in/         first start, the Linux-side rollback, the walk-away way back; gate/ its Windows program; window/; reclaim and the file pull
+rig/               the test benches: hyperv/ and vm/ (the rig), oneclick/ (the one click test manager, tooling), fetch/ (the download's rehearsal)
 schemas/           job.json / outcome.json contracts (change rarely, review hard); rust/ reads them in Rust
 docs/              architecture.md (how it works), RISKS.md (what is unproven), VALIDATION.md (how it is proven), research/ (devices, future paths)
   STATUS.md          where every gate and open risk stands: the one home for state
@@ -143,7 +143,7 @@ dist/kit/          the kit, built by ./make-kit.sh (gitignored; the stick's cont
 
 - **The Windows side is Rust** (decided 2026-09-27 and 2026-10-11, the owner;
   RISKS R32, VALIDATION V13): `upgrade-scan`, `upgrade-harvest`, `upgrade-job`,
-  `upgrade-prologue` and the window `UPGRADE.exe`, built by `./build-rust.sh` with
+  `upgrade-prologue`, `upgrade-fetch` and the window `UPGRADE.exe`, built by `./build-rust.sh` with
   a pinned toolchain (`rust-toolchain.toml`; `rebuild-check.sh` proves the bytes).
   The PowerShell scripts left the product on 2026-10-11 and the data tables
   on 2026-10-14; the one script left, the stick writer, keeps to Windows
@@ -153,7 +153,7 @@ dist/kit/          the kit, built by ./make-kit.sh (gitignored; the stick's cont
   can be. The tools around it (build, checks, the rig, data tools) may be
   shell, Python or PowerShell when that is the plainer choice, and are not
   ported for the sake of it. What stays outside Rust on purpose, and why:
-  `docs/RUST-PORT.md`, "What comes next".
+  `docs/architecture.md`, "Stack".
 - **Run `./port-check.sh` before any change lands.** It runs `schemas/check.py`,
   checks the data tables parse, checks the twelve frozen goldens are unchanged
   (`FROZEN-GOLDENS.sha256`: recordings of what the PowerShell answered, ground truth
@@ -243,7 +243,7 @@ stick writer's self-test (`wslpath -w <file>` translates paths). Two real test
 machines so far. The ASUS ROG Zephyrus G16 (Ryzen AI 9 HX 370, RTX 4060, MediaTek
 MT7925, Cirrus CS35L56) is the development machine the scanner was built on. The
 Acer Aspire A515-51G (InsydeH2O, dying SATA SSD) has run the conversion itself: the
-handoff, the live boot, the prologue's stops, the erase and install (runs 9, 10 and
-11), the way back, the install beside Windows, and every stage of the one click
-test including the Linux-side rollback (2026-10-28/29). Most `fail` paths
+erase and install, the install beside Windows, the rollback from Linux, the file
+pull, reclaim and the way back, for Fedora and for Ubuntu, under the one click
+test (`docs/STATUS.md` has the rows). Most `fail` paths
 are still synthetic (R2), so treat one green run as one data point, not proof.

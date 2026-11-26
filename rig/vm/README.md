@@ -4,11 +4,14 @@ This rig runs validation experiments that need a Windows machine we can
 afford to break. QEMU is the virtual machine program; OVMF is the UEFI
 firmware it boots with.
 
-- **V0 (RISKS R15): the boot handoff, VM leg.** Runs
-  `upgrade_/windows/Test-Handoff.ps1` arm → reboot → check against a stick
-  image attached as USB, including the fail-safe modes. Evidence rows land in
-  `docs/validation-results/v0-handoff.csv`. The harness writes them itself,
-  never by hand.
+- **V0 (RISKS R15): the boot handoff, VM leg.** Arm → reboot → check
+  against a stick image attached as USB, including the fail-safe modes.
+  Evidence rows land in `docs/validation-results/v0-handoff.csv`. The
+  harness writes them itself, never by hand. The harness was
+  `upgrade_/windows/Test-Handoff.ps1` when every row below was made; it left
+  the tree on 2026-10-11 and `upgrade-prologue verify-arm` and
+  `verify-check` do its job now. The dated paragraphs on this page name the
+  scripts as they were.
 - **V5 / R1 level 3: the VMD spoof.** A patched QEMU presents PCI
   `8086:9a0b` class `0104` (an Intel VMD storage controller that is not
   really there). The scanner inside the guest must FAIL through the real
@@ -97,12 +100,18 @@ Each run, inside the guest (elevated PowerShell), with QEMU left running
 through the whole cycle:
 
 ```
-C:\upgrade_\upgrade_\windows\Test-Handoff.ps1 -Arm -PayloadDrive E: [flags]
+E:\upgrade-prologue.exe verify-arm --stick E: [flags]
 shutdown /r /t 0
 # watch the boot, then back in Windows:
-C:\upgrade_\upgrade_\windows\Test-Handoff.ps1 -Check `
-    -ResultsCsv \\10.0.2.4\qemu\docs\validation-results\v0-handoff.csv
+E:\upgrade-prologue.exe verify-check `
+    --results-csv \\10.0.2.4\qemu\docs\validation-results\v0-handoff.csv
 ```
+
+This is the Rust form, from the kit on the stick. It has not been run on
+this rig: the rows in the table were made with `Test-Handoff.ps1 -Arm` and
+`-Check`, and the "Arm flags" column keeps that script's spelling
+(`-Payload shell` is `--payload shell`, `-FailMode NoFile` is `--fail-mode
+NoFile`).
 
 | # | run-vm.sh flags | Arm flags | Expected `result` | Notes to record |
 |---|---|---|---|---|
@@ -223,22 +232,24 @@ In the guest:
 
 1. Device Manager sanity: an unknown **RAID Controller** with hardware ID
    `PCI\VEN_8086&DEV_9A0B…` and compatible IDs including `PCI\CC_010400`.
-2. Run the scanner (elevated), source **and** dist:
-   `C:\upgrade_\evaluate\windows\upgrade-scan.ps1`. Expected:
+2. Run the scanner (elevated): `upgrade-scan.exe scan` from the kit (it was
+   `upgrade-scan.ps1`, source and dist, when this ran). Expected:
    `[FAIL] Storage controller mode  Intel RST / VMD active (…)`.
-3. Capture: `.\upgrade-scan.ps1 -DumpMachine machine-capture-vm.json`, copy
-   to the host over `\\10.0.2.4\qemu`.
+3. Capture: `upgrade-scan.exe dump-machine machine-capture-vm.json` (then
+   `upgrade-scan.ps1 -DumpMachine`), copy to the host over
+   `\\10.0.2.4\qemu`.
 4. On the host, curate into
    `evaluate/windows/corpus/vm-qemu-q35-vmd-spoof-9a0b.json`: `Label` =
    `"VM: QEMU q35 + spoofed Intel VMD 9a0b (synthetic)"`, add
    `"Synthetic": true` after `SchemaVersion`, fill `Expected` from the run
    (`Storage controller mode: fail`, others as observed).
-5. Verify: scanner `-SelfTest` passes the new corpus line and everything
-   already there.
+5. Verify: the scanner's tests replay the new corpus line and everything
+   already there (`cargo test` in `evaluate/scan`; `./port-check.sh`).
 6. Never cite this against R1's real-hardware clause.
 
 **`[###.]` Done 2026-08-26.** Ran the above via `guest/vmd-scan.ps1`
-(elevated, driven over QMP). Findings for the record:
+(elevated, driven over QMP; the script ran the PowerShell scanner and left
+the tree on 2026-11-25, its recording stays in the corpus). Findings for the record:
 
 - The spoofed device enumerates as an unknown **RAID Controller**, device
   Status `Error` (no INF binds `8086:9a0b`, expected). It still carries

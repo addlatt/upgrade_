@@ -1,3 +1,5 @@
+Archived 2026-11-25: Ubuntu is built and held on the Aspire (V18), and what was built is described in `architecture.md`, "Linux releases beyond Fedora".
+
 # Ubuntu: what was measured, and what building it would take
 
 Expires when: what was built for Ubuntu is described in `architecture.md`

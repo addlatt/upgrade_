@@ -263,7 +263,7 @@ pub fn physical_disk(scan: &mut Scan, facts: Option<&PhysicalDiskFacts>) {
 /// (its table is `collect::storage::repair_status_names`). The PowerShell
 /// scanner 0.5.0 knows only the Windows 10 pair, so on Windows 11 a scan
 /// that found errors was judged as clean, with the word left in the note.
-/// Stricter here on purpose (docs/RUST-PORT.md, "Differences kept on
+/// Stricter here on purpose (docs/archive/RUST-PORT.md, "Differences kept on
 /// purpose"); `tests/parity.rs` expects the difference by name.
 pub const SCAN_FOUND_ERRORS: &str = "^(ErrorsFound|ErrorsNotFixed|ScanErrorsFoundNeedSpotFix|ScanErrorsFixedOnlineAlsoNeedSpotFix|ScanErrorsFoundAndFixedOnline)$";
 /// The clean result under both names, for the "its own log contradicts" clause.
