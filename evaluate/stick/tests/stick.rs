@@ -6,7 +6,7 @@
 //! the prompt, the write asked for, the evidence row, the stick.json and
 //! the exit code. The Rust must match, act for act.
 //!
-//! One difference is allowed on purpose (RUST-PORT.md): the evidence
+//! One difference is allowed on purpose (docs/archive/RUST-PORT.md): the evidence
 //! row's `writer` field names this program, where the script wrote its
 //! own version.
 

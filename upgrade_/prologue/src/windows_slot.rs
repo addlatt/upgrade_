@@ -12,8 +12,6 @@
 use crate::val::{at, s, truthy};
 use serde_json::{json, Value};
 
-/// Windows' loader, under its kept name, in the same folder.
-pub const KEPT_NAME: &str = "bootmgfw-kept.efi";
 pub const WINDOWS_SLOT_REL: &str = "EFI\\Microsoft\\Boot\\bootmgfw.efi";
 pub const KEPT_REL: &str = "EFI\\Microsoft\\Boot\\bootmgfw-kept.efi";
 /// Which Linux the stick's outcome.json says was installed

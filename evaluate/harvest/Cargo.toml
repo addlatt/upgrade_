@@ -1,10 +1,10 @@
 [package]
 name = "upgrade-harvest"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2024"
 license = "GPL-3.0-only"
 
-# The harvester in Rust (RISKS R32, docs/RUST-PORT.md step 3): the pure
+# The harvester in Rust (RISKS R32, docs/archive/RUST-PORT.md step 3): the pure
 # half (mappings, judgments), the filesystem reads, and the live half that
 # writes the folder map the job writer reads. The binary `upgrade-harvest`
 # is what runs on the stick. Harvest-UpgradeState.ps1 stays the harvester

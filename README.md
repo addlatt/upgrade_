@@ -82,7 +82,7 @@ right up until then.
 
 | Path | The point of no return | What protects you |
 |---|---|---|
-| **Keep Windows** (the default) | **Clean-up**, deleting the old Windows part. It only happens if you ask for it from Linux and type a sentence. Until then Windows, with your files, stays one pick away in the boot menu. | You decide, after Linux is already running |
+| **Keep Windows** | **Clean-up**, deleting the old Windows part. It only happens if you ask for it from Linux and type a sentence. Until then Windows, with your files, stays one pick away in the boot menu. | You decide, after Linux is already running |
 | **Erase and install** | **Your last click.** After the typed sentence and the drive list, the button you click is the point of no return. There's no countdown and no cancel after it. | A sentence you type out, every drive named, and checks that must all pass before anything is erased |
 
 That leads to two rules:
@@ -114,18 +114,14 @@ not proof. Every step, with the test row behind each bar:
 ## The scanner: `evaluate`
 
 The scanner only looks, it never touches. It tells you if your machine can
-switch to Linux, what'll break, which Linux to pick, and what to do first.
-It doesn't change, encrypt, delete or send anything.
+switch to Linux, what'll break, and what to do first. It doesn't change,
+encrypt, delete or send anything.
 
-The most useful thing it tells you isn't yes or no. It's **the Linux kernel
-version your hardware needs**, and which popular versions of Linux are too
-old for it.
-
-Here's why that matters. Beginners almost always get told to use Mint or
-Ubuntu. On a laptop from 2024 or later, those can come with a kernel that's
-too old for the Wi-Fi card. So you boot up, there's no Wi-Fi, you figure
-Linux is broken, and you go back to Windows. Nothing was broken. You just
-picked a version that's older than your laptop.
+It also works out **the Linux kernel version your hardware needs** and
+compares it with the Linuxes on the kit. A Linux that's older than your
+laptop boots with no Wi-Fi, and it looks like Linux is broken when nothing
+was. So a Linux on the kit that's too old for your machine isn't offered,
+and if none is new enough the answer is RED.
 
 | Check | Why |
 |---|---|
@@ -144,7 +140,7 @@ you can send it in and help the next person.
 
 ### Try it
 
-The scanner is `upgrade-scan.exe`, one of the four programs on the kit
+The scanner is `upgrade-scan.exe`, one of the programs on the kit
 stick (`./make-kit.sh` builds the kit). Run it in PowerShell from the stick:
 
 ```powershell
@@ -218,16 +214,12 @@ Windows programs alone.
 The Windows side is **Rust**, cross-built from Linux with a pinned toolchain,
 so one build gives the same bytes on any machine. The PowerShell it replaced
 is recorded in frozen goldens the Rust is held to
-([docs/RUST-PORT.md](docs/RUST-PORT.md)); one script remains, the stick
+([docs/archive/RUST-PORT.md](docs/archive/RUST-PORT.md)); one script remains, the stick
 writer, until its Rust twin has earned the same rows.
 
-Before you open a pull request:
-- `./port-check.sh`: every crate's tests, the schema oracle, the frozen
-  goldens unchanged, the data tables' shape. It must pass.
-- `./docs-check.sh` when any `.md` file changed. The docs change only through
-  the docs skill ([.claude/skills/docs/SKILL.md](.claude/skills/docs/SKILL.md)):
-  one home per fact, history in `docs/log/`, state in `docs/STATUS.md`, plans
-  in `docs/ROADMAP.md`.
+Before you open a pull request, `./port-check.sh` must pass, and
+`./docs-check.sh` too when any `.md` file changed. CLAUDE.md, "Working
+conventions", says what each one checks.
 
 ## Contributing
 

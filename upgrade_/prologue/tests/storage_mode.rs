@@ -7,7 +7,7 @@
 //! what it left in the state directory and on the stick, and its exit
 //! code. The Rust must do the same, act for act and file for file.
 //!
-//! Two differences are allowed on purpose, both written in RUST-PORT.md:
+//! Two differences are allowed on purpose, both written in docs/archive/RUST-PORT.md:
 //! the record carries `harness_program` (which program wrote it) beside
 //! `harness_version`; and where the script re-saved a leg's `Classes` and
 //! `CompatibleIds` as `{"Length": n}` objects (PowerShell 5.1 serialises a

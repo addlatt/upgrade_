@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Reproducible builds (RISKS R14): a second checkout of the same commit,
 # built the same way, must give the same bytes. This clones HEAD into a
-# fresh directory, builds the five Windows programs there (build-rust.sh and
+# fresh directory, builds the six Windows programs there (build-rust.sh and
 # the window's build.sh, the pinned toolchain, --locked, paths remapped) and
 # compares their sha256 with this checkout's. One row per program goes to
 # docs/validation-results/r14-rebuild.csv. Exit 1 if any differ.
@@ -20,7 +20,7 @@ else
     # cargo does not count SOURCE_DATE_EPOCH as a reason to relink, and a deleted final exe
     # is only copied again from deps/ (runs 2 and 3, 2026-10-09: this tree's old binaries
     # were compared), so each package is cleaned for the Windows target first
-    for c in upgrade-scan upgrade-harvest upgrade-job upgrade-prologue upgrade-window; do
+    for c in upgrade-scan upgrade-harvest upgrade-job upgrade-prologue upgrade-fetch upgrade-window; do
         (cd "$ROOT" && cargo clean -p "$c" --release --target x86_64-pc-windows-gnu --quiet)
     done
     "$ROOT/build-rust.sh" >/dev/null; "$ROOT/upgrade_/windows/window/build.sh" >/dev/null

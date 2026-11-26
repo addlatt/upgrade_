@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # port-check.sh - the Rust product's own checks, in one command.
-# (RISKS R32, VALIDATION V13, docs/RUST-PORT.md)
+# (RISKS R32, VALIDATION V13, docs/archive/RUST-PORT.md)
 #
 #   ./port-check.sh            check everything, change nothing
 #   ./port-check.sh --record   write the schema refusal cases again from
@@ -69,7 +69,7 @@ done
 if python3 -W error -m unittest rig/oneclick/test_oneclick.py rig/oneclick/test_rows.py > "$TMP/oneclick.txt" 2>&1; then pass "the one click test manager ($(grep -o 'Ran [0-9]* tests' "$TMP/oneclick.txt"))"
 else fail "the one click test manager's cases"; tail -30 "$TMP/oneclick.txt" | sed 's/^/          /'; fi
 if [ "$HAVE_PS" = 1 ]; then
-    if (cd evaluate/harvest && ./windows-tests.sh) > "$TMP/wintests.txt" 2>&1 && grep -q "test result: ok. 12 passed" "$TMP/wintests.txt"; then pass "the harvester's 12 filesystem cases on this Windows machine"
+    if (cd evaluate/harvest && ./windows-tests.sh) > "$TMP/wintests.txt" 2>&1 && grep -q "test result: ok. 5 passed" "$TMP/wintests.txt"; then pass "the harvester's 5 filesystem cases on this Windows machine"
     else fail "the harvester's filesystem cases on Windows"; tail -20 "$TMP/wintests.txt" | sed 's/^/          /'; fi
 else
     skip "the harvester's filesystem cases (they run on Windows)"

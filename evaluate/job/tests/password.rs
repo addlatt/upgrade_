@@ -52,7 +52,7 @@ fn every_call_matches_powershell() {
         let want = golden.get(name).unwrap_or_else(|| panic!("password-golden.json has no '{name}': run ./port-check.sh --record"));
         let got = run(case["fn"].as_str().unwrap(), &case["args"]);
         if name == "port: a pair differing only in a combining form is not the same" {
-            // Kept on purpose (docs/RUST-PORT.md): PowerShell's -cne compares
+            // Kept on purpose (docs/archive/RUST-PORT.md): PowerShell's -cne compares
             // by the culture's rules and calls "é" and "e" + a combining accent
             // the same, so the script accepts the pair; glibc compares bytes
             // at sign-in, so the Rust refuses it. Stricter. The day the

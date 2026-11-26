@@ -5,7 +5,6 @@
 
 use serde_json::{json, Value};
 use upgrade_harvest::capacity::{capacity, Drive};
-use upgrade_harvest::stick::{stick_fit, Folder, RESERVE_BYTES};
 use upgrade_harvest::{cloud, names, wlan};
 
 fn cases() -> Vec<Value> {
@@ -22,18 +21,6 @@ fn run(fn_name: &str, a: &Value) -> Value {
         "ConvertTo-HarvestLinuxName" => json!(names::linux_name(a["WindowsName"].as_str().unwrap())),
         "Test-HarvestPlaceholderAttributes" => json!(cloud::is_placeholder(int(a, "Attributes"))),
         "Test-HarvestMaterialized" => json!(cloud::is_materialized(int(a, "Attributes"), int(a, "Length"), int(a, "BytesRead"), int(a, "AllocatedBytes"))),
-        "Get-HarvestStickFit" => {
-            let folders: Vec<Folder> = a["Folders"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|f| Folder { exists: f["Exists"].as_bool().unwrap(), bytes: int(f, "Bytes"), stick_bytes: int(f, "StickBytes"), files_over_4gib: int(f, "FilesOver4GiB") })
-                .collect();
-            let reserve = a.get("ReserveBytes").and_then(Value::as_i64).unwrap_or(RESERVE_BYTES);
-            let r = stick_fit(&folders, int(a, "FreeBytes"), a["FileSystem"].as_str().unwrap(), int(a, "ClusterBytes"), reserve);
-            json!({"FileSystem": r.file_system, "ClusterBytes": r.cluster_bytes, "FreeBytes": r.free_bytes, "FilesBytes": r.files_bytes, "NeededBytes": r.needed_bytes,
-                   "FilesOver4GiB": r.files_over_4gib, "Fits": r.fits, "GapBytes": r.gap_bytes, "Reason": r.reason})
-        }
         "ConvertFrom-HarvestWlanProfileXml" => {
             // as netsh writes it: UTF-8 with a byte order mark
             let mut bytes = vec![0xEF, 0xBB, 0xBF];
@@ -117,7 +104,7 @@ fn the_self_test_expectations_hold() {
             assert!(asserted, "{name}: a self-test case must assert something");
         }
     }
-    assert!(counted >= 35, "only {counted} self-test cases in cases.json");
+    assert!(counted >= 27, "only {counted} self-test cases in cases.json");
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 }
 

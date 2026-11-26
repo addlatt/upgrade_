@@ -112,7 +112,7 @@ pub fn disk(scan: &mut Scan, facts: &DiskFacts, is_admin: bool, repair_queued: b
         } else if shrink < 25.0 {
             let pinned = if last.is_empty() { String::new() } else { format!(" Windows names the last unmovable file: {last}.") };
             scan.add("Storage", RK, Status::Warn, format!("{gbs} GB can be freed by shrinking{via}"))
-                .note(format!("Too little room to install Linux while keeping Windows as a fallback. This machine can still convert - your files travel on the USB stick (the clean-slate path) - but there is no space to keep a safety copy of Windows on the internal disk.{pinned}"))
+                .note(format!("Too little room to install Linux while keeping Windows as a fallback. This machine can still convert by erasing everything, which keeps no files: copy what you cannot lose to another place first. There is no space to keep a safety copy of Windows on the internal disk.{pinned}"))
                 .remedy("Emptying the Recycle Bin, clearing Downloads, and removing large unused programs raises this number. No external drive is needed either way.");
         } else {
             scan.add("Storage", RK, Status::Ok, format!("{gbs} GB can be freed by shrinking{via}"))
@@ -120,7 +120,7 @@ pub fn disk(scan: &mut Scan, facts: &DiskFacts, is_admin: bool, repair_queued: b
         }
     } else if !is_admin {
         scan.add("Storage", RK, Status::Info, "requires Administrator to measure")
-            .note("Measuring how far the disk can shrink needs Administrator rights. Without it, we cannot yet tell you whether Windows can be kept as a fallback - the clean-slate path (files on the USB stick) still works regardless.")
+            .note("Measuring how far the disk can shrink needs Administrator rights. Without it, we cannot yet tell you whether Windows can be kept as a fallback. Erasing everything does not depend on this, and it keeps no files.")
             .remedy("Re-run this scanner as Administrator to get this number.");
     } else {
         // Report what Windows said. No cause is named: the obvious suspect
@@ -134,7 +134,7 @@ pub fn disk(scan: &mut Scan, facts: &DiskFacts, is_admin: bool, repair_queued: b
             at.push_str(" That is the volume flag - see 'Volume health' below; once the disk check has run, this number appears.");
         }
         scan.add("Storage", RK, Status::Info, "could not measure shrinkable space")
-            .note(format!("{why}{at} We do not yet know why this happens on some machines, so we are not going to guess - the converter measures again before it does anything, and keeping Windows is only offered if the number is there. The clean-slate path (your files on the USB stick) does not depend on this."))
+            .note(format!("{why}{at} We do not yet know why this happens on some machines, so we are not going to guess - the converter measures again before it does anything, and keeping Windows is only offered if the number is there. Erasing everything does not depend on this, and it keeps no files."))
             .remedy("If you are reporting this machine to the project, include this line - the exact wording above is the useful part.");
     }
 
@@ -244,7 +244,7 @@ pub fn physical_disk(scan: &mut Scan, facts: Option<&PhysicalDiskFacts>) {
             .note(format!("Windows' own health check reports nothing wrong with the drive that holds Windows, and the last 30 days of its error log hold no bad-block, paging or reset events for it.{counters}"));
     } else if eq_ci(health, "Warning") {
         scan.add("Storage", T, Status::Warn, what)
-            .note(format!("Windows reports a warning for the drive that holds Windows - it is showing early signs of trouble.{counters} The converter will not shrink this drive or run a disk check on it, so keeping Windows as a fallback is not offered; converting is still possible with your files on the USB stick (the clean-slate path)."))
+            .note(format!("Windows reports a warning for the drive that holds Windows - it is showing early signs of trouble.{counters} The converter will not shrink this drive or run a disk check on it, so keeping Windows as a fallback is not offered; converting is still possible by erasing everything, which keeps no files: copy what you cannot lose to another place first."))
             .remedy("Copy your important files somewhere else FIRST - a drive showing warnings can fail without further notice. Then consider replacing the drive before converting: a new drive makes the conversion simpler and the result more reliable.");
     } else if eq_ci(health, "Unhealthy") {
         scan.add("Storage", T, Status::Fail, what)
@@ -263,7 +263,7 @@ pub fn physical_disk(scan: &mut Scan, facts: Option<&PhysicalDiskFacts>) {
 /// (its table is `collect::storage::repair_status_names`). The PowerShell
 /// scanner 0.5.0 knows only the Windows 10 pair, so on Windows 11 a scan
 /// that found errors was judged as clean, with the word left in the note.
-/// Stricter here on purpose (docs/RUST-PORT.md, "Differences kept on
+/// Stricter here on purpose (docs/archive/RUST-PORT.md, "Differences kept on
 /// purpose"); `tests/parity.rs` expects the difference by name.
 pub const SCAN_FOUND_ERRORS: &str = "^(ErrorsFound|ErrorsNotFixed|ScanErrorsFoundNeedSpotFix|ScanErrorsFixedOnlineAlsoNeedSpotFix|ScanErrorsFoundAndFixedOnline)$";
 /// The clean result under both names, for the "its own log contradicts" clause.
@@ -388,12 +388,12 @@ pub fn bitlocker(scan: &mut Scan, is_admin: bool, state: Option<&BitLockerState>
 
 /// Test-UpgEsp. R21's decision (2026-08-30): keeping Windows needs 32 MiB
 /// free on the boot partition, and the firmware's Windows entry must point
-/// at that same partition. Failing either steers to clean slate.
+/// at that same partition. Failing either means keeping Windows is not offered.
 pub fn esp(scan: &mut Scan, is_admin: bool, facts: Option<&EspFacts>) {
     const T: &str = "Boot partition (ESP)";
     if !is_admin {
         scan.add("Storage", T, Status::Info, "requires Administrator to check")
-            .note("Whether the small boot partition has room to add Linux alongside Windows needs Administrator rights to measure. The clean-slate path (files on the USB stick) works regardless.")
+            .note("Whether the small boot partition has room to add Linux alongside Windows needs Administrator rights to measure. Erasing everything does not depend on this, and it keeps no files.")
             .remedy("Re-run this scanner as Administrator to get this number.");
         return;
     }
@@ -406,7 +406,7 @@ pub fn esp(scan: &mut Scan, is_admin: bool, facts: Option<&EspFacts>) {
     let free = num(round1(free_bytes / MB));
     if f.has_windows_boot_files != Some(true) || f.bootmgr_points_at_esp == Some(false) {
         scan.add("Storage", T, Status::Warn, "Windows does not boot from the expected partition")
-            .note("The partition this machine actually boots Windows from is not the one its boot files were found on (or those files are missing). Installing Linux alongside would touch a partition the firmware does not boot from, so the keep-Windows fallback cannot be promised here. The clean-slate path still converts this machine.");
+            .note("The partition this machine actually boots Windows from is not the one its boot files were found on (or those files are missing). Installing Linux alongside would touch a partition the firmware does not boot from, so the keep-Windows fallback cannot be promised here. Erasing everything still converts this machine, and it keeps no files.");
         return;
     }
     if f.bootmgr_points_at_esp.is_none() {
@@ -416,8 +416,8 @@ pub fn esp(scan: &mut Scan, is_admin: bool, facts: Option<&EspFacts>) {
     }
     if free_bytes < 32.0 * MB {
         scan.add("Storage", T, Status::Warn, format!("only {free} MiB free on the boot partition"))
-            .note("Adding Linux alongside Windows puts its boot files on this partition (about 7 MB measured, and future kernel updates need headroom). Below 32 MiB free the keep-Windows path is not offered; the clean-slate path still works.")
-            .remedy("Nothing to do by hand - do not resize or delete files on the boot partition yourself. The converter will steer this machine to the clean-slate path.");
+            .note("Adding Linux alongside Windows puts its boot files on this partition (about 7 MB measured, and future kernel updates need headroom). Below 32 MiB free the keep-Windows path is not offered; erasing everything still works, and it keeps no files.")
+            .remedy("Nothing to do by hand - do not resize or delete files on the boot partition yourself. Keeping Windows is not offered on this computer; nothing is erased unless you choose it.");
         return;
     }
     scan.add("Storage", T, Status::Ok, format!("{free} MiB free; Windows boots from it"))

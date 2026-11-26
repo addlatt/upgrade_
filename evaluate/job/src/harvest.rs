@@ -1,7 +1,8 @@
-//! The folder map in a job. The map is what settle-in pulls and what a
-//! clean slate stages to the stick. A map that is wrong is silent data
-//! loss, found after Windows is gone, so each problem here is a refusal,
-//! never a note (CLAUDE.md rule #1).
+//! The folder map in a job. The map is what settle-in pulls. A map that is
+//! wrong is silent data loss, found after Windows is gone, so each problem
+//! here is a refusal, never a note (CLAUDE.md rule #1). Whether the folders
+//! fit the stick is no longer measured or refused on (decided 2026-11-26,
+//! the owner): nothing has staged files to the stick since 2026-10-17.
 
 use crate::val::{at, eq_ci, int, items, list, one_of, s, truthy};
 use crate::KNOWN_HARVEST_VERSIONS;
@@ -53,16 +54,12 @@ pub fn refusals(h: &Value, harvest_error: &str) -> Vec<String> {
     } else if !one_of(&result, &["none-found", "not-attempted"]) {
         r.push(format!("the OneDrive check ended as '{result}', which this version does not understand"));
     }
-    if !truthy(at(h, "StickFit")) {
-        r.push(format!("the stick's free space could not be read ({})", s(at(h, "Stick.Error"))));
-    }
     r
 }
 
-/// ConvertTo-JobHarvest: the folder map as the job's `harvest.folders`,
-/// `harvest.cloud_files` and `harvest.stick_fit`. Called only after
-/// `refusals` found nothing.
-pub fn to_job(h: &Value) -> (Value, Value, Value) {
+/// ConvertTo-JobHarvest: the folder map as the job's `harvest.folders` and
+/// `harvest.cloud_files`. Called only after `refusals` found nothing.
+pub fn to_job(h: &Value) -> (Value, Value) {
     let folders: Vec<Value> = list(at(h, "UserFolders"))
         .into_iter()
         .map(|f| {
@@ -75,8 +72,5 @@ pub fn to_job(h: &Value) -> (Value, Value, Value) {
     let result = s(at(c, "Result"));
     let cloud = json!({"placeholders_found": int(at(c, "PlaceholdersFound")), "materialized": int(at(c, "Materialized")), "failed": 0,
                        "result": if eq_ci(&result, "not-attempted") { "left-in-cloud".to_string() } else { result }});
-    let fit = at(h, "StickFit");
-    let stick_fit = json!({"filesystem": s(at(fit, "FileSystem")), "cluster_bytes": int(at(fit, "ClusterBytes")), "free_bytes": int(at(fit, "FreeBytes")), "files_bytes": int(at(fit, "FilesBytes")),
-                           "needed_bytes": int(at(fit, "NeededBytes")), "files_over_4gib": int(at(fit, "FilesOver4GiB")), "fits": truthy(at(fit, "Fits")), "gap_bytes": int(at(fit, "GapBytes"))});
-    (json!(folders), cloud, stick_fit)
+    (json!(folders), cloud)
 }

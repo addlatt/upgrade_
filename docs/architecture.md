@@ -27,18 +27,15 @@ and "the project" the whole.
 
 Exactly one moment in a conversion cannot be undone: **the first destructive
 write** (the first time something on the disk is overwritten or deleted). A
-one-way door. Which moment that is depends on the path the person chose when
-`evaluate` captured their intent:
+one-way door. Which moment that is depends on the path the person chose (asked
+as equals; "It captures intent", below):
 
-- **Clean-slate path** (files are copied to the stick first): the disk wipe,
-  inside the cutover. Everything before it only adds things; if anything fails
-  before the wipe, the machine boots Windows again.
-- **Safety-copy path** (files stay on the internal disk): the **reclaim**,
+- **Keep Windows** (files stay on the internal disk): the **reclaim**,
   meaning deleting the Windows partition, in `settle-in`, only after the checks
   pass and the person clearly says yes. Until reclaim, Windows is there and
   boots; rolling back means restoring a boot entry, not a disk image.
-- **Erase path** (nothing kept): the last click in the window, "Restart into
-  the installer" ("Erase and install", below).
+- **Erase everything** (nothing kept, no files carried): the last click in the
+  window, "Restart into the installer" ("Erase and install", below).
 
 **Decided (2026-11-02, the owner): the last click in a window is the last
 moment the person can turn back.** No countdown, no key that cancels after it
@@ -49,10 +46,8 @@ Two rules follow. They are not negotiable:
 
 1. **The screen must say "you can still stop" right up to the last click**,
    and must say plainly at that click that there is no turning back after it.
-2. **Everything that could refuse must refuse before the line:** identity,
-   checksum, capacity and hardware refusals; on the clean-slate path, a
-   live-session hardware check with a person present too, since there is no
-   rollback beyond it.
+2. **Everything that could refuse must refuse before anything is erased:**
+   identity, checksum, capacity and hardware refusals.
 
 ---
 
@@ -75,9 +70,8 @@ fix it. So `evaluate` pulls out files (artifacts), not just facts:
 | Artifact | Why it can't wait |
 |---|---|
 | Vendor audio firmware (Cirrus CS35L41/56, TI TAS2781) from the driver store | Gone with Windows; the fix for silent speakers |
-| BitLocker recovery key | Can't be recovered later; unlocks the data volume on the safety-copy path, and avoids a lockout mid-conversion |
+| BitLocker recovery key | Can't be recovered later; unlocks the kept Windows volume for the file copy, and avoids a lockout mid-conversion |
 | Wi-Fi profiles and PSKs (the network passwords) | Needed to reconnect; the person may not know their own password |
-| Browser profiles | Bookmarks, history, extensions, Firefox passwords |
 | OEM firmware/ACPI quirks (maker-specific hardware settings) | Shipped by the maker, Windows-only |
 
 ```text
@@ -92,45 +86,40 @@ desktop, GNOME desktop or the text console), the account name (**decided (2026-1
 (hashed straight away to SHA-512 crypt, a one-way scrambled form that Linux can
 check but nobody can read back).
 
-**The conversion path is not a coin flip.** Keeping Windows aside is the safer
-net, so it is the **default whenever the disk has room for it**. Clean slate
-(wiping Windows and copying files to the stick) appears only when the person
-clearly wants Windows gone, or as the forced fallback when the disk is too full
-to keep both; it needs the person present for a two-minute hardware check in the
-live session, because it has no rollback. Keep-Windows is true walk-away, with
-the files coming over later.
+**The conversion path is asked, not assumed. Decided (2026-11-23, the owner):
+keeping Windows and erasing everything are asked as equals, on their own screen
+after the scan; neither is the default.** Every sentence of the erase warning,
+the typed sentence, the drive list and the last click stay (RISKS R27). Words
+and layout only, so no rig or Aspire rows are owed for it (decided 2026-11-23,
+the owner). Keeping Windows is true walk-away with a full rollback, and the
+files come over later. Erasing carries no files and has no rollback. A disk too
+full to keep Windows is refused, untouched: a "stop" is never turned into a
+wipe.
 
-**Amended (2026-09-22, RISKS R18):** the forced fallback happens only when the
-person's pre-chosen fork allows it (`fork.if_cannot_keep = clean-slate`). Under
-`stop`, the job writer never writes a clean-slate job: if the disk and the ESP
-allow keeping Windows, the job is keep-windows and the prologue's own re-measure
-decides; if not, there is no job, and the person is told why before CONVERT. The
-prologue refuses a stale forced clean-slate job under `stop` the same way, and
-refuses clean slate whenever the job lists no folders or nothing was staged. A
-"stop" is never turned into a wipe.
-
-**Decided (2026-10-17, the owner): the forced fallback and its staging
-leave the code** (roadmap item 20): no route reached them (the log,
-2026-10-17). A disk too full to keep Windows stops, untouched; its offer is
-roadmap item 8 (R26). Carrying files on the erase path stays stage 2.
+The lines this replaced, kept as the record. The first design made
+keep-Windows the default wherever the disk had room, with clean slate (files
+copied to the stick, a two-minute hardware check in the live session) as the
+other answer or the forced fallback. **Amended (2026-09-22, RISKS R18):** the
+forced fallback only under `fork.if_cannot_keep = clean-slate`; under `stop`
+no job is a wipe. **Decided (2026-10-17, the owner): the forced fallback and
+its staging leave the code** (roadmap item 20; the log, 2026-10-17). A disk too
+full to keep Windows stops; its offer is roadmap item 8 (R26).
 
 ### It harvests what only Windows can give
 
 - **The folder map.** *Where* the person's files really live, looked up through
   Windows' known-folder APIs (the official way to ask "where is this person's
   Documents folder?"), so a OneDrive redirect is followed, not guessed.
-  `settle-in` reads it off the stick (`harvest.folders`; `harvest.stick_fit`
-  says whether they fit the stick). The job writer refuses when the map could be
-  wrong: the elevated account is not the one on screen; a folder hit the file
-  cap or holds sub-folders Windows would not list (RISKS R6); or, on the clean
-  slate, the folders do not fit the stick or other profiles exist (R5).
+  `settle-in` reads it (`harvest.folders`). The job writer refuses when the map
+  could be wrong: the elevated account is not the one on screen, or a folder
+  hit the file cap or holds sub-folders Windows would not list (RISKS R6).
 - **Which files are only in the cloud.** OneDrive's "free up space" placeholders
   are 0-byte stubs: a name with no contents. Linux has no OneDrive client to
   fill them, so read from the mounted NTFS later they copy over *empty* (RISKS
   R8). **Decided (2026-09-26, the owner's call):** they are not downloaded.
   `evaluate` counts them per folder and records `cloud_files.result =
   left-in-cloud`; `settle-in` skips them and reconnects OneDrive instead. (The
-  harvester's `-Materialize`, which downloads them, stays built and unused.)
+  harvester's download step left the code on 2026-11-26.)
 - **Which Windows this was, and how it was activated** (decided 2026-09-27, the
   owner; RISKS R30), for the way back. `harvest.windows_license` records the
   edition (Home or Pro), 10 or 11 (from the build number: Windows 11 still calls
@@ -149,29 +138,30 @@ roadmap item 8 (R26). Carrying files on the erase path stays stage 2.
 
 ### It writes the stick
 
-`evaluate` makes the USB stick itself: the live image plus an exFAT staging
-partition (a separate section of the stick for copied files). The person never
-meets an ISO or a burning tool (an ISO is also published for technical users and
-repair events). Raw disk writes are the one place this tool could destroy data
-*before* the commit line, so picking the device is defensive: removable-bus
-devices only; size and volume label confirmed with the person; refuse if
-anything is unclear. The rules are a pure function with a read-only `-Plan`, and
-the write path finds the device again by its unique id before the first
-destructive call (RISKS R16).
+`evaluate` makes the USB stick itself: the kit on a FAT32 boot partition. (The
+writer still lays out an exFAT `UPGDATA` partition behind it, from the days of
+staging; nothing reads it.) The person never meets an ISO or a burning tool (an
+ISO is also published for technical users and repair events). Raw disk writes
+are the one place this tool could destroy data *before* the commit line, so
+picking the device is defensive: removable-bus devices only; size and volume
+label confirmed with the person; refuse if anything is unclear. The rules are a
+pure function with a read-only `upgrade-stick plan`, and the write path finds
+the device again by its unique id before the first destructive call (RISKS
+R16).
 
 ### It refuses
 
 Every refusal lives in `evaluate`, the only module that can refuse for free:
 
 - **RED scanner verdict.** No override flag, ever.
-- **Neither path fits:** the data is too big for the stick AND there is too
-  little shrinkable space to keep it in place. The refusal is a **gap report**:
-  how many GB to free (largest folders listed) or what stick size would change
-  the answer, so running `evaluate` again moves toward a yes.
-- **More than one user account** (RISKS R5): moving one and silently leaving the
-  rest behind is a data-loss bug. The harvest schema is shaped per user, so
-  multi-user support is an extension, not a rewrite.
-- **Folder sizing was cut short**, so the staging estimate is untrusted (R6).
+- **Keeping Windows does not fit:** too little shrinkable space. No job is
+  written and nothing is changed; the person is told why and how far short it
+  is. Erasing everything stays the person's own choice, never the fallback.
+- **The folder map could be wrong** (R6; "It harvests", above).
+- **More than one user account** (RISKS R5) is said, not refused: the job
+  summary names the other accounts and says their files are not in this job.
+  The harvest schema is shaped per user, so multi-user support is an
+  extension, not a rewrite.
 - **RST/VMD active** (Intel storage modes that hide the disk from Linux); cannot
   be automated, see "The handoff".
 - **The shared ESP cannot take the alongside install** (keep-Windows path only;
@@ -179,15 +169,12 @@ Every refusal lives in `evaluate`, the only module that can refuse for free:
   FAT partition the firmware boots from. The gate is **at least 32 MiB free on
   the ESP** (the rig measured Fedora's footprint at 6.2 MB), and the ESP must be
   the FAT volume the firmware's *Windows Boot Manager* entry points at. A
-  machine that fails it is steered to clean slate, never installed alongside.
+  machine that fails it is never installed alongside.
 - **No Linux release the kit carries can start here** (RISKS R34; next section).
 
-**One exception, narrow and dated (2026-09-13, RISKS R23):** a person who has
-already copied their files off a machine the scanner refused for its *drive*
-(bad blocks, SMART media errors, a volume needing a full repair) may type a
-fixed sentence on the window's RED screen and go ahead. It lifts those two refusals
-and no other, is recorded in `job.json` and `outcome.json`, and turns every
-later screen red (CLAUDE.md rule #1).
+**One exception, narrow and dated (2026-09-13, RISKS R23):** a sentence typed
+on the window's RED screen lifts the drive-health and volume-health refusals
+and no other. Its one home, with every limit: CLAUDE.md rule #1.
 
 ### It chooses the Linux release from what the machine accepts (decided 2026-10-03, the owner)
 
@@ -215,9 +202,8 @@ the R23 sentence lifts neither. The job writer reads `release.json` on the stick
 and refuses a release the scan did not find startable (no, unknown, or not
 judged). A new release or distribution is a table entry, measured from its
 files, never typed; one without a Microsoft-signed shim (Arch, so Omarchy,
-today) is still worth an entry, and the scanner then says plainly that it cannot
-start with Secure Boot on. Installing it also needs installer automation of its
-own (today only Fedora's kickstart exists) and a rig run.
+today) is still worth an entry, and the scanner then says it cannot start with
+Secure Boot on. Installing it also needs its own installer automation and a rig run.
 
 ---
 
@@ -228,24 +214,22 @@ stands: see [STATUS.md](STATUS.md).
 
 ### Two paths, one stick
 
-There is no external drive anywhere in this design. Everything travels on the
-USB stick, or never moves at all:
+There is no external drive anywhere in this design. One stick is the whole kit:
 
-|  | keep Windows | clean slate (the other answer / fallback) |
+|  | keep Windows | erase everything |
 |---|---|---|
-| User files | never leave the internal disk; pulled in `settle-in` from the untouched Windows partition | copied to the stick's exFAT partition, restored during cutover |
-| Qualifies when | shrinkable space >= Linux (~20 GB) + headroom | data + artifacts fit the stick |
-| Windows afterwards | intact until `settle-in` reclaims it | gone at the wipe |
-| Rollback | full, until reclaim | none: the wipe is the commit line |
-| Walk-away | total | after a 2-minute human check in the live session |
+| User files | never leave the internal disk; pulled in `settle-in` from the untouched Windows partition | not carried; the person copies off what they cannot lose first |
+| Qualifies when | shrinkable space >= Linux (25 GB) + headroom | the person types the erase sentence |
+| Windows afterwards | intact until `settle-in` reclaims it | gone at the erase |
+| Rollback | full, until reclaim | none; the way back is a new, empty Windows |
+| Walk-away | total | total, after the last click |
 
-**Keep-Windows is the default** wherever the disk fits it, because a working
-Windows to fall back on is the better safety net. On that path **no user data is
-read out of Windows during the destructive part of the conversion at all:**
-cutover installs Linux into the freed space and touches nothing of the person's;
-the files come across afterwards, in `settle-in`, with Windows still whole. That
-moves the encrypted-read risk (RISKS R19) out of its old corner: unattended, the
-only copy, pre-wipe.
+On the keep-Windows path **no user data is read out of Windows during the
+destructive part of the conversion at all:** cutover installs Linux into the
+freed space and touches nothing of the person's; the files come across
+afterwards, in `settle-in`, with Windows still whole. That moves the
+encrypted-read risk (RISKS R19) out of its old corner: unattended, the only
+copy, pre-wipe.
 
 ### When Windows cannot be kept: the offer to discard it
 
@@ -288,13 +272,13 @@ for only once the answer is known:
    The person's last chance was the last click (decided 2026-11-02).
 
 Stop stays the default at every step, and the extra prompt exists only on the
-branch where keep-Windows failed. The build waits for the harvest and a first
-physical install row (ROADMAP.md).
+branch where keep-Windows failed. Not built: the staging it needs left the code
+on 2026-10-17 (ROADMAP.md, item 8).
 
 ### Stage 1 - prologue (runs in Windows, reversible)
 
-The prologue (`Invoke-Prologue.ps1`, behind the one-click `RUN-CONVERT.cmd`:
-scanner -> job writer -> kickstart -> the typed word -> the prologue) is
+The prologue (`upgrade-prologue`, started by the window `UPGRADE.exe`:
+scanner -> job writer -> the answer file -> the typed word -> the prologue) is
 everything the converter does in Windows before it hands the machine to the
 stick. Live reads are kept apart from decisions (collect/judge seams) so the
 decisions can be self-tested.
@@ -316,14 +300,14 @@ decisions can be self-tested.
      -> restart
      -> re-measure shrinkable space
      -> take the fork the user chose in `evaluate`
-        (keep Windows if it fits; else clean slate, or stop)
+        (keep Windows if it fits; else stop)
    ```
 
    The check's real outcome goes into `outcome.json`. Every restart in this
    stage resumes as SYSTEM with **nobody signed in**; anything a person should
    read is queued for the next sign-in (decided 2026-09-13; "The walk-away
    resume", R24).
-2. **Keep Windows (default): shrink C: with `Resize-Partition`,** Microsoft's
+2. **Keep Windows: shrink C: with `Resize-Partition`,** Microsoft's
    own code path, the most-tested NTFS resize there is, and it works with
    BitLocker still on. Only artifacts are copied to the stick. Shrinkable space
    is measured by two independent read-only paths; the request is exactly what
@@ -355,12 +339,8 @@ decisions can be self-tested.
    A stop after the shrink grows C: back, re-enables BitLocker, removes the boot
    entry and scrubs the stick's credentials (decided 2026-09-12).
 
-   **Clean slate (the other answer / fallback):** copy user files and artifacts to the
-   stick's exFAT partition with per-file checksums; 0 folders or 0 files is a
-   refusal. The write speed is measured and shown as a **computed** time
-   estimate: cheap flash at 20 MB/s is not a ten-minute job, and the person must
-   learn that before walking away. Windows reads its own BitLocker volume, so
-   encryption never enters this path.
+   **Erase everything** changes nothing on the disks in this stage ("Erase and
+   install", below).
 3. **Hard confirmation:** type the word, not a checkbox.
 4. **Suspend BitLocker, write the one-time boot entry, restart.** Decided
    (2026-09-07, from the V0 harness): if the BitLocker state cannot be
@@ -403,13 +383,13 @@ After the machine has booted from the stick:
 5. Check the machine's identity against `job.json` again: same disk serial, same
    firmware mode. A mismatch means the USB was moved to another computer:
    **abort.** Do not partition a stranger's laptop.
-6. Check every staged checksum by reading it back from the stick. This is also
-   the fake-flash test (RISKS R17): a stick that lied about its capacity fails
-   here, while Windows still exists.
+6. Read the desktop image back from the stick against its checksum. This is
+   also the fake-flash test (RISKS R17): a stick that lied about its capacity
+   fails here, while Windows still exists.
 7. Automatic hardware checks, before anything is destroyed: Wi-Fi connects, the
    display runs at native resolution, amp firmware loads.
 
-**Keep Windows** (the default) is unattended, and does nothing destructive:
+**Keep Windows** is unattended, and does nothing destructive:
 
 8. Create partitions in the freed space. The Windows partition and the existing
    ESP are never reformatted. Fedora's bootloader is added alongside
@@ -464,22 +444,9 @@ After the machine has booted from the stick:
 no copy. They come across in `settle-in`, with Windows still there as a complete
 fallback; the commit line waits there, at reclaim.
 
-**Clean slate** is the only path that wipes, so the person is present, by design.
-**Decided (2026-11-23, the owner): keeping Windows and erasing everything are asked as equals, on their own screen after the scan; neither is the default.** Every sentence of the erase warning, the typed sentence, the drive list and the last click stay (RISKS R27). Words and layout only, so no rig or Aspire rows are owed for it (decided 2026-11-23, the owner):
-
-8. The live desktop asks for two minutes: speakers (*not headphones*), display,
-   Wi-Fi. A human ear is the only test for a smart amp, and this is the last
-   moment the system can refuse for free.
-
-> **=== COMMIT LINE (clean slate) ===** everything below destroys something
-
-9. Wipe, partition, install via kickstart with the chosen desktop.
-10. Inject artifacts into the installed system before first boot.
-11. Restore files, Wi-Fi (as NetworkManager keyfiles) and browser profiles.
-12. Wipe the credential part of the stick, but **leave the staged files**: until
-    the person says otherwise it is their only backup, and `settle-in` says so.
-13. Write `outcome.json` and logs to the stick (the only telemetry; it stays
-    there unless the person chooses to send it). Reboot.
+**Erase everything** is the only path that wipes in this stage ("Erase and
+install", below). It carries no files, so nothing is restored and the stick is
+nobody's backup.
 
 **A note on a reversal.** An earlier revision rejected any single-disk design,
 because an unattended resize-and-move loses both the original and the copy in a
@@ -507,11 +474,10 @@ kept Windows reads at its next start to remove itself, puts Windows first and
 reads it back, and records `upgrade_/rollback.json`. **Decided (2026-10-17,
 the owner): `upgrade-prologue rollback`, the Windows-side way that failed on
 the Acer, leaves the product** (roadmap item 20); the window's Rollback button
-sends the person to Linux's "Go back to Windows". The clean-slate path has no
-rollback (hence its human gate before the commit line); its way back is below.
+sends the person to Linux's "Go back to Windows". The erase path has no
+rollback; its way back is below.
 
 ### Design constraints: offline, and one stick, honestly sized
-
 The live image carries Fedora as a squashfs (a compressed, read-only disk image)
 on the USB, both desktops, so the desktop choice costs a question, not a
 download. It does **not** install over the network: the machines most likely to
@@ -519,34 +485,28 @@ need converting are exactly the ones with Broadcom Wi-Fi, or a card too new for
 the shipped kernel. The images are the unmodified `LiveOS/squashfs.img` out of
 Fedora's own Workstation and KDE live ISOs, installed with kickstart `liveimg
 --checksum=`; the installer boot files come from the netinst ISO, also
-unmodified. There is no image of our own making.
+unmodified. There is no image of our own making. An Ubuntu stick carries its
+ISO's own files the same way (`upgrade-fetch`); on Ubuntu only, NVIDIA's own
+driver is installed from them, for a card the stick has one for (RISKS R47).
 
-One thing is installed beyond the image, on Ubuntu only: NVIDIA's own driver,
-from the stick's packages, for a card the stick has one for (RISKS R47).
-
-`evaluate` works out what the stick must hold (live image, artifacts, and on the
-clean-slate path the staged files) and refuses a stick that cannot hold it, with
-the gap report saying what would fit. `harvest.stick_fit` sizes the folders the
-way the prologue's staging lays them down: each file rounded up to the volume's
-clusters (the smallest block the file system hands out), plus the directories
-and the manifest, or the prologue's own bytes x 1.02 if larger, plus 64 MB. A
-FAT32 volume never fits a file over 4 GB. A clean-slate job must fit (the schema
-refuses one that does not); a keep-Windows job records the answer for the
-discard offer. The gate measures the volume actually used (today the FAT32 kit
-volume, not the exFAT `UPGDATA` partition; ROADMAP.md). On that path the stick
-is, briefly, the only copy of the person's files, so the read-back check in step
-6 is a hard gate, not a warning.
+`evaluate` works out what the stick must hold (the live image and the
+artifacts) and refuses a stick that cannot hold it. Whether the person's
+folders would fit the stick is no longer worked out. **Decided (2026-11-26,
+the owner): `harvest.stick_fit` leaves the job, with the sum behind it and
+the refusal when the stick's free space could not be read.** Nothing had read
+it since staging left the code (2026-10-17). The discard offer (R26) will
+need it written again if it is ever built.
 
 ## Erase and install: the one-click fresh start
 
 **Decided (2026-09-26, the owner's call).** RISKS R27, VALIDATION V9.
 
 The first destructive path proven end to end is the simplest: **erase every
-internal drive and install Fedora, keeping nothing.** It proves the mechanism
-(one click, one consent, a machine that comes back as Linux) before anything is
-carried across; carrying files is stage 2. It is a `clean-slate` job whose
-reason is `user-chose-fresh-start`, and it differs from the discard offer (R26)
-in one way that matters: the person said up front that nothing is to be kept.
+internal drive and install the chosen Linux, keeping nothing.** One click, one
+consent, a machine that comes back as Linux. It carries no files (CLAUDE.md,
+"The mission"). It is a `clean-slate` job whose reason is
+`user-chose-fresh-start`, and it differs from the discard offer (R26) in one
+way that matters: the person said up front that nothing is to be kept.
 
 ```text
  Windows (nothing on disk changes)          installer on the stick
@@ -563,7 +523,7 @@ in one way that matters: the person said up front that nothing is to be kept.
                                             reboot into Fedora
 ```
 
-1. **Its own sentence, behind Convert's clean-slate answer** (since
+1. **Its own sentence, behind the erase answer in the window** (since
    2026-10-17, roadmap item 20; before, its own launcher). A RED machine gets
    there from the window's RED screen, which first asks for the R23
    sentence (R23); neither stands in for the other. The consent is typed
@@ -627,7 +587,7 @@ in one way that matters: the person said up front that nothing is to be kept.
    the stick, and the machine reboots
    into Fedora with the person's account.
 
-It carries no files, browsers or programs (stage 2) and keeps no Windows to fall
+It carries no files, browsers or programs and keeps no Windows to fall
 back on: the last click is the last exit. Going back later means a new, empty
 Windows ("The way back to Windows"), and the launcher says so before the
 sentence is typed (draft words, awaiting the owner's approval):
@@ -646,7 +606,7 @@ sentence is typed (draft words, awaiting the owner's approval):
 **Runs on Linux at first boot. Starts by itself, once.** It looks like a welcome
 screen. It is a safety gate: it does not teach Linux, install applications, run
 a tour or check in later. Checking the hardware is why it exists; the file
-copy, when it comes (step 2), belongs here as the first safe moment. Where it
+copy (step 2) belongs here as the first safe moment. Where it
 stands: see [STATUS.md](STATUS.md).
 
 1. **Check the hardware.** Speakers (*not headphones*), Wi-Fi, display and
@@ -670,8 +630,8 @@ stands: see [STATUS.md](STATUS.md).
    kernel's `ntfs3` crashed on the rig; RISKS R19); reads inside OneDrive
    folders, which ntfs-3g cannot open, with a read-only NTFS reader of its
    own on the same unlocked volume (decided 2026-11-07, RISKS R43), copying
-   only files wholly on the disk; and copies Documents,
-   Pictures and the rest, plus browser profiles, checking checksums as it goes.
+   only files wholly on the disk; and copies Documents, Pictures and the
+   rest, plus the browsers' bookmarks, checking checksums as it goes.
    It expects cryptsetup's size-mismatch warning on every shrunk volume, and
    copies only regular files (Windows' empty SYSTEM files show up as FIFOs and
    would hang a plain open). **It never copies a OneDrive placeholder** (decided
@@ -679,12 +639,11 @@ stands: see [STATUS.md](STATUS.md).
    checks its count against the job's, refuses the pull if they disagree, and
    offers to sign in to OneDrive where those files still are. The person is
    present, so a stubborn unlock or a read error is *asked about*, not guessed
-   at; Windows is intact, so a failure here loses nothing. (On the clean-slate
+   at; Windows is intact, so a failure here loses nothing. (On the erase
    path no files are carried, so this step is skipped.) **Decided (2026-11-23, the owner): the person chooses which files come over**: a tree of tick boxes, all ticked to start; a choice only narrows what the walk found, every check is still made on the whole folder, the rest can be brought later, and the BitLocker key stays on this Linux until everything has come (RISKS R13).
 3. **Confirm the data arrived:** counts and checksums against `outcome.json`.
 4. **Hand off:** where files went, what replaced what, and what is gone and is
-   not coming back. On the clean-slate path, also: **keep the stick,** their
-   only backup until they say otherwise.
+   not coming back.
 5. **Decide** (keep-Windows path): keep, or roll back to Windows (a boot-menu
    restore). Only after the person confirms things work does it offer the
    **reclaim** (R41: all of Windows, files too, on a typed sentence; Linux moved
@@ -714,7 +673,7 @@ at first startup; what every desktop Linux shares is the kernel. So:
  ------------------------        ------------------------------------------
  installer adapter               settle-in
    Fedora: kickstart %post  -->    reads one fixed folder (job, secrets)
-   later: Ubuntu, Debian ...       works through kernel interfaces
+   Ubuntu: autoinstall, late       works through kernel interfaces
    (the only part that knows       draws its own window, or asks in text
     the distribution's installer)  when the person chose the console
 ```
@@ -723,7 +682,8 @@ at first startup; what every desktop Linux shares is the kernel. So:
    installer adapter does two things only: put the job and the secrets in one
    fixed root-only place on the installed system, and switch on `settle-in`'s
    start-at-boot service. Fedora's adapter is the kickstart the converter
-   writes. `settle-in` never asks which distribution it is on.
+   writes; Ubuntu's is the autoinstall file's late step (`upgrade-installer
+   late`). `settle-in` never asks which distribution it is on.
 2. **One self-contained program,** a single compiled file carried on the stick
    and copied over by the adapter. It works through the kernel's own interfaces
    (the hardware clock through `/dev/rtc0`, firmware boot entries through
@@ -790,8 +750,9 @@ at first startup; what every desktop Linux shares is the kernel. So:
    another Wi-Fi manager has its networks listed, not set up. Each supported
    distribution is an entry in `data/releases.json`, backed by a real install.
 
-What stays Fedora-specific, on purpose: the installer adapter (kickstart,
-`%pre`, `%post`), which lives in `upgrade_`, not here.
+What stays per installer, on purpose: the adapters (Fedora's kickstart, `%pre`
+and `%post`; Ubuntu's autoinstall, `early` and `late`), which live in
+`upgrade_`, not here.
 
 ### The clock, Wi-Fi and the old boot entry (decided 2026-09-26, the owner)
 
@@ -838,9 +799,11 @@ might want to keep is a button, never automatic.**
   differ. WPA3 in "transition mode" (the router also accepts WPA2) is set up as
   WPA2-personal. The export runs only after every other check passed, so a
   refused job never leaves passwords on the stick. Every install launcher says
-  so first, in the owner's approved words (2026-09-27), verbatim: *"Your saved
-  Wi-Fi networks and their passwords are copied onto this stick, so Fedora can
-  connect to them on its own. They are removed from the stick at the end of the
+  so first, in the owner's approved words (2026-09-27; "Fedora" became "Linux"
+  on 2026-11-13), verbatim: *"Your saved Wi-Fi networks and their passwords are
+  copied onto this stick, so Linux can connect to them on its own. They are
+  removed from the stick at the end of the install and from Linux once it has
+  set them up."* The nochroot `%post` moves
   install and from Fedora once it has set them up."* The nochroot `%post` moves
   them to a root-only directory on the installed system and deletes them from
   the stick; on first startup `settle-in` creates the NetworkManager connections
@@ -849,13 +812,13 @@ might want to keep is a button, never automatic.**
   2026-09-27, the owner): a prologue stop, a return to
   Windows, an abort, or a launcher that fails after the job was written; a
   re-run exports again.
-- **The old boot entry.** At the end of `settle-in`, on the erase and
-  clean-slate paths only, a button: "Remove the old Windows startup entry". It
+- **The old boot entry.** At the end of `settle-in`, on the erase path only, a
+  button: "Remove the old Windows startup entry". It
   removes firmware entries that point at a Windows boot loader on a disk that no
   longer has one, and never while a Windows ESP still exists (keep-Windows keeps
   its entry by design, RISKS R21, R22).
 
-
+---
 
 ## The way back to Windows (decided 2026-09-27, the owner)
 
@@ -884,9 +847,9 @@ who could not make a Windows stick is who this is for (R30, V11).
   checks the processor); otherwise 10, with the October 2025 / October 2026
   warning. The 32-bit Windows 10 file and the wrong Windows are refused.
 
-**Stage 1, a guided stick** (`settle-in go-back`), made a Windows stick for
-the person to start by hand; rig only (`v11-way-back.csv` line 3). **Decided
-(2026-10-12, the owner): only stage 2 stays** (R30); its code leaves with item 20.
+**Stage 1, a guided stick** (decided 2026-09-27; rig only, `v11-way-back.csv`
+line 3) left the code. **Decided (2026-10-12, the owner): only stage 2 stays**
+(R30).
 
 **Stage 2, a walk-away reinstall. Decided (2026-09-29, the owner): the way back
 is 100% managed, and it comes now.** An unattended Windows install with its own
@@ -937,7 +900,7 @@ The stick, WinPE: the gate                         (nothing erased yet)
   each drive by serial, world-wide name, size and model, the sentence, the
   edition, the account name, and the Wi-Fi networks by name (never a password).
   The gate refuses a job it cannot match to this computer, reads every write
-  back, and refuses to count down or cross without a record.
+  back, and refuses to cross without a record.
 - **No password rides on the stick.** The answer file creates a local account
   with the person's Linux name and no password; Windows signs it in once by
   itself, and its first-sign-in commands mark it "must change" and sign out, so
@@ -965,7 +928,7 @@ The modules talk to each other only through files on the stick:
 |---|---|---|
 | `job.json` + `artifacts/` | evaluate | upgrade_, **settle-in** |
 | `outcome.json` + logs | upgrade_ | settle-in |
-| `/var/lib/upgrade_/` on the installed system | the installer adapter (Fedora: `upgrade-installer outcome`) | settle-in |
+| `/var/lib/upgrade_/` on the installed system | the installer adapter (Fedora: `upgrade-installer outcome`; Ubuntu: `upgrade-installer late`) | settle-in |
 
 `settle-in` reads `job.json` too: on the keep-Windows path it needs the folder
 map and the BitLocker recovery key to pull the files. So `job.json` outlives
@@ -1025,21 +988,22 @@ crypt; only the hash reaches the USB.
 **Prompt budget for the whole conversion: four.** One UAC consent click; one
 confirmation that the stick about to be written is the right device; one
 password the person chooses; one polkit prompt (Linux's admin-permission box) in
-`settle-in` at reclaim. The SYSTEM resume adds none; the clean-slate path's
-two-minute hardware check is a gate, not a prompt; the discard offer adds one
-typed sentence and one UAC consent, only on its branch.
+`settle-in` at reclaim. The SYSTEM resume adds none; the typed sentences are
+part of the window; the discard offer (not built) would add one typed sentence
+and one UAC consent, only on its branch.
 
 ### Stack
 
-**Decided (2026-09-27, the owner): a Rust window, `UPGRADE.exe`, in front of the
-scripts on the stick.** It replaces the 2026-09-13 plan (WPF hosted in Windows
+**Decided (2026-09-27, the owner): a Rust window, `UPGRADE.exe`, is the front
+door on the stick.** It replaces the 2026-09-13 plan (WPF hosted in Windows
 PowerShell 5.1 now, C# WPF on .NET Framework 4.8 later). One `.exe` at the
 stick's root: it **double-clicks**, asks for administrator access once, and
 needs nothing installed (not WebView2, which is present on Windows 11 but not
 guaranteed on Windows 10). It draws with egui, the same library as `settle-in`'s
 window, so the person sees one kind of window before and after the switch. **It
-directs the work; it does not redo it:** it runs the kit's four programs
-(`upgrade-scan`, `upgrade-job`, `upgrade-harvest`, `upgrade-prologue`) as child
+directs the work; it does not redo it:** it runs the kit's programs
+(`upgrade-scan`, `upgrade-job`, `upgrade-prologue`, `upgrade-fetch`; the job
+writer holds the harvester inside it) as child
 processes with fixed arguments, shows their progress in plain words, and stops
 where they stop. It adds exactly two things of its own: it stops on a RED scan before the job writer
 runs (more cautious than before, never less), and in the Verify flow (behind
@@ -1056,18 +1020,32 @@ the owner approves (RISKS R31, VALIDATION V12); Rust changes nothing about code
 signing (R12).
 
 **Decided (2026-09-27, the owner): Rust becomes the conversion's one language,**
-from the window down to the code that touches the disk. The PowerShell side is
-ported piece by piece, safest first (RISKS R32, VALIDATION V13): the `job.json`
-/ `outcome.json` types, as one library shared with `settle-in`; the scanner's
-judging half, fed the same corpus recordings; the read-only collectors; the job
-writer, the stick writer and the kickstart generator; the prologue, the handoff
-and the rollback, last. **Decided (2026-10-04, the owner):** all five steps are
-built on the branch `rust-port`, beside the scripts, and the project cuts over
-to Rust after one success of the PowerShell process on `main`. (The 2026-09-27
-plan had steps 3 to 5 wait for V0's three more vendors and V9's physical
-re-run.) The cut-over happened on 2026-10-10. **Decided (2026-10-11, the
-owner):** the PowerShell leaves the product now, in three phases
-(`docs/RUST-PORT.md`; RISKS R32). Builds are reproducible (RISKS R14).
+from the window down to the code that touches the disk. **Decided (2026-10-04,
+the owner):** the whole port is built at once, beside the scripts; the
+cut-over happened on 2026-10-10. **Decided (2026-10-11, the owner):** the
+PowerShell leaves the product. The three decisions in full: RISKS R32. The
+order and the proof, as history: `docs/archive/RUST-PORT.md`. Builds are
+reproducible (RISKS R14).
+
+**Decided (2026-10-17, the owner): the port stops at what a person's computer
+runs.** What stays outside Rust, on purpose:
+
+- the build and check tools (`make-kit.sh`, `build-rust.sh`,
+  `rebuild-check.sh`, `port-check.sh`, `docs-check.sh`, `schemas/check.py`,
+  `data/tools/`, settle-in's `tools/`): they run on the developer's machine,
+  never the person's;
+- the rig (`rig/`), with its Hyper-V scripts and guest-side fault injection,
+  and `upgrade_/linux/installer/src/upg-mark.sh`, the rig's boot marker,
+  installed only when the stick carries `upgrade_/bench`: the harness, not
+  the product;
+- the `.cmd` starters on the stick: Windows needs a file a person can
+  double-click, and each only starts a Rust program;
+- settle-in's three-line `/etc/profile.d/` file, and
+  `go-back-first-logon.cmd` on the walk-away stick: one line that starts
+  `upgrade-gate.exe first-logon`, because Windows Setup's answer file can
+  only start a command line;
+- the stick writer script `Write-UpgradeStick.ps1`, until `upgrade-stick`
+  has R16's write rows.
 
 ### Code signing is the gating item
 
@@ -1096,15 +1074,14 @@ new direction is not finished until it does this.
 
 | Item | Ports? | Notes |
 |---|---|---|
-| Documents, Pictures, Desktop, Downloads, Videos, Music | yes | Found via the known-folder APIs, so OneDrive redirection is handled. |
+| Documents, Pictures, Desktop, Downloads, Videos, Music | yes, on the keep-Windows path | Found via the known-folder APIs, so OneDrive redirection is handled. The person chooses which come over (Module 3, step 2). |
 | Wi-Fi networks + passwords | yes | Windows' Native Wifi API -> NetworkManager keyfiles (Module 3). |
 | Remote access (SSH) | yes, only if Windows had it on | **Decided (2026-10-04, the owner):** carried as part of the same rule. `evaluate` reads whether Windows' OpenSSH server starts by itself and copies only the PUBLIC keys it allows (the person's `authorized_keys` and the administrators' file; a key with options in front is not carried). `settle-in` puts them in the new account, turns password sign-in over SSH off, and turns the SSH server on. A Windows without it: nothing is turned on (`harvest.ssh`). The window's line is a draft for the owner. |
 | The time, on the way back to Windows | yes | **Decided (2026-10-04, the owner).** Linux keeps the hardware clock in UTC and Windows reads it as local time. `prepare` records the zone (Windows' name for it, and its offset now); the gate, after the commit line, writes that zone's wall time to the hardware clock, and the answer file names the zone. The forward direction is `harvest.clock` and settle-in's first start. |
 | Remote access (SSH), on the way back to Windows | yes, only if Linux had it on | **Decided (2026-10-04, the owner).** Public keys only. Windows' SSH server is a download, so a task installs it once the network is up; password sign-in off. |
 | Enterprise / 802.1X Wi-Fi | **no** | Certificates and sign-in methods don't map cleanly. Flag and skip. |
-| Firefox profile | yes | Bookmarks, history, extensions **and saved passwords**: the NSS key database works on any platform. |
-| Chrome/Edge bookmarks, history, extensions | yes | The profile directory ports. |
-| Chrome/Edge **saved passwords** | **no** | Encrypted with DPAPI (Windows' own key store); no Linux equivalent. Must be said in `evaluate`, not discovered in `settle-in`. |
+| Browser bookmarks (Firefox, Chrome, Edge) | yes, on the keep-Windows path | **Decided (2026-11-07, the owner):** only bookmarks, as files to import (RISKS R20). |
+| Browser history, extensions, open tabs, saved passwords | **no** | Chrome's and Edge's passwords are encrypted with DPAPI (Windows' own key store), which has no Linux equivalent. Sign in to the browser's own sync, or export, BEFORE converting. |
 | OneDrive cloud-only files | **needs care** | Decided 2026-09-26: not downloaded. The job records them as left in the cloud, `settle-in` reconnects OneDrive, and nothing may copy a stub as if it were the file. RISKS R8. |
 | Installed applications | no | Out of scope for v1; the inventory names equivalents (Module 1). |
 | Windows settings, Outlook data, licences | no | Say so plainly in the handoff sheet. |
@@ -1124,7 +1101,7 @@ and distributions share a handful of installers.
         +--------------------------+----------------------------+
         |                          |                            |
   anaconda-image            anaconda-container             subiquity
-  Fedora 45 (today)         Bazzite, Fedora Atomic         Ubuntu (on the rig)
+  Fedora 45 (today)         Bazzite, Fedora Atomic         Ubuntu 26.04.1 (today)
   kickstart + liveimg       kickstart + ostreecontainer    autoinstall.yaml
   a writable system         a read-only /usr               a writable system
 ```
@@ -1132,9 +1109,10 @@ and distributions share a handful of installers.
 - **Shared, written once:** the scanner, harvest, the job writer, the stick
   writer, the window, the prologue and handoff, settle-in, `job.json` and
   `outcome.json`.
-- **Per family:** the answer-file generator (today `upgrade_/kickstart/`),
-  the checks before and after the install (today `upgrade_/linux/installer/`,
-  Anaconda's %pre and %post), and the boot paths the stick and the
+- **Per family:** the answer-file generator (`upgrade_/kickstart/` for
+  Fedora, `upgrade_/autoinstall/` for Ubuntu), the checks before and after
+  the install (`upgrade_/linux/installer/`: Anaconda's %pre and %post,
+  Ubuntu's `early` and `late`), and the boot paths the stick and the
   installed system use.
 - **Per release, measured, never typed:** its entry in `data/releases.json`,
   which already carries `Family` and `Installer`. A release whose installer
@@ -1142,8 +1120,9 @@ and distributions share a handful of installers.
   until its offline, unattended path is measured (RISKS R40).
 
 **Decided (2026-11-07, the owner): the person picks the Linux, and the
-window fetches it.** Early in the window: Fedora, Bazzite or Ubuntu, only
-releases measured into `data/releases.json`. One the scan finds unable to
+window fetches it.** Early in the window: only releases measured into
+`data/releases.json` (today Fedora 45 and Ubuntu 26.04.1; Bazzite waits for
+its key step, below). One the scan finds unable to
 start is greyed out (RISKS R34); one that needs a person at the keyboard
 says so on its button. The window downloads that one release, refuses any
 byte that differs from its measured sha256, and writes it to the stick:
@@ -1159,10 +1138,32 @@ our own ISO 9660 reader into one sha256, keeping only the stick's files and
 resuming a dropped connection; every measured sha256 must match and every
 file read back before SHA256SUMS changes. WinHTTP, no new crate (R44, V17).
 
-Fedora is still written into four places, so the seam is not cut there yet:
-the stick's `grub.cfg` and the handoff's `EFI/fedora` paths, `make-kit.sh`,
-the installer's `post.rs` (`grub2-mkconfig` in a writable system), and
-settle-in's `bootentry.rs`.
+**Decided (2026-11-12, the owner): Ubuntu is the second family** (RISKS R40).
+It is in `data/releases.json` since 2026-11-13, so the window offers it
+wherever the scan says it starts. What was built for it (V18):
+
+| Piece | Where |
+|---|---|
+| The answer file | `upgrade_/autoinstall/` (`upgrade-autoinstall`): the erase, and beside Windows. The stick's own file names no disk and no account (R45) |
+| The early check | `upgrade-installer early` (`subiquity.rs`): this machine, this job, the stick's files read back, `verify`'s hardware checks. Beside Windows: every partition kept by name, a safety copy of Windows' startup files first |
+| After the install | `upgrade-installer late`: the 'Windows (kept)' entry, `outcome.json`, the handoff folder, settle-in. Shared with Fedora (`post.rs`, one `Family` per distro) |
+| The stick's menu | `handoff-payload/grub-ubuntu.cfg`, at `boot/grub/grub.cfg` on every kit, with reclaim's branch (R41) |
+| The download | `upgrade-fetch`: one ISO, every file but its own menu |
+| Shim in Windows' slot | `upgrade-prologue`: `EFI\<distro>`, from the install's record |
+
+- **Decided (2026-11-17, the owner): the full desktop** (`ubuntu-desktop`, not
+  `ubuntu-desktop-minimal`), so an office program is there on the first day,
+  as on Fedora (`upgrade-autoinstall` 0.4.0; every row before that day
+  installed the small one). Neither has an SSH server, `curl` or
+  `cryptsetup`. The answer file adds the server when Windows had remote
+  access on, and `cryptsetup` beside Windows, both from the stick's packages;
+  settle-in downloads with `wget` where there is no `curl`.
+- Beside Windows the answer file carries our own storage list, not Ubuntu's
+  `use_gap`: it is the documented way and it names every partition (R45).
+- A separate `/boot`, like Fedora, so reclaim (R41) sees one shape. Still the
+  owner's to change (ROADMAP.md, "Decisions owed").
+
+The measuring step this was built from: `docs/archive/UBUNTU-DESIGN.md`.
 
 Secure Boot per family is a fact to measure, not a promise. Fedora's shim
 is signed under Microsoft's third-party authority. Bazzite's kernel is

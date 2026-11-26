@@ -8,8 +8,7 @@
 //!   upgrade-prologue notify [--state-dir <dir>]       (RunOnce at sign-in, as the person)
 //!   upgrade-prologue abort  [--state-dir <dir>]
 //!   upgrade-prologue probe --stick <X:> [--state-dir <dir>]
-//!   upgrade-prologue facts --stick <X:> [--out <file>]   (read-only: what Get-PrologueFacts reads, for the side-by-side)
-//!   upgrade-prologue compare-facts <rust.json> <powershell.json>
+//!   upgrade-prologue facts --stick <X:> [--out <file>]   (read-only: the facts the prologue decides from, as JSON)
 //!   upgrade-prologue storage-mode start --stick <X:> [--bench] [--no-prompt] [--state-dir <dir>]   (RUN-STORAGE-MODE.cmd; V5)
 //!   upgrade-prologue storage-mode resume|notify|abort|safe-mode-sign-in [--state-dir <dir>]
 //!
@@ -31,7 +30,6 @@ fn usage() -> ExitCode {
     eprintln!("       upgrade-prologue windows-slot [--stick <X:>] [--state-dir <dir>]   (shim in Windows' slot, by hand; architecture step 12)");
     eprintln!("       upgrade-prologue guard [--state-dir <dir>]                (the kept Windows' startup task: shim back after servicing)");
     eprintln!("       upgrade-prologue facts --stick <X:> [--out <file>]");
-    eprintln!("       upgrade-prologue compare-facts <rust.json> <powershell.json>");
     eprintln!("       upgrade-prologue storage-mode start --stick <X:> [--bench] [--no-prompt] [--state-dir <dir>]   (the V5 both-modes harness)");
     eprintln!("       upgrade-prologue storage-mode resume|notify|abort|safe-mode-sign-in [--state-dir <dir>]");
     ExitCode::from(2)
@@ -201,44 +199,10 @@ fn run(_args: &[String]) -> ExitCode {
     ExitCode::from(2)
 }
 
-fn compare_facts(rust_path: &str, ps_path: &str) -> ExitCode {
-    let load = |p: &str| -> Result<serde_json::Value, String> { serde_json::from_str(std::fs::read_to_string(p).map_err(|e| format!("{p}: {e}"))?.trim_start_matches('\u{feff}')).map_err(|e| format!("{p}: {e}")) };
-    let (rust, ps) = match (load(rust_path), load(ps_path)) {
-        (Ok(a), Ok(b)) => (a, b),
-        (Err(e), _) | (_, Err(e)) => {
-            eprintln!("upgrade-prologue: {e}");
-            return ExitCode::from(2);
-        }
-    };
-    println!();
-    println!("  Rust:       {rust_path}   ({})", rust["Now"].as_str().unwrap_or(""));
-    println!("  PowerShell: {ps_path}   ({})", ps["Now"].as_str().unwrap_or(""));
-    println!();
-    let (differences, drifted) = upgrade_prologue::compare::differences(&rust["Facts"], &ps["Facts"]);
-    for d in &drifted {
-        println!("  drifted (allowed)  {d}");
-    }
-    if differences.is_empty() {
-        println!("  SAME: every fact the prologue re-validates and decides from, field for field.");
-        println!();
-        return ExitCode::SUCCESS;
-    }
-    println!("  DIFFERENT in {} places:", differences.len());
-    for d in &differences {
-        println!("  {d}");
-    }
-    println!();
-    ExitCode::from(1)
-}
-
 fn main() -> ExitCode {
     // no idle sleep while this program works (roadmap item 16, R33); ends with the process
     let _ = upgrade_scan::awake::hold();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.first().map(String::as_str) == Some("compare-facts") {
-        let (Some(a), Some(b)) = (args.get(1), args.get(2)) else { return usage() };
-        return compare_facts(a, b);
-    }
     if args.iter().any(|a| a == "--version") {
         println!("{}", upgrade_prologue::flow_version());
         return ExitCode::SUCCESS;

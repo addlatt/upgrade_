@@ -19,7 +19,7 @@
 
 use serde_json::Value;
 
-pub const GENERATOR_VERSION: &str = "0.5.0";
+pub const GENERATOR_VERSION: &str = "0.6.0";
 
 /// What gets installed: the disc's full desktop (`ubuntu-desktop` in its
 /// `casper/install-sources.yaml`), not the installer's default small one.
@@ -371,6 +371,10 @@ pub fn autoinstall(job: &Value, s: &Storage, program: &str, job_path: &str, driv
     l.push("  # offline: everything comes from the stick (architecture.md, \"Design constraints: offline\")".into());
     l.push("  apt: {fallback: offline-install, geoip: false}".into());
     l.push("  codecs: {install: false}".into());
+    // Decided (2026-11-24, the owner): Ubuntu's installer sets up the graphics driver from what its
+    // disc carries (NVIDIA's driver, signed by Ubuntu, so Secure Boot needs no key from the person).
+    // Decided (2026-11-25, the owner): only when the caller found an NVIDIA card the stick has a
+    // driver for. The installer's driver step fails the whole install if it fails (RISKS R47).
     l.push(format!("  drivers: {{install: {drivers}}}"));
     l.push("  refresh-installer: {update: false}".into());
     // Remote access is carried only if Windows had it on (job harvest.ssh). Ubuntu's small
@@ -531,6 +535,7 @@ mod tests {
         // nothing else differs, and nothing reaches the network for it
         assert_eq!(plain.replace("install: false}\n  refresh", "install: true}\n  refresh"), with);
         assert!(with.contains("apt: {fallback: offline-install, geoip: false}"));
+        assert!(!the_stick_file().contains("drivers"), "the stick's own file installs nothing");
     }
 
     #[test]

@@ -91,20 +91,6 @@
    "Materialized": 0,
    "Failed": 0,
    "Result": "none-found"
-  },
-  "Stick": {
-   "Error": "the drive was removed"
-  },
-  "StickFit": {
-   "FileSystem": "FAT32",
-   "ClusterBytes": 4096,
-   "FreeBytes": 1833394176,
-   "FilesBytes": 1400000000,
-   "NeededBytes": 1500000000,
-   "FilesOver4GiB": 0,
-   "Fits": true,
-   "GapBytes": 0,
-   "Reason": null
   }
  },
  "HarvestError": null,

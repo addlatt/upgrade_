@@ -268,8 +268,3 @@ pub fn text(f: &Facts) -> String {
 pub fn default_out(root: &Path, computer: &str) -> PathBuf {
     root.join("upgrade_").join("reports").join(format!("volume-diag-{computer}.txt"))
 }
-
-/// A local stamp as the facts carry it.
-pub fn local_text(t: &Stamp) -> String {
-    t.iso()
-}

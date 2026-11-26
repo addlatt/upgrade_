@@ -153,19 +153,9 @@ cp "$UPGRADE_EXE" "$(wslpath "$WINTMP")upgrade-window-probe.exe" || fail "could 
 timeout 60 powershell.exe -NoProfile -Command "\$p = Start-Process -FilePath '${WINTMP}upgrade-window-probe.exe' -ArgumentList '--version' -Wait -PassThru -WindowStyle Hidden; exit \$p.ExitCode" >/dev/null 2>&1 || fail "UPGRADE.exe does not start on Windows (--version)"
 rm -f "$(wslpath "$WINTMP")upgrade-window-probe.exe"
 step "UPGRADE.exe built, tests pass, starts on Windows"
-# the Rust port's binaries (RISKS R32, the cut-over): beside the scripts on
-# the stick until their ledger lines all read pass; the rig can be pointed at
-# them with PROLOGUE=rust (rig/hyperv/prologue.sh, v9.sh)
+# the Windows side's Rust programs (RISKS R32)
 RUST_EXES=$("$ROOT/build-rust.sh") || fail "the Rust binaries do not build (build-rust.sh)"
 step "Rust binaries built: $(echo "$RUST_EXES" | xargs -n1 basename | tr '\n' ' ')"
-
-# --- 4. parse-check under the PS 5.1 parser ----------------------------------
-parsecheck() {
-    local out
-    out=$(PS -Command "\$t=\$null;\$e=\$null;[void][System.Management.Automation.Language.Parser]::ParseFile('$(wslpath -w "$1")',[ref]\$t,[ref]\$e); if (\$e.Count) { \$e | ForEach-Object { \$_.Message }; exit 1 } else { 'parse-ok' }")
-    echo "$out" | grep -q 'parse-ok' || { echo "$out" >&2; fail "PS 5.1 parse error in $1"; }
-    step "parses under PS 5.1: $(basename "$1")"
-}
 
 # --- .cmd launchers: an unescaped ( or ) in an echo inside an if-block closes
 # the block early in cmd, and the lines after it run unconditionally. The
@@ -265,7 +255,7 @@ sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-go-back-to-windows.desktop" > "$D/
 # "Bring my files from Windows" (the pull, 2026-11-07): installed only on keep-Windows
 sed 's/\r$//' "$ROOT/settle-in/linux/upgrade_-bring-files.desktop" > "$D/upgrade_/settle-in/upgrade_-bring-files.desktop"
 # the desktops: Fedora's own live squashfs images, unmodified, one per
-# desktop the intent capture offers (rig/vm/fetch-desktops.sh). The
+# desktop the intent capture offers (rig/vm/fetch-release.sh). The
 # kickstart's liveimg line names one of them; the verify step reads it back
 # against SHA256SUMS in the live session before anything is installed.
 if [ "$RELEASE" != none ]; then
@@ -320,9 +310,9 @@ settle-in:        $SETTLE_IN_VERSION  $(sha256sum "$SETTLE_IN_BIN" | cut -c1-64)
 rust programs:    $(for e in upgrade-scan upgrade-harvest upgrade-job upgrade-prologue upgrade-fetch; do printf '%s %s  ' "$e.exe" "$(sha256sum "$D/$e.exe" | cut -c1-64)"; done)
 toolchain:        $("$ROOT/build-rust.sh" --toolchain)   (RISKS R14: rebuild-check.sh proves a second checkout gives these bytes)
 $RELEASE_LINES
-verified at build: the Rust product's tests pass; the two PowerShell
-                  holdovers' self-tests passed on Windows PowerShell 5.1 and
-                  parse under its parser; grubenv block 1024 B with GRUB header.
+verified at build: the Rust product's tests pass; the one PowerShell
+                  holdover's self-test passed on Windows PowerShell 5.1;
+                  grubenv block 1024 B with GRUB header.
 files (sha256):   SHA256SUMS in this folder - re-check with: sha256sum -c SHA256SUMS
 MANIFEST
 (cd "$D" && sha256sum -c --quiet SHA256SUMS) || fail "checksum re-verify failed in $D"

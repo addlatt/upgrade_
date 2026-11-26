@@ -82,7 +82,7 @@ fn every_refused_case_is_refused() {
     let cases: Vec<Value> = serde_json::from_str(include_str!("refused-cases.json")).unwrap();
     // check.py had 91 refused cases when this was written (2026-10-04); a
     // shorter list means the file was cut, not that the contract loosened
-    assert!(cases.len() >= 91, "refused-cases.json holds {} cases", cases.len());
+    assert!(cases.len() >= 89, "refused-cases.json holds {} cases", cases.len());
     let mut accepted = Vec::new();
     for c in &cases {
         let base = c["base"].as_str().unwrap();
@@ -113,7 +113,7 @@ fn a_document_is_only_handed_out_after_it_passed() {
 #[test]
 fn a_date_that_is_not_a_date_is_refused() {
     // stricter than check.py on a machine without Python's optional date
-    // library, where `format` is skipped (docs/RUST-PORT.md, "Differences")
+    // library, where `format` is skipped (docs/archive/RUST-PORT.md, "Differences")
     let mut out = example("outcome.keep-windows.json");
     let mut found = 0;
     fn poison(v: &mut Value, found: &mut u32) {

@@ -3,7 +3,7 @@
 //! leaves a capture behind (CLAUDE.md rule #5), and the judging half never
 //! touches the machine itself.
 //!
-//! Built one collector at a time (docs/RUST-PORT.md, step 3c). What is not
+//! Built one collector at a time (docs/archive/RUST-PORT.md, step 3c). What is not
 //! read yet is said, never guessed: `Collected::not_read` names it.
 //!
 //! The proof is side by side: `upgrade-scan --record` on a machine, the

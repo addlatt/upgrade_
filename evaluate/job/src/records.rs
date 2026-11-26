@@ -150,7 +150,7 @@ pub fn ssh(start_type: &Value, key_files: &Value, read_error: &str) -> Value {
 ///
 /// The order differs from PowerShell's on purpose: PowerShell sorts by the
 /// machine's language rules, this sorts by the lower-cased name, the same
-/// on every machine (docs/RUST-PORT.md, "Differences kept on purpose").
+/// on every machine (docs/archive/RUST-PORT.md, "Differences kept on purpose").
 pub fn software(desktop: &Value, store: &Value, cap: usize) -> Value {
     let text_or_null = |v: &Value| if truthy(v) { json!(s(v)) } else { Value::Null };
     let mut d: Vec<(String, Value)> = Vec::new();

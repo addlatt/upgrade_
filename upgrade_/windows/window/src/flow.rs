@@ -119,6 +119,9 @@ pub struct Choice {
     pub desktop: String,
     pub label: String,
     pub starts: Starts,
+    /// the first choice for this computer (decided 2026-11-24, the owner): it
+    /// has an NVIDIA graphics chip and this release sets its driver up itself
+    pub nvidia_pick: bool,
 }
 
 impl Choice {
@@ -131,6 +134,7 @@ impl Choice {
 /// each judged by the scan report's `Releases` list. A release the scan did
 /// not judge is greyed out too (unknown is a refusal, as in the job writer).
 pub fn choices(table: &str, report: Option<&Value>) -> Vec<Choice> {
+    let nvidia = has_nvidia(report) && stick_has_nvidia_driver(report);
     let offered = upgrade_fetch::plan::offered(table).unwrap_or_default();
     let judged = report.and_then(|r| r.get("Releases")).cloned().unwrap_or(Value::Null);
     let judged: Vec<Value> = match judged {
@@ -138,7 +142,7 @@ pub fn choices(table: &str, report: Option<&Value>) -> Vec<Choice> {
         o @ Value::Object(_) => vec![o],
         _ => vec![],
     };
-    offered
+    let mut out: Vec<Choice> = offered
         .into_iter()
         // only what this kit's fetch can carry: a release whose layout it does not know would refuse every time (code review 2026-11-08)
         .filter(|(id, _, desktop, _)| upgrade_fetch::plan::plan(table, id, desktop).is_ok())
@@ -156,9 +160,49 @@ pub fn choices(table: &str, report: Option<&Value>) -> Vec<Choice> {
                 }
                 _ => Starts::Unknown,
             };
-            Choice { id, name, desktop, label, starts }
+            let nvidia_pick = nvidia && starts == Starts::Yes && sets_up_nvidia(table, &id) && id.eq_ignore_ascii_case(&upgrade_scan::data::tables().nvidia.measured.release);
+            Choice { id, name, desktop, label, starts, nvidia_pick }
         })
-        .collect()
+        .collect();
+    // the first choice goes to the top; everything else keeps the table's order
+    out.sort_by_key(|c| !c.nvidia_pick);
+    out
+}
+
+/// Whether the scan found an NVIDIA graphics chip: a `Graphics` check that
+/// names one. Only that check is read, so "NVIDIA High Definition Audio"
+/// elsewhere in the report is not a graphics chip (RISKS R10).
+pub fn has_nvidia(report: Option<&Value>) -> bool {
+    let checks = report.and_then(|r| r.get("Checks")).and_then(Value::as_array).cloned().unwrap_or_default();
+    checks.iter().any(|c| {
+        let t = |k: &str| c.get(k).and_then(Value::as_str).unwrap_or("").to_lowercase();
+        t("Title") == "graphics" && t("Detail").contains("nvidia")
+    })
+}
+
+/// Whether the stick carries NVIDIA's own driver for a graphics chip the scan
+/// found (RISKS R47). The chip's id is read from the `Graphics` check's
+/// `[10de:dddd]` and looked up in the measured table, the one the installer
+/// itself reads. A chip no package lists gets no driver on any release, so
+/// no release is the first choice for it.
+pub fn stick_has_nvidia_driver(report: Option<&Value>) -> bool {
+    let checks = report.and_then(|r| r.get("Checks")).and_then(Value::as_array).cloned().unwrap_or_default();
+    checks.iter().any(|c| {
+        let t = |k: &str| c.get(k).and_then(Value::as_str).unwrap_or("").to_lowercase();
+        t("Title") == "graphics" && t("Detail").split("[10de:").skip(1).any(|rest| rest.split(']').next().is_some_and(|d| upgrade_scan::data::tables().nvidia.branch_for(d).is_some()))
+    })
+}
+
+/// Whether a release's install sets up NVIDIA's own driver with nothing for
+/// the person to do, Secure Boot on. Today that is Ubuntu's installer alone:
+/// its disc carries the driver signed by Ubuntu (measured 2026-11-24) and
+/// the installer asks for it for a card the stick has a driver for (R47).
+/// Fedora's needs a key approved by hand at the next start, which is not built.
+pub fn sets_up_nvidia(table: &str, id: &str) -> bool {
+    let t: Value = serde_json::from_str(table).unwrap_or(Value::Null);
+    t["Releases"].as_array().is_some_and(|a| {
+        a.iter().any(|r| r["Id"].as_str().is_some_and(|x| x.eq_ignore_ascii_case(id)) && r["Family"] == "ubuntu" && r["Installer"] == "autoinstall")
+    })
 }
 
 /// How this computer's main drive is shared out on each path, in whole GB
@@ -756,6 +800,37 @@ mod tests {
         assert!(choices(table, Some(&json!({"Releases": []}))).iter().all(|c| c.starts == Starts::Unknown), "not judged: greyed out");
         let other = table.replace("\"Family\": \"fedora\"", "\"Family\": \"bazzite\"").replace("\"Family\": \"ubuntu\"", "\"Family\": \"arch\"");
         assert!(choices(&other, Some(&yes)).is_empty(), "a layout the fetch cannot carry is not offered, even when the scan says it starts");
+        assert!(choices(table, Some(&yes)).iter().all(|c| !c.nvidia_pick), "no NVIDIA chip: no first choice, the table's order");
+    }
+
+    #[test]
+    fn with_an_nvidia_chip_ubuntu_is_the_first_choice() {
+        // decided 2026-11-24, the owner
+        let table = upgrade_scan::data::RELEASES_JSON;
+        let releases = json!([{"Id": "fedora-45", "Starts": "yes"}, {"Id": "ubuntu-26.04.1", "Starts": "yes"}]);
+        let gpu = json!({"Section": "Hardware", "Title": "Graphics", "Status": "warn", "Detail": "NVIDIA GeForce RTX 4060 Laptop [10de:28e0] - driver nvidia (proprietary)"});
+        let with = json!({"Releases": releases, "Checks": [gpu]});
+        let c = choices(table, Some(&with));
+        assert!(c[0].id.starts_with("ubuntu") && c[0].nvidia_pick, "Ubuntu first: {c:?}");
+        assert!(c.iter().filter(|c| !c.id.starts_with("ubuntu")).all(|c| !c.nvidia_pick), "Fedora is not marked");
+        let plain = choices(table, Some(&json!({"Releases": releases})));
+        let rest = |v: &[Choice]| v.iter().filter(|c| !c.nvidia_pick).map(|c| (c.id.clone(), c.desktop.clone())).collect::<Vec<_>>();
+        assert_eq!(rest(&c), rest(&plain).into_iter().filter(|(id, _)| !id.starts_with("ubuntu")).collect::<Vec<_>>(), "the others keep their order");
+        // only a graphics chip counts (R10): NVIDIA's sound device alone is not one
+        let audio = json!({"Section": "Hardware", "Title": "Audio", "Status": "ok", "Detail": "NVIDIA High Definition Audio"});
+        assert!(!has_nvidia(Some(&json!({"Checks": [audio]}))));
+        assert!(choices(table, Some(&json!({"Releases": releases, "Checks": [audio]}))).iter().all(|c| !c.nvidia_pick));
+        // a release this computer cannot start is never the first choice
+        let no = json!({"Releases": [{"Id": "fedora-45", "Starts": "yes"}, {"Id": "ubuntu-26.04.1", "Starts": "no", "Why": ["x"]}], "Checks": [gpu]});
+        let c = choices(table, Some(&no));
+        assert!(c.iter().all(|c| !c.nvidia_pick) && c[0].id == "fedora-45", "{c:?}");
+        assert!(sets_up_nvidia(table, "ubuntu-26.04.1") && !sets_up_nvidia(table, "fedora-45") && !sets_up_nvidia(table, "nothing"));
+        // a chip the stick carries no driver for (a GTX 650): Ubuntu would keep the built-in driver too, so nothing is first (R47)
+        let old = json!({"Section": "Hardware", "Title": "Graphics", "Status": "warn", "Detail": "NVIDIA GeForce GTX 650 [10de:0fc6] - driver nvidia (proprietary)"});
+        assert!(choices(table, Some(&json!({"Releases": releases, "Checks": [old]}))).iter().all(|c| !c.nvidia_pick));
+        // a GTX 1060 is in the older branch the stick carries
+        let gtx = json!({"Section": "Hardware", "Title": "Graphics", "Status": "warn", "Detail": "NVIDIA GeForce GTX 1060 6GB [10de:1c03] - driver nvidia (proprietary)"});
+        assert!(choices(table, Some(&json!({"Releases": releases, "Checks": [gtx]})))[0].nvidia_pick);
     }
 
     #[test]
@@ -778,7 +853,7 @@ mod tests {
 
     #[test]
     fn the_fetch_and_the_desktops_follow_the_choice() {
-        let c = Choice { id: "fedora-45".into(), name: "Fedora 45".into(), desktop: "gnome".into(), label: "GNOME".into(), starts: Starts::Yes };
+        let c = Choice { id: "fedora-45".into(), name: "Fedora 45".into(), desktop: "gnome".into(), label: "GNOME".into(), starts: Starts::Yes, nvidia_pick: false };
         let f = fetch_call("E:", &c, None);
         assert_eq!(f.program, "E:\\upgrade-fetch.exe");
         assert_eq!(f.args, ["get", "--release", "fedora-45", "--desktop", "gnome"]);
