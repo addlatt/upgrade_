@@ -242,6 +242,17 @@ owner): Fedora alone first, Bazzite once V16 holds; the program is already
 on the stick. Built 2026-11-08; Ubuntu offered since 2026-11-13.
 Proves: R44, V17, R31, R34, V12, V14. Stands: see [STATUS.md](STATUS.md).
 
+## 25. Fedora: NVIDIA's driver, offered by settle-in
+
+Decided (2026-11-24, the owner): on Fedora, settle-in offers NVIDIA's own
+driver at first start, never by itself. It fetches and builds it (RPM
+Fusion; the internet is needed), makes the key, and shows the one firmware
+screen where a person approves it, with the password to type; the next start
+checks the driver loaded. Ubuntu stays first for these machines (R10). The
+key step is Bazzite's, built once. Owed: a risk of its own the day it is
+built; the Aspire (MX150), by hand. Waits on: the kernel table work and the
+G16's open rows. Proves: R10, R42, V16. Stands: see [STATUS.md](STATUS.md).
+
 ## Decisions owed
 
 The owner's open calls, one line each, naming what waits on them. When one

@@ -307,10 +307,22 @@ rather than structured data.
 device on the test machine. The moment any check prints device names into
 `Detail`, distro recommendations change silently.
 
+**Decided (2026-11-24, the owner): on a computer with an NVIDIA graphics
+chip, Ubuntu is the picker's first choice.** Ubuntu signs NVIDIA's driver and
+carries it on its disc, so its installer sets it up offline with Secure Boot
+on (`upgrade-autoinstall` 0.5.0, `drivers: {install: true}`). Fedora's needs
+a key approved by hand at the next start (as R42), which is not built, so
+Fedora runs the chip on the open driver. Nothing is chosen for the person,
+and a release the computer cannot start is never first. This raises the
+stakes of a wrong match from a line in a report to the order of the picker,
+so the window reads the `Graphics` check alone, never every check.
+
 **Closes when.** Checks carry a structured vendor field and the
 recommendation reads that instead of display text.
 
-**Where it stands.** `[#...]` planned. Nothing built. No log entry yet.
+**Where it stands.** `[#...]` planned for the scanner. The window's own read
+and the first choice are built, untried:
+[log](log/2026-11.md#2026-11-24-with-an-nvidia-chip-ubuntu-is-the-first-choice-the-owners-decision-r10-r31-r42-v18-roadmap-items-23-and-24).
 
 ## R11: Secure Boot check verifies nothing · low · planned
 

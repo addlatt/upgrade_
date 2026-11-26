@@ -202,9 +202,8 @@ the R23 sentence lifts neither. The job writer reads `release.json` on the stick
 and refuses a release the scan did not find startable (no, unknown, or not
 judged). A new release or distribution is a table entry, measured from its
 files, never typed; one without a Microsoft-signed shim (Arch, so Omarchy,
-today) is still worth an entry, and the scanner then says plainly that it cannot
-start with Secure Boot on. Installing it also needs installer automation of its
-own (today Fedora's kickstart and Ubuntu's autoinstall exist) and a rig run.
+today) is still worth an entry, and the scanner then says it cannot start with
+Secure Boot on. Installing it also needs its own installer automation and a rig run.
 
 ---
 

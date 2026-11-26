@@ -19,7 +19,7 @@
 
 use serde_json::Value;
 
-pub const GENERATOR_VERSION: &str = "0.4.0";
+pub const GENERATOR_VERSION: &str = "0.5.0";
 
 /// What gets installed: the disc's full desktop (`ubuntu-desktop` in its
 /// `casper/install-sources.yaml`), not the installer's default small one.
@@ -367,7 +367,10 @@ pub fn autoinstall(job: &Value, s: &Storage, program: &str, job_path: &str) -> R
     l.push("  # offline: everything comes from the stick (architecture.md, \"Design constraints: offline\")".into());
     l.push("  apt: {fallback: offline-install, geoip: false}".into());
     l.push("  codecs: {install: false}".into());
-    l.push("  drivers: {install: false}".into());
+    // Decided (2026-11-24, the owner): Ubuntu's installer sets up the graphics driver. It looks
+    // at this machine's own hardware and installs what its disc carries for it (NVIDIA's driver,
+    // signed by Ubuntu, so Secure Boot needs no key from the person). No such hardware, nothing added.
+    l.push("  drivers: {install: true}".into());
     l.push("  refresh-installer: {update: false}".into());
     // Remote access is carried only if Windows had it on (job harvest.ssh). Ubuntu's small
     // desktop has no SSH server (the full one is not measured for it), so the installer adds it from the stick's own packages;
@@ -502,6 +505,17 @@ mod tests {
             assert!(text.contains("\n  source: {id: ubuntu-desktop}\n"), "{text}");
             assert!(!text.contains("ubuntu-desktop-minimal"));
         }
+    }
+
+    #[test]
+    fn the_installer_sets_up_the_graphics_driver_from_the_stick() {
+        // decided 2026-11-24, the owner; still offline, and codecs stay off
+        for (j, s) in [(job(), erase()), (keep_job(), beside())] {
+            let text = autoinstall(&j, &s, "/tmp/upgrade-installer", "/cdrom/upgrade_/job.json").unwrap();
+            assert!(text.contains("\n  drivers: {install: true}\n") && text.contains("\n  codecs: {install: false}\n"), "{text}");
+            assert!(text.contains("\n  apt: {fallback: offline-install, geoip: false}\n"));
+        }
+        assert!(!the_stick_file().contains("drivers"), "the stick's own file installs nothing");
     }
 
     #[test]
