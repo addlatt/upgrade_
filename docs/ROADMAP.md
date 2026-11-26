@@ -24,7 +24,7 @@ Done before the numbering began (all `[####]` in `STATUS.md`): the handoff
 on a real machine (V0), the schemas, kickstart generator, stick writer and
 image read-back (R16, R17), the disk check, shrink, handoff, alongside
 install and undo on the rig (R18, R21), the walk-away resume (R24), the
-folder map and the stick-fit gate (R5, R6).
+folder map (R5, R6) and the stick-fit gate (removed 2026-11-26).
 
 ## 0. One-click erase and install
 
@@ -252,8 +252,8 @@ is decided, the dated line goes in its home and the item here is removed.
   clauses it still names.
 - Whether R34's release check (held on the Aspire 2026-10-04) meets R11's
   closing clause, or R11's wording still promises more than it verifies.
-- R8's closing clause (`-Materialize` against a signed-in client) predates
-  the 2026-09-26 decision not to download; what clause replaces it.
+- R8's closing clause named a download step, and R4's a clean-slate stick
+  gate; both left the code on 2026-11-26. Close them, or what replaces each.
 - R12's "What" still describes imaging a disk, a design that is gone; the wording.
 - The words shown to people are drafts awaiting approval: the erase
   launcher's "If you change your mind later", `UPGRADE.exe`'s screens (R31),

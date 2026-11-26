@@ -1,19 +1,19 @@
 //! upgrade-harvest (Rust): the harvester's program, following
 //! `evaluate/windows/Harvest-UpgradeState.ps1`.
 //!
-//!   upgrade-harvest folder-map --out <file> [--stick <drive>] [--materialize] [--timeout <seconds>]
+//!   upgrade-harvest folder-map --out <file>
 //!       the folder map the job writer reads (what -FolderMapOut writes):
-//!       the user folders with their sizes, their cloud placeholders, whose
-//!       folders they are and, with --stick, whether they fit the stick.
-//!       Exit 3 when the cloud step refused, as the script does.
+//!       the user folders with their sizes, their cloud placeholders and
+//!       whose folders they are.
 //!
-//! Read-only, except --materialize, which no launcher passes.
+//! Read-only. Nothing is downloaded and the stick is not read (the
+//! --materialize and --stick options left on 2026-11-26).
 
 use std::process::ExitCode;
 
 fn usage() -> ExitCode {
     eprintln!("upgrade-harvest {} (Rust; follows Harvest-UpgradeState.ps1 {})", env!("CARGO_PKG_VERSION"), upgrade_harvest::FOLLOWS_HARVESTER);
-    eprintln!("usage: upgrade-harvest folder-map --out <file> [--stick <drive>] [--materialize] [--timeout <seconds>]");
+    eprintln!("usage: upgrade-harvest folder-map --out <file>");
     ExitCode::from(2)
 }
 
@@ -24,9 +24,8 @@ fn folder_map(args: &[String]) -> ExitCode {
         eprintln!("give --out <file> - where the folder map goes");
         return ExitCode::from(2);
     };
-    let timeout = value_of("--timeout").and_then(|t| t.parse().ok()).unwrap_or(600);
     let (_, now) = upgrade_scan::collect::now();
-    let (map, refused) = upgrade_harvest::live::folder_map(value_of("--stick").as_deref(), args.iter().any(|a| a == "--materialize"), timeout, &now);
+    let (map, refused) = upgrade_harvest::live::folder_map(&now);
     if let Err(e) = std::fs::write(&out, serde_json::to_string_pretty(&map).unwrap_or_default() + "\n") {
         eprintln!("upgrade-harvest: cannot write {out}: {e}");
         return ExitCode::from(2);

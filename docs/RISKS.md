@@ -147,10 +147,11 @@ which the scanner alone cannot work out.
 (from `Get-PartitionSupportedSize`), nobody is told to buy an external
 drive, and low free space is no longer RED. That removed the dangerous
 contradiction, which is why the severity came down to medium. The numbers
-side is the folder map's stick-fit gate (harvester 0.3.0, job writer
-0.10.0, 2026-09-26; R5, R6), measured on the G16 and the Aspire
-(`harvest-folder-map.csv` lines 2 to 4) but with its refusal unfired on a
-physical job.
+side was the folder map's stick-fit gate (2026-09-26; R5, R6), measured on
+the G16 and the Aspire (`harvest-folder-map.csv` lines 2 to 4). Its refusal
+never fired on a physical job, and it left the code on 2026-11-26 (the
+owner): no path puts files on the stick, so the closing clause's
+clean-slate gate has nothing to gate.
 [log](log/2026-08.md#2026-08-22-the-scanners-disk-wording-reworked-r4)
 
 ## R5: Single-user assumption · high · built
@@ -248,26 +249,26 @@ time, only copied empty.
 
 **Decided (2026-09-26, the owner):** online-only files are not downloaded;
 `settle-in` reconnects OneDrive. Their bytes already live in OneDrive, so
-leaving them there loses nothing. Job writer 0.11.0 records
-`cloud_files.result = left-in-cloud` and the count per folder, and says at
-job time that they stay in OneDrive. The loss this risk names was only ever
-copying the 0-byte stub as if it were the file.
+leaving them there loses nothing. The job records `cloud_files.result =
+left-in-cloud` and the count per folder. The loss this risk names was only
+ever copying the 0-byte stub as if it were the file.
 
-**Closes when.** `Test-Materialize.ps1 -OneDrive` passes against a signed-in
-OneDrive with Files On-Demand: the client's own stub and download behaviour,
-its response to `attrib +P`, and a fetch stalled by the network, which no
-test provider can stand in for (rule #5). The harness uploads a few MB to
-the account and is only ever run on a machine the person owns.
+**Decided (2026-11-26, the owner):** the download code leaves, unused since
+the decision above (`git show 14c0e5a:evaluate/harvest/src/folders.rs`).
 
-**Where it stands.** `[##..]` built. The harvester's `-Materialize` (pin,
-read through, three-fact verification, refuse on any failure) is
-`pass-plumbing` against a real Cloud Files API test provider on the rig and
-the G16 (`v8-materialize.csv` lines 4 and 5, 2026-09-08). It stays built
-and unused by the launchers. The residue moved to `settle-in`, none of it
-built: how a placeholder looks through ntfs-3g (never read), whether a
+**Closes when.** The clause written here named a harness and a download
+step that are both gone. What replaces it is the owner's call
+(`ROADMAP.md`, "Decisions owed"). Until then the residue stands: a real,
+signed-in OneDrive folder read by `settle-in`'s pull.
+
+**Where it stands.** `[##..]` built. The download step was `pass-plumbing`
+against a real Cloud Files API test provider on the rig and the G16
+(`v8-materialize.csv` lines 4 and 5, 2026-09-08) before it was removed.
+What protects a person now is `settle-in`'s pull, which copies no
+placeholder (held on the rig, `v3-pull.csv` line 5, R43). Never tried: a
+placeholder made by a real OneDrive client read from Linux, and whether a
 work-or-school OneDrive (the Aspire's is a university's) lets a Linux
-client sign in, and the clean-slate staging skipping stubs instead of
-copying them. Log:
+client sign in. Log:
 [design](log/2026-08.md#2026-08-22-materialize-or-refuse-and-the-detection-arm-tested-r8),
 [plumbing](log/2026-09.md#2026-09-08-materialization-built-and-its-plumbing-fired-r8-v8),
 [in the job](log/2026-09.md#2026-09-26-online-only-files-recorded-in-the-job-and-left-in-the-cloud-r8).
@@ -850,8 +851,10 @@ checksums, and the "does not fit" and "stick drops" paths refusing before the
 wipe. Then one physical row on a machine whose owner chose to lose Windows,
 plus evidence of the folder map's coverage on real machines.
 
-**Where it stands.** `[#...]` designed, not built. The harvest half exists
-(job writer 0.10.0, `harvest.stick_fit`; `harvest-folder-map.csv`): the
+**Where it stands.** `[#...]` designed, not built. The harvest half (the
+stick-fit sum, `harvest.stick_fit`) was built on 2026-09-26 and removed on
+2026-11-26 (the owner), unread by any program; the offer needs it written
+again. What it measured stays in `harvest-folder-map.csv`: the
 Aspire's six folders hold 16.6 GB in 35,351 files, one of 5.9 GB, so on the
 8 GB FAT32 stick the offer would not be made; 70 GB sits outside the map (a
 Docker disk, a WSL Ubuntu disk with the person's Linux files). Waits on:

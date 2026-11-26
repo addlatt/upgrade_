@@ -532,11 +532,11 @@ bytes, and the person finds out later. This is the trust-ending class.
 in OneDrive, where their bytes already are. The job records them
 (`cloud_files.result = left-in-cloud`) and `settle-in` reconnects OneDrive.
 The danger left is copying a stub as if it were the file, and that is
-`settle-in`'s to refuse (R8). The materializer stays built, unused by the
-launchers.
+`settle-in`'s to refuse (R8). The materializer (the download step) left
+the code on 2026-11-26 (the owner); its rows stay.
 
 **What passes.** No cloud-only stub survives into the pulled data as a
-0-byte file. For the materializer: a `v8-materialize.csv` row reads
+0-byte file. For the materializer, while it existed: a `v8-materialize.csv` row reads
 `pass-plumbing` when every placeholder was detected, pinned, read through,
 and the NTFS bytes afterwards hash to the known content, with a refusal on
 any failure; the pinned and unpinned attribute bits (`0x00080000` /

@@ -119,7 +119,7 @@ full to keep Windows stops; its offer is roadmap item 8 (R26).
   R8). **Decided (2026-09-26, the owner's call):** they are not downloaded.
   `evaluate` counts them per folder and records `cloud_files.result =
   left-in-cloud`; `settle-in` skips them and reconnects OneDrive instead. (The
-  harvester's `--materialize`, which downloads them, stays built and unused.)
+  harvester's download step left the code on 2026-11-26.)
 - **Which Windows this was, and how it was activated** (decided 2026-09-27, the
   owner; RISKS R30), for the way back. `harvest.windows_license` records the
   edition (Home or Pro), 10 or 11 (from the build number: Windows 11 still calls
@@ -490,12 +490,12 @@ unmodified. There is no image of our own making. An Ubuntu stick carries its
 ISO's own files the same way (`upgrade-fetch`).
 
 `evaluate` works out what the stick must hold (the live image and the
-artifacts) and refuses a stick that cannot hold it. `harvest.stick_fit` still
-records whether the person's folders would fit the stick, sized the way staging
-laid them down: each file rounded up to the volume's clusters (the smallest
-block the file system hands out), plus the directories and the manifest, plus
-64 MB; a FAT32 volume never fits a file over 4 GB. Nothing reads it since
-staging left the code (2026-10-17). It is kept for the discard offer (R26).
+artifacts) and refuses a stick that cannot hold it. Whether the person's
+folders would fit the stick is no longer worked out. **Decided (2026-11-26,
+the owner): `harvest.stick_fit` leaves the job, with the sum behind it and
+the refusal when the stick's free space could not be read.** Nothing had read
+it since staging left the code (2026-10-17). The discard offer (R26) will
+need it written again if it is ever built.
 
 ## Erase and install: the one-click fresh start
 
