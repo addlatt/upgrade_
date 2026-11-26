@@ -5,7 +5,7 @@
 //!                     --desktop kde|gnome --start-at desktop|console
 //!                     [--password-hash-file <file>] [--if-cannot-keep stop]
 //!                     [--acknowledge-data-loss "<sentence>"] [--erase-everything "<sentence>"]
-//!                     [--verify-only] [--materialize] [--linux-name <name>]
+//!                     [--verify-only] [--linux-name <name>]
 //!                     [--kickstart <file> --stick-label <label> --manifest <SHA256SUMS>]
 //!       read this machine, judge, write job.json (only as a document that
 //!       passed the contract), the Wi-Fi password files and, when asked,
@@ -55,7 +55,7 @@ mod on_windows {
         let value_of = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned();
         let scan = value_of("--scan").map(PathBuf::from);
         let stick = value_of("--stick");
-        let f = match live::job_facts(scan.as_deref(), stick.as_deref(), false) {
+        let f = match live::job_facts(scan.as_deref(), stick.as_deref()) {
             Ok(f) => f,
             Err(e) => {
                 eprintln!("upgrade-job: {e}");
@@ -181,7 +181,7 @@ mod on_windows {
             }
         }
         let scan_dir = value_of("--scan").map(PathBuf::from);
-        let facts = match live::job_facts(scan_dir.as_deref(), Some(&stick), has("--materialize")) {
+        let facts = match live::job_facts(scan_dir.as_deref(), Some(&stick)) {
             Ok(f) => f,
             Err(e) => {
                 eprintln!("upgrade-job: {e}");

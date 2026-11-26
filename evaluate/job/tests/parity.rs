@@ -187,7 +187,7 @@ fn every_call_matches_powershell() {
 #[test]
 fn the_self_test_is_all_here() {
     let n = cases().iter().filter(|c| c["origin"] == "selftest").count();
-    assert!(n >= 115, "only {n} self-test cases in cases.json");
+    assert!(n >= 113, "only {n} self-test cases in cases.json");
 }
 
 /// A job this code writes passes the contract, when its facts are real

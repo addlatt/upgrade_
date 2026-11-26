@@ -61,16 +61,6 @@ module that finds an invalid document stops:
   and `settle-in` must skip them and reconnect OneDrive, never copy the
   stubs. "Refused" is not a result you can write: a refusal at `evaluate`
   produces no job at all.
-- **A clean slate must fit the stick** (decided 2026-09-26, RISKS R26).
-  `harvest.stick_fit` is required on every job. It records the stick
-  volume's filesystem, cluster size and free bytes; the folders' bytes;
-  what they need on that volume (cluster-rounded files, directories and
-  manifest, or bytes × 1.02 if that is larger, plus 64 MB); files over
-  4 GB (FAT32 cannot hold one); `fits`; and the gap.
-  `intent.path = clean-slate` requires `fits = true`. A keep-windows job
-  records it for the discard offer. The schema still asks for all of this,
-  but no program reads `stick_fit` today: the erase path carries no files
-  (decided 2026-11-02) and the discard offer is not built (RISKS R26).
 - **No truncated sizing** (RISKS R6), **no undetermined BitLocker state**
   (decided 2026-09-07), **no legacy BIOS**, **no unelevated run**.
 - **The software inventory is private by where it lives** (decided

@@ -103,7 +103,7 @@ happened, run by run: `docs/log/`.
 
 Three modules, split on **commitment** (can this step still be undone?), not on OS.
 `evaluate` (Windows, read-only) scans, harvests what only Windows can give (the
-folder map, materialized cloud files, firmware, the BitLocker key), captures intent,
+folder map, firmware, the BitLocker key), captures intent,
 writes the stick, and refuses. `upgrade_` (the converter; Windows → Linux) does the
 move. The person is asked, as equals (decided 2026-11-23, the owner): shrink Windows aside and install Linux alongside, keeping
 Windows as a rollback, or erase everything instead, carrying

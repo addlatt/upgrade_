@@ -3213,7 +3213,7 @@ dependencies = [
 
 [[package]]
 name = "upgrade-harvest"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "regress",
  "roxmltree",
@@ -3224,7 +3224,7 @@ dependencies = [
 
 [[package]]
 name = "upgrade-job"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "regress",
  "roxmltree",

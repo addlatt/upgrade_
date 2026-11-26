@@ -407,7 +407,7 @@ pub fn export_wifi(out_dir: &Path) -> Result<Value, String> {
 
 /// Get-JobFacts. `scan_dir`: the reports folder; `stick_drive`: the
 /// stick's letter (`E:`). An error is what the script would have thrown.
-pub fn job_facts(scan_dir: Option<&Path>, stick_drive: Option<&str>, materialize: bool) -> Result<Value, String> {
+pub fn job_facts(scan_dir: Option<&Path>, stick_drive: Option<&str>) -> Result<Value, String> {
     let cimv2 = Wmi::connect(CIMV2).ok();
     let storage = storage_wmi().ok();
     let mut f = serde_json::Map::new();
@@ -591,7 +591,7 @@ pub fn job_facts(scan_dir: Option<&Path>, stick_drive: Option<&str>, materialize
     f.insert("Ssh".into(), ssh_facts(cimv2.as_ref()));
     f.insert("InputTip".into(), json!(input_tip()));
     f.insert("Software".into(), software());
-    let (map, _) = upgrade_harvest::live::folder_map(stick_drive, materialize, 600, &collect::now().1);
+    let (map, _) = upgrade_harvest::live::folder_map(&collect::now().1);
     f.insert("Harvest".into(), map);
     f.insert("HarvestError".into(), Value::Null);
     let user = std::env::var("USERNAME").unwrap_or_default();
@@ -687,12 +687,8 @@ pub fn summary_lines(j: &Value, facts: &Value, job_path: &Path, verify_only: boo
         let od = if truthy(at(fo, "is_onedrive")) { "  (OneDrive)" } else { "" };
         l.push(format!("    {:<10} {:>8} GB  {:>7} files{od}  {}", s(at(fo, "name")), fmt_n(vint(at(fo, "bytes")) as f64 / GB, 2), vint(at(fo, "files")), s(at(fo, "path"))));
     }
-    let sf = at(j, "harvest.stick_fit");
-    let fit = if truthy(at(sf, "fits")) { "they fit".to_string() } else { format!("they do not fit: {}", s(at(facts, "Harvest.StickFit.Reason"))) };
-    l.push(format!("  on the stick they would need {} GB; it has {} GB free ({}) - {fit}", fmt_n(vint(at(sf, "needed_bytes")) as f64 / GB, 2), fmt_n(vint(at(sf, "free_bytes")) as f64 / GB, 2), s(at(sf, "filesystem"))));
     match st("harvest.cloud_files.result").as_str() {
         "left-in-cloud" => l.push(format!("  OneDrive: {} online-only file(s) stay in OneDrive; they are not copied - after the conversion, sign in to OneDrive to reach them", st("harvest.cloud_files.placeholders_found"))),
-        "materialized" => l.push(format!("  OneDrive: {} online-only file(s) downloaded and kept on this device", st("harvest.cloud_files.materialized"))),
         _ => {}
     }
     let others: Vec<String> = at(facts, "Harvest.Owner.OtherProfiles").as_array().into_iter().flatten().map(|o| s(at(o, "Path"))).collect();

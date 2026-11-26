@@ -55,11 +55,11 @@ The order of what comes next: `ROADMAP.md`.
 |---|---|---|---|---|
 | R1 | VMD detection has never fired on real hardware | `[###.]` held-on-rig | `v5-controller-mode.csv` line 2, `warn-rst-on-ahci` (the AHCI direction only) | a machine in RST RAID or VMD mode |
 | R2 | two-machine test corpus | `[##..]` built | none yet (captures: the G16, the Aspire, one spoof) | spread across vendors (V7) |
-| R4 | scanner and converter contradict each other | `[##..]` built | none yet | the stick-fit numbers fired on a job |
+| R4 | scanner and converter contradict each other | `[##..]` built | none yet | the stick-fit gate left the code (2026-11-26); whether that closes it is the owner's call |
 | R5 | single-user assumption | `[##..]` built | none yet | the refusal fired on a machine with other profiles; reclaim's refusal |
 | R6 | truncated sizing undersizes the backup | `[##..]` built | none yet | the refusal fired for real |
 | R7 | Broadcom fallback over-refuses | `[#...]` planned | none yet | a Broadcom machine |
-| R8 | cloud-only files copied as stubs | `[##..]` built | `v8-materialize.csv` line 5, `pass-plumbing` (materializer, unused) | the pull held on the rig, `v3-pull.csv` line 5 (2026-11-07: no stub copied, the downloaded files copied, R43); a signed-in OneDrive |
+| R8 | cloud-only files copied as stubs | `[##..]` built | `v8-materialize.csv` line 5, `pass-plumbing` (materializer, removed 2026-11-26) | the pull held on the rig, `v3-pull.csv` line 5 (2026-11-07: no stub copied, the downloaded files copied, R43); a signed-in OneDrive |
 | R9 | no CI; the kit can drift | `[#...]` planned | none yet (no `.github/`, audit 2026-11-01) | a workflow running `./port-check.sh`; the settle-in window's test, in neither `port-check.sh` nor `make-kit.sh` |
 | R10 | NVIDIA detection matches display text | `[#...]` planned | none yet | a PCI-ID match |
 | R11 | the Secure Boot check verifies nothing | `[#...]` planned | none yet | the owner's call whether R34's check meets this clause |

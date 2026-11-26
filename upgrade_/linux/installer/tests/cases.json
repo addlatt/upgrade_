@@ -164,16 +164,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -561,16 +551,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -962,16 +942,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -1369,16 +1339,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -1772,16 +1732,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -2145,16 +2095,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -2524,16 +2464,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -2928,16 +2858,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -3324,16 +3244,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -3722,16 +3632,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -4153,16 +4053,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -4559,16 +4449,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -4960,16 +4840,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -5364,16 +5234,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -5771,16 +5631,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -6172,16 +6022,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -6518,16 +6358,6 @@
      "failed": 0,
      "result": "none-found"
     },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
-    },
     "browsers": [],
     "wifi": {
      "result": "no-wireless",
@@ -6804,16 +6634,6 @@
      "failed": 0,
      "result": "none-found"
     },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
-    },
     "browsers": [],
     "wifi": {
      "result": "no-wireless",
@@ -7084,16 +6904,6 @@
      "materialized": 0,
      "failed": 0,
      "result": "none-found"
-    },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
     },
     "browsers": [],
     "wifi": {
@@ -7408,16 +7218,6 @@
      "failed": 0,
      "result": "none-found"
     },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
-    },
     "browsers": [],
     "wifi": {
      "result": "exported",
@@ -7712,16 +7512,6 @@
      "materialized": 0,
      "failed": 0,
      "result": "none-found"
-    },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
     },
     "browsers": [],
     "wifi": {
@@ -8027,16 +7817,6 @@
      "materialized": 0,
      "failed": 0,
      "result": "none-found"
-    },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
     },
     "browsers": [],
     "wifi": {
@@ -8351,16 +8131,6 @@
      "materialized": 0,
      "failed": 0,
      "result": "none-found"
-    },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
     },
     "browsers": [],
     "wifi": {
@@ -8711,16 +8481,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -9097,16 +8857,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -9494,16 +9244,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -9867,16 +9607,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -10268,16 +9998,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -10758,16 +10478,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -11240,16 +10950,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -11730,16 +11430,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -12171,16 +11861,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -12660,16 +12340,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -13153,16 +12823,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -13645,16 +13305,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -14135,16 +13785,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -14532,16 +14172,6 @@
      "materialized": 0,
      "failed": 0,
      "result": "none-found"
-    },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
     },
     "browsers": [],
     "wifi": {
@@ -14933,16 +14563,6 @@
      "failed": 0,
      "result": "none-found"
     },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
-    },
     "browsers": [],
     "wifi": {
      "result": "exported",
@@ -15318,16 +14938,6 @@
      "materialized": 0,
      "failed": 0,
      "result": "none-found"
-    },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
     },
     "browsers": [],
     "wifi": {
@@ -15727,16 +15337,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -16217,16 +15817,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -16653,16 +16243,6 @@
      "materialized": 0,
      "failed": 0,
      "result": "none-found"
-    },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
     },
     "browsers": [],
     "wifi": {
@@ -17107,16 +16687,6 @@
      "materialized": 41,
      "failed": 0,
      "result": "materialized"
-    },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
     },
     "browsers": [
      {
@@ -17598,16 +17168,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -18087,16 +17647,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -18574,16 +18124,6 @@
      "failed": 0,
      "result": "materialized"
     },
-    "stick_fit": {
-     "filesystem": "FAT32",
-     "cluster_bytes": 4096,
-     "free_bytes": 1833394176,
-     "files_bytes": 29726081024,
-     "needed_bytes": 30387711509,
-     "files_over_4gib": 0,
-     "fits": false,
-     "gap_bytes": 28554317333
-    },
     "browsers": [
      {
       "name": "Firefox",
@@ -19009,16 +18549,6 @@
      "failed": 0,
      "result": "none-found"
     },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
-    },
     "browsers": [],
     "wifi": {
      "result": "exported",
@@ -19398,16 +18928,6 @@
      "materialized": 0,
      "failed": 0,
      "result": "none-found"
-    },
-    "stick_fit": {
-     "filesystem": "exFAT",
-     "cluster_bytes": 32768,
-     "free_bytes": 30000000000,
-     "files_bytes": 1610612736,
-     "needed_bytes": 1709933855,
-     "files_over_4gib": 0,
-     "fits": true,
-     "gap_bytes": 0
     },
     "browsers": [],
     "wifi": {
