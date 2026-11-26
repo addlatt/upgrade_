@@ -105,7 +105,7 @@ fn run(fn_name: &str, a: &Value) -> Value {
 
 /// The first place two values differ. Numbers compare as numbers. The two
 /// software lists compare by name, because their order differs on purpose
-/// (docs/RUST-PORT.md, "Differences kept on purpose").
+/// (docs/archive/RUST-PORT.md, "Differences kept on purpose").
 fn first_difference(path: &str, want: &Value, got: &Value) -> Option<String> {
     match (want, got) {
         (Value::Number(a), Value::Number(b)) if a.as_f64() == b.as_f64() => None,

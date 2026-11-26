@@ -4,7 +4,7 @@ version = "0.4.6"
 edition = "2024"
 license = "GPL-3.0-only"
 
-# The prologue in Rust (RISKS R32, docs/RUST-PORT.md step 5): its judging
+# The prologue in Rust (RISKS R32, docs/archive/RUST-PORT.md step 5): its judging
 # half (the R18 guardrails, the re-validation, the fork, the shrink
 # ladder's rungs and their consents, R25's waiting update, the stop
 # conditions, the records), held to Invoke-Prologue.ps1 by tests, and its

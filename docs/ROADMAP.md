@@ -158,8 +158,8 @@ owner). Done: the whole Windows side in Rust, the cut-over on the Aspire
 recorders, the launchers, `build.sh` and `dist/` gone, the port check
 Rust-only with frozen goldens; phase 3 (2026-10-14: the data tables to JSON).
 Owed: phase 2's last rows (the stick writer's R16 write rows and the rig's
-refusals, then the script goes), the `owed` ledger lines (STATUS.md, V13). Proves: V13, R32. The phases: `RUST-PORT.md`,
-"What comes next". Stands: see [STATUS.md](STATUS.md).
+refusals, then the script goes), the `owed` ledger lines (STATUS.md, V13). Proves: V13, R32. The phases, as history:
+`docs/archive/RUST-PORT.md`. Stands: see [STATUS.md](STATUS.md).
 
 ## 18. Further out
 
@@ -176,7 +176,7 @@ the Linux side the person's computer runs: the installer's `verify.sh` and
 script (built the same day), the kickstart's chroot `%post` and the way
 back's first sign-in (built 2026-10-17). The build and check tools, the rig's boot
 marker and the stick's `.cmd` starters stay as they are (decided
-2026-10-17, the owner; `RUST-PORT.md`, "What comes next"). The stick
+2026-10-17, the owner; `architecture.md`, "Stack"). The stick
 writer writes disks, so R16's rows run again (rule #4); the installer
 re-earns V1's, V9's and R21's rows. After this item the work turns to the
 mission's open killers (item 2's file pull, back on 2026-11-07).

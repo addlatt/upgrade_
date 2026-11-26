@@ -214,7 +214,7 @@ Windows programs alone.
 The Windows side is **Rust**, cross-built from Linux with a pinned toolchain,
 so one build gives the same bytes on any machine. The PowerShell it replaced
 is recorded in frozen goldens the Rust is held to
-([docs/RUST-PORT.md](docs/RUST-PORT.md)); one script remains, the stick
+([docs/archive/RUST-PORT.md](docs/archive/RUST-PORT.md)); one script remains, the stick
 writer, until its Rust twin has earned the same rows.
 
 Before you open a pull request, `./port-check.sh` must pass, and

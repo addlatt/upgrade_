@@ -4,7 +4,7 @@ version = "0.6.0"
 edition = "2024"
 license = "GPL-3.0-only"
 
-# The job writer in Rust (RISKS R32, docs/RUST-PORT.md step 4): its judging
+# The job writer in Rust (RISKS R32, docs/archive/RUST-PORT.md step 4): its judging
 # half (facts go in; a job document or the refusals come out) and its live
 # half (the reads, the files it writes). The binary `upgrade-job` is what
 # the launchers run. New-Job.ps1 and Read-Password.ps1 stay in use until

@@ -765,7 +765,7 @@ the Aspire, a second firmware, and a machine that refuses the kit's release on t
 
 **Why it has its own gate.** Rust becomes the conversion's one language,
 piece by piece (decided 2026-09-27, the owner; `architecture.md`, "Stack";
-the roadmap is `docs/RUST-PORT.md`). Every row the PowerShell earned says
+the roadmap is `docs/archive/RUST-PORT.md`). Every row the PowerShell earned says
 nothing about the Rust: a line is never marked `pass` because its
 PowerShell row passed.
 

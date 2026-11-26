@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The faked machine the installer's verify and outcome steps run in, for
 their golden and for the Rust's parity test (CLAUDE.md rule #5, the logic
-level, and RUST-PORT.md "How one piece is ported").
+level, and docs/archive/RUST-PORT.md "How one piece is ported").
 
 The two steps run inside Anaconda's stage 2 and read the kernel's own
 paths: /proc/cmdline, /sys/class/drm, /sys/block, /sys/firmware/efi,
@@ -202,7 +202,7 @@ def norm(text):
 # outcome.sh's grep -c on a grub.cfg with no Windows entry prints the count
 # AND exits 1, so `|| echo 0` prints a second 0, bash complains about the
 # comparison, and the count echoes twice: the script's own noise, dropped
-# here on both sides (RUST-PORT.md, "Differences kept on purpose").
+# here on both sides (docs/archive/RUST-PORT.md, "Differences kept on purpose").
 def drop_noise(lines):
     out = []
     skip_zero = False

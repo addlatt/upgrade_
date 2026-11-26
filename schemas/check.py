@@ -81,7 +81,7 @@ def report(ok, name, detail=""):
                 print(f"          {line}")
 
 
-# --- the same cases, for the Rust reader (RISKS R32, docs/RUST-PORT.md) ------
+# --- the same cases, for the Rust reader (RISKS R32, docs/archive/RUST-PORT.md) ------
 # `--dump-cases FILE` writes every refused document above as the edits that
 # turn an example into it, so schemas/rust replays exactly these documents
 # and not a retyped copy. `--dump-mutations FILE` writes a broad set of

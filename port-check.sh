@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # port-check.sh - the Rust product's own checks, in one command.
-# (RISKS R32, VALIDATION V13, docs/RUST-PORT.md)
+# (RISKS R32, VALIDATION V13, docs/archive/RUST-PORT.md)
 #
 #   ./port-check.sh            check everything, change nothing
 #   ./port-check.sh --record   write the schema refusal cases again from

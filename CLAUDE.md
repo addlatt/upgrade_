@@ -153,7 +153,7 @@ dist/kit/          the kit, built by ./make-kit.sh (gitignored; the stick's cont
   can be. The tools around it (build, checks, the rig, data tools) may be
   shell, Python or PowerShell when that is the plainer choice, and are not
   ported for the sake of it. What stays outside Rust on purpose, and why:
-  `docs/RUST-PORT.md`, "What comes next".
+  `docs/architecture.md`, "Stack".
 - **Run `./port-check.sh` before any change lands.** It runs `schemas/check.py`,
   checks the data tables parse, checks the twelve frozen goldens are unchanged
   (`FROZEN-GOLDENS.sha256`: recordings of what the PowerShell answered, ground truth

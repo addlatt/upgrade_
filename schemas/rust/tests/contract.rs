@@ -113,7 +113,7 @@ fn a_document_is_only_handed_out_after_it_passed() {
 #[test]
 fn a_date_that_is_not_a_date_is_refused() {
     // stricter than check.py on a machine without Python's optional date
-    // library, where `format` is skipped (docs/RUST-PORT.md, "Differences")
+    // library, where `format` is skipped (docs/archive/RUST-PORT.md, "Differences")
     let mut out = example("outcome.keep-windows.json");
     let mut found = 0;
     fn poison(v: &mut Value, found: &mut u32) {

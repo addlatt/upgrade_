@@ -1062,10 +1062,10 @@ one success of the PowerShell process on `main`, the rig re-run before any
 machine. **Decided (2026-10-11, the owner):** the PowerShell leaves the
 product now, one Rust product: the scripts go, the ledger lines they still
 hold stay `owed` to the Rust, and the goldens recorded from them are frozen
-(`FROZEN-GOLDENS.sha256`, `port-check.sh`); the Rust is the reference. Three
-phases in `RUST-PORT.md`, "What comes next". **Decided (2026-10-12, the
-owner):** all that can be Rust now is Rust, the installer's `verify.sh` and
-`outcome.sh` and `settle-in`'s starter included (`ROADMAP.md` item 19).
+(`FROZEN-GOLDENS.sha256`, `port-check.sh`); the Rust is the reference.
+**Decided (2026-10-12, the owner):** all that can be Rust now is Rust
+(`ROADMAP.md` item 19). **Decided (2026-11-26, the owner):** the port's own
+roadmap is archived as it stands (`docs/archive/RUST-PORT.md`); this risk and V13 keep the owed lines.
 
 **Closes when.** Every line of `port-parity.csv` reads `pass` (self-tests
 and corpus as `cargo test`, rig rows re-run by the same harness, physical

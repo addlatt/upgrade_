@@ -1023,8 +1023,29 @@ signing (R12).
 from the window down to the code that touches the disk. **Decided (2026-10-04,
 the owner):** the whole port is built at once, beside the scripts; the
 cut-over happened on 2026-10-10. **Decided (2026-10-11, the owner):** the
-PowerShell leaves the product. The three decisions in full, the order and the
-proof: RISKS R32 and `docs/RUST-PORT.md`. Builds are reproducible (RISKS R14).
+PowerShell leaves the product. The three decisions in full: RISKS R32. The
+order and the proof, as history: `docs/archive/RUST-PORT.md`. Builds are
+reproducible (RISKS R14).
+
+**Decided (2026-10-17, the owner): the port stops at what a person's computer
+runs.** What stays outside Rust, on purpose:
+
+- the build and check tools (`make-kit.sh`, `build-rust.sh`,
+  `rebuild-check.sh`, `port-check.sh`, `docs-check.sh`, `schemas/check.py`,
+  `data/tools/`, settle-in's `tools/`): they run on the developer's machine,
+  never the person's;
+- the rig (`rig/`), with its Hyper-V scripts and guest-side fault injection,
+  and `upgrade_/linux/installer/src/upg-mark.sh`, the rig's boot marker,
+  installed only when the stick carries `upgrade_/bench`: the harness, not
+  the product;
+- the `.cmd` starters on the stick: Windows needs a file a person can
+  double-click, and each only starts a Rust program;
+- settle-in's three-line `/etc/profile.d/` file, and
+  `go-back-first-logon.cmd` on the walk-away stick: one line that starts
+  `upgrade-gate.exe first-logon`, because Windows Setup's answer file can
+  only start a command line;
+- the stick writer script `Write-UpgradeStick.ps1`, until `upgrade-stick`
+  has R16's write rows.
 
 ### Code signing is the gating item
 
